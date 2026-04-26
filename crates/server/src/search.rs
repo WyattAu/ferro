@@ -45,14 +45,13 @@ pub async fn handle_search(
                                         .cmp(b.get("name").and_then(|v| v.as_str()).unwrap_or(""))
                                 });
                             }
-                            "date" | "size" | "relevance" => {
-                                if sort.as_str() == "relevance" {
-                                    items.sort_by(|a, b| {
-                                        let sa = b.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                                        let sb = a.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                                        sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
-                                    });
-                                }
+                            "date" | "size" => {}
+                            "relevance" => {
+                                items.sort_by(|a, b| {
+                                    let sa = b.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                                    let sb = a.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                                    sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
+                                });
                             }
                             _ => {}
                         }

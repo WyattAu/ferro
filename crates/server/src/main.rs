@@ -311,7 +311,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Configure WOPI token secret
     let state = if cli.wopi_token_secret == "ferro-wopi-token-secret-change-me" {
-        tracing::warn!("Using default WOPI token secret. Set --wopi-token-secret or FERRO_WOPI_TOKEN_SECRET for production.");
+        tracing::warn!("═══════════════════════════════════════════════════════════════");
+        tracing::warn!("  WARNING: Using default WOPI token secret");
+        tracing::warn!("  Set --wopi-token-secret or FERRO_WOPI_TOKEN_SECRET to a strong random value for production");
+        tracing::warn!("═══════════════════════════════════════════════════════════════");
         state
     } else {
         state.with_wopi_token_secret(cli.wopi_token_secret.clone())

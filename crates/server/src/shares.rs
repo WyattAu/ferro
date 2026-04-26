@@ -162,7 +162,7 @@ pub async fn serve_share(
     if let Some(ref required_password) = link.password {
         let provided_password = params.get("password").map(|s| s.as_str());
         match provided_password {
-            Some(pw) if pw == required_password => {}
+            Some(pw) if constant_time_eq(pw, required_password) => {}
             Some(_) => {
                 return ApiError::unauthorized(ApiError::SHARE_PASSWORD_INVALID, "Invalid password");
             }
@@ -198,4 +198,9 @@ pub async fn serve_share(
     headers.insert("Content-Type", axum::http::HeaderValue::from_str(&meta.mime_type).unwrap_or_else(|_| axum::http::HeaderValue::from_static("application/octet-stream")));
     headers.insert("Content-Disposition", axum::http::HeaderValue::from_str(&format!("attachment; filename=\"{}\"", link.path.rsplit('/').next().unwrap_or("download"))).unwrap());
     (StatusCode::OK, headers, axum::body::Body::from(content)).into_response()
+}
+
+fn constant_time_eq(a: &str, b: &str) -> bool {
+    use subtle::ConstantTimeEq;
+    a.as_bytes().ct_eq(b.as_bytes()).into()
 }

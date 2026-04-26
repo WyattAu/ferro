@@ -174,7 +174,7 @@ pub async fn standalone_unmount(state: &DesktopState) -> Result<String, String> 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     #[test]
     fn test_default_mount_point() {

@@ -147,7 +147,7 @@ pub async fn admin_audit(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+
     use crate::AppState;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
@@ -162,6 +162,7 @@ mod tests {
         crate::build_router(state)
     }
 
+    #[allow(dead_code)]
     fn no_auth_test_app() -> axum::Router {
         crate::build_router(AppState::in_memory())
     }

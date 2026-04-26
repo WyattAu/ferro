@@ -116,9 +116,7 @@ impl LockRequest {
                     let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
                     match local {
                         "href" => {
-                            if request.owner.is_none() {
-                                request.owner = Some(text.to_string());
-                            }
+                            request.owner = Some(text.to_string());
                         }
                         "timeout" => {
                             if let Some(secs) = text.strip_prefix("Second-")

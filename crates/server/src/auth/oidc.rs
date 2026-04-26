@@ -1,8 +1,7 @@
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::Request;
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
-use base64::Engine;
+use axum::response::Response;
 use common::auth::Claims;
 use common::error::{FerroError, Result};
 use jsonwebtoken::{decode_header, Validation};
@@ -239,7 +238,9 @@ impl OidcValidator {
 }
 
 /// Decode JWT claims without signature verification (for development/testing).
-pub fn decode_claims_unsafe(token: &str) -> Result<Claims> {
+#[cfg(test)]
+fn decode_claims_unsafe(token: &str) -> Result<Claims> {
+    use base64::Engine;
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
         return Err(FerroError::Unauthorized);
@@ -295,11 +296,17 @@ pub async fn auth_middleware(
             Ok(claims) => claims,
             Err(e) => {
                 warn!("Token validation failed: {}", e);
-                return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
+                return crate::api_error::ApiError::unauthorized(
+                    crate::api_error::ApiError::TOKEN_INVALID,
+                    "Token validation failed",
+                );
             }
         },
         (Some(_), None) => {
-            return (StatusCode::UNAUTHORIZED, "Missing Bearer token").into_response();
+            return crate::api_error::ApiError::unauthorized(
+                crate::api_error::ApiError::AUTH_REQUIRED,
+                "Missing Bearer token",
+            );
         }
         (None, _) => Claims::anonymous(),
     };

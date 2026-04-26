@@ -7,14 +7,17 @@ use tower::ServiceExt;
 
 use ferro_server::AppState;
 
+#[allow(dead_code)]
 pub fn create_test_app_state() -> AppState {
     AppState::in_memory()
 }
 
+#[allow(dead_code)]
 pub fn create_test_router(state: AppState) -> Router {
     ferro_server::build_router(state)
 }
 
+#[allow(dead_code)]
 pub async fn make_request(app: &Router, method: &str, path: &str, body: Bytes) {
     let response = app
         .clone()
@@ -35,6 +38,7 @@ pub async fn make_request(app: &Router, method: &str, path: &str, body: Bytes) {
     std::hint::black_box(body);
 }
 
+#[allow(dead_code)]
 pub fn generate_test_body(size: usize) -> Bytes {
     let pattern: &[u8] = b"The quick brown fox jumps over the lazy dog. ";
     let mut data = Vec::with_capacity(size);
@@ -46,6 +50,7 @@ pub fn generate_test_body(size: usize) -> Bytes {
     Bytes::from(data)
 }
 
+#[allow(dead_code)]
 pub async fn create_test_file(state: &AppState, path: &str, size: usize) {
     let body = generate_test_body(size);
     state
