@@ -1,0 +1,400 @@
+# Deployment Guide
+
+## Quick Start with Docker
+
+```bash
+git clone https://github.com/WyattAu/ferro.git
+cd ferro
+docker compose up -d
+```
+
+This starts Ferro with:
+- Bundled Leptos web UI served at `/ui/`
+- SQLite persistence via `/data` volume
+- Caddy reverse proxy with automatic HTTPS on ports 80/443
+- Health check on `/.well-known/ferro`
+- Automatic restart on failure
+
+Access the web UI at `http://localhost/ui/` (or `https://your-domain/ui/` with Caddy).
+
+## Docker Deployment
+
+### Quick Start
+
+The fastest way to run Ferro in production:
+
+```bash
+git clone https://github.com/WyattAu/ferro.git
+cd ferro
+docker compose up -d
+```
+
+This starts Ferro with:
+- SQLite persistence via `/data` volume
+- Bundled Leptos web UI served at `/ui/`
+- Caddy reverse proxy with automatic HTTPS
+- Health check on `/.well-known/ferro`
+- Automatic restart on failure
+
+### Custom docker-compose
+
+```yaml
+services:
+  ferro:
+    build:
+      context: .
+      args:
+        # Uncomment and set to build with cloud storage backends
+        # BUILD_FEATURES: s3,gcs,azure
+    image: ferro:latest
+    expose:
+      - "8080"
+    volumes:
+      - ferro-data:/data
+      - ./policies.cedar:/app/policies.cedar:ro
+    environment:
+      FERRO_HOST: "0.0.0.0"
+      FERRO_PORT: "8080"
+      FERRO_DATA_DIR: "/data"
+      FERRO_STATIC_DIR: "/app/ui"
+      FERRO_ADMIN_USER: "admin"
+      FERRO_ADMIN_PASSWORD: "changeme"
+      FERRO_OIDC_ISSUER: "https://keycloak.example.com/realms/ferro"
+      FERRO_OIDC_CLIENT_ID: "ferro"
+      FERRO_CEDAR_POLICY_FILE: "/app/policies.cedar"
+      FERRO_WASM_ENABLED: "true"
+      RUST_LOG: "info"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/.well-known/ferro"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - DOMAIN=ferro.example.com
+    depends_on:
+      - ferro
+    restart: unless-stopped
+
+volumes:
+  ferro-data:
+    driver: local
+  caddy-data:
+  caddy-config:
+```
+
+### Building with Cloud Storage Support
+
+The default Dockerfile builds without cloud storage backends. To include S3, GCS, or Azure support, modify the build command:
+
+```bash
+docker build --build-arg BUILD_FEATURES=s3 -t ferro-s3 .
+```
+
+Or create a `Dockerfile.features`:
+
+```dockerfile
+FROM rust:1.85-bookworm AS builder
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+COPY crates/common/Cargo.toml crates/common/
+COPY crates/core/Cargo.toml crates/core/
+COPY crates/server/Cargo.toml crates/server/
+COPY crates/cli/Cargo.toml crates/cli/
+RUN mkdir -p src && echo 'fn main() {}' > src/main.rs
+RUN cargo build --release --package ferro-server --features s3 2>/dev/null || true
+COPY . .
+RUN touch src/main.rs
+RUN cargo build --release --package ferro-server --package ferro-cli --features s3
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y ca-certificates libssl3 curl \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder /app/target/release/ferro-server /app/ferro-server
+COPY --from=builder /app/target/release/ferro-cli /app/ferro-cli
+RUN mkdir -p /data
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -sf http://localhost:8080/.well-known/ferro > /dev/null || exit 1
+ENTRYPOINT ["/app/ferro-server"]
+CMD ["--host", "0.0.0.0", "--port", "8080"]
+```
+
+## Simple Auth Setup
+
+For deployments without an OIDC provider, use HTTP Basic Auth:
+
+```bash
+ferro-server --admin-user admin --admin-password changeme --data-dir /var/lib/ferro
+```
+
+Or via environment variables:
+
+```bash
+FERRO_ADMIN_USER=admin FERRO_ADMIN_PASSWORD=changeme ferro-server --data-dir /var/lib/ferro
+```
+
+Both `--admin-user` and `--admin-password` must be set. The server logs a warning if only one is provided. Use environment variables in production to avoid exposing the password in process listings.
+
+WebDAV clients authenticate with the same credentials:
+
+```bash
+curl -u admin:changeme http://localhost:8080/
+rclone mount http://admin:changeme@localhost:8080 /mnt/ferro --vfs-cache-mode full
+```
+
+The `/api/auth/info` endpoint returns `"auth_type": "basic"` when simple auth is active.
+
+## HTTPS with Caddy
+
+The included `docker-compose.yml` runs a Caddy reverse proxy alongside Ferro. Caddy obtains and renews TLS certificates automatically via Let's Encrypt.
+
+### Configuration
+
+Set the `DOMAIN` environment variable to your public domain:
+
+```yaml
+# docker-compose.yml
+caddy:
+  environment:
+    - DOMAIN=ferro.example.com
+```
+
+The included `Caddyfile` uses this variable:
+
+```
+{$DOMAIN:localhost} {
+    reverse_proxy ferro:8080
+}
+```
+
+To customize, edit `Caddyfile` directly. Caddy reloads automatically when the file changes.
+
+### Manual Caddy Setup (standalone)
+
+If running Ferro outside Docker:
+
+```
+ferro.example.com {
+    reverse_proxy localhost:8080
+}
+```
+
+Install Caddy and run `caddy run` — it handles TLS provisioning automatically.
+
+## Reverse Proxy Setup
+
+### nginx
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name ferro.example.com;
+
+    ssl_certificate     /etc/ssl/certs/ferro.pem;
+    ssl_certificate_key /etc/ssl/private/ferro.key;
+
+    client_max_body_size 10G;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Caddy
+
+```
+ferro.example.com {
+    reverse_proxy localhost:8080
+}
+```
+
+Caddy handles TLS automatically with Let's Encrypt.
+
+### TLS Considerations
+
+- If using OIDC, the `redirect_uri` in callbacks must use HTTPS. Update the auth callback URL accordingly.
+- Set `--external-url` (or `FERRO_EXTERNAL_URL`) to the public-facing URL (e.g., `https://ferro.example.com`) so OIDC callbacks route correctly in production.
+- WebDAV clients (rclone, Cyberduck) support HTTPS natively.
+- The WOPI protocol requires HTTPS for Office Online integrations.
+
+## Database Setup
+
+### SQLite (Recommended for Single-Node)
+
+Enabled automatically with `--data-dir`:
+
+```bash
+ferro-server --data-dir /var/lib/ferro
+```
+
+Creates `/var/lib/ferro/ferro.db` with WAL mode. All persistence (metadata, CAS, snapshots, audit) uses this single database. No additional configuration needed.
+
+### PostgreSQL (Enterprise)
+
+For high-availability deployments:
+
+```bash
+ferro-server --metadata-db postgres://user:pass@dbhost:5432/ferro
+```
+
+Requires PostgreSQL with the `uuid-ossp` extension. When using `--metadata-db` without `--data-dir`, snapshots and audit logs remain in-memory. Use `--data-dir` for unified SQLite persistence instead.
+
+### Choosing Between SQLite and PostgreSQL
+
+| Factor | SQLite (`--data-dir`) | PostgreSQL (`--metadata-db`) |
+|--------|----------------------|------------------------------|
+| Setup | Zero config | Requires external database |
+| Persistence scope | Metadata + CAS + snapshots + audit | Metadata only |
+| Scaling | Single node | Multiple Ferro instances |
+| Backup | Copy `ferro.db` file | pg_dump |
+| Performance | Excellent for single-node | Better under concurrent write load |
+
+## Backup Strategy
+
+### SQLite Backup
+
+```bash
+# Hot backup using SQLite's backup API
+sqlite3 /var/lib/ferro/ferro.db ".backup /backup/ferro-$(date +%Y%m%d).db"
+
+# Or simply copy the file (WAL mode supports this)
+cp /var/lib/ferro/ferro.db /backup/ferro.db
+```
+
+### Cloud Storage Backup
+
+If using S3, GCS, or Azure as the storage backend, files are already stored in the cloud. Back up only the `--data-dir` directory for metadata.
+
+### Snapshot-Based Recovery
+
+Ferro's metadata snapshots provide point-in-time recovery:
+
+```bash
+# Create a snapshot via the CLI
+ferro-cli snapshot create --description "Before migration"
+
+# Restore if needed
+ferro-cli snapshot restore <snapshot-id>
+```
+
+Note: Snapshots preserve metadata only. File content is not duplicated. If files are deleted from storage, snapshot restore cannot recover the content.
+
+## Scaling Considerations
+
+### Single Node
+
+A single Ferro instance handles thousands of concurrent WebDAV connections. For most self-hosted deployments, this is sufficient.
+
+### Horizontal Scaling
+
+To scale horizontally:
+
+1. Use a cloud storage backend (S3, GCS, Azure) so all instances share the same file storage.
+2. Use PostgreSQL for metadata so all instances share the same metadata store.
+3. Use an external load balancer with sticky sessions for OIDC state.
+
+Limitations:
+- In-memory components (audit log, share links, snapshots, lock manager) are per-instance. Use `--data-dir` for persistent snapshots and audit.
+- The rate limiter is per-instance.
+
+### Storage Performance
+
+- **Local filesystem**: Best throughput, limited by disk I/O.
+- **S3**: Direct-to-cloud transfers via pre-signed URLs bypass Ferro's CPU for large files.
+- **In-memory**: Fastest but data is lost on restart.
+
+## Monitoring and Logging
+
+### Log Levels
+
+```bash
+ferro-server --log-level debug   # Verbose logging
+ferro-server --log-level info    # Default
+ferro-server --log-level warn    # Warnings and errors only
+```
+
+Or via environment:
+
+```bash
+RUST_LOG=ferro_server=debug,ferro_core=info ferro-server
+```
+
+### Health Check
+
+The `/.well-known/ferro` endpoint returns `200 OK` with body `Ferro OK` when the server is healthy.
+
+```bash
+curl -sf http://localhost:8080/.well-known/ferro
+```
+
+### Storage Statistics
+
+```bash
+curl http://localhost:8080/api/storage/stats
+```
+
+### Audit Log
+
+```bash
+curl http://localhost:8080/api/audit
+```
+
+### Metrics (Future)
+
+Structured JSON logging can be consumed by log aggregators (Loki, Elasticsearch, CloudWatch):
+
+```bash
+RUST_LOG=info ferro-server 2>&1 | jq .
+```
+
+## Security Hardening
+
+### Network
+
+- Bind to `127.0.0.1` if only local access is needed: `--host 127.0.0.1`
+- Always use a reverse proxy with TLS for external access
+- Restrict `/api/*` endpoints to trusted networks if OIDC is not enabled
+
+### Authentication
+
+- Enable OIDC for any externally accessible deployment
+- Use a dedicated OIDC client with minimal scopes
+- Cedar authorization is automatically enabled with OIDC; provide a restrictive policy file
+
+### File Permissions
+
+- Run the Ferro process as an unprivileged user
+- Ensure `--data-dir` is owned by the Ferro user with `700` permissions
+- For local storage backends, ensure the storage directory is not world-readable
+
+### Rate Limiting
+
+Ferro includes a built-in per-IP rate limiter (10,000 requests per 60 seconds). Clients exceeding this receive `429 Too Many Requests` with a `Retry-After: 60` header.
+
+### WASM Workers
+
+WASM workers run in a sandboxed environment with:
+- Fuel limits (configurable per worker)
+- Memory limits (default 64 MB)
+- Time limits (30 seconds per execution)
+- No filesystem access outside designated paths
+
+Only enable `--wasm-enabled` if you trust the uploaded WASM modules.

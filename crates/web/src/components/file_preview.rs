@@ -1,0 +1,215 @@
+use leptos::*;
+
+use crate::api::FileEntry;
+
+const TEXT_EXTENSIONS: &[&str] = &[
+    "txt", "md", "json", "xml", "toml", "yaml", "yml", "csv",
+    "rs", "py", "js", "ts", "html", "css", "sh", "log",
+    "cfg", "ini", "env", "gitignore", "editorconfig",
+];
+
+const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"];
+
+const VIDEO_EXTENSIONS: &[&str] = &["mp4", "webm", "ogg", "mov", "avi"];
+
+const AUDIO_EXTENSIONS: &[&str] = &["mp3", "wav", "ogg", "flac", "aac"];
+
+fn get_extension(name: &str) -> &str {
+    name.rsplit('.').next().unwrap_or("")
+}
+
+fn file_category(name: &str) -> &'static str {
+    let ext = get_extension(name);
+    if IMAGE_EXTENSIONS.contains(&ext) {
+        "image"
+    } else if TEXT_EXTENSIONS.contains(&ext) {
+        "text"
+    } else if ext == "pdf" {
+        "pdf"
+    } else if VIDEO_EXTENSIONS.contains(&ext) {
+        "video"
+    } else if AUDIO_EXTENSIONS.contains(&ext) {
+        "audio"
+    } else {
+        "other"
+    }
+}
+
+#[component]
+pub fn FilePreview(
+    file: FileEntry,
+    on_close: Callback<()>,
+) -> impl IntoView {
+    let (content, set_content) = create_signal(None::<String>);
+    let (loading, set_loading) = create_signal(false);
+    let (error, set_error) = create_signal(None::<String>);
+
+    let category = file_category(&file.name);
+    let name = file.name.clone();
+    let path = file.path.clone();
+    let size = file.size;
+    let modified = file.modified_at.clone();
+    let is_text = category == "text";
+
+    if is_text {
+        set_loading.set(true);
+        let p = path.clone();
+        spawn_local(async move {
+            match crate::api::get_file_content(&p).await {
+                Ok(text) => {
+                    let truncated = if text.len() > 102_400 {
+                        format!("{}...\n\n[File truncated: showing first 100KB of {} bytes]", &text[..102_400], text.len())
+                    } else {
+                        text
+                    };
+                    set_content.set(Some(truncated));
+                    set_loading.set(false);
+                }
+                Err(e) => {
+                    set_error.set(Some(e));
+                    set_loading.set(false);
+                }
+            }
+        });
+    }
+
+    let size_str = format_file_size(size);
+
+    let handle_keydown = move |ev: ev::KeyboardEvent| {
+        if ev.key() == "Escape" {
+            on_close.call(());
+        }
+    };
+
+    let close = move |_: ev::MouseEvent| {
+        on_close.call(());
+    };
+
+    view! {
+        <div
+            class="fixed inset-0 bg-black dark:bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label="File preview"
+            on:keydown=handle_keydown
+        >
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                // Header
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{name}</h2>
+                        <div class="flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            <span>{size_str}</span>
+                            <span>{modified}</span>
+                        </div>
+                    </div>
+                    <button
+                        class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ml-4"
+                        aria-label="Close preview"
+                        on:click=close
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                // Content
+                <div class="flex-1 overflow-auto p-6">
+                    {move || loading.get().then(|| view! {
+                        <div class="flex items-center justify-center py-12">
+                            <div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                            <span class="ml-3 text-gray-500 dark:text-gray-400">"Loading..."</span>
+                        </div>
+                    })}
+
+                    {move || error.get().map(|e| view! {
+                        <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-400">
+                            "Failed to load file: " {e}
+                        </div>
+                    })}
+
+                    {move || content.get().map(|text| view! {
+                        <pre class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-800 dark:text-gray-200 overflow-auto whitespace-pre-wrap font-mono">{text}</pre>
+                    })}
+
+                    {move || (!loading.get() && content.get().is_none() && error.get().is_none()).then(|| view! {
+                        {
+                            let cat = file_category(&file.name);
+                            let p = file.path.clone();
+                            let n = file.name.clone();
+                            match cat {
+                                "image" => view! {
+                                    <div class="flex items-center justify-center">
+                                        <img
+                                            src={p}
+                                            alt={n}
+                                            class="max-w-full max-h-[60vh] object-contain rounded-lg"
+                                        />
+                                    </div>
+                                }.into_any(),
+                                "video" => view! {
+                                    <div class="flex items-center justify-center">
+                                        <video controls class="max-w-full max-h-[60vh] rounded-lg">
+                                            <source src={p} type="video/mp4" />
+                                            "Your browser does not support the video element."
+                                        </video>
+                                    </div>
+                                }.into_any(),
+                                "audio" => view! {
+                                    <div class="flex items-center justify-center py-8">
+                                        <audio controls>
+                                            <source src={p} type="audio/mpeg" />
+                                            "Your browser does not support the audio element."
+                                        </audio>
+                                    </div>
+                                }.into_any(),
+                                "pdf" => view! {
+                                    <iframe
+                                        src={p}
+                                        class="w-full h-[60vh] rounded-lg border border-gray-200 dark:border-gray-700"
+                                        title={n}
+                                    ></iframe>
+                                }.into_any(),
+                                _ => view! {
+                                    <div class="flex flex-col items-center justify-center py-12 text-center">
+                                        <svg class="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <p class="text-gray-500 dark:text-gray-400 mb-4">"Preview not available for this file type"</p>
+                                        <button
+                                            class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                            on:click=move |_| {
+                                                let path = p.clone();
+                                                spawn_local(async move {
+                                                    drop(crate::api::download_file(&path).await);
+                                                });
+                                            }
+                                        >
+                                            "Download"
+                                        </button>
+                                    </div>
+                                }.into_any(),
+                            }
+                        }
+                    })}
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn format_file_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = 1024 * KB;
+    const GB: u64 = 1024 * MB;
+    if bytes < KB {
+        format!("{} B", bytes)
+    } else if bytes < MB {
+        format!("{:.1} KB", bytes as f64 / KB as f64)
+    } else if bytes < GB {
+        format!("{:.1} MB", bytes as f64 / MB as f64)
+    } else {
+        format!("{:.1} GB", bytes as f64 / GB as f64)
+    }
+}

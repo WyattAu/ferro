@@ -1,0 +1,173 @@
+use async_trait::async_trait;
+use ferro_common::metadata::FileMetadata;
+use ferro_common::error::{FerroError, Result};
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::debug;
+
+#[async_trait]
+pub trait MetadataStore: Send + Sync {
+    async fn get(&self, path: &str) -> Result<FileMetadata>;
+    async fn put(&self, metadata: FileMetadata) -> Result<()>;
+    async fn delete(&self, path: &str) -> Result<()>;
+    async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>>;
+    async fn exists(&self, path: &str) -> Result<bool>;
+}
+
+pub struct InMemoryMetadataStore {
+    data: Arc<RwLock<HashMap<String, FileMetadata>>>,
+}
+
+impl InMemoryMetadataStore {
+    pub fn new() -> Self {
+        Self {
+            data: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+}
+
+impl Default for InMemoryMetadataStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl MetadataStore for InMemoryMetadataStore {
+    async fn get(&self, path: &str) -> Result<FileMetadata> {
+        let data = self.data.read().await;
+        data.get(path)
+            .cloned()
+            .ok_or_else(|| FerroError::NotFound(path.to_string()))
+    }
+
+    async fn put(&self, metadata: FileMetadata) -> Result<()> {
+        let mut data = self.data.write().await;
+        debug!("META PUT: {}", metadata.path);
+        data.insert(metadata.path.clone(), metadata);
+        Ok(())
+    }
+
+    async fn delete(&self, path: &str) -> Result<()> {
+        let mut data = self.data.write().await;
+        data.remove(path)
+            .ok_or_else(|| FerroError::NotFound(path.to_string()))?;
+        debug!("META DELETE: {}", path);
+        Ok(())
+    }
+
+    async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>> {
+        let data = self.data.read().await;
+        Ok(data
+            .values()
+            .filter(|m| m.path.starts_with(prefix))
+            .cloned()
+            .collect())
+    }
+
+    async fn exists(&self, path: &str) -> Result<bool> {
+        let data = self.data.read().await;
+        Ok(data.contains_key(path))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ferro_common::metadata::ContentHash;
+
+    #[tokio::test]
+    async fn test_metadata_crud() {
+        let store = InMemoryMetadataStore::new();
+        let hash = ContentHash::new("a".repeat(64));
+        let meta =
+            FileMetadata::new("/test.txt".to_string(), hash, 42, "user1".to_string());
+
+        assert!(!store.exists("/test.txt").await.unwrap());
+        store.put(meta.clone()).await.unwrap();
+        assert!(store.exists("/test.txt").await.unwrap());
+
+        let retrieved = store.get("/test.txt").await.unwrap();
+        assert_eq!(retrieved.path, "/test.txt");
+        assert_eq!(retrieved.size, 42);
+
+        store.delete("/test.txt").await.unwrap();
+        assert!(!store.exists("/test.txt").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_metadata_list() {
+        let store = InMemoryMetadataStore::new();
+        let hash = ContentHash::new("a".repeat(64));
+
+        store
+            .put(FileMetadata::new(
+                "/docs/a.txt".to_string(),
+                hash.clone(),
+                10,
+                "user1".to_string(),
+            ))
+            .await
+            .unwrap();
+        store
+            .put(FileMetadata::new(
+                "/docs/b.txt".to_string(),
+                hash.clone(),
+                20,
+                "user1".to_string(),
+            ))
+            .await
+            .unwrap();
+        store
+            .put(FileMetadata::new(
+                "/other/c.txt".to_string(),
+                hash.clone(),
+                30,
+                "user1".to_string(),
+            ))
+            .await
+            .unwrap();
+
+        let docs = store.list("/docs").await.unwrap();
+        assert_eq!(docs.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_metadata_not_found() {
+        let store = InMemoryMetadataStore::new();
+        let result = store.get("/nonexistent").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_metadata_update() {
+        let store = InMemoryMetadataStore::new();
+        let hash1 = ContentHash::new("a".repeat(64));
+        let hash2 = ContentHash::new("b".repeat(64));
+
+        store
+            .put(FileMetadata::new(
+                "/test.txt".to_string(),
+                hash1,
+                10,
+                "user1".to_string(),
+            ))
+            .await
+            .unwrap();
+
+        store
+            .put(FileMetadata::new(
+                "/test.txt".to_string(),
+                hash2,
+                20,
+                "user2".to_string(),
+            ))
+            .await
+            .unwrap();
+
+        let retrieved = store.get("/test.txt").await.unwrap();
+        assert_eq!(retrieved.size, 20);
+        assert_eq!(retrieved.owner, "user2");
+    }
+}

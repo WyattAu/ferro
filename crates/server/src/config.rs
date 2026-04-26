@@ -1,0 +1,463 @@
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+
+use crate::AppState;
+
+/// GET /api/config — return server configuration and capabilities.
+pub async fn get_server_config(State(state): State<AppState>) -> Response {
+    let body = serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "auth_enabled": state.auth_enabled(),
+        "search_enabled": state.search.is_some(),
+        "wasm_enabled": state.wasm_runtime.is_some(),
+        "wasm_workers_enabled": state.wasm_runtime.is_some(),
+        "cedar_enabled": state.cedar.is_some(),
+        "metadata_persistent": state.metadata_store.is_some(),
+        "cas_enabled": state.cas_store.is_some(),
+        "storage": "configured",
+        "external_url": state.external_url,
+        "wopi_configured": !state.wopi_office_url.is_empty(),
+    });
+    (StatusCode::OK, axum::Json(body)).into_response()
+}
+
+use clap::Parser;
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct FileConfig {
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub log_level: Option<String>,
+    pub storage: Option<String>,
+    pub data_dir: Option<String>,
+    pub static_dir: Option<String>,
+    pub max_body_size: Option<String>,
+    pub admin_user: Option<String>,
+    pub admin_password: Option<String>,
+    pub external_url: Option<String>,
+    pub wopi_token_secret: Option<String>,
+    pub wopi_office_url: Option<String>,
+    pub oidc_issuer: Option<String>,
+    pub oidc_client_id: Option<String>,
+    pub oidc_audience: Option<String>,
+    pub oidc_jwks_uri: Option<String>,
+    pub cedar_policy_file: Option<String>,
+    pub search_index_path: Option<String>,
+    pub metadata_db: Option<String>,
+    pub cas_enabled: Option<bool>,
+    pub wasm_enabled: Option<bool>,
+    pub storage_quota: Option<String>,
+}
+
+#[derive(Parser, Debug, Clone)]
+#[command(name = "ferro-server", about = "Ferro Storage Orchestrator", version)]
+pub struct ServerConfig {
+    /// Path to configuration file (TOML format)
+    #[arg(long, env = "FERRO_CONFIG")]
+    pub config: Option<String>,
+
+    #[arg(long, default_value = "0.0.0.0")]
+    pub host: String,
+
+    #[arg(short, long, default_value_t = 8080)]
+    pub port: u16,
+
+    #[arg(long, default_value = "info")]
+    pub log_level: String,
+
+    /// Storage backend: "memory" (default) or "local:/path/to/dir"
+    #[arg(long, default_value = "memory")]
+    pub storage: String,
+
+    /// OIDC issuer URL (enables authentication)
+    #[arg(long, env = "FERRO_OIDC_ISSUER")]
+    pub oidc_issuer: Option<String>,
+
+    /// OIDC audience
+    #[arg(long, env = "FERRO_OIDC_AUDIENCE", default_value = "ferro")]
+    pub oidc_audience: String,
+
+    /// OIDC client ID
+    #[arg(long, env = "FERRO_OIDC_CLIENT_ID")]
+    pub oidc_client_id: Option<String>,
+
+    /// JWKS URI (overrides auto-discovery)
+    #[arg(long, env = "FERRO_OIDC_JWKS_URI")]
+    pub oidc_jwks_uri: Option<String>,
+
+    /// Path to Cedar policy file
+    #[arg(long, env = "FERRO_CEDAR_POLICY_FILE")]
+    pub cedar_policy_file: Option<String>,
+
+    /// Search index directory
+    #[arg(long, default_value = "/tmp/ferro-search")]
+    pub search_index_path: String,
+
+    /// PostgreSQL metadata database URL (enables persistent metadata)
+    #[arg(long, env = "FERRO_METADATA_DB")]
+    pub metadata_db: Option<String>,
+
+    /// Enable content-addressable deduplication
+    #[arg(long, default_value_t = false)]
+    pub cas_enabled: bool,
+
+    /// Directory for persistent SQLite data (metadata, CAS, snapshots, audit).
+    /// When set, all in-memory stores are replaced with SQLite-backed persistence.
+    /// Example: `--data-dir /var/lib/ferro`
+    #[arg(long, env = "FERRO_DATA_DIR")]
+    pub data_dir: Option<String>,
+
+    /// Maximum request body size in bytes (default: 1 GB).
+    #[arg(long, env = "FERRO_MAX_BODY_SIZE", default_value = "1073741824")]
+    pub max_body_size: u64,
+
+    /// Enable WASM worker runtime.
+    #[arg(long, env = "FERRO_WASM_ENABLED")]
+    pub wasm_enabled: bool,
+
+    /// Path to static web assets directory (serves index.html, JS, WASM)
+    #[arg(long, env = "FERRO_STATIC_DIR")]
+    pub static_dir: Option<String>,
+
+    /// Secret used for signing WOPI access tokens (HMAC-SHA256).
+    /// If not set, a default value is used (not safe for production).
+    #[arg(long, env = "FERRO_WOPI_TOKEN_SECRET", default_value = "ferro-wopi-token-secret-change-me")]
+    pub wopi_token_secret: String,
+
+    /// External base URL the server is accessible from (used for OIDC redirects).
+    /// Default: http://localhost:8080
+    #[arg(long, env = "FERRO_EXTERNAL_URL", default_value = "http://localhost:8080")]
+    pub external_url: String,
+
+    /// WOPI office server URL (e.g., https://collabora.example.com).
+    /// When set, the WOPI discovery endpoint returns this as urlsrc.
+    /// When empty (default), WOPI integration is effectively disabled.
+    #[arg(long, env = "FERRO_WOPI_OFFICE_URL", default_value = "")]
+    pub wopi_office_url: String,
+
+    /// Admin username for simple authentication (enables Basic Auth)
+    #[arg(long, env = "FERRO_ADMIN_USER")]
+    pub admin_user: Option<String>,
+
+    /// Admin password for simple authentication (plain text, use env var in production)
+    #[arg(long, env = "FERRO_ADMIN_PASSWORD")]
+    pub admin_password: Option<String>,
+
+    /// Storage quota (e.g., "10GB", "500MB", "1TB"). None means unlimited.
+    #[arg(long, env = "FERRO_STORAGE_QUOTA")]
+    pub storage_quota: Option<String>,
+}
+
+pub fn load_config_file(path: &str) -> anyhow::Result<FileConfig> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| anyhow::anyhow!("Failed to read config file {}: {}", path, e))?;
+    let config: FileConfig = toml::from_str(&content)
+        .map_err(|e| anyhow::anyhow!("Failed to parse config file {}: {}", path, e))?;
+    Ok(config)
+}
+
+pub fn apply_file_config<I, T>(args: I, cli: &mut ServerConfig, file: &FileConfig)
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString> + Clone,
+{
+    use clap::CommandFactory;
+    let matches = ServerConfig::command().ignore_errors(true).try_get_matches_from(args).ok();
+    let was_set = |name: &str| matches.as_ref().is_some_and(|m| {
+        m.value_source(name) == Some(clap::parser::ValueSource::CommandLine)
+    });
+
+    if !was_set("host") && let Some(ref host) = file.host {
+        cli.host = host.clone();
+    }
+    if !was_set("port") && let Some(port) = file.port {
+        cli.port = port;
+    }
+    if !was_set("log_level") && let Some(ref level) = file.log_level {
+        cli.log_level = level.clone();
+    }
+    if !was_set("storage") && let Some(ref storage) = file.storage {
+        cli.storage = storage.clone();
+    }
+    if !was_set("data_dir") {
+        cli.data_dir = file.data_dir.clone();
+    }
+    if !was_set("static_dir") {
+        cli.static_dir = file.static_dir.clone();
+    }
+    if !was_set("admin_user") {
+        cli.admin_user = file.admin_user.clone();
+    }
+    if !was_set("admin_password") {
+        cli.admin_password = file.admin_password.clone();
+    }
+    if !was_set("external_url") && let Some(ref url) = file.external_url {
+        cli.external_url = url.clone();
+    }
+    if !was_set("wopi_token_secret") && let Some(ref secret) = file.wopi_token_secret {
+        cli.wopi_token_secret = secret.clone();
+    }
+    if !was_set("wopi_office_url") && let Some(ref url) = file.wopi_office_url {
+        cli.wopi_office_url = url.clone();
+    }
+    if !was_set("oidc_issuer") {
+        cli.oidc_issuer = file.oidc_issuer.clone();
+    }
+    if !was_set("oidc_client_id") {
+        cli.oidc_client_id = file.oidc_client_id.clone();
+    }
+    if !was_set("oidc_audience") && let Some(ref audience) = file.oidc_audience {
+        cli.oidc_audience = audience.clone();
+    }
+    if !was_set("oidc_jwks_uri") {
+        cli.oidc_jwks_uri = file.oidc_jwks_uri.clone();
+    }
+    if !was_set("cedar_policy_file") {
+        cli.cedar_policy_file = file.cedar_policy_file.clone();
+    }
+    if !was_set("search_index_path") && let Some(ref path) = file.search_index_path {
+        cli.search_index_path = path.clone();
+    }
+    if !was_set("metadata_db") {
+        cli.metadata_db = file.metadata_db.clone();
+    }
+    if !was_set("cas_enabled") && let Some(enabled) = file.cas_enabled {
+        cli.cas_enabled = enabled;
+    }
+    if !was_set("wasm_enabled") && let Some(enabled) = file.wasm_enabled {
+        cli.wasm_enabled = enabled;
+    }
+    if !was_set("max_body_size") && let Some(ref size_str) = file.max_body_size && let Ok(bytes) = parse_bytes(size_str) {
+        cli.max_body_size = bytes;
+    }
+    if !was_set("storage_quota") {
+        cli.storage_quota = file.storage_quota.clone();
+    }
+}
+
+fn parse_bytes(s: &str) -> anyhow::Result<u64> {
+    let s = s.trim();
+    let (num_str, multiplier) = if let Some(s) = s.strip_suffix("GB") {
+        (s.trim_end(), 1_073_741_824u64)
+    } else if let Some(s) = s.strip_suffix("MB") {
+        (s.trim_end(), 1_048_576)
+    } else if let Some(s) = s.strip_suffix("KB") {
+        (s.trim_end(), 1024)
+    } else if let Some(s) = s.strip_suffix("B") {
+        (s.trim_end(), 1)
+    } else {
+        (s, 1)
+    };
+    let num: u64 = num_str.parse()
+        .map_err(|_| anyhow::anyhow!("Invalid byte size: {}", s))?;
+    Ok(num * multiplier)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::AppState;
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    async fn body_json(response: axum::response::Response) -> serde_json::Value {
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_config_auth_disabled_without_oidc() {
+        let app = crate::build_router(AppState::in_memory());
+
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/config")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let json = body_json(response).await;
+        assert_eq!(json["auth_enabled"], false);
+    }
+
+    #[tokio::test]
+    async fn test_config_has_required_fields() {
+        let app = crate::build_router(AppState::in_memory());
+
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/config")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let json = body_json(response).await;
+        assert!(json.get("version").is_some());
+        assert!(json.get("auth_enabled").is_some());
+        assert!(json.get("search_enabled").is_some());
+        assert!(json.get("wasm_workers_enabled").is_some());
+        assert!(json.get("cedar_enabled").is_some());
+        assert!(json.get("metadata_persistent").is_some());
+        assert!(json.get("cas_enabled").is_some());
+        assert!(json.get("storage").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_config_metadata_persistent_false() {
+        let app = crate::build_router(AppState::in_memory());
+
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/config")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let json = body_json(response).await;
+        assert_eq!(json["metadata_persistent"], false);
+    }
+
+    #[tokio::test]
+    async fn test_config_cas_enabled_false() {
+        let app = crate::build_router(AppState::in_memory());
+
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/config")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let json = body_json(response).await;
+        assert_eq!(json["cas_enabled"], false);
+    }
+
+    #[test]
+    fn test_load_config_file_valid_toml() {
+        let dir = tempfile::tempdir().unwrap();
+        let config_path = dir.path().join("ferro.toml");
+        std::fs::write(&config_path, r#"
+            host = "127.0.0.1"
+            port = 9090
+            log_level = "debug"
+            storage = "local:/data/files"
+            wasm_enabled = true
+        "#).unwrap();
+
+        let config = load_config_file(config_path.to_str().unwrap()).unwrap();
+        assert_eq!(config.host.as_deref(), Some("127.0.0.1"));
+        assert_eq!(config.port, Some(9090));
+        assert_eq!(config.log_level.as_deref(), Some("debug"));
+        assert_eq!(config.storage.as_deref(), Some("local:/data/files"));
+        assert_eq!(config.wasm_enabled, Some(true));
+        assert!(config.admin_user.is_none());
+        assert!(config.data_dir.is_none());
+    }
+
+    #[test]
+    fn test_load_config_file_nonexistent() {
+        let result = load_config_file("/nonexistent/path/ferro.toml");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to read config file"));
+    }
+
+    #[test]
+    fn test_load_config_file_invalid_toml() {
+        let dir = tempfile::tempdir().unwrap();
+        let config_path = dir.path().join("bad.toml");
+        std::fs::write(&config_path, "this is not [ valid toml").unwrap();
+
+        let result = load_config_file(config_path.to_str().unwrap());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to parse config file"));
+    }
+
+    #[test]
+    fn test_apply_file_config_overrides_defaults() {
+        let file = FileConfig {
+            host: Some("192.168.1.1".into()),
+            port: Some(3000),
+            log_level: Some("debug".into()),
+            storage: Some("local:/tmp/files".into()),
+            data_dir: Some("/var/lib/ferro".into()),
+            admin_user: Some("admin".into()),
+            admin_password: Some("secret".into()),
+            external_url: Some("https://ferro.example.com".into()),
+            wasm_enabled: Some(true),
+            cas_enabled: Some(true),
+            max_body_size: Some("2GB".into()),
+            ..Default::default()
+        };
+
+        let args = ["ferro-server"];
+        let mut cli = ServerConfig::parse_from(args.iter().copied());
+        apply_file_config(args.iter().copied(), &mut cli, &file);
+
+        assert_eq!(cli.host, "192.168.1.1");
+        assert_eq!(cli.port, 3000);
+        assert_eq!(cli.log_level, "debug");
+        assert_eq!(cli.storage, "local:/tmp/files");
+        assert_eq!(cli.data_dir.as_deref(), Some("/var/lib/ferro"));
+        assert_eq!(cli.admin_user.as_deref(), Some("admin"));
+        assert_eq!(cli.admin_password.as_deref(), Some("secret"));
+        assert_eq!(cli.external_url, "https://ferro.example.com");
+        assert!(cli.wasm_enabled);
+        assert!(cli.cas_enabled);
+        assert_eq!(cli.max_body_size, 2_147_483_648);
+    }
+
+    #[test]
+    fn test_apply_file_config_does_not_override_cli_flags() {
+        let file = FileConfig {
+            host: Some("192.168.1.1".into()),
+            port: Some(3000),
+            log_level: Some("debug".into()),
+            storage: Some("local:/tmp/files".into()),
+            wasm_enabled: Some(true),
+            ..Default::default()
+        };
+
+        let args = [
+            "ferro-server",
+            "--host", "10.0.0.1",
+            "--port", "4000",
+            "--log-level", "trace",
+            "--storage", "memory",
+            "--wasm-enabled",
+        ];
+        let mut cli = ServerConfig::parse_from(args.iter().copied());
+        apply_file_config(args.iter().copied(), &mut cli, &file);
+
+        assert_eq!(cli.host, "10.0.0.1");
+        assert_eq!(cli.port, 4000);
+        assert_eq!(cli.log_level, "trace");
+        assert_eq!(cli.storage, "memory");
+        assert!(cli.wasm_enabled);
+    }
+
+    #[test]
+    fn test_parse_bytes() {
+        assert_eq!(parse_bytes("1073741824").unwrap(), 1073741824);
+        assert_eq!(parse_bytes("1GB").unwrap(), 1073741824);
+        assert_eq!(parse_bytes("512MB").unwrap(), 536870912);
+        assert_eq!(parse_bytes("1024KB").unwrap(), 1048576);
+        assert_eq!(parse_bytes("1024B").unwrap(), 1024);
+        assert!(parse_bytes("invalid").is_err());
+    }
+}

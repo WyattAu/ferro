@@ -1,0 +1,99 @@
+# ── Stage 1: Build Web UI ──────────────────────────────────────────────────
+FROM node:20-slim AS ui-builder
+
+RUN npm install -g trunk
+
+RUN apt-get update && apt-get install -y curl && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
+    rustup target add wasm32-unknown-unknown && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /app
+
+COPY Cargo.toml Cargo.lock ./
+
+COPY crates/common/Cargo.toml crates/common/
+COPY crates/core/Cargo.toml crates/core/
+COPY crates/server/Cargo.toml crates/server/
+COPY crates/web/Cargo.toml crates/web/
+
+COPY crates/web/index.html crates/web/
+COPY crates/web/src/ crates/web/src/
+COPY crates/common/src/ crates/common/src/
+COPY crates/core/src/ crates/core/src/
+
+RUN mkdir -p crates/common/src && echo '' > crates/common/src/lib.rs 2>/dev/null || true
+RUN mkdir -p crates/core/src && echo '' > crates/core/src/lib.rs 2>/dev/null || true
+
+WORKDIR /app/crates/web
+
+RUN trunk build --release --public-url "/ui/"
+
+# ── Stage 2: Build Rust server ────────────────────────────────────────────
+FROM rust:1.85-bookworm AS builder
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY Cargo.toml Cargo.lock ./
+
+COPY crates/common/Cargo.toml crates/common/
+COPY crates/core/Cargo.toml crates/core/
+COPY crates/server/Cargo.toml crates/server/
+COPY crates/cli/Cargo.toml crates/cli/
+COPY crates/web/Cargo.toml crates/web/
+COPY crates/desktop/Cargo.toml crates/desktop/
+
+RUN mkdir -p crates/common/src && echo '' > crates/common/src/lib.rs
+RUN mkdir -p crates/core/src && echo '' > crates/core/src/lib.rs
+RUN mkdir -p crates/server/src && echo 'fn main() {}' > crates/server/src/main.rs && echo '' > crates/server/src/lib.rs
+RUN mkdir -p crates/cli/src && echo 'fn main() {}' > crates/cli/src/main.rs
+RUN mkdir -p crates/web/src && echo '' > crates/web/src/lib.rs
+RUN mkdir -p crates/desktop/src && echo 'fn main() {}' > crates/desktop/src/main.rs && echo '' > crates/desktop/src/lib.rs
+
+RUN cargo build --release --package ferro-server --package ferro-cli 2>/dev/null || true
+
+COPY . .
+RUN touch crates/common/src/lib.rs \
+      crates/core/src/lib.rs \
+      crates/server/src/main.rs crates/server/src/lib.rs \
+      crates/cli/src/main.rs \
+      crates/web/src/lib.rs \
+      crates/desktop/src/main.rs crates/desktop/src/lib.rs
+
+RUN cargo build --release --package ferro-server --package ferro-cli
+
+# ── Runtime stage ────────────────────────────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --gid 1000 ferro && useradd --uid 1000 --gid ferro --create-home ferro
+
+WORKDIR /app
+
+COPY --from=builder --chown=ferro:ferro /app/target/release/ferro-server /app/ferro-server
+COPY --from=builder --chown=ferro:ferro /app/target/release/ferro-cli   /app/ferro-cli
+COPY --from=ui-builder --chown=ferro:ferro /app/crates/web/dist /app/ui
+
+RUN mkdir -p /data && chown ferro:ferro /data
+
+USER ferro
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -sf http://localhost:8080/.well-known/ferro > /dev/null || exit 1
+
+ENTRYPOINT ["/app/ferro-server"]
+CMD ["--host", "0.0.0.0", "--port", "8080", "--data-dir", "/data", "--static-dir", "/app/ui"]

@@ -1,0 +1,18 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/common",
+    "crates/server",
+    "crates/web",
+    "crates/desktop",
+    "crates/cli",
+]
+resolver = "2"
+
+[workspace.dependencies]
+# Shared dependency versions across all crates
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+axum = "0.7"
+leptos = { version = "0.6", features = ["csr"] } # Update version as needed

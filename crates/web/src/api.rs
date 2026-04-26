@@ -1,0 +1,1081 @@
+use serde::{Deserialize, Serialize};
+
+use crate::auth::UserInfo;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthCallbackResponse {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: u64,
+    pub user: UserInfo,
+    pub redirect: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthLoginResponse {
+    pub authorization_url: String,
+    pub state: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileEntry {
+    pub path: String,
+    pub name: String,
+    pub size: u64,
+    pub is_collection: bool,
+    pub mime_type: String,
+    pub modified_at: String,
+    pub etag: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListingResponse {
+    pub entries: Vec<FileEntry>,
+    pub current_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthResponse {
+    pub login_url: Option<String>,
+    pub configured: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResultEntry {
+    pub path: String,
+    pub name: String,
+    pub score: f64,
+    pub snippet: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResponse {
+    pub query: String,
+    pub results: Vec<SearchResultEntry>,
+    pub total: usize,
+    pub limit: usize,
+    pub offset: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserPreferences {
+    pub theme: String,
+    pub view_mode: String,
+    pub sort_by: String,
+    pub sort_order: String,
+    pub items_per_page: usize,
+    pub show_hidden_files: bool,
+    pub language: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LockInfo {
+    pub path: String,
+    pub token: String,
+    pub owner: String,
+    pub depth: String,
+    pub created_at: String,
+    pub expires_at: String,
+}
+
+#[allow(dead_code)]
+fn urlencoding(s: &str) -> String {
+    s.chars().flat_map(|c| {
+        match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => vec![c],
+            _ => format!("%{:02X}", c as u32).chars().collect(),
+        }
+    }).collect()
+}
+
+#[allow(dead_code)]
+fn parse_propfind_xml(xml: &str) -> Vec<FileEntry> {
+    let mut entries = Vec::new();
+
+    let mut in_response = false;
+    let mut current_href = String::new();
+    let mut current_props: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    let mut in_prop = false;
+    let mut current_prop_name = String::new();
+    let mut in_propstat = false;
+    let _in_prop_content = false;
+    let mut current_text = String::new();
+
+    for line in xml.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.contains("<D:response>") || trimmed.contains("<d:response>") {
+            in_response = true;
+            current_href.clear();
+            current_props.clear();
+        } else if trimmed.contains("</D:response>") || trimmed.contains("</d:response>") {
+            if in_response && !current_href.is_empty() {
+                let name = current_href.rsplit('/').next().unwrap_or("").to_string();
+                let is_collection = current_props.get("resourcetype")
+                    .map(|v| v.contains("collection"))
+                    .unwrap_or(false);
+
+                entries.push(FileEntry {
+                    path: current_href.clone(),
+                    name,
+                    size: current_props.get("getcontentlength")
+                        .and_then(|v| v.parse().ok())
+                        .unwrap_or(0),
+                    is_collection,
+                    mime_type: current_props.get("getcontenttype")
+                        .cloned()
+                        .unwrap_or_default(),
+                    modified_at: current_props.get("getlastmodified")
+                        .cloned()
+                        .unwrap_or_default(),
+                    etag: current_props.get("getetag")
+                        .cloned()
+                        .unwrap_or_default(),
+                });
+            }
+            in_response = false;
+        } else if trimmed.contains("<D:href>") {
+            if let Some(start) = trimmed.find('>') {
+                let rest = &trimmed[start + 1..];
+                if let Some(end) = rest.find("</") {
+                    current_href = rest[..end].trim().to_string();
+                }
+            }
+        } else if trimmed.contains("<D:propstat>") {
+            in_propstat = true;
+            in_prop = false;
+        } else if trimmed.contains("</D:propstat>") {
+            in_propstat = false;
+        } else if in_propstat && trimmed.contains("<D:prop>") {
+            in_prop = true;
+        } else if in_prop && trimmed.contains("</D:prop>") {
+            in_prop = false;
+        } else if in_prop && trimmed.contains("</") {
+            if !current_prop_name.is_empty() {
+                current_props.insert(current_prop_name.clone(), current_text.clone());
+            }
+            current_prop_name.clear();
+            current_text.clear();
+        } else if in_prop
+            && let Some(tag_start) = trimmed.find("<D:")
+            && let Some(end) = (trimmed[tag_start + 3..]).find('>')
+        {
+            let rest = &trimmed[tag_start + 3..];
+            let tag_name = rest[..end].trim();
+            current_prop_name = tag_name.to_string();
+            if rest.len() > end + 1 {
+                let rest_after = &rest[end + 1..];
+                if !rest_after.starts_with("</")
+                    && let Some(end2) = rest_after.find("</")
+                {
+                    current_text = rest_after[..end2].trim().to_string();
+                }
+            }
+        }
+    }
+
+    entries.sort_by(|a, b| {
+        match (a.is_collection, b.is_collection) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        }
+    });
+
+    entries
+}
+
+#[allow(dead_code)]
+fn extract_xml_tag(xml: &str, tag: &str) -> Option<String> {
+    let open = format!("<D:{}>", tag);
+    let close = format!("</D:{}>", tag);
+
+    if let Some(start) = xml.find(&open) {
+        let rest = &xml[start + open.len()..];
+        if let Some(end) = rest.find(&close) {
+            return Some(rest[..end].trim().to_string());
+        }
+    }
+    None
+}
+
+#[allow(dead_code)]
+fn js_err(msg: &str, e: &wasm_bindgen::JsValue) -> String {
+    let detail = e.as_string().unwrap_or_else(|| format!("{:?}", e));
+    format!("{}: {}", msg, detail)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn with_auth_headers(headers: &web_sys::Headers) {
+    if let Some(auth) = crate::auth::get_auth_header() {
+        let _ = headers.set("Authorization", &auth);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn make_opts_with_auth(method: &str) -> web_sys::RequestInit {
+    let headers = web_sys::Headers::new().unwrap();
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method(method);
+    opts.set_headers(&headers);
+    opts
+}
+
+#[allow(dead_code)]
+async fn fetch_text(url: &str, opts: &web_sys::RequestInit) -> Result<String, String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let request = web_sys::Request::new_with_str_and_init(url, opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+
+    wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn list_files(path: &str) -> Result<ListingResponse, String> {
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Depth", "1").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("PROPFIND");
+    opts.set_headers(&headers);
+
+    let text = fetch_text(path, &opts).await?;
+    let entries = parse_propfind_xml(&text);
+
+    Ok(ListingResponse {
+        entries,
+        current_path: path.to_string(),
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn list_files(path: &str) -> Result<ListingResponse, String> {
+    Ok(ListingResponse {
+        entries: vec![],
+        current_path: path.to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn upload_file(path: &str, content: &[u8]) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+
+    let array = js_sys::Uint8Array::new_with_length(content.len() as u32);
+    array.copy_from(content);
+
+    let opts = make_opts_with_auth("PUT");
+    opts.set_body(&array.buffer());
+
+    let request = web_sys::Request::new_with_str_and_init(path, &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+
+    let _ = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?;
+
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn upload_file(_path: &str, _content: &[u8]) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn delete_file(path: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+
+    let opts = make_opts_with_auth("DELETE");
+
+    let request = web_sys::Request::new_with_str_and_init(path, &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+
+    let _ = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?;
+
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn delete_file(_path: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_directory(path: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+
+    let opts = make_opts_with_auth("MKCOL");
+
+    let request = web_sys::Request::new_with_str_and_init(path, &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+
+    let _ = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?;
+
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_directory(_path: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn get_auth_config() -> Result<AuthResponse, String> {
+    let opts = make_opts_with_auth("GET");
+
+    let text = fetch_text("/api/config", &opts).await?;
+    let config: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
+
+    Ok(AuthResponse {
+        login_url: config.get("auth_enabled").and_then(|v| v.as_bool()).unwrap_or(false).then(|| {
+            "/api/auth/login".to_string()
+        }),
+        configured: config.get("auth_enabled").and_then(|v| v.as_bool()).unwrap_or(false),
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_auth_config() -> Result<AuthResponse, String> {
+    Ok(AuthResponse {
+        login_url: None,
+        configured: false,
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn search_files(query: &str, filters: Option<&SearchFilters>) -> Result<SearchResponse, String> {
+    let mut url = format!("/api/search?q={}&limit=50", urlencoding(query));
+    if let Some(f) = filters {
+        if let Some(ref t) = f.r#type { url.push_str(&format!("&type={}", t)); }
+        if let Some(ref s) = f.sort { url.push_str(&format!("&sort={}", s)); }
+        if let Some(ref m) = f.mime_type { url.push_str(&format!("&mime_type={}", urlencoding(m))); }
+    }
+
+    let opts = make_opts_with_auth("GET");
+
+    let text = fetch_text(&url, &opts).await?;
+    let result: SearchResponse = serde_json::from_str(&text)
+        .map_err(|e| format!("JSON parse failed: {}", e))?;
+
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn search_files(_query: &str, _filters: Option<&SearchFilters>) -> Result<SearchResponse, String> {
+    Ok(SearchResponse {
+        query: _query.to_string(),
+        results: vec![],
+        total: 0,
+        limit: 50,
+        offset: 0,
+    })
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SearchFilters {
+    pub r#type: Option<String>,
+    pub sort: Option<String>,
+    pub mime_type: Option<String>,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn download_file(path: &str) -> Result<(), String> {
+    use wasm_bindgen::JsCast;
+    let window = web_sys::window().ok_or("No window")?;
+    let document = window.document().ok_or("No document")?;
+
+    let opts = make_opts_with_auth("GET");
+
+    let request = web_sys::Request::new_with_str_and_init(path, &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+
+    if !resp.ok() {
+        return Err(format!("Download failed: {}", resp.status()));
+    }
+
+    let blob: web_sys::Blob =
+        wasm_bindgen_futures::JsFuture::from(resp.blob().map_err(|e| js_err("blob() failed", &e))?)
+            .await
+            .map_err(|e| js_err("Blob creation failed", &e))?
+            .into();
+
+    let blob_url = web_sys::Url::create_object_url_with_blob(&blob)
+        .map_err(|e| js_err("Object URL creation failed", &e))?;
+
+    let anchor: web_sys::HtmlAnchorElement = document
+        .create_element("a")
+        .map_err(|e| js_err("Element creation failed", &e))?
+        .dyn_into()
+        .map_err(|e| js_err("Cast failed", &e))?;
+
+    let name = path.rsplit('/').next().unwrap_or("download");
+    anchor.set_href(&blob_url);
+    anchor.set_download(name);
+    anchor.click();
+
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn download_file(_path: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_json(url: &str) -> Result<serde_json::Value, String> {
+    let opts = make_opts_with_auth("GET");
+
+    let text = fetch_text(url, &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON error: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_json(_url: &str) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({}))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn auth_login() -> Result<AuthLoginResponse, String> {
+    let url = "/api/auth/login?redirect=/ui/";
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text(url, &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn auth_login() -> Result<AuthLoginResponse, String> {
+    Ok(AuthLoginResponse {
+        authorization_url: String::new(),
+        state: String::new(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn auth_callback(code: &str, state: &str) -> Result<AuthCallbackResponse, String> {
+    let url = format!("/api/auth/callback?code={}&state={}", urlencoding(code), urlencoding(state));
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text(&url, &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn auth_callback(_code: &str, _state: &str) -> Result<AuthCallbackResponse, String> {
+    Ok(AuthCallbackResponse {
+        access_token: String::new(),
+        token_type: String::new(),
+        expires_in: 0,
+        user: UserInfo::default(),
+        redirect: String::new(),
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateShareResponse {
+    pub token: String,
+    pub url: String,
+    pub path: String,
+    pub expires_at: String,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_share(path: &str, password: Option<&str>, expires_in_hours: Option<u32>) -> Result<CreateShareResponse, String> {
+    let window = web_sys::window().ok_or("No window")?;
+
+    let body = serde_json::json!({
+        "path": path,
+        "password": password,
+        "expires_in_hours": expires_in_hours.unwrap_or(168),
+    });
+
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("POST");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+
+    let request = web_sys::Request::new_with_str_and_init("/api/shares", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())?;
+
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_share(_path: &str, _password: Option<&str>, _expires_in_hours: Option<u32>) -> Result<CreateShareResponse, String> {
+    Ok(CreateShareResponse {
+        token: String::new(),
+        url: String::new(),
+        path: String::new(),
+        expires_at: String::new(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn get_file_content(path: &str) -> Result<String, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text(path, &opts).await?;
+    if text.len() > 102_400 {
+        Ok(text[..102_400].to_string())
+    } else {
+        Ok(text)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_file_content(_path: &str) -> Result<String, String> {
+    Ok(String::new())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn list_favorites() -> Result<Vec<String>, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/favorites", &opts).await?;
+    let val: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| format!("JSON parse failed: {}", e))?;
+    let paths = val.get("paths")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    Ok(paths)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn list_favorites() -> Result<Vec<String>, String> {
+    Ok(vec![])
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn add_favorite(path: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let body = serde_json::json!({ "path": path });
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("PUT");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+    let request = web_sys::Request::new_with_str_and_init("/api/favorites", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn add_favorite(_path: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn remove_favorite(path: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let body = serde_json::json!({ "path": path });
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("DELETE");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+    let request = web_sys::Request::new_with_str_and_init("/api/favorites", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn remove_favorite(_path: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn list_recent_files() -> Result<Vec<FileEntry>, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/recent", &opts).await?;
+    let val: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| format!("JSON parse failed: {}", e))?;
+    let files = val.get("files")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter().map(|v| FileEntry {
+                path: v.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
+                name: v.get("path").and_then(|p| p.as_str()).unwrap_or("").rsplit('/').next().unwrap_or("").to_string(),
+                size: 0,
+                is_collection: false,
+                mime_type: String::new(),
+                modified_at: v.get("timestamp").and_then(|t| t.as_str()).unwrap_or("").to_string(),
+                etag: String::new(),
+            }).collect()
+        })
+        .unwrap_or_default();
+    Ok(files)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn list_recent_files() -> Result<Vec<FileEntry>, String> {
+    Ok(vec![])
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrashedEntry {
+    pub original_path: String,
+    pub deleted_at: String,
+    pub size: u64,
+    pub mime_type: String,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn list_trash() -> Result<Vec<TrashedEntry>, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/trash", &opts).await?;
+    let val: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| format!("JSON parse failed: {}", e))?;
+    let entries = val.get("entries")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter().filter_map(|v| {
+                Some(TrashedEntry {
+                    original_path: v.get("original_path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
+                    deleted_at: v.get("deleted_at").and_then(|d| d.as_str()).unwrap_or("").to_string(),
+                    size: v.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
+                    mime_type: v.get("mime_type").and_then(|m| m.as_str()).unwrap_or("").to_string(),
+                })
+            }).collect()
+        })
+        .unwrap_or_default();
+    Ok(entries)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn list_trash() -> Result<Vec<TrashedEntry>, String> {
+    Ok(vec![])
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn restore_trash(path: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let body = serde_json::json!({ "original_path": path });
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("POST");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+    let request = web_sys::Request::new_with_str_and_init("/api/trash/restore", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn restore_trash(_path: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn purge_trash(path: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let body = serde_json::json!({ "original_path": path });
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("DELETE");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+    let request = web_sys::Request::new_with_str_and_init("/api/trash/purge", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn purge_trash(_path: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn empty_trash() -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let opts = make_opts_with_auth("DELETE");
+    let request = web_sys::Request::new_with_str_and_init("/api/trash/empty", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn empty_trash() -> Result<(), String> {
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkDeleteResponse {
+    pub succeeded: Vec<String>,
+    pub failed: Vec<serde_json::Value>,
+    pub total_requested: usize,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn bulk_delete(paths: &[String]) -> Result<BulkDeleteResponse, String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let body = serde_json::json!({ "paths": paths });
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("POST");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+    let request = web_sys::Request::new_with_str_and_init("/api/bulk/delete", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn bulk_delete(_paths: &[String]) -> Result<BulkDeleteResponse, String> {
+    Ok(BulkDeleteResponse {
+        succeeded: vec![],
+        failed: vec![],
+        total_requested: 0,
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuotaInfo {
+    pub used_bytes: u64,
+    pub quota_bytes: u64,
+    pub used_percent: f64,
+    pub file_count: u64,
+    pub unlimited: bool,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn get_quota() -> Result<QuotaInfo, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/quota", &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_quota() -> Result<QuotaInfo, String> {
+    Ok(QuotaInfo {
+        used_bytes: 0,
+        quota_bytes: 0,
+        used_percent: 0.0,
+        file_count: 0,
+        unlimited: true,
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn move_file(source: &str, destination: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let body = serde_json::json!({
+        "source": source,
+        "destination": destination,
+    });
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("POST");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+    let request = web_sys::Request::new_with_str_and_init("/api/files/move", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn move_file(_source: &str, _destination: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn copy_file(source: &str, destination: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let body = serde_json::json!({
+        "source": source,
+        "destination": destination,
+    });
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("POST");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+    let request = web_sys::Request::new_with_str_and_init("/api/files/copy", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn copy_file(_source: &str, _destination: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityEntry {
+    pub action: String,
+    pub path: String,
+    pub size: Option<u64>,
+    pub timestamp: String,
+    pub user: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityResponse {
+    pub entries: Vec<ActivityEntry>,
+    pub total: usize,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn get_activity(limit: u32, offset: u32) -> Result<ActivityResponse, String> {
+    let url = format!("/api/activity?limit={}&offset={}", limit, offset);
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text(&url, &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_activity(_limit: u32, _offset: u32) -> Result<ActivityResponse, String> {
+    Ok(ActivityResponse {
+        entries: vec![],
+        total: 0,
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn get_preferences() -> Result<UserPreferences, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/preferences", &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_preferences() -> Result<UserPreferences, String> {
+    Ok(UserPreferences {
+        theme: "dark".to_string(),
+        view_mode: "list".to_string(),
+        sort_by: "name".to_string(),
+        sort_order: "asc".to_string(),
+        items_per_page: 50,
+        show_hidden_files: false,
+        language: "en".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn update_preferences(prefs: &UserPreferences) -> Result<UserPreferences, String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let body = serde_json::to_string(prefs).map_err(|e| format!("Serialize failed: {}", e))?;
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("PUT");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body));
+    let request = web_sys::Request::new_with_str_and_init("/api/preferences", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn update_preferences(prefs: &UserPreferences) -> Result<UserPreferences, String> {
+    Ok(prefs.clone())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn list_locks() -> Result<Vec<LockInfo>, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/locks", &opts).await?;
+    let val: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| format!("JSON parse failed: {}", e))?;
+    let locks = val.get("locks")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter().filter_map(|v| {
+                Some(LockInfo {
+                    path: v.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
+                    token: v.get("token").and_then(|t| t.as_str()).unwrap_or("").to_string(),
+                    owner: v.get("owner").and_then(|o| o.as_str()).unwrap_or("").to_string(),
+                    depth: v.get("depth").and_then(|d| d.as_str()).unwrap_or("").to_string(),
+                    created_at: v.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
+                    expires_at: v.get("expires_at").and_then(|e| e.as_str()).unwrap_or("").to_string(),
+                })
+            }).collect()
+        })
+        .unwrap_or_default();
+    Ok(locks)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn list_locks() -> Result<Vec<LockInfo>, String> {
+    Ok(vec![])
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn force_unlock(path: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let body = serde_json::json!({ "path": path });
+    let headers = web_sys::Headers::new()
+        .map_err(|e| js_err("Headers creation failed", &e))?;
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("POST");
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+    let request = web_sys::Request::new_with_str_and_init("/api/locks/force-unlock", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn force_unlock(_path: &str) -> Result<(), String> {
+    Ok(())
+}

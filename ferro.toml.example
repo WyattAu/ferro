@@ -1,0 +1,38 @@
+# Ferro Configuration File
+# Copy to ferro.toml and edit, or use --config /path/to/ferro.toml
+
+# Server
+host = "0.0.0.0"
+port = 8080
+log_level = "info"
+
+# Storage: "memory", "local:/path", "s3://bucket", "gs://bucket", "az://container"
+storage = "local:/data/files"
+
+# Persistence (recommended)
+data_dir = "/data"
+
+# Web UI static files directory
+# static_dir = "/app/ui"
+
+# Simple authentication (for personal use)
+# admin_user = "admin"
+# admin_password = "change-me-in-production"
+
+# External URL (required for OIDC)
+# external_url = "https://files.example.com"
+
+# OIDC (for enterprise auth)
+# oidc_issuer = "https://keycloak.example.com/realms/myrealm"
+# oidc_client_id = "ferro"
+# oidc_audience = "ferro"
+
+# WOPI (for Office document editing)
+# wopi_office_url = "https://collabora.example.com"
+# wopi_token_secret = "generate-a-strong-secret"
+
+# Search
+# search_index_path = "/data/search"
+
+# WASM workers
+# wasm_enabled = true

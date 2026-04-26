@@ -1,0 +1,48 @@
+services:
+  ferro:
+    build: .
+    volumes:
+      - ferro-data:/data
+    environment:
+      - FERRO_DATA_DIR=/data
+      - FERRO_STATIC_DIR=/app/ui
+      - RUST_LOG=info
+    expose:
+      - "8080"
+    command:
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "--data-dir"
+      - "/data"
+      - "--static-dir"
+      - "/app/ui"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/.well-known/ferro"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - DOMAIN=localhost
+    depends_on:
+      - ferro
+    restart: unless-stopped
+
+volumes:
+  ferro-data:
+    driver: local
+  caddy-data:
+  caddy-config:
