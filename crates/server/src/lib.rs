@@ -8,6 +8,7 @@ pub mod backup;
 pub mod bulk;
 pub mod config;
 pub mod conflict;
+pub mod dav;
 pub mod error;
 pub mod favorites;
 pub mod indexer;
@@ -114,6 +115,8 @@ pub struct AppState {
     pub data_dir: Option<String>,
     pub user_store: Arc<dyn UserStoreTrait>,
     pub max_file_versions: u64,
+    pub calendar_store: Arc<dyn ferro_dav::store::CalendarStore>,
+    pub address_book_store: Arc<dyn ferro_dav::store::AddressBookStore>,
 }
 
 impl AppState {
@@ -152,6 +155,8 @@ impl AppState {
             data_dir: None,
             user_store: Arc::new(InMemoryUserStore::new()),
             max_file_versions: 10,
+            calendar_store: Arc::new(ferro_dav::store::InMemoryCalendarStore::new()),
+            address_book_store: Arc::new(ferro_dav::store::InMemoryAddressBookStore::new()),
         }
     }
 
@@ -477,6 +482,16 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_
         .route("/api/files/{path}/versions", axum::routing::get(versioning::list_versions).post(versioning::create_version))
         .route("/api/files/{path}/versions/{version_id}", axum::routing::get(versioning::get_version).delete(versioning::delete_version))
         .route("/*path", any(webdav::handle_any))
+        .route("/dav/cal", axum::routing::options(dav::caldav_options))
+        .route("/dav/cal/", axum::routing::get(dav::caldav_list).put(dav::caldav_create))
+        .route("/dav/cal/{calendar}", axum::routing::delete(dav::caldav_delete))
+        .route("/dav/cal/{calendar}/", axum::routing::get(dav::caldav_props))
+        .route("/dav/cal/{calendar}/{uid}.ics", axum::routing::get(dav::caldav_get_event).put(dav::caldav_put_event).delete(dav::caldav_delete_event))
+        .route("/dav/card", axum::routing::options(dav::carddav_options))
+        .route("/dav/card/", axum::routing::get(dav::carddav_list).put(dav::carddav_create))
+        .route("/dav/card/{book}", axum::routing::delete(dav::carddav_delete))
+        .route("/dav/card/{book}/", axum::routing::get(dav::carddav_props))
+        .route("/dav/card/{book}/{uid}.vcf", axum::routing::get(dav::carddav_get_contact).put(dav::carddav_put_contact).delete(dav::carddav_delete_contact))
         .layer(rate_limit_layer)
         .layer(cedar_layer)
         .layer(auth_layer)

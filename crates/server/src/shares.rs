@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -209,27 +208,27 @@ pub async fn serve_share(
         }
     }
 
-    let content: Bytes = match state.storage.get(&link.path).await {
-        Ok(c) => c,
+    let meta = match state.storage.head(&link.path).await {
+        Ok(m) => m,
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
     };
 
-    let meta: common::metadata::FileMetadata = match state.storage.head(&link.path).await {
-        Ok(m) => m,
-        Err(_) => common::metadata::FileMetadata::new(
-            link.path.clone(),
-            common::metadata::ContentHash::new("0".repeat(64)),
-            content.len() as u64,
-            "anonymous".to_string(),
-        ),
+    let reader = match state.storage.get_stream(&link.path).await {
+        Ok(r) => r,
+        Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
     };
 
     state.share_store.increment_download(&token).await;
 
     let mut headers = axum::http::HeaderMap::new();
     headers.insert("Content-Type", axum::http::HeaderValue::from_str(&meta.mime_type).unwrap_or_else(|_| axum::http::HeaderValue::from_static("application/octet-stream")));
+    headers.insert("Content-Length", axum::http::HeaderValue::from_str(&meta.size.to_string()).unwrap_or_else(|_| axum::http::HeaderValue::from_static("0")));
     headers.insert("Content-Disposition", axum::http::HeaderValue::from_str(&format!("attachment; filename=\"{}\"", link.path.rsplit('/').next().unwrap_or("download"))).unwrap_or_else(|_| axum::http::HeaderValue::from_static("attachment; filename=\"download\"")));
-    (StatusCode::OK, headers, axum::body::Body::from(content)).into_response()
+
+    let stream = tokio_util::io::ReaderStream::new(reader);
+    let body = axum::body::Body::from_stream(stream);
+
+    (StatusCode::OK, headers, body).into_response()
 }
 
 fn constant_time_eq(a: &str, b: &str) -> bool {

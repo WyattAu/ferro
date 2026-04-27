@@ -1,7 +1,8 @@
 [package]
 name = "ferro-core"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
+license.workspace = true
 
 [features]
 default = []
@@ -24,6 +25,7 @@ url = "2"
 uuid = { version = "1", features = ["v4"] }
 object_store = "0.11"
 futures = "0.3"
+tokio-util = { version = "0.7", features = ["io"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "sqlite", "chrono", "uuid"] }
 tantivy = "0.22"

@@ -1,0 +1,23 @@
+[package]
+name = "ferro-dav"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ferro-common = { path = "../common" }
+async-trait = "0.1"
+axum = { version = "0.7", features = ["macros"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+thiserror = "2"
+tokio = { workspace = true }
+dashmap = "6"
+quick-xml = { version = "0.37", features = ["serialize"] }
+urlencoding = "2"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

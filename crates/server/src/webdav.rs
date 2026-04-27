@@ -316,7 +316,9 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
         return Ok((StatusCode::NOT_MODIFIED, resp_headers, "").into_response());
     }
 
-    let content = state.storage.get(&path).await?;
+    let reader = state.storage.get_stream(&path).await?;
+    let stream = tokio_util::io::ReaderStream::new(reader);
+    let body = Body::from_stream(stream);
 
     let mut resp_headers = HeaderMap::new();
     resp_headers.insert(
@@ -337,7 +339,7 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
             .map_err(|e| FerroError::Internal(e.to_string()))?,
     );
 
-    Ok((StatusCode::OK, resp_headers, Body::from(content)).into_response())
+    Ok((StatusCode::OK, resp_headers, body).into_response())
 }
 
 async fn handle_head(state: AppState, path: &str, headers: &HeaderMap) -> Result<Response> {

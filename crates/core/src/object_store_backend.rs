@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use ferro_common::error::{FerroError, Result};
 use ferro_common::metadata::{ContentHash, FileMetadata};
-use ferro_common::storage::StorageEngine;
-use futures::StreamExt;
+use ferro_common::storage::{StorageEngine, StorageReader};
+use futures::{StreamExt, TryStreamExt};
 use object_store::path::Path as ObjPath;
 use object_store::ObjectStore;
 use std::sync::Arc;
@@ -81,6 +81,18 @@ impl StorageEngine for ObjectStoreStorageEngine {
             .await
             .map_err(|e| FerroError::StorageBackend(e.to_string()))?;
         Ok(bytes)
+    }
+
+    async fn get_stream(&self, path: &str) -> Result<StorageReader> {
+        let obj_path = self.to_obj_path(path);
+        let result = self
+            .store
+            .get(&obj_path)
+            .await
+            .map_err(|e| FerroError::NotFound(format!("{}: {}", path, e)))?;
+        let stream = result.into_stream().map_err(std::io::Error::other);
+        let reader = tokio_util::io::StreamReader::new(stream);
+        Ok(StorageReader::new(Box::pin(reader)))
     }
 
     async fn delete(&self, path: &str) -> Result<()> {
@@ -359,5 +371,46 @@ mod tests {
         // depth=100 → everything
         let items = engine.list_all("/root", 100).await.unwrap();
         assert_eq!(items.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_get_stream_reads_correctly() {
+        let (engine, _tmp) = make_test_engine();
+        let content = Bytes::from("streaming test data");
+        engine.put("/stream.txt", content.clone(), "user1").await.unwrap();
+
+        let mut reader = engine.get_stream("/stream.txt").await.unwrap();
+        let mut buf = vec![0u8; 64];
+        use tokio::io::AsyncReadExt;
+        let n = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n, content.len());
+        assert_eq!(&buf[..n], &content[..]);
+    }
+
+    #[tokio::test]
+    async fn test_get_stream_not_found() {
+        let (engine, _tmp) = make_test_engine();
+        let result = engine.get_stream("/nonexistent.txt").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_stream_large_file() {
+        let (engine, _tmp) = make_test_engine();
+        let large_content = Bytes::from(vec![0xAB_u8; 100_000]);
+        engine.put("/large.bin", large_content.clone(), "user1").await.unwrap();
+
+        let mut reader = engine.get_stream("/large.bin").await.unwrap();
+        let mut buf = vec![0u8; 8192];
+        use tokio::io::AsyncReadExt;
+
+        let mut total_read = 0usize;
+        loop {
+            let n = reader.read(&mut buf).await.unwrap();
+            if n == 0 { break; }
+            assert!(buf[..n].iter().all(|&b| b == 0xAB));
+            total_read += n;
+        }
+        assert_eq!(total_read, large_content.len());
     }
 }

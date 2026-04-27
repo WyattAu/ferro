@@ -1,7 +1,79 @@
 use async_trait::async_trait;
 use bytes::Bytes;
+use std::pin::Pin;
+use std::io::Cursor;
+use tokio::io::{AsyncRead, ReadBuf};
 use crate::metadata::FileMetadata;
 use crate::error::Result;
+
+pub struct StorageReader {
+    inner: Pin<Box<dyn AsyncRead + Send>>,
+}
+
+impl StorageReader {
+    pub fn new(inner: Pin<Box<dyn AsyncRead + Send>>) -> Self {
+        Self { inner }
+    }
+}
+
+impl AsyncRead for StorageReader {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        self.inner.as_mut().poll_read(cx, buf)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_storage_reader_from_bytes() {
+        let data = Bytes::from("hello world");
+        let reader = StorageReader::new(Box::pin(Cursor::new(data.clone())));
+        let mut buf = vec![0u8; 64];
+        let mut read_buf = ReadBuf::new(&mut buf);
+
+        use tokio::io::AsyncReadExt;
+        let reader = &mut Box::pin(reader);
+        let n = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n, 11);
+        assert_eq!(&buf[..n], b"hello world");
+    }
+
+    #[tokio::test]
+    async fn test_storage_reader_eof() {
+        let data = Bytes::from("hi");
+        let mut reader = StorageReader::new(Box::pin(Cursor::new(data)));
+        let mut buf = vec![0u8; 64];
+
+        use tokio::io::AsyncReadExt;
+        let n1 = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n1, 2);
+
+        let n2 = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n2, 0);
+    }
+
+    #[tokio::test]
+    async fn test_storage_reader_large_buffer() {
+        let data = Bytes::from("abc");
+        let mut reader = StorageReader::new(Box::pin(Cursor::new(data)));
+        let mut buf = vec![0u8; 2];
+
+        use tokio::io::AsyncReadExt;
+        let n1 = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n1, 2);
+        assert_eq!(&buf[..n1], b"ab");
+
+        let n2 = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n2, 1);
+        assert_eq!(&buf[..n2], b"c");
+    }
+}
 
 /// Core storage engine trait — all backends must implement this.
 /// This is the single source of truth for storage operations used by
@@ -13,6 +85,14 @@ pub trait StorageEngine: Send + Sync {
 
     /// Read the raw bytes of a file.
     async fn get(&self, path: &str) -> Result<Bytes>;
+
+    /// Stream a file's contents as an AsyncRead without loading the entire file into memory.
+    /// Default implementation wraps the full `get()` result in a cursor.
+    /// Backends should override this for true streaming (e.g., file I/O, S3 ranged GET).
+    async fn get_stream(&self, path: &str) -> Result<StorageReader> {
+        let data = self.get(path).await?;
+        Ok(StorageReader::new(Box::pin(Cursor::new(data))))
+    }
 
     /// Write bytes to a path, returning the new metadata.
     async fn put(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata>;

@@ -2,12 +2,17 @@
 members = [
     "crates/core",
     "crates/common",
+    "crates/dav",
     "crates/server",
     "crates/web",
     "crates/desktop",
     "crates/cli",
 ]
 resolver = "2"
+
+[workspace.package]
+license = "AGPL-3.0-or-later"
+edition = "2024"
 
 [workspace.dependencies]
 # Shared dependency versions across all crates

@@ -141,3 +141,71 @@ jobs:
           tags: ferro:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  test-pg:
+    name: Test PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ferro
+          POSTGRES_PASSWORD: ferro
+          POSTGRES_DB: ferro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://ferro:ferro@localhost:5432/ferro_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-pg-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-pg-
+      - name: Test with pg feature
+        run: cargo test --all --features pg
+
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ferro-server-linux
+      - name: Start server
+        run: |
+          chmod +x ferro-server
+          ./ferro-server --data-dir /tmp/ferro-test --admin-user admin --admin-password test --port 8888 &
+      - name: Wait for server
+        run: for i in $(seq 1 30); do curl -sf http://localhost:8888/healthz && break; sleep 1; done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npx playwright test
+        working-directory: e2e
+        env:
+          BASE_URL: http://localhost:8888
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: e2e/test-results/

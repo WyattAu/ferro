@@ -183,4 +183,4 @@ Bug reports, feature requests, and pull requests welcome. See the existing code 
 
 ## License
 
-[To be determined]
+AGPL-3.0-or-later
