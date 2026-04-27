@@ -4,6 +4,7 @@ use ferro_server::config::ServerConfig;
 use ferro_server::config::{load_config_file, apply_file_config, FileConfig};
 use ferro_server::auth::oidc::OidcConfig;
 use ferro_server::auth::cedar::CedarAuthorizer;
+use ferro_server::users::UserStoreTrait;
 use tracing::info;
 
 #[tokio::main]
@@ -23,12 +24,25 @@ async fn main() -> anyhow::Result<()> {
 
     apply_file_config(&original_args, &mut cli, &file_config);
 
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| cli.log_level.clone().into()),
-        )
-        .init();
+    match cli.log_format.as_str() {
+        "json" => {
+            tracing_subscriber::fmt()
+                .with_env_filter(
+                    tracing_subscriber::EnvFilter::try_from_default_env()
+                        .unwrap_or_else(|_| cli.log_level.clone().into()),
+                )
+                .event_format(ferro_server::json_logging::JsonFormatter)
+                .init();
+        }
+        _ => {
+            tracing_subscriber::fmt()
+                .with_env_filter(
+                    tracing_subscriber::EnvFilter::try_from_default_env()
+                        .unwrap_or_else(|_| cli.log_level.clone().into()),
+                )
+                .init();
+        }
+    }
 
     if cli.data_dir.is_none() {
         tracing::warn!("═══════════════════════════════════════════════════════════════");
@@ -151,8 +165,15 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // Configure search
+    let search_index_path = match &cli.search_index_path {
+        Some(p) => p.clone(),
+        None => match &cli.data_dir {
+            Some(dd) => format!("{}/search-index", dd),
+            None => "/tmp/ferro-search".to_string(),
+        },
+    };
     let state = {
-        let search_path = std::path::Path::new(&cli.search_index_path);
+        let search_path = std::path::Path::new(&search_index_path);
         match ferro_core::search::SearchEngine::open(search_path) {
             Ok(engine) => {
                 info!("Search engine enabled at {:?}", search_path);
@@ -246,6 +267,10 @@ async fn main() -> anyhow::Result<()> {
                 info!("CAS deduplication: SQLite-backed");
                 state = state.with_cas_store(cas);
 
+                // Audit log + snapshots persistence
+                state = state.with_audit_persistence(persistence.clone());
+                state = state.with_snapshot_persistence(persistence.clone());
+
                 state
             }
             Err(e) => {
@@ -281,7 +306,27 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    let state = state.with_max_body_size(cli.max_body_size).with_external_url(cli.external_url);
+    let state = state.with_max_body_size(cli.max_body_size).with_external_url(cli.external_url)
+        .with_max_file_versions(cli.max_file_versions);
+
+    let state = if let Some(ref data_dir) = cli.data_dir {
+        state.with_data_dir(data_dir.clone())
+    } else {
+        state
+    };
+
+    let state = if let Some(ref data_dir) = cli.data_dir {
+        let trash_dir = std::path::Path::new(data_dir).join(".trash");
+        if let Err(e) = std::fs::create_dir_all(&trash_dir) {
+            tracing::warn!("Failed to create trash directory {:?}: {}", trash_dir, e);
+            state
+        } else {
+            info!("Trash directory: {:?}", trash_dir);
+            state.with_trash_dir(trash_dir.to_string_lossy().to_string())
+        }
+    } else {
+        state
+    };
 
     let state = if let Some(ref quota_str) = cli.storage_quota {
         match ferro_server::quota::parse_human_size(quota_str) {
@@ -323,9 +368,16 @@ async fn main() -> anyhow::Result<()> {
     // Configure simple auth (HTTP Basic Auth) if admin credentials are set
     let state = if cli.admin_user.is_some() && cli.admin_password.is_some() {
         info!("Simple HTTP Basic Auth enabled for user: {}", cli.admin_user.as_deref().unwrap_or(""));
+        let admin = ferro_server::users::InMemoryUserStore::create_admin(
+            cli.admin_user.as_deref().unwrap_or(""),
+            cli.admin_password.as_deref().unwrap_or(""),
+        );
+        let store = ferro_server::users::InMemoryUserStore::new();
+        store.create_user(admin).await.unwrap();
         state
             .with_admin_user(cli.admin_user.clone())
             .with_admin_password(cli.admin_password.clone())
+            .with_user_store(std::sync::Arc::new(store))
     } else {
         if cli.admin_user.is_some() || cli.admin_password.is_some() {
             tracing::warn!("Both --admin-user and --admin-password must be set to enable simple auth");
@@ -333,22 +385,99 @@ async fn main() -> anyhow::Result<()> {
         state
     };
 
-    let app = build_router_with_static(state, cli.static_dir.as_deref());
+    // Configure Redis distributed lock manager if --redis-url is set
+    let state = {
+        #[cfg(feature = "redis")]
+        {
+            if let Some(ref redis_url) = cli.redis_url {
+                info!("Redis distributed lock manager enabled: {}", redis_url);
+                match ferro_server::redis_lock::RedisLockManager::new(redis_url).await {
+                    Ok(lock_mgr) => {
+                        state.with_lock_manager(std::sync::Arc::new(lock_mgr))
+                    }
+                    Err(e) => {
+                        tracing::warn!("Redis connection failed: {}, using in-memory lock manager", e);
+                        state
+                    }
+                }
+            } else {
+                state
+            }
+        }
+        #[cfg(not(feature = "redis"))]
+        { state }
+    };
+
+    // Configure PostgreSQL distributed state if --database-url is set
+    let state = {
+        #[cfg(feature = "pg")]
+        {
+            if let Some(ref database_url) = cli.database_url {
+                info!("PostgreSQL distributed state enabled: {}", database_url);
+                match sqlx::PgPool::connect(database_url).await {
+                    Ok(pool) => {
+                        match ferro_server::pg_state::create_pg_stores(pool).await {
+                            Ok((share_store, favorite_store, preference_store)) => {
+                                info!("PostgreSQL stores initialized (shares, favorites, preferences)");
+                                let mut state = state;
+                                state = state.with_share_store(std::sync::Arc::new(share_store));
+                                state = state.with_favorites(std::sync::Arc::new(favorite_store));
+                                state = state.with_preferences(std::sync::Arc::new(preference_store));
+                                state
+                            }
+                            Err(e) => {
+                                tracing::warn!("PostgreSQL store init failed: {}, using in-memory stores", e);
+                                state
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("PostgreSQL connection failed: {}, using in-memory stores", e);
+                        state
+                    }
+                }
+            } else {
+                state
+            }
+        }
+        #[cfg(not(feature = "pg"))]
+        { state }
+    };
+
+    // Validate storage backend is reachable
+    match state.storage.list("/").await {
+        Ok(_) => tracing::info!("Storage backend is reachable"),
+        Err(e) => {
+            tracing::error!("Storage backend is NOT reachable: {}. Aborting startup.", e);
+            std::process::exit(1);
+        }
+    }
+
+    if state.admin_password.as_deref() == Some("changeme") {
+        tracing::warn!("═══════════════════════════════════════════════════════════════");
+        tracing::warn!("  WARNING: Using default admin password 'changeme'");
+        tracing::warn!("  Set FERRO_ADMIN_PASSWORD to a strong value for production");
+        tracing::warn!("═══════════════════════════════════════════════════════════════");
+    }
+
+    let app = build_router_with_static(state, cli.static_dir.as_deref(), &cli.cors_allowed_origins);
 
     let addr = format!("{}:{}", cli.host, cli.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     info!("Ferro server listening on {}", addr);
 
-    let shutdown_signal = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("Failed to install CTRL+C handler");
-        info!("Received CTRL+C, starting graceful shutdown...");
-    };
+    let graceful_timeout = cli.graceful_shutdown_timeout;
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal)
-        .await?;
+    let server = axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal());
+
+    match tokio::time::timeout(std::time::Duration::from_secs(graceful_timeout), server).await {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => return Err(e.into()),
+        Err(_) => {
+            tracing::warn!("Graceful shutdown timed out after {}s, forcing exit", graceful_timeout);
+        }
+    }
 
     info!("Server shutdown complete");
     Ok(())
@@ -369,4 +498,24 @@ fn parse_bucket_from_url(url: &str) -> anyhow::Result<String> {
         anyhow::bail!("Empty bucket name in URL: {}", url);
     }
     Ok(bucket.to_string())
+}
+
+#[cfg(unix)]
+async fn shutdown_signal() {
+    use tokio::signal::unix::{signal, SignalKind};
+    let mut sigterm = signal(SignalKind::terminate())
+        .expect("Failed to install SIGTERM handler");
+    let mut sigint = signal(SignalKind::interrupt())
+        .expect("Failed to install SIGINT handler");
+    tokio::select! {
+        _ = sigterm.recv() => info!("Received SIGTERM, starting graceful shutdown"),
+        _ = sigint.recv() => info!("Received SIGINT, starting graceful shutdown"),
+    }
+}
+
+#[cfg(not(unix))]
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to install ctrl-c handler");
 }

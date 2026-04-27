@@ -1,0 +1,30 @@
+services:
+  ferro:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - FERRO_DATABASE_URL=postgres://ferro:ferro@postgres:5432/ferro
+    command:
+      - "--features"
+      - "pg"
+      - "--database-url"
+      - "postgres://ferro:ferro@postgres:5432/ferro"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ferro
+      POSTGRES_USER: ferro
+      POSTGRES_PASSWORD: ferro
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ferro"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pg-data:

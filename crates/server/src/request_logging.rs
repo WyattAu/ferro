@@ -2,9 +2,11 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::Response;
+use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 pub async fn request_logging_middleware(
+    request_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
     req: Request<Body>,
     next: Next,
 ) -> Response {
@@ -20,6 +22,8 @@ pub async fn request_logging_middleware(
         .unwrap_or_else(|| "-".to_string());
 
     let response = next.run(req).await;
+
+    request_count.fetch_add(1, Ordering::Relaxed);
 
     let duration = start.elapsed();
     let status = response.status();

@@ -4,12 +4,14 @@ pub mod api;
 pub mod api_error;
 pub mod audit;
 pub mod auth;
+pub mod backup;
 pub mod bulk;
 pub mod config;
 pub mod conflict;
 pub mod error;
 pub mod favorites;
 pub mod indexer;
+pub mod json_logging;
 pub mod lock;
 pub mod metrics;
 pub mod move_copy;
@@ -17,6 +19,7 @@ pub mod object_store_backend;
 pub mod policies;
 pub mod preferences;
 pub mod presigned;
+pub mod prometheus_metrics;
 pub mod quota;
 pub mod rate_limit;
 pub mod request_id;
@@ -28,13 +31,25 @@ pub mod simple_auth;
 pub mod snapshots;
 pub mod storage;
 pub mod trash;
+pub mod user_api;
 pub mod user_paths;
+pub mod users;
+pub mod versioning;
 pub mod webdav;
+pub mod webhooks;
 pub mod wasm_upload;
 pub mod worker_runner;
 pub mod workers;
 pub mod wopi;
 pub mod xml;
+#[cfg(feature = "pg")]
+pub mod pg_state;
+#[cfg(feature = "redis")]
+pub mod redis_lock;
+#[cfg(feature = "redis")]
+pub mod redis_rate_limiter;
+#[cfg(feature = "ldap")]
+pub mod ldap_auth;
 
 use axum::body::Body;
 use axum::extract::State;
@@ -45,7 +60,7 @@ use axum::routing::any;
 use axum::Router;
 use common::storage::StorageEngine;
 use dashmap::{DashMap, DashSet};
-use lock::LockManager;
+use lock::{LockManager, LockManagerTrait};
 use std::sync::Arc;
 use tower_http::compression::CompressionLayer;
 use tower_http::services::{ServeDir, ServeFile};
@@ -56,15 +71,18 @@ use ferro_core::search::SearchEngine;
 use ferro_core::wasm::WasmWorkerRuntime;
 
 use audit::AuditLog;
-use shares::ShareStore;
 use snapshots::SnapshotStore;
 use trash::TrashedEntry;
-use search::UserPreferences;
+use users::{InMemoryUserStore, UserStoreTrait};
+
+use favorites::FavoriteStore;
+use shares::ShareStoreTrait;
+use search::PreferenceStore;
 
 #[derive(Clone)]
 pub struct AppState {
     pub storage: Arc<dyn StorageEngine>,
-    pub lock_manager: Arc<LockManager>,
+    pub lock_manager: Arc<dyn LockManagerTrait>,
     pub oidc: Option<Arc<OidcValidator>>,
     pub cedar: Option<Arc<CedarAuthorizer>>,
     pub search: Option<Arc<tokio::sync::RwLock<SearchEngine>>>,
@@ -73,7 +91,7 @@ pub struct AppState {
     pub metadata_store: Option<Arc<dyn ferro_core::metadata::MetadataStore>>,
     pub cas_store: Option<Arc<dyn ferro_core::cas::CasStore>>,
     pub presigned_generator: Option<Arc<dyn ferro_core::presigned::PresignedUrlGenerator>>,
-    pub share_store: Arc<ShareStore>,
+    pub share_store: Arc<dyn ShareStoreTrait>,
     pub audit_log: Arc<AuditLog>,
     pub snapshot_store: Arc<SnapshotStore>,
     pub max_body_size: u64,
@@ -84,12 +102,18 @@ pub struct AppState {
     pub admin_user: Option<String>,
     pub admin_password: Option<String>,
     pub started_at: std::time::Instant,
-    pub favorites: Arc<DashSet<String>>,
+    pub favorites: Arc<dyn FavoriteStore>,
     pub trash: Arc<DashMap<String, TrashedEntry>>,
+    pub trash_dir: Option<String>,
     pub quota_bytes: Option<u64>,
     pub used_bytes: Arc<std::sync::atomic::AtomicU64>,
     pub file_count: Arc<std::sync::atomic::AtomicU64>,
-    pub preferences: Arc<tokio::sync::RwLock<UserPreferences>>,
+    pub preferences: Arc<dyn PreferenceStore>,
+    pub request_count: Arc<std::sync::atomic::AtomicU64>,
+    pub webhooks: Arc<tokio::sync::RwLock<Vec<webhooks::WebhookConfig>>>,
+    pub data_dir: Option<String>,
+    pub user_store: Arc<dyn UserStoreTrait>,
+    pub max_file_versions: u64,
 }
 
 impl AppState {
@@ -105,10 +129,10 @@ impl AppState {
             metadata_store: None,
             cas_store: None,
             presigned_generator: None,
-            share_store: Arc::new(ShareStore::new()),
+            share_store: Arc::new(shares::ShareStore::new()),
             audit_log: Arc::new(AuditLog::new()),
             snapshot_store: Arc::new(SnapshotStore::new(50)),
-            max_body_size: 1024 * 1024 * 1024, // 1 GB default
+            max_body_size: 1024 * 1024 * 1024,
             external_url: "http://localhost:8080".to_string(),
             wopi_token_secret: "ferro-wopi-token-secret-change-me".to_string(),
             recently_processed: Arc::new(DashSet::new()),
@@ -116,12 +140,18 @@ impl AppState {
             admin_user: None,
             admin_password: None,
             started_at: std::time::Instant::now(),
-            favorites: Arc::new(DashSet::new()),
+            favorites: Arc::new(favorites::InMemoryFavoriteStore::new()),
             trash: Arc::new(DashMap::new()),
+            trash_dir: None,
             quota_bytes: None,
             used_bytes: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             file_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
-            preferences: Arc::new(tokio::sync::RwLock::new(UserPreferences::default())),
+            preferences: Arc::new(search::InMemoryPreferenceStore::new()),
+            request_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            webhooks: Arc::new(tokio::sync::RwLock::new(Vec::new())),
+            data_dir: None,
+            user_store: Arc::new(InMemoryUserStore::new()),
+            max_file_versions: 10,
         }
     }
 
@@ -202,6 +232,73 @@ impl AppState {
     pub fn auth_enabled(&self) -> bool {
         self.oidc.is_some() || self.admin_user.is_some()
     }
+
+    pub fn with_trash_dir(mut self, dir: String) -> Self {
+        self.trash_dir = Some(dir);
+        self
+    }
+
+    pub fn with_audit_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
+        self.audit_log = Arc::new(AuditLog::new().with_persistence(persistence));
+        self
+    }
+
+    pub fn with_snapshot_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
+        self.snapshot_store = Arc::new(SnapshotStore::new(50).with_persistence(persistence));
+        self
+    }
+
+    pub fn with_lock_manager(mut self, lock_manager: Arc<dyn LockManagerTrait>) -> Self {
+        self.lock_manager = lock_manager;
+        self
+    }
+
+    pub fn with_share_store(mut self, share_store: Arc<dyn ShareStoreTrait>) -> Self {
+        self.share_store = share_store;
+        self
+    }
+
+    pub fn with_favorites(mut self, favorites: Arc<dyn FavoriteStore>) -> Self {
+        self.favorites = favorites;
+        self
+    }
+
+    pub fn with_preferences(mut self, preferences: Arc<dyn PreferenceStore>) -> Self {
+        self.preferences = preferences;
+        self
+    }
+
+    pub fn with_data_dir(mut self, dir: String) -> Self {
+        self.data_dir = Some(dir);
+        self
+    }
+
+    pub fn with_user_store(mut self, store: Arc<dyn UserStoreTrait>) -> Self {
+        self.user_store = store;
+        self
+    }
+
+    pub fn with_max_file_versions(mut self, max: u64) -> Self {
+        self.max_file_versions = max;
+        self
+    }
+
+    pub fn user_info(&self, username: &str) -> Option<users::UserInfo> {
+        match self.user_store.get_user_by_username_blocking(username) {
+            Ok(u) if u.is_active() => Some(users::UserInfo::from(&u)),
+            _ => {
+                if self.admin_user.as_deref() == Some(username) {
+                    Some(users::UserInfo {
+                        user_id: "admin".to_string(),
+                        username: username.to_string(),
+                        role: users::UserRole::Admin,
+                    })
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 pub fn make_app() -> Router {
@@ -210,10 +307,11 @@ pub fn make_app() -> Router {
 }
 
 pub fn build_router(state: AppState) -> Router {
-    build_router_with_static(state, None)
+    build_router_with_static(state, None, "*")
 }
 
-pub fn build_router_with_static(state: AppState, static_dir: Option<&str>) -> Router {
+pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_allowed_origins: &str) -> Router {
+    let request_counter = state.request_count.clone();
     let auth_enabled = state.auth_enabled();
     let oidc = state.oidc.clone();
     let cedar = state.cedar.clone();
@@ -234,18 +332,70 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>) -> Ro
 
     let admin_user = state.admin_user.clone();
     let admin_password = state.admin_password.clone();
+    let user_store = state.user_store.clone();
     let simple_auth_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-        simple_auth::simple_auth_middleware(req, admin_user.clone(), admin_password.clone(), next)
+        simple_auth::simple_auth_middleware(req, admin_user.clone(), admin_password.clone(), user_store.clone(), next)
+    });
+
+    let cors_origins = cors_allowed_origins.to_string();
+    let cors_auth_enabled = state.auth_enabled();
+    if cors_origins == "*" && cors_auth_enabled {
+        tracing::warn!("CORS allowed origins is '*' while auth is enabled — restrict in production");
+    }
+    let cors_layer = axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
+        let allowed = cors_origins.clone();
+        async move {
+            if req.headers().contains_key("origin") {
+                let origin_value = if allowed == "*" {
+                    axum::http::HeaderValue::from_static("*")
+                } else {
+                    let req_origin = req.headers().get("origin").and_then(|v| v.to_str().ok()).unwrap_or("");
+                    let origin_str = if allowed.split(',').any(|o| o.trim() == req_origin) {
+                        req_origin
+                    } else {
+                        ""
+                    };
+                    match axum::http::HeaderValue::from_str(origin_str) {
+                        Ok(v) if !origin_str.is_empty() => v,
+                        _ => {
+                            return (StatusCode::FORBIDDEN, "CORS origin not allowed").into_response();
+                        }
+                    }
+                };
+
+                if req.method() == axum::http::Method::OPTIONS {
+                    let mut headers = axum::http::HeaderMap::new();
+                    headers.insert("Access-Control-Allow-Origin", origin_value);
+                    headers.insert("Access-Control-Allow-Methods", axum::http::HeaderValue::from_static(
+                        "GET, POST, PUT, DELETE, PATCH, OPTIONS, PROPFIND, MKCOL, COPY, MOVE, LOCK, UNLOCK, PROPPATCH"
+                    ));
+                    headers.insert("Access-Control-Allow-Headers", axum::http::HeaderValue::from_static(
+                        "Content-Type, Authorization, Depth, Destination, If, If-Match, If-None-Match, Lock-Token, Overwrite"
+                    ));
+                    headers.insert("Access-Control-Max-Age", axum::http::HeaderValue::from_static("86400"));
+                    return (StatusCode::NO_CONTENT, headers, "").into_response();
+                }
+
+                let mut response = next.run(req).await;
+                response.headers_mut().insert("Access-Control-Allow-Origin", origin_value);
+                response.headers_mut().insert(
+                    "Access-Control-Expose-Headers",
+                    axum::http::HeaderValue::from_static("ETag, Content-Length, DAV, Lock-Token"),
+                );
+                response
+            } else {
+                next.run(req).await
+            }
+        }
     });
 
     let rate_limiter = Arc::new(rate_limit::RateLimiter::new(rate_limit::RateLimiterConfig {
-        max_requests: 10_000, // High limit to avoid false positives in normal use
+        max_requests: 10_000,
         window: std::time::Duration::from_secs(60),
     }));
     let rate_limit_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
         let limiter = rate_limiter.clone();
         async move {
-            // Extract client IP (prefer X-Forwarded-For, fall back to connect info)
             let client_ip = req
                 .headers()
                 .get("x-forwarded-for")
@@ -267,16 +417,17 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>) -> Ro
 
     let mut router = Router::new()
         .route("/", any(webdav::handle_any))
-        .route("/*path", any(webdav::handle_any))
         .route("/.well-known/ferro", axum::routing::get(health_check))
+        .route("/healthz", axum::routing::get(liveness))
+        .route("/readyz", axum::routing::get(readiness))
         .route("/api/auth/info", axum::routing::get(api::auth_info))
         .route("/api/auth/login", axum::routing::get(api::auth_login))
         .route("/api/auth/callback", axum::routing::get(api::auth_callback))
         .route("/api/search", axum::routing::get(search::handle_search))
         .route("/api/workers", axum::routing::get(workers::list_workers).post(workers::register_worker))
         .route("/api/workers/upload", axum::routing::post(wasm_upload::upload_wasm_module))
-        .route("/api/workers/modules", axum::routing::get(wasm_upload::list_wasm_modules))
         .route("/api/workers/modules/{filename}", axum::routing::delete(wasm_upload::delete_wasm_module))
+        .route("/api/workers/modules", axum::routing::get(wasm_upload::list_wasm_modules))
         .route("/api/policies", axum::routing::get(policies::list_policies).post(policies::add_policy).delete(policies::delete_policy))
         .route("/api/config", axum::routing::get(config::get_server_config))
         .route("/api/upload-url", axum::routing::get(presigned::get_upload_url))
@@ -292,9 +443,6 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>) -> Ro
         .route("/wopi/files/*path", axum::routing::get(wopi::wopi_get).post(wopi::wopi_post))
         .route("/wopi/files/{path}/token", axum::routing::post(wopi::wopi_issue_token))
         .route("/hosting/discovery", axum::routing::get(wopi::wopi_discovery))
-        .route("/api/admin/stats", axum::routing::get(admin_api::admin_stats))
-        .route("/api/admin/storage", axum::routing::get(admin_api::admin_storage))
-        .route("/api/admin/audit", axum::routing::get(admin_api::admin_audit))
         .route("/api/favorites", axum::routing::get(favorites::list_favorites).put(favorites::add_favorite).delete(favorites::remove_favorite))
         .route("/api/recent", axum::routing::get(favorites::list_recent))
         .route("/api/trash", axum::routing::get(trash::list_trash))
@@ -312,51 +460,100 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>) -> Ro
         .route("/api/locks/force-unlock", axum::routing::post(search::handle_force_unlock))
         .route("/api/locks/{token}", axum::routing::delete(search::handle_unlock_by_token))
         .route("/metrics", axum::routing::get(metrics::metrics_handler))
-        .layer(rate_limit_layer) // Rate limiting (before auth, after Cedar)
-        .layer(cedar_layer)      // Cedar authorization (after auth)
-        .layer(auth_layer)       // OIDC authentication
+        .route("/metrics/prometheus", axum::routing::get(prometheus_metrics::prometheus_metrics_handler))
+        .route("/api/admin/stats", axum::routing::get(admin_api::admin_stats))
+        .route("/api/admin/storage", axum::routing::get(admin_api::admin_storage))
+        .route("/api/admin/audit", axum::routing::get(admin_api::admin_audit))
+        .route("/api/admin/backup/:id", axum::routing::delete(backup::delete_backup))
+        .route("/api/admin/backup", axum::routing::post(backup::create_backup))
+        .route("/api/admin/backups", axum::routing::get(backup::list_backups))
+        .route("/api/admin/restore", axum::routing::post(backup::restore_backup))
+        .route("/api/admin/webhooks/:id", axum::routing::delete(webhooks::delete_webhook))
+        .route("/api/admin/webhooks", axum::routing::post(webhooks::create_webhook).get(webhooks::list_webhooks))
+        .route("/api/admin/users", axum::routing::post(user_api::create_user).get(user_api::list_users))
+        .route("/api/admin/users/{id}", axum::routing::get(user_api::get_user).put(user_api::update_user).delete(user_api::delete_user))
+        .route("/api/admin/users/{id}/reset-password", axum::routing::post(user_api::reset_password))
+        .route("/api/users/me", axum::routing::get(user_api::get_current_user).put(user_api::update_current_user))
+        .route("/api/files/{path}/versions", axum::routing::get(versioning::list_versions).post(versioning::create_version))
+        .route("/api/files/{path}/versions/{version_id}", axum::routing::get(versioning::get_version).delete(versioning::delete_version))
+        .route("/*path", any(webdav::handle_any))
+        .layer(rate_limit_layer)
+        .layer(cedar_layer)
+        .layer(auth_layer)
         .layer(simple_auth_layer)
-        .layer(axum::middleware::from_fn(cors_middleware))
+        .layer(cors_layer)
         .layer(axum::middleware::from_fn(request_id::request_id_middleware))
-        .layer(axum::middleware::from_fn(request_logging::request_logging_middleware))
+        .layer(axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
+            let counter = request_counter.clone();
+            request_logging::request_logging_middleware(counter, req, next)
+        }))
         .layer(axum::middleware::from_fn(security_headers::security_headers_middleware))
         .layer(CompressionLayer::new())
         .with_state(state);
 
-    // If a static directory is provided, serve the web frontend SPA.
-    // Static assets (.js, .wasm) are served directly; everything else
-    // falls back to index.html for client-side hash-based routing.
     if let Some(dir) = static_dir {
         let static_dir_path = std::path::Path::new(dir);
         tracing::info!("Serving static web assets from {:?}", static_dir_path);
         let serve_dir = ServeDir::new(static_dir_path)
             .fallback(ServeFile::new(static_dir_path.join("index.html")));
-        // Nest under /ui so it doesn't conflict with WebDAV routes
         router = router.nest_service("/ui", serve_dir);
     }
 
     router
 }
 
-pub async fn health_check(State(state): State<AppState>) -> Response {
-    let status = "ok";
-    let version = env!("CARGO_PKG_VERSION");
-    let uptime = state.started_at.elapsed().as_secs();
+pub async fn liveness() -> impl IntoResponse {
+    (StatusCode::OK, "ok")
+}
+
+pub async fn readiness(State(state): State<AppState>) -> Response {
+    let mut subsystems = serde_json::Map::new();
+    let mut healthy = true;
+
+    let storage_ok = state.storage.list("/").await.is_ok();
+    subsystems.insert("storage".to_string(), serde_json::json!(if storage_ok { "ok" } else { "error" }));
+    if !storage_ok { healthy = false; }
+
+    subsystems.insert("metadata".to_string(), serde_json::json!(if state.metadata_store.is_some() { "persistent" } else { "in-memory" }));
+
+    let status = if healthy { "ok" } else { "degraded" };
+    let code = if healthy { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
 
     let body = serde_json::json!({
         "status": status,
-        "version": version,
-        "uptime_seconds": uptime,
-        "subsystems": {
-            "storage": "ok",
-            "auth": if state.oidc.is_some() { "configured" } else { "disabled" },
-            "search": if state.search.is_some() { "ok" } else { "disabled" },
-            "wasm": if state.wasm_runtime.is_some() { "ok" } else { "disabled" },
-            "metadata": if state.metadata_store.is_some() { "persistent" } else { "in-memory" },
-            "cas": if state.cas_store.is_some() { "enabled" } else { "disabled" },
-        }
+        "subsystems": subsystems,
     });
-    (StatusCode::OK, axum::Json(body)).into_response()
+    (code, axum::Json(body)).into_response()
+}
+
+pub async fn health_check(State(state): State<AppState>) -> Response {
+    let mut subsystems = serde_json::Map::new();
+    let mut healthy = true;
+
+    let storage_ok = state.storage.list("/").await.is_ok();
+    subsystems.insert("storage".to_string(), serde_json::json!(if storage_ok { "ok" } else { "error" }));
+    if !storage_ok { healthy = false; }
+
+    subsystems.insert("metadata".to_string(), serde_json::json!(if state.metadata_store.is_some() { "persistent" } else { "in-memory" }));
+
+    subsystems.insert("wasm".to_string(), serde_json::json!(if state.wasm_runtime.is_some() { "ok" } else { "disabled" }));
+
+    subsystems.insert("search".to_string(), serde_json::json!(if state.search.is_some() { "ok" } else { "disabled" }));
+
+    subsystems.insert("auth".to_string(), serde_json::json!(if state.oidc.is_some() { "configured" } else { "disabled" }));
+
+    subsystems.insert("cas".to_string(), serde_json::json!(if state.cas_store.is_some() { "enabled" } else { "disabled" }));
+
+    let status = if healthy { "ok" } else { "degraded" };
+    let code = if healthy { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
+
+    let body = serde_json::json!({
+        "status": status,
+        "version": env!("CARGO_PKG_VERSION"),
+        "uptime_seconds": state.started_at.elapsed().as_secs(),
+        "subsystems": subsystems,
+    });
+    (code, axum::Json(body)).into_response()
 }
 
 pub async fn audit_handler(
@@ -413,38 +610,4 @@ pub async fn storage_stats(State(state): State<AppState>) -> Response {
         "cas": cas_stats,
         "metadata_store": state.metadata_store.is_some(),
     }))).into_response()
-}
-
-/// Conditional CORS middleware: only applies CORS headers when the request
-/// has an `Origin` header (i.e., is a cross-origin request). Same-origin
-/// requests (including WebDAV OPTIONS without Origin) pass through untouched.
-async fn cors_middleware(req: Request<Body>, next: Next) -> Response {
-    if req.headers().contains_key("origin") {
-        // For CORS preflight (OPTIONS with Origin), return preflight response
-        if req.method() == axum::http::Method::OPTIONS {
-            let mut headers = axum::http::HeaderMap::new();
-            headers.insert("Access-Control-Allow-Origin", axum::http::HeaderValue::from_static("*"));
-            headers.insert("Access-Control-Allow-Methods", axum::http::HeaderValue::from_static(
-                "GET, POST, PUT, DELETE, PATCH, OPTIONS, PROPFIND, MKCOL, COPY, MOVE, LOCK, UNLOCK, PROPPATCH"
-            ));
-            headers.insert("Access-Control-Allow-Headers", axum::http::HeaderValue::from_static(
-                "Content-Type, Authorization, Depth, Destination, If, If-Match, If-None-Match, Lock-Token, Overwrite"
-            ));
-            headers.insert("Access-Control-Max-Age", axum::http::HeaderValue::from_static("86400"));
-            return (StatusCode::NO_CONTENT, headers, "").into_response();
-        }
-
-        let mut response = next.run(req).await;
-        response.headers_mut().insert(
-            "Access-Control-Allow-Origin",
-            axum::http::HeaderValue::from_static("*"),
-        );
-        response.headers_mut().insert(
-            "Access-Control-Expose-Headers",
-            axum::http::HeaderValue::from_static("ETag, Content-Length, DAV, Lock-Token"),
-        );
-        response
-    } else {
-        next.run(req).await
-    }
 }

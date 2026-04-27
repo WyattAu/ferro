@@ -4,11 +4,13 @@ use axum::response::Response;
 use base64::Engine;
 
 use crate::api_error::ApiError;
+use crate::users::{UserStoreTrait, UserInfo, UserRole};
 
 pub async fn simple_auth_middleware(
     req: Request,
     admin_user: Option<String>,
     admin_password: Option<String>,
+    user_store: std::sync::Arc<dyn UserStoreTrait>,
     next: Next,
 ) -> Response {
     if admin_user.is_none() || admin_password.is_none() {
@@ -60,14 +62,30 @@ pub async fn simple_auth_middleware(
     let expected_user = admin_user.as_deref().unwrap_or("");
     let expected_pass = admin_password.as_deref().unwrap_or("");
 
-    if user == expected_user && pass == expected_pass {
-        next.run(req).await
+    let authenticated = if user == expected_user && pass == expected_pass {
+        match user_store.get_user_by_username(user).await {
+            Ok(u) if u.is_active() => UserInfo::from(&u),
+            _ => UserInfo {
+                user_id: "admin".to_string(),
+                username: user.to_string(),
+                role: UserRole::Admin,
+            },
+        }
     } else {
-        ApiError::unauthorized_with_www_authenticate(
-            ApiError::INVALID_CREDENTIALS,
-            "invalid credentials",
-        )
-    }
+        match user_store.authenticate(user, pass).await {
+            Ok(u) => UserInfo::from(&u),
+            Err(_) => {
+                return ApiError::unauthorized_with_www_authenticate(
+                    ApiError::INVALID_CREDENTIALS,
+                    "invalid credentials",
+                );
+            }
+        }
+    };
+
+    let mut req = req;
+    req.extensions_mut().insert(authenticated);
+    next.run(req).await
 }
 
 fn is_public_path(path: &str) -> bool {
@@ -90,6 +108,7 @@ mod tests {
     fn make_auth_app(user: Option<&str>, pass: Option<&str>) -> axum::Router {
         let admin_user = user.map(|s| s.to_string());
         let admin_password = pass.map(|s| s.to_string());
+        let user_store: std::sync::Arc<dyn UserStoreTrait> = std::sync::Arc::new(crate::users::InMemoryUserStore::new());
         axum::Router::new()
             .route("/api/test", axum::routing::get(|| async { "ok" }))
             .route("/.well-known/ferro", axum::routing::get(|| async { "ok" }))
@@ -101,8 +120,9 @@ mod tests {
             .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: Next| {
                 let admin_user = admin_user.clone();
                 let admin_password = admin_password.clone();
+                let user_store = user_store.clone();
                 async move {
-                    simple_auth_middleware(req, admin_user, admin_password, next).await
+                    simple_auth_middleware(req, admin_user, admin_password, user_store, next).await
                 }
             }))
     }
@@ -294,5 +314,133 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "Very long credentials should be rejected");
+    }
+
+    #[tokio::test]
+    async fn test_user_store_credentials_accepted() {
+        let store = std::sync::Arc::new(crate::users::InMemoryUserStore::new());
+        let user = crate::users::User {
+            id: uuid::Uuid::new_v4().to_string(),
+            username: "testuser".to_string(),
+            display_name: "Test User".to_string(),
+            email: "test@example.com".to_string(),
+            role: crate::users::UserRole::User,
+            created_at: chrono::Utc::now(),
+            last_login: None,
+            status: crate::users::UserStatus::Active,
+            storage_quota_bytes: None,
+            storage_used_bytes: 0,
+            is_ldap: false,
+            password_hash: Some(crate::users::hash_password("userpass")),
+        };
+        store.create_user(user).await.unwrap();
+
+        let admin_user = Some("admin".to_string());
+        let admin_password = Some("secret".to_string());
+        let app = axum::Router::new()
+            .route("/api/test", axum::routing::get(|| async { "ok" }))
+            .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: Next| {
+                let admin_user = admin_user.clone();
+                let admin_password = admin_password.clone();
+                let user_store = store.clone();
+                async move {
+                    simple_auth_middleware(req, admin_user, admin_password, user_store, next).await
+                }
+            }));
+
+        let creds = base64::engine::general_purpose::STANDARD.encode("testuser:userpass");
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/test")
+                    .header("Authorization", format!("Basic {}", creds))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_user_store_wrong_password_rejected() {
+        let store = std::sync::Arc::new(crate::users::InMemoryUserStore::new());
+        let user = crate::users::User {
+            id: uuid::Uuid::new_v4().to_string(),
+            username: "testuser2".to_string(),
+            display_name: "Test User 2".to_string(),
+            email: "test2@example.com".to_string(),
+            role: crate::users::UserRole::User,
+            created_at: chrono::Utc::now(),
+            last_login: None,
+            status: crate::users::UserStatus::Active,
+            storage_quota_bytes: None,
+            storage_used_bytes: 0,
+            is_ldap: false,
+            password_hash: Some(crate::users::hash_password("correct")),
+        };
+        store.create_user(user).await.unwrap();
+
+        let admin_user = Some("admin".to_string());
+        let admin_password = Some("secret".to_string());
+        let app = axum::Router::new()
+            .route("/api/test", axum::routing::get(|| async { "ok" }))
+            .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: Next| {
+                let admin_user = admin_user.clone();
+                let admin_password = admin_password.clone();
+                let user_store = store.clone();
+                async move {
+                    simple_auth_middleware(req, admin_user, admin_password, user_store, next).await
+                }
+            }));
+
+        let creds = base64::engine::general_purpose::STANDARD.encode("testuser2:wrong");
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/test")
+                    .header("Authorization", format!("Basic {}", creds))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_user_info_extension_set_on_admin_auth() {
+        let store = std::sync::Arc::new(crate::users::InMemoryUserStore::new());
+        let admin_user = Some("admin".to_string());
+        let admin_password = Some("secret".to_string());
+        let app = axum::Router::new()
+            .route("/api/test", axum::routing::get(|req: axum::extract::Request| async move {
+                let info = req.extensions().get::<UserInfo>();
+                match info {
+                    Some(i) => format!("user:{}", i.username),
+                    None => "no user info".to_string(),
+                }
+            }))
+            .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: Next| {
+                let admin_user = admin_user.clone();
+                let admin_password = admin_password.clone();
+                let user_store = store.clone();
+                async move {
+                    simple_auth_middleware(req, admin_user, admin_password, user_store, next).await
+                }
+            }));
+
+        let creds = base64::engine::general_purpose::STANDARD.encode("admin:secret");
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/test")
+                    .header("Authorization", format!("Basic {}", creds))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
     }
 }

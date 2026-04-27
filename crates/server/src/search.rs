@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -183,13 +184,72 @@ impl Default for UserPreferences {
     }
 }
 
+#[async_trait]
+pub trait PreferenceStore: Send + Sync {
+    async fn get(&self) -> UserPreferences;
+    async fn update(&self, updates: serde_json::Value) -> UserPreferences;
+}
+
+pub struct InMemoryPreferenceStore {
+    prefs: tokio::sync::RwLock<UserPreferences>,
+}
+
+impl InMemoryPreferenceStore {
+    pub fn new() -> Self {
+        Self {
+            prefs: tokio::sync::RwLock::new(UserPreferences::default()),
+        }
+    }
+}
+
+#[async_trait]
+impl PreferenceStore for InMemoryPreferenceStore {
+    async fn get(&self) -> UserPreferences {
+        self.prefs.read().await.clone()
+    }
+
+    async fn update(&self, updates: serde_json::Value) -> UserPreferences {
+        let mut prefs = self.prefs.write().await;
+
+        if let Some(theme) = updates.get("theme").and_then(|v| v.as_str()) {
+            prefs.theme = theme.to_string();
+        }
+        if let Some(view_mode) = updates.get("view_mode").and_then(|v| v.as_str()) {
+            prefs.view_mode = view_mode.to_string();
+        }
+        if let Some(sort_by) = updates.get("sort_by").and_then(|v| v.as_str()) {
+            prefs.sort_by = sort_by.to_string();
+        }
+        if let Some(sort_order) = updates.get("sort_order").and_then(|v| v.as_str()) {
+            prefs.sort_order = sort_order.to_string();
+        }
+        if let Some(items) = updates.get("items_per_page").and_then(|v| v.as_u64()) {
+            prefs.items_per_page = items as usize;
+        }
+        if let Some(show) = updates.get("show_hidden_files").and_then(|v| v.as_bool()) {
+            prefs.show_hidden_files = show;
+        }
+        if let Some(lang) = updates.get("language").and_then(|v| v.as_str()) {
+            prefs.language = lang.to_string();
+        }
+
+        prefs.clone()
+    }
+}
+
+impl Default for InMemoryPreferenceStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub async fn handle_list_locks(State(state): State<AppState>) -> Response {
-    let mut locks = Vec::new();
-    for entry in state.lock_manager.all_locks() {
-        let lock = entry.value();
+    let locks = state.lock_manager.all_locks().await;
+    let mut lock_responses = Vec::new();
+    for lock in locks {
         let created_at = lock.created_at.to_rfc3339();
         let expires_at = lock.expires_at().to_rfc3339();
-        locks.push(LockInfoResponse {
+        lock_responses.push(LockInfoResponse {
             path: lock.path.clone(),
             token: lock.token.as_str().to_string(),
             owner: lock.principal.clone(),
@@ -198,14 +258,14 @@ pub async fn handle_list_locks(State(state): State<AppState>) -> Response {
             expires_at,
         });
     }
-    (StatusCode::OK, axum::Json(serde_json::json!({ "locks": locks }))).into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "locks": lock_responses }))).into_response()
 }
 
 pub async fn handle_unlock_by_token(
     State(state): State<AppState>,
     Path(token): Path<String>,
 ) -> Response {
-    match state.lock_manager.release_lock(&token) {
+    match state.lock_manager.release_lock(&token).await {
         Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "released": true }))).into_response(),
         Err(e) => ApiError::not_found(ApiError::NOT_FOUND, format!("Lock not found: {}", e)),
     }
@@ -220,9 +280,9 @@ pub async fn handle_force_unlock(
         return ApiError::bad_request(ApiError::BAD_REQUEST, "Missing 'path' in request body");
     }
 
-    if let Some(lock) = state.lock_manager.check_lock(path) {
+    if let Some(lock) = state.lock_manager.check_lock(path).await {
         let token = lock.token.as_str().to_string();
-        match state.lock_manager.release_lock(&token) {
+        match state.lock_manager.release_lock(&token).await {
             Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({
                 "unlocked": true,
                 "path": path,
@@ -237,39 +297,16 @@ pub async fn handle_force_unlock(
 }
 
 pub async fn handle_get_preferences(State(state): State<AppState>) -> Response {
-    let prefs = state.preferences.read().await;
-    (StatusCode::OK, axum::Json(serde_json::to_value(prefs.clone()).unwrap_or_default())).into_response()
+    let prefs = state.preferences.get().await;
+    (StatusCode::OK, axum::Json(serde_json::to_value(prefs).unwrap_or_default())).into_response()
 }
 
 pub async fn handle_update_preferences(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<serde_json::Value>,
 ) -> Response {
-    let mut prefs = state.preferences.write().await;
-
-    if let Some(theme) = body.get("theme").and_then(|v| v.as_str()) {
-        prefs.theme = theme.to_string();
-    }
-    if let Some(view_mode) = body.get("view_mode").and_then(|v| v.as_str()) {
-        prefs.view_mode = view_mode.to_string();
-    }
-    if let Some(sort_by) = body.get("sort_by").and_then(|v| v.as_str()) {
-        prefs.sort_by = sort_by.to_string();
-    }
-    if let Some(sort_order) = body.get("sort_order").and_then(|v| v.as_str()) {
-        prefs.sort_order = sort_order.to_string();
-    }
-    if let Some(items) = body.get("items_per_page").and_then(|v| v.as_u64()) {
-        prefs.items_per_page = items as usize;
-    }
-    if let Some(show) = body.get("show_hidden_files").and_then(|v| v.as_bool()) {
-        prefs.show_hidden_files = show;
-    }
-    if let Some(lang) = body.get("language").and_then(|v| v.as_str()) {
-        prefs.language = lang.to_string();
-    }
-
-    (StatusCode::OK, axum::Json(serde_json::to_value(prefs.clone()).unwrap_or_default())).into_response()
+    let prefs = state.preferences.update(body).await;
+    (StatusCode::OK, axum::Json(serde_json::to_value(prefs).unwrap_or_default())).into_response()
 }
 
 #[cfg(test)]

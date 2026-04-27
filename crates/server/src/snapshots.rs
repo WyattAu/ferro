@@ -2,6 +2,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use chrono::Utc;
+use ferro_core::persistence::SnapshotStore as PersistenceSnapshotStore;
 use serde::Deserialize;
 use serde::{Serialize, Deserialize as SerdeDeserialize};
 use std::sync::Arc;
@@ -94,6 +95,7 @@ pub struct Snapshot {
 pub struct SnapshotStore {
     snapshots: Arc<RwLock<Vec<Snapshot>>>,
     max_snapshots: usize,
+    persistence: Option<Arc<ferro_core::persistence::SqlitePersistence>>,
 }
 
 impl SnapshotStore {
@@ -101,21 +103,31 @@ impl SnapshotStore {
         Self {
             snapshots: Arc::new(RwLock::new(Vec::new())),
             max_snapshots,
+            persistence: None,
         }
+    }
+
+    pub fn with_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
+        self.persistence = Some(persistence);
+        self
     }
 
     pub async fn create(&self, description: String, entries: Vec<common::metadata::FileMetadata>) -> Snapshot {
         let snapshot = Snapshot {
             id: uuid::Uuid::new_v4().to_string(),
             created_at: Utc::now().to_rfc3339(),
-            description,
+            description: description.clone(),
             entry_count: entries.len(),
-            entries,
+            entries: entries.clone(),
         };
         info!(
             "Snapshot created: {} ({} entries, {})",
             snapshot.id, snapshot.entry_count, snapshot.description
         );
+
+        if let Some(ref p) = self.persistence {
+            let _ = p.create(description, entries).await;
+        }
 
         let mut snapshots = self.snapshots.write().await;
         snapshots.push(snapshot.clone());
@@ -128,6 +140,19 @@ impl SnapshotStore {
     }
 
     pub async fn get(&self, id: &str) -> Option<Snapshot> {
+        if let Some(ref p) = self.persistence
+            && let Ok(persisted) = p.get(id).await
+        {
+            let entries: Vec<common::metadata::FileMetadata> =
+                serde_json::from_str(&persisted.entries_json).unwrap_or_default();
+            return Some(Snapshot {
+                id: persisted.id,
+                created_at: persisted.created_at,
+                description: persisted.description,
+                entry_count: persisted.entry_count,
+                entries,
+            });
+        }
         self.snapshots
             .read()
             .await
@@ -137,10 +162,39 @@ impl SnapshotStore {
     }
 
     pub async fn list(&self) -> Vec<Snapshot> {
+        if let Some(ref p) = self.persistence
+            && let Ok(summaries) = p.list().await
+        {
+            let in_memory = self.snapshots.read().await;
+            return summaries.into_iter().map(|s| {
+                let entries = in_memory
+                    .iter()
+                    .find(|sn| sn.id == s.id)
+                    .map(|sn| sn.entries.clone())
+                    .unwrap_or_default();
+                Snapshot {
+                    id: s.id,
+                    created_at: s.created_at,
+                    description: s.description,
+                    entry_count: s.entry_count,
+                    entries,
+                }
+            }).collect();
+        }
         self.snapshots.read().await.clone()
     }
 
     pub async fn delete(&self, id: &str) -> bool {
+        if let Some(ref p) = self.persistence {
+            if p.delete(id).await.is_ok() {
+                let mut snapshots = self.snapshots.write().await;
+                if let Some(pos) = snapshots.iter().position(|s| s.id == id) {
+                    snapshots.remove(pos);
+                }
+                return true;
+            }
+            return false;
+        }
         let mut snapshots = self.snapshots.write().await;
         if let Some(pos) = snapshots.iter().position(|s| s.id == id) {
             snapshots.remove(pos);

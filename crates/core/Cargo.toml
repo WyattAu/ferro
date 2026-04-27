@@ -8,6 +8,7 @@ default = []
 s3 = ["object_store/aws"]
 gcs = ["object_store/gcp"]
 azure = ["object_store/azure"]
+pg = ["sqlx/postgres"]
 
 [dependencies]
 ferro-common = { package = "ferro-common", path = "../common" }

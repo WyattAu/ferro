@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -30,6 +31,15 @@ pub struct CreateShareRequest {
     pub max_downloads: Option<u32>,
 }
 
+#[async_trait]
+pub trait ShareStoreTrait: Send + Sync {
+    async fn create(&self, req: CreateShareRequest, created_by: String) -> ShareLink;
+    async fn get(&self, token: &str) -> Option<ShareLink>;
+    async fn delete(&self, token: &str) -> bool;
+    async fn list(&self) -> Vec<ShareLink>;
+    async fn increment_download(&self, token: &str) -> bool;
+}
+
 pub struct ShareStore {
     links: Arc<RwLock<Vec<ShareLink>>>,
 }
@@ -40,8 +50,11 @@ impl ShareStore {
             links: Arc::new(RwLock::new(Vec::new())),
         }
     }
+}
 
-    pub async fn create(&self, req: CreateShareRequest, created_by: String) -> ShareLink {
+#[async_trait]
+impl ShareStoreTrait for ShareStore {
+    async fn create(&self, req: CreateShareRequest, created_by: String) -> ShareLink {
         let token = uuid::Uuid::new_v4().to_string();
         let expires_at = match req.expires_in_hours {
             Some(hours) => Utc::now() + Duration::hours(hours),
@@ -60,12 +73,12 @@ impl ShareStore {
         link
     }
 
-    pub async fn get(&self, token: &str) -> Option<ShareLink> {
+    async fn get(&self, token: &str) -> Option<ShareLink> {
         let links = self.links.read().await;
         links.iter().find(|l| l.token == token).cloned()
     }
 
-    pub async fn delete(&self, token: &str) -> bool {
+    async fn delete(&self, token: &str) -> bool {
         let mut links = self.links.write().await;
         if let Some(pos) = links.iter().position(|l| l.token == token) {
             links.remove(pos);
@@ -75,12 +88,12 @@ impl ShareStore {
         }
     }
 
-    pub async fn list(&self) -> Vec<ShareLink> {
+    async fn list(&self) -> Vec<ShareLink> {
         let links = self.links.read().await;
         links.iter().filter(|l| l.expires_at > Utc::now()).cloned().collect()
     }
 
-    pub async fn increment_download(&self, token: &str) -> bool {
+    async fn increment_download(&self, token: &str) -> bool {
         let mut links = self.links.write().await;
         if let Some(link) = links.iter_mut().find(|l| l.token == token) {
             link.download_count += 1;

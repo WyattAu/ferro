@@ -1,4 +1,5 @@
 use chrono::Utc;
+use ferro_core::persistence::AuditLogStore;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -18,13 +19,20 @@ pub struct AuditEntry {
 
 pub struct AuditLog {
     entries: Arc<RwLock<Vec<AuditEntry>>>,
+    persistence: Option<Arc<ferro_core::persistence::SqlitePersistence>>,
 }
 
 impl AuditLog {
     pub fn new() -> Self {
         Self {
             entries: Arc::new(RwLock::new(Vec::new())),
+            persistence: None,
         }
+    }
+
+    pub fn with_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
+        self.persistence = Some(persistence);
+        self
     }
 
     pub async fn log(&self, entry: AuditEntry) {
@@ -35,7 +43,21 @@ impl AuditLog {
             status = entry.status,
             "AUDIT"
         );
-        self.entries.write().await.push(entry);
+        self.entries.write().await.push(entry.clone());
+
+        if let Some(ref p) = self.persistence {
+            let _ = p.log(ferro_core::persistence::PersistedAuditEntry {
+                id: 0,
+                timestamp: entry.timestamp.clone(),
+                method: entry.method.clone(),
+                path: entry.path.clone(),
+                user: entry.user.clone(),
+                status: entry.status,
+                client_ip: entry.client_ip.clone(),
+                user_agent: entry.user_agent.clone(),
+                content_length: entry.content_length,
+            }).await;
+        }
     }
 
     pub async fn entries(&self) -> Vec<AuditEntry> {
@@ -50,21 +72,39 @@ impl AuditLog {
     }
 
     pub async fn len(&self) -> usize {
-        self.entries.read().await.len()
+        if let Some(ref p) = self.persistence {
+            p.count().await
+        } else {
+            self.entries.read().await.len()
+        }
     }
 
     pub async fn is_empty(&self) -> bool {
-        self.entries.read().await.is_empty()
+        self.len().await == 0
     }
 
     pub async fn recent_with_offset(&self, limit: usize, offset: usize) -> Vec<AuditEntry> {
-        let entries = self.entries.read().await;
-        let len = entries.len();
-        if offset >= len {
-            return vec![];
+        if let Some(ref p) = self.persistence {
+            let persisted = p.recent(limit).await.unwrap_or_default();
+            persisted.into_iter().skip(offset).map(|e| AuditEntry {
+                timestamp: e.timestamp,
+                method: e.method,
+                path: e.path,
+                user: e.user,
+                status: e.status,
+                client_ip: e.client_ip,
+                user_agent: e.user_agent,
+                content_length: e.content_length,
+            }).collect()
+        } else {
+            let entries = self.entries.read().await;
+            let len = entries.len();
+            if offset >= len {
+                return vec![];
+            }
+            let end = (offset + limit).min(len);
+            entries[offset..end].to_vec()
         }
-        let end = (offset + limit).min(len);
-        entries[offset..end].to_vec()
     }
 }
 

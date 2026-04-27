@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ferro-data
+  namespace: ferro
+  labels:
+    app.kubernetes.io/name: ferro
+    app.kubernetes.io/part-of: ferro
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: standard
+  resources:
+    requests:
+      storage: 10Gi

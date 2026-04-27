@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ferro.fullname" . }}
+  labels:
+    {{- include "ferro.labels" . | nindent 4 }}
+data:
+  FERRO_HOST: "0.0.0.0"
+  FERRO_PORT: "8080"
+  FERRO_LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  FERRO_DATA_DIR: "/data"
+  FERRO_STATIC_DIR: "/app/ui"
+  FERRO_CORS_ALLOWED_ORIGINS: {{ .Values.config.corsAllowedOrigins | quote }}
+  FERRO_GRACEFUL_SHUTDOWN_TIMEOUT: {{ .Values.config.gracefulShutdownTimeout | quote }}
+  RUST_LOG: {{ .Values.config.logLevel | quote }}
+  {{- if .Values.config.externalUrl }}
+  FERRO_EXTERNAL_URL: {{ .Values.config.externalUrl | quote }}
+  {{- end }}
+  {{- if and .Values.postgresql.enabled .Values.postgresql.url }}
+  FERRO_DATABASE_URL: {{ .Values.postgresql.url | quote }}
+  {{- end }}
+  {{- if and .Values.redis.enabled .Values.redis.url }}
+  FERRO_REDIS_URL: {{ .Values.redis.url | quote }}
+  {{- end }}

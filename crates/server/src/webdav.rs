@@ -66,6 +66,7 @@ fn strip_uri_authority(uri: &str) -> String {
 
 pub async fn handle_any(
     method: Method,
+    uri: axum::http::Uri,
     State(state): State<AppState>,
     path: Option<AxumPath<String>>,
     headers: HeaderMap,
@@ -73,7 +74,7 @@ pub async fn handle_any(
 ) -> Response {
     let raw_path = match path {
         Some(AxumPath(p)) => format!("/{}", p),
-        None => "/".to_string(),
+        None => uri.path().to_string(),
     };
 
     let path_str = match sanitize_path(&raw_path) {
@@ -441,7 +442,7 @@ async fn handle_put(
         return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
     }
 
-    if let Some(lock) = state.lock_manager.check_lock(&path) {
+    if let Some(lock) = state.lock_manager.check_lock(&path).await {
         let lock_token = headers
             .get("If")
             .and_then(|v| v.to_str().ok())
@@ -551,6 +552,18 @@ async fn handle_put(
         });
     }
 
+    crate::webhooks::fire_webhooks(
+        state.webhooks.clone(),
+        crate::webhooks::WebhookEvent {
+            event: if already_existed { "file.modify".to_string() } else { "file.upload".to_string() },
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            path: path.clone(),
+            size: Some(meta.size),
+            user: Some(owner),
+            etag: Some(meta.etag),
+        },
+    ).await;
+
     Ok((status, resp_headers, "").into_response())
 }
 
@@ -561,7 +574,7 @@ async fn handle_delete(state: AppState, path: &str, _headers: &HeaderMap) -> Res
         return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
     }
 
-    if let Some(lock) = state.lock_manager.check_lock(&path) {
+    if let Some(lock) = state.lock_manager.check_lock(&path).await {
         return Err(FerroError::LockConflict(format!(
             "Resource locked by {}",
             lock.principal
@@ -570,8 +583,19 @@ async fn handle_delete(state: AppState, path: &str, _headers: &HeaderMap) -> Res
 
     state.storage.delete(&path).await?;
 
-    // Auto-remove from search index
     crate::indexer::remove_file(&state, &path).await;
+
+    crate::webhooks::fire_webhooks(
+        state.webhooks.clone(),
+        crate::webhooks::WebhookEvent {
+            event: "file.delete".to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            path: path.clone(),
+            size: None,
+            user: None,
+            etag: None,
+        },
+    ).await;
 
     Ok(StatusCode::NO_CONTENT.into_response())
 }
@@ -591,6 +615,18 @@ async fn handle_mkcol(state: AppState, path: &str) -> Result<Response> {
         .storage
         .create_collection(&path, "anonymous")
         .await?;
+
+    crate::webhooks::fire_webhooks(
+        state.webhooks.clone(),
+        crate::webhooks::WebhookEvent {
+            event: "file.upload".to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            path: path.clone(),
+            size: None,
+            user: Some("anonymous".to_string()),
+            etag: None,
+        },
+    ).await;
 
     Ok(StatusCode::CREATED.into_response())
 }
@@ -619,6 +655,13 @@ async fn handle_copy(
 
     if !state.storage.exists(&path).await? {
         return Err(FerroError::NotFound(path.to_string()));
+    }
+
+    if let Err(e) = state.lock_manager.check_lock_for_write(&path).await {
+        return Err(FerroError::LockConflict(format!("Source locked: {}", e)));
+    }
+    if let Err(e) = state.lock_manager.check_lock_for_write(&dest).await {
+        return Err(FerroError::LockConflict(format!("Destination locked: {}", e)));
     }
 
     state.storage.copy(&path, &dest).await?;
@@ -655,6 +698,13 @@ async fn handle_move(
 
     if !state.storage.exists(&path).await? {
         return Err(FerroError::NotFound(path.to_string()));
+    }
+
+    if let Err(e) = state.lock_manager.check_lock_for_write(&path).await {
+        return Err(FerroError::LockConflict(format!("Source locked: {}", e)));
+    }
+    if let Err(e) = state.lock_manager.check_lock_for_write(&dest).await {
+        return Err(FerroError::LockConflict(format!("Destination locked: {}", e)));
     }
 
     state.storage.move_path(&path, &dest).await?;
@@ -709,7 +759,7 @@ async fn handle_lock(
         lock_request.scope,
         depth,
         lock_request.timeout_hint,
-    )?;
+    ).await?;
 
     let lock_token = lock.token.as_str();
     let xml = crate::xml::build_lock_response_xml(
@@ -747,7 +797,7 @@ async fn handle_unlock(
             FerroError::InvalidArgument("Missing Lock-Token header".to_string())
         })?;
 
-    state.lock_manager.release_lock(lock_token)?;
+    state.lock_manager.release_lock(lock_token).await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -761,7 +811,7 @@ async fn handle_lock_refresh(
 ) -> Result<Response> {
     let lock_request = crate::xml::LockRequest::parse(body);
 
-    match state.lock_manager.refresh_lock(lock_token, lock_request.timeout_hint) {
+    match state.lock_manager.refresh_lock(lock_token, lock_request.timeout_hint).await {
         Ok(lock) => {
             let principal = lock.principal.clone();
             let xml = crate::xml::build_lock_response_xml(
@@ -810,7 +860,7 @@ async fn handle_lock_refresh(
                 lock_request.scope,
                 depth,
                 lock_request.timeout_hint,
-            )?;
+            ).await?;
 
             let lock_token = lock.token.as_str();
             let xml = crate::xml::build_lock_response_xml(

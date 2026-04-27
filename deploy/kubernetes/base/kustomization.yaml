@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - configmap.yaml
+  - secret.yaml
+  - pvc.yaml
+  - networkpolicy-deny.yaml
+  - networkpolicy-ingress.yaml
+  - networkpolicy-dns.yaml
+  - networkpolicy-external.yaml
+  - pdb.yaml

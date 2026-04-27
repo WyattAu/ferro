@@ -1,0 +1,2 @@
+# Split into individual files: networkpolicy-deny.yaml, networkpolicy-ingress.yaml,
+# networkpolicy-dns.yaml, networkpolicy-external.yaml

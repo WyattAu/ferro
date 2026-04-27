@@ -8,6 +8,9 @@ default = []
 s3 = ["ferro-core/s3", "object_store/aws"]
 gcs = ["ferro-core/gcs", "object_store/gcp"]
 azure = ["ferro-core/azure", "object_store/azure"]
+pg = ["ferro-core/pg", "sqlx", "sqlx/postgres", "sqlx/chrono"]
+redis = ["dep:redis"]
+ldap = ["dep:ldap3"]
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
@@ -44,6 +47,9 @@ hex = "0.4"
 object_store = "0.11"
 futures = "0.3"
 url = "2"
+sqlx = { version = "0.8", features = ["runtime-tokio", "chrono"], optional = true }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"], optional = true }
+ldap3 = { version = "0.12", optional = true }
 
 [dev-dependencies]
 http-body-util = "0.1"

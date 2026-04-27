@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use chrono::Utc;
 use common::webdav::{LockDepth, LockInfo, LockScope, LockToken, LockType};
 use common::error::FerroError;
@@ -5,6 +6,23 @@ use common::error::Result;
 use dashmap::DashMap;
 use std::sync::Arc;
 use tracing::{debug, warn};
+
+#[async_trait]
+pub trait LockManagerTrait: Send + Sync {
+    async fn check_lock(&self, path: &str) -> Option<LockInfo>;
+    async fn check_lock_for_write(&self, path: &str) -> Result<()>;
+    async fn acquire_lock(
+        &self,
+        path: &str,
+        principal: &str,
+        scope: LockScope,
+        depth: LockDepth,
+        timeout_secs: Option<u32>,
+    ) -> Result<LockInfo>;
+    async fn release_lock(&self, token: &str) -> Result<()>;
+    async fn refresh_lock(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo>;
+    async fn all_locks(&self) -> Vec<LockInfo>;
+}
 
 pub struct LockManager {
     locks: Arc<DashMap<String, LockInfo>>,
@@ -29,7 +47,7 @@ impl LockManager {
         }
     }
 
-    pub fn acquire_lock(
+    pub fn acquire_lock_sync(
         &self,
         path: &str,
         principal: &str,
@@ -76,7 +94,7 @@ impl LockManager {
         Ok(lock)
     }
 
-    pub fn refresh_lock(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo> {
+    pub fn refresh_lock_sync(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo> {
         let timeout = timeout_secs
             .unwrap_or(self.default_timeout_secs)
             .min(self.max_timeout_secs);
@@ -102,7 +120,7 @@ impl LockManager {
         Err(FerroError::LockTokenNotFound(token.to_string()))
     }
 
-    pub fn release_lock(&self, token: &str) -> Result<()> {
+    pub fn release_lock_sync(&self, token: &str) -> Result<()> {
         let mut found = None;
         for entry in self.locks.iter() {
             if entry.token.as_str() == token {
@@ -120,9 +138,38 @@ impl LockManager {
         }
     }
 
-    pub fn check_lock(&self, path: &str) -> Option<LockInfo> {
+    pub fn check_lock_sync(&self, path: &str) -> Option<LockInfo> {
         self.cleanup_expired(path);
         self.locks.get(path).map(|r| r.value().clone())
+    }
+
+    pub fn check_lock_for_write_sync(&self, path: &str) -> common::error::Result<()> {
+        if let Some(lock) = self.check_lock_sync(path)
+            && lock.scope == LockScope::Exclusive
+        {
+            return Err(FerroError::LockConflict(format!(
+                "Resource {} is exclusively locked by {}",
+                path, lock.principal
+            )));
+        }
+
+        let mut check_path = path;
+        while let Some(parent) = parent_path(check_path) {
+            self.cleanup_expired(parent);
+            if let Some(lock) = self.locks.get(parent)
+                && lock.depth == LockDepth::Infinity
+                && lock.scope == LockScope::Exclusive
+            {
+                return Err(FerroError::LockConflict(format!(
+                    "Parent {} has an exclusive infinity lock by {}",
+                    parent, lock.principal
+                )));
+            }
+            check_path = parent;
+            if check_path == "/" { break; }
+        }
+
+        Ok(())
     }
 
     fn cleanup_expired(&self, path: &str) {
@@ -139,14 +186,58 @@ impl LockManager {
         self.locks.len()
     }
 
-    pub fn all_locks(&self) -> dashmap::iter::Iter<'_, String, LockInfo> {
+    pub fn all_locks_sync(&self) -> dashmap::iter::Iter<'_, String, LockInfo> {
         self.locks.iter()
+    }
+}
+
+#[async_trait]
+impl LockManagerTrait for LockManager {
+    async fn check_lock(&self, path: &str) -> Option<LockInfo> {
+        self.check_lock_sync(path)
+    }
+
+    async fn check_lock_for_write(&self, path: &str) -> Result<()> {
+        self.check_lock_for_write_sync(path)
+    }
+
+    async fn acquire_lock(
+        &self,
+        path: &str,
+        principal: &str,
+        scope: LockScope,
+        depth: LockDepth,
+        timeout_secs: Option<u32>,
+    ) -> Result<LockInfo> {
+        self.acquire_lock_sync(path, principal, scope, depth, timeout_secs)
+    }
+
+    async fn release_lock(&self, token: &str) -> Result<()> {
+        self.release_lock_sync(token)
+    }
+
+    async fn refresh_lock(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo> {
+        self.refresh_lock_sync(token, timeout_secs)
+    }
+
+    async fn all_locks(&self) -> Vec<LockInfo> {
+        self.locks.iter().map(|e| e.value().clone()).collect()
     }
 }
 
 impl Default for LockManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub(crate) fn parent_path(path: &str) -> Option<&str> {
+    if path == "/" { return None; }
+    let trimmed = path.trim_end_matches('/');
+    match trimmed.rfind('/') {
+        Some(0) => Some("/"),
+        Some(idx) => Some(&trimmed[..idx.max(1)]),
+        None => None,
     }
 }
 
@@ -158,7 +249,7 @@ mod tests {
     fn test_acquire_and_release_lock() {
         let mgr = LockManager::new();
         let lock = mgr
-            .acquire_lock(
+            .acquire_lock_sync(
                 "/test.txt",
                 "user1",
                 LockScope::Exclusive,
@@ -168,14 +259,14 @@ mod tests {
             .unwrap();
         assert_eq!(mgr.lock_count(), 1);
 
-        mgr.release_lock(&lock.token.as_str()).unwrap();
+        mgr.release_lock_sync(&lock.token.as_str()).unwrap();
         assert_eq!(mgr.lock_count(), 0);
     }
 
     #[test]
     fn test_exclusive_lock_conflict() {
         let mgr = LockManager::new();
-        mgr.acquire_lock(
+        mgr.acquire_lock_sync(
             "/test.txt",
             "user1",
             LockScope::Exclusive,
@@ -184,7 +275,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = mgr.acquire_lock(
+        let result = mgr.acquire_lock_sync(
             "/test.txt",
             "user2",
             LockScope::Exclusive,
@@ -197,7 +288,7 @@ mod tests {
     #[test]
     fn test_shared_lock_allowed() {
         let mgr = LockManager::new();
-        mgr.acquire_lock(
+        mgr.acquire_lock_sync(
             "/test.txt",
             "user1",
             LockScope::Shared,
@@ -206,7 +297,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = mgr.acquire_lock(
+        let result = mgr.acquire_lock_sync(
             "/test.txt",
             "user2",
             LockScope::Shared,
@@ -220,7 +311,7 @@ mod tests {
     fn test_refresh_lock() {
         let mgr = LockManager::new();
         let lock = mgr
-            .acquire_lock(
+            .acquire_lock_sync(
                 "/test.txt",
                 "user1",
                 LockScope::Exclusive,
@@ -229,7 +320,7 @@ mod tests {
             )
             .unwrap();
 
-        let refreshed = mgr.refresh_lock(&lock.token.as_str(), Some(120)).unwrap();
+        let refreshed = mgr.refresh_lock_sync(&lock.token.as_str(), Some(120)).unwrap();
         assert_eq!(refreshed.timeout_seconds, 120);
         assert_eq!(refreshed.refresh_count, 1);
     }
@@ -237,7 +328,92 @@ mod tests {
     #[test]
     fn test_release_nonexistent_lock() {
         let mgr = LockManager::new();
-        let result = mgr.release_lock("nonexistent");
+        let result = mgr.release_lock_sync("nonexistent");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_infinity_lock_blocks_child_write() {
+        let mgr = LockManager::new();
+        mgr.acquire_lock_sync(
+            "/parent",
+            "user1",
+            LockScope::Exclusive,
+            LockDepth::Infinity,
+            None,
+        )
+        .unwrap();
+
+        let result = mgr.check_lock_for_write_sync("/parent/child.txt");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_infinity_lock_blocks_deep_child_write() {
+        let mgr = LockManager::new();
+        mgr.acquire_lock_sync(
+            "/a",
+            "user1",
+            LockScope::Exclusive,
+            LockDepth::Infinity,
+            None,
+        )
+        .unwrap();
+
+        assert!(mgr.check_lock_for_write_sync("/a/b/c/d/file.txt").is_err());
+    }
+
+    #[test]
+    fn test_zero_lock_does_not_block_child_write() {
+        let mgr = LockManager::new();
+        mgr.acquire_lock_sync(
+            "/parent",
+            "user1",
+            LockScope::Exclusive,
+            LockDepth::Zero,
+            None,
+        )
+        .unwrap();
+
+        assert!(mgr.check_lock_for_write_sync("/parent/child.txt").is_ok());
+    }
+
+    #[test]
+    fn test_parent_path() {
+        assert_eq!(parent_path("/a/b/c"), Some("/a/b"));
+        assert_eq!(parent_path("/a"), Some("/"));
+        assert_eq!(parent_path("/"), None);
+    }
+
+    #[tokio::test]
+    async fn test_trait_acquire_and_release() {
+        let mgr = LockManager::new();
+        let lock = mgr.acquire_lock(
+            "/test.txt", "user1", LockScope::Exclusive, LockDepth::Zero, None,
+        ).await.unwrap();
+        assert_eq!(mgr.lock_count(), 1);
+
+        mgr.release_lock(&lock.token.as_str()).await.unwrap();
+        assert_eq!(mgr.lock_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_trait_check_lock_for_write() {
+        let mgr = LockManager::new();
+        mgr.acquire_lock(
+            "/parent", "user1", LockScope::Exclusive, LockDepth::Infinity, None,
+        ).await.unwrap();
+
+        assert!(mgr.check_lock_for_write("/parent/child.txt").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_trait_all_locks() {
+        let mgr = LockManager::new();
+        mgr.acquire_lock("/a", "u1", LockScope::Exclusive, LockDepth::Zero, None).await.unwrap();
+        mgr.acquire_lock("/b", "u2", LockScope::Shared, LockDepth::Zero, None).await.unwrap();
+
+        let locks = mgr.all_locks().await;
+        assert_eq!(locks.len(), 2);
     }
 }

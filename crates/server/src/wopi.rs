@@ -260,7 +260,7 @@ async fn put_file_inner(
 ) -> Response {
     let full_path = format!("/{}", path);
 
-    if let Some(lock) = state.lock_manager.check_lock(&full_path) {
+    if let Some(lock) = state.lock_manager.check_lock(&full_path).await {
         let lock_token = headers.get("X-WOPI-Lock").and_then(|v| v.to_str().ok());
         if let Some(token) = lock_token {
             if lock.token.as_opaque() != token {
@@ -300,7 +300,7 @@ async fn lock_file_inner(state: &AppState, path: &str) -> Response {
         common::webdav::LockScope::Exclusive,
         common::webdav::LockDepth::Zero,
         None,
-    ) {
+    ).await {
         Ok(lock) => {
             let response = WopiLockResponse {
                 lock_id: lock.token.as_str().to_string(),
@@ -326,7 +326,7 @@ async fn unlock_file_inner(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
 
-    match state.lock_manager.release_lock(lock_token) {
+    match state.lock_manager.release_lock(lock_token).await {
         Ok(()) => (StatusCode::OK, "").into_response(),
         Err(_) => ApiError::not_found(ApiError::NOT_FOUND, "Lock not found"),
     }

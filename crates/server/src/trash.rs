@@ -2,14 +2,16 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use tracing::warn;
 
 use crate::api_error::ApiError;
 use crate::AppState;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrashedEntry {
     pub original_path: String,
-    pub content: bytes::Bytes,
+    pub trash_path: String,
     pub deleted_at: chrono::DateTime<chrono::Utc>,
     pub size: u64,
     pub mime_type: String,
@@ -37,6 +39,41 @@ impl From<&TrashedEntry> for TrashedEntryResponse {
 #[derive(Debug, Deserialize)]
 pub struct TrashPathRequest {
     pub original_path: String,
+}
+
+fn generate_trash_path() -> String {
+    let ts = chrono::Utc::now().timestamp_millis();
+    let hash = uuid::Uuid::new_v4().to_string().replace('-', "");
+    format!("{}_{}", ts, &hash[..16])
+}
+
+fn write_trash_file(trash_dir: &str, filename: &str, content: &[u8]) -> Result<PathBuf, std::io::Error> {
+    let dir = PathBuf::from(trash_dir);
+    std::fs::create_dir_all(&dir)?;
+    let file_path = dir.join(filename);
+    std::fs::write(&file_path, content)?;
+    Ok(file_path)
+}
+
+async fn write_trash_file_async(trash_dir: &str, filename: &str, content: bytes::Bytes) -> Result<PathBuf, std::io::Error> {
+    let dir = trash_dir.to_string();
+    let filename = filename.to_string();
+    tokio::task::spawn_blocking(move || {
+        write_trash_file(&dir, &filename, &content)
+    }).await.map_err(std::io::Error::other)?
+}
+
+async fn read_trash_file_async(trash_path: &str) -> Result<bytes::Bytes, std::io::Error> {
+    let path = trash_path.to_string();
+    tokio::task::spawn_blocking(move || {
+        std::fs::read(&path).map(bytes::Bytes::from)
+    }).await.map_err(std::io::Error::other)?
+}
+
+fn delete_trash_file(trash_path: &str) {
+    if let Err(e) = std::fs::remove_file(trash_path) {
+        warn!("Failed to delete trash file {}: {}", trash_path, e);
+    }
 }
 
 pub async fn list_trash(State(state): State<AppState>) -> Response {
@@ -75,9 +112,22 @@ pub async fn move_to_trash(
         return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Delete failed: {}", e));
     }
 
+    let trash_filename = generate_trash_path();
+    let trash_path_str = if let Some(ref dir) = state.trash_dir {
+        match write_trash_file_async(dir, &trash_filename, content.clone()).await {
+            Ok(p) => p.to_string_lossy().to_string(),
+            Err(e) => {
+                warn!("Failed to write trash file, using memory fallback: {}", e);
+                format!(".trash/{}", trash_filename)
+            }
+        }
+    } else {
+        format!(".trash/{}", trash_filename)
+    };
+
     let entry = TrashedEntry {
         original_path: normalized.clone(),
-        content,
+        trash_path: trash_path_str,
         deleted_at: chrono::Utc::now(),
         size,
         mime_type,
@@ -99,9 +149,20 @@ pub async fn restore_trash(
         None => return ApiError::not_found("TRASH_NOT_FOUND", "File not found in trash"),
     };
 
+    let content = match read_trash_file_async(&entry.trash_path).await {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            state.trash.insert(normalized, entry);
+            return ApiError::internal(
+                ApiError::INTERNAL_ERROR,
+                "Trash file not found on disk",
+            );
+        }
+    };
+
     if let Err(e) = state
         .storage
-        .put(&entry.original_path, entry.content.clone(), "anonymous")
+        .put(&entry.original_path, content.clone(), "anonymous")
         .await
     {
         state.trash.insert(normalized, entry);
@@ -110,6 +171,8 @@ pub async fn restore_trash(
             format!("Restore failed: {}", e),
         );
     }
+
+    delete_trash_file(&entry.trash_path);
 
     (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
@@ -120,7 +183,9 @@ pub async fn purge_trash(
 ) -> Response {
     let normalized = common::path::normalize_path(&body.original_path);
 
-    if state.trash.remove(&normalized).is_none() {
+    if let Some((_, entry)) = state.trash.remove(&normalized) {
+        delete_trash_file(&entry.trash_path);
+    } else {
         return ApiError::not_found("TRASH_NOT_FOUND", "File not found in trash");
     }
 
@@ -128,6 +193,9 @@ pub async fn purge_trash(
 }
 
 pub async fn empty_trash(State(state): State<AppState>) -> Response {
+    for entry in state.trash.iter() {
+        delete_trash_file(&entry.trash_path);
+    }
     state.trash.clear();
     (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
@@ -158,9 +226,22 @@ pub async fn soft_delete(
         ));
     }
 
+    let trash_filename = generate_trash_path();
+    let trash_path_str = if let Some(ref dir) = state.trash_dir {
+        match write_trash_file_async(dir, &trash_filename, content.clone()).await {
+            Ok(p) => p.to_string_lossy().to_string(),
+            Err(e) => {
+                warn!("Failed to write trash file, using memory fallback: {}", e);
+                format!(".trash/{}", trash_filename)
+            }
+        }
+    } else {
+        format!(".trash/{}", trash_filename)
+    };
+
     let entry = TrashedEntry {
         original_path: normalized.clone(),
-        content,
+        trash_path: trash_path_str,
         deleted_at: chrono::Utc::now(),
         size,
         mime_type,
@@ -211,7 +292,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_restore_trash() {
-        let state = test_state();
+        let tmp = tempfile::tempdir().unwrap();
+        let trash_dir = tmp.path().join(".trash");
+        std::fs::create_dir_all(&trash_dir).unwrap();
+        let state = AppState::in_memory().with_trash_dir(trash_dir.to_string_lossy().to_string());
         state
             .storage
             .put("/restore-me.txt", bytes::Bytes::from("data"), "anonymous")
@@ -340,5 +424,124 @@ mod tests {
 
         let entry = state.trash.get("/soft-del.txt").unwrap();
         assert_eq!(entry.size, 4);
+    }
+
+    #[tokio::test]
+    async fn test_disk_trash_move_and_restore() {
+        let tmp = tempfile::tempdir().unwrap();
+        let trash_dir = tmp.path().join(".trash");
+        std::fs::create_dir_all(&trash_dir).unwrap();
+        let state = AppState::in_memory().with_trash_dir(trash_dir.to_string_lossy().to_string());
+
+        state
+            .storage
+            .put("/disk-test.txt", bytes::Bytes::from("disk content"), "anonymous")
+            .await
+            .unwrap();
+
+        let resp = move_to_trash(
+            State(state.clone()),
+            axum::extract::Path("disk-test.txt".to_string()),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(state.storage.get("/disk-test.txt").await.is_err());
+
+        let entry = state.trash.get("/disk-test.txt").unwrap();
+        assert!(PathBuf::from(&entry.trash_path).exists());
+        assert_eq!(entry.size, 12);
+        drop(entry);
+
+        let resp = restore_trash(
+            State(state.clone()),
+            axum::Json(TrashPathRequest {
+                original_path: "/disk-test.txt".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let content = state.storage.get("/disk-test.txt").await.unwrap();
+        assert_eq!(content, bytes::Bytes::from("disk content"));
+        assert!(state.trash.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_disk_trash_purge_deletes_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let trash_dir = tmp.path().join(".trash");
+        std::fs::create_dir_all(&trash_dir).unwrap();
+        let state = AppState::in_memory().with_trash_dir(trash_dir.to_string_lossy().to_string());
+
+        state
+            .storage
+            .put("/purge-disk.txt", bytes::Bytes::from("purge me"), "anonymous")
+            .await
+            .unwrap();
+
+        move_to_trash(
+            State(state.clone()),
+            axum::extract::Path("purge-disk.txt".to_string()),
+        )
+        .await;
+
+        let entry = state.trash.get("/purge-disk.txt").unwrap();
+        let disk_path = entry.trash_path.clone();
+        assert!(PathBuf::from(&disk_path).exists());
+        drop(entry);
+
+        let resp = purge_trash(
+            State(state.clone()),
+            axum::Json(TrashPathRequest {
+                original_path: "/purge-disk.txt".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(state.trash.is_empty());
+        assert!(!PathBuf::from(&disk_path).exists());
+    }
+
+    #[tokio::test]
+    async fn test_disk_trash_empty_deletes_all_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let trash_dir = tmp.path().join(".trash");
+        std::fs::create_dir_all(&trash_dir).unwrap();
+        let state = AppState::in_memory().with_trash_dir(trash_dir.to_string_lossy().to_string());
+
+        state
+            .storage
+            .put("/e1.txt", bytes::Bytes::from("one"), "anonymous")
+            .await
+            .unwrap();
+        state
+            .storage
+            .put("/e2.txt", bytes::Bytes::from("two"), "anonymous")
+            .await
+            .unwrap();
+
+        move_to_trash(
+            State(state.clone()),
+            axum::extract::Path("e1.txt".to_string()),
+        )
+        .await;
+        move_to_trash(
+            State(state.clone()),
+            axum::extract::Path("e2.txt".to_string()),
+        )
+        .await;
+
+        let paths: Vec<String> = state.trash.iter().map(|e| e.trash_path.clone()).collect();
+        assert_eq!(paths.len(), 2);
+        for p in &paths {
+            assert!(PathBuf::from(p).exists());
+        }
+
+        let resp = empty_trash(State(state.clone())).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(state.trash.is_empty());
+        for p in &paths {
+            assert!(!PathBuf::from(p).exists());
+        }
     }
 }

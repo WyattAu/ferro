@@ -31,6 +31,7 @@ pub struct FileConfig {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub log_level: Option<String>,
+    pub log_format: Option<String>,
     pub storage: Option<String>,
     pub data_dir: Option<String>,
     pub static_dir: Option<String>,
@@ -50,6 +51,8 @@ pub struct FileConfig {
     pub cas_enabled: Option<bool>,
     pub wasm_enabled: Option<bool>,
     pub storage_quota: Option<String>,
+    pub graceful_shutdown_timeout: Option<u64>,
+    pub cors_allowed_origins: Option<String>,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -67,6 +70,10 @@ pub struct ServerConfig {
 
     #[arg(long, default_value = "info")]
     pub log_level: String,
+
+    /// Log format: "text" (default) or "json"
+    #[arg(long, env = "FERRO_LOG_FORMAT", default_value = "text")]
+    pub log_format: String,
 
     /// Storage backend: "memory" (default) or "local:/path/to/dir"
     #[arg(long, default_value = "memory")]
@@ -92,9 +99,9 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_CEDAR_POLICY_FILE")]
     pub cedar_policy_file: Option<String>,
 
-    /// Search index directory
-    #[arg(long, default_value = "/tmp/ferro-search")]
-    pub search_index_path: String,
+    /// Search index directory (defaults to {data-dir}/search-index, or /tmp/ferro-search if no data-dir)
+    #[arg(long)]
+    pub search_index_path: Option<String>,
 
     /// PostgreSQL metadata database URL (enables persistent metadata)
     #[arg(long, env = "FERRO_METADATA_DB")]
@@ -149,6 +156,54 @@ pub struct ServerConfig {
     /// Storage quota (e.g., "10GB", "500MB", "1TB"). None means unlimited.
     #[arg(long, env = "FERRO_STORAGE_QUOTA")]
     pub storage_quota: Option<String>,
+
+    /// Graceful shutdown timeout in seconds.
+    #[arg(long, env = "FERRO_GRACEFUL_SHUTDOWN_TIMEOUT", default_value = "30")]
+    pub graceful_shutdown_timeout: u64,
+
+    /// Comma-separated list of allowed CORS origins (default "*" allows all).
+    #[arg(long, env = "FERRO_CORS_ALLOWED_ORIGINS", default_value = "*")]
+    pub cors_allowed_origins: String,
+
+    /// PostgreSQL database URL for distributed state (shares, favorites, preferences).
+    /// Only used when the `pg` feature is enabled at compile time.
+    #[cfg(feature = "pg")]
+    #[arg(long, env = "FERRO_DATABASE_URL")]
+    pub database_url: Option<String>,
+
+    /// Redis URL for distributed locking and rate limiting.
+    /// Only used when the `redis` feature is enabled at compile time.
+    #[cfg(feature = "redis")]
+    #[arg(long, env = "FERRO_REDIS_URL")]
+    pub redis_url: Option<String>,
+
+    /// Maximum number of file versions to retain per file (default: 10, 0 = disabled)
+    #[arg(long, env = "FERRO_MAX_FILE_VERSIONS", default_value = "10")]
+    pub max_file_versions: u64,
+
+    /// Enable multi-user mode with per-user home directories
+    #[arg(long, env = "FERRO_MULTI_USER")]
+    pub multi_user: bool,
+
+    #[cfg(feature = "ldap")]
+    /// LDAP server URL (enables LDAP authentication)
+    #[arg(long, env = "FERRO_LDAP_URL")]
+    pub ldap_url: Option<String>,
+
+    #[cfg(feature = "ldap")]
+    /// LDAP bind DN for service account
+    #[arg(long, env = "FERRO_LDAP_BIND_DN")]
+    pub ldap_bind_dn: Option<String>,
+
+    #[cfg(feature = "ldap")]
+    /// LDAP service account password
+    #[arg(long, env = "FERRO_LDAP_BIND_PASSWORD")]
+    pub ldap_bind_password: Option<String>,
+
+    #[cfg(feature = "ldap")]
+    /// LDAP user search base DN
+    #[arg(long, env = "FERRO_LDAP_USER_SEARCH_BASE", default_value = "")]
+    pub ldap_user_search_base: String,
 }
 
 pub fn load_config_file(path: &str) -> anyhow::Result<FileConfig> {
@@ -178,6 +233,9 @@ where
     }
     if !was_set("log_level") && let Some(ref level) = file.log_level {
         cli.log_level = level.clone();
+    }
+    if !was_set("log_format") && let Some(ref format) = file.log_format {
+        cli.log_format = format.clone();
     }
     if !was_set("storage") && let Some(ref storage) = file.storage {
         cli.storage = storage.clone();
@@ -218,8 +276,8 @@ where
     if !was_set("cedar_policy_file") {
         cli.cedar_policy_file = file.cedar_policy_file.clone();
     }
-    if !was_set("search_index_path") && let Some(ref path) = file.search_index_path {
-        cli.search_index_path = path.clone();
+    if !was_set("search_index_path") {
+        cli.search_index_path = file.search_index_path.clone();
     }
     if !was_set("metadata_db") {
         cli.metadata_db = file.metadata_db.clone();
@@ -235,6 +293,12 @@ where
     }
     if !was_set("storage_quota") {
         cli.storage_quota = file.storage_quota.clone();
+    }
+    if !was_set("graceful_shutdown_timeout") && let Some(timeout) = file.graceful_shutdown_timeout {
+        cli.graceful_shutdown_timeout = timeout;
+    }
+    if !was_set("cors_allowed_origins") && let Some(ref origins) = file.cors_allowed_origins {
+        cli.cors_allowed_origins = origins.clone();
     }
 }
 

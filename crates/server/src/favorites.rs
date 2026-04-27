@@ -1,12 +1,59 @@
+use async_trait::async_trait;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use dashmap::DashSet;
 use serde::Deserialize;
 
 use crate::AppState;
 
+#[async_trait]
+pub trait FavoriteStore: Send + Sync {
+    async fn list(&self) -> Vec<String>;
+    async fn add(&self, path: String);
+    async fn contains(&self, path: &str) -> bool;
+    async fn remove(&self, path: &str);
+}
+
+pub struct InMemoryFavoriteStore {
+    favorites: DashSet<String>,
+}
+
+impl InMemoryFavoriteStore {
+    pub fn new() -> Self {
+        Self {
+            favorites: DashSet::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl FavoriteStore for InMemoryFavoriteStore {
+    async fn list(&self) -> Vec<String> {
+        self.favorites.iter().map(|r| r.key().clone()).collect()
+    }
+
+    async fn add(&self, path: String) {
+        self.favorites.insert(path);
+    }
+
+    async fn contains(&self, path: &str) -> bool {
+        self.favorites.contains(path)
+    }
+
+    async fn remove(&self, path: &str) {
+        self.favorites.remove(path);
+    }
+}
+
+impl Default for InMemoryFavoriteStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub async fn list_favorites(State(state): State<AppState>) -> Response {
-    let favorites: Vec<String> = state.favorites.iter().map(|r| r.key().clone()).collect();
+    let favorites = state.favorites.list().await;
     (StatusCode::OK, axum::Json(serde_json::json!({ "paths": favorites }))).into_response()
 }
 
@@ -19,7 +66,7 @@ pub async fn add_favorite(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<FavoritePath>,
 ) -> Response {
-    state.favorites.insert(body.path);
+    state.favorites.add(body.path).await;
     (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
@@ -27,7 +74,7 @@ pub async fn remove_favorite(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<FavoritePath>,
 ) -> Response {
-    state.favorites.remove(&body.path);
+    state.favorites.remove(&body.path).await;
     (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
@@ -84,7 +131,7 @@ mod tests {
         ).await;
         assert_eq!(resp.status(), StatusCode::OK);
 
-        assert!(state.favorites.contains("/test.txt"));
+        assert!(state.favorites.contains("/test.txt").await);
 
         let resp = remove_favorite(
             State(state.clone()),
@@ -92,7 +139,7 @@ mod tests {
         ).await;
         assert_eq!(resp.status(), StatusCode::OK);
 
-        assert!(!state.favorites.contains("/test.txt"));
+        assert!(!state.favorites.contains("/test.txt").await);
     }
 
     #[tokio::test]

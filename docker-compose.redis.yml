@@ -1,0 +1,27 @@
+services:
+  ferro:
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - FERRO_REDIS_URL=redis://redis:6379
+    command:
+      - "--features"
+      - "redis,pg"
+      - "--redis-url"
+      - "redis://redis:6379"
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redis-data:

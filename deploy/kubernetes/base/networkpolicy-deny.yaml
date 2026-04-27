@@ -1,0 +1,15 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ferro-default-deny
+  namespace: ferro
+  labels:
+    app.kubernetes.io/name: ferro
+    app.kubernetes.io/part-of: ferro
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ferro
+  policyTypes:
+    - Ingress
+    - Egress

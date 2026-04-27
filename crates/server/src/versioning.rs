@@ -1,0 +1,457 @@
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use tracing::warn;
+
+use crate::api_error::ApiError;
+use crate::AppState;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileVersion {
+    pub id: u64,
+    pub path: String,
+    pub size: u64,
+    pub content_hash: String,
+    pub modified_at: chrono::DateTime<chrono::Utc>,
+    pub author: String,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct VersionMeta {
+    id: u64,
+    path: String,
+    size: u64,
+    content_hash: String,
+    modified_at: chrono::DateTime<chrono::Utc>,
+    author: String,
+    note: Option<String>,
+    file_path: PathBuf,
+}
+
+#[derive(Debug, Serialize)]
+struct VersionResponse {
+    pub id: u64,
+    pub path: String,
+    pub size: u64,
+    pub content_hash: String,
+    pub modified_at: String,
+    pub author: String,
+    pub note: Option<String>,
+}
+
+impl From<&VersionMeta> for VersionResponse {
+    fn from(m: &VersionMeta) -> Self {
+        Self {
+            id: m.id,
+            path: m.path.clone(),
+            size: m.size,
+            content_hash: m.content_hash.clone(),
+            modified_at: m.modified_at.to_rfc3339(),
+            author: m.author.clone(),
+            note: m.note.clone(),
+        }
+    }
+}
+
+fn path_hash(path: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(path.as_bytes());
+    hex::encode(hasher.finalize())
+}
+
+fn compute_content_hash(data: &[u8]) -> String {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    hex::encode(hasher.finalize())
+}
+
+fn versions_dir_for(data_dir: &str, path: &str) -> PathBuf {
+    let hash = path_hash(path);
+    PathBuf::from(data_dir).join("versions").join(hash)
+}
+
+fn version_file_path(data_dir: &str, path: &str, version_id: u64) -> PathBuf {
+    versions_dir_for(data_dir, path).join(format!("v{}", version_id))
+}
+
+fn meta_file_path(data_dir: &str, path: &str) -> PathBuf {
+    versions_dir_for(data_dir, path).join("_meta.json")
+}
+
+fn read_meta(data_dir: &str, path: &str) -> Vec<VersionMeta> {
+    let meta_path = meta_file_path(data_dir, path);
+    let content = match std::fs::read_to_string(&meta_path) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let metas: Vec<VersionMeta> = match serde_json::from_str(&content) {
+        Ok(m) => m,
+        Err(_) => return Vec::new(),
+    };
+    metas
+}
+
+fn write_meta(data_dir: &str, path: &str, metas: &[VersionMeta]) -> Result<(), std::io::Error> {
+    let dir = versions_dir_for(data_dir, path);
+    std::fs::create_dir_all(&dir)?;
+    let meta_path = meta_file_path(data_dir, path);
+    let content = serde_json::to_string_pretty(metas).unwrap();
+    std::fs::write(&meta_path, content)
+}
+
+fn next_version_id(metas: &[VersionMeta]) -> u64 {
+    metas.iter().map(|m| m.id).max().unwrap_or(0) + 1
+}
+
+pub async fn list_versions(State(state): State<AppState>, Path(path): Path<String>) -> Response {
+    let normalized = common::path::normalize_path(&path);
+    let data_dir = match &state.data_dir {
+        Some(d) => d.clone(),
+        None => return ApiError::bad_request("NO_DATA_DIR", "Versioning requires --data-dir"),
+    };
+
+    let metas = tokio::task::spawn_blocking(move || {
+        read_meta(&data_dir, &normalized)
+    }).await.unwrap_or_else(|_| Vec::new());
+
+    let versions: Vec<VersionResponse> = metas.iter().map(VersionResponse::from).collect();
+    (StatusCode::OK, axum::Json(serde_json::json!({ "versions": versions }))).into_response()
+}
+
+pub async fn get_version(State(state): State<AppState>, Path((path, version_id)): Path<(String, u64)>) -> Response {
+    let normalized = common::path::normalize_path(&path);
+    let data_dir = match &state.data_dir {
+        Some(d) => d.clone(),
+        None => return ApiError::bad_request("NO_DATA_DIR", "Versioning requires --data-dir"),
+    };
+
+    let result = tokio::task::spawn_blocking(move || {
+        let metas = read_meta(&data_dir, &normalized);
+        let meta = metas.iter().find(|m| m.id == version_id);
+        match meta {
+            Some(m) => {
+                let content = std::fs::read(&m.file_path)?;
+                Ok::<_, std::io::Error>((m.clone(), content))
+            }
+            None => Err(std::io::Error::new(std::io::ErrorKind::NotFound, "version not found")),
+        }
+    }).await;
+
+    match result {
+        Ok(Ok((_meta, content))) => {
+            let body = axum::body::Body::from(content);
+            (StatusCode::OK, body).into_response()
+        }
+        Ok(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+            ApiError::not_found("VERSION_NOT_FOUND", "Version not found")
+        }
+        Ok(Err(e)) => ApiError::internal("VERSION_READ_ERROR", format!("Failed to read version: {}", e)),
+        Err(_) => ApiError::internal("VERSION_ERROR", "Internal error"),
+    }
+}
+
+pub async fn create_version(
+    State(state): State<AppState>,
+    Path(path): Path<String>,
+) -> Response {
+    let normalized = common::path::normalize_path(&path);
+    let data_dir = match &state.data_dir {
+        Some(d) => d.clone(),
+        None => return ApiError::bad_request("NO_DATA_DIR", "Versioning requires --data-dir"),
+    };
+
+    let author = state.admin_user.clone().unwrap_or_else(|| "anonymous".to_string());
+
+    let content = match state.storage.get(&normalized).await {
+        Ok(c) => c,
+        Err(_) => return ApiError::not_found("FILE_NOT_FOUND", "File not found"),
+    };
+
+    let max_versions = state.max_file_versions;
+    let norm = normalized.clone();
+    let dd = data_dir.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        let content_hash = compute_content_hash(&content);
+        let mut metas = read_meta(&dd, &norm);
+
+        if let Some(existing) = metas.iter().find(|m| m.content_hash == content_hash) {
+            return Ok::<(u64, String), String>((existing.id, content_hash));
+        }
+
+        let new_id = next_version_id(&metas);
+        let file_path = version_file_path(&dd, &norm, new_id);
+        let dir = file_path.parent().unwrap();
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        std::fs::write(&file_path, &content).map_err(|e| e.to_string())?;
+
+        let meta = VersionMeta {
+            id: new_id,
+            path: norm.clone(),
+            size: content.len() as u64,
+            content_hash: content_hash.clone(),
+            modified_at: chrono::Utc::now(),
+            author: author.clone(),
+            note: None,
+            file_path,
+        };
+
+        metas.push(meta);
+        metas.sort_by_key(|m| m.id);
+
+        while metas.len() > max_versions as usize {
+            if let Some(oldest) = metas.first() {
+                let _ = std::fs::remove_file(&oldest.file_path);
+            }
+            metas.remove(0);
+        }
+
+        write_meta(&dd, &norm, &metas).map_err(|e| e.to_string())?;
+        Ok((new_id, content_hash))
+    }).await;
+
+    match result {
+        Ok(Ok((id, hash))) => (StatusCode::CREATED, axum::Json(serde_json::json!({
+            "id": id,
+            "content_hash": hash,
+        }))).into_response(),
+        Ok(Err(e)) => ApiError::internal("VERSION_CREATE_ERROR", e),
+        Err(_) => ApiError::internal("VERSION_ERROR", "Internal error"),
+    }
+}
+
+pub async fn delete_version(
+    State(state): State<AppState>,
+    Path((path, version_id)): Path<(String, u64)>,
+) -> Response {
+    let normalized = common::path::normalize_path(&path);
+    let data_dir = match &state.data_dir {
+        Some(d) => d.clone(),
+        None => return ApiError::bad_request("NO_DATA_DIR", "Versioning requires --data-dir"),
+    };
+
+    let result = tokio::task::spawn_blocking(move || {
+        let mut metas = read_meta(&data_dir, &normalized);
+        let idx = metas.iter().position(|m| m.id == version_id);
+        match idx {
+            Some(i) => {
+                let removed = metas.remove(i);
+                let _ = std::fs::remove_file(&removed.file_path);
+                write_meta(&data_dir, &normalized, &metas)?;
+                Ok::<_, std::io::Error>(())
+            }
+            None => Err(std::io::Error::new(std::io::ErrorKind::NotFound, "version not found")),
+        }
+    }).await;
+
+    match result {
+        Ok(Ok(())) => (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response(),
+        Ok(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+            ApiError::not_found("VERSION_NOT_FOUND", "Version not found")
+        }
+        Ok(Err(e)) => ApiError::internal("VERSION_DELETE_ERROR", format!("Failed to delete version: {}", e)),
+        Err(_) => ApiError::internal("VERSION_ERROR", "Internal error"),
+    }
+}
+
+pub async fn auto_version(state: &AppState, path: &str, previous_content: bytes::Bytes) {
+    if state.max_file_versions == 0 {
+        return;
+    }
+    let data_dir = match &state.data_dir {
+        Some(d) => d.clone(),
+        None => return,
+    };
+    let normalized = path.to_string();
+    let author = state.admin_user.clone().unwrap_or_else(|| "anonymous".to_string());
+    let max_versions = state.max_file_versions;
+
+    let result = tokio::task::spawn_blocking(move || {
+        let content_hash = compute_content_hash(&previous_content);
+        let mut metas = read_meta(&data_dir, &normalized);
+
+        if metas.iter().any(|m| m.content_hash == content_hash) {
+            return;
+        }
+
+        let new_id = next_version_id(&metas);
+        let file_path = version_file_path(&data_dir, &normalized, new_id);
+        let dir = file_path.parent().unwrap();
+        if let Err(e) = std::fs::create_dir_all(dir) {
+            warn!("Failed to create version dir: {}", e);
+            return;
+        }
+        if let Err(e) = std::fs::write(&file_path, &previous_content) {
+            warn!("Failed to write version file: {}", e);
+            return;
+        }
+
+        let meta = VersionMeta {
+            id: new_id,
+            path: normalized.clone(),
+            size: previous_content.len() as u64,
+            content_hash,
+            modified_at: chrono::Utc::now(),
+            author,
+            note: None,
+            file_path,
+        };
+
+        metas.push(meta);
+        metas.sort_by_key(|m| m.id);
+
+        while metas.len() > max_versions as usize {
+            if let Some(oldest) = metas.first() {
+                let _ = std::fs::remove_file(&oldest.file_path);
+            }
+            metas.remove(0);
+        }
+
+        if let Err(e) = write_meta(&data_dir, &normalized, &metas) {
+            warn!("Failed to write version meta: {}", e);
+        }
+    }).await;
+
+    if let Err(e) = result {
+        warn!("Auto-versioning failed for {}: {:?}", path, e);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::AppState;
+    use axum::http::StatusCode;
+    use http_body_util::BodyExt;
+
+    fn versioned_state() -> (AppState, tempfile::TempDir) {
+        let tmp = tempfile::tempdir().unwrap();
+        let data_dir = tmp.path().to_string_lossy().to_string();
+        let state = AppState::in_memory()
+            .with_data_dir(data_dir.clone())
+            .with_max_file_versions(10);
+        (state, tmp)
+    }
+
+    async fn body_json(response: axum::response::Response) -> serde_json::Value {
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_create_version() {
+        let (state, _tmp) = versioned_state();
+        state.storage.put("/test.txt", bytes::Bytes::from("hello"), "test").await.unwrap();
+
+        let resp = create_version(State(state.clone()), Path("test.txt".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let json = body_json(resp).await;
+        assert!(json.get("id").is_some());
+        assert!(json.get("content_hash").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_create_version_idempotent() {
+        let (state, _tmp) = versioned_state();
+        state.storage.put("/idem.txt", bytes::Bytes::from("same content"), "test").await.unwrap();
+
+        let resp1 = create_version(State(state.clone()), Path("idem.txt".to_string())).await;
+        assert_eq!(resp1.status(), StatusCode::CREATED);
+        let json1 = body_json(resp1).await;
+        let id1 = json1["id"].as_u64().unwrap();
+
+        let resp2 = create_version(State(state.clone()), Path("idem.txt".to_string())).await;
+        assert_eq!(resp2.status(), StatusCode::CREATED);
+        let json2 = body_json(resp2).await;
+        let id2 = json2["id"].as_u64().unwrap();
+
+        assert_eq!(id1, id2, "Same content should return same version id");
+    }
+
+    #[tokio::test]
+    async fn test_list_versions() {
+        let (state, _tmp) = versioned_state();
+        state.storage.put("/list.txt", bytes::Bytes::from("v1"), "test").await.unwrap();
+        create_version(State(state.clone()), Path("list.txt".to_string())).await;
+
+        state.storage.put("/list.txt", bytes::Bytes::from("v2"), "test").await.unwrap();
+        create_version(State(state.clone()), Path("list.txt".to_string())).await;
+
+        let resp = list_versions(State(state.clone()), Path("list.txt".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = body_json(resp).await;
+        assert_eq!(json["versions"].as_array().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_max_versions_eviction() {
+        let tmp = tempfile::tempdir().unwrap();
+        let data_dir = tmp.path().to_string_lossy().to_string();
+        let state = AppState::in_memory()
+            .with_data_dir(data_dir.clone())
+            .with_max_file_versions(2);
+
+        state.storage.put("/evict.txt", bytes::Bytes::from("v1"), "test").await.unwrap();
+        create_version(State(state.clone()), Path("evict.txt".to_string())).await;
+
+        state.storage.put("/evict.txt", bytes::Bytes::from("v2"), "test").await.unwrap();
+        create_version(State(state.clone()), Path("evict.txt".to_string())).await;
+
+        state.storage.put("/evict.txt", bytes::Bytes::from("v3"), "test").await.unwrap();
+        create_version(State(state.clone()), Path("evict.txt".to_string())).await;
+
+        let resp = list_versions(State(state.clone()), Path("evict.txt".to_string())).await;
+        let json = body_json(resp).await;
+        assert_eq!(json["versions"].as_array().unwrap().len(), 2, "Should evict oldest version");
+    }
+
+    #[tokio::test]
+    async fn test_delete_version() {
+        let (state, _tmp) = versioned_state();
+        state.storage.put("/del.txt", bytes::Bytes::from("content"), "test").await.unwrap();
+        let resp = create_version(State(state.clone()), Path("del.txt".to_string())).await;
+        let json = body_json(resp).await;
+        let id = json["id"].as_u64().unwrap();
+
+        let resp = delete_version(State(state.clone()), Path(("del.txt".to_string(), id))).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let resp = list_versions(State(state.clone()), Path("del.txt".to_string())).await;
+        let json = body_json(resp).await;
+        assert_eq!(json["versions"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_version_nonexistent_file() {
+        let (state, _tmp) = versioned_state();
+        let resp = create_version(State(state.clone()), Path("nope.txt".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_auto_version_called() {
+        let (state, _tmp) = versioned_state();
+        state.storage.put("/auto.txt", bytes::Bytes::from("original"), "test").await.unwrap();
+
+        let prev = bytes::Bytes::from("original");
+        auto_version(&state, "/auto.txt", prev).await;
+
+        let resp = list_versions(State(state.clone()), Path("auto.txt".to_string())).await;
+        let json = body_json(resp).await;
+        assert_eq!(json["versions"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_version_no_data_dir() {
+        let state = AppState::in_memory();
+        state.storage.put("/no-dir.txt", bytes::Bytes::from("x"), "test").await.unwrap();
+
+        let resp = create_version(State(state.clone()), Path("no-dir.txt".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+}

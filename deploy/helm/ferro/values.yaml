@@ -1,0 +1,78 @@
+replicaCount: 1
+
+image:
+  repository: ferro
+  tag: latest
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: ""
+
+auth:
+  adminUser: admin
+  adminPassword: changeme
+
+config:
+  logLevel: info
+  corsAllowedOrigins: "*"
+  externalUrl: ""
+  wopiTokenSecret: ""
+  gracefulShutdownTimeout: "30"
+
+postgresql:
+  enabled: false
+  url: ""
+
+redis:
+  enabled: false
+  url: ""
+
+features:
+  pg: false
+  redis: false
+  ldap: false
+
+ldap:
+  enabled: false
+  url: ""
+  bindDn: ""
+  bindPassword: ""
+  userSearchBase: ""
+
+multiUser:
+  enabled: false
+
+versioning:
+  maxVersions: 10
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: ferro.example.com
+      paths:
+        - /
+  tls: []
+  #  - secretName: ferro-tls
+  #    hosts:
+  #      - ferro.example.com
+
+networkPolicy:
+  enabled: true
+
+serviceMonitor:
+  enabled: false
+
+tolerations: []
+affinity: {}
+nodeSelector: {}

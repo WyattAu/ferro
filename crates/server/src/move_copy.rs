@@ -28,8 +28,21 @@ pub async fn move_file(
         return ApiError::bad_request(ApiError::BAD_REQUEST, "Source and destination are the same");
     }
 
-    let _lock = state.lock_manager.acquire_lock(&source, "system", common::webdav::LockScope::Exclusive, common::webdav::LockDepth::Zero, Some(10));
-    let _lock2 = state.lock_manager.acquire_lock(&destination, "system", common::webdav::LockScope::Exclusive, common::webdav::LockDepth::Zero, Some(10));
+    if let Err(e) = state.lock_manager.check_lock_for_write(&source).await {
+        return (StatusCode::LOCKED, axum::Json(serde_json::json!({
+            "error": "Locked",
+            "detail": e.to_string(),
+        }))).into_response();
+    }
+    if let Err(e) = state.lock_manager.check_lock_for_write(&destination).await {
+        return (StatusCode::LOCKED, axum::Json(serde_json::json!({
+            "error": "Locked",
+            "detail": e.to_string(),
+        }))).into_response();
+    }
+
+    let _lock = state.lock_manager.acquire_lock(&source, "system", common::webdav::LockScope::Exclusive, common::webdav::LockDepth::Zero, Some(10)).await;
+    let _lock2 = state.lock_manager.acquire_lock(&destination, "system", common::webdav::LockScope::Exclusive, common::webdav::LockDepth::Zero, Some(10)).await;
 
     match state.storage.head(&source).await {
         Ok(meta) => {
@@ -78,12 +91,25 @@ pub async fn copy_file(
         return ApiError::bad_request(ApiError::BAD_REQUEST, "Source and destination are the same");
     }
 
+    if let Err(e) = state.lock_manager.check_lock_for_write(&source).await {
+        return (StatusCode::LOCKED, axum::Json(serde_json::json!({
+            "error": "Locked",
+            "detail": e.to_string(),
+        }))).into_response();
+    }
+    if let Err(e) = state.lock_manager.check_lock_for_write(&destination).await {
+        return (StatusCode::LOCKED, axum::Json(serde_json::json!({
+            "error": "Locked",
+            "detail": e.to_string(),
+        }))).into_response();
+    }
+
     if state.storage.exists(&destination).await.unwrap_or(false) {
         return ApiError::conflict(ApiError::FILE_EXISTS, format!("Destination already exists: {}", destination));
     }
 
-    let _lock = state.lock_manager.acquire_lock(&source, "system", common::webdav::LockScope::Exclusive, common::webdav::LockDepth::Zero, Some(10));
-    let _lock2 = state.lock_manager.acquire_lock(&destination, "system", common::webdav::LockScope::Exclusive, common::webdav::LockDepth::Zero, Some(10));
+    let _lock = state.lock_manager.acquire_lock(&source, "system", common::webdav::LockScope::Exclusive, common::webdav::LockDepth::Zero, Some(10)).await;
+    let _lock2 = state.lock_manager.acquire_lock(&destination, "system", common::webdav::LockScope::Exclusive, common::webdav::LockDepth::Zero, Some(10)).await;
 
     match state.storage.head(&source).await {
         Ok(meta) => {
