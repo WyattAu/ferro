@@ -51,6 +51,9 @@ impl RateLimiter {
         let mut clients = self.clients.write().await;
         let now = Instant::now();
 
+        let cutoff = now - self.config.window * 2;
+        clients.retain(|_, bucket| bucket.last_refill > cutoff);
+
         let bucket = clients.entry(client_ip.to_string()).or_insert(ClientBucket {
             tokens: self.config.max_requests,
             last_refill: now,

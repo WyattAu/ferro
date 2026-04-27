@@ -78,6 +78,8 @@ impl OidcValidator {
     /// Consume a PKCE session (removes it from the cache).
     pub async fn consume_pkce_session(&self, state: &str) -> Option<PkceSession> {
         let mut sessions = self.pkce_sessions.write().await;
+        let cutoff = Instant::now() - Duration::from_secs(600);
+        sessions.retain(|_, s| s.created_at > cutoff);
         sessions.remove(state)
     }
 

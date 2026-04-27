@@ -146,16 +146,14 @@ pub trait UserStoreTrait: Send + Sync {
 }
 
 pub fn hash_password(password: &str) -> String {
-    use sha2::{Sha256, Digest};
-    let mut hasher = Sha256::new();
-    hasher.update(b"ferro-salt-v1-");
-    hasher.update(password.as_bytes());
-    hex::encode(hasher.finalize())
+    bcrypt::hash(password, bcrypt::DEFAULT_COST).expect("bcrypt hashing failed")
 }
 
 fn verify_password(password: &str, hash: &str) -> bool {
-    hash_password(password) == hash
+    bcrypt::verify(password, hash).unwrap_or(false)
 }
+
+const MAX_USERS: usize = 10_000;
 
 pub struct InMemoryUserStore {
     users: DashMap<String, User>,
@@ -199,6 +197,9 @@ impl Default for InMemoryUserStore {
 #[async_trait]
 impl UserStoreTrait for InMemoryUserStore {
     async fn create_user(&self, user: User) -> Result<User, UserError> {
+        if self.users.len() >= MAX_USERS {
+            return Err(UserError::bad_request("MAX_USERS_REACHED".to_string()));
+        }
         if self.username_index.contains_key(&user.username) {
             return Err(UserError::conflict(format!("Username '{}' already exists", user.username)));
         }

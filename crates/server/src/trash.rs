@@ -1,12 +1,15 @@
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::warn;
 
 use crate::api_error::ApiError;
 use crate::AppState;
+
+const MAX_TRASH_ENTRIES: usize = 1_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrashedEntry {
@@ -76,6 +79,25 @@ fn delete_trash_file(trash_path: &str) {
     }
 }
 
+fn evict_oldest_if_needed(trash: &DashMap<String, TrashedEntry>) {
+    if trash.len() <= MAX_TRASH_ENTRIES {
+        return;
+    }
+    while trash.len() > MAX_TRASH_ENTRIES {
+        let oldest_key = trash
+            .iter()
+            .min_by_key(|e| e.value().deleted_at)
+            .map(|e| e.key().clone());
+        if let Some(key) = oldest_key {
+            if let Some((_, entry)) = trash.remove(&key) {
+                delete_trash_file(&entry.trash_path);
+            }
+        } else {
+            break;
+        }
+    }
+}
+
 pub async fn list_trash(State(state): State<AppState>) -> Response {
     let entries: Vec<TrashedEntryResponse> = state
         .trash
@@ -134,6 +156,7 @@ pub async fn move_to_trash(
     };
 
     state.trash.insert(normalized, entry);
+    evict_oldest_if_needed(&state.trash);
 
     (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
@@ -248,6 +271,7 @@ pub async fn soft_delete(
     };
 
     state.trash.insert(normalized, entry);
+    evict_oldest_if_needed(&state.trash);
     Ok(())
 }
 

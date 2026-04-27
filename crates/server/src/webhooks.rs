@@ -8,6 +8,8 @@ use tokio::sync::RwLock;
 use crate::api_error::ApiError;
 use crate::AppState;
 
+const MAX_WEBHOOKS: usize = 100;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookConfig {
     pub id: String,
@@ -127,6 +129,13 @@ pub async fn create_webhook(
     }
     if input.events.is_empty() {
         return ApiError::bad_request(ApiError::BAD_REQUEST, "at least one event is required");
+    }
+
+    {
+        let hooks = state.webhooks.read().await;
+        if hooks.len() >= MAX_WEBHOOKS {
+            return ApiError::bad_request("WEBHOOK_LIMIT_REACHED", format!("Maximum number of webhooks ({}) reached", MAX_WEBHOOKS));
+        }
     }
 
     let config = WebhookConfig {

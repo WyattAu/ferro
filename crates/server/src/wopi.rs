@@ -342,6 +342,13 @@ pub async fn wopi_issue_token(
     axum::Extension(claims): axum::Extension<common::auth::Claims>,
     Path(path): Path<String>,
 ) -> Response {
+    const DEFAULT_WOPI_SECRET: &str = "ferro-wopi-token-secret-change-me";
+
+    if state.wopi_token_secret == DEFAULT_WOPI_SECRET {
+        tracing::error!("WOPI token secret is not configured. Set --wopi-token-secret to a strong random value.");
+        return ApiError::internal("WOPI_TOKEN_SECRET_NOT_SET", "WOPI token secret is not configured. Set --wopi-token-secret to a strong random value.");
+    }
+
     let full_path = format!("/{}", path.trim_matches('/'));
 
     // Check file exists
@@ -358,7 +365,7 @@ pub async fn wopi_issue_token(
     });
 
     let payload_str = serde_json::to_string(&token_payload).unwrap_or_default();
-    let mut mac = hmac::Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes()).unwrap();
+    let mut mac = hmac::Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes()).expect("HMAC key exceeds block size — this should never happen with reasonable secrets");
     mac.update(payload_str.as_bytes());
     let signature = mac.finalize();
     let sig_hex = hex::encode(signature.into_bytes());

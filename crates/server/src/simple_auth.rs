@@ -2,6 +2,7 @@ use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
 use base64::Engine;
+use subtle::ConstantTimeEq;
 
 use crate::api_error::ApiError;
 use crate::users::{UserStoreTrait, UserInfo, UserRole};
@@ -62,7 +63,9 @@ pub async fn simple_auth_middleware(
     let expected_user = admin_user.as_deref().unwrap_or("");
     let expected_pass = admin_password.as_deref().unwrap_or("");
 
-    let authenticated = if user == expected_user && pass == expected_pass {
+    let authenticated = if user.as_bytes().ct_eq(expected_user.as_bytes()).into()
+        && pass.as_bytes().ct_eq(expected_pass.as_bytes()).into()
+    {
         match user_store.get_user_by_username(user).await {
             Ok(u) if u.is_active() => UserInfo::from(&u),
             _ => UserInfo {

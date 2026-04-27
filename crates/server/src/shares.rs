@@ -12,6 +12,8 @@ use chrono::{Duration, Utc};
 use crate::api_error::ApiError;
 use crate::AppState;
 
+const MAX_SHARE_LINKS: usize = 10_000;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareLink {
     pub token: String,
@@ -69,7 +71,15 @@ impl ShareStoreTrait for ShareStore {
             download_count: 0,
             created_by,
         };
-        self.links.write().await.push(link.clone());
+        let mut links = self.links.write().await;
+        links.push(link.clone());
+        if links.len() > MAX_SHARE_LINKS {
+            links.retain(|l| l.expires_at > Utc::now());
+            if links.len() > MAX_SHARE_LINKS {
+                let excess = links.len() - MAX_SHARE_LINKS;
+                links.drain(..excess);
+            }
+        }
         link
     }
 
@@ -209,7 +219,7 @@ pub async fn serve_share(
 
     let mut headers = axum::http::HeaderMap::new();
     headers.insert("Content-Type", axum::http::HeaderValue::from_str(&meta.mime_type).unwrap_or_else(|_| axum::http::HeaderValue::from_static("application/octet-stream")));
-    headers.insert("Content-Disposition", axum::http::HeaderValue::from_str(&format!("attachment; filename=\"{}\"", link.path.rsplit('/').next().unwrap_or("download"))).unwrap());
+    headers.insert("Content-Disposition", axum::http::HeaderValue::from_str(&format!("attachment; filename=\"{}\"", link.path.rsplit('/').next().unwrap_or("download"))).unwrap_or_else(|_| axum::http::HeaderValue::from_static("attachment; filename=\"download\"")));
     (StatusCode::OK, headers, axum::body::Body::from(content)).into_response()
 }
 

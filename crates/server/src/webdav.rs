@@ -14,6 +14,7 @@ use tracing::{debug, warn};
 
 /// Maximum recursion depth for PROPFIND depth:infinity to prevent DoS.
 const MAX_PROPFIND_DEPTH: u32 = 100;
+const MAX_RECENTLY_PROCESSED: usize = 10_000;
 
 fn sanitize_path(path: &str) -> Result<String> {
     if path.contains('\0') {
@@ -536,6 +537,15 @@ async fn handle_put(
         let storage = state.storage.clone();
         let path = path.clone();
         state.recently_processed.insert(path.clone());
+        if state.recently_processed.len() > MAX_RECENTLY_PROCESSED {
+            let to_remove: Vec<String> = state.recently_processed.iter()
+                .take(MAX_RECENTLY_PROCESSED / 2)
+                .map(|r| r.key().clone())
+                .collect();
+            for key in to_remove {
+                state.recently_processed.remove(&key);
+            }
+        }
         tokio::spawn(async move {
             let workers = runtime.find_matching_workers(&path).await;
             for worker in workers {

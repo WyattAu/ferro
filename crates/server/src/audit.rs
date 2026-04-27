@@ -5,6 +5,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
+const MAX_AUDIT_ENTRIES: usize = 10_000;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct AuditEntry {
     pub timestamp: String,
@@ -43,7 +45,14 @@ impl AuditLog {
             status = entry.status,
             "AUDIT"
         );
-        self.entries.write().await.push(entry.clone());
+        {
+            let mut entries = self.entries.write().await;
+            entries.push(entry.clone());
+            if entries.len() > MAX_AUDIT_ENTRIES {
+                let excess = entries.len() - MAX_AUDIT_ENTRIES;
+                entries.drain(..excess);
+            }
+        }
 
         if let Some(ref p) = self.persistence {
             let _ = p.log(ferro_core::persistence::PersistedAuditEntry {

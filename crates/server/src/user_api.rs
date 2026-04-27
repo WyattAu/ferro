@@ -46,7 +46,10 @@ pub async fn create_user(State(state): State<AppState>, axum::Json(body): axum::
     };
 
     match state.user_store.create_user(user).await {
-        Ok(u) => (StatusCode::CREATED, axum::Json(serde_json::to_value(&u).unwrap())).into_response(),
+        Ok(u) => match serde_json::to_value(&u) {
+            Ok(v) => (StatusCode::CREATED, axum::Json(v)).into_response(),
+            Err(e) => ApiError::internal("SERIALIZATION_ERROR", format!("Failed to serialize user: {}", e)),
+        },
         Err(e) => match e.kind {
             crate::users::UserErrorKind::Conflict => ApiError::conflict("USER_EXISTS", e.message),
             _ => ApiError::internal("USER_CREATE_ERROR", e.message),
@@ -65,12 +68,12 @@ pub async fn list_users(State(state): State<AppState>) -> Response {
     }
 
     let users = state.user_store.list_users().await;
-    let serialized: Vec<serde_json::Value> = users.iter().map(|u| {
-        let mut v = serde_json::to_value(u).unwrap();
+    let serialized: Vec<serde_json::Value> = users.iter().filter_map(|u| {
+        let mut v = serde_json::to_value(u).ok()?;
         if let Some(obj) = v.as_object_mut() {
             obj.remove("password_hash");
         }
-        v
+        Some(v)
     }).collect();
 
     (StatusCode::OK, axum::Json(serde_json::json!({ "users": serialized }))).into_response()
@@ -88,7 +91,10 @@ pub async fn get_user(State(state): State<AppState>, Path(id): Path<String>) -> 
 
     match state.user_store.get_user(&id).await {
         Ok(u) => {
-            let mut v = serde_json::to_value(&u).unwrap();
+            let mut v = match serde_json::to_value(&u) {
+                Ok(v) => v,
+                Err(e) => return ApiError::internal("SERIALIZATION_ERROR", format!("Failed to serialize user: {}", e)),
+            };
             if let Some(obj) = v.as_object_mut() {
                 obj.remove("password_hash");
             }
@@ -117,7 +123,10 @@ pub async fn update_user(
 
     match state.user_store.update_user(&id, body).await {
         Ok(u) => {
-            let mut v = serde_json::to_value(&u).unwrap();
+            let mut v = match serde_json::to_value(&u) {
+                Ok(v) => v,
+                Err(e) => return ApiError::internal("SERIALIZATION_ERROR", format!("Failed to serialize user: {}", e)),
+            };
             if let Some(obj) = v.as_object_mut() {
                 obj.remove("password_hash");
             }
@@ -196,7 +205,10 @@ pub async fn get_current_user(State(state): State<AppState>) -> Response {
         }
     };
 
-    let mut v = serde_json::to_value(&user).unwrap();
+    let mut v = match serde_json::to_value(&user) {
+        Ok(v) => v,
+        Err(e) => return ApiError::internal("SERIALIZATION_ERROR", format!("Failed to serialize user: {}", e)),
+    };
     if let Some(obj) = v.as_object_mut() {
         obj.remove("password_hash");
     }
@@ -224,7 +236,10 @@ pub async fn update_current_user(
 
     match state.user_store.update_user(&user.id, updates).await {
         Ok(u) => {
-            let mut v = serde_json::to_value(&u).unwrap();
+            let mut v = match serde_json::to_value(&u) {
+                Ok(v) => v,
+                Err(e) => return ApiError::internal("SERIALIZATION_ERROR", format!("Failed to serialize user: {}", e)),
+            };
             if let Some(obj) = v.as_object_mut() {
                 obj.remove("password_hash");
             }
