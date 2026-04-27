@@ -10,11 +10,13 @@ use tracing::info;
 use crate::api_error::ApiError;
 use crate::AppState;
 
+/// WOPI query parameters.
 #[derive(Debug, Deserialize)]
 pub struct WopiQueryParams {
     pub access_token: Option<String>,
 }
 
+/// Response for WOPI CheckFileInfo.
 #[derive(Debug, Serialize)]
 pub struct WopiCheckFileInfoResponse {
     pub base_file_name: String,
@@ -29,6 +31,7 @@ pub struct WopiCheckFileInfoResponse {
     pub supports_coauth: bool,
 }
 
+/// Response for WOPI lock operations.
 #[derive(Debug, Serialize)]
 pub struct WopiLockResponse {
     pub lock_id: String,
@@ -141,6 +144,7 @@ r#"<?xml version="1.0" encoding="utf-8"?>
     (StatusCode::OK, headers, discovery_xml).into_response()
 }
 
+/// GET /wopi/files/*path — WOPI GET handler (CheckFileInfo or GetFile).
 pub async fn wopi_get(
     State(state): State<AppState>,
     Path(path): Path<String>,
@@ -158,6 +162,7 @@ pub async fn wopi_get(
     }
 }
 
+/// POST /wopi/files/*path — WOPI POST handler (PutFile, Lock, Unlock).
 pub async fn wopi_post(
     State(state): State<AppState>,
     Path(path): Path<String>,

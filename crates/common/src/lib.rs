@@ -1,3 +1,6 @@
+//! Shared types, error types, path utilities, storage traits, and WebDAV types
+//! used across the Ferro server and core crates.
+
 pub mod auth;
 pub mod error;
 pub mod metadata;

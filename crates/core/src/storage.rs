@@ -10,12 +10,14 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::debug;
 
+/// In-memory storage engine that combines content and metadata storage.
 pub struct InMemoryStorageEngine {
     store: Arc<RwLock<HashMap<String, Bytes>>>,
     metadata: Arc<RwLock<HashMap<String, FileMetadata>>>,
 }
 
 impl InMemoryStorageEngine {
+    /// Create a new empty in-memory storage engine.
     pub fn new() -> Self {
         Self {
             store: Arc::new(RwLock::new(HashMap::new())),

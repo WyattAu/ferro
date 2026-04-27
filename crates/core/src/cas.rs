@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::debug;
 
+/// Content-addressable storage trait for deduplicated blob storage.
 #[async_trait]
 pub trait CasStore: Send + Sync {
     async fn put_content(&self, content: Bytes) -> Result<ContentHash>;
@@ -16,11 +17,13 @@ pub trait CasStore: Send + Sync {
     async fn content_count(&self) -> usize;
 }
 
+/// In-memory CAS store backed by a hash map.
 pub struct InMemoryCasStore {
     content: Arc<RwLock<HashMap<String, Bytes>>>,
 }
 
 impl InMemoryCasStore {
+    /// Create a new empty in-memory CAS store.
     pub fn new() -> Self {
         Self {
             content: Arc::new(RwLock::new(HashMap::new())),

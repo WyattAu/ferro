@@ -3,6 +3,7 @@ use chrono::Utc;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
+/// User role determining access level.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum UserRole {
     #[default]
@@ -11,6 +12,7 @@ pub enum UserRole {
     ReadOnly,
 }
 
+/// User account status.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum UserStatus {
     Active,
@@ -18,6 +20,7 @@ pub enum UserStatus {
     Locked,
 }
 
+/// A user account in the system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
@@ -36,19 +39,23 @@ pub struct User {
 }
 
 impl User {
+    /// Check whether the user account is active.
     pub fn is_active(&self) -> bool {
         self.status == UserStatus::Active
     }
 
+    /// Check whether the user has admin role.
     pub fn is_admin(&self) -> bool {
         self.role == UserRole::Admin
     }
 
+    /// Check whether the user has read-write access (Admin or User role).
     pub fn has_read_write(&self) -> bool {
         self.role == UserRole::Admin || self.role == UserRole::User
     }
 }
 
+/// Lightweight user info used in auth context.
 #[derive(Debug, Clone)]
 pub struct UserInfo {
     pub user_id: String,
@@ -66,6 +73,7 @@ impl From<&User> for UserInfo {
     }
 }
 
+/// Request body for creating a new user.
 #[derive(Debug, Deserialize)]
 pub struct CreateUserRequest {
     pub username: String,
@@ -77,6 +85,7 @@ pub struct CreateUserRequest {
     pub storage_quota_bytes: Option<u64>,
 }
 
+/// Request body for updating a user (admin endpoint).
 #[derive(Debug, Deserialize, Default)]
 pub struct UpdateUserRequest {
     pub display_name: Option<String>,
@@ -86,23 +95,27 @@ pub struct UpdateUserRequest {
     pub storage_quota_bytes: Option<Option<u64>>,
 }
 
+/// Request body for a user updating their own profile.
 #[derive(Debug, Deserialize)]
 pub struct UpdateSelfRequest {
     pub display_name: Option<String>,
     pub password: Option<String>,
 }
 
+/// Request body for a password reset.
 #[derive(Debug, Deserialize)]
 pub struct ResetPasswordRequest {
     pub new_password: String,
 }
 
+/// Error type for user management operations.
 #[derive(Debug)]
 pub struct UserError {
     pub kind: UserErrorKind,
     pub message: String,
 }
 
+/// Kind of user error.
 #[derive(Debug, PartialEq)]
 pub enum UserErrorKind {
     NotFound,
@@ -112,20 +125,25 @@ pub enum UserErrorKind {
 }
 
 impl UserError {
+    /// Create a not-found user error.
     pub fn not_found(msg: impl Into<String>) -> Self {
         Self { kind: UserErrorKind::NotFound, message: msg.into() }
     }
+    /// Create a conflict user error.
     pub fn conflict(msg: impl Into<String>) -> Self {
         Self { kind: UserErrorKind::Conflict, message: msg.into() }
     }
+    /// Create a forbidden user error.
     pub fn forbidden(msg: impl Into<String>) -> Self {
         Self { kind: UserErrorKind::Forbidden, message: msg.into() }
     }
+    /// Create a bad-request user error.
     pub fn bad_request(msg: impl Into<String>) -> Self {
         Self { kind: UserErrorKind::BadRequest, message: msg.into() }
     }
 }
 
+/// Trait for user store backends.
 #[async_trait]
 pub trait UserStoreTrait: Send + Sync {
     async fn create_user(&self, user: User) -> Result<User, UserError>;
@@ -145,6 +163,7 @@ pub trait UserStoreTrait: Send + Sync {
     }
 }
 
+/// Hash a password using bcrypt.
 pub fn hash_password(password: &str) -> String {
     bcrypt::hash(password, bcrypt::DEFAULT_COST).expect("bcrypt hashing failed")
 }
@@ -155,6 +174,7 @@ fn verify_password(password: &str, hash: &str) -> bool {
 
 const MAX_USERS: usize = 10_000;
 
+/// In-memory user store backed by dashmaps.
 pub struct InMemoryUserStore {
     users: DashMap<String, User>,
     username_index: DashMap<String, String>,
@@ -162,6 +182,7 @@ pub struct InMemoryUserStore {
 }
 
 impl InMemoryUserStore {
+    /// Create a new empty user store.
     pub fn new() -> Self {
         Self {
             users: DashMap::new(),
@@ -170,6 +191,7 @@ impl InMemoryUserStore {
         }
     }
 
+    /// Create an admin user with the given username and password.
     pub fn create_admin(username: &str, password: &str) -> User {
         User {
             id: uuid::Uuid::new_v4().to_string(),

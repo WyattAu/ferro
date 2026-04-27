@@ -4,6 +4,7 @@ use url::Url;
 
 // ── Trait ──────────────────────────────────────────────────────────────────
 
+/// Trait for generating presigned upload/download URLs.
 #[async_trait]
 pub trait PresignedUrlGenerator: Send + Sync {
     async fn generate_put_url(&self, path: &str, expires_in_secs: u32) -> Result<Url>;
@@ -21,6 +22,7 @@ pub struct ServerPresignedUrlGenerator {
 }
 
 impl ServerPresignedUrlGenerator {
+    /// Create a new server-based presigned URL generator.
     pub fn new(base_url: &str) -> Result<Self> {
         let base = Url::parse(base_url)
             .map_err(|e| FerroError::Internal(format!("Invalid base URL: {}", e)))?;
@@ -65,6 +67,7 @@ impl PresignedUrlGenerator for NoOpPresignedUrlGenerator {
 
 // ── Cloud generators ───────────────────────────────────────────────────────
 
+/// S3-backed presigned URL generator.
 #[cfg(feature = "s3")]
 pub struct S3PresignedUrlGenerator {
     store: std::sync::Arc<object_store::aws::AmazonS3>,
@@ -72,6 +75,7 @@ pub struct S3PresignedUrlGenerator {
 
 #[cfg(feature = "s3")]
 impl S3PresignedUrlGenerator {
+    /// Create a new S3 presigned URL generator.
     pub fn new(store: std::sync::Arc<object_store::aws::AmazonS3>) -> Self {
         Self { store }
     }
@@ -107,6 +111,7 @@ impl PresignedUrlGenerator for S3PresignedUrlGenerator {
     }
 }
 
+/// GCS-backed presigned URL generator.
 #[cfg(feature = "gcs")]
 pub struct GcsPresignedUrlGenerator {
     store: std::sync::Arc<object_store::gcp::GoogleCloudStorage>,
@@ -114,6 +119,7 @@ pub struct GcsPresignedUrlGenerator {
 
 #[cfg(feature = "gcs")]
 impl GcsPresignedUrlGenerator {
+    /// Create a new GCS presigned URL generator.
     pub fn new(store: std::sync::Arc<object_store::gcp::GoogleCloudStorage>) -> Self {
         Self { store }
     }
@@ -149,6 +155,7 @@ impl PresignedUrlGenerator for GcsPresignedUrlGenerator {
     }
 }
 
+/// Azure Blob Storage-backed presigned URL generator.
 #[cfg(feature = "azure")]
 pub struct AzurePresignedUrlGenerator {
     store: std::sync::Arc<object_store::azure::MicrosoftAzure>,
@@ -156,6 +163,7 @@ pub struct AzurePresignedUrlGenerator {
 
 #[cfg(feature = "azure")]
 impl AzurePresignedUrlGenerator {
+    /// Create a new Azure presigned URL generator.
     pub fn new(store: std::sync::Arc<object_store::azure::MicrosoftAzure>) -> Self {
         Self { store }
     }

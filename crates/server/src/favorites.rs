@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 use crate::AppState;
 
+/// Trait for managing user favorite paths.
 #[async_trait]
 pub trait FavoriteStore: Send + Sync {
     async fn list(&self) -> Vec<String>;
@@ -15,11 +16,15 @@ pub trait FavoriteStore: Send + Sync {
     async fn remove(&self, path: &str);
 }
 
+/// In-memory favorite store backed by a [`DashSet`].
 pub struct InMemoryFavoriteStore {
     favorites: DashSet<String>,
 }
 
+const MAX_FAVORITES: usize = 10_000;
+
 impl InMemoryFavoriteStore {
+    /// Create a new empty favorite store.
     pub fn new() -> Self {
         Self {
             favorites: DashSet::new(),
@@ -34,7 +39,9 @@ impl FavoriteStore for InMemoryFavoriteStore {
     }
 
     async fn add(&self, path: String) {
-        self.favorites.insert(path);
+        if self.favorites.len() < MAX_FAVORITES {
+            self.favorites.insert(path);
+        }
     }
 
     async fn contains(&self, path: &str) -> bool {
@@ -52,16 +59,19 @@ impl Default for InMemoryFavoriteStore {
     }
 }
 
+/// List the current user's favorite paths.
 pub async fn list_favorites(State(state): State<AppState>) -> Response {
     let favorites = state.favorites.list().await;
     (StatusCode::OK, axum::Json(serde_json::json!({ "paths": favorites }))).into_response()
 }
 
+/// Request body for adding/removing a favorite path.
 #[derive(Debug, Deserialize)]
 pub struct FavoritePath {
     pub path: String,
 }
 
+/// Add a path to the current user's favorites.
 pub async fn add_favorite(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<FavoritePath>,
@@ -70,6 +80,7 @@ pub async fn add_favorite(
     (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
+/// Remove a path from the current user's favorites.
 pub async fn remove_favorite(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<FavoritePath>,
@@ -78,6 +89,7 @@ pub async fn remove_favorite(
     (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
+/// List recently created/modified files from the audit log.
 pub async fn list_recent(State(state): State<AppState>) -> Response {
     let entries = state.audit_log.recent(50).await;
     let mut seen = std::collections::HashSet::new();

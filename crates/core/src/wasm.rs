@@ -7,6 +7,7 @@ use wasmtime_wasi::p2::pipe::{MemoryInputPipe, MemoryOutputPipe};
 use wasmtime_wasi::p1::{self, WasiP1Ctx};
 use wasmtime_wasi::WasiCtxBuilder;
 
+/// Configuration limits for WASM worker execution.
 #[derive(Debug, Clone)]
 pub struct WorkerConfig {
     pub max_time_ms: u64,
@@ -26,6 +27,7 @@ impl Default for WorkerConfig {
     }
 }
 
+/// Result of a WASM worker execution.
 #[derive(Debug, Clone)]
 pub struct WorkerResult {
     pub success: bool,
@@ -35,6 +37,7 @@ pub struct WorkerResult {
     pub execution_time_ms: u64,
 }
 
+/// A registered WASM worker that triggers on a file path pattern.
 #[derive(Debug, Clone)]
 pub struct WorkerEvent {
     pub pattern: String,
@@ -43,6 +46,7 @@ pub struct WorkerEvent {
     pub function_name: String,
 }
 
+/// WASM worker runtime using Wasmtime with WASI support.
 pub struct WasmWorkerRuntime {
     engine: Engine,
     workers: Arc<RwLock<Vec<WorkerEvent>>>,
@@ -50,6 +54,7 @@ pub struct WasmWorkerRuntime {
 }
 
 impl WasmWorkerRuntime {
+    /// Create a new WASM runtime with default configuration.
     pub fn new() -> Result<Self> {
         let mut config = Config::new();
         config.consume_fuel(true);
@@ -67,6 +72,7 @@ impl WasmWorkerRuntime {
         })
     }
 
+    /// Register a worker event handler for a file path pattern.
     pub async fn register_worker(&self, event: WorkerEvent) {
         let mut workers = self.workers.write().await;
         info!("Registered WASM worker: {} -> {}::{}",
@@ -135,6 +141,7 @@ impl WasmWorkerRuntime {
         }
     }
 
+    /// Find all workers whose pattern matches the given file path.
     pub async fn find_matching_workers(&self, file_path: &str) -> Vec<WorkerEvent> {
         let workers = self.workers.read().await;
         workers.iter()
@@ -159,6 +166,7 @@ impl WasmWorkerRuntime {
         path == pattern
     }
 
+    /// List all registered workers.
     pub async fn list_workers(&self) -> Vec<WorkerEvent> {
         self.workers.read().await.clone()
     }

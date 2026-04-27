@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+/// JWT claims extracted from an OIDC/Basic auth token.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
@@ -14,6 +15,7 @@ pub struct Claims {
 }
 
 impl Claims {
+    /// Create anonymous claims for unauthenticated requests.
     pub fn anonymous() -> Self {
         Self {
             sub: "anonymous".to_string(),
@@ -29,12 +31,14 @@ impl Claims {
     }
 }
 
+/// Result of an authorization policy evaluation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AuthDecision {
     Allow { policy_id: Option<String> },
     Deny { reason: String },
 }
 
+/// Authorization request submitted to the policy engine.
 #[derive(Debug, Clone)]
 pub struct AuthRequest {
     pub principal: String,

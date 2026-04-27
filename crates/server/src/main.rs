@@ -460,7 +460,16 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("═══════════════════════════════════════════════════════════════");
     }
 
+    let lock_manager = state.lock_manager.clone();
     let app = build_router_with_static(state, cli.static_dir.as_deref(), &cli.cors_allowed_origins);
+
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            lock_manager.cleanup_all_expired().await;
+        }
+    });
 
     let addr = format!("{}:{}", cli.host, cli.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -485,7 +494,7 @@ async fn main() -> anyhow::Result<()> {
 
 /// Parse bucket/container name from a URL like "s3://my-bucket" → "my-bucket".
 /// Also handles prefix paths like "s3://my-bucket/path" → "my-bucket".
-#[allow(dead_code)]
+#[allow(dead_code)] // Feature-gated: only used when s3/gcs/azure features are enabled
 fn parse_bucket_from_url(url: &str) -> anyhow::Result<String> {
     let without_scheme = url
         .trim_start_matches("s3://")

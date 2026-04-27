@@ -5,11 +5,13 @@ use serde::Deserialize;
 
 use crate::AppState;
 
+/// Request body for bulk delete operations.
 #[derive(Debug, Deserialize)]
 pub struct BulkDeleteRequest {
     pub paths: Vec<String>,
 }
 
+/// POST /api/bulk/delete — delete multiple files in a single request.
 pub async fn bulk_delete(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<BulkDeleteRequest>,

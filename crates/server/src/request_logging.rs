@@ -5,6 +5,7 @@ use axum::response::Response;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
 
+/// Middleware that logs each request with method, path, status, duration, and request ID.
 pub async fn request_logging_middleware(
     request_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
     req: Request<Body>,

@@ -1,24 +1,16 @@
-//! Simple in-memory rate limiter using a token bucket approach.
-//! Limits requests per client IP within a time window.
-
-use std::collections::HashMap;
-use std::sync::Arc;
+use dashmap::DashMap;
 use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
 use tracing::warn;
 
-/// Per-client rate limit state.
 struct ClientBucket {
     tokens: u32,
     last_refill: Instant,
 }
 
-/// Rate limiter configuration.
+/// Configuration for the token-bucket rate limiter.
 #[derive(Clone)]
 pub struct RateLimiterConfig {
-    /// Maximum requests per window.
     pub max_requests: u32,
-    /// Time window duration.
     pub window: Duration,
 }
 
@@ -31,35 +23,34 @@ impl Default for RateLimiterConfig {
     }
 }
 
-/// Simple sliding window rate limiter.
+/// Token-bucket rate limiter.
 pub struct RateLimiter {
-    clients: Arc<RwLock<HashMap<String, ClientBucket>>>,
+    clients: DashMap<String, ClientBucket>,
     config: RateLimiterConfig,
 }
 
 impl RateLimiter {
+    /// Create a new rate limiter with the given configuration.
     pub fn new(config: RateLimiterConfig) -> Self {
         Self {
-            clients: Arc::new(RwLock::new(HashMap::new())),
+            clients: DashMap::new(),
             config,
         }
     }
 
-    /// Check if a request from the given client IP is allowed.
-    /// Returns true if allowed, false if rate limited.
+    /// Check whether a request from the given client IP is allowed under the rate limit.
     pub async fn check(&self, client_ip: &str) -> bool {
-        let mut clients = self.clients.write().await;
-        let now = Instant::now();
+        if self.clients.len() > self.config.max_requests as usize * 10 {
+            let cutoff = Instant::now() - self.config.window * 2;
+            self.clients.retain(|_, bucket| bucket.last_refill > cutoff);
+        }
 
-        let cutoff = now - self.config.window * 2;
-        clients.retain(|_, bucket| bucket.last_refill > cutoff);
-
-        let bucket = clients.entry(client_ip.to_string()).or_insert(ClientBucket {
+        let mut bucket = self.clients.entry(client_ip.to_string()).or_insert(ClientBucket {
             tokens: self.config.max_requests,
-            last_refill: now,
+            last_refill: Instant::now(),
         });
 
-        // Refill tokens based on elapsed time
+        let now = Instant::now();
         let elapsed = now.duration_since(bucket.last_refill);
         let tokens_to_add = (elapsed.as_secs_f64()
             / self.config.window.as_secs_f64()
@@ -77,13 +68,6 @@ impl RateLimiter {
             warn!("Rate limit exceeded for {}", client_ip);
             false
         }
-    }
-
-    /// Remove stale entries to prevent memory leaks.
-    pub async fn cleanup(&self) {
-        let mut clients = self.clients.write().await;
-        let cutoff = Instant::now() - self.config.window * 2;
-        clients.retain(|_, bucket| bucket.last_refill > cutoff);
     }
 }
 
@@ -113,7 +97,7 @@ mod tests {
         assert!(limiter.check("1.2.3.4").await);
         assert!(limiter.check("1.2.3.4").await);
         assert!(limiter.check("1.2.3.4").await);
-        assert!(!limiter.check("1.2.3.4").await); // 4th should be blocked
+        assert!(!limiter.check("1.2.3.4").await);
     }
 
     #[tokio::test]
@@ -123,12 +107,10 @@ mod tests {
             window: Duration::from_secs(60),
         });
 
-        // Client A exhausts their limit
         assert!(limiter.check("client-a").await);
         assert!(limiter.check("client-a").await);
         assert!(!limiter.check("client-a").await);
 
-        // Client B should still be allowed
         assert!(limiter.check("client-b").await);
     }
 
@@ -140,12 +122,13 @@ mod tests {
         });
 
         limiter.check("temp-client").await;
-        assert_eq!(limiter.clients.read().await.len(), 1);
+        assert_eq!(limiter.clients.len(), 1);
 
-        // Wait for window to expire and cleanup
         tokio::time::sleep(Duration::from_millis(250)).await;
-        limiter.cleanup().await;
-        assert_eq!(limiter.clients.read().await.len(), 0);
+
+        let cutoff = Instant::now() - Duration::from_millis(200);
+        limiter.clients.retain(|_, bucket| bucket.last_refill > cutoff);
+        assert_eq!(limiter.clients.len(), 0);
     }
 
     #[tokio::test]

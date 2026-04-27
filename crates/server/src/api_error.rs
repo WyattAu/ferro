@@ -3,6 +3,7 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Serialize;
 
+/// Structured API error response body.
 #[derive(Debug, Serialize)]
 pub struct ApiError {
     pub error: String,
@@ -12,6 +13,7 @@ pub struct ApiError {
 }
 
 impl ApiError {
+    /// Build a JSON error response with the given status and code.
     pub fn respond(status: StatusCode, code: &str, message: impl Into<String>) -> Response {
         let body = Json(Self {
             error: message.into(),
@@ -21,6 +23,7 @@ impl ApiError {
         (status, body).into_response()
     }
 
+    /// Build a JSON error response with additional details.
     pub fn with_details(
         status: StatusCode,
         code: &str,
@@ -35,38 +38,47 @@ impl ApiError {
         (status, body).into_response()
     }
 
+    /// 400 Bad Request.
     pub fn bad_request(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::BAD_REQUEST, code, message)
     }
 
+    /// 401 Unauthorized.
     pub fn unauthorized(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::UNAUTHORIZED, code, message)
     }
 
+    /// 403 Forbidden.
     pub fn forbidden(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::FORBIDDEN, code, message)
     }
 
+    /// 404 Not Found.
     pub fn not_found(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::NOT_FOUND, code, message)
     }
 
+    /// 409 Conflict.
     pub fn conflict(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::CONFLICT, code, message)
     }
 
+    /// 500 Internal Server Error.
     pub fn internal(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::INTERNAL_SERVER_ERROR, code, message)
     }
 
+    /// 501 Not Implemented.
     pub fn not_implemented(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::NOT_IMPLEMENTED, code, message)
     }
 
+    /// 413 Payload Too Large.
     pub fn payload_too_large(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::PAYLOAD_TOO_LARGE, code, message)
     }
 
+    /// 429 Too Many Requests (includes `Retry-After` header).
     pub fn too_many_requests(code: &str, message: impl Into<String>) -> Response {
         let body = Json(Self {
             error: message.into(),
@@ -88,10 +100,12 @@ impl ApiError {
         response
     }
 
+    /// 503 Service Unavailable.
     pub fn service_unavailable(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::SERVICE_UNAVAILABLE, code, message)
     }
 
+    /// 401 with `WWW-Authenticate: Basic` header.
     pub fn unauthorized_with_www_authenticate(code: &str, message: impl Into<String>) -> Response {
         let body = Json(Self {
             error: message.into(),
@@ -106,10 +120,12 @@ impl ApiError {
         response
     }
 
+    /// 410 Gone.
     pub fn gone(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::GONE, code, message)
     }
 
+    /// 502 Bad Gateway.
     pub fn bad_gateway(code: &str, message: impl Into<String>) -> Response {
         Self::respond(StatusCode::BAD_GATEWAY, code, message)
     }

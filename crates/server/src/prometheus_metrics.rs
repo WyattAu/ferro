@@ -3,6 +3,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use crate::AppState;
 
+/// GET /metrics/prometheus — return server metrics in Prometheus format.
 pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Response {
     let uptime = state.started_at.elapsed().as_secs_f64();
 

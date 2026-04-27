@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use crate::AppState;
 
+/// GET /metrics — return server metrics as JSON.
 pub async fn metrics_handler(State(state): State<AppState>) -> Response {
     let uptime_secs = state.started_at.elapsed().as_secs();
 

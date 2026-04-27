@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 
+/// Storage quota information.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QuotaInfo {
     pub used_bytes: u64,
@@ -14,6 +15,7 @@ pub struct QuotaInfo {
     pub unlimited: bool,
 }
 
+/// GET /api/quota — return current quota usage.
 pub async fn get_quota(State(state): State<AppState>) -> Response {
     let quota_bytes = state.quota_bytes.unwrap_or(0);
     let unlimited = state.quota_bytes.is_none();
@@ -37,6 +39,7 @@ pub async fn get_quota(State(state): State<AppState>) -> Response {
     })).into_response()
 }
 
+/// Check whether an upload would exceed the storage quota.
 pub fn check_quota(state: &AppState, content_len: u64) -> Result<(), &'static str> {
     if let Some(quota_bytes) = state.quota_bytes {
         let used = state.used_bytes.load(std::sync::atomic::Ordering::Relaxed);
@@ -47,6 +50,7 @@ pub fn check_quota(state: &AppState, content_len: u64) -> Result<(), &'static st
     Ok(())
 }
 
+/// Record storage usage delta (positive for uploads, negative for deletes).
 pub fn record_usage(state: &AppState, bytes: i64) {
     state.used_bytes.fetch_update(
         std::sync::atomic::Ordering::Relaxed,
@@ -65,6 +69,7 @@ pub fn record_usage(state: &AppState, bytes: i64) {
     }
 }
 
+/// Parse a human-readable size string (e.g., "10GB") into bytes.
 pub fn parse_human_size(s: &str) -> Option<u64> {
     let s = s.trim().to_uppercase();
     let (num_str, multiplier) = if let Some(n) = s.strip_suffix("TB") {

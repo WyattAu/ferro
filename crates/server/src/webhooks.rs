@@ -10,6 +10,7 @@ use crate::AppState;
 
 const MAX_WEBHOOKS: usize = 100;
 
+/// Configuration for a webhook subscription.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookConfig {
     pub id: String,
@@ -19,6 +20,7 @@ pub struct WebhookConfig {
     pub enabled: bool,
 }
 
+/// A webhook event payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookEvent {
     pub event: String,
@@ -32,6 +34,7 @@ pub struct WebhookEvent {
     pub etag: Option<String>,
 }
 
+/// Compute an HMAC-SHA256 signature for webhook payload verification.
 pub fn sign_payload(secret: &str, payload: &[u8]) -> String {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
@@ -44,6 +47,7 @@ pub fn sign_payload(secret: &str, payload: &[u8]) -> String {
     hex::encode(result.into_bytes())
 }
 
+/// Fire matching webhooks for an event with retry logic.
 pub async fn fire_webhooks(
     webhooks: Arc<RwLock<Vec<WebhookConfig>>>,
     event: WebhookEvent,
@@ -120,6 +124,7 @@ pub async fn fire_webhooks(
     }
 }
 
+/// POST /api/admin/webhooks — create a webhook subscription.
 pub async fn create_webhook(
     State(state): State<AppState>,
     axum::Json(input): axum::Json<CreateWebhookInput>,
@@ -151,11 +156,13 @@ pub async fn create_webhook(
     (StatusCode::CREATED, axum::Json(config)).into_response()
 }
 
+/// GET /api/admin/webhooks — list all webhook subscriptions.
 pub async fn list_webhooks(State(state): State<AppState>) -> Response {
     let hooks = state.webhooks.read().await;
     (StatusCode::OK, axum::Json(hooks.clone())).into_response()
 }
 
+/// DELETE /api/admin/webhooks/:id — delete a webhook subscription.
 pub async fn delete_webhook(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -171,6 +178,7 @@ pub async fn delete_webhook(
     }
 }
 
+/// Request body for creating a webhook.
 #[derive(Debug, Deserialize)]
 pub struct CreateWebhookInput {
     pub url: String,

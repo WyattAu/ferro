@@ -1,5 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
+/// Normalize a path by resolving `.` and `..` components and ensuring a leading `/`.
 pub fn normalize_path(path: &str) -> String {
     let path = Path::new(path);
     let mut result = Vec::new();
@@ -23,6 +24,7 @@ pub fn normalize_path(path: &str) -> String {
     }
 }
 
+/// Return the parent directory path, or `None` if already at root.
 pub fn parent_path(path: &str) -> Option<String> {
     let normalized = normalize_path(path);
     if normalized == "/" {
@@ -32,6 +34,7 @@ pub fn parent_path(path: &str) -> Option<String> {
     Some(normalize_path(&parent.to_string_lossy()))
 }
 
+/// Return the final path component (file or directory name).
 pub fn base_name(path: &str) -> &str {
     let trimmed = path.trim_end_matches('/');
     Path::new(trimmed)
@@ -40,14 +43,17 @@ pub fn base_name(path: &str) -> &str {
         .unwrap_or("")
 }
 
+/// Check whether a path represents a collection (ends with `/`).
 pub fn is_collection_path(path: &str) -> bool {
     path.ends_with('/')
 }
 
+/// Validate that a path is non-empty and does not contain traversal components.
 pub fn validate_path(path: &str) -> bool {
     !path.trim().is_empty() && !normalize_path(path).contains("..")
 }
 
+/// Join a base path and a segment, normalizing slashes.
 pub fn join_path(base: &str, segment: &str) -> String {
     let base = base.trim_end_matches('/');
     let segment = segment.trim_start_matches('/');

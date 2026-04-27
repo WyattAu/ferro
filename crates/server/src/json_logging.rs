@@ -2,6 +2,7 @@ use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::LookupSpan;
 use std::fmt::Write;
 
+/// JSON-formatted tracing event formatter.
 pub struct JsonFormatter;
 
 struct MessageVisitor(String);

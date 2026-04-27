@@ -25,6 +25,7 @@ pub async fn get_server_config(State(state): State<AppState>) -> Response {
 use clap::Parser;
 use serde::Deserialize;
 
+/// Configuration loaded from a TOML file.
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(default)]
 pub struct FileConfig {
@@ -206,6 +207,7 @@ pub struct ServerConfig {
     pub ldap_user_search_base: String,
 }
 
+/// Load and parse a TOML configuration file.
 pub fn load_config_file(path: &str) -> anyhow::Result<FileConfig> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| anyhow::anyhow!("Failed to read config file {}: {}", path, e))?;
@@ -214,6 +216,7 @@ pub fn load_config_file(path: &str) -> anyhow::Result<FileConfig> {
     Ok(config)
 }
 
+/// Apply file-based configuration, without overriding CLI flags.
 pub fn apply_file_config<I, T>(args: I, cli: &mut ServerConfig, file: &FileConfig)
 where
     I: IntoIterator<Item = T>,

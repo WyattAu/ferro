@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 
+/// A single activity feed entry.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ActivityEntry {
     pub action: String,
@@ -14,18 +15,21 @@ pub struct ActivityEntry {
     pub user: String,
 }
 
+/// Paginated activity feed response.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ActivityResponse {
     pub entries: Vec<ActivityEntry>,
     pub total: usize,
 }
 
+/// Query parameters for the activity feed.
 #[derive(Debug, Deserialize)]
 pub struct ActivityParams {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
 }
 
+/// GET /api/activity — return recent activity from the audit log.
 pub async fn get_activity(
     State(state): State<AppState>,
     Query(params): Query<ActivityParams>,

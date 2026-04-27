@@ -9,8 +9,10 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
+use crate::api_error::ApiError;
 use crate::AppState;
 
+/// A filesystem snapshot containing metadata for all files at a point in time.
 #[derive(Debug, Clone, Serialize, SerdeDeserialize)]
 pub struct Snapshot {
     pub id: String,
@@ -20,6 +22,7 @@ pub struct Snapshot {
     pub entry_count: usize,
 }
 
+/// In-memory snapshot store with optional SQLite persistence.
 pub struct SnapshotStore {
     snapshots: Arc<RwLock<Vec<Snapshot>>>,
     max_snapshots: usize,
@@ -27,6 +30,7 @@ pub struct SnapshotStore {
 }
 
 impl SnapshotStore {
+    /// Create a new snapshot store with a maximum retention count.
     pub fn new(max_snapshots: usize) -> Self {
         Self {
             snapshots: Arc::new(RwLock::new(Vec::new())),
@@ -35,11 +39,13 @@ impl SnapshotStore {
         }
     }
 
+    /// Add optional SQLite persistence.
     pub fn with_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
         self.persistence = Some(persistence);
         self
     }
 
+    /// Create a new snapshot.
     pub async fn create(&self, description: String, entries: Vec<common::metadata::FileMetadata>) -> Snapshot {
         let snapshot = Snapshot {
             id: uuid::Uuid::new_v4().to_string(),
@@ -67,6 +73,7 @@ impl SnapshotStore {
         snapshot
     }
 
+    /// Get a snapshot by ID.
     pub async fn get(&self, id: &str) -> Option<Snapshot> {
         if let Some(ref p) = self.persistence
             && let Ok(persisted) = p.get(id).await
@@ -89,6 +96,7 @@ impl SnapshotStore {
             .cloned()
     }
 
+    /// List all snapshots.
     pub async fn list(&self) -> Vec<Snapshot> {
         if let Some(ref p) = self.persistence
             && let Ok(summaries) = p.list().await
@@ -112,6 +120,7 @@ impl SnapshotStore {
         self.snapshots.read().await.clone()
     }
 
+    /// Delete a snapshot by ID.
     pub async fn delete(&self, id: &str) -> bool {
         if let Some(ref p) = self.persistence {
             if p.delete(id).await.is_ok() {
@@ -133,11 +142,13 @@ impl SnapshotStore {
     }
 }
 
+/// Request body for creating a snapshot.
 #[derive(Debug, Deserialize)]
 pub struct CreateSnapshotRequest {
     pub description: Option<String>,
 }
 
+/// POST /api/snapshots — create a new filesystem snapshot.
 pub async fn create_snapshot(
     State(state): State<AppState>,
     axum::Json(req): axum::Json<CreateSnapshotRequest>,
@@ -145,11 +156,7 @@ pub async fn create_snapshot(
     let entries = match state.storage.list_all("/", 1000).await {
         Ok(e) => e,
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": e.to_string()})),
-            )
-                .into_response()
+            return ApiError::internal("SNAPSHOT_LIST_FAILED", format!("Failed to list files: {}", e));
         }
     };
 
@@ -170,6 +177,7 @@ pub async fn create_snapshot(
         .into_response()
 }
 
+/// GET /api/snapshots — list all snapshots.
 pub async fn list_snapshots(State(state): State<AppState>) -> Response {
     let snapshots: Vec<Snapshot> = state.snapshot_store.list().await;
     let items: Vec<serde_json::Value> = snapshots
@@ -190,6 +198,7 @@ pub async fn list_snapshots(State(state): State<AppState>) -> Response {
         .into_response()
 }
 
+/// DELETE /api/snapshots/:id — delete a snapshot.
 pub async fn delete_snapshot_by_id(
     State(state): State<AppState>,
     axum::extract::Path(id): axum::extract::Path<String>,
@@ -197,14 +206,11 @@ pub async fn delete_snapshot_by_id(
     if state.snapshot_store.delete(&id).await {
         (StatusCode::NO_CONTENT, "").into_response()
     } else {
-        (
-            StatusCode::NOT_FOUND,
-            axum::Json(serde_json::json!({"error": "Snapshot not found"})),
-        )
-            .into_response()
+        ApiError::not_found("SNAPSHOT_NOT_FOUND", "Snapshot not found")
     }
 }
 
+/// POST /api/snapshots/:id/restore — restore a snapshot.
 pub async fn restore_snapshot(
     State(state): State<AppState>,
     axum::extract::Path(id): axum::extract::Path<String>,
@@ -212,11 +218,7 @@ pub async fn restore_snapshot(
     let snapshot = match state.snapshot_store.get(&id).await {
         Some(s) => s,
         None => {
-            return (
-                StatusCode::NOT_FOUND,
-                axum::Json(serde_json::json!({"error": "Snapshot not found"})),
-            )
-                .into_response()
+            return ApiError::not_found("SNAPSHOT_NOT_FOUND", "Snapshot not found");
         }
     };
 

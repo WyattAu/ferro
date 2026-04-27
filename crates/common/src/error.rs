@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// Top-level error type for the Ferro application.
 #[derive(Error, Debug)]
 pub enum FerroError {
     #[error("Not found: {0}")]
@@ -43,6 +44,7 @@ pub enum FerroError {
 }
 
 impl FerroError {
+    /// Map this error to an HTTP status code.
     pub fn status_code(&self) -> u16 {
         match self {
             Self::NotFound(_) => 404,
@@ -62,4 +64,5 @@ impl FerroError {
     }
 }
 
+/// Result alias using [`FerroError`].
 pub type Result<T> = std::result::Result<T, FerroError>;

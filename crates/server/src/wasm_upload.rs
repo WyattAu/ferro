@@ -7,6 +7,7 @@ use crate::AppState;
 
 const WASM_MAGIC: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
 
+/// Response returned after a successful WASM module upload.
 #[derive(Debug, Serialize)]
 pub struct UploadResponse {
     pub module_path: String,
@@ -14,6 +15,7 @@ pub struct UploadResponse {
     pub filename: String,
 }
 
+/// Information about a single WASM module.
 #[derive(Debug, Serialize)]
 pub struct ModuleInfo {
     pub filename: String,
@@ -22,15 +24,18 @@ pub struct ModuleInfo {
     pub uploaded_at: String,
 }
 
+/// Response for listing all WASM modules.
 #[derive(Debug, Serialize)]
 pub struct ListModulesResponse {
     pub modules: Vec<ModuleInfo>,
 }
 
+/// Check that data starts with the WASM magic bytes.
 pub fn validate_wasm_magic_bytes(data: &[u8]) -> bool {
     data.len() >= 4 && data[..4] == WASM_MAGIC
 }
 
+/// Validate a filename is a simple `.wasm` file name without path separators.
 pub fn validate_filename(filename: &str) -> bool {
     let path = std::path::Path::new(filename);
     if path.extension().map(|e| e != "wasm").unwrap_or(true) {
@@ -45,6 +50,7 @@ pub fn validate_filename(filename: &str) -> bool {
     filename == path.file_name().unwrap_or_default().to_str().unwrap_or("")
 }
 
+/// POST /api/workers/upload — upload a WASM module via multipart form.
 pub async fn upload_wasm_module(
     State(state): State<AppState>,
     mut multipart: Multipart,
@@ -144,6 +150,7 @@ pub async fn upload_wasm_module(
         .into_response()
 }
 
+/// GET /api/workers/modules — list uploaded WASM modules.
 pub async fn list_wasm_modules(State(state): State<AppState>) -> Response {
     let workers_dir = match &state.workers_dir {
         Some(dir) => dir.clone(),
@@ -197,6 +204,7 @@ pub async fn list_wasm_modules(State(state): State<AppState>) -> Response {
     (StatusCode::OK, axum::Json(ListModulesResponse { modules })).into_response()
 }
 
+/// DELETE /api/workers/modules/:filename — delete a WASM module.
 pub async fn delete_wasm_module(
     State(state): State<AppState>,
     Path(filename): Path<String>,

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::debug;
 
+/// Trait for storing and retrieving file metadata.
 #[async_trait]
 pub trait MetadataStore: Send + Sync {
     async fn get(&self, path: &str) -> Result<FileMetadata>;
@@ -15,11 +16,13 @@ pub trait MetadataStore: Send + Sync {
     async fn exists(&self, path: &str) -> Result<bool>;
 }
 
+/// In-memory metadata store backed by a hash map.
 pub struct InMemoryMetadataStore {
     data: Arc<RwLock<HashMap<String, FileMetadata>>>,
 }
 
 impl InMemoryMetadataStore {
+    /// Create a new empty in-memory metadata store.
     pub fn new() -> Self {
         Self {
             data: Arc::new(RwLock::new(HashMap::new())),

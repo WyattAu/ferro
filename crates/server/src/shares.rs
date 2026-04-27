@@ -14,6 +14,7 @@ use crate::AppState;
 
 const MAX_SHARE_LINKS: usize = 10_000;
 
+/// A share link allowing temporary access to a file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareLink {
     pub token: String,
@@ -25,6 +26,7 @@ pub struct ShareLink {
     pub created_by: String,
 }
 
+/// Request body for creating a new share link.
 #[derive(Debug, Deserialize)]
 pub struct CreateShareRequest {
     pub path: String,
@@ -33,6 +35,7 @@ pub struct CreateShareRequest {
     pub max_downloads: Option<u32>,
 }
 
+/// Trait for managing share links.
 #[async_trait]
 pub trait ShareStoreTrait: Send + Sync {
     async fn create(&self, req: CreateShareRequest, created_by: String) -> ShareLink;
@@ -42,11 +45,13 @@ pub trait ShareStoreTrait: Send + Sync {
     async fn increment_download(&self, token: &str) -> bool;
 }
 
+/// In-memory share link store.
 pub struct ShareStore {
     links: Arc<RwLock<Vec<ShareLink>>>,
 }
 
 impl ShareStore {
+    /// Create a new empty share store.
     pub fn new() -> Self {
         Self {
             links: Arc::new(RwLock::new(Vec::new())),
@@ -120,6 +125,7 @@ impl Default for ShareStore {
     }
 }
 
+/// Create a new share link.
 pub async fn create_share(
     State(state): State<AppState>,
     axum::Json(req): axum::Json<CreateShareRequest>,
@@ -134,6 +140,7 @@ pub async fn create_share(
     }))).into_response()
 }
 
+/// List all active share links.
 pub async fn list_shares(State(state): State<AppState>) -> Response {
     let links: Vec<ShareLink> = state.share_store.list().await;
     let items: Vec<serde_json::Value> = links.iter().map(|l| {
@@ -150,6 +157,7 @@ pub async fn list_shares(State(state): State<AppState>) -> Response {
     (StatusCode::OK, axum::Json(serde_json::json!({ "shares": items }))).into_response()
 }
 
+/// Delete a share link by token.
 pub async fn delete_share(
     State(state): State<AppState>,
     Path(token): Path<String>,
@@ -161,6 +169,7 @@ pub async fn delete_share(
     }
 }
 
+/// Serve a shared file by token, enforcing expiration and password.
 pub async fn serve_share(
     State(state): State<AppState>,
     Path(token): Path<String>,

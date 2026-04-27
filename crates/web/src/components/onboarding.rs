@@ -1,6 +1,6 @@
 use leptos::*;
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Used by WASM runtime
 const ONBOARDING_KEY: &str = "ferro_onboarding_completed";
 
 #[derive(Clone, Copy, PartialEq, Eq)]

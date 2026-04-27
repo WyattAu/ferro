@@ -1,6 +1,7 @@
 use axum::http::{Request, Response};
 use axum::middleware::Next;
 
+/// Middleware that adds security headers (CSP, HSTS, X-Frame-Options, etc.) to responses.
 pub async fn security_headers_middleware(req: Request<axum::body::Body>, next: Next) -> Response<axum::body::Body> {
     let is_https = req
         .headers()

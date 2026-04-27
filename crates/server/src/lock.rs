@@ -7,6 +7,7 @@ use dashmap::DashMap;
 use std::sync::Arc;
 use tracing::{debug, warn};
 
+/// Trait for managing WebDAV locks across the server.
 #[async_trait]
 pub trait LockManagerTrait: Send + Sync {
     async fn check_lock(&self, path: &str) -> Option<LockInfo>;
@@ -22,8 +23,10 @@ pub trait LockManagerTrait: Send + Sync {
     async fn release_lock(&self, token: &str) -> Result<()>;
     async fn refresh_lock(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo>;
     async fn all_locks(&self) -> Vec<LockInfo>;
+    async fn cleanup_all_expired(&self) {}
 }
 
+/// In-memory lock manager backed by a [`DashMap`].
 pub struct LockManager {
     locks: Arc<DashMap<String, LockInfo>>,
     default_timeout_secs: u32,
@@ -31,6 +34,7 @@ pub struct LockManager {
 }
 
 impl LockManager {
+    /// Create a new lock manager with default timeouts (60s default, 3600s max).
     pub fn new() -> Self {
         Self {
             locks: Arc::new(DashMap::new()),
@@ -39,6 +43,7 @@ impl LockManager {
         }
     }
 
+    /// Create a new lock manager with custom timeout values.
     pub fn with_timeout(default_timeout_secs: u32, max_timeout_secs: u32) -> Self {
         Self {
             locks: Arc::new(DashMap::new()),
@@ -47,6 +52,7 @@ impl LockManager {
         }
     }
 
+    /// Synchronously acquire a lock on a path.
     pub fn acquire_lock_sync(
         &self,
         path: &str,
@@ -94,6 +100,7 @@ impl LockManager {
         Ok(lock)
     }
 
+    /// Synchronously refresh a lock's timeout.
     pub fn refresh_lock_sync(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo> {
         let timeout = timeout_secs
             .unwrap_or(self.default_timeout_secs)
@@ -120,6 +127,7 @@ impl LockManager {
         Err(FerroError::LockTokenNotFound(token.to_string()))
     }
 
+    /// Synchronously release a lock by token.
     pub fn release_lock_sync(&self, token: &str) -> Result<()> {
         let mut found = None;
         for entry in self.locks.iter() {
@@ -138,11 +146,13 @@ impl LockManager {
         }
     }
 
+    /// Synchronously check for an active lock on a path.
     pub fn check_lock_sync(&self, path: &str) -> Option<LockInfo> {
         self.cleanup_expired(path);
         self.locks.get(path).map(|r| r.value().clone())
     }
 
+    /// Synchronously check if a write lock (or inherited infinity lock) blocks the path.
     pub fn check_lock_for_write_sync(&self, path: &str) -> common::error::Result<()> {
         if let Some(lock) = self.check_lock_sync(path)
             && lock.scope == LockScope::Exclusive
@@ -182,12 +192,26 @@ impl LockManager {
         }
     }
 
+    /// Return the number of active locks.
     pub fn lock_count(&self) -> usize {
         self.locks.len()
     }
 
+    /// Iterate over all active locks.
     pub fn all_locks_sync(&self) -> dashmap::iter::Iter<'_, String, LockInfo> {
         self.locks.iter()
+    }
+
+    /// Remove all expired locks.
+    pub fn cleanup_all_expired_sync(&self) {
+        self.locks.retain(|_, entry| {
+            if entry.is_expired() {
+                warn!("LOCK expired (global cleanup): {}", entry.path);
+                false
+            } else {
+                true
+            }
+        });
     }
 }
 
@@ -222,6 +246,10 @@ impl LockManagerTrait for LockManager {
 
     async fn all_locks(&self) -> Vec<LockInfo> {
         self.locks.iter().map(|e| e.value().clone()).collect()
+    }
+
+    async fn cleanup_all_expired(&self) {
+        self.cleanup_all_expired_sync();
     }
 }
 

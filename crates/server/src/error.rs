@@ -1,6 +1,7 @@
 use axum::response::{IntoResponse, Response};
 use common::error::FerroError;
 
+/// Wrapper that converts [`FerroError`] into an HTTP response.
 pub struct ServerError(pub FerroError);
 
 impl IntoResponse for ServerError {

@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
+/// OIDC provider configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OidcConfig {
     pub issuer: String,
@@ -26,6 +27,7 @@ struct JwksCache {
     ttl: Duration,
 }
 
+/// OIDC token validator with JWKS key caching and PKCE session support.
 #[derive(Clone)]
 pub struct OidcValidator {
     config: Arc<OidcConfig>,

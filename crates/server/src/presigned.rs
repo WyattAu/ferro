@@ -6,6 +6,7 @@ use serde::Deserialize;
 use crate::api_error::ApiError;
 use crate::AppState;
 
+/// Query parameters for presigned URL generation.
 #[derive(Debug, Deserialize)]
 pub struct PresignedParams {
     pub path: String,
@@ -17,6 +18,7 @@ fn default_expires() -> u32 {
     3600
 }
 
+/// GET /api/upload-url — generate a presigned upload URL.
 pub async fn get_upload_url(
     State(state): State<AppState>,
     Query(params): Query<PresignedParams>,
@@ -42,6 +44,7 @@ pub async fn get_upload_url(
     }
 }
 
+/// GET /api/download-url — generate a presigned download URL.
 pub async fn get_download_url(
     State(state): State<AppState>,
     Query(params): Query<PresignedParams>,

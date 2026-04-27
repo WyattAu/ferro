@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 use crate::AppState;
 
+/// Return server statistics (version, uptime, file counts).
 pub async fn admin_stats(State(state): State<AppState>) -> Response {
     let version = env!("CARGO_PKG_VERSION");
     let uptime = state.started_at.elapsed().as_secs();
@@ -56,11 +57,13 @@ pub async fn admin_stats(State(state): State<AppState>) -> Response {
     (StatusCode::OK, axum::Json(body)).into_response()
 }
 
+/// Query parameters for the admin storage endpoint.
 #[derive(Debug, Deserialize, Default)]
 pub struct StorageQueryParams {
     pub limit: Option<usize>,
 }
 
+/// Return detailed storage statistics.
 pub async fn admin_storage(
     State(state): State<AppState>,
     Query(_params): Query<StorageQueryParams>,
@@ -122,12 +125,14 @@ pub async fn admin_storage(
     (StatusCode::OK, axum::Json(body)).into_response()
 }
 
+/// Query parameters for the admin audit endpoint.
 #[derive(Debug, Deserialize, Default)]
 pub struct AuditQueryParams {
     pub limit: Option<usize>,
     pub offset: Option<usize>,
 }
 
+/// Return paginated audit log entries.
 pub async fn admin_audit(
     State(state): State<AppState>,
     Query(params): Query<AuditQueryParams>,
@@ -162,7 +167,7 @@ mod tests {
         crate::build_router(state)
     }
 
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Test helper
     fn no_auth_test_app() -> axum::Router {
         crate::build_router(AppState::in_memory())
     }

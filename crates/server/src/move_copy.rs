@@ -7,12 +7,14 @@ use serde::Deserialize;
 use crate::api_error::ApiError;
 use crate::AppState;
 
+/// Request body for move and copy operations.
 #[derive(Debug, Deserialize)]
 pub struct MoveCopyRequest {
     pub source: String,
     pub destination: String,
 }
 
+/// POST /api/files/move — move a file or collection.
 pub async fn move_file(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<MoveCopyRequest>,
@@ -76,6 +78,7 @@ pub async fn move_file(
     }
 }
 
+/// POST /api/files/copy — copy a file or collection.
 pub async fn copy_file(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<MoveCopyRequest>,

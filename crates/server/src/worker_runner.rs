@@ -4,6 +4,7 @@ use std::time::Duration;
 use tokio::time;
 use tracing::{debug, info, warn};
 
+/// Spawn a background task that periodically scans for changed files and triggers matching WASM workers.
 pub fn spawn_worker_runner(state: Arc<AppState>, interval_secs: u64) {
     if state.wasm_runtime.is_none() {
         return;

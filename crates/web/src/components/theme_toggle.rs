@@ -8,7 +8,7 @@ pub enum Theme {
 }
 
 impl Theme {
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Used by WASM runtime
     fn as_str(&self) -> &'static str {
         match self {
             Theme::Light => "light",
@@ -16,7 +16,7 @@ impl Theme {
         }
     }
 
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Used by WASM runtime
     fn from_str(s: &str) -> Self {
         match s {
             "dark" => Theme::Dark,

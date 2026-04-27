@@ -6,6 +6,7 @@ use serde::Deserialize;
 use crate::api_error::ApiError;
 use crate::AppState;
 
+/// GET /api/policies — list configured Cedar policies.
 pub async fn list_policies(State(state): State<AppState>) -> Response {
     match &state.cedar {
         None => {
@@ -25,11 +26,13 @@ pub async fn list_policies(State(state): State<AppState>) -> Response {
     }
 }
 
+/// Request body for adding a Cedar policy.
 #[derive(Debug, Deserialize)]
 pub struct AddPolicyRequest {
     pub policy: String,
 }
 
+/// POST /api/policies — add a Cedar policy.
 pub async fn add_policy(
     State(state): State<AppState>,
     axum::Json(req): axum::Json<AddPolicyRequest>,
@@ -57,11 +60,13 @@ pub async fn add_policy(
     }
 }
 
+/// Request body for deleting a policy.
 #[derive(Debug, Deserialize)]
 pub struct DeletePolicyRequest {
     pub policy_id: String,
 }
 
+/// DELETE /api/policies — delete a Cedar policy.
 pub async fn delete_policy(
     State(state): State<AppState>,
     axum::Json(_req): axum::Json<DeletePolicyRequest>,

@@ -1,12 +1,14 @@
 use chrono::Utc;
 use ferro_core::persistence::AuditLogStore;
 use serde::Serialize;
+use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
 const MAX_AUDIT_ENTRIES: usize = 10_000;
 
+/// A single audit log entry.
 #[derive(Debug, Clone, Serialize)]
 pub struct AuditEntry {
     pub timestamp: String,
@@ -19,24 +21,28 @@ pub struct AuditEntry {
     pub content_length: Option<u64>,
 }
 
+/// In-memory audit log with optional SQLite persistence.
 pub struct AuditLog {
-    entries: Arc<RwLock<Vec<AuditEntry>>>,
+    entries: Arc<RwLock<VecDeque<AuditEntry>>>,
     persistence: Option<Arc<ferro_core::persistence::SqlitePersistence>>,
 }
 
 impl AuditLog {
+    /// Create a new in-memory audit log.
     pub fn new() -> Self {
         Self {
-            entries: Arc::new(RwLock::new(Vec::new())),
+            entries: Arc::new(RwLock::new(VecDeque::new())),
             persistence: None,
         }
     }
 
+    /// Add optional SQLite persistence to this audit log.
     pub fn with_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
         self.persistence = Some(persistence);
         self
     }
 
+    /// Record an audit entry.
     pub async fn log(&self, entry: AuditEntry) {
         info!(
             method = %entry.method,
@@ -47,7 +53,7 @@ impl AuditLog {
         );
         {
             let mut entries = self.entries.write().await;
-            entries.push(entry.clone());
+            entries.push_back(entry.clone());
             if entries.len() > MAX_AUDIT_ENTRIES {
                 let excess = entries.len() - MAX_AUDIT_ENTRIES;
                 entries.drain(..excess);
@@ -69,17 +75,18 @@ impl AuditLog {
         }
     }
 
+    /// Return all audit entries.
     pub async fn entries(&self) -> Vec<AuditEntry> {
-        self.entries.read().await.clone()
+        self.entries.read().await.iter().cloned().collect()
     }
 
+    /// Return the most recent audit entries.
     pub async fn recent(&self, limit: usize) -> Vec<AuditEntry> {
         let entries = self.entries.read().await;
-        let len = entries.len();
-        let start = len.saturating_sub(limit);
-        entries[start..].to_vec()
+        entries.iter().rev().take(limit).cloned().collect::<Vec<_>>().into_iter().rev().collect()
     }
 
+    /// Return the total number of audit entries.
     pub async fn len(&self) -> usize {
         if let Some(ref p) = self.persistence {
             p.count().await
@@ -88,10 +95,12 @@ impl AuditLog {
         }
     }
 
+    /// Check whether the audit log is empty.
     pub async fn is_empty(&self) -> bool {
         self.len().await == 0
     }
 
+    /// Return audit entries with pagination offset.
     pub async fn recent_with_offset(&self, limit: usize, offset: usize) -> Vec<AuditEntry> {
         if let Some(ref p) = self.persistence {
             let persisted = p.recent(limit).await.unwrap_or_default();
@@ -107,12 +116,7 @@ impl AuditLog {
             }).collect()
         } else {
             let entries = self.entries.read().await;
-            let len = entries.len();
-            if offset >= len {
-                return vec![];
-            }
-            let end = (offset + limit).min(len);
-            entries[offset..end].to_vec()
+            entries.iter().skip(offset).take(limit).cloned().collect()
         }
     }
 }
@@ -123,6 +127,7 @@ impl Default for AuditLog {
     }
 }
 
+/// Build an audit entry from request details.
 pub fn build_audit_entry(
     method: &str,
     path: &str,

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::api_error::ApiError;
 use crate::AppState;
 
+/// Manifest describing a backup's contents.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupManifest {
     pub id: String,
@@ -14,6 +15,7 @@ pub struct BackupManifest {
     pub total_bytes: u64,
 }
 
+/// A single file entry within a backup manifest.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupEntry {
     pub path: String,
@@ -22,6 +24,7 @@ pub struct BackupEntry {
     pub content_hash: String,
 }
 
+/// Summary info returned when listing or creating backups.
 #[derive(Debug, Serialize)]
 pub struct BackupInfo {
     pub id: String,
@@ -30,11 +33,13 @@ pub struct BackupInfo {
     pub bytes: u64,
 }
 
+/// Request body for restoring a backup.
 #[derive(Debug, Deserialize)]
 pub struct RestoreRequest {
     pub backup_id: String,
 }
 
+/// POST /api/admin/backup — create a new backup.
 pub async fn create_backup(State(state): State<AppState>) -> Response {
     let data_dir = match &state.data_dir {
         Some(d) => d.clone(),
@@ -130,6 +135,7 @@ pub async fn create_backup(State(state): State<AppState>) -> Response {
     (StatusCode::CREATED, axum::Json(info)).into_response()
 }
 
+/// GET /api/admin/backups — list available backups.
 pub async fn list_backups(State(state): State<AppState>) -> Response {
     let data_dir = match &state.data_dir {
         Some(d) => d.clone(),
@@ -168,6 +174,7 @@ pub async fn list_backups(State(state): State<AppState>) -> Response {
     (StatusCode::OK, axum::Json(backups)).into_response()
 }
 
+/// POST /api/admin/restore — restore from a backup.
 pub async fn restore_backup(
     State(state): State<AppState>,
     axum::Json(input): axum::Json<RestoreRequest>,
@@ -245,6 +252,7 @@ pub async fn restore_backup(
         .into_response()
 }
 
+/// DELETE /api/admin/backup/:id — delete a backup.
 pub async fn delete_backup(
     State(state): State<AppState>,
     Path(id): Path<String>,

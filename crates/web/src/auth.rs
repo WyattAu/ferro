@@ -8,11 +8,11 @@ pub struct UserInfo {
     pub name: Option<String>,
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Used by WASM runtime
 const STORAGE_KEY: &str = "ferro_access_token";
 
 #[derive(Clone)]
-#[allow(dead_code)]
+#[allow(dead_code)] // Used by WASM runtime
 pub struct AuthState {
     access_token: ReadSignal<Option<String>>,
     set_access_token: WriteSignal<Option<String>>,
@@ -95,7 +95,7 @@ pub fn use_auth_state() -> AuthState {
 }
 
 #[cfg(target_arch = "wasm32")]
-#[allow(dead_code)]
+#[allow(dead_code)] // Used by WASM runtime
 fn get_local_storage() -> Option<web_sys::Storage> {
     web_sys::window()?.local_storage().ok()?
 }

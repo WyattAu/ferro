@@ -7,12 +7,12 @@ use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy, DocAddress, Score};
 use std::path::Path;
 use tracing::{debug, info};
 
+/// Full-text search engine backed by Tantivy.
 pub struct SearchEngine {
     index: Index,
     writer: IndexWriter,
     reader: IndexReader,
-    #[allow(dead_code)]
-    schema: Schema,
+    _schema: Schema,
     path_field: Field,
     path_id_field: Field,
     content_field: Field,
@@ -21,6 +21,7 @@ pub struct SearchEngine {
     owner_field: Field,
 }
 
+/// A single search result with relevance score and optional snippet.
 #[derive(Debug, Clone)]
 pub struct SearchResult {
     pub path: String,
@@ -29,6 +30,7 @@ pub struct SearchResult {
 }
 
 impl SearchEngine {
+    /// Create a new search index at the given directory path.
     pub fn new(index_path: &Path) -> Result<Self> {
         let mut schema_builder = Schema::builder();
 
@@ -59,7 +61,7 @@ impl SearchEngine {
             index,
             writer,
             reader,
-            schema,
+            _schema: schema,
             path_field,
             path_id_field,
             content_field,
@@ -69,6 +71,7 @@ impl SearchEngine {
         })
     }
 
+    /// Open an existing search index.
     pub fn open(index_path: &Path) -> Result<Self> {
         let index = Index::open_in_dir(index_path)
             .map_err(|e| FerroError::Internal(format!("Failed to open search index: {}", e)))?;
@@ -100,7 +103,7 @@ impl SearchEngine {
             index,
             writer,
             reader,
-            schema,
+            _schema: schema,
             path_field,
             path_id_field,
             content_field,
@@ -110,6 +113,7 @@ impl SearchEngine {
         })
     }
 
+    /// Index a file's metadata (path, name, mime type, owner).
     pub fn index_metadata(&mut self, metadata: &FileMetadata) -> Result<()> {
         let mut doc = TantivyDocument::new();
         let name = metadata.path.rsplit('/').next().unwrap_or("");
@@ -127,6 +131,7 @@ impl SearchEngine {
         Ok(())
     }
 
+    /// Index a file's metadata and full text content.
     pub fn index_content(&mut self, metadata: &FileMetadata, content: &str) -> Result<()> {
         let mut doc = TantivyDocument::new();
         let name = metadata.path.rsplit('/').next().unwrap_or("");
@@ -145,6 +150,7 @@ impl SearchEngine {
         Ok(())
     }
 
+    /// Remove a document from the index by path.
     pub fn remove(&mut self, path: &str) -> Result<()> {
         let term = Term::from_field_text(self.path_id_field, path);
         let _opstamp = self.writer.delete_term(term);
@@ -152,6 +158,7 @@ impl SearchEngine {
         Ok(())
     }
 
+    /// Commit pending index changes and reload the reader.
     pub fn commit(&mut self) -> Result<()> {
         self.writer.commit()
             .map_err(|e| FerroError::Internal(format!("Failed to commit index: {}", e)))?;
@@ -160,6 +167,7 @@ impl SearchEngine {
         Ok(())
     }
 
+    /// Search the index for matching documents.
     pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
 

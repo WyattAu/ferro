@@ -39,6 +39,7 @@ pub async fn list_workers(State(state): State<AppState>) -> Response {
 }
 
 /// POST /api/workers — register a new WASM worker.
+/// Request body for registering a WASM worker.
 #[derive(Debug, Deserialize)]
 pub struct RegisterWorkerRequest {
     pub pattern: String,
@@ -48,6 +49,7 @@ pub struct RegisterWorkerRequest {
     pub max_memory_bytes: Option<usize>,
 }
 
+/// Response after registering a WASM worker.
 #[derive(Debug, Serialize)]
 pub struct RegisterWorkerResponse {
     pub status: String,
@@ -56,6 +58,7 @@ pub struct RegisterWorkerResponse {
     pub function_name: String,
 }
 
+/// POST /api/workers — register a new WASM worker.
 pub async fn register_worker(
     State(state): State<AppState>,
     axum::Json(req): axum::Json<RegisterWorkerRequest>,

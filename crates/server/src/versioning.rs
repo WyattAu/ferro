@@ -8,6 +8,7 @@ use tracing::warn;
 use crate::api_error::ApiError;
 use crate::AppState;
 
+/// A stored file version.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileVersion {
     pub id: u64,
@@ -108,6 +109,7 @@ fn next_version_id(metas: &[VersionMeta]) -> u64 {
     metas.iter().map(|m| m.id).max().unwrap_or(0) + 1
 }
 
+/// GET /api/files/:path/versions — list file versions.
 pub async fn list_versions(State(state): State<AppState>, Path(path): Path<String>) -> Response {
     let normalized = common::path::normalize_path(&path);
     let data_dir = match &state.data_dir {
@@ -123,6 +125,7 @@ pub async fn list_versions(State(state): State<AppState>, Path(path): Path<Strin
     (StatusCode::OK, axum::Json(serde_json::json!({ "versions": versions }))).into_response()
 }
 
+/// GET /api/files/:path/versions/:version_id — download a specific version.
 pub async fn get_version(State(state): State<AppState>, Path((path, version_id)): Path<(String, u64)>) -> Response {
     let normalized = common::path::normalize_path(&path);
     let data_dir = match &state.data_dir {
@@ -155,6 +158,7 @@ pub async fn get_version(State(state): State<AppState>, Path((path, version_id))
     }
 }
 
+/// POST /api/files/:path/versions — create a new file version.
 pub async fn create_version(
     State(state): State<AppState>,
     Path(path): Path<String>,
@@ -225,6 +229,7 @@ pub async fn create_version(
     }
 }
 
+/// DELETE /api/files/:path/versions/:version_id — delete a specific version.
 pub async fn delete_version(
     State(state): State<AppState>,
     Path((path, version_id)): Path<(String, u64)>,
@@ -259,6 +264,7 @@ pub async fn delete_version(
     }
 }
 
+/// Automatically version a file before an overwrite (called internally by PUT handler).
 pub async fn auto_version(state: &AppState, path: &str, previous_content: bytes::Bytes) {
     if state.max_file_versions == 0 {
         return;

@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::debug;
 
+/// Server-side in-memory storage engine with path normalization.
 #[derive(Clone)]
 pub struct InMemoryStorageEngine {
     data: Arc<RwLock<DashMap<String, Bytes>>>,
@@ -16,6 +17,7 @@ pub struct InMemoryStorageEngine {
 }
 
 impl InMemoryStorageEngine {
+    /// Create a new empty in-memory storage engine.
     pub fn new() -> Self {
         Self {
             data: Arc::new(RwLock::new(DashMap::new())),

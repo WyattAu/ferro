@@ -78,7 +78,7 @@ pub struct LockInfo {
     pub expires_at: String,
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Used by WASM runtime
 fn urlencoding(s: &str) -> String {
     s.chars().flat_map(|c| {
         match c {
@@ -88,7 +88,7 @@ fn urlencoding(s: &str) -> String {
     }).collect()
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Used by WASM runtime
 fn parse_propfind_xml(xml: &str) -> Vec<FileEntry> {
     let mut entries = Vec::new();
 
@@ -186,21 +186,7 @@ fn parse_propfind_xml(xml: &str) -> Vec<FileEntry> {
     entries
 }
 
-#[allow(dead_code)]
-fn extract_xml_tag(xml: &str, tag: &str) -> Option<String> {
-    let open = format!("<D:{}>", tag);
-    let close = format!("</D:{}>", tag);
-
-    if let Some(start) = xml.find(&open) {
-        let rest = &xml[start + open.len()..];
-        if let Some(end) = rest.find(&close) {
-            return Some(rest[..end].trim().to_string());
-        }
-    }
-    None
-}
-
-#[allow(dead_code)]
+#[allow(dead_code)] // Used by WASM runtime
 fn js_err(msg: &str, e: &wasm_bindgen::JsValue) -> String {
     let detail = e.as_string().unwrap_or_else(|| format!("{:?}", e));
     format!("{}: {}", msg, detail)
@@ -223,7 +209,7 @@ fn make_opts_with_auth(method: &str) -> web_sys::RequestInit {
     opts
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Used by WASM runtime
 async fn fetch_text(url: &str, opts: &web_sys::RequestInit) -> Result<String, String> {
     let window = web_sys::window().ok_or("No window")?;
     let request = web_sys::Request::new_with_str_and_init(url, opts)

@@ -160,13 +160,6 @@ impl FerroClient {
         Ok(results.into_iter().collect())
     }
 
-    #[allow(dead_code)]
-    pub async fn get_server_config(&self) -> Result<serde_json::Value> {
-        let url = format!("{}/api/config", self.server_url);
-        let resp = self.http.get(&url).send().await?;
-        Ok(resp.json().await?)
-    }
-
     pub async fn head_file(&self, path: &str) -> Result<FileMetadata> {
         let url = format!("{}{}", self.server_url, path);
         let resp = self.http.head(&url).send().await?;

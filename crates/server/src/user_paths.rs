@@ -1,5 +1,6 @@
 use common::auth::Claims;
 
+/// Resolve a path to a user-specific home directory when multi-user mode is enabled.
 pub fn resolve_user_path(path: &str, claims: Option<&Claims>) -> String {
     match claims {
         Some(c) if c.sub != "anonymous" => {
@@ -13,6 +14,7 @@ pub fn resolve_user_path(path: &str, claims: Option<&Claims>) -> String {
     }
 }
 
+/// Check whether a user has access to the given path in multi-user mode.
 pub fn can_access_path(path: &str, claims: Option<&Claims>) -> bool {
     match claims {
         Some(c) if c.sub != "anonymous" => {

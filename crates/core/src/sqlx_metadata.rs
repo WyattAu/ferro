@@ -7,11 +7,13 @@ use tracing::debug;
 
 use crate::metadata::MetadataStore;
 
+/// PostgreSQL-backed metadata store.
 pub struct PgMetadataStore {
     pool: PgPool,
 }
 
 impl PgMetadataStore {
+    /// Connect to PostgreSQL and create the metadata table if it does not exist.
     pub async fn new(database_url: &str) -> Result<Self> {
         let pool = PgPool::connect(database_url)
             .await
@@ -46,6 +48,7 @@ impl PgMetadataStore {
         Ok(Self { pool })
     }
 
+    /// Return a reference to the underlying connection pool.
     pub fn pool(&self) -> &PgPool {
         &self.pool
     }
@@ -136,11 +139,13 @@ impl MetadataStore for PgMetadataStore {
     }
 }
 
+/// SQLite-backed metadata store.
 pub struct SqliteMetadataStore {
     pool: SqlitePool,
 }
 
 impl SqliteMetadataStore {
+    /// Connect to SQLite and create the metadata table if it does not exist.
     pub async fn new(database_url: &str) -> Result<Self> {
         let pool = SqlitePool::connect(database_url)
             .await

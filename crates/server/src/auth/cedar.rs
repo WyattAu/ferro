@@ -7,17 +7,20 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
+/// Cedar policy configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CedarConfig {
     pub default_policy: String,
 }
 
+/// Cedar-based authorization engine.
 #[derive(Clone)]
 pub struct CedarAuthorizer {
     policy_set: Arc<RwLock<PolicySet>>,
 }
 
 impl CedarAuthorizer {
+    /// Create a new Cedar authorizer with a default permissive policy.
     pub fn new() -> Result<Self> {
         let default_policy = r#"
             @id("all_access")

@@ -9,6 +9,7 @@ use object_store::ObjectStore;
 use std::sync::Arc;
 use tracing::debug;
 
+/// Storage engine backed by an `object_store` implementation (S3, GCS, Azure, local).
 pub struct ObjectStoreStorageEngine {
     store: Arc<dyn ObjectStore>,
     prefix: String,
@@ -22,6 +23,7 @@ impl ObjectStoreStorageEngine {
         }
     }
 
+    /// Create a new storage engine with a key prefix for namespace isolation.
     pub fn with_prefix(store: Arc<dyn ObjectStore>, prefix: &str) -> Self {
         Self {
             store,

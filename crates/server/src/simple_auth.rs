@@ -7,6 +7,7 @@ use subtle::ConstantTimeEq;
 use crate::api_error::ApiError;
 use crate::users::{UserStoreTrait, UserInfo, UserRole};
 
+/// Middleware implementing HTTP Basic authentication with user store lookup.
 pub async fn simple_auth_middleware(
     req: Request,
     admin_user: Option<String>,
