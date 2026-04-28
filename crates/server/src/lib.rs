@@ -35,6 +35,7 @@ pub mod trash;
 pub mod user_api;
 pub mod user_paths;
 pub mod users;
+pub mod thumbnails;
 pub mod versioning;
 pub mod webdav;
 pub mod webhooks;
@@ -112,6 +113,7 @@ pub struct AppState {
     pub preferences: Arc<dyn PreferenceStore>,
     pub request_count: Arc<std::sync::atomic::AtomicU64>,
     pub webhooks: Arc<tokio::sync::RwLock<Vec<webhooks::WebhookConfig>>>,
+    pub thumbnail_size: u32,
     pub data_dir: Option<String>,
     pub user_store: Arc<dyn UserStoreTrait>,
     pub max_file_versions: u64,
@@ -153,6 +155,7 @@ impl AppState {
             request_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             webhooks: Arc::new(tokio::sync::RwLock::new(Vec::new())),
             data_dir: None,
+            thumbnail_size: 256,
             user_store: Arc::new(InMemoryUserStore::new()),
             max_file_versions: 10,
             calendar_store: Arc::new(ferro_dav::store::InMemoryCalendarStore::new()),
@@ -460,6 +463,7 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_
         .route("/api/files/copy", axum::routing::post(move_copy::copy_file))
         .route("/api/quota", axum::routing::get(quota::get_quota))
         .route("/api/activity", axum::routing::get(activity::get_activity))
+        .route("/api/thumbnail/*path", axum::routing::get(thumbnails::get_thumbnail))
         .route("/api/preferences", axum::routing::get(search::handle_get_preferences).put(search::handle_update_preferences))
         .route("/api/locks", axum::routing::get(search::handle_list_locks))
         .route("/api/locks/force-unlock", axum::routing::post(search::handle_force_unlock))

@@ -4,6 +4,7 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// Storage quota information.
 #[derive(Debug, Serialize, Deserialize)]
@@ -86,6 +87,32 @@ pub fn parse_human_size(s: &str) -> Option<u64> {
         (s, 1u64)
     };
     num_str.parse::<u64>().ok().map(|n| n * multiplier)
+}
+
+/// Check if a PUT operation would exceed the quota (best-effort pre-check).
+/// Uses the atomic counter for fast checks. Returns Ok(()) if within quota.
+pub fn enforce_quota(state: &AppState, content_length: u64) -> Result<(), Box<axum::response::Response>> {
+    if let Some(quota_bytes) = state.quota_bytes {
+        if quota_bytes == 0 {
+            return Ok(());
+        }
+        let used = state.used_bytes.load(std::sync::atomic::Ordering::Relaxed);
+        if used + content_length > quota_bytes {
+            return Err(Box::new(ApiError::quota_exceeded(used, quota_bytes, content_length)));
+        }
+    }
+    Ok(())
+}
+
+/// Calculate total storage usage by summing file sizes from the storage backend.
+pub async fn calculate_usage(state: &AppState) -> u64 {
+    match state.storage.list_all("/", 100_000).await {
+        Ok(files) => files.iter()
+            .filter(|f| !f.is_collection)
+            .map(|f| f.size)
+            .sum(),
+        Err(_) => 0,
+    }
 }
 
 #[cfg(test)]
@@ -171,5 +198,41 @@ mod tests {
         record_usage(&state, -50);
         assert_eq!(state.used_bytes.load(std::sync::atomic::Ordering::Relaxed), 50);
         assert_eq!(state.file_count.load(std::sync::atomic::Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_enforce_quota_ok() {
+        let state = crate::AppState {
+            quota_bytes: Some(1000),
+            ..crate::AppState::in_memory()
+        };
+        state.used_bytes.store(500, std::sync::atomic::Ordering::Relaxed);
+        assert!(enforce_quota(&state, 400).is_ok());
+    }
+
+    #[test]
+    fn test_enforce_quota_exceeded() {
+        let state = crate::AppState {
+            quota_bytes: Some(1000),
+            ..crate::AppState::in_memory()
+        };
+        state.used_bytes.store(800, std::sync::atomic::Ordering::Relaxed);
+        let result = enforce_quota(&state, 300);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_enforce_quota_unlimited() {
+        let state = crate::AppState::in_memory();
+        assert!(enforce_quota(&state, u64::MAX).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_calculate_usage() {
+        let state = crate::AppState::in_memory();
+        state.storage.put("/a.txt", bytes::Bytes::from("hello"), "anon").await.unwrap();
+        state.storage.put("/b.txt", bytes::Bytes::from("world!!"), "anon").await.unwrap();
+        let usage = calculate_usage(&state).await;
+        assert_eq!(usage, 12);
     }
 }

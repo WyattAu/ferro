@@ -119,6 +119,17 @@ pub async fn handle_any(
     };
 
     let result: Result<Response> = async {
+        // Quota enforcement for PUT (best-effort pre-check using Content-Length header)
+        if method.as_str() == "PUT"
+            && let Some(content_len) = headers
+                .get("Content-Length")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<u64>().ok())
+            && let Err(quota_resp) = crate::quota::enforce_quota(&state, content_len)
+        {
+            return Ok(*quota_resp);
+        }
+
         match method.as_str() {
             "OPTIONS" => handle_options(&resolved_path).await,
             "PROPFIND" => handle_propfind(state, &resolved_path, &headers).await,

@@ -74,10 +74,13 @@ pub fn GridCard(
     let path_for_copy = entry.path.clone();
     let path_for_move = entry.path.clone();
     let path_for_delete = entry.path.clone();
+    let path_for_thumbnail = entry.path.clone();
     let name_for_actions = entry.name.clone();
+    let name_for_thumb = entry.name.clone();
     let entry_name = entry.name.clone();
     let entry_is_collection = entry.is_collection;
     let entry_index = index;
+    let show_thumb = !entry_is_collection && file_type == FileType::Image;
 
     let handle_click = move |_: ev::MouseEvent| {
         if entry_is_collection {
@@ -175,7 +178,14 @@ pub fn GridCard(
 
             <div class="flex flex-col items-center text-center pt-2 sm:pt-4 pb-2">
                 <div class="relative mb-2 sm:mb-3">
-                    <FileIcon file_type=file_type large=true />
+                    <Show when=move || show_thumb fallback=move || view! { <FileIcon file_type=file_type large=true /> }>
+                        <img
+                            class="w-10 h-10 rounded object-cover"
+                            src=format!("/api/thumbnail{}", path_for_thumbnail)
+                            alt=name_for_thumb.clone()
+                            loading="lazy"
+                        />
+                    </Show>
                     {is_locked.then(|| view! {
                         <span class="absolute -bottom-1 -right-1">
                             <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" title=lock_tooltip.clone()>

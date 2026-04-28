@@ -130,6 +130,21 @@ impl ApiError {
         Self::respond(StatusCode::BAD_GATEWAY, code, message)
     }
 
+    /// 413 Payload Too Large — storage quota exceeded.
+    pub fn quota_exceeded(current: u64, limit: u64, requested: u64) -> Response {
+        Self::with_details(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "QUOTA_EXCEEDED",
+            "Storage quota exceeded",
+            format!(
+                "Current usage: {} bytes ({} MB), quota: {} bytes ({} MB), requested: {} bytes ({} MB)",
+                current, current / 1_048_576,
+                limit, limit / 1_048_576,
+                requested, requested / 1_048_576,
+            ),
+        )
+    }
+
     pub const AUTH_REQUIRED: &'static str = "AUTH_REQUIRED";
     pub const INVALID_CREDENTIALS: &'static str = "INVALID_CREDENTIALS";
     pub const TOKEN_EXPIRED: &'static str = "TOKEN_EXPIRED";
@@ -283,5 +298,15 @@ mod tests {
     async fn test_bad_gateway() {
         let response = ApiError::bad_gateway("BAD_GW", "upstream error");
         assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    }
+
+    #[tokio::test]
+    async fn test_quota_exceeded() {
+        let response = ApiError::quota_exceeded(500, 1000, 600);
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+        let body = body_bytes(response).await;
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error_code"], "QUOTA_EXCEEDED");
+        assert!(json.get("details").is_some());
     }
 }

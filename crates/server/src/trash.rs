@@ -223,6 +223,33 @@ pub async fn empty_trash(State(state): State<AppState>) -> Response {
     (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
+pub async fn purge_expired(
+    state: &AppState,
+    ttl: std::time::Duration,
+) -> usize {
+    let cutoff = chrono::Utc::now() - ttl;
+    let mut keys_to_remove = Vec::new();
+
+    for entry in state.trash.iter() {
+        if entry.deleted_at < cutoff {
+            keys_to_remove.push(entry.key().clone());
+        }
+    }
+
+    let mut purged = 0;
+    for key in keys_to_remove {
+        if let Some((_, entry)) = state.trash.remove(&key) {
+            let trash_path = entry.trash_path.clone();
+            tokio::spawn(async move {
+                tokio::fs::remove_file(&trash_path).await.ok();
+            });
+            purged += 1;
+        }
+    }
+
+    purged
+}
+
 pub async fn soft_delete(
     state: &AppState,
     path: &str,
@@ -524,6 +551,57 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         assert!(state.trash.is_empty());
         assert!(!PathBuf::from(&disk_path).exists());
+    }
+
+    #[tokio::test]
+    async fn test_purge_expired() {
+        let tmp = tempfile::tempdir().unwrap();
+        let trash_dir = tmp.path().join(".trash");
+        std::fs::create_dir_all(&trash_dir).unwrap();
+        let state = AppState::in_memory().with_trash_dir(trash_dir.to_string_lossy().to_string());
+
+        state
+            .storage
+            .put("/old1.txt", bytes::Bytes::from("old1"), "anonymous")
+            .await
+            .unwrap();
+        state
+            .storage
+            .put("/old2.txt", bytes::Bytes::from("old2"), "anonymous")
+            .await
+            .unwrap();
+        state
+            .storage
+            .put("/new.txt", bytes::Bytes::from("new"), "anonymous")
+            .await
+            .unwrap();
+
+        move_to_trash(
+            State(state.clone()),
+            axum::extract::Path("old1.txt".to_string()),
+        )
+        .await;
+        move_to_trash(
+            State(state.clone()),
+            axum::extract::Path("old2.txt".to_string()),
+        )
+        .await;
+
+        let short_ttl = std::time::Duration::from_secs(0);
+        let purged = purge_expired(&state, short_ttl).await;
+        assert_eq!(purged, 2, "Both old entries should be purged with 0 TTL");
+        assert_eq!(state.trash.len(), 0);
+
+        move_to_trash(
+            State(state.clone()),
+            axum::extract::Path("new.txt".to_string()),
+        )
+        .await;
+
+        let long_ttl = std::time::Duration::from_secs(3600);
+        let purged = purge_expired(&state, long_ttl).await;
+        assert_eq!(purged, 0, "No entries should be purged with long TTL");
+        assert_eq!(state.trash.len(), 1);
     }
 
     #[tokio::test]

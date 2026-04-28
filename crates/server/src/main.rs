@@ -309,11 +309,13 @@ async fn main() -> anyhow::Result<()> {
     let state = state.with_max_body_size(cli.max_body_size).with_external_url(cli.external_url)
         .with_max_file_versions(cli.max_file_versions);
 
-    let state = if let Some(ref data_dir) = cli.data_dir {
+    let mut state = if let Some(ref data_dir) = cli.data_dir {
         state.with_data_dir(data_dir.clone())
     } else {
         state
     };
+
+    state.thumbnail_size = cli.thumbnail_size.clamp(64, 1024);
 
     let state = if let Some(ref data_dir) = cli.data_dir {
         let trash_dir = std::path::Path::new(data_dir).join(".trash");
@@ -461,7 +463,30 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let lock_manager = state.lock_manager.clone();
-    let app = build_router_with_static(state, cli.static_dir.as_deref(), &cli.cors_allowed_origins);
+    let app = build_router_with_static(state.clone(), cli.static_dir.as_deref(), &cli.cors_allowed_origins);
+
+    // Parse trash TTL and spawn auto-purge background task
+    let trash_ttl = match parse_duration(&cli.trash_ttl) {
+        Some(d) => d,
+        None => {
+            tracing::warn!("Invalid --trash-ttl '{}', using 30 days", cli.trash_ttl);
+            std::time::Duration::from_secs(30 * 24 * 3600)
+        }
+    };
+
+    if !trash_ttl.is_zero() {
+        let trash_state = state.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+            loop {
+                interval.tick().await;
+                let purged = ferro_server::trash::purge_expired(&trash_state, trash_ttl).await;
+                if purged > 0 {
+                    tracing::info!("Auto-purged {} expired trash entries", purged);
+                }
+            }
+        });
+    }
 
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
@@ -490,6 +515,22 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Server shutdown complete");
     Ok(())
+}
+
+fn parse_duration(s: &str) -> Option<std::time::Duration> {
+    let s = s.trim().to_lowercase();
+    if s == "0" || s == "off" || s == "never" {
+        return Some(std::time::Duration::ZERO);
+    }
+    let (num, suffix) = s.split_at(s.len().saturating_sub(1));
+    let num: u64 = num.parse().ok()?;
+    match suffix {
+        "s" => Some(std::time::Duration::from_secs(num)),
+        "m" => Some(std::time::Duration::from_secs(num * 60)),
+        "h" => Some(std::time::Duration::from_secs(num * 3600)),
+        "d" => Some(std::time::Duration::from_secs(num * 86400)),
+        _ => None,
+    }
 }
 
 /// Parse bucket/container name from a URL like "s3://my-bucket" → "my-bucket".

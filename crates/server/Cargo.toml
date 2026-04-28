@@ -43,6 +43,7 @@ mime_guess = "2"
 tempfile = "3"
 rand = "0.8"
 sha2 = "0.10"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
 hmac = "0.12"
 bcrypt = "0.17"
 subtle = "2"

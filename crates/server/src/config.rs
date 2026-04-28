@@ -52,6 +52,7 @@ pub struct FileConfig {
     pub cas_enabled: Option<bool>,
     pub wasm_enabled: Option<bool>,
     pub storage_quota: Option<String>,
+    pub trash_ttl: Option<String>,
     pub graceful_shutdown_timeout: Option<u64>,
     pub cors_allowed_origins: Option<String>,
 }
@@ -158,6 +159,10 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_STORAGE_QUOTA")]
     pub storage_quota: Option<String>,
 
+    /// Trash auto-purge TTL (e.g., "30d", "7d", "24h", "0" to disable). Default: "30d".
+    #[arg(long, env = "FERRO_TRASH_TTL", default_value = "30d")]
+    pub trash_ttl: String,
+
     /// Graceful shutdown timeout in seconds.
     #[arg(long, env = "FERRO_GRACEFUL_SHUTDOWN_TIMEOUT", default_value = "30")]
     pub graceful_shutdown_timeout: u64,
@@ -181,6 +186,10 @@ pub struct ServerConfig {
     /// Maximum number of file versions to retain per file (default: 10, 0 = disabled)
     #[arg(long, env = "FERRO_MAX_FILE_VERSIONS", default_value = "10")]
     pub max_file_versions: u64,
+
+    /// Maximum thumbnail dimension in pixels (64-1024, default: 256)
+    #[arg(long, env = "FERRO_THUMBNAIL_SIZE", default_value = "256")]
+    pub thumbnail_size: u32,
 
     /// Enable multi-user mode with per-user home directories
     #[arg(long, env = "FERRO_MULTI_USER")]
@@ -296,6 +305,9 @@ where
     }
     if !was_set("storage_quota") {
         cli.storage_quota = file.storage_quota.clone();
+    }
+    if !was_set("trash_ttl") && let Some(ref ttl) = file.trash_ttl {
+        cli.trash_ttl = ttl.clone();
     }
     if !was_set("graceful_shutdown_timeout") && let Some(timeout) = file.graceful_shutdown_timeout {
         cli.graceful_shutdown_timeout = timeout;
