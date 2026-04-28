@@ -2164,6 +2164,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-crypto"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "bcrypt",
+ "ring",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "ferro-dav"
 version = "0.1.0"
 dependencies = [
