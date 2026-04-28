@@ -356,6 +356,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     match api::upload_file(&file_path, &bytes).await {
                         Ok(()) => {
                             ToastContext::success(format!("File uploaded: {}", file_name));
+                            api::show_notification("Upload Complete", &format!("{} uploaded successfully", file_name));
                             reload();
                         }
                         Err(e) => {

@@ -55,6 +55,7 @@ url = "2"
 sqlx = { version = "0.8", features = ["runtime-tokio", "chrono"], optional = true }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"], optional = true }
 ldap3 = { version = "0.12", optional = true }
+pdf = "0.9"
 
 [dev-dependencies]
 http-body-util = "0.1"

@@ -1065,3 +1065,23 @@ pub async fn force_unlock(path: &str) -> Result<(), String> {
 pub async fn force_unlock(_path: &str) -> Result<(), String> {
     Ok(())
 }
+
+#[cfg(target_arch = "wasm32")]
+pub fn request_notification_permission() {
+    let _ = js_sys::eval("Notification.requestPermission()");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn request_notification_permission() {}
+
+#[cfg(target_arch = "wasm32")]
+pub fn show_notification(title: &str, body: &str) {
+    let _ = js_sys::eval(&format!(
+        "if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {{ new Notification('{}', {{ body: '{}' }}); }}",
+        title.replace('\'', "\\'"),
+        body.replace('\'', "\\'")
+    ));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn show_notification(_title: &str, _body: &str) {}

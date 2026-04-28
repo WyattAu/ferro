@@ -118,4 +118,20 @@ pub trait StorageEngine: Send + Sync {
     /// List all descendants recursively (used by PROPFIND depth:infinity).
     /// Implementations should apply a max_depth guard to prevent DoS.
     async fn list_all(&self, path: &str, max_depth: u32) -> Result<Vec<FileMetadata>>;
+
+    /// Upload a large file using multipart upload. Default: falls back to put().
+    /// Backends should override for efficient large file uploads.
+    async fn put_multipart(
+        &self,
+        path: &str,
+        content: Bytes,
+        owner: &str,
+    ) -> Result<FileMetadata> {
+        self.put(path, content, owner).await
+    }
+
+    /// Check if multipart upload is supported.
+    fn supports_multipart(&self) -> bool {
+        false
+    }
 }

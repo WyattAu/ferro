@@ -485,6 +485,7 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_
         .route("/api/users/me", axum::routing::get(user_api::get_current_user).put(user_api::update_current_user))
         .route("/api/files/{path}/versions", axum::routing::get(versioning::list_versions).post(versioning::create_version))
         .route("/api/files/{path}/versions/{version_id}", axum::routing::get(versioning::get_version).delete(versioning::delete_version))
+        .route("/api/files/{path}/diff", axum::routing::get(versioning::diff_versions))
         .route("/*path", any(webdav::handle_any))
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route("/dav/cal/", axum::routing::get(dav::caldav_list).put(dav::caldav_create))

@@ -7,7 +7,13 @@ use futures::{StreamExt, TryStreamExt};
 use object_store::path::Path as ObjPath;
 use object_store::ObjectStore;
 use std::sync::Arc;
+use object_store::MultipartUpload;
 use tracing::debug;
+
+/// Minimum size (bytes) to use multipart upload.
+pub const MULTIPART_THRESHOLD: usize = 10 * 1024 * 1024; // 10 MB
+/// Chunk size for multipart uploads (5 MB).
+pub const MULTIPART_CHUNK_SIZE: usize = 5 * 1024 * 1024;
 
 /// Storage engine backed by an `object_store` implementation (S3, GCS, Azure, local).
 pub struct ObjectStoreStorageEngine {
@@ -66,6 +72,45 @@ impl StorageEngine for ObjectStoreStorageEngine {
 
         let meta = FileMetadata::new(path.to_string(), hash, size, owner.to_string());
         debug!("PUT {} ({} bytes)", path, meta.size);
+        Ok(meta)
+    }
+
+    fn supports_multipart(&self) -> bool {
+        true
+    }
+
+    async fn put_multipart(
+        &self,
+        path: &str,
+        content: Bytes,
+        owner: &str,
+    ) -> Result<FileMetadata> {
+        let obj_path = self.to_obj_path(path);
+        let hash = ContentHash::compute(&content);
+        let size = content.len() as u64;
+
+        let mut upload = self
+            .store
+            .put_multipart(&obj_path)
+            .await
+            .map_err(|e| FerroError::StorageBackend(format!("Failed to initiate multipart upload: {}", e)))?;
+
+        let mut parts = Vec::new();
+        for chunk in content.chunks(MULTIPART_CHUNK_SIZE) {
+            let part = upload.put_part(object_store::PutPayload::from_bytes(Bytes::copy_from_slice(chunk)));
+            parts.push(part);
+        }
+
+        for part in parts {
+            part.await
+                .map_err(|e| FerroError::StorageBackend(format!("Multipart part upload failed: {}", e)))?;
+        }
+
+        upload.complete().await
+            .map_err(|e| FerroError::StorageBackend(format!("Multipart complete failed: {}", e)))?;
+
+        let meta = FileMetadata::new(path.to_string(), hash, size, owner.to_string());
+        debug!("PUT multipart {} ({} bytes)", path, meta.size);
         Ok(meta)
     }
 
@@ -412,5 +457,48 @@ mod tests {
             total_read += n;
         }
         assert_eq!(total_read, large_content.len());
+    }
+
+    #[tokio::test]
+    async fn test_multipart_upload() {
+        let (engine, _tmp) = make_test_engine();
+        let content = Bytes::from(vec![0u8; 2 * 1024 * 1024]);
+
+        let meta = engine.put_multipart("/large.bin", content.clone(), "user1").await.unwrap();
+        assert_eq!(meta.size, 2 * 1024 * 1024);
+        assert_eq!(meta.path, "/large.bin");
+
+        let retrieved = engine.get("/large.bin").await.unwrap();
+        assert_eq!(retrieved.len(), 2 * 1024 * 1024);
+    }
+
+    #[tokio::test]
+    async fn test_supports_multipart() {
+        let (engine, _tmp) = make_test_engine();
+        assert!(engine.supports_multipart());
+    }
+
+    #[tokio::test]
+    async fn test_multipart_upload_single_byte() {
+        let (engine, _tmp) = make_test_engine();
+        let content = Bytes::from("hello");
+
+        let meta = engine.put_multipart("/small.bin", content.clone(), "user1").await.unwrap();
+        assert_eq!(meta.size, 5);
+
+        let retrieved = engine.get("/small.bin").await.unwrap();
+        assert_eq!(retrieved, content);
+    }
+
+    #[tokio::test]
+    async fn test_multipart_upload_exact_chunk_boundary() {
+        let (engine, _tmp) = make_test_engine();
+        let content = Bytes::from(vec![0x42_u8; MULTIPART_CHUNK_SIZE * 3]);
+
+        let meta = engine.put_multipart("/boundary.bin", content.clone(), "user1").await.unwrap();
+        assert_eq!(meta.size, (MULTIPART_CHUNK_SIZE * 3) as u64);
+
+        let retrieved = engine.get("/boundary.bin").await.unwrap();
+        assert_eq!(retrieved.len(), MULTIPART_CHUNK_SIZE * 3);
     }
 }

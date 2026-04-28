@@ -518,7 +518,12 @@ async fn handle_put(
         .unwrap_or_else(|| sniff_content_type(&body, &path));
 
     let body_for_index = body.clone();
-    let mut meta = state.storage.put(&path, body, &owner).await?;
+    let use_multipart = body.len() > 10 * 1024 * 1024 && state.storage.supports_multipart();
+    let mut meta = if use_multipart {
+        state.storage.put_multipart(&path, body, &owner).await?
+    } else {
+        state.storage.put(&path, body, &owner).await?
+    };
     // Update the metadata with the sniffed content-type.
     // Note: This only persists if a metadata_store is configured. Without one,
     // the in-memory backend retains the default mime_type from put().

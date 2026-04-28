@@ -1,4 +1,4 @@
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
@@ -328,6 +328,233 @@ pub async fn auto_version(state: &AppState, path: &str, previous_content: bytes:
     }
 }
 
+#[derive(Deserialize)]
+pub struct DiffParams {
+    pub from: String,
+    pub to: String,
+}
+
+#[derive(Serialize)]
+pub struct DiffResult {
+    pub from_version: String,
+    pub to_version: String,
+    pub is_binary: bool,
+    pub lines: Vec<DiffLine>,
+    pub stats: DiffStats,
+}
+
+#[derive(Serialize)]
+pub struct DiffLine {
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub content: String,
+    pub old_line: Option<usize>,
+    pub new_line: Option<usize>,
+}
+
+#[derive(Serialize)]
+pub struct DiffStats {
+    pub additions: usize,
+    pub deletions: usize,
+    pub unchanged: usize,
+}
+
+impl DiffResult {
+    pub fn binary(from: String, to: String) -> Self {
+        Self {
+            from_version: from,
+            to_version: to,
+            is_binary: true,
+            lines: vec![],
+            stats: DiffStats { additions: 0, deletions: 0, unchanged: 0 },
+        }
+    }
+}
+
+pub async fn diff_versions(
+    State(state): State<AppState>,
+    Path(path): Path<String>,
+    Query(params): Query<DiffParams>,
+) -> Response {
+    let normalized = common::path::normalize_path(&path);
+    let data_dir = match &state.data_dir {
+        Some(d) => d.clone(),
+        None => return ApiError::bad_request("NO_DATA_DIR", "Versioning requires --data-dir"),
+    };
+
+    let from_id: u64 = match params.from.parse() {
+        Ok(id) => id,
+        Err(_) => return ApiError::bad_request("INVALID_VERSION", "Invalid 'from' version ID"),
+    };
+    let to_id: u64 = match params.to.parse() {
+        Ok(id) => id,
+        Err(_) => return ApiError::bad_request("INVALID_VERSION", "Invalid 'to' version ID"),
+    };
+
+    let norm = normalized.clone();
+    let dd = data_dir.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let metas = read_meta(&dd, &norm);
+        let v1 = metas.iter().find(|m| m.id == from_id).cloned();
+        let v2 = metas.iter().find(|m| m.id == to_id).cloned();
+
+        match (v1, v2) {
+            (Some(m1), Some(m2)) => {
+                let content1 = std::fs::read(&m1.file_path).unwrap_or_default();
+                let content2 = std::fs::read(&m2.file_path).unwrap_or_default();
+                Ok::<_, String>((content1, content2))
+            }
+            (None, _) => Err(format!("Version {} not found", from_id)),
+            (_, None) => Err(format!("Version {} not found", to_id)),
+        }
+    }).await;
+
+    match result {
+        Ok(Ok((content1, content2))) => {
+            let mime = mime_guess::from_path(&normalized).first_or_octet_stream().to_string();
+            let is_text = mime.starts_with("text/") || mime == "application/json" || mime == "application/xml";
+
+            let diff = if is_text {
+                compute_line_diff(
+                    &String::from_utf8_lossy(&content1),
+                    &String::from_utf8_lossy(&content2),
+                    from_id.to_string(),
+                    to_id.to_string(),
+                )
+            } else {
+                DiffResult::binary(from_id.to_string(), to_id.to_string())
+            };
+
+            (StatusCode::OK, axum::Json(diff)).into_response()
+        }
+        Ok(Err(msg)) => {
+            if msg.contains("not found") {
+                ApiError::not_found("VERSION_NOT_FOUND", msg)
+            } else {
+                ApiError::internal("DIFF_ERROR", msg)
+            }
+        }
+        Err(_) => ApiError::internal("DIFF_ERROR", "Internal error"),
+    }
+}
+
+fn compute_line_diff(old: &str, new: &str, from_version: String, to_version: String) -> DiffResult {
+    let old_lines: Vec<&str> = old.lines().collect();
+    let new_lines: Vec<&str> = new.lines().collect();
+
+    let lcs = longest_common_subsequence(&old_lines, &new_lines);
+    let mut diff_lines = Vec::new();
+    let mut additions = 0usize;
+    let mut deletions = 0usize;
+    let mut unchanged = 0usize;
+
+    let mut oi = 0usize;
+    let mut ni = 0usize;
+
+    for (o_line, n_line) in &lcs {
+        while oi < old_lines.len() && old_lines[oi] != *o_line {
+            diff_lines.push(DiffLine {
+                type_: "removed".to_string(),
+                content: old_lines[oi].to_string(),
+                old_line: Some(oi + 1),
+                new_line: None,
+            });
+            deletions += 1;
+            oi += 1;
+        }
+        while ni < new_lines.len() && new_lines[ni] != *n_line {
+            diff_lines.push(DiffLine {
+                type_: "added".to_string(),
+                content: new_lines[ni].to_string(),
+                old_line: None,
+                new_line: Some(ni + 1),
+            });
+            additions += 1;
+            ni += 1;
+        }
+        diff_lines.push(DiffLine {
+            type_: "same".to_string(),
+            content: o_line.to_string(),
+            old_line: Some(oi + 1),
+            new_line: Some(ni + 1),
+        });
+        unchanged += 1;
+        oi += 1;
+        ni += 1;
+    }
+
+    while oi < old_lines.len() {
+        diff_lines.push(DiffLine {
+            type_: "removed".to_string(),
+            content: old_lines[oi].to_string(),
+            old_line: Some(oi + 1),
+            new_line: None,
+        });
+        deletions += 1;
+        oi += 1;
+    }
+    while ni < new_lines.len() {
+        diff_lines.push(DiffLine {
+            type_: "added".to_string(),
+            content: new_lines[ni].to_string(),
+            old_line: None,
+            new_line: Some(ni + 1),
+        });
+        additions += 1;
+        ni += 1;
+    }
+
+    DiffResult {
+        from_version,
+        to_version,
+        is_binary: false,
+        lines: diff_lines,
+        stats: DiffStats { additions, deletions, unchanged },
+    }
+}
+
+fn longest_common_subsequence<'a>(a: &'a [&'a str], b: &'a [&'a str]) -> Vec<(&'a str, &'a str)> {
+    let m = a.len();
+    let n = b.len();
+    if m == 0 || n == 0 {
+        return vec![];
+    }
+
+    let limit = 10000;
+    let a_lim = &a[..m.min(limit)];
+    let b_lim = &b[..n.min(limit)];
+    let rows = a_lim.len();
+    let cols = b_lim.len();
+
+    let mut dp = vec![vec![0usize; cols + 1]; rows + 1];
+    for i in 1..=rows {
+        for j in 1..=cols {
+            if a_lim[i - 1] == b_lim[j - 1] {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                dp[i][j] = dp[i - 1][j].max(dp[i][j - 1]);
+            }
+        }
+    }
+
+    let mut result = Vec::new();
+    let (mut i, mut j) = (rows, cols);
+    while i > 0 && j > 0 {
+        if a_lim[i - 1] == b_lim[j - 1] {
+            result.push((a_lim[i - 1], b_lim[j - 1]));
+            i -= 1;
+            j -= 1;
+        } else if dp[i - 1][j] > dp[i][j - 1] {
+            i -= 1;
+        } else {
+            j -= 1;
+        }
+    }
+
+    result.reverse();
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -459,5 +686,150 @@ mod tests {
 
         let resp = create_version(State(state.clone()), Path("no-dir.txt".to_string())).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_diff_versions() {
+        let (state, _tmp) = versioned_state();
+        state.storage.put("/diff.txt", bytes::Bytes::from("hello\nworld\n"), "test").await.unwrap();
+
+        let resp = create_version(State(state.clone()), Path("diff.txt".to_string())).await;
+        let json = body_json(resp).await;
+        let id1 = json["id"].as_u64().unwrap();
+
+        state.storage.put("/diff.txt", bytes::Bytes::from("hello\nferro\nworld\n"), "test").await.unwrap();
+        let resp = create_version(State(state.clone()), Path("diff.txt".to_string())).await;
+        let json = body_json(resp).await;
+        let id2 = json["id"].as_u64().unwrap();
+
+        let resp = diff_versions(
+            State(state.clone()),
+            Path("diff.txt".to_string()),
+            Query(DiffParams { from: id1.to_string(), to: id2.to_string() }),
+        ).await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = body_json(resp).await;
+        assert_eq!(json["from_version"], id1.to_string());
+        assert_eq!(json["to_version"], id2.to_string());
+        assert!(!json["is_binary"].as_bool().unwrap());
+        assert!(json["stats"]["additions"].as_u64().unwrap() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_diff_version_not_found() {
+        let (state, _tmp) = versioned_state();
+
+        let resp = diff_versions(
+            State(state.clone()),
+            Path("nope.txt".to_string()),
+            Query(DiffParams { from: "1".to_string(), to: "2".to_string() }),
+        ).await;
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_diff_binary_file() {
+        let (state, _tmp) = versioned_state();
+        state.storage.put("/img.png", bytes::Bytes::from_static(b"\x89PNG\r\n\x1a\n"), "test").await.unwrap();
+
+        let resp = create_version(State(state.clone()), Path("img.png".to_string())).await;
+        let json = body_json(resp).await;
+        let id1 = json["id"].as_u64().unwrap();
+
+        state.storage.put("/img.png", bytes::Bytes::from_static(b"\x89PNG\r\n\x1a\n\x00\x00"), "test").await.unwrap();
+        let resp = create_version(State(state.clone()), Path("img.png".to_string())).await;
+        let json = body_json(resp).await;
+        let id2 = json["id"].as_u64().unwrap();
+
+        let resp = diff_versions(
+            State(state.clone()),
+            Path("img.png".to_string()),
+            Query(DiffParams { from: id1.to_string(), to: id2.to_string() }),
+        ).await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = body_json(resp).await;
+        assert!(json["is_binary"].as_bool().unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_diff_invalid_version_id() {
+        let (state, _tmp) = versioned_state();
+
+        let resp = diff_versions(
+            State(state.clone()),
+            Path("test.txt".to_string()),
+            Query(DiffParams { from: "abc".to_string(), to: "2".to_string() }),
+        ).await;
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_diff_identical_versions() {
+        let (state, _tmp) = versioned_state();
+        state.storage.put("/same.txt", bytes::Bytes::from("unchanged"), "test").await.unwrap();
+
+        let resp = create_version(State(state.clone()), Path("same.txt".to_string())).await;
+        let json = body_json(resp).await;
+        let id = json["id"].as_u64().unwrap();
+
+        let resp = diff_versions(
+            State(state.clone()),
+            Path("same.txt".to_string()),
+            Query(DiffParams { from: id.to_string(), to: id.to_string() }),
+        ).await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = body_json(resp).await;
+        assert_eq!(json["stats"]["additions"], 0);
+        assert_eq!(json["stats"]["deletions"], 0);
+        assert!(json["stats"]["unchanged"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn test_compute_line_diff_additions_and_removals() {
+        let old = "line1\nline2\nline3\n";
+        let new = "line1\nline2.5\nline3\n";
+        let result = compute_line_diff(old, new, "1".to_string(), "2".to_string());
+
+        assert_eq!(result.stats.additions, 1);
+        assert_eq!(result.stats.deletions, 1);
+        assert_eq!(result.stats.unchanged, 2);
+
+        let added: Vec<_> = result.lines.iter().filter(|l| l.type_ == "added").collect();
+        assert_eq!(added.len(), 1);
+        assert_eq!(added[0].content, "line2.5");
+
+        let removed: Vec<_> = result.lines.iter().filter(|l| l.type_ == "removed").collect();
+        assert_eq!(removed.len(), 1);
+        assert_eq!(removed[0].content, "line2");
+    }
+
+    #[test]
+    fn test_compute_line_diff_empty_files() {
+        let result = compute_line_diff("", "", "1".to_string(), "2".to_string());
+        assert_eq!(result.stats.additions, 0);
+        assert_eq!(result.stats.deletions, 0);
+        assert_eq!(result.stats.unchanged, 0);
+        assert!(result.lines.is_empty());
+    }
+
+    #[test]
+    fn test_lcs_basic() {
+        let a: Vec<&str> = vec!["a", "b", "c"];
+        let b: Vec<&str> = vec!["a", "b", "c"];
+        let lcs = longest_common_subsequence(&a, &b);
+        assert_eq!(lcs.len(), 3);
+    }
+
+    #[test]
+    fn test_lcs_with_changes() {
+        let a: Vec<&str> = vec!["a", "b", "c", "d"];
+        let b: Vec<&str> = vec!["a", "x", "c", "d"];
+        let lcs = longest_common_subsequence(&a, &b);
+        assert_eq!(lcs.len(), 3);
     }
 }

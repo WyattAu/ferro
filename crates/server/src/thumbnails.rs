@@ -49,7 +49,7 @@ impl ThumbnailService {
     }
 
     pub fn is_supported(mime_type: &str) -> bool {
-        SUPPORTED_IMAGE_TYPES.contains(&mime_type)
+        SUPPORTED_IMAGE_TYPES.contains(&mime_type) || mime_type == "application/pdf"
     }
 
     pub async fn get_or_generate(
@@ -66,10 +66,20 @@ impl ThumbnailService {
             return ("image/jpeg", Bytes::from(data));
         }
 
-        let result = if Self::is_supported(mime_type) {
+        let result = if mime_type == "application/pdf" {
+            self.generate_pdf_thumbnail(&content).await
+        } else if Self::is_supported(mime_type) {
             self.generate_image_thumbnail(&content).await
         } else {
             Ok(Bytes::from_static(FILE_ICON_SVG))
+        };
+
+        let content_type = if mime_type == "application/pdf" {
+            "image/svg+xml"
+        } else if Self::is_supported(mime_type) {
+            "image/jpeg"
+        } else {
+            "image/svg+xml"
         };
 
         match result {
@@ -79,11 +89,7 @@ impl ThumbnailService {
                 tokio::spawn(async move {
                     let _ = tokio::fs::write(&cache_path, &data_clone).await;
                 });
-                if Self::is_supported(mime_type) {
-                    ("image/jpeg", data)
-                } else {
-                    ("image/svg+xml", data)
-                }
+                (content_type, data)
             }
             Err(e) => {
                 warn!("Thumbnail generation failed for {}: {}", path, e);
@@ -108,6 +114,32 @@ impl ThumbnailService {
                 .map_err(|e| format!("Failed to encode JPEG: {}", e))?;
 
             Ok(Bytes::from(buf))
+        })
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+    }
+
+    async fn generate_pdf_thumbnail(&self, content: &Bytes) -> Result<Bytes, String> {
+        let content = content.clone();
+        tokio::task::spawn_blocking(move || {
+            let file = pdf::file::FileOptions::cached()
+                .load(content.to_vec())
+                .map_err(|e| format!("Failed to parse PDF: {}", e))?;
+            let pages = file.num_pages();
+
+            let svg = format!(
+                r##"<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+                <rect width="256" height="256" rx="12" fill="#fee2e2"/>
+                <rect x="40" y="30" width="176" height="196" rx="4" fill="#ffffff" stroke="#ef4444" stroke-width="2"/>
+                <rect x="56" y="46" width="144" height="10" rx="2" fill="#fca5a5"/>
+                <rect x="56" y="66" width="120" height="10" rx="2" fill="#fecaca"/>
+                <rect x="56" y="86" width="130" height="10" rx="2" fill="#fecaca"/>
+                <rect x="56" y="106" width="100" height="10" rx="2" fill="#fecaca"/>
+                <text x="128" y="190" text-anchor="middle" font-family="system-ui" font-size="20" font-weight="bold" fill="#dc2626">PDF</text>
+                <text x="128" y="212" text-anchor="middle" font-family="system-ui" font-size="14" fill="#b91c1c">{pages} pages</text>
+            </svg>"##
+            );
+            Ok(Bytes::from(svg))
         })
         .await
         .map_err(|e| format!("Task join error: {}", e))?
@@ -169,7 +201,7 @@ mod tests {
         assert!(ThumbnailService::is_supported("image/png"));
         assert!(ThumbnailService::is_supported("image/gif"));
         assert!(ThumbnailService::is_supported("image/webp"));
-        assert!(!ThumbnailService::is_supported("application/pdf"));
+        assert!(ThumbnailService::is_supported("application/pdf"));
         assert!(!ThumbnailService::is_supported("text/plain"));
     }
 
@@ -240,5 +272,43 @@ mod tests {
         assert_eq!(t1, t2);
 
         let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test3").await;
+    }
+
+    #[tokio::test]
+    async fn test_generate_pdf_thumbnail() {
+        let service = ThumbnailService::new("/tmp/ferro-thumb-test4", 128);
+        let minimal_pdf = Bytes::from_static(
+            br#"%PDF-1.0
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>
+endobj
+xref
+0 4
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+trailer
+<< /Size 4 /Root 1 0 R >>
+startxref
+186
+%%EOF"#,
+        );
+
+        let (mime, thumb) = service
+            .get_or_generate("/test.pdf", "application/pdf", minimal_pdf)
+            .await;
+        assert_eq!(mime, "image/svg+xml");
+        let svg = String::from_utf8(thumb.to_vec()).unwrap();
+        assert!(svg.contains("PDF"), "SVG should contain 'PDF': {}", svg);
+        assert!(svg.contains("1 pages"), "SVG should contain '1 pages': {}", svg);
+
+        let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test4").await;
     }
 }
