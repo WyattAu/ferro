@@ -1,32 +1,38 @@
-use clap::Parser;
-use ferro_desktop::commands::DesktopState;
-use ferro_desktop::config::DesktopConfig;
-use tracing::info;
+#![cfg_attr(all(not(debug_assertions), feature = "tauri"), windows_subsystem = "windows")]
 
-#[derive(Parser, Debug)]
-#[command(name = "ferro-desktop", about = "Ferro Desktop Client")]
-struct Cli {
-    #[arg(long, default_value = "http://localhost:8080")]
-    server_url: String,
+#[cfg(feature = "tauri")]
+mod gui;
 
-    #[arg(short, long)]
-    username: Option<String>,
-
-    #[arg(short = 'p', long)]
-    password: Option<String>,
-
-    #[arg(long)]
-    mount_point: Option<String>,
-
-    #[arg(long, default_value_t = false)]
-    auto_mount: bool,
-
-    #[arg(long, default_value = "info")]
-    log_level: String,
-}
-
+#[cfg(not(feature = "tauri"))]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    use clap::Parser;
+    use ferro_desktop::commands::DesktopState;
+    use ferro_desktop::config::DesktopConfig;
+    use tracing::info;
+
+    #[derive(Parser, Debug)]
+    #[command(name = "ferro-desktop", about = "Ferro Desktop Client")]
+    struct Cli {
+        #[arg(long, default_value = "http://localhost:8080")]
+        server_url: String,
+
+        #[arg(short, long)]
+        username: Option<String>,
+
+        #[arg(short = 'p', long)]
+        password: Option<String>,
+
+        #[arg(long)]
+        mount_point: Option<String>,
+
+        #[arg(long, default_value_t = false)]
+        auto_mount: bool,
+
+        #[arg(long, default_value = "info")]
+        log_level: String,
+    }
+
     let cli = Cli::parse();
 
     tracing_subscriber::fmt()
@@ -84,4 +90,9 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Ferro Desktop exited");
     Ok(())
+}
+
+#[cfg(feature = "tauri")]
+fn main() {
+    gui::run();
 }

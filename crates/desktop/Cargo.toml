@@ -1,6 +1,6 @@
 [package]
 name = "ferro-desktop"
-version = "0.1.0"
+version = "1.0.0"
 edition.workspace = true
 license.workspace = true
 
@@ -9,11 +9,22 @@ name = "ferro-desktop"
 path = "src/main.rs"
 
 [features]
-tauri = ["dep:tauri"]
+tauri = [
+    "dep:tauri",
+    "dep:tauri-build",
+    "dep:tauri-plugin-shell",
+    "dep:tauri-plugin-dialog",
+    "dep:tauri-plugin-fs",
+    "dep:tauri-plugin-notification",
+]
 
 [dependencies]
 ferro-common = { package = "ferro-common", path = "../common" }
-tauri = { version = "2", features = ["devtools"], optional = true }
+tauri = { version = "2", features = ["tray-icon", "devtools"], optional = true }
+tauri-plugin-shell = { version = "2", optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-fs = { version = "2", optional = true }
+tauri-plugin-notification = { version = "2", optional = true }
 serde = { workspace = true }
 serde_json = "1"
 tokio = { workspace = true }
@@ -23,9 +34,5 @@ clap = { version = "4", features = ["derive"] }
 uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
 
-# [build-dependencies]
-# tauri-build = { version = "1", features = [] }
-# Uncomment when tauri-cli is installed:
-#   1. cargo add tauri --features dev
-#   2. Uncomment this build-dependency
-#   3. Create build.rs with: fn main() { tauri_build::build() }
+[build-dependencies]
+tauri-build = { version = "2", optional = true }

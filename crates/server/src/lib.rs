@@ -11,6 +11,7 @@ pub mod conflict;
 pub mod dav;
 pub mod error;
 pub mod favorites;
+pub mod federation;
 pub mod indexer;
 pub mod json_logging;
 pub mod lock;
@@ -37,6 +38,7 @@ pub mod user_paths;
 pub mod users;
 pub mod thumbnails;
 pub mod versioning;
+pub mod webrtc;
 pub mod webdav;
 pub mod webhooks;
 pub mod wasm_upload;
@@ -119,6 +121,7 @@ pub struct AppState {
     pub max_file_versions: u64,
     pub calendar_store: Arc<dyn ferro_dav::store::CalendarStore>,
     pub address_book_store: Arc<dyn ferro_dav::store::AddressBookStore>,
+    pub webrtc_offers: Arc<webrtc::offers::OfferStore>,
 }
 
 impl AppState {
@@ -160,6 +163,7 @@ impl AppState {
             max_file_versions: 10,
             calendar_store: Arc::new(ferro_dav::store::InMemoryCalendarStore::new()),
             address_book_store: Arc::new(ferro_dav::store::InMemoryAddressBookStore::new()),
+            webrtc_offers: Arc::new(webrtc::offers::OfferStore::new()),
         }
     }
 
@@ -486,6 +490,14 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_
         .route("/api/files/{path}/versions", axum::routing::get(versioning::list_versions).post(versioning::create_version))
         .route("/api/files/{path}/versions/{version_id}", axum::routing::get(versioning::get_version).delete(versioning::delete_version))
         .route("/api/files/{path}/diff", axum::routing::get(versioning::diff_versions))
+        .route("/.well-known/webfinger", axum::routing::get(federation::webfinger::webfinger))
+        .route("/fed/actor/:username", axum::routing::get(federation::get_actor))
+        .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
+        .route("/api/webrtc/offer", axum::routing::post(webrtc::signaling::create_offer))
+        .route("/api/webrtc/offer/:session_id", axum::routing::get(webrtc::signaling::get_offer))
+        .route("/api/webrtc/offer/:session_id/answer", axum::routing::post(webrtc::signaling::submit_answer))
+        .route("/api/webrtc/offer/:session_id/ice", axum::routing::post(webrtc::signaling::add_ice_candidate))
+        .route("/api/webrtc/offer/:session_id/poll", axum::routing::get(webrtc::signaling::poll_answer))
         .route("/*path", any(webdav::handle_any))
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route("/dav/cal/", axum::routing::get(dav::caldav_list).put(dav::caldav_create))
