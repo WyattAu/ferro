@@ -659,17 +659,21 @@ async fn handle_put(
     }
 
     if already_existed {
-        state.ws_manager.broadcast(&crate::ws::WsEvent::FileUpdated {
-            path: path.clone(),
-            size: meta.size,
-            owner,
-        });
+        state
+            .ws_manager
+            .broadcast(&crate::ws::WsEvent::FileUpdated {
+                path: path.clone(),
+                size: meta.size,
+                owner,
+            });
     } else {
-        state.ws_manager.broadcast(&crate::ws::WsEvent::FileCreated {
-            path: path.clone(),
-            size: meta.size,
-            owner,
-        });
+        state
+            .ws_manager
+            .broadcast(&crate::ws::WsEvent::FileCreated {
+                path: path.clone(),
+                size: meta.size,
+                owner,
+            });
     }
 
     Ok((status, resp_headers, "").into_response())
@@ -727,10 +731,12 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
         });
     }
 
-    state.ws_manager.broadcast(&crate::ws::WsEvent::FileDeleted {
-        path: path.clone(),
-        owner,
-    });
+    state
+        .ws_manager
+        .broadcast(&crate::ws::WsEvent::FileDeleted {
+            path: path.clone(),
+            owner,
+        });
 
     Ok(StatusCode::NO_CONTENT.into_response())
 }

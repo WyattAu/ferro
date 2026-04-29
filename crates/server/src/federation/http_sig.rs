@@ -2,9 +2,9 @@
 //! Verifies that incoming ActivityPub activities are signed by the claimed actor.
 
 use axum::http::{HeaderMap, Method};
-use sha2::Sha256;
-use hmac::{Hmac, Mac};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -37,7 +37,9 @@ impl HttpSignature {
                     "headers" => headers = Some(v.split_whitespace().map(String::from).collect()),
                     "signature" => {
                         signature = Some(
-                            STANDARD.decode(v).map_err(|e| format!("Invalid base64 signature: {}", e))?
+                            STANDARD
+                                .decode(v)
+                                .map_err(|e| format!("Invalid base64 signature: {}", e))?,
                         );
                     }
                     _ => {}
@@ -54,19 +56,29 @@ impl HttpSignature {
     }
 
     /// Build the signing string from the headers listed in the signature.
-    pub fn signing_string(&self, method: &Method, path: &str, headers: &HeaderMap) -> Result<String, String> {
+    pub fn signing_string(
+        &self,
+        method: &Method,
+        path: &str,
+        headers: &HeaderMap,
+    ) -> Result<String, String> {
         let mut lines = Vec::new();
 
         for header_name in &self.headers {
             match header_name.as_str() {
                 "(request-target)" => {
-                    lines.push(format!("(request-target): {} {}", method.as_str().to_lowercase(), path));
+                    lines.push(format!(
+                        "(request-target): {} {}",
+                        method.as_str().to_lowercase(),
+                        path
+                    ));
                 }
                 "(created)" => {
                     lines.push(format!("(created): {}", chrono::Utc::now().timestamp()));
                 }
                 name => {
-                    let value = headers.get(name)
+                    let value = headers
+                        .get(name)
                         .ok_or_else(|| format!("Missing header: {}", name))?
                         .to_str()
                         .map_err(|e| format!("Invalid header {}: {}", name, e))?;
@@ -79,7 +91,13 @@ impl HttpSignature {
     }
 
     /// Verify the signature using a shared HMAC-SHA256 secret.
-    pub fn verify_hmac(&self, method: &Method, path: &str, headers: &HeaderMap, secret: &str) -> Result<bool, String> {
+    pub fn verify_hmac(
+        &self,
+        method: &Method,
+        path: &str,
+        headers: &HeaderMap,
+        secret: &str,
+    ) -> Result<bool, String> {
         let signing_string = self.signing_string(method, path, headers)?;
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
             .map_err(|e| format!("HMAC error: {}", e))?;
@@ -91,7 +109,7 @@ impl HttpSignature {
 }
 
 /// Extract the actor URL from a keyId.
-/// keyId format is typically: "https://example.com/fed/actor/user#main-key"
+/// keyId format is typically: `https://example.com/fed/actor/user#main-key`
 pub fn actor_from_key_id(key_id: &str) -> String {
     key_id.split('#').next().unwrap_or(key_id).to_string()
 }
@@ -132,14 +150,12 @@ mod tests {
 
     #[test]
     fn test_signing_string_request_target() {
-        let sig = HttpSignature::parse(
-            r#"keyId="k",headers="(request-target)",signature="dGVzdA==""#
-        ).unwrap();
-        let string = sig.signing_string(
-            &Method::POST,
-            "/fed/inbox",
-            &HeaderMap::new(),
-        ).unwrap();
+        let sig =
+            HttpSignature::parse(r#"keyId="k",headers="(request-target)",signature="dGVzdA==""#)
+                .unwrap();
+        let string = sig
+            .signing_string(&Method::POST, "/fed/inbox", &HeaderMap::new())
+            .unwrap();
         assert_eq!(string, "(request-target): post /fed/inbox");
     }
 
@@ -153,16 +169,13 @@ mod tests {
         let sig_bytes = mac.finalize().into_bytes();
         let sig_b64 = STANDARD.encode(&sig_bytes);
 
-        let sig = HttpSignature::parse(
-            &format!(r#"keyId="k#main",headers="(request-target)",signature="{}""#, sig_b64)
-        ).unwrap();
+        let sig = HttpSignature::parse(&format!(
+            r#"keyId="k#main",headers="(request-target)",signature="{}""#,
+            sig_b64
+        ))
+        .unwrap();
 
-        let result = sig.verify_hmac(
-            &Method::POST,
-            "/fed/inbox",
-            &HeaderMap::new(),
-            secret,
-        );
+        let result = sig.verify_hmac(&Method::POST, "/fed/inbox", &HeaderMap::new(), secret);
         assert!(result.is_ok());
         assert!(result.unwrap());
     }
@@ -174,9 +187,11 @@ mod tests {
         mac.update(signing_string.as_bytes());
         let sig_b64 = STANDARD.encode(mac.finalize().into_bytes());
 
-        let sig = HttpSignature::parse(
-            &format!(r#"keyId="k#main",headers="(request-target)",signature="{}""#, sig_b64)
-        ).unwrap();
+        let sig = HttpSignature::parse(&format!(
+            r#"keyId="k#main",headers="(request-target)",signature="{}""#,
+            sig_b64
+        ))
+        .unwrap();
 
         let result = sig.verify_hmac(
             &Method::POST,

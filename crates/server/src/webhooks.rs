@@ -41,9 +41,8 @@ pub fn sign_payload(secret: &str, payload: &[u8]) -> String {
 
     type HmacSha256 = Hmac<Sha256>;
 
-    let mut mac =
-        HmacSha256::new_from_slice(secret.as_bytes())
-            .expect("HMAC key initialization failed — this is a ring library invariant");
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .expect("HMAC key initialization failed — this is a ring library invariant");
     mac.update(payload);
     let result = mac.finalize();
     hex::encode(result.into_bytes())

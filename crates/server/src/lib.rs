@@ -58,9 +58,9 @@ pub mod webdav;
 pub mod webhooks;
 pub mod webrtc;
 pub mod wopi;
-pub mod ws;
 pub mod worker_runner;
 pub mod workers;
+pub mod ws;
 pub mod xml;
 
 use axum::Router;
@@ -604,10 +604,19 @@ pub fn build_router_with_static(
         .route("/api/quota", axum::routing::get(quota::get_quota))
         .route("/api/activity", axum::routing::get(activity::get_activity))
         .route("/api/tags", axum::routing::get(tags::list_tags))
-        .route("/api/tags/{path}", axum::routing::get(tags::get_tags).post(tags::add_tags))
-        .route("/api/tags/{path}/{tag}", axum::routing::delete(tags::remove_tag))
+        .route(
+            "/api/tags/{path}",
+            axum::routing::get(tags::get_tags).post(tags::add_tags),
+        )
+        .route(
+            "/api/tags/{path}/{tag}",
+            axum::routing::delete(tags::remove_tag),
+        )
         .route("/api/tags/search", axum::routing::get(tags::search_by_tag))
-        .route("/api/health/storage", axum::routing::get(storage_health::storage_health_handler))
+        .route(
+            "/api/health/storage",
+            axum::routing::get(storage_health::storage_health_handler),
+        )
         .route(
             "/api/thumbnail/*path",
             axum::routing::get(thumbnails::get_thumbnail),

@@ -47,25 +47,23 @@ pub async fn batch_copy(
         }
 
         match state.storage.head(&from).await {
-            Ok(_) => {
-                match state.storage.copy(&from, &to).await {
-                    Ok(()) => {
-                        results.push(serde_json::json!({
-                            "from": op.from,
-                            "to": op.to,
-                            "status": "ok",
-                        }));
-                    }
-                    Err(e) => {
-                        results.push(serde_json::json!({
-                            "from": op.from,
-                            "to": op.to,
-                            "status": "error",
-                            "error": e.to_string(),
-                        }));
-                    }
+            Ok(_) => match state.storage.copy(&from, &to).await {
+                Ok(()) => {
+                    results.push(serde_json::json!({
+                        "from": op.from,
+                        "to": op.to,
+                        "status": "ok",
+                    }));
                 }
-            }
+                Err(e) => {
+                    results.push(serde_json::json!({
+                        "from": op.from,
+                        "to": op.to,
+                        "status": "error",
+                        "error": e.to_string(),
+                    }));
+                }
+            },
             Err(_) => {
                 results.push(serde_json::json!({
                     "from": op.from,
@@ -77,7 +75,11 @@ pub async fn batch_copy(
         }
     }
 
-    (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "results": results })),
+    )
+        .into_response()
 }
 
 pub async fn batch_move(
@@ -111,25 +113,23 @@ pub async fn batch_move(
         }
 
         match state.storage.head(&from).await {
-            Ok(_) => {
-                match state.storage.move_path(&from, &to).await {
-                    Ok(()) => {
-                        results.push(serde_json::json!({
-                            "from": op.from,
-                            "to": op.to,
-                            "status": "ok",
-                        }));
-                    }
-                    Err(e) => {
-                        results.push(serde_json::json!({
-                            "from": op.from,
-                            "to": op.to,
-                            "status": "error",
-                            "error": e.to_string(),
-                        }));
-                    }
+            Ok(_) => match state.storage.move_path(&from, &to).await {
+                Ok(()) => {
+                    results.push(serde_json::json!({
+                        "from": op.from,
+                        "to": op.to,
+                        "status": "ok",
+                    }));
                 }
-            }
+                Err(e) => {
+                    results.push(serde_json::json!({
+                        "from": op.from,
+                        "to": op.to,
+                        "status": "error",
+                        "error": e.to_string(),
+                    }));
+                }
+            },
             Err(_) => {
                 results.push(serde_json::json!({
                     "from": op.from,
@@ -141,7 +141,11 @@ pub async fn batch_move(
         }
     }
 
-    (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "results": results })),
+    )
+        .into_response()
 }
 
 #[cfg(test)]

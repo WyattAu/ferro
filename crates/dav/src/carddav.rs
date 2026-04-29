@@ -14,7 +14,12 @@ pub struct CardDavState {
 
 pub async fn options_handler() -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    headers.insert("DAV", "1, 2, addressbook".parse().expect("static DAV header value"));
+    headers.insert(
+        "DAV",
+        "1, 2, addressbook"
+            .parse()
+            .expect("static DAV header value"),
+    );
     headers.insert(
         "Allow",
         "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT"
@@ -187,7 +192,11 @@ pub async fn get_contact(
         return StatusCode::NOT_FOUND.into_response();
     };
 
-    dav_ok_with_content_type("text/vcard; charset=utf-8", &contact.etag, contact.vcard_data)
+    dav_ok_with_content_type(
+        "text/vcard; charset=utf-8",
+        &contact.etag,
+        contact.vcard_data,
+    )
 }
 
 pub async fn put_contact(

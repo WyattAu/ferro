@@ -89,14 +89,22 @@ fn read_meta(data_dir: &str, path: &str) -> Vec<VersionMeta> {
     let content = match std::fs::read_to_string(&meta_path) {
         Ok(c) => c,
         Err(e) => {
-            warn!("Failed to read versions metadata file {}: {}", meta_path.display(), e);
+            warn!(
+                "Failed to read versions metadata file {}: {}",
+                meta_path.display(),
+                e
+            );
             return Vec::new();
         }
     };
     let metas: Vec<VersionMeta> = match serde_json::from_str(&content) {
         Ok(m) => m,
         Err(e) => {
-            warn!("Failed to parse versions metadata for {}: {}", meta_path.display(), e);
+            warn!(
+                "Failed to parse versions metadata for {}: {}",
+                meta_path.display(),
+                e
+            );
             return Vec::new();
         }
     };
@@ -107,8 +115,8 @@ fn write_meta(data_dir: &str, path: &str, metas: &[VersionMeta]) -> Result<(), s
     let dir = versions_dir_for(data_dir, path);
     std::fs::create_dir_all(&dir)?;
     let meta_path = meta_file_path(data_dir, path);
-    let content = serde_json::to_string_pretty(metas)
-        .unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e));
+    let content =
+        serde_json::to_string_pretty(metas).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e));
     std::fs::write(&meta_path, content)
 }
 

@@ -8,10 +8,7 @@ use crate::AppState;
 
 /// Deliver an activity to all followers' inboxes.
 /// This is called after recording a local activity (Create, Update, Delete, etc.)
-pub async fn deliver_to_followers(
-    state: &AppState,
-    activity: &Value,
-) -> Vec<Result<(), String>> {
+pub async fn deliver_to_followers(state: &AppState, activity: &Value) -> Vec<Result<(), String>> {
     let followers = state.activity_store.get_followers("admin");
     let mut results = Vec::new();
 

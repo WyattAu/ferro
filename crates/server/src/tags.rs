@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 const MAX_TAGS_PER_FILE: usize = 50;
 const MAX_TAGGED_FILES: usize = 10_000;
@@ -38,7 +38,10 @@ impl TagStore {
             return Err("Tag exceeds 100 character limit".to_string());
         }
         if !self.entries.contains_key(path) && self.entries.len() >= MAX_TAGGED_FILES {
-            return Err(format!("Maximum tagged files limit ({}) reached", MAX_TAGGED_FILES));
+            return Err(format!(
+                "Maximum tagged files limit ({}) reached",
+                MAX_TAGGED_FILES
+            ));
         }
         let mut entry = self.entries.entry(path.to_string()).or_default();
         if entry.value().len() >= MAX_TAGS_PER_FILE {
@@ -119,12 +122,20 @@ pub async fn list_tags(State(state): State<AppState>) -> Response {
         .into_iter()
         .map(|(tag, count)| serde_json::json!({ "tag": tag, "count": count }))
         .collect();
-    (StatusCode::OK, axum::Json(serde_json::json!({ "tags": tags_json }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "tags": tags_json })),
+    )
+        .into_response()
 }
 
 pub async fn get_tags(State(state): State<AppState>, Path(path): Path<String>) -> Response {
     let tags = state.tags.get_tags(&path);
-    (StatusCode::OK, axum::Json(serde_json::json!({ "path": path, "tags": tags }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "path": path, "tags": tags })),
+    )
+        .into_response()
 }
 
 pub async fn add_tags(
@@ -153,10 +164,13 @@ pub async fn add_tags(
             .into_response();
     }
 
-    (StatusCode::OK, axum::Json(serde_json::json!({
-        "added": added,
-        "errors": errors,
-    })))
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "added": added,
+            "errors": errors,
+        })),
+    )
         .into_response()
 }
 
@@ -166,7 +180,11 @@ pub async fn remove_tag(
 ) -> Response {
     let removed = state.tags.remove_tag(&path, &tag);
     if removed {
-        (StatusCode::OK, axum::Json(serde_json::json!({ "status": "ok" }))).into_response()
+        (
+            StatusCode::OK,
+            axum::Json(serde_json::json!({ "status": "ok" })),
+        )
+            .into_response()
     } else {
         ApiError::not_found(ApiError::NOT_FOUND, "Tag not found on file")
     }
@@ -177,7 +195,10 @@ pub async fn search_by_tag(
     Query(params): Query<SearchTagQuery>,
 ) -> Response {
     let files = state.tags.find_by_tag(&params.tag);
-    (StatusCode::OK, axum::Json(serde_json::json!({ "tag": params.tag, "files": files })))
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "tag": params.tag, "files": files })),
+    )
         .into_response()
 }
 

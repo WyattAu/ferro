@@ -1,7 +1,10 @@
 //! WebSocket real-time notifications.
 //! Clients connect via /api/ws and receive JSON messages for file operations.
 
-use axum::extract::{State, WebSocketUpgrade, ws::{Message, WebSocket}};
+use axum::extract::{
+    State, WebSocketUpgrade,
+    ws::{Message, WebSocket},
+};
 use axum::response::Response;
 use futures::{SinkExt, StreamExt};
 use serde_json;
@@ -13,13 +16,39 @@ const MAX_WS_CONNECTIONS: usize = 1000;
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WsEvent {
-    FileCreated { path: String, size: u64, owner: String },
-    FileUpdated { path: String, size: u64, owner: String },
-    FileDeleted { path: String, owner: String },
-    FileMoved { from: String, to: String, owner: String },
-    FileShared { path: String, token: String, owner: String },
-    SyncOp { clock: u64, op_type: String, path: String },
-    StorageHealth { healthy: bool, backend: String },
+    FileCreated {
+        path: String,
+        size: u64,
+        owner: String,
+    },
+    FileUpdated {
+        path: String,
+        size: u64,
+        owner: String,
+    },
+    FileDeleted {
+        path: String,
+        owner: String,
+    },
+    FileMoved {
+        from: String,
+        to: String,
+        owner: String,
+    },
+    FileShared {
+        path: String,
+        token: String,
+        owner: String,
+    },
+    SyncOp {
+        clock: u64,
+        op_type: String,
+        path: String,
+    },
+    StorageHealth {
+        healthy: bool,
+        backend: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -38,15 +67,19 @@ impl WsManager {
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<String> {
-        let count = self.connection_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let count = self
+            .connection_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         if count as usize >= MAX_WS_CONNECTIONS {
-            self.connection_count.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            self.connection_count
+                .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
         }
         self.tx.subscribe()
     }
 
     pub fn unsubscribe(&self) {
-        self.connection_count.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        self.connection_count
+            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
     }
 
     pub fn broadcast(&self, event: &WsEvent) {
@@ -56,18 +89,18 @@ impl WsManager {
     }
 
     pub fn connection_count(&self) -> u64 {
-        self.connection_count.load(std::sync::atomic::Ordering::SeqCst)
+        self.connection_count
+            .load(std::sync::atomic::Ordering::SeqCst)
     }
 }
 
 impl Default for WsManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-pub async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<crate::AppState>,
-) -> Response {
+pub async fn ws_handler(ws: WebSocketUpgrade, State(state): State<crate::AppState>) -> Response {
     ws.on_upgrade(move |socket| handle_socket(socket, state.ws_manager.clone()))
 }
 

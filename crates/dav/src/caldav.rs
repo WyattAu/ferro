@@ -15,7 +15,12 @@ pub struct CalDavState {
 
 pub async fn options_handler() -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    headers.insert("DAV", "1, 2, calendar-access".parse().expect("static DAV header value"));
+    headers.insert(
+        "DAV",
+        "1, 2, calendar-access"
+            .parse()
+            .expect("static DAV header value"),
+    );
     headers.insert(
         "Allow",
         "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT, MKCALENDAR"

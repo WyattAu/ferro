@@ -521,11 +521,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let lock_manager = state.lock_manager.clone();
-    let app = build_router_with_static(
-        state.clone(),
-        cli.static_dir.as_deref(),
-        cors_value,
-    );
+    let app = build_router_with_static(state.clone(), cli.static_dir.as_deref(), cors_value);
 
     // Parse trash TTL and spawn auto-purge background task
     let trash_ttl = match parse_duration(&cli.trash_ttl) {

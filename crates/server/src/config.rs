@@ -149,7 +149,7 @@ pub struct ServerConfig {
     )]
     pub external_url: String,
 
-    /// WOPI office server URL (e.g., https://collabora.example.com).
+    /// WOPI office server URL (e.g., <https://collabora.example.com>).
     /// When set, the WOPI discovery endpoint returns this as urlsrc.
     /// When empty (default), WOPI integration is effectively disabled.
     #[arg(long, env = "FERRO_WOPI_OFFICE_URL", default_value = "")]

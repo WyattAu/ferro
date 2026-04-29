@@ -104,7 +104,10 @@ impl CedarAuthorizer {
         let principal: EntityUid = match format!("User::\"{}\"", request.principal).parse() {
             Ok(uid) => uid,
             Err(e) => {
-                warn!("Failed to parse principal EntityUid for {:?}: {:?}", request.principal, e);
+                warn!(
+                    "Failed to parse principal EntityUid for {:?}: {:?}",
+                    request.principal, e
+                );
                 fallback_principal()
             }
         };
@@ -112,7 +115,10 @@ impl CedarAuthorizer {
         let action: EntityUid = match format!("Action::\"{}\"", request.action).parse() {
             Ok(uid) => uid,
             Err(e) => {
-                warn!("Failed to parse action EntityUid for {:?}: {:?}", request.action, e);
+                warn!(
+                    "Failed to parse action EntityUid for {:?}: {:?}",
+                    request.action, e
+                );
                 fallback_action()
             }
         };
@@ -120,7 +126,10 @@ impl CedarAuthorizer {
         let resource: EntityUid = match format!("File::\"{}\"", request.resource).parse() {
             Ok(uid) => uid,
             Err(e) => {
-                warn!("Failed to parse resource EntityUid for {:?}: {:?}", request.resource, e);
+                warn!(
+                    "Failed to parse resource EntityUid for {:?}: {:?}",
+                    request.resource, e
+                );
                 fallback_resource()
             }
         };
