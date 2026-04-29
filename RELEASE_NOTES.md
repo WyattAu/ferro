@@ -1,57 +1,73 @@
-# Ferro v1.0.0-beta.2 — Production-Hardened Release
+# Ferro v2.0.0 — Federation, Encryption, Real-Time Sync
 
 ## What is Ferro?
 
 Ferro is a self-hosted file storage orchestrator written in 100% Rust. Think Nextcloud, but fast, lightweight, and without the PHP. It speaks WebDAV natively, so it works with every file manager on every operating system.
 
-## What's New in beta.2
+## What's New in v2.0.0
 
-This release focuses on **production readiness** — every HIGH, MEDIUM, LOW, and INFO severity finding from a comprehensive security/quality audit has been resolved.
+This is a major release adding **ActivityPub federation**, **end-to-end encryption**, **real-time sync**, **GraphQL API**, **CalDAV/CardDAV**, **WebRTC P2P signaling**, and a **Tauri desktop app**.
 
-### Security Hardening
-- **bcrypt password hashing** (cost=12) — replaces weak SHA-256 with static salt
-- **Constant-time password comparison** via `subtle::ConstantTimeEq` in auth
-- **WOPI token enforcement** — rejects token issuance with default secret (500 error)
-- **Bounded in-memory collections** — audit log (10k), trash (1k), shares (10k), webhooks (100), favorites (10k), users (10k), recently-processed (10k)
+### ActivityPub Federation
+- **Full inbox/outbox processing** — Create, Update, Delete, Announce, Follow, Accept, Reject, Like, Undo
+- **Follower management** — Auto-accept Follow activities, track followers/following
+- **Federated sharing** — `POST /api/fed/share` delivers shares to followers
+- **WebFinger discovery** — `/.well-known/webfinger` for actor resolution
+- **Actor profiles** — `GET /fed/actor/:user` with preferredUsername, inbox, outbox
 
-### Multi-Instance Support
-- **PostgreSQL backend** (`--features pg`) — shares, favorites, preferences in PG
-- **Redis distributed locks** (`--features redis`) — Lua atomic scripts, TTL
-- **Redis rate limiter** — INCR+EXPIRE sliding window
-- **LDAP authentication** (`--features ldap`) — auto-provision, 5s/10s timeouts
-- **Trait abstractions** — `LockManagerTrait`, `ShareStoreTrait`, `UserStoreTrait` for pluggable backends
+### End-to-End Encryption
+- **age-based encryption** — Passphrase-based, ASCII-armored output
+- **Encrypt/decrypt files** — `POST /api/files/encrypt`, `POST /api/files/decrypt`
+- **Detection** — Automatic recognition of age-encrypted content
 
-### Kubernetes & Infrastructure
-- **K8s manifests** — 14 files: namespace, deployment (security context, probes, PDB), service, ingress, configmap, secret, PVC, 4 NetworkPolicies
-- **Helm chart** — full values.yaml (replicas, resources, persistence, auth, CORS, ingress, serviceMonitor)
-- **Terraform module** — deploys via Helm with configurable variables
-- **Liveness/readiness probes** — `/healthz`, `/readyz` with storage reachability check
-- **Docker compose overlays** — `docker-compose.pg.yml`, `docker-compose.redis.yml`
+### Real-Time Sync (CRDTs)
+- **Vector clocks** — Monotonic ordering with merge support
+- **Operation log** — Append-only DashMap store, bounded 100k operations
+- **SSE events** — `GET /api/sync/events` for real-time change notifications
+- **Delta sync** — `GET /api/sync/delta?since=N` for incremental updates
+- **Auto-recording** — WebDAV PUT/DELETE/MOVE/MKCOL operations recorded automatically
 
-### Observability
-- **Prometheus metrics** — `/metrics/prometheus` (text/plain, gauge/counter format)
-- **JSON structured logging** — `--log-format json|text`
-- **Backup/restore API** — point-in-time, idempotent, disk-backed manifests
-- **Webhook notifications** — HMAC-SHA256 signed, async delivery, 3x retry
-- **Request counter** — per-endpoint Prometheus counter
+### GraphQL API
+- **Full schema** — Query: files, file, shares, me, health, audit_log, versions
+- **Mutations** — create_folder, delete_file
+- **GraphiQL playground** — Interactive IDE at `/api/graphql`
 
-### Multi-User & Versioning
-- **User management** — CRUD API, roles (Admin/User/ReadOnly), per-user quotas, home directories
-- **File versioning** — auto-version on PUT overwrite, max N versions (configurable), list/download/delete API
-- **Lock cleanup** — background task sweeps expired locks every 60 seconds
+### CalDAV & CardDAV
+- **iCalendar parser** — RFC 5545 compliant (VEVENT, VTODO, VTIMEZONE)
+- **vCard parser** — RFC 6350 compliant (FN, N, TEL, EMAIL, ADR, PHOTO)
+- **CalDAV endpoints** — `/dav/cal/` with PROPFIND, REPORT, GET, PUT, DELETE, MKCALENDAR
+- **CardDAV endpoints** — `/dav/card/` with PROPFIND, REPORT, GET, PUT, DELETE
 
-### Performance
-- **Lock-free rate limiter** — DashMap replaces RwLock<HashMap>, no global lock per request
-- **Efficient audit log** — VecDeque replaces Vec for O(k) front-drain on eviction
-- **Graceful shutdown** — SIGTERM+SIGINT with configurable timeout
+### WebRTC P2P Signaling
+- **Offer/answer exchange** — `POST /api/webrtc/offer/create`, `/submit-answer`
+- **ICE candidate relay** — `/add-ice`, `/poll-answer`
+- **TTL-based cleanup** — Offers expire after 5 minutes
 
-### Quality
-- **363 tests** — 0 failures across all feature combinations
-- **0 clippy warnings** — `-D warnings` across 4 feature configurations
-- **Zero undocumented public items** — `cargo doc` reports 0 warnings
-- **Zero unsafe blocks** — in production code (OIDC test helpers only)
-- **Zero production panics** — all `.unwrap()` replaced with `expect()` or error handling
-- **Release build** — compiles in ~5 minutes, ~39MB server binary
+### Tauri Desktop App
+- **System tray** — Show/hide, quit from tray menu
+- **4 plugins** — shell, dialog, fs, notification
+- **Dual mode** — CLI (default) or GUI (via `tauri` feature flag)
+- **Mobile scaffold** — `MobileConfig` for Android/iOS (via `mobile` feature flag)
+
+### FIPS Crypto Abstraction
+- **`ferro-crypto` crate** — `CryptoProvider` trait for swappable backends
+- **Ring provider** — SHA-256/512, HMAC-SHA256, random bytes, password hashing
+- **`fips` feature flag** — Informational FIPS mode flag
+
+### File Streaming & Multipart Upload
+- **True streaming** — `get_stream()` returns `AsyncRead` for zero-copy download
+- **S3 multipart** — `put_multipart()` for files >10MB on object storage backends
+- **WebDAV streaming** — GET and share download use `Body::from_stream()`
+
+### Thumbnails, Trash, Quota
+- **Image thumbnails** — JPEG, PNG, GIF, WebP via `image` crate with disk caching
+- **PDF thumbnails** — Page count + metadata extraction, styled SVG
+- **Trash auto-purge** — Background hourly task, configurable TTL (default 30d)
+- **Quota enforcement** — Pre-check on PUT via Content-Length, 413 on overflow
+
+### File Diff
+- **LCS-based diff** — `GET /api/files/{path}/diff?from=v1&to=v2`
+- **10k line cap** — Binary detection, unified diff format
 
 ## Quick Start
 
@@ -89,8 +105,16 @@ cargo build --release -p ferro-server -p ferro-cli
 - **Full-text search** — Tantivy-powered, auto-indexed on upload
 - **WASM worker runtime** — Run custom logic on file events, sandboxed with fuel + memory limits
 - **File versioning** — Auto-version on overwrite, configurable max versions
+- **File streaming** — True AsyncRead streaming for large files
+
+### Federation & Sync
+- **ActivityPub** — Full inbox/outbox with 9 activity types, auto-follow, federated shares
+- **Real-time sync** — CRDT vector clocks, SSE events, delta sync API
+- **WebRTC signaling** — P2P offer/answer/ICE exchange server
 
 ### Security
+- **E2E encryption** — age-based file encryption with passphrase
+- **FIPS crypto** — Swappable `CryptoProvider` trait (ring default)
 - **bcrypt password hashing** — Cost factor 12 with per-user salts
 - **HTTP Basic Auth** — Simple `--admin-user`/`--admin-password` for personal deployments
 - **OIDC authentication** — PKCE flow with Keycloak, Auth0, Google, etc.
@@ -102,6 +126,14 @@ cargo build --release -p ferro-server -p ferro-cli
 - **WOPI protocol** — Collabora/WPS Office integration with HMAC-signed tokens
 - **Constant-time comparisons** — Password and secret comparisons timing-safe
 
+### APIs & Protocols
+- **WebDAV** — RFC 4918 Class 1/2/3
+- **ActivityPub** — Full actor + inbox + outbox
+- **CalDAV** — Calendar access (RFC 4791)
+- **CardDAV** — Address book access (RFC 6352)
+- **GraphQL** — Full schema with playground
+- **REST API** — Users, shares, locks, audit, versions, encryption, sync
+
 ### Web UI
 - **File browser** — List/grid views, upload, download, create folders, drag-and-drop
 - **Share links** — Password-protected (constant-time), time-limited public URLs
@@ -112,6 +144,10 @@ cargo build --release -p ferro-server -p ferro-cli
 - **Command palette** — Ctrl+K with 13 commands, keyboard navigation
 - **Onboarding tour** — 6-step first-run walkthrough
 - **Responsive** — Desktop and mobile layouts
+
+### Desktop & Mobile
+- **Tauri desktop app** — System tray, native dialogs, notifications
+- **Mobile scaffold** — Android/iOS config module (via `mobile` feature flag)
 
 ### Operations
 - **Kubernetes ready** — Helm chart, K8s manifests, Terraform module
@@ -145,6 +181,9 @@ All options via CLI flags, environment variables, or `ferro.toml`:
 | `--external-url` | `FERRO_EXTERNAL_URL` | none | Public URL (for OIDC/shares) |
 | `--graceful-shutdown-timeout` | `FERRO_GRACEFUL_SHUTDOWN_TIMEOUT` | `30s` | Shutdown drain timeout |
 | `--max-file-versions` | `FERRO_MAX_FILE_VERSIONS` | `10` | Max versions per file |
+| `--thumbnail-size` | `FERRO_THUMBNAIL_SIZE` | `256` | Thumbnail dimension (64-1024) |
+| `--trash-ttl` | `FERRO_TRASH_TTL` | `30d` | Trash auto-purge TTL |
+| `--storage-quota` | `FERRO_STORAGE_QUOTA` | none | Storage quota (e.g., 10GB) |
 | `--database-url` | `FERRO_DATABASE_URL` | none | PostgreSQL URL (pg feature) |
 | `--redis-url` | `FERRO_REDIS_URL` | none | Redis URL (redis feature) |
 
@@ -158,6 +197,9 @@ All options via CLI flags, environment variables, or `ferro.toml`:
 | `pg` | sqlx, postgres | PostgreSQL for shares/favorites/preferences |
 | `redis` | redis | Distributed locks + rate limiting |
 | `ldap` | ldap3 | LDAP/Active Directory authentication |
+| `tauri` | tauri, tauri-plugin-* | Desktop GUI mode |
+| `mobile` | tauri, tauri-plugin-http | Mobile app config |
+| `fips` | ring, bcrypt | FIPS crypto mode (informational) |
 
 ## WebDAV Clients
 
@@ -177,9 +219,18 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting. This release has:
 - STRIDE threat model in `docs/security/threat-model.md`
 - Full quality audit in `.reports/final_quality_audit.md`
 
+## Quality
+
+- **460 tests** — 0 failures across all feature combinations
+- **0 clippy warnings** — `-D warnings` across all feature configurations
+- **Zero undocumented public items** — `cargo doc` reports 0 warnings
+- **Zero unsafe blocks** — in production code
+- **Zero production panics** — all `.unwrap()` replaced with `expect()` or error handling
+- **9 crates** — common, core, server, web, cli, desktop, dav, crypto
+
 ## Contributing
 
-Bug reports, feature requests, and pull requests welcome. See the existing code style (363 tests, 0 clippy warnings) for contribution guidelines.
+Bug reports, feature requests, and pull requests welcome. See the existing code style (460 tests, 0 clippy warnings) for contribution guidelines.
 
 ## License
 
