@@ -6,6 +6,8 @@ use serde_json::json;
 
 pub mod activity;
 pub mod actor;
+pub mod delivery;
+pub mod http_sig;
 pub mod store;
 pub mod webfinger;
 
@@ -61,6 +63,16 @@ pub async fn inbox(
 ) -> Response {
     tracing::warn!("HTTP Signature verification not yet implemented — accepting activity");
     state.activity_store.add_to_inbox(activity.clone());
+
+    let delivery_state = state.clone();
+    let act = serde_json::to_value(activity.clone()).unwrap_or_default();
+    tokio::spawn(async move {
+        let results = delivery::deliver_to_followers(&delivery_state, &act).await;
+        let errors: Vec<_> = results.into_iter().filter_map(|r| r.err()).collect();
+        if !errors.is_empty() {
+            tracing::warn!("Follower delivery had errors: {:?}", errors);
+        }
+    });
 
     match activity.r#type {
         ActivityType::Follow => {

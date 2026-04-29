@@ -1,3 +1,9 @@
+//! Search indexer that runs asynchronously.
+//!
+//! Design decision: Search index failures are logged but never propagated to the caller.
+//! This ensures that file operations (PUT, DELETE, etc.) never fail due to search issues.
+//! The index will eventually heal itself on the next successful operation.
+
 use crate::AppState;
 use common::metadata::FileMetadata;
 use std::sync::Arc;

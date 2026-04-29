@@ -1,6 +1,11 @@
 use async_graphql::{Context, EmptySubscription, Object, Schema};
 use axum::response::{Html, IntoResponse, Response};
 
+fn get_state<'a>(ctx: &'a Context<'a>) -> async_graphql::Result<&'a crate::AppState> {
+    ctx.data::<crate::AppState>()
+        .map_err(|_| async_graphql::Error::new("AppState not configured"))
+}
+
 pub struct Query;
 
 #[Object]
@@ -11,7 +16,7 @@ impl Query {
         path: Option<String>,
         limit: Option<i32>,
     ) -> async_graphql::Result<Vec<FileItem>> {
-        let state = ctx.data::<crate::AppState>().unwrap();
+        let state = get_state(ctx)?;
         let prefix = path.unwrap_or_else(|| "/".to_string());
         let files = state
             .storage
@@ -27,7 +32,7 @@ impl Query {
         ctx: &Context<'_>,
         path: String,
     ) -> async_graphql::Result<Option<FileItem>> {
-        let state = ctx.data::<crate::AppState>().unwrap();
+        let state = get_state(ctx)?;
         match state.storage.head(&path).await {
             Ok(meta) => Ok(Some(FileItem::from(meta))),
             Err(_) => Ok(None),
@@ -35,7 +40,7 @@ impl Query {
     }
 
     async fn shares(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<ShareItem>> {
-        let state = ctx.data::<crate::AppState>().unwrap();
+        let state = get_state(ctx)?;
         let links = state.share_store.list().await;
         Ok(links.into_iter().map(ShareItem::from).collect())
     }
@@ -60,7 +65,7 @@ impl Query {
         limit: Option<i32>,
         offset: Option<i32>,
     ) -> async_graphql::Result<Vec<AuditItem>> {
-        let state = ctx.data::<crate::AppState>().unwrap();
+        let state = get_state(ctx)?;
         let limit = limit.unwrap_or(50) as usize;
         let offset = offset.unwrap_or(0) as usize;
         let entries = state.audit_log.recent_with_offset(limit, offset).await;
@@ -77,7 +82,7 @@ impl Mutation {
         ctx: &Context<'_>,
         path: String,
     ) -> async_graphql::Result<FileItem> {
-        let state = ctx.data::<crate::AppState>().unwrap();
+        let state = get_state(ctx)?;
         let meta = state
             .storage
             .create_collection(&path, "admin")
@@ -87,7 +92,7 @@ impl Mutation {
     }
 
     async fn delete_file(&self, ctx: &Context<'_>, path: String) -> async_graphql::Result<bool> {
-        let state = ctx.data::<crate::AppState>().unwrap();
+        let state = get_state(ctx)?;
         state
             .storage
             .delete(&path)

@@ -179,6 +179,10 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_CORS_ALLOWED_ORIGINS", default_value = "*")]
     pub cors_allowed_origins: String,
 
+    /// Comma-separated list of allowed CORS origins (alternative flag, same as --cors-allowed-origins).
+    #[arg(long, env = "FERRO_CORS_ORIGINS", default_value = "*")]
+    pub cors_origins: String,
+
     /// PostgreSQL database URL for distributed state (shares, favorites, preferences).
     /// Only used when the `pg` feature is enabled at compile time.
     #[cfg(feature = "pg")]

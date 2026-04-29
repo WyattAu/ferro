@@ -5,6 +5,7 @@ pub mod api_error;
 pub mod audit;
 pub mod auth;
 pub mod backup;
+pub mod batch;
 pub mod bulk;
 pub mod config;
 pub mod conflict;
@@ -14,6 +15,7 @@ pub mod error;
 pub mod favorites;
 pub mod federation;
 pub mod graphql;
+pub mod idempotency;
 pub mod indexer;
 pub mod json_logging;
 #[cfg(feature = "ldap")]
@@ -42,7 +44,9 @@ pub mod shares;
 pub mod simple_auth;
 pub mod snapshots;
 pub mod storage;
+pub mod storage_health;
 pub mod sync;
+pub mod tags;
 pub mod thumbnails;
 pub mod trash;
 pub mod user_api;
@@ -54,6 +58,7 @@ pub mod webdav;
 pub mod webhooks;
 pub mod webrtc;
 pub mod wopi;
+pub mod ws;
 pub mod worker_runner;
 pub mod workers;
 pub mod xml;
@@ -128,6 +133,10 @@ pub struct AppState {
     pub webrtc_offers: Arc<webrtc::offers::OfferStore>,
     pub activity_store: Arc<federation::store::ActivityStore>,
     pub sync_store: Arc<SyncStore>,
+    pub tags: Arc<tags::TagStore>,
+    pub idempotency_store: Arc<idempotency::IdempotencyStore>,
+    pub storage_health: Arc<storage_health::StorageHealthMonitor>,
+    pub ws_manager: Arc<ws::WsManager>,
 }
 
 impl AppState {
@@ -172,6 +181,10 @@ impl AppState {
             webrtc_offers: Arc::new(webrtc::offers::OfferStore::new()),
             activity_store: Arc::new(federation::store::ActivityStore::new()),
             sync_store: Arc::new(SyncStore::new()),
+            tags: Arc::new(tags::TagStore::new()),
+            idempotency_store: Arc::new(idempotency::IdempotencyStore::new()),
+            storage_health: Arc::new(storage_health::StorageHealthMonitor::new()),
+            ws_manager: Arc::new(ws::WsManager::new()),
         }
     }
 
@@ -576,6 +589,8 @@ pub fn build_router_with_static(
             axum::routing::delete(trash::empty_trash),
         )
         .route("/api/bulk/delete", axum::routing::post(bulk::bulk_delete))
+        .route("/api/batch/copy", axum::routing::post(batch::batch_copy))
+        .route("/api/batch/move", axum::routing::post(batch::batch_move))
         .route("/api/files/move", axum::routing::post(move_copy::move_file))
         .route("/api/files/copy", axum::routing::post(move_copy::copy_file))
         .route(
@@ -588,6 +603,11 @@ pub fn build_router_with_static(
         )
         .route("/api/quota", axum::routing::get(quota::get_quota))
         .route("/api/activity", axum::routing::get(activity::get_activity))
+        .route("/api/tags", axum::routing::get(tags::list_tags))
+        .route("/api/tags/{path}", axum::routing::get(tags::get_tags).post(tags::add_tags))
+        .route("/api/tags/{path}/{tag}", axum::routing::delete(tags::remove_tag))
+        .route("/api/tags/search", axum::routing::get(tags::search_by_tag))
+        .route("/api/health/storage", axum::routing::get(storage_health::storage_health_handler))
         .route(
             "/api/thumbnail/*path",
             axum::routing::get(thumbnails::get_thumbnail),
@@ -739,6 +759,7 @@ pub fn build_router_with_static(
             "/api/sync/status",
             axum::routing::get(sync::events::sync_status),
         )
+        .route("/api/ws", axum::routing::get(ws::ws_handler))
         .route("/*path", any(webdav::handle_any))
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route(

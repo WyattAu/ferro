@@ -584,7 +584,7 @@ async fn handle_put(
     if let Some(meta_store) = &state.metadata_store
         && let Err(e) = meta_store.put(meta.clone()).await
     {
-        warn!("Failed to sync metadata to external store: {}", e);
+        warn!("Failed to write metadata for {}: {}", path, e);
     }
 
     // Auto-index the file for search
@@ -652,9 +652,23 @@ async fn handle_put(
             new_path: None,
             size: meta.size,
             mime_type: Some(meta.mime_type.clone()),
-            owner,
+            owner: owner.clone(),
             checksum: meta.content_hash.as_str().to_string(),
             timestamp: chrono::Utc::now().to_rfc3339(),
+        });
+    }
+
+    if already_existed {
+        state.ws_manager.broadcast(&crate::ws::WsEvent::FileUpdated {
+            path: path.clone(),
+            size: meta.size,
+            owner,
+        });
+    } else {
+        state.ws_manager.broadcast(&crate::ws::WsEvent::FileCreated {
+            path: path.clone(),
+            size: meta.size,
+            owner,
         });
     }
 
@@ -695,8 +709,8 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
     )
     .await;
 
+    let owner = extract_owner(headers, None);
     {
-        let owner = extract_owner(headers, None);
         let (op_id, clock) = state.sync_store.next_op_id();
         state.sync_store.record_op(SyncOp {
             id: op_id,
@@ -707,11 +721,16 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
             new_path: None,
             size: 0,
             mime_type: None,
-            owner,
+            owner: owner.clone(),
             checksum: String::new(),
             timestamp: chrono::Utc::now().to_rfc3339(),
         });
     }
+
+    state.ws_manager.broadcast(&crate::ws::WsEvent::FileDeleted {
+        path: path.clone(),
+        owner,
+    });
 
     Ok(StatusCode::NO_CONTENT.into_response())
 }
@@ -837,8 +856,8 @@ async fn handle_move(state: AppState, path: &str, headers: &HeaderMap) -> Result
 
     state.storage.move_path(&path, &dest).await?;
 
+    let owner = extract_owner(headers, None);
     {
-        let owner = extract_owner(headers, None);
         let (op_id, clock) = state.sync_store.next_op_id();
         state.sync_store.record_op(SyncOp {
             id: op_id,
@@ -849,11 +868,17 @@ async fn handle_move(state: AppState, path: &str, headers: &HeaderMap) -> Result
             new_path: Some(dest.clone()),
             size: 0,
             mime_type: None,
-            owner,
+            owner: owner.clone(),
             checksum: String::new(),
             timestamp: chrono::Utc::now().to_rfc3339(),
         });
     }
+
+    state.ws_manager.broadcast(&crate::ws::WsEvent::FileMoved {
+        from: path.to_string(),
+        to: dest.clone(),
+        owner,
+    });
 
     let mut resp_headers = HeaderMap::new();
     resp_headers.insert(

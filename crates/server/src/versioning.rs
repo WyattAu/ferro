@@ -88,11 +88,17 @@ fn read_meta(data_dir: &str, path: &str) -> Vec<VersionMeta> {
     let meta_path = meta_file_path(data_dir, path);
     let content = match std::fs::read_to_string(&meta_path) {
         Ok(c) => c,
-        Err(_) => return Vec::new(),
+        Err(e) => {
+            warn!("Failed to read versions metadata file {}: {}", meta_path.display(), e);
+            return Vec::new();
+        }
     };
     let metas: Vec<VersionMeta> = match serde_json::from_str(&content) {
         Ok(m) => m,
-        Err(_) => return Vec::new(),
+        Err(e) => {
+            warn!("Failed to parse versions metadata for {}: {}", meta_path.display(), e);
+            return Vec::new();
+        }
     };
     metas
 }
@@ -101,7 +107,8 @@ fn write_meta(data_dir: &str, path: &str, metas: &[VersionMeta]) -> Result<(), s
     let dir = versions_dir_for(data_dir, path);
     std::fs::create_dir_all(&dir)?;
     let meta_path = meta_file_path(data_dir, path);
-    let content = serde_json::to_string_pretty(metas).unwrap();
+    let content = serde_json::to_string_pretty(metas)
+        .unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e));
     std::fs::write(&meta_path, content)
 }
 
@@ -204,7 +211,9 @@ pub async fn create_version(State(state): State<AppState>, Path(path): Path<Stri
 
         let new_id = next_version_id(&metas);
         let file_path = version_file_path(&dd, &norm, new_id);
-        let dir = file_path.parent().unwrap();
+        let dir = file_path
+            .parent()
+            .ok_or_else(|| "file path has no parent".to_string())?;
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
         std::fs::write(&file_path, &content).map_err(|e| e.to_string())?;
 
@@ -320,7 +329,10 @@ pub async fn auto_version(state: &AppState, path: &str, previous_content: bytes:
 
         let new_id = next_version_id(&metas);
         let file_path = version_file_path(&data_dir, &normalized, new_id);
-        let dir = file_path.parent().unwrap();
+        let Some(dir) = file_path.parent() else {
+            warn!("Version file path has no parent: {:?}", file_path);
+            return;
+        };
         if let Err(e) = std::fs::create_dir_all(dir) {
             warn!("Failed to create version dir: {}", e);
             return;

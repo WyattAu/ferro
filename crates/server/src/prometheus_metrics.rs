@@ -25,7 +25,7 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     let mut headers = HeaderMap::new();
     headers.insert(
         "Content-Type",
-        "text/plain; version=0.0.4; charset=utf-8".parse().unwrap(),
+        "text/plain; version=0.0.4; charset=utf-8".parse().expect("static MIME type must parse"),
     );
 
     let output = format!(

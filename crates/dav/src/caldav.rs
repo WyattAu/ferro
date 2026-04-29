@@ -15,14 +15,71 @@ pub struct CalDavState {
 
 pub async fn options_handler() -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    headers.insert("DAV", "1, 2, calendar-access".parse().unwrap());
+    headers.insert("DAV", "1, 2, calendar-access".parse().expect("static DAV header value"));
     headers.insert(
         "Allow",
         "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT, MKCALENDAR"
             .parse()
-            .unwrap(),
+            .expect("static Allow header value"),
     );
     (StatusCode::NO_CONTENT, headers)
+}
+
+fn dav_multistatus(body: Vec<u8>) -> Response {
+    Response::builder()
+        .status(StatusCode::MULTI_STATUS)
+        .header("Content-Type", "application/xml; charset=utf-8")
+        .body(body.into())
+        .unwrap_or_else(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to build response: {e}"),
+            )
+                .into_response()
+        })
+}
+
+fn dav_response_with_etag(status: StatusCode, etag: &str) -> Response {
+    Response::builder()
+        .status(status)
+        .header("ETag", etag)
+        .body(Bytes::new().into())
+        .unwrap_or_else(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to build response: {e}"),
+            )
+                .into_response()
+        })
+}
+
+fn dav_created(location: &str) -> Response {
+    Response::builder()
+        .status(StatusCode::CREATED)
+        .header("Location", location)
+        .body(Bytes::new().into())
+        .unwrap_or_else(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to build response: {e}"),
+            )
+                .into_response()
+        })
+}
+
+fn dav_ok_with_content_type(content_type: &str, etag: &str, body: String) -> Response {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", content_type)
+        .header("ETag", etag)
+        .body(body.into())
+        .unwrap_or_else(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to build response: {e}"),
+            )
+                .into_response()
+        })
 }
 
 pub async fn list_calendars(State(state): State<CalDavState>) -> Response {
@@ -56,12 +113,7 @@ pub async fn list_calendars(State(state): State<CalDavState>) -> Response {
         })
         .collect();
 
-    let body = xml_ext::build_dav_multistatus(&responses);
-    Response::builder()
-        .status(StatusCode::MULTI_STATUS)
-        .header("Content-Type", "application/xml; charset=utf-8")
-        .body(body.into())
-        .unwrap()
+    dav_multistatus(xml_ext::build_dav_multistatus(&responses))
 }
 
 pub async fn calendar_properties(
@@ -104,11 +156,7 @@ pub async fn calendar_properties(
     };
 
     let body = xml_ext::build_dav_multistatus(&[response]);
-    Response::builder()
-        .status(StatusCode::MULTI_STATUS)
-        .header("Content-Type", "application/xml; charset=utf-8")
-        .body(body.into())
-        .unwrap()
+    dav_multistatus(body)
 }
 
 pub async fn create_calendar_handler(State(state): State<CalDavState>) -> Response {
@@ -117,11 +165,7 @@ pub async fn create_calendar_handler(State(state): State<CalDavState>) -> Respon
         .create_calendar(&state.principal, "New Calendar", "#0082c9")
         .await
     {
-        Ok(cal) => Response::builder()
-            .status(StatusCode::CREATED)
-            .header("Location", format!("/dav/cal/{}/", cal.id))
-            .body(Bytes::new().into())
-            .unwrap(),
+        Ok(cal) => dav_created(&format!("/dav/cal/{}/", cal.id)),
         Err(_) => StatusCode::CONFLICT.into_response(),
     }
 }
@@ -148,12 +192,7 @@ pub async fn get_event(
         return StatusCode::NOT_FOUND.into_response();
     };
 
-    Response::builder()
-        .status(StatusCode::OK)
-        .header("Content-Type", "text/calendar; charset=utf-8")
-        .header("ETag", &event.etag)
-        .body(event.ical_data.into())
-        .unwrap()
+    dav_ok_with_content_type("text/calendar; charset=utf-8", &event.etag, event.ical_data)
 }
 
 pub async fn put_event(
@@ -165,20 +204,12 @@ pub async fn put_event(
 
     if state.store.get_event(&calendar, &uid).await.is_some() {
         match state.store.update_event(&calendar, &uid, &ical).await {
-            Ok(event) => Response::builder()
-                .status(StatusCode::NO_CONTENT)
-                .header("ETag", &event.etag)
-                .body(Bytes::new().into())
-                .unwrap(),
+            Ok(event) => dav_response_with_etag(StatusCode::NO_CONTENT, &event.etag),
             Err(_) => StatusCode::NOT_FOUND.into_response(),
         }
     } else {
         match state.store.create_event(&calendar, &ical).await {
-            Ok(event) => Response::builder()
-                .status(StatusCode::CREATED)
-                .header("ETag", &event.etag)
-                .body(Bytes::new().into())
-                .unwrap(),
+            Ok(event) => dav_response_with_etag(StatusCode::CREATED, &event.etag),
             Err(_) => StatusCode::CONFLICT.into_response(),
         }
     }
@@ -240,11 +271,7 @@ pub async fn handle_report(
     }
 
     let xml_body = xml_ext::build_dav_multistatus(&responses);
-    Response::builder()
-        .status(StatusCode::MULTI_STATUS)
-        .header("Content-Type", "application/xml; charset=utf-8")
-        .body(xml_body.into())
-        .unwrap()
+    dav_multistatus(xml_body)
 }
 
 fn parse_ical_timestamp(s: &str) -> Option<chrono::DateTime<Utc>> {

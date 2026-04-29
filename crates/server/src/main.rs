@@ -514,11 +514,17 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("═══════════════════════════════════════════════════════════════");
     }
 
+    let cors_value = if cli.cors_origins != "*" {
+        &cli.cors_origins
+    } else {
+        &cli.cors_allowed_origins
+    };
+
     let lock_manager = state.lock_manager.clone();
     let app = build_router_with_static(
         state.clone(),
         cli.static_dir.as_deref(),
-        &cli.cors_allowed_origins,
+        cors_value,
     );
 
     // Parse trash TTL and spawn auto-purge background task

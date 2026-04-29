@@ -21,7 +21,8 @@ pub async fn request_id_middleware(mut req: Request<Body>, next: Next) -> Respon
         Err(_) => {
             let fresh = Uuid::new_v4().to_string();
             response.extensions_mut().insert(RequestId(fresh.clone()));
-            axum::http::HeaderValue::from_bytes(fresh.as_bytes()).unwrap()
+            axum::http::HeaderValue::from_bytes(fresh.as_bytes())
+                .expect("UUID is always valid HeaderValue")
         }
     };
 

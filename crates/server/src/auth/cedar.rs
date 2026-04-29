@@ -7,6 +7,28 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
+const FALLBACK_PRINCIPAL: &str = r#"User::"anonymous""#;
+const FALLBACK_ACTION: &str = r#"Action::"unknown""#;
+const FALLBACK_RESOURCE: &str = r#"File::"unknown""#;
+
+fn fallback_principal() -> EntityUid {
+    FALLBACK_PRINCIPAL
+        .parse()
+        .expect("hardcoded fallback EntityUid must parse")
+}
+
+fn fallback_action() -> EntityUid {
+    FALLBACK_ACTION
+        .parse()
+        .expect("hardcoded fallback EntityUid must parse")
+}
+
+fn fallback_resource() -> EntityUid {
+    FALLBACK_RESOURCE
+        .parse()
+        .expect("hardcoded fallback EntityUid must parse")
+}
+
 /// Cedar policy configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CedarConfig {
@@ -79,17 +101,29 @@ impl CedarAuthorizer {
     pub async fn is_authorized(&self, request: &AuthRequest) -> Result<AuthDecision> {
         let guard = self.policy_set.read().await;
 
-        let principal: EntityUid = format!("User::\"{}\"", request.principal)
-            .parse()
-            .unwrap_or_else(|_| "User::\"anonymous\"".to_string().parse().unwrap());
+        let principal: EntityUid = match format!("User::\"{}\"", request.principal).parse() {
+            Ok(uid) => uid,
+            Err(e) => {
+                warn!("Failed to parse principal EntityUid for {:?}: {:?}", request.principal, e);
+                fallback_principal()
+            }
+        };
 
-        let action: EntityUid = format!("Action::\"{}\"", request.action)
-            .parse()
-            .unwrap_or_else(|_| "Action::\"unknown\"".to_string().parse().unwrap());
+        let action: EntityUid = match format!("Action::\"{}\"", request.action).parse() {
+            Ok(uid) => uid,
+            Err(e) => {
+                warn!("Failed to parse action EntityUid for {:?}: {:?}", request.action, e);
+                fallback_action()
+            }
+        };
 
-        let resource: EntityUid = format!("File::\"{}\"", request.resource)
-            .parse()
-            .unwrap_or_else(|_| "File::\"unknown\"".to_string().parse().unwrap());
+        let resource: EntityUid = match format!("File::\"{}\"", request.resource).parse() {
+            Ok(uid) => uid,
+            Err(e) => {
+                warn!("Failed to parse resource EntityUid for {:?}: {:?}", request.resource, e);
+                fallback_resource()
+            }
+        };
 
         // Build context from request attributes
         // Cedar Context supports building from JSON values for string/bool/long attributes
@@ -241,7 +275,7 @@ pub async fn cedar_middleware(
 
 impl Default for CedarAuthorizer {
     fn default() -> Self {
-        Self::new().unwrap()
+        Self::new().expect("default CedarAuthorizer creation must succeed")
     }
 }
 
