@@ -71,21 +71,19 @@ pub fn provide_theme_state() -> ThemeState {
                     .and_then(|s| s.get_item("ferro_theme").ok())
                     .flatten();
 
-                let initial = stored
-                    .map(|s| Theme::from_str(&s))
-                    .unwrap_or_else(|| {
-                        let prefers_dark = window
-                            .as_ref()
-                            .and_then(|w| w.match_media("(prefers-color-scheme: dark)").ok())
-                            .flatten()
-                            .map(|mql| mql.matches())
-                            .unwrap_or(false);
-                        if prefers_dark {
-                            Theme::Dark
-                        } else {
-                            Theme::Light
-                        }
-                    });
+                let initial = stored.map(|s| Theme::from_str(&s)).unwrap_or_else(|| {
+                    let prefers_dark = window
+                        .as_ref()
+                        .and_then(|w| w.match_media("(prefers-color-scheme: dark)").ok())
+                        .flatten()
+                        .map(|mql| mql.matches())
+                        .unwrap_or(false);
+                    if prefers_dark {
+                        Theme::Dark
+                    } else {
+                        Theme::Light
+                    }
+                });
 
                 init_state.set_theme(initial);
 
@@ -101,12 +99,20 @@ pub fn provide_theme_state() -> ThemeState {
         spawn_local(async move {
             if let Some(window) = web_sys::window() {
                 if let Ok(mql) = window.match_media("(prefers-color-scheme: dark)") {
-                    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move |_e: web_sys::MediaQueryListEvent| {
-                        let prefers_dark = mql.matches();
-                        let theme = if prefers_dark { Theme::Dark } else { Theme::Light };
-                        listen_state.set_theme(theme);
-                    }) as Box<dyn Fn(web_sys::MediaQueryListEvent)>);
-                    let _ = mql.add_event_listener_with_callback("change", cb.as_ref().unchecked_ref());
+                    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
+                        move |_e: web_sys::MediaQueryListEvent| {
+                            let prefers_dark = mql.matches();
+                            let theme = if prefers_dark {
+                                Theme::Dark
+                            } else {
+                                Theme::Light
+                            };
+                            listen_state.set_theme(theme);
+                        },
+                    )
+                        as Box<dyn Fn(web_sys::MediaQueryListEvent)>);
+                    let _ =
+                        mql.add_event_listener_with_callback("change", cb.as_ref().unchecked_ref());
                     cb.forget();
                 }
             }

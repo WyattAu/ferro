@@ -188,10 +188,7 @@ impl StorageEngine for InMemoryStorageEngine {
         }
 
         let meta = FileMetadata::new_collection(path.clone(), owner.to_string());
-        self.data
-            .write()
-            .await
-            .insert(path.clone(), Bytes::new());
+        self.data.write().await.insert(path.clone(), Bytes::new());
         self.metadata
             .write()
             .await
@@ -261,10 +258,7 @@ mod tests {
     async fn test_list() {
         let engine = InMemoryStorageEngine::new();
 
-        engine
-            .create_collection("/docs", "user1")
-            .await
-            .unwrap();
+        engine.create_collection("/docs", "user1").await.unwrap();
         engine
             .put("/docs/a.txt", Bytes::from("a"), "user1")
             .await
@@ -302,10 +296,7 @@ mod tests {
             .put("/source.txt", Bytes::from("data"), "user1")
             .await
             .unwrap();
-        engine
-            .move_path("/source.txt", "/dest.txt")
-            .await
-            .unwrap();
+        engine.move_path("/source.txt", "/dest.txt").await.unwrap();
 
         assert!(engine.exists("/source.txt").await.unwrap() == false);
         let content = engine.get("/dest.txt").await.unwrap();
@@ -324,11 +315,26 @@ mod tests {
     async fn test_list_all_with_depth_limit() {
         let engine = InMemoryStorageEngine::new();
         engine.create_collection("/root", "user1").await.unwrap();
-        engine.create_collection("/root/sub", "user1").await.unwrap();
-        engine.create_collection("/root/sub/deep", "user1").await.unwrap();
-        engine.put("/root/f1.txt", Bytes::from("a"), "user1").await.unwrap();
-        engine.put("/root/sub/f2.txt", Bytes::from("b"), "user1").await.unwrap();
-        engine.put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1").await.unwrap();
+        engine
+            .create_collection("/root/sub", "user1")
+            .await
+            .unwrap();
+        engine
+            .create_collection("/root/sub/deep", "user1")
+            .await
+            .unwrap();
+        engine
+            .put("/root/f1.txt", Bytes::from("a"), "user1")
+            .await
+            .unwrap();
+        engine
+            .put("/root/sub/f2.txt", Bytes::from("b"), "user1")
+            .await
+            .unwrap();
+        engine
+            .put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1")
+            .await
+            .unwrap();
 
         // depth=1 should get root/* (sub, f1.txt) — 2 items
         let items = engine.list_all("/root", 1).await.unwrap();

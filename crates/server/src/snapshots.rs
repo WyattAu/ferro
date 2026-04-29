@@ -4,13 +4,13 @@ use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 use ferro_core::persistence::SnapshotStore as PersistenceSnapshotStore;
 use serde::Deserialize;
-use serde::{Serialize, Deserialize as SerdeDeserialize};
+use serde::{Deserialize as SerdeDeserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// A filesystem snapshot containing metadata for all files at a point in time.
 #[derive(Debug, Clone, Serialize, SerdeDeserialize)]
@@ -40,13 +40,20 @@ impl SnapshotStore {
     }
 
     /// Add optional SQLite persistence.
-    pub fn with_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
+    pub fn with_persistence(
+        mut self,
+        persistence: Arc<ferro_core::persistence::SqlitePersistence>,
+    ) -> Self {
         self.persistence = Some(persistence);
         self
     }
 
     /// Create a new snapshot.
-    pub async fn create(&self, description: String, entries: Vec<common::metadata::FileMetadata>) -> Snapshot {
+    pub async fn create(
+        &self,
+        description: String,
+        entries: Vec<common::metadata::FileMetadata>,
+    ) -> Snapshot {
         let snapshot = Snapshot {
             id: uuid::Uuid::new_v4().to_string(),
             created_at: Utc::now().to_rfc3339(),
@@ -102,20 +109,23 @@ impl SnapshotStore {
             && let Ok(summaries) = p.list().await
         {
             let in_memory = self.snapshots.read().await;
-            return summaries.into_iter().map(|s| {
-                let entries = in_memory
-                    .iter()
-                    .find(|sn| sn.id == s.id)
-                    .map(|sn| sn.entries.clone())
-                    .unwrap_or_default();
-                Snapshot {
-                    id: s.id,
-                    created_at: s.created_at,
-                    description: s.description,
-                    entry_count: s.entry_count,
-                    entries,
-                }
-            }).collect();
+            return summaries
+                .into_iter()
+                .map(|s| {
+                    let entries = in_memory
+                        .iter()
+                        .find(|sn| sn.id == s.id)
+                        .map(|sn| sn.entries.clone())
+                        .unwrap_or_default();
+                    Snapshot {
+                        id: s.id,
+                        created_at: s.created_at,
+                        description: s.description,
+                        entry_count: s.entry_count,
+                        entries,
+                    }
+                })
+                .collect();
         }
         self.snapshots.read().await.clone()
     }
@@ -156,13 +166,20 @@ pub async fn create_snapshot(
     let entries = match state.storage.list_all("/", 1000).await {
         Ok(e) => e,
         Err(e) => {
-            return ApiError::internal("SNAPSHOT_LIST_FAILED", format!("Failed to list files: {}", e));
+            return ApiError::internal(
+                "SNAPSHOT_LIST_FAILED",
+                format!("Failed to list files: {}", e),
+            );
         }
     };
 
     let snapshot = state
         .snapshot_store
-        .create(req.description.unwrap_or_else(|| "Manual snapshot".to_string()), entries)
+        .create(
+            req.description
+                .unwrap_or_else(|| "Manual snapshot".to_string()),
+            entries,
+        )
         .await;
 
     (
@@ -228,7 +245,10 @@ pub async fn restore_snapshot(
     for entry in &snapshot.entries {
         if entry.is_collection {
             if !state.storage.exists(&entry.path).await.unwrap_or(false) {
-                let _ = state.storage.create_collection(&entry.path, &entry.owner).await;
+                let _ = state
+                    .storage
+                    .create_collection(&entry.path, &entry.owner)
+                    .await;
                 collections_created += 1;
             }
         } else {

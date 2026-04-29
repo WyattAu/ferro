@@ -34,16 +34,22 @@ impl ServerPresignedUrlGenerator {
 impl PresignedUrlGenerator for ServerPresignedUrlGenerator {
     async fn generate_put_url(&self, path: &str, _expires_in_secs: u32) -> Result<Url> {
         let clean_path = path.trim_start_matches('/');
-        let full = format!("{}/{}", self.base_url.as_str().trim_end_matches('/'), clean_path);
-        Url::parse(&full)
-            .map_err(|e| FerroError::Internal(format!("Invalid URL: {}", e)))
+        let full = format!(
+            "{}/{}",
+            self.base_url.as_str().trim_end_matches('/'),
+            clean_path
+        );
+        Url::parse(&full).map_err(|e| FerroError::Internal(format!("Invalid URL: {}", e)))
     }
 
     async fn generate_get_url(&self, path: &str, _expires_in_secs: u32) -> Result<Url> {
         let clean_path = path.trim_start_matches('/');
-        let full = format!("{}/{}", self.base_url.as_str().trim_end_matches('/'), clean_path);
-        Url::parse(&full)
-            .map_err(|e| FerroError::Internal(format!("Invalid URL: {}", e)))
+        let full = format!(
+            "{}/{}",
+            self.base_url.as_str().trim_end_matches('/'),
+            clean_path
+        );
+        Url::parse(&full).map_err(|e| FerroError::Internal(format!("Invalid URL: {}", e)))
     }
 }
 
@@ -222,21 +228,30 @@ mod tests {
     #[tokio::test]
     async fn test_server_presigned_url() {
         let generator = ServerPresignedUrlGenerator::new("http://example.com/files").unwrap();
-        let url = generator.generate_get_url("/docs/report.pdf", 3600).await.unwrap();
+        let url = generator
+            .generate_get_url("/docs/report.pdf", 3600)
+            .await
+            .unwrap();
         assert_eq!(url.as_str(), "http://example.com/files/docs/report.pdf");
     }
 
     #[tokio::test]
     async fn test_server_presigned_url_trailing_slash() {
         let generator = ServerPresignedUrlGenerator::new("http://example.com/files/").unwrap();
-        let url = generator.generate_get_url("/docs/report.pdf", 3600).await.unwrap();
+        let url = generator
+            .generate_get_url("/docs/report.pdf", 3600)
+            .await
+            .unwrap();
         assert_eq!(url.as_str(), "http://example.com/files/docs/report.pdf");
     }
 
     #[tokio::test]
     async fn test_server_presigned_url_nested() {
         let generator = ServerPresignedUrlGenerator::new("http://example.com/").unwrap();
-        let url = generator.generate_put_url("/a/b/c/file.txt", 7200).await.unwrap();
+        let url = generator
+            .generate_put_url("/a/b/c/file.txt", 7200)
+            .await
+            .unwrap();
         assert_eq!(url.as_str(), "http://example.com/a/b/c/file.txt");
     }
 

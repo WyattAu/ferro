@@ -3,8 +3,8 @@ use chrono::Utc;
 use sqlx::PgPool;
 use tracing::debug;
 
-use crate::shares::{CreateShareRequest, ShareLink};
 use crate::search::UserPreferences;
+use crate::shares::{CreateShareRequest, ShareLink};
 
 pub struct PgShareStore {
     pool: PgPool,
@@ -12,7 +12,8 @@ pub struct PgShareStore {
 
 impl PgShareStore {
     pub async fn new(pool: PgPool) -> anyhow::Result<Self> {
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS shares (
                 token VARCHAR(36) PRIMARY KEY,
                 path TEXT NOT NULL,
@@ -23,7 +24,8 @@ impl PgShareStore {
                 created_by TEXT NOT NULL DEFAULT 'anonymous',
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
-        "#)
+        "#,
+        )
         .execute(&pool)
         .await?;
 
@@ -43,10 +45,12 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
 
         let max_downloads = req.max_downloads.map(|d| d as i32);
 
-        let _ = sqlx::query(r#"
+        let _ = sqlx::query(
+            r#"
             INSERT INTO shares (token, path, password, expires_at, max_downloads, created_by)
             VALUES ($1, $2, $3, $4, $5, $6)
-        "#)
+        "#,
+        )
         .bind(&token)
         .bind(&req.path)
         .bind(&req.password)
@@ -111,29 +115,30 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
             .unwrap_or_default();
 
         rows.into_iter()
-            .map(|(token, path, password, expires_at, max_downloads, download_count, created_by)| {
-                ShareLink {
-                    token,
-                    path,
-                    password,
-                    expires_at,
-                    max_downloads: max_downloads.map(|d| d as u32),
-                    download_count: download_count as u32,
-                    created_by,
-                }
-            })
+            .map(
+                |(token, path, password, expires_at, max_downloads, download_count, created_by)| {
+                    ShareLink {
+                        token,
+                        path,
+                        password,
+                        expires_at,
+                        max_downloads: max_downloads.map(|d| d as u32),
+                        download_count: download_count as u32,
+                        created_by,
+                    }
+                },
+            )
             .collect()
     }
 
     async fn increment_download(&self, token: &str) -> bool {
-        let result = sqlx::query(
-            "UPDATE shares SET download_count = download_count + 1 WHERE token = $1"
-        )
-        .bind(token)
-        .execute(&self.pool)
-        .await
-        .ok()
-        .map(|r| r.rows_affected() > 0);
+        let result =
+            sqlx::query("UPDATE shares SET download_count = download_count + 1 WHERE token = $1")
+                .bind(token)
+                .execute(&self.pool)
+                .await
+                .ok()
+                .map(|r| r.rows_affected() > 0);
 
         result.unwrap_or(false)
     }
@@ -145,14 +150,16 @@ pub struct PgFavoriteStore {
 
 impl PgFavoriteStore {
     pub async fn new(pool: PgPool) -> anyhow::Result<Self> {
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS favorites (
                 user_id TEXT NOT NULL DEFAULT 'default',
                 path TEXT NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 PRIMARY KEY (user_id, path)
             )
-        "#)
+        "#,
+        )
         .execute(&pool)
         .await?;
 
@@ -164,15 +171,17 @@ impl PgFavoriteStore {
 #[async_trait]
 impl crate::favorites::FavoriteStore for PgFavoriteStore {
     async fn list(&self) -> Vec<String> {
-        sqlx::query_scalar("SELECT path FROM favorites WHERE user_id = 'default' ORDER BY created_at DESC")
-            .fetch_all(&self.pool)
-            .await
-            .unwrap_or_default()
+        sqlx::query_scalar(
+            "SELECT path FROM favorites WHERE user_id = 'default' ORDER BY created_at DESC",
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_default()
     }
 
     async fn add(&self, path: String) {
         let _ = sqlx::query(
-            "INSERT INTO favorites (user_id, path) VALUES ('default', $1) ON CONFLICT DO NOTHING"
+            "INSERT INTO favorites (user_id, path) VALUES ('default', $1) ON CONFLICT DO NOTHING",
         )
         .bind(&path)
         .execute(&self.pool)
@@ -181,7 +190,7 @@ impl crate::favorites::FavoriteStore for PgFavoriteStore {
 
     async fn contains(&self, path: &str) -> bool {
         sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM favorites WHERE user_id = 'default' AND path = $1)"
+            "SELECT EXISTS(SELECT 1 FROM favorites WHERE user_id = 'default' AND path = $1)",
         )
         .bind(path)
         .fetch_one(&self.pool)
@@ -203,7 +212,8 @@ pub struct PgPreferenceStore {
 
 impl PgPreferenceStore {
     pub async fn new(pool: PgPool) -> anyhow::Result<Self> {
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS preferences (
                 user_id TEXT NOT NULL DEFAULT 'default',
                 theme TEXT NOT NULL DEFAULT 'dark',
@@ -215,12 +225,13 @@ impl PgPreferenceStore {
                 language TEXT NOT NULL DEFAULT 'en',
                 PRIMARY KEY (user_id)
             )
-        "#)
+        "#,
+        )
         .execute(&pool)
         .await?;
 
         let _ = sqlx::query(
-            "INSERT INTO preferences (user_id) VALUES ('default') ON CONFLICT DO NOTHING"
+            "INSERT INTO preferences (user_id) VALUES ('default') ON CONFLICT DO NOTHING",
         )
         .execute(&pool)
         .await;
@@ -297,11 +308,9 @@ impl crate::search::PreferenceStore for PgPreferenceStore {
     }
 }
 
-pub async fn create_pg_stores(pool: PgPool) -> anyhow::Result<(
-    PgShareStore,
-    PgFavoriteStore,
-    PgPreferenceStore,
-)> {
+pub async fn create_pg_stores(
+    pool: PgPool,
+) -> anyhow::Result<(PgShareStore, PgFavoriteStore, PgPreferenceStore)> {
     let shares = PgShareStore::new(pool.clone()).await?;
     let favorites = PgFavoriteStore::new(pool.clone()).await?;
     let preferences = PgPreferenceStore::new(pool).await?;

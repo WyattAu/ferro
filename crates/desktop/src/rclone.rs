@@ -1,12 +1,12 @@
-use std::sync::Arc;
-use std::process::{Command as StdCommand, Stdio};
+use crate::config::DesktopConfig;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::process::{Command as StdCommand, Stdio};
+use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info};
-use anyhow::Result;
-use crate::config::DesktopConfig;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -69,7 +69,9 @@ impl RcloneManager {
                 Ok(Some(status)) => MountStatus::Error {
                     message: format!("rclone exited with status: {}", status),
                 },
-                Ok(None) => MountStatus::Mounted { pid: child.id().unwrap_or(0) },
+                Ok(None) => MountStatus::Mounted {
+                    pid: child.id().unwrap_or(0),
+                },
                 Err(e) => MountStatus::Error {
                     message: format!("Failed to check process: {}", e),
                 },
@@ -89,7 +91,11 @@ impl RcloneManager {
             }
         }
 
-        let rclone_path: &std::path::Path = self.config.rclone_path.as_deref().unwrap_or(std::path::Path::new("rclone"));
+        let rclone_path: &std::path::Path = self
+            .config
+            .rclone_path
+            .as_deref()
+            .unwrap_or(std::path::Path::new("rclone"));
         let remote_url = self.config.rclone_remote_url();
         let mount_point = &self.config.mount_point;
 
@@ -122,12 +128,7 @@ impl RcloneManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "Failed to start rclone: {}. Is rclone installed?",
-                    e
-                )
-            })?;
+            .map_err(|e| anyhow::anyhow!("Failed to start rclone: {}. Is rclone installed?", e))?;
 
         let pid = child.id().unwrap_or(0);
         info!("rclone started with PID {}", pid);
@@ -141,7 +142,9 @@ impl RcloneManager {
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
                 let line = line.trim().to_string();
-                if line.is_empty() { continue; }
+                if line.is_empty() {
+                    continue;
+                }
 
                 let mut progress = progress_clone.write().await;
 
@@ -159,7 +162,10 @@ impl RcloneManager {
                     {
                         progress.errors = err;
                     }
-                } else if line.contains("ERROR:") || line.contains("Fatal") || line.contains("Failed") {
+                } else if line.contains("ERROR:")
+                    || line.contains("Fatal")
+                    || line.contains("Failed")
+                {
                     tracing::error!("rclone error: {}", line);
                     progress.last_error = Some(line);
                     progress.status = "error".to_string();
@@ -176,7 +182,9 @@ impl RcloneManager {
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
                 let line = line.trim().to_string();
-                if line.is_empty() { continue; }
+                if line.is_empty() {
+                    continue;
+                }
                 debug!("rclone: {}", line);
 
                 if let Some(filename) = line.split(": Copied").nth(0) {

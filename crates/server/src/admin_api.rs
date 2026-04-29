@@ -142,12 +142,16 @@ pub async fn admin_audit(
     let total = state.audit_log.len().await;
     let entries = state.audit_log.recent_with_offset(limit, offset).await;
 
-    (StatusCode::OK, axum::Json(serde_json::json!({
-        "entries": entries,
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-    }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "entries": entries,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        })),
+    )
+        .into_response()
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@ use leptos::*;
 use leptos_router::*;
 
 use crate::auth;
-use crate::components::theme_toggle::{provide_theme_state, ThemeToggle};
+use crate::components::theme_toggle::{ThemeToggle, provide_theme_state};
 
 #[component]
 pub fn LoginPage() -> impl IntoView {

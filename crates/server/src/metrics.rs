@@ -1,7 +1,7 @@
+use crate::AppState;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use crate::AppState;
 
 /// GET /metrics — return server metrics as JSON.
 pub async fn metrics_handler(State(state): State<AppState>) -> Response {

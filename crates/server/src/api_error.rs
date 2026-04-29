@@ -1,6 +1,6 @@
+use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use serde::Serialize;
 
 /// Structured API error response body.
@@ -91,12 +91,10 @@ impl ApiError {
             axum::http::HeaderValue::from_static("60"),
         );
         let mut response = (StatusCode::TOO_MANY_REQUESTS, headers, body).into_response();
-        response
-            .headers_mut()
-            .insert(
-                axum::http::header::CONTENT_TYPE,
-                axum::http::HeaderValue::from_static("application/json"),
-            );
+        response.headers_mut().insert(
+            axum::http::header::CONTENT_TYPE,
+            axum::http::HeaderValue::from_static("application/json"),
+        );
         response
     }
 
@@ -138,9 +136,12 @@ impl ApiError {
             "Storage quota exceeded",
             format!(
                 "Current usage: {} bytes ({} MB), quota: {} bytes ({} MB), requested: {} bytes ({} MB)",
-                current, current / 1_048_576,
-                limit, limit / 1_048_576,
-                requested, requested / 1_048_576,
+                current,
+                current / 1_048_576,
+                limit,
+                limit / 1_048_576,
+                requested,
+                requested / 1_048_576,
             ),
         )
     }
@@ -199,8 +200,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_api_error_with_details() {
-        let response =
-            ApiError::with_details(StatusCode::BAD_REQUEST, "CUSTOM", "Bad input", "field 'x' is missing");
+        let response = ApiError::with_details(
+            StatusCode::BAD_REQUEST,
+            "CUSTOM",
+            "Bad input",
+            "field 'x' is missing",
+        );
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let body = body_bytes(response).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();

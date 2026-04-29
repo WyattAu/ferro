@@ -133,12 +133,20 @@ pub struct ServerConfig {
 
     /// Secret used for signing WOPI access tokens (HMAC-SHA256).
     /// If not set, a default value is used (not safe for production).
-    #[arg(long, env = "FERRO_WOPI_TOKEN_SECRET", default_value = "ferro-wopi-token-secret-change-me")]
+    #[arg(
+        long,
+        env = "FERRO_WOPI_TOKEN_SECRET",
+        default_value = "ferro-wopi-token-secret-change-me"
+    )]
     pub wopi_token_secret: String,
 
     /// External base URL the server is accessible from (used for OIDC redirects).
     /// Default: http://localhost:8080
-    #[arg(long, env = "FERRO_EXTERNAL_URL", default_value = "http://localhost:8080")]
+    #[arg(
+        long,
+        env = "FERRO_EXTERNAL_URL",
+        default_value = "http://localhost:8080"
+    )]
     pub external_url: String,
 
     /// WOPI office server URL (e.g., https://collabora.example.com).
@@ -232,24 +240,39 @@ where
     T: Into<std::ffi::OsString> + Clone,
 {
     use clap::CommandFactory;
-    let matches = ServerConfig::command().ignore_errors(true).try_get_matches_from(args).ok();
-    let was_set = |name: &str| matches.as_ref().is_some_and(|m| {
-        m.value_source(name) == Some(clap::parser::ValueSource::CommandLine)
-    });
+    let matches = ServerConfig::command()
+        .ignore_errors(true)
+        .try_get_matches_from(args)
+        .ok();
+    let was_set = |name: &str| {
+        matches
+            .as_ref()
+            .is_some_and(|m| m.value_source(name) == Some(clap::parser::ValueSource::CommandLine))
+    };
 
-    if !was_set("host") && let Some(ref host) = file.host {
+    if !was_set("host")
+        && let Some(ref host) = file.host
+    {
         cli.host = host.clone();
     }
-    if !was_set("port") && let Some(port) = file.port {
+    if !was_set("port")
+        && let Some(port) = file.port
+    {
         cli.port = port;
     }
-    if !was_set("log_level") && let Some(ref level) = file.log_level {
+    if !was_set("log_level")
+        && let Some(ref level) = file.log_level
+    {
         cli.log_level = level.clone();
     }
-    if !was_set("log_format") && let Some(ref format) = file.log_format {
+    if !was_set("log_format")
+        && let Some(ref format) = file.log_format
+    {
         cli.log_format = format.clone();
     }
-    if !was_set("storage") && let Some(ref storage) = file.storage {
+    if !was_set("storage")
+        && let Some(ref storage) = file.storage
+    {
         cli.storage = storage.clone();
     }
     if !was_set("data_dir") {
@@ -264,13 +287,19 @@ where
     if !was_set("admin_password") {
         cli.admin_password = file.admin_password.clone();
     }
-    if !was_set("external_url") && let Some(ref url) = file.external_url {
+    if !was_set("external_url")
+        && let Some(ref url) = file.external_url
+    {
         cli.external_url = url.clone();
     }
-    if !was_set("wopi_token_secret") && let Some(ref secret) = file.wopi_token_secret {
+    if !was_set("wopi_token_secret")
+        && let Some(ref secret) = file.wopi_token_secret
+    {
         cli.wopi_token_secret = secret.clone();
     }
-    if !was_set("wopi_office_url") && let Some(ref url) = file.wopi_office_url {
+    if !was_set("wopi_office_url")
+        && let Some(ref url) = file.wopi_office_url
+    {
         cli.wopi_office_url = url.clone();
     }
     if !was_set("oidc_issuer") {
@@ -279,7 +308,9 @@ where
     if !was_set("oidc_client_id") {
         cli.oidc_client_id = file.oidc_client_id.clone();
     }
-    if !was_set("oidc_audience") && let Some(ref audience) = file.oidc_audience {
+    if !was_set("oidc_audience")
+        && let Some(ref audience) = file.oidc_audience
+    {
         cli.oidc_audience = audience.clone();
     }
     if !was_set("oidc_jwks_uri") {
@@ -294,25 +325,38 @@ where
     if !was_set("metadata_db") {
         cli.metadata_db = file.metadata_db.clone();
     }
-    if !was_set("cas_enabled") && let Some(enabled) = file.cas_enabled {
+    if !was_set("cas_enabled")
+        && let Some(enabled) = file.cas_enabled
+    {
         cli.cas_enabled = enabled;
     }
-    if !was_set("wasm_enabled") && let Some(enabled) = file.wasm_enabled {
+    if !was_set("wasm_enabled")
+        && let Some(enabled) = file.wasm_enabled
+    {
         cli.wasm_enabled = enabled;
     }
-    if !was_set("max_body_size") && let Some(ref size_str) = file.max_body_size && let Ok(bytes) = parse_bytes(size_str) {
+    if !was_set("max_body_size")
+        && let Some(ref size_str) = file.max_body_size
+        && let Ok(bytes) = parse_bytes(size_str)
+    {
         cli.max_body_size = bytes;
     }
     if !was_set("storage_quota") {
         cli.storage_quota = file.storage_quota.clone();
     }
-    if !was_set("trash_ttl") && let Some(ref ttl) = file.trash_ttl {
+    if !was_set("trash_ttl")
+        && let Some(ref ttl) = file.trash_ttl
+    {
         cli.trash_ttl = ttl.clone();
     }
-    if !was_set("graceful_shutdown_timeout") && let Some(timeout) = file.graceful_shutdown_timeout {
+    if !was_set("graceful_shutdown_timeout")
+        && let Some(timeout) = file.graceful_shutdown_timeout
+    {
         cli.graceful_shutdown_timeout = timeout;
     }
-    if !was_set("cors_allowed_origins") && let Some(ref origins) = file.cors_allowed_origins {
+    if !was_set("cors_allowed_origins")
+        && let Some(ref origins) = file.cors_allowed_origins
+    {
         cli.cors_allowed_origins = origins.clone();
     }
 }
@@ -330,7 +374,8 @@ fn parse_bytes(s: &str) -> anyhow::Result<u64> {
     } else {
         (s, 1)
     };
-    let num: u64 = num_str.parse()
+    let num: u64 = num_str
+        .parse()
         .map_err(|_| anyhow::anyhow!("Invalid byte size: {}", s))?;
     Ok(num * multiplier)
 }
@@ -431,13 +476,17 @@ mod tests {
     fn test_load_config_file_valid_toml() {
         let dir = tempfile::tempdir().unwrap();
         let config_path = dir.path().join("ferro.toml");
-        std::fs::write(&config_path, r#"
+        std::fs::write(
+            &config_path,
+            r#"
             host = "127.0.0.1"
             port = 9090
             log_level = "debug"
             storage = "local:/data/files"
             wasm_enabled = true
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         let config = load_config_file(config_path.to_str().unwrap()).unwrap();
         assert_eq!(config.host.as_deref(), Some("127.0.0.1"));
@@ -453,7 +502,12 @@ mod tests {
     fn test_load_config_file_nonexistent() {
         let result = load_config_file("/nonexistent/path/ferro.toml");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Failed to read config file"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Failed to read config file")
+        );
     }
 
     #[test]
@@ -464,7 +518,12 @@ mod tests {
 
         let result = load_config_file(config_path.to_str().unwrap());
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Failed to parse config file"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Failed to parse config file")
+        );
     }
 
     #[test]
@@ -514,10 +573,14 @@ mod tests {
 
         let args = [
             "ferro-server",
-            "--host", "10.0.0.1",
-            "--port", "4000",
-            "--log-level", "trace",
-            "--storage", "memory",
+            "--host",
+            "10.0.0.1",
+            "--port",
+            "4000",
+            "--log-level",
+            "trace",
+            "--storage",
+            "memory",
             "--wasm-enabled",
         ];
         let mut cli = ServerConfig::parse_from(args.iter().copied());

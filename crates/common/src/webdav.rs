@@ -102,8 +102,7 @@ impl LockInfo {
 
     /// Compute the absolute expiration time of this lock.
     pub fn expires_at(&self) -> DateTime<Utc> {
-        self.created_at
-            + chrono::Duration::seconds(self.timeout_seconds as i64)
+        self.created_at + chrono::Duration::seconds(self.timeout_seconds as i64)
     }
 }
 

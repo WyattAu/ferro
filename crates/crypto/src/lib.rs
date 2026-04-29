@@ -65,8 +65,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_constant_time_eq() {
-        assert!(ring_provider::RingProvider::constant_time_eq(b"same", b"same"));
-        assert!(!ring_provider::RingProvider::constant_time_eq(b"same", b"different"));
+        assert!(ring_provider::RingProvider::constant_time_eq(
+            b"same", b"same"
+        ));
+        assert!(!ring_provider::RingProvider::constant_time_eq(
+            b"same",
+            b"different"
+        ));
     }
 
     #[tokio::test]

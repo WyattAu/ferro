@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
 use sha2::{Digest, Sha256};
@@ -8,12 +8,7 @@ use tracing::{debug, warn};
 
 use crate::AppState;
 
-const SUPPORTED_IMAGE_TYPES: &[&str] = &[
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-];
+const SUPPORTED_IMAGE_TYPES: &[&str] = &["image/jpeg", "image/png", "image/gif", "image/webp"];
 
 const FILE_ICON_SVG: &[u8] = br##"<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="12" fill="#e2e8f0"/><path d="M35 25h40l18 18v60a6 6 0 0 1-6 6H35a6 6 0 0 1-6-6V31a6 6 0 0 1 6-6z" fill="#94a3b8"/><path d="M75 25v18h18" fill="#64748b"/></svg>"##;
 
@@ -348,7 +343,11 @@ startxref
         assert_eq!(mime, "image/svg+xml");
         let svg = String::from_utf8(thumb.to_vec()).unwrap();
         assert!(svg.contains("PDF"), "SVG should contain 'PDF': {}", svg);
-        assert!(svg.contains("1 pages"), "SVG should contain '1 pages': {}", svg);
+        assert!(
+            svg.contains("1 pages"),
+            "SVG should contain '1 pages': {}",
+            svg
+        );
         assert!(svg.contains("KB"), "SVG should contain file size: {}", svg);
 
         let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test4").await;

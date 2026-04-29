@@ -41,7 +41,10 @@ pub fn validate_filename(filename: &str) -> bool {
     if path.extension().map(|e| e != "wasm").unwrap_or(true) {
         return false;
     }
-    if path.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+    if path
+        .components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
         return false;
     }
     if filename.contains('/') || filename.contains('\\') {
@@ -272,7 +275,9 @@ mod tests {
     #[test]
     fn test_validate_wasm_magic_bytes() {
         assert!(validate_wasm_magic_bytes(&[0x00, 0x61, 0x73, 0x6D]));
-        assert!(validate_wasm_magic_bytes(&[0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00]));
+        assert!(validate_wasm_magic_bytes(&[
+            0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00
+        ]));
         assert!(!validate_wasm_magic_bytes(&[0x00, 0x00, 0x00, 0x00]));
         assert!(!validate_wasm_magic_bytes(&[0x7F, 0x45, 0x4C, 0x46]));
         assert!(!validate_wasm_magic_bytes(&[]));
@@ -320,7 +325,9 @@ mod tests {
         let boundary = "testboundary12345";
         let mut body_parts: Vec<u8> = Vec::new();
         body_parts.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
-        body_parts.extend_from_slice(b"Content-Disposition: form-data; name=\"file\"; filename=\"worker.wasm\"\r\n");
+        body_parts.extend_from_slice(
+            b"Content-Disposition: form-data; name=\"file\"; filename=\"worker.wasm\"\r\n",
+        );
         body_parts.extend_from_slice(b"Content-Type: application/wasm\r\n");
         body_parts.extend_from_slice(b"\r\n");
         body_parts.extend_from_slice(wasm_bytes);
@@ -328,7 +335,10 @@ mod tests {
         body_parts.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
 
         let app = axum::Router::new()
-            .route("/api/workers/upload", axum::routing::post(upload_wasm_module))
+            .route(
+                "/api/workers/upload",
+                axum::routing::post(upload_wasm_module),
+            )
             .with_state(state.clone());
 
         let response = app
@@ -337,7 +347,10 @@ mod tests {
                 axum::http::Request::builder()
                     .method("POST")
                     .uri("/api/workers/upload")
-                    .header("Content-Type", format!("multipart/form-data; boundary={}", boundary))
+                    .header(
+                        "Content-Type",
+                        format!("multipart/form-data; boundary={}", boundary),
+                    )
                     .body(axum::body::Body::from(body_parts))
                     .unwrap(),
             )
@@ -355,10 +368,8 @@ mod tests {
         let list_response = list_wasm_modules(State(state.clone())).await;
         assert_eq!(list_response.status(), StatusCode::OK);
 
-        let delete_response = delete_wasm_module(
-            State(state.clone()),
-            Path(uploaded_filename),
-        ).await;
+        let delete_response =
+            delete_wasm_module(State(state.clone()), Path(uploaded_filename)).await;
         assert_eq!(delete_response.status(), StatusCode::OK);
 
         let entries: Vec<_> = std::fs::read_dir(&workers_dir).unwrap().collect();
@@ -378,7 +389,9 @@ mod tests {
         let boundary = "testboundary99999";
         let mut body_parts: Vec<u8> = Vec::new();
         body_parts.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
-        body_parts.extend_from_slice(b"Content-Disposition: form-data; name=\"file\"; filename=\"worker.wasm\"\r\n");
+        body_parts.extend_from_slice(
+            b"Content-Disposition: form-data; name=\"file\"; filename=\"worker.wasm\"\r\n",
+        );
         body_parts.extend_from_slice(b"Content-Type: application/wasm\r\n");
         body_parts.extend_from_slice(b"\r\n");
         body_parts.extend_from_slice(b"NOT_WASM_DATA_HERE");
@@ -449,10 +462,8 @@ mod tests {
             ..crate::AppState::in_memory()
         };
 
-        let response = delete_wasm_module(
-            State(state),
-            Path("../../../etc/passwd".to_string()),
-        ).await;
+        let response =
+            delete_wasm_module(State(state), Path("../../../etc/passwd".to_string())).await;
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
@@ -467,10 +478,7 @@ mod tests {
             ..crate::AppState::in_memory()
         };
 
-        let response = delete_wasm_module(
-            State(state),
-            Path("nonexistent.wasm".to_string()),
-        ).await;
+        let response = delete_wasm_module(State(state), Path("nonexistent.wasm".to_string())).await;
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
@@ -523,7 +531,10 @@ mod tests {
         body_parts.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
 
         let app = axum::Router::new()
-            .route("/api/workers/upload", axum::routing::post(upload_wasm_module))
+            .route(
+                "/api/workers/upload",
+                axum::routing::post(upload_wasm_module),
+            )
             .with_state(state);
 
         let response = app
@@ -531,7 +542,10 @@ mod tests {
                 axum::http::Request::builder()
                     .method("POST")
                     .uri("/api/workers/upload")
-                    .header("Content-Type", format!("multipart/form-data; boundary={}", boundary))
+                    .header(
+                        "Content-Type",
+                        format!("multipart/form-data; boundary={}", boundary),
+                    )
                     .body(axum::body::Body::from(body_parts))
                     .unwrap(),
             )
@@ -559,7 +573,9 @@ mod tests {
         let boundary = "traversalboundary99";
         let mut body_parts: Vec<u8> = Vec::new();
         body_parts.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
-        body_parts.extend_from_slice(b"Content-Disposition: form-data; name=\"file\"; filename=\"../../etc/evil.wasm\"\r\n");
+        body_parts.extend_from_slice(
+            b"Content-Disposition: form-data; name=\"file\"; filename=\"../../etc/evil.wasm\"\r\n",
+        );
         body_parts.extend_from_slice(b"Content-Type: application/wasm\r\n");
         body_parts.extend_from_slice(b"\r\n");
         body_parts.extend_from_slice(wasm_bytes);
@@ -567,7 +583,10 @@ mod tests {
         body_parts.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
 
         let app = axum::Router::new()
-            .route("/api/workers/upload", axum::routing::post(upload_wasm_module))
+            .route(
+                "/api/workers/upload",
+                axum::routing::post(upload_wasm_module),
+            )
             .with_state(state);
 
         let response = app
@@ -575,7 +594,10 @@ mod tests {
                 axum::http::Request::builder()
                     .method("POST")
                     .uri("/api/workers/upload")
-                    .header("Content-Type", format!("multipart/form-data; boundary={}", boundary))
+                    .header(
+                        "Content-Type",
+                        format!("multipart/form-data; boundary={}", boundary),
+                    )
                     .body(axum::body::Body::from(body_parts))
                     .unwrap(),
             )
@@ -592,10 +614,7 @@ mod tests {
             ..crate::AppState::in_memory()
         };
 
-        let response = delete_wasm_module(
-            State(state),
-            Path("any.wasm".to_string()),
-        ).await;
+        let response = delete_wasm_module(State(state), Path("any.wasm".to_string())).await;
 
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     }

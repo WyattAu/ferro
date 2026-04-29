@@ -3,9 +3,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 use wasmtime::*;
-use wasmtime_wasi::p2::pipe::{MemoryInputPipe, MemoryOutputPipe};
-use wasmtime_wasi::p1::{self, WasiP1Ctx};
 use wasmtime_wasi::WasiCtxBuilder;
+use wasmtime_wasi::p1::{self, WasiP1Ctx};
+use wasmtime_wasi::p2::pipe::{MemoryInputPipe, MemoryOutputPipe};
 
 /// Configuration limits for WASM worker execution.
 #[derive(Debug, Clone)]
@@ -75,10 +75,9 @@ impl WasmWorkerRuntime {
     /// Register a worker event handler for a file path pattern.
     pub async fn register_worker(&self, event: WorkerEvent) {
         let mut workers = self.workers.write().await;
-        info!("Registered WASM worker: {} -> {}::{}",
-            event.pattern,
-            event.module_path,
-            event.function_name
+        info!(
+            "Registered WASM worker: {} -> {}::{}",
+            event.pattern, event.module_path, event.function_name
         );
         workers.push(event);
     }
@@ -119,10 +118,7 @@ impl WasmWorkerRuntime {
         });
 
         // Apply time limit
-        match tokio::time::timeout(
-            std::time::Duration::from_millis(max_time_ms),
-            result,
-        ).await {
+        match tokio::time::timeout(std::time::Duration::from_millis(max_time_ms), result).await {
             Ok(Ok(result)) => result,
             Ok(Err(e)) => Ok(WorkerResult {
                 success: false,
@@ -144,7 +140,8 @@ impl WasmWorkerRuntime {
     /// Find all workers whose pattern matches the given file path.
     pub async fn find_matching_workers(&self, file_path: &str) -> Vec<WorkerEvent> {
         let workers = self.workers.read().await;
-        workers.iter()
+        workers
+            .iter()
             .filter(|w| self.pattern_matches(&w.pattern, file_path))
             .cloned()
             .collect()
@@ -184,24 +181,28 @@ fn execute_blocking(
 
     let module_bytes = match std::fs::read(module_path) {
         Ok(bytes) => bytes,
-        Err(e) => return Ok(WorkerResult {
-            success: false,
-            output: String::new(),
-            error: Some(format!("Failed to read module: {}", e)),
-            fuel_consumed: 0,
-            execution_time_ms: 0,
-        }),
+        Err(e) => {
+            return Ok(WorkerResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Failed to read module: {}", e)),
+                fuel_consumed: 0,
+                execution_time_ms: 0,
+            });
+        }
     };
 
     let module = match Module::from_binary(engine, &module_bytes) {
         Ok(m) => m,
-        Err(e) => return Ok(WorkerResult {
-            success: false,
-            output: String::new(),
-            error: Some(format!("Module compilation failed: {}", e)),
-            fuel_consumed: 0,
-            execution_time_ms: start.elapsed().as_millis() as u64,
-        }),
+        Err(e) => {
+            return Ok(WorkerResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Module compilation failed: {}", e)),
+                fuel_consumed: 0,
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            });
+        }
     };
 
     // Capture stdout/stderr into in-memory pipes instead of inheriting
@@ -216,7 +217,8 @@ fn execute_blocking(
         .build_p1();
 
     let mut store = Store::new(engine, wasi_ctx);
-    store.set_fuel(config.max_fuel)
+    store
+        .set_fuel(config.max_fuel)
         .map_err(|e| FerroError::Internal(format!("Failed to set fuel: {}", e)))?;
 
     let mut linker = Linker::new(engine);
@@ -225,13 +227,15 @@ fn execute_blocking(
 
     let instance = match linker.instantiate(&mut store, &module) {
         Ok(i) => i,
-        Err(e) => return Ok(WorkerResult {
-            success: false,
-            output: String::new(),
-            error: Some(format!("Instantiation failed: {}", e)),
-            fuel_consumed: store.get_fuel().unwrap_or(0),
-            execution_time_ms: start.elapsed().as_millis() as u64,
-        }),
+        Err(e) => {
+            return Ok(WorkerResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Instantiation failed: {}", e)),
+                fuel_consumed: store.get_fuel().unwrap_or(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            });
+        }
     };
 
     // Load input into WASM memory
@@ -246,13 +250,15 @@ fn execute_blocking(
     let func = instance.get_typed_func::<(u32, u32), u32>(&mut store, function_name);
     let func = match func {
         Ok(f) => f,
-        Err(_) => return Ok(WorkerResult {
-            success: false,
-            output: String::new(),
-            error: Some(format!("Function '{}' not found in module", function_name)),
-            fuel_consumed: store.get_fuel().unwrap_or(0),
-            execution_time_ms: start.elapsed().as_millis() as u64,
-        }),
+        Err(_) => {
+            return Ok(WorkerResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Function '{}' not found in module", function_name)),
+                fuel_consumed: store.get_fuel().unwrap_or(0),
+                execution_time_ms: start.elapsed().as_millis() as u64,
+            });
+        }
     };
 
     match func.call(&mut store, (input_ptr, input_len)) {
@@ -312,9 +318,7 @@ fn load_input_into_memory(
     }
 
     // Write input at the beginning of memory (offset 0)
-    memory
-        .data_mut(&mut *store)[..input_len as usize]
-        .copy_from_slice(input);
+    memory.data_mut(&mut *store)[..input_len as usize].copy_from_slice(input);
 
     Ok((0, input_len))
 }
@@ -338,12 +342,14 @@ mod tests {
     async fn test_register_worker() {
         let runtime = WasmWorkerRuntime::new().unwrap();
 
-        runtime.register_worker(WorkerEvent {
-            pattern: "*.pdf".to_string(),
-            module_path: "/tmp/worker.wasm".to_string(),
-            config: WorkerConfig::default(),
-            function_name: "process".to_string(),
-        }).await;
+        runtime
+            .register_worker(WorkerEvent {
+                pattern: "*.pdf".to_string(),
+                module_path: "/tmp/worker.wasm".to_string(),
+                config: WorkerConfig::default(),
+                function_name: "process".to_string(),
+            })
+            .await;
 
         let workers = runtime.list_workers().await;
         assert_eq!(workers.len(), 1);
@@ -354,19 +360,23 @@ mod tests {
     async fn test_find_matching_workers() {
         let runtime = WasmWorkerRuntime::new().unwrap();
 
-        runtime.register_worker(WorkerEvent {
-            pattern: "*.pdf".to_string(),
-            module_path: "/tmp/pdf.wasm".to_string(),
-            config: WorkerConfig::default(),
-            function_name: "process".to_string(),
-        }).await;
+        runtime
+            .register_worker(WorkerEvent {
+                pattern: "*.pdf".to_string(),
+                module_path: "/tmp/pdf.wasm".to_string(),
+                config: WorkerConfig::default(),
+                function_name: "process".to_string(),
+            })
+            .await;
 
-        runtime.register_worker(WorkerEvent {
-            pattern: "*.jpg".to_string(),
-            module_path: "/tmp/image.wasm".to_string(),
-            config: WorkerConfig::default(),
-            function_name: "resize".to_string(),
-        }).await;
+        runtime
+            .register_worker(WorkerEvent {
+                pattern: "*.jpg".to_string(),
+                module_path: "/tmp/image.wasm".to_string(),
+                config: WorkerConfig::default(),
+                function_name: "resize".to_string(),
+            })
+            .await;
 
         let matches = runtime.find_matching_workers("/photos/report.pdf").await;
         assert_eq!(matches.len(), 1);
@@ -377,12 +387,10 @@ mod tests {
     async fn test_execute_nonexistent_module() {
         let runtime = WasmWorkerRuntime::new().unwrap();
 
-        let result = runtime.execute(
-            "/nonexistent/module.wasm",
-            "process",
-            b"",
-            None,
-        ).await.unwrap();
+        let result = runtime
+            .execute("/nonexistent/module.wasm", "process", b"", None)
+            .await
+            .unwrap();
 
         assert!(!result.success);
         assert!(result.error.is_some());
@@ -399,12 +407,10 @@ mod tests {
         };
 
         // Even a nonexistent module should respect the timeout
-        let result = runtime.execute(
-            "/nonexistent/module.wasm",
-            "process",
-            b"",
-            Some(config),
-        ).await.unwrap();
+        let result = runtime
+            .execute("/nonexistent/module.wasm", "process", b"", Some(config))
+            .await
+            .unwrap();
 
         // Should either fail with "not found" (fast) or timeout
         assert!(!result.success);

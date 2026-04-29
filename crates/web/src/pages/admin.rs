@@ -1,7 +1,7 @@
 use leptos::*;
 
 use crate::api;
-use crate::components::theme_toggle::{provide_theme_state, ThemeToggle};
+use crate::components::theme_toggle::{ThemeToggle, provide_theme_state};
 
 #[component]
 pub fn AdminPage() -> impl IntoView {

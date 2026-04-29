@@ -1,10 +1,10 @@
+use crate::error::Result;
+use crate::metadata::FileMetadata;
 use async_trait::async_trait;
 use bytes::Bytes;
-use std::pin::Pin;
 use std::io::Cursor;
+use std::pin::Pin;
 use tokio::io::{AsyncRead, ReadBuf};
-use crate::metadata::FileMetadata;
-use crate::error::Result;
 
 pub struct StorageReader {
     inner: Pin<Box<dyn AsyncRead + Send>>,
@@ -121,12 +121,7 @@ pub trait StorageEngine: Send + Sync {
 
     /// Upload a large file using multipart upload. Default: falls back to put().
     /// Backends should override for efficient large file uploads.
-    async fn put_multipart(
-        &self,
-        path: &str,
-        content: Bytes,
-        owner: &str,
-    ) -> Result<FileMetadata> {
+    async fn put_multipart(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata> {
         self.put(path, content, owner).await
     }
 

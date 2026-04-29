@@ -18,16 +18,35 @@ END:VCALENDAR\r\n";
     assert_eq!(comps.len(), 1);
     assert_eq!(comps[0].name, "VCALENDAR");
 
-    let events: Vec<_> = comps[0].children.iter().filter(|c| c.name == "VEVENT").collect();
+    let events: Vec<_> = comps[0]
+        .children
+        .iter()
+        .filter(|c| c.name == "VEVENT")
+        .collect();
     assert_eq!(events.len(), 1);
 
     let event = &events[0];
     assert_eq!(get_first_prop(event, "UID").unwrap().value, "test-123");
-    assert_eq!(get_first_prop(event, "SUMMARY").unwrap().value, "Team Meeting");
-    assert_eq!(get_first_prop(event, "DESCRIPTION").unwrap().value, "Weekly sync");
-    assert_eq!(get_first_prop(event, "DTSTART").unwrap().value, "20260427T140000Z");
-    assert_eq!(get_first_prop(event, "DTEND").unwrap().value, "20260427T150000Z");
-    assert_eq!(get_first_prop(event, "LOCATION").unwrap().value, "Conference Room");
+    assert_eq!(
+        get_first_prop(event, "SUMMARY").unwrap().value,
+        "Team Meeting"
+    );
+    assert_eq!(
+        get_first_prop(event, "DESCRIPTION").unwrap().value,
+        "Weekly sync"
+    );
+    assert_eq!(
+        get_first_prop(event, "DTSTART").unwrap().value,
+        "20260427T140000Z"
+    );
+    assert_eq!(
+        get_first_prop(event, "DTEND").unwrap().value,
+        "20260427T150000Z"
+    );
+    assert_eq!(
+        get_first_prop(event, "LOCATION").unwrap().value,
+        "Conference Room"
+    );
 }
 
 #[test]
@@ -44,14 +63,27 @@ END:VTODO\r\n\
 END:VCALENDAR\r\n";
 
     let comps = parse_ical(input).unwrap();
-    let todos: Vec<_> = comps[0].children.iter().filter(|c| c.name == "VTODO").collect();
+    let todos: Vec<_> = comps[0]
+        .children
+        .iter()
+        .filter(|c| c.name == "VTODO")
+        .collect();
     assert_eq!(todos.len(), 1);
 
     let todo = &todos[0];
     assert_eq!(get_first_prop(todo, "UID").unwrap().value, "todo-1");
-    assert_eq!(get_first_prop(todo, "SUMMARY").unwrap().value, "Buy groceries");
-    assert_eq!(get_first_prop(todo, "DUE").unwrap().value, "20260501T170000Z");
-    assert_eq!(get_first_prop(todo, "STATUS").unwrap().value, "NEEDS-ACTION");
+    assert_eq!(
+        get_first_prop(todo, "SUMMARY").unwrap().value,
+        "Buy groceries"
+    );
+    assert_eq!(
+        get_first_prop(todo, "DUE").unwrap().value,
+        "20260501T170000Z"
+    );
+    assert_eq!(
+        get_first_prop(todo, "STATUS").unwrap().value,
+        "NEEDS-ACTION"
+    );
 }
 
 #[test]
@@ -76,13 +108,24 @@ END:VTIMEZONE\r\n\
 END:VCALENDAR\r\n";
 
     let comps = parse_ical(input).unwrap();
-    let timezones: Vec<_> = comps[0].children.iter().filter(|c| c.name == "VTIMEZONE").collect();
+    let timezones: Vec<_> = comps[0]
+        .children
+        .iter()
+        .filter(|c| c.name == "VTIMEZONE")
+        .collect();
     assert_eq!(timezones.len(), 1);
 
     let tz = &timezones[0];
-    assert_eq!(get_first_prop(tz, "TZID").unwrap().value, "America/New_York");
+    assert_eq!(
+        get_first_prop(tz, "TZID").unwrap().value,
+        "America/New_York"
+    );
 
-    let standard: Vec<_> = tz.children.iter().filter(|c| c.name == "STANDARD").collect();
+    let standard: Vec<_> = tz
+        .children
+        .iter()
+        .filter(|c| c.name == "STANDARD")
+        .collect();
     assert_eq!(standard.len(), 1);
     assert_eq!(
         get_first_prop(&standard[0], "TZOFFSETFROM").unwrap().value,
@@ -93,7 +136,11 @@ END:VCALENDAR\r\n";
         "-0500"
     );
 
-    let daylight: Vec<_> = tz.children.iter().filter(|c| c.name == "DAYLIGHT").collect();
+    let daylight: Vec<_> = tz
+        .children
+        .iter()
+        .filter(|c| c.name == "DAYLIGHT")
+        .collect();
     assert_eq!(daylight.len(), 1);
     assert_eq!(
         get_first_prop(&daylight[0], "TZOFFSETTO").unwrap().value,
@@ -185,7 +232,11 @@ END:VEVENT\r\n\
 END:VCALENDAR\r\n";
 
     let comps = parse_ical(input).unwrap();
-    let events: Vec<_> = comps[0].children.iter().filter(|c| c.name == "VEVENT").collect();
+    let events: Vec<_> = comps[0]
+        .children
+        .iter()
+        .filter(|c| c.name == "VEVENT")
+        .collect();
     assert_eq!(events.len(), 2);
     assert_eq!(get_first_prop(&events[0], "UID").unwrap().value, "event-1");
     assert_eq!(get_first_prop(&events[1], "UID").unwrap().value, "event-2");
@@ -205,5 +256,8 @@ END:VCALENDAR\r\n";
     let comps = parse_ical(input).unwrap();
     let event = &comps[0].children[0];
     let rrule = get_first_prop(event, "RRULE").unwrap();
-    assert_eq!(rrule.value, "FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20260630T235959Z");
+    assert_eq!(
+        rrule.value,
+        "FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20260630T235959Z"
+    );
 }

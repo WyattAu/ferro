@@ -1,10 +1,10 @@
 use clap::Parser;
-use ferro_server::{AppState, build_router_with_static};
-use ferro_server::config::ServerConfig;
-use ferro_server::config::{load_config_file, apply_file_config, FileConfig};
-use ferro_server::auth::oidc::OidcConfig;
 use ferro_server::auth::cedar::CedarAuthorizer;
+use ferro_server::auth::oidc::OidcConfig;
+use ferro_server::config::ServerConfig;
+use ferro_server::config::{FileConfig, apply_file_config, load_config_file};
 use ferro_server::users::UserStoreTrait;
+use ferro_server::{AppState, build_router_with_static};
 use tracing::info;
 
 #[tokio::main]
@@ -47,7 +47,9 @@ async fn main() -> anyhow::Result<()> {
     if cli.data_dir.is_none() {
         tracing::warn!("═══════════════════════════════════════════════════════════════");
         tracing::warn!("  WARNING: Running without --data-dir");
-        tracing::warn!("  All data will be LOST on restart (files, metadata, shares, snapshots, audit log)");
+        tracing::warn!(
+            "  All data will be LOST on restart (files, metadata, shares, snapshots, audit log)"
+        );
         tracing::warn!("  Use --data-dir /path/to/data for persistent storage");
         tracing::warn!("═══════════════════════════════════════════════════════════════");
     }
@@ -58,13 +60,16 @@ async fn main() -> anyhow::Result<()> {
     let state = match cli.storage.as_str() {
         "memory" => AppState::in_memory(),
         path if path.starts_with("local:") => {
-            let dir = path.strip_prefix("local:")
+            let dir = path
+                .strip_prefix("local:")
                 .ok_or_else(|| anyhow::anyhow!("Invalid local storage path: {}", path))?;
             let store = object_store::local::LocalFileSystem::new_with_prefix(dir)
                 .map_err(|e| anyhow::anyhow!("Failed to open local storage at {}: {}", dir, e))?;
-            AppState::new(std::sync::Arc::new(ferro_server::object_store_backend::ObjectStoreStorageEngine::new(
-                std::sync::Arc::new(store),
-            )))
+            AppState::new(std::sync::Arc::new(
+                ferro_server::object_store_backend::ObjectStoreStorageEngine::new(
+                    std::sync::Arc::new(store),
+                ),
+            ))
         }
         #[cfg(feature = "s3")]
         path if path.starts_with("s3://") => {
@@ -74,10 +79,13 @@ async fn main() -> anyhow::Result<()> {
                 .build()
                 .map_err(|e| anyhow::anyhow!("Failed to create S3 client: {}", e))?;
             let store = std::sync::Arc::new(store);
-            let presigned = std::sync::Arc::new(ferro_core::presigned::S3PresignedUrlGenerator::new(store.clone()));
-            AppState::new(std::sync::Arc::new(ferro_server::object_store_backend::ObjectStoreStorageEngine::new(
-                store,
-            ))).with_presigned_generator(presigned)
+            let presigned = std::sync::Arc::new(
+                ferro_core::presigned::S3PresignedUrlGenerator::new(store.clone()),
+            );
+            AppState::new(std::sync::Arc::new(
+                ferro_server::object_store_backend::ObjectStoreStorageEngine::new(store),
+            ))
+            .with_presigned_generator(presigned)
         }
         #[cfg(feature = "gcs")]
         path if path.starts_with("gs://") => {
@@ -88,10 +96,13 @@ async fn main() -> anyhow::Result<()> {
                 .build()
                 .map_err(|e| anyhow::anyhow!("Failed to create GCS client: {}", e))?;
             let store = std::sync::Arc::new(store);
-            let presigned = std::sync::Arc::new(ferro_core::presigned::GcsPresignedUrlGenerator::new(store.clone()));
-            AppState::new(std::sync::Arc::new(ferro_server::object_store_backend::ObjectStoreStorageEngine::new(
-                store,
-            ))).with_presigned_generator(presigned)
+            let presigned = std::sync::Arc::new(
+                ferro_core::presigned::GcsPresignedUrlGenerator::new(store.clone()),
+            );
+            AppState::new(std::sync::Arc::new(
+                ferro_server::object_store_backend::ObjectStoreStorageEngine::new(store),
+            ))
+            .with_presigned_generator(presigned)
         }
         #[cfg(feature = "azure")]
         path if path.starts_with("az://") || path.starts_with("azure://") => {
@@ -101,29 +112,48 @@ async fn main() -> anyhow::Result<()> {
                 .build()
                 .map_err(|e| anyhow::anyhow!("Failed to create Azure client: {}", e))?;
             let store = std::sync::Arc::new(store);
-            let presigned = std::sync::Arc::new(ferro_core::presigned::AzurePresignedUrlGenerator::new(store.clone()));
-            AppState::new(std::sync::Arc::new(ferro_server::object_store_backend::ObjectStoreStorageEngine::new(
-                store,
-            ))).with_presigned_generator(presigned)
+            let presigned = std::sync::Arc::new(
+                ferro_core::presigned::AzurePresignedUrlGenerator::new(store.clone()),
+            );
+            AppState::new(std::sync::Arc::new(
+                ferro_server::object_store_backend::ObjectStoreStorageEngine::new(store),
+            ))
+            .with_presigned_generator(presigned)
         }
         other => {
             let hint = {
                 #[cfg(all(feature = "s3", feature = "gcs", feature = "azure"))]
-                { " Use 'memory', 'local:/path', 's3://bucket', 'gs://bucket', or 'az://container'." }
+                {
+                    " Use 'memory', 'local:/path', 's3://bucket', 'gs://bucket', or 'az://container'."
+                }
                 #[cfg(all(feature = "s3", feature = "gcs", not(feature = "azure")))]
-                { " Use 'memory', 'local:/path', 's3://bucket', or 'gs://bucket'. Compile with --features azure for az://." }
+                {
+                    " Use 'memory', 'local:/path', 's3://bucket', or 'gs://bucket'. Compile with --features azure for az://."
+                }
                 #[cfg(all(feature = "s3", not(feature = "gcs"), feature = "azure"))]
-                { " Use 'memory', 'local:/path', 's3://bucket', or 'az://container'. Compile with --features gcs for gs://." }
+                {
+                    " Use 'memory', 'local:/path', 's3://bucket', or 'az://container'. Compile with --features gcs for gs://."
+                }
                 #[cfg(all(not(feature = "s3"), feature = "gcs", feature = "azure"))]
-                { " Use 'memory', 'local:/path', 'gs://bucket', or 'az://container'. Compile with --features s3 for s3://." }
+                {
+                    " Use 'memory', 'local:/path', 'gs://bucket', or 'az://container'. Compile with --features s3 for s3://."
+                }
                 #[cfg(all(feature = "s3", not(feature = "gcs"), not(feature = "azure")))]
-                { " Use 'memory', 'local:/path', or 's3://bucket'. Compile with --features gcs,azure for gs:// and az://." }
+                {
+                    " Use 'memory', 'local:/path', or 's3://bucket'. Compile with --features gcs,azure for gs:// and az://."
+                }
                 #[cfg(all(not(feature = "s3"), feature = "gcs", not(feature = "azure")))]
-                { " Use 'memory', 'local:/path', or 'gs://bucket'. Compile with --features s3,azure for s3:// and az://." }
+                {
+                    " Use 'memory', 'local:/path', or 'gs://bucket'. Compile with --features s3,azure for s3:// and az://."
+                }
                 #[cfg(all(not(feature = "s3"), not(feature = "gcs"), feature = "azure"))]
-                { " Use 'memory', 'local:/path', or 'az://container'. Compile with --features s3,gcs for s3:// and gs://." }
+                {
+                    " Use 'memory', 'local:/path', or 'az://container'. Compile with --features s3,gcs for s3:// and gs://."
+                }
                 #[cfg(all(not(feature = "s3"), not(feature = "gcs"), not(feature = "azure")))]
-                { " Use 'memory' or 'local:/path'. Compile with --features s3,gcs,azure for cloud backends." }
+                {
+                    " Use 'memory' or 'local:/path'. Compile with --features s3,gcs,azure for cloud backends."
+                }
             };
             anyhow::bail!("Unknown storage backend: {}.{}", other, hint);
         }
@@ -147,8 +177,9 @@ async fn main() -> anyhow::Result<()> {
 
     // Configure Cedar if policy file is set
     let state = if let Some(policy_file) = &cli.cedar_policy_file {
-        let policy_text = std::fs::read_to_string(policy_file)
-            .map_err(|e| anyhow::anyhow!("Failed to read Cedar policy file {}: {}", policy_file, e))?;
+        let policy_text = std::fs::read_to_string(policy_file).map_err(|e| {
+            anyhow::anyhow!("Failed to read Cedar policy file {}: {}", policy_file, e)
+        })?;
         let authorizer = CedarAuthorizer::new()?;
         authorizer.add_policy(&policy_text).await?;
         info!("Cedar authorization enabled: {} policies", 1);
@@ -179,27 +210,22 @@ async fn main() -> anyhow::Result<()> {
                 info!("Search engine enabled at {:?}", search_path);
                 state.with_search(engine)
             }
-            Err(_) => {
-                match ferro_core::search::SearchEngine::new(search_path) {
-                    Ok(engine) => {
-                        info!("Search engine created at {:?}", search_path);
-                        state.with_search(engine)
-                    }
-                    Err(e) => {
-                        tracing::warn!("Search engine unavailable: {}", e);
-                        state
-                    }
+            Err(_) => match ferro_core::search::SearchEngine::new(search_path) {
+                Ok(engine) => {
+                    info!("Search engine created at {:?}", search_path);
+                    state.with_search(engine)
                 }
-            }
+                Err(e) => {
+                    tracing::warn!("Search engine unavailable: {}", e);
+                    state
+                }
+            },
         }
     };
 
     // Spawn background content indexer if search is enabled
     if state.search.is_some() {
-        ferro_server::indexer::spawn_indexer(
-            std::sync::Arc::new(state.clone()),
-            60,
-        );
+        ferro_server::indexer::spawn_indexer(std::sync::Arc::new(state.clone()), 60);
     }
 
     // Initialize WASM runtime if --wasm-enabled is set
@@ -220,17 +246,18 @@ async fn main() -> anyhow::Result<()> {
 
     // Spawn WASM worker runner if WASM runtime is configured
     if state.wasm_runtime.is_some() {
-        ferro_server::worker_runner::spawn_worker_runner(
-            std::sync::Arc::new(state.clone()),
-            30,
-        );
+        ferro_server::worker_runner::spawn_worker_runner(std::sync::Arc::new(state.clone()), 30);
     }
 
     // Configure workers directory for uploaded WASM modules
     let state = if let Some(data_dir) = &cli.data_dir {
         let workers_dir = std::path::PathBuf::from(data_dir).join("workers");
         if let Err(e) = std::fs::create_dir_all(&workers_dir) {
-            tracing::warn!("Failed to create workers directory {:?}: {}", workers_dir, e);
+            tracing::warn!(
+                "Failed to create workers directory {:?}: {}",
+                workers_dir,
+                e
+            );
         } else {
             info!("WASM workers directory: {:?}", workers_dir);
         }
@@ -288,7 +315,10 @@ async fn main() -> anyhow::Result<()> {
                     state.with_metadata_store(std::sync::Arc::new(store))
                 }
                 Err(e) => {
-                    tracing::warn!("PostgreSQL connection failed: {}, using in-memory metadata", e);
+                    tracing::warn!(
+                        "PostgreSQL connection failed: {}, using in-memory metadata",
+                        e
+                    );
                     state
                 }
             }
@@ -306,7 +336,9 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    let state = state.with_max_body_size(cli.max_body_size).with_external_url(cli.external_url)
+    let state = state
+        .with_max_body_size(cli.max_body_size)
+        .with_external_url(cli.external_url)
         .with_max_file_versions(cli.max_file_versions);
 
     let mut state = if let Some(ref data_dir) = cli.data_dir {
@@ -352,7 +384,9 @@ async fn main() -> anyhow::Result<()> {
         info!("WOPI office server: {}", cli.wopi_office_url);
         state.with_wopi_office_url(cli.wopi_office_url)
     } else {
-        tracing::info!("WOPI office URL not configured (set --wopi-office-url or FERRO_WOPI_OFFICE_URL to enable)");
+        tracing::info!(
+            "WOPI office URL not configured (set --wopi-office-url or FERRO_WOPI_OFFICE_URL to enable)"
+        );
         state
     };
 
@@ -360,7 +394,9 @@ async fn main() -> anyhow::Result<()> {
     let state = if cli.wopi_token_secret == "ferro-wopi-token-secret-change-me" {
         tracing::warn!("═══════════════════════════════════════════════════════════════");
         tracing::warn!("  WARNING: Using default WOPI token secret");
-        tracing::warn!("  Set --wopi-token-secret or FERRO_WOPI_TOKEN_SECRET to a strong random value for production");
+        tracing::warn!(
+            "  Set --wopi-token-secret or FERRO_WOPI_TOKEN_SECRET to a strong random value for production"
+        );
         tracing::warn!("═══════════════════════════════════════════════════════════════");
         state
     } else {
@@ -369,20 +405,27 @@ async fn main() -> anyhow::Result<()> {
 
     // Configure simple auth (HTTP Basic Auth) if admin credentials are set
     let state = if cli.admin_user.is_some() && cli.admin_password.is_some() {
-        info!("Simple HTTP Basic Auth enabled for user: {}", cli.admin_user.as_deref().unwrap_or(""));
+        info!(
+            "Simple HTTP Basic Auth enabled for user: {}",
+            cli.admin_user.as_deref().unwrap_or("")
+        );
         let admin = ferro_server::users::InMemoryUserStore::create_admin(
             cli.admin_user.as_deref().unwrap_or(""),
             cli.admin_password.as_deref().unwrap_or(""),
         );
         let store = ferro_server::users::InMemoryUserStore::new();
-        store.create_user(admin).await.expect("Failed to create initial admin user — this should never fail with in-memory store");
+        store.create_user(admin).await.expect(
+            "Failed to create initial admin user — this should never fail with in-memory store",
+        );
         state
             .with_admin_user(cli.admin_user.clone())
             .with_admin_password(cli.admin_password.clone())
             .with_user_store(std::sync::Arc::new(store))
     } else {
         if cli.admin_user.is_some() || cli.admin_password.is_some() {
-            tracing::warn!("Both --admin-user and --admin-password must be set to enable simple auth");
+            tracing::warn!(
+                "Both --admin-user and --admin-password must be set to enable simple auth"
+            );
         }
         state
     };
@@ -394,11 +437,12 @@ async fn main() -> anyhow::Result<()> {
             if let Some(ref redis_url) = cli.redis_url {
                 info!("Redis distributed lock manager enabled: {}", redis_url);
                 match ferro_server::redis_lock::RedisLockManager::new(redis_url).await {
-                    Ok(lock_mgr) => {
-                        state.with_lock_manager(std::sync::Arc::new(lock_mgr))
-                    }
+                    Ok(lock_mgr) => state.with_lock_manager(std::sync::Arc::new(lock_mgr)),
                     Err(e) => {
-                        tracing::warn!("Redis connection failed: {}, using in-memory lock manager", e);
+                        tracing::warn!(
+                            "Redis connection failed: {}, using in-memory lock manager",
+                            e
+                        );
                         state
                     }
                 }
@@ -407,7 +451,9 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         #[cfg(not(feature = "redis"))]
-        { state }
+        {
+            state
+        }
     };
 
     // Configure PostgreSQL distributed state if --database-url is set
@@ -417,24 +463,28 @@ async fn main() -> anyhow::Result<()> {
             if let Some(ref database_url) = cli.database_url {
                 info!("PostgreSQL distributed state enabled: {}", database_url);
                 match sqlx::PgPool::connect(database_url).await {
-                    Ok(pool) => {
-                        match ferro_server::pg_state::create_pg_stores(pool).await {
-                            Ok((share_store, favorite_store, preference_store)) => {
-                                info!("PostgreSQL stores initialized (shares, favorites, preferences)");
-                                let mut state = state;
-                                state = state.with_share_store(std::sync::Arc::new(share_store));
-                                state = state.with_favorites(std::sync::Arc::new(favorite_store));
-                                state = state.with_preferences(std::sync::Arc::new(preference_store));
-                                state
-                            }
-                            Err(e) => {
-                                tracing::warn!("PostgreSQL store init failed: {}, using in-memory stores", e);
-                                state
-                            }
+                    Ok(pool) => match ferro_server::pg_state::create_pg_stores(pool).await {
+                        Ok((share_store, favorite_store, preference_store)) => {
+                            info!("PostgreSQL stores initialized (shares, favorites, preferences)");
+                            let mut state = state;
+                            state = state.with_share_store(std::sync::Arc::new(share_store));
+                            state = state.with_favorites(std::sync::Arc::new(favorite_store));
+                            state = state.with_preferences(std::sync::Arc::new(preference_store));
+                            state
                         }
-                    }
+                        Err(e) => {
+                            tracing::warn!(
+                                "PostgreSQL store init failed: {}, using in-memory stores",
+                                e
+                            );
+                            state
+                        }
+                    },
                     Err(e) => {
-                        tracing::warn!("PostgreSQL connection failed: {}, using in-memory stores", e);
+                        tracing::warn!(
+                            "PostgreSQL connection failed: {}, using in-memory stores",
+                            e
+                        );
                         state
                     }
                 }
@@ -443,7 +493,9 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         #[cfg(not(feature = "pg"))]
-        { state }
+        {
+            state
+        }
     };
 
     // Validate storage backend is reachable
@@ -463,7 +515,11 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let lock_manager = state.lock_manager.clone();
-    let app = build_router_with_static(state.clone(), cli.static_dir.as_deref(), &cli.cors_allowed_origins);
+    let app = build_router_with_static(
+        state.clone(),
+        cli.static_dir.as_deref(),
+        &cli.cors_allowed_origins,
+    );
 
     // Parse trash TTL and spawn auto-purge background task
     let trash_ttl = match parse_duration(&cli.trash_ttl) {
@@ -502,14 +558,16 @@ async fn main() -> anyhow::Result<()> {
 
     let graceful_timeout = cli.graceful_shutdown_timeout;
 
-    let server = axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal());
+    let server = axum::serve(listener, app).with_graceful_shutdown(shutdown_signal());
 
     match tokio::time::timeout(std::time::Duration::from_secs(graceful_timeout), server).await {
         Ok(Ok(())) => {}
         Ok(Err(e)) => return Err(e.into()),
         Err(_) => {
-            tracing::warn!("Graceful shutdown timed out after {}s, forcing exit", graceful_timeout);
+            tracing::warn!(
+                "Graceful shutdown timed out after {}s, forcing exit",
+                graceful_timeout
+            );
         }
     }
 
@@ -542,7 +600,9 @@ fn parse_bucket_from_url(url: &str) -> anyhow::Result<String> {
         .trim_start_matches("gs://")
         .trim_start_matches("az://")
         .trim_start_matches("azure://");
-    let bucket = without_scheme.split('/').next()
+    let bucket = without_scheme
+        .split('/')
+        .next()
         .ok_or_else(|| anyhow::anyhow!("Cannot parse bucket from URL: {}", url))?;
     if bucket.is_empty() {
         anyhow::bail!("Empty bucket name in URL: {}", url);
@@ -552,11 +612,9 @@ fn parse_bucket_from_url(url: &str) -> anyhow::Result<String> {
 
 #[cfg(unix)]
 async fn shutdown_signal() {
-    use tokio::signal::unix::{signal, SignalKind};
-    let mut sigterm = signal(SignalKind::terminate())
-        .expect("Failed to install SIGTERM handler");
-    let mut sigint = signal(SignalKind::interrupt())
-        .expect("Failed to install SIGINT handler");
+    use tokio::signal::unix::{SignalKind, signal};
+    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
+    let mut sigint = signal(SignalKind::interrupt()).expect("Failed to install SIGINT handler");
     tokio::select! {
         _ = sigterm.recv() => info!("Received SIGTERM, starting graceful shutdown"),
         _ = sigint.recv() => info!("Received SIGINT, starting graceful shutdown"),

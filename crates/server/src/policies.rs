@@ -3,8 +3,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// GET /api/policies — list configured Cedar policies.
 pub async fn list_policies(State(state): State<AppState>) -> Response {
@@ -41,22 +41,20 @@ pub async fn add_policy(
         None => {
             ApiError::service_unavailable("NOT_CONFIGURED", "Cedar authorization is not configured")
         }
-        Some(authorizer) => {
-            match authorizer.add_policy(&req.policy).await {
-                Ok(()) => {
-                    let body = serde_json::json!({
-                        "status": "added",
-                    });
-                    (StatusCode::CREATED, axum::Json(body)).into_response()
-                }
-                Err(e) => ApiError::with_details(
-                    StatusCode::BAD_REQUEST,
-                    ApiError::POLICY_INVALID,
-                    "Invalid policy",
-                    e.to_string(),
-                ),
+        Some(authorizer) => match authorizer.add_policy(&req.policy).await {
+            Ok(()) => {
+                let body = serde_json::json!({
+                    "status": "added",
+                });
+                (StatusCode::CREATED, axum::Json(body)).into_response()
             }
-        }
+            Err(e) => ApiError::with_details(
+                StatusCode::BAD_REQUEST,
+                ApiError::POLICY_INVALID,
+                "Invalid policy",
+                e.to_string(),
+            ),
+        },
     }
 }
 
@@ -75,11 +73,9 @@ pub async fn delete_policy(
         None => {
             ApiError::service_unavailable("NOT_CONFIGURED", "Cedar authorization is not configured")
         }
-        Some(_) => {
-            ApiError::not_implemented(
-                ApiError::NOT_FOUND,
-                "Policy removal requires reloading the full policy set. Use PUT /api/policies to replace all policies.",
-            )
-        }
+        Some(_) => ApiError::not_implemented(
+            ApiError::NOT_FOUND,
+            "Policy removal requires reloading the full policy set. Use PUT /api/policies to replace all policies.",
+        ),
     }
 }

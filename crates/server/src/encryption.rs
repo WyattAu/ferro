@@ -19,9 +19,7 @@ pub async fn encrypt_content(content: &[u8], passphrase: &str) -> Result<Vec<u8>
             writer
                 .write_all(&content)
                 .map_err(|e| format!("write error: {e}"))?;
-            writer
-                .finish()
-                .map_err(|e| format!("finish error: {e}"))?;
+            writer.finish().map_err(|e| format!("finish error: {e}"))?;
 
             let mut armored = Vec::new();
             let mut armor_writer = age::armor::ArmoredWriter::wrap_output(
@@ -94,18 +92,25 @@ pub async fn encrypt_file(
         Ok(c) => c,
         Err(_) => {
             return crate::api_error::ApiError::not_found("FILE_NOT_FOUND", "File not found")
-                .into_response()
+                .into_response();
         }
     };
 
     match encrypt_content(&content, &req.passphrase).await {
-        Ok(encrypted) => match state.storage.put(&req.path, encrypted.into(), "admin").await {
-            Ok(meta) => (StatusCode::OK, axum::Json(serde_json::json!({
-                "path": meta.path,
-                "size": meta.size,
-                "encrypted": true,
-            })))
-            .into_response(),
+        Ok(encrypted) => match state
+            .storage
+            .put(&req.path, encrypted.into(), "admin")
+            .await
+        {
+            Ok(meta) => (
+                StatusCode::OK,
+                axum::Json(serde_json::json!({
+                    "path": meta.path,
+                    "size": meta.size,
+                    "encrypted": true,
+                })),
+            )
+                .into_response(),
             Err(e) => crate::api_error::ApiError::internal(
                 "ENCRYPT_FAILED",
                 format!("Failed to write encrypted file: {e}"),
@@ -134,7 +139,7 @@ pub async fn decrypt_file(
         Ok(c) => c,
         Err(_) => {
             return crate::api_error::ApiError::not_found("FILE_NOT_FOUND", "File not found")
-                .into_response()
+                .into_response();
         }
     };
 
@@ -144,13 +149,20 @@ pub async fn decrypt_file(
     }
 
     match decrypt_content(&content, &req.passphrase).await {
-        Ok(decrypted) => match state.storage.put(&req.path, decrypted.into(), "admin").await {
-            Ok(meta) => (StatusCode::OK, axum::Json(serde_json::json!({
-                "path": meta.path,
-                "size": meta.size,
-                "encrypted": false,
-            })))
-            .into_response(),
+        Ok(decrypted) => match state
+            .storage
+            .put(&req.path, decrypted.into(), "admin")
+            .await
+        {
+            Ok(meta) => (
+                StatusCode::OK,
+                axum::Json(serde_json::json!({
+                    "path": meta.path,
+                    "size": meta.size,
+                    "encrypted": false,
+                })),
+            )
+                .into_response(),
             Err(e) => crate::api_error::ApiError::internal(
                 "DECRYPT_FAILED",
                 format!("Failed to write decrypted file: {e}"),

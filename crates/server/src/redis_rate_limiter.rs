@@ -27,15 +27,12 @@ impl RedisRateLimiter {
             / window_secs;
         let window_key = format!("ferro:rate:{}:{}", key, window_start);
 
-        let count: u64 = match tokio::time::timeout(
-            REDIS_OP_TIMEOUT,
-            async {
-                redis::cmd("INCR")
-                    .arg(&window_key)
-                    .query_async(&mut self.client.clone())
-                    .await
-            },
-        )
+        let count: u64 = match tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+            redis::cmd("INCR")
+                .arg(&window_key)
+                .query_async(&mut self.client.clone())
+                .await
+        })
         .await
         {
             Ok(Ok(c)) => c,
@@ -43,16 +40,13 @@ impl RedisRateLimiter {
         };
 
         if count == 1 {
-            let _ = tokio::time::timeout(
-                REDIS_OP_TIMEOUT,
-                async {
-                    redis::cmd("EXPIRE")
-                        .arg(&window_key)
-                        .arg(window_secs as i64)
-                        .query_async::<()>(&mut self.client.clone())
-                        .await
-                },
-            )
+            let _ = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+                redis::cmd("EXPIRE")
+                    .arg(&window_key)
+                    .arg(window_secs as i64)
+                    .query_async::<()>(&mut self.client.clone())
+                    .await
+            })
             .await;
         }
 

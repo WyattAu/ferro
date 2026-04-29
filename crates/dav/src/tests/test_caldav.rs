@@ -105,8 +105,12 @@ async fn test_update_event() {
     let ical = sample_event_ical("evt-3", "Original", "20260427T100000Z", "20260427T110000Z");
     store.create_event(&cal.id, &ical).await.unwrap();
 
-    let updated_ical =
-        sample_event_ical("evt-3", "Updated Title", "20260427T100000Z", "20260427T120000Z");
+    let updated_ical = sample_event_ical(
+        "evt-3",
+        "Updated Title",
+        "20260427T100000Z",
+        "20260427T120000Z",
+    );
     let event = store
         .update_event(&cal.id, "evt-3", &updated_ical)
         .await
@@ -138,14 +142,31 @@ async fn test_query_events_time_range() {
         .await
         .unwrap();
 
-    let ical1 = sample_event_ical("evt-a", "April Event", "20260401T100000Z", "20260402T110000Z");
+    let ical1 = sample_event_ical(
+        "evt-a",
+        "April Event",
+        "20260401T100000Z",
+        "20260402T110000Z",
+    );
     let ical2 = sample_event_ical("evt-b", "May Event", "20260501T100000Z", "20260502T110000Z");
     store.create_event(&cal.id, &ical1).await.unwrap();
     store.create_event(&cal.id, &ical2).await.unwrap();
 
     let filter = CalFilter {
-        start: Some(chrono::NaiveDate::from_ymd_opt(2026, 4, 1).unwrap().and_hms_opt(0, 0, 0).unwrap().and_utc()),
-        end: Some(chrono::NaiveDate::from_ymd_opt(2026, 4, 30).unwrap().and_hms_opt(23, 59, 59).unwrap().and_utc()),
+        start: Some(
+            chrono::NaiveDate::from_ymd_opt(2026, 4, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap()
+                .and_utc(),
+        ),
+        end: Some(
+            chrono::NaiveDate::from_ymd_opt(2026, 4, 30)
+                .unwrap()
+                .and_hms_opt(23, 59, 59)
+                .unwrap()
+                .and_utc(),
+        ),
     };
 
     let results = store.query_events(&cal.id, &filter).await;

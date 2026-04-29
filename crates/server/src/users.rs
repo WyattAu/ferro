@@ -127,19 +127,31 @@ pub enum UserErrorKind {
 impl UserError {
     /// Create a not-found user error.
     pub fn not_found(msg: impl Into<String>) -> Self {
-        Self { kind: UserErrorKind::NotFound, message: msg.into() }
+        Self {
+            kind: UserErrorKind::NotFound,
+            message: msg.into(),
+        }
     }
     /// Create a conflict user error.
     pub fn conflict(msg: impl Into<String>) -> Self {
-        Self { kind: UserErrorKind::Conflict, message: msg.into() }
+        Self {
+            kind: UserErrorKind::Conflict,
+            message: msg.into(),
+        }
     }
     /// Create a forbidden user error.
     pub fn forbidden(msg: impl Into<String>) -> Self {
-        Self { kind: UserErrorKind::Forbidden, message: msg.into() }
+        Self {
+            kind: UserErrorKind::Forbidden,
+            message: msg.into(),
+        }
     }
     /// Create a bad-request user error.
     pub fn bad_request(msg: impl Into<String>) -> Self {
-        Self { kind: UserErrorKind::BadRequest, message: msg.into() }
+        Self {
+            kind: UserErrorKind::BadRequest,
+            message: msg.into(),
+        }
     }
 }
 
@@ -223,10 +235,16 @@ impl UserStoreTrait for InMemoryUserStore {
             return Err(UserError::bad_request("MAX_USERS_REACHED".to_string()));
         }
         if self.username_index.contains_key(&user.username) {
-            return Err(UserError::conflict(format!("Username '{}' already exists", user.username)));
+            return Err(UserError::conflict(format!(
+                "Username '{}' already exists",
+                user.username
+            )));
         }
         if !user.email.is_empty() && self.email_index.contains_key(&user.email) {
-            return Err(UserError::conflict(format!("Email '{}' already in use", user.email)));
+            return Err(UserError::conflict(format!(
+                "Email '{}' already in use",
+                user.email
+            )));
         }
         let id = user.id.clone();
         let username = user.username.clone();
@@ -240,20 +258,25 @@ impl UserStoreTrait for InMemoryUserStore {
     }
 
     async fn get_user(&self, id: &str) -> Result<User, UserError> {
-        self.users.get(id)
+        self.users
+            .get(id)
             .map(|r| r.value().clone())
             .ok_or_else(|| UserError::not_found(format!("User '{}' not found", id)))
     }
 
     async fn get_user_by_username(&self, username: &str) -> Result<User, UserError> {
-        let id = self.username_index.get(username)
+        let id = self
+            .username_index
+            .get(username)
             .map(|r| r.value().clone())
             .ok_or_else(|| UserError::not_found(format!("User '{}' not found", username)))?;
         self.get_user(&id).await
     }
 
     async fn get_user_by_email(&self, email: &str) -> Result<User, UserError> {
-        let id = self.email_index.get(email)
+        let id = self
+            .email_index
+            .get(email)
             .map(|r| r.value().clone())
             .ok_or_else(|| UserError::not_found(format!("No user with email '{}'", email)))?;
         self.get_user(&id).await
@@ -274,7 +297,10 @@ impl UserStoreTrait for InMemoryUserStore {
                 if let Some(existing_id) = self.email_index.get(new_email)
                     && existing_id.value() != id
                 {
-                    return Err(UserError::conflict(format!("Email '{}' already in use", new_email)));
+                    return Err(UserError::conflict(format!(
+                        "Email '{}' already in use",
+                        new_email
+                    )));
                 }
                 if !user.email.is_empty() {
                     self.email_index.remove(&user.email);
@@ -327,7 +353,9 @@ impl UserStoreTrait for InMemoryUserStore {
         if !user.is_active() {
             return Err(UserError::forbidden("User account is not active"));
         }
-        let hash = user.password_hash.as_deref()
+        let hash = user
+            .password_hash
+            .as_deref()
             .ok_or_else(|| UserError::forbidden("No password set for this user"))?;
         if !verify_password(password, hash) {
             return Err(UserError::forbidden("Invalid password"));
@@ -377,7 +405,9 @@ mod tests {
     #[tokio::test]
     async fn test_get_user_by_username() {
         let s = store();
-        s.create_user(make_user("bob", "bob@example.com", UserRole::User)).await.unwrap();
+        s.create_user(make_user("bob", "bob@example.com", UserRole::User))
+            .await
+            .unwrap();
 
         let user = s.get_user_by_username("bob").await.unwrap();
         assert_eq!(user.username, "bob");
@@ -393,16 +423,26 @@ mod tests {
     #[tokio::test]
     async fn test_duplicate_username_rejected() {
         let s = store();
-        s.create_user(make_user("charlie", "c1@example.com", UserRole::User)).await.unwrap();
-        let err = s.create_user(make_user("charlie", "c2@example.com", UserRole::User)).await.unwrap_err();
+        s.create_user(make_user("charlie", "c1@example.com", UserRole::User))
+            .await
+            .unwrap();
+        let err = s
+            .create_user(make_user("charlie", "c2@example.com", UserRole::User))
+            .await
+            .unwrap_err();
         assert_eq!(err.kind, UserErrorKind::Conflict);
     }
 
     #[tokio::test]
     async fn test_duplicate_email_rejected() {
         let s = store();
-        s.create_user(make_user("dave", "dave@example.com", UserRole::User)).await.unwrap();
-        let err = s.create_user(make_user("dave2", "dave@example.com", UserRole::User)).await.unwrap_err();
+        s.create_user(make_user("dave", "dave@example.com", UserRole::User))
+            .await
+            .unwrap();
+        let err = s
+            .create_user(make_user("dave2", "dave@example.com", UserRole::User))
+            .await
+            .unwrap_err();
         assert_eq!(err.kind, UserErrorKind::Conflict);
     }
 
@@ -413,10 +453,16 @@ mod tests {
         let id = user.id.clone();
         s.create_user(user).await.unwrap();
 
-        let updated = s.update_user(&id, UpdateUserRequest {
-            role: Some(UserRole::Admin),
-            ..Default::default()
-        }).await.unwrap();
+        let updated = s
+            .update_user(
+                &id,
+                UpdateUserRequest {
+                    role: Some(UserRole::Admin),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         assert_eq!(updated.role, UserRole::Admin);
     }
@@ -436,7 +482,9 @@ mod tests {
     #[tokio::test]
     async fn test_authenticate_success() {
         let s = store();
-        s.create_user(make_user("grace", "grace@example.com", UserRole::User)).await.unwrap();
+        s.create_user(make_user("grace", "grace@example.com", UserRole::User))
+            .await
+            .unwrap();
 
         let result = s.authenticate("grace", "testpass").await;
         assert!(result.is_ok());
@@ -445,7 +493,9 @@ mod tests {
     #[tokio::test]
     async fn test_authenticate_wrong_password() {
         let s = store();
-        s.create_user(make_user("heidi", "heidi@example.com", UserRole::User)).await.unwrap();
+        s.create_user(make_user("heidi", "heidi@example.com", UserRole::User))
+            .await
+            .unwrap();
 
         let result = s.authenticate("heidi", "wrong").await;
         assert!(result.is_err());
@@ -458,10 +508,15 @@ mod tests {
         let user = make_user("ivan", "ivan@example.com", UserRole::User);
         let id = user.id.clone();
         s.create_user(user).await.unwrap();
-        s.update_user(&id, UpdateUserRequest {
-            status: Some(UserStatus::Disabled),
-            ..Default::default()
-        }).await.unwrap();
+        s.update_user(
+            &id,
+            UpdateUserRequest {
+                status: Some(UserStatus::Disabled),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
         let result = s.authenticate("ivan", "testpass").await;
         assert!(result.is_err());
@@ -470,9 +525,15 @@ mod tests {
     #[tokio::test]
     async fn test_list_users() {
         let s = store();
-        s.create_user(make_user("u1", "u1@example.com", UserRole::User)).await.unwrap();
-        s.create_user(make_user("u2", "u2@example.com", UserRole::Admin)).await.unwrap();
-        s.create_user(make_user("u3", "u3@example.com", UserRole::ReadOnly)).await.unwrap();
+        s.create_user(make_user("u1", "u1@example.com", UserRole::User))
+            .await
+            .unwrap();
+        s.create_user(make_user("u2", "u2@example.com", UserRole::Admin))
+            .await
+            .unwrap();
+        s.create_user(make_user("u3", "u3@example.com", UserRole::ReadOnly))
+            .await
+            .unwrap();
 
         let users = s.list_users().await;
         assert_eq!(users.len(), 3);
@@ -485,10 +546,15 @@ mod tests {
         let id = user.id.clone();
         s.create_user(user).await.unwrap();
 
-        s.update_user(&id, UpdateUserRequest {
-            email: Some("new@example.com".to_string()),
-            ..Default::default()
-        }).await.unwrap();
+        s.update_user(
+            &id,
+            UpdateUserRequest {
+                email: Some("new@example.com".to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
         assert!(s.get_user_by_email("old@example.com").await.is_err());
         let updated = s.get_user_by_email("new@example.com").await.unwrap();
@@ -502,7 +568,9 @@ mod tests {
         let id = user.id.clone();
         s.create_user(user).await.unwrap();
 
-        s.set_password(&id, &hash_password("newpass")).await.unwrap();
+        s.set_password(&id, &hash_password("newpass"))
+            .await
+            .unwrap();
         assert!(s.authenticate("kate", "newpass").await.is_ok());
         assert!(s.authenticate("kate", "testpass").await.is_err());
     }

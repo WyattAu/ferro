@@ -58,8 +58,7 @@ pub fn spawn_worker_runner(state: Arc<AppState>, interval_secs: u64) {
                 for worker in &workers {
                     debug!(
                         "Worker triggered: {} matches {}",
-                        worker.pattern,
-                        entry.path
+                        worker.pattern, entry.path
                     );
 
                     let content = match state.storage.get(&entry.path).await {
@@ -70,12 +69,15 @@ pub fn spawn_worker_runner(state: Arc<AppState>, interval_secs: u64) {
                         }
                     };
 
-                    match runtime.execute(
-                        &worker.module_path,
-                        &worker.function_name,
-                        &content,
-                        Some(worker.config.clone()),
-                    ).await {
+                    match runtime
+                        .execute(
+                            &worker.module_path,
+                            &worker.function_name,
+                            &content,
+                            Some(worker.config.clone()),
+                        )
+                        .await
+                    {
                         Ok(result) => {
                             if result.success {
                                 info!(
@@ -89,10 +91,7 @@ pub fn spawn_worker_runner(state: Arc<AppState>, interval_secs: u64) {
                             } else if let Some(err) = &result.error {
                                 warn!(
                                     "Worker {}::{} failed for {}: {}",
-                                    worker.module_path,
-                                    worker.function_name,
-                                    entry.path,
-                                    err,
+                                    worker.module_path, worker.function_name, entry.path, err,
                                 );
                             }
                         }

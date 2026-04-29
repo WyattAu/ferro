@@ -1,10 +1,10 @@
 use crate::store::{CalFilter, DynCalendarStore};
 use crate::xml_ext::{self, DavProp, DavResponse, PropStat};
+use axum::Extension;
 use axum::body::Bytes;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::Extension;
 use chrono::Utc;
 
 #[derive(Clone)]
@@ -15,10 +15,7 @@ pub struct CalDavState {
 
 pub async fn options_handler() -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "DAV",
-        "1, 2, calendar-access".parse().unwrap(),
-    );
+    headers.insert("DAV", "1, 2, calendar-access".parse().unwrap());
     headers.insert(
         "Allow",
         "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT, MKCALENDAR"

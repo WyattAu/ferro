@@ -39,7 +39,12 @@ async fn wait_for_server(port: u16, max_wait: Duration) {
     let start = std::time::Instant::now();
 
     loop {
-        if client.get(&url).send().await.is_ok_and(|r| r.status().is_success()) {
+        if client
+            .get(&url)
+            .send()
+            .await
+            .is_ok_and(|r| r.status().is_success())
+        {
             return;
         }
         if start.elapsed() > max_wait {
@@ -66,7 +71,10 @@ async fn webdav_operations(port: u16) {
 
     // 2. MKCOL
     let resp = client
-        .request(reqwest::Method::from_bytes(b"MKCOL").unwrap(), &format!("{}/e2e-test", base))
+        .request(
+            reqwest::Method::from_bytes(b"MKCOL").unwrap(),
+            &format!("{}/e2e-test", base),
+        )
         .send()
         .await
         .unwrap();
@@ -104,7 +112,10 @@ async fn webdav_operations(port: u16) {
 
     // 6. PROPFIND depth:0
     let resp = client
-        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &format!("{}/e2e-test", base))
+        .request(
+            reqwest::Method::from_bytes(b"PROPFIND").unwrap(),
+            &format!("{}/e2e-test", base),
+        )
         .header("Depth", "0")
         .header("Content-Type", "application/xml")
         .send()
@@ -112,23 +123,38 @@ async fn webdav_operations(port: u16) {
         .unwrap();
     assert_eq!(resp.status().as_u16(), 207);
     let body = resp.text().await.unwrap();
-    assert!(body.contains("e2e-test"), "PROPFIND should contain collection href");
-    assert!(body.contains("<D:collection/>"), "Should be marked as collection");
+    assert!(
+        body.contains("e2e-test"),
+        "PROPFIND should contain collection href"
+    );
+    assert!(
+        body.contains("<D:collection/>"),
+        "Should be marked as collection"
+    );
 
     // 7. PROPFIND depth:1
     let resp = client
-        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &format!("{}/e2e-test", base))
+        .request(
+            reqwest::Method::from_bytes(b"PROPFIND").unwrap(),
+            &format!("{}/e2e-test", base),
+        )
         .header("Depth", "1")
         .send()
         .await
         .unwrap();
     assert_eq!(resp.status().as_u16(), 207);
     let body = resp.text().await.unwrap();
-    assert!(body.contains("hello.txt"), "PROPFIND depth:1 should list files");
+    assert!(
+        body.contains("hello.txt"),
+        "PROPFIND depth:1 should list files"
+    );
 
     // 8. COPY
     let resp = client
-        .request(reqwest::Method::from_bytes(b"COPY").unwrap(), &format!("{}/e2e-test/hello.txt", base))
+        .request(
+            reqwest::Method::from_bytes(b"COPY").unwrap(),
+            &format!("{}/e2e-test/hello.txt", base),
+        )
         .header("Destination", &format!("{}/e2e-test/hello-copy.txt", base))
         .send()
         .await
@@ -144,7 +170,10 @@ async fn webdav_operations(port: u16) {
 
     // 9. MOVE
     let resp = client
-        .request(reqwest::Method::from_bytes(b"MOVE").unwrap(), &format!("{}/e2e-test/hello-copy.txt", base))
+        .request(
+            reqwest::Method::from_bytes(b"MOVE").unwrap(),
+            &format!("{}/e2e-test/hello-copy.txt", base),
+        )
         .header("Destination", &format!("{}/e2e-test/hello-moved.txt", base))
         .send()
         .await
@@ -182,7 +211,13 @@ async fn webdav_operations(port: u16) {
         .send()
         .await
         .unwrap();
-    let etag = resp.headers().get("etag").unwrap().to_str().unwrap().to_string();
+    let etag = resp
+        .headers()
+        .get("etag")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
 
     let resp = client
         .get(&format!("{}/e2e-test/cached.txt", base))
@@ -203,7 +238,10 @@ async fn webdav_operations(port: u16) {
 </D:propertyupdate>"#;
 
     let resp = client
-        .request(reqwest::Method::from_bytes(b"PROPPATCH").unwrap(), &format!("{}/e2e-test", base))
+        .request(
+            reqwest::Method::from_bytes(b"PROPPATCH").unwrap(),
+            &format!("{}/e2e-test", base),
+        )
         .header("Content-Type", "application/xml")
         .body(proppatch_body)
         .send()
@@ -213,7 +251,10 @@ async fn webdav_operations(port: u16) {
 
     // 13. LOCK + UNLOCK
     let resp = client
-        .request(reqwest::Method::from_bytes(b"LOCK").unwrap(), &format!("{}/e2e-test/cached.txt", base))
+        .request(
+            reqwest::Method::from_bytes(b"LOCK").unwrap(),
+            &format!("{}/e2e-test/cached.txt", base),
+        )
         .header("Depth", "0")
         .header("Content-Type", "application/xml")
         .body(r#"<D:lockinfo xmlns:D="DAV:"><D:locktype><D:write/></D:locktype></D:lockinfo>"#)
@@ -221,7 +262,13 @@ async fn webdav_operations(port: u16) {
         .await
         .unwrap();
     assert_eq!(resp.status().as_u16(), 200);
-    let lock_token = resp.headers().get("lock-token").unwrap().to_str().unwrap().to_string();
+    let lock_token = resp
+        .headers()
+        .get("lock-token")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
 
     // DELETE should fail without lock token
     let resp = client
@@ -233,7 +280,10 @@ async fn webdav_operations(port: u16) {
 
     // UNLOCK
     let resp = client
-        .request(reqwest::Method::from_bytes(b"UNLOCK").unwrap(), &format!("{}/e2e-test/cached.txt", base))
+        .request(
+            reqwest::Method::from_bytes(b"UNLOCK").unwrap(),
+            &format!("{}/e2e-test/cached.txt", base),
+        )
         .header("Lock-Token", &lock_token)
         .send()
         .await

@@ -59,7 +59,11 @@ pub async fn get_activity(
         })
         .collect();
 
-    (StatusCode::OK, axum::Json(ActivityResponse { entries, total })).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(ActivityResponse { entries, total }),
+    )
+        .into_response()
 }
 
 fn classify_action(method: &str, status: u16) -> String {
@@ -121,11 +125,18 @@ mod tests {
         let state = crate::AppState::in_memory();
         let response = get_activity(
             axum::extract::State(state),
-            Query(ActivityParams { limit: None, offset: None }),
-        ).await;
+            Query(ActivityParams {
+                limit: None,
+                offset: None,
+            }),
+        )
+        .await;
 
         assert_eq!(response.status(), StatusCode::OK);
-        let bytes = http_body_util::BodyExt::collect(response.into_body()).await.unwrap().to_bytes();
+        let bytes = http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .unwrap()
+            .to_bytes();
         let resp: ActivityResponse = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(resp.entries.len(), 0);
         assert_eq!(resp.total, 0);
@@ -134,20 +145,43 @@ mod tests {
     #[tokio::test]
     async fn test_activity_endpoint_with_entries() {
         let state = crate::AppState::in_memory();
-        state.audit_log.log(crate::audit::build_audit_entry(
-            "PUT", "/docs/report.pdf", "admin", 201, None, None,
-        )).await;
-        state.audit_log.log(crate::audit::build_audit_entry(
-            "DELETE", "/docs/old.pdf", "admin", 204, None, None,
-        )).await;
+        state
+            .audit_log
+            .log(crate::audit::build_audit_entry(
+                "PUT",
+                "/docs/report.pdf",
+                "admin",
+                201,
+                None,
+                None,
+            ))
+            .await;
+        state
+            .audit_log
+            .log(crate::audit::build_audit_entry(
+                "DELETE",
+                "/docs/old.pdf",
+                "admin",
+                204,
+                None,
+                None,
+            ))
+            .await;
 
         let response = get_activity(
             axum::extract::State(state),
-            Query(ActivityParams { limit: Some(10), offset: None }),
-        ).await;
+            Query(ActivityParams {
+                limit: Some(10),
+                offset: None,
+            }),
+        )
+        .await;
 
         assert_eq!(response.status(), StatusCode::OK);
-        let bytes = http_body_util::BodyExt::collect(response.into_body()).await.unwrap().to_bytes();
+        let bytes = http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .unwrap()
+            .to_bytes();
         let resp: ActivityResponse = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(resp.total, 2);
         assert_eq!(resp.entries[0].action, "delete");

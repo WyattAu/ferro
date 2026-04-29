@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use ferro_common::metadata::FileMetadata;
 use ferro_common::error::{FerroError, Result};
+use ferro_common::metadata::FileMetadata;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -84,8 +84,7 @@ mod tests {
     async fn test_metadata_crud() {
         let store = InMemoryMetadataStore::new();
         let hash = ContentHash::new("a".repeat(64));
-        let meta =
-            FileMetadata::new("/test.txt".to_string(), hash, 42, "user1".to_string());
+        let meta = FileMetadata::new("/test.txt".to_string(), hash, 42, "user1".to_string());
 
         assert!(!store.exists("/test.txt").await.unwrap());
         store.put(meta.clone()).await.unwrap();

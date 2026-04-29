@@ -1,5 +1,5 @@
-use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
+use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 
 pub fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -44,7 +44,11 @@ pub fn build_dav_multistatus(responses: &[DavResponse]) -> Vec<u8> {
             write_text(
                 &mut writer,
                 "D:status",
-                &format!("HTTP/1.1 {} {}", propstat.status, status_text(propstat.status)),
+                &format!(
+                    "HTTP/1.1 {} {}",
+                    propstat.status,
+                    status_text(propstat.status)
+                ),
             );
             let _ = writer.write_event(Event::End(BytesEnd::new("D:propstat")));
         }

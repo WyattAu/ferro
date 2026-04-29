@@ -1,6 +1,6 @@
+use std::fmt::Write;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::LookupSpan;
-use std::fmt::Write;
 
 /// JSON-formatted tracing event formatter.
 pub struct JsonFormatter;
@@ -67,8 +67,11 @@ where
                         &mut buf,
                         r#","span":"{}","span_fields":"{}""#,
                         span.name(),
-                            fields.to_string().replace('\\', "\\\\").replace('"', "\\\""),
-                        )?;
+                        fields
+                            .to_string()
+                            .replace('\\', "\\\\")
+                            .replace('"', "\\\""),
+                    )?;
                 }
             }
         }

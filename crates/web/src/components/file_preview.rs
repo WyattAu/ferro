@@ -3,9 +3,27 @@ use leptos::*;
 use crate::api::FileEntry;
 
 const TEXT_EXTENSIONS: &[&str] = &[
-    "txt", "md", "json", "xml", "toml", "yaml", "yml", "csv",
-    "rs", "py", "js", "ts", "html", "css", "sh", "log",
-    "cfg", "ini", "env", "gitignore", "editorconfig",
+    "txt",
+    "md",
+    "json",
+    "xml",
+    "toml",
+    "yaml",
+    "yml",
+    "csv",
+    "rs",
+    "py",
+    "js",
+    "ts",
+    "html",
+    "css",
+    "sh",
+    "log",
+    "cfg",
+    "ini",
+    "env",
+    "gitignore",
+    "editorconfig",
 ];
 
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"];
@@ -36,10 +54,7 @@ fn file_category(name: &str) -> &'static str {
 }
 
 #[component]
-pub fn FilePreview(
-    file: FileEntry,
-    on_close: Callback<()>,
-) -> impl IntoView {
+pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
     let (content, set_content) = create_signal(None::<String>);
     let (loading, set_loading) = create_signal(false);
     let (error, set_error) = create_signal(None::<String>);
@@ -58,7 +73,11 @@ pub fn FilePreview(
             match crate::api::get_file_content(&p).await {
                 Ok(text) => {
                     let truncated = if text.len() > 102_400 {
-                        format!("{}...\n\n[File truncated: showing first 100KB of {} bytes]", &text[..102_400], text.len())
+                        format!(
+                            "{}...\n\n[File truncated: showing first 100KB of {} bytes]",
+                            &text[..102_400],
+                            text.len()
+                        )
                     } else {
                         text
                     };

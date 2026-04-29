@@ -1,6 +1,6 @@
+use axum::Router;
 use axum::body::Body;
 use axum::http::Request;
-use axum::Router;
 use bytes::Bytes;
 use http_body_util::BodyExt;
 use tower::ServiceExt;
@@ -53,9 +53,5 @@ pub fn generate_test_body(size: usize) -> Bytes {
 #[allow(dead_code)]
 pub async fn create_test_file(state: &AppState, path: &str, size: usize) {
     let body = generate_test_body(size);
-    state
-        .storage
-        .put(path, body, "bench")
-        .await
-        .unwrap();
+    state.storage.put(path, body, "bench").await.unwrap();
 }

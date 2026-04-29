@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 const MAX_WEBHOOKS: usize = 100;
 
@@ -41,17 +41,15 @@ pub fn sign_payload(secret: &str, payload: &[u8]) -> String {
 
     type HmacSha256 = Hmac<Sha256>;
 
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC can take key of any size");
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC can take key of any size");
     mac.update(payload);
     let result = mac.finalize();
     hex::encode(result.into_bytes())
 }
 
 /// Fire matching webhooks for an event with retry logic.
-pub async fn fire_webhooks(
-    webhooks: Arc<RwLock<Vec<WebhookConfig>>>,
-    event: WebhookEvent,
-) {
+pub async fn fire_webhooks(webhooks: Arc<RwLock<Vec<WebhookConfig>>>, event: WebhookEvent) {
     let hooks = {
         let guard = webhooks.read().await;
         guard
@@ -139,14 +137,19 @@ pub async fn create_webhook(
     {
         let hooks = state.webhooks.read().await;
         if hooks.len() >= MAX_WEBHOOKS {
-            return ApiError::bad_request("WEBHOOK_LIMIT_REACHED", format!("Maximum number of webhooks ({}) reached", MAX_WEBHOOKS));
+            return ApiError::bad_request(
+                "WEBHOOK_LIMIT_REACHED",
+                format!("Maximum number of webhooks ({}) reached", MAX_WEBHOOKS),
+            );
         }
     }
 
     let config = WebhookConfig {
         id: uuid::Uuid::new_v4().to_string(),
         url: input.url,
-        secret: input.secret.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+        secret: input
+            .secret
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
         events: input.events,
         enabled: input.enabled.unwrap_or(true),
     };
@@ -163,10 +166,7 @@ pub async fn list_webhooks(State(state): State<AppState>) -> Response {
 }
 
 /// DELETE /api/admin/webhooks/:id — delete a webhook subscription.
-pub async fn delete_webhook(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_webhook(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let mut hooks = state.webhooks.write().await;
     let before = hooks.len();
     hooks.retain(|h| h.id != id);
@@ -190,8 +190,8 @@ pub struct CreateWebhookInput {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::build_router;
     use crate::AppState;
+    use crate::build_router;
     use http_body_util::BodyExt;
     use tower::ServiceExt;
 
@@ -334,7 +334,10 @@ mod tests {
             .await
             .unwrap();
 
-        let id = body_json(create_resp).await["id"].as_str().unwrap().to_string();
+        let id = body_json(create_resp).await["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         let del_resp = app
             .clone()
@@ -382,7 +385,12 @@ mod tests {
             .unwrap();
 
         let status = resp.status();
-        let ct = resp.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or("none").to_string();
+        let ct = resp
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("none")
+            .to_string();
         let bytes = resp.into_body().collect().await.unwrap().to_bytes();
         let body = String::from_utf8_lossy(&bytes);
         assert!(
@@ -398,9 +406,16 @@ mod tests {
     async fn test_minimal_routing_no_catchall() {
         use axum::routing::delete;
         let app = crate::Router::new()
-            .route("/api/test/:id", delete(|Path(id): Path<String>| async move {
-                (axum::http::StatusCode::NO_CONTENT, format!("deleted {}", id)).into_response()
-            }))
+            .route(
+                "/api/test/:id",
+                delete(|Path(id): Path<String>| async move {
+                    (
+                        axum::http::StatusCode::NO_CONTENT,
+                        format!("deleted {}", id),
+                    )
+                        .into_response()
+                }),
+            )
             .with_state(AppState::in_memory());
 
         let resp = app

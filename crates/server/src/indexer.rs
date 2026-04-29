@@ -22,7 +22,10 @@ pub async fn index_file(state: &AppState, metadata: &FileMetadata) {
         return;
     }
     if let Err(e) = engine.commit() {
-        warn!("Auto-index: failed to commit after indexing {}: {}", metadata.path, e);
+        warn!(
+            "Auto-index: failed to commit after indexing {}: {}",
+            metadata.path, e
+        );
         return;
     }
     debug!("Auto-indexed: {}", metadata.path);
@@ -53,7 +56,10 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
             // Truncate very large files to avoid memory issues
             let truncated = &content_str[..content_str.len().min(1_000_000)];
             if let Err(e) = engine.index_content(metadata, truncated) {
-                warn!("Auto-index: failed to index content for {}: {}", metadata.path, e);
+                warn!(
+                    "Auto-index: failed to index content for {}: {}",
+                    metadata.path, e
+                );
                 return;
             }
         } else {
@@ -71,7 +77,10 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
     }
 
     if let Err(e) = engine.commit() {
-        warn!("Auto-index: failed to commit after indexing {}: {}", metadata.path, e);
+        warn!(
+            "Auto-index: failed to commit after indexing {}: {}",
+            metadata.path, e
+        );
         return;
     }
     debug!("Auto-indexed with content: {}", metadata.path);
@@ -89,7 +98,10 @@ pub async fn remove_file(state: &AppState, path: &str) {
         return;
     }
     if let Err(e) = engine.commit() {
-        warn!("Auto-index: failed to commit after removing {}: {}", path, e);
+        warn!(
+            "Auto-index: failed to commit after removing {}: {}",
+            path, e
+        );
         return;
     }
     debug!("Auto-removed from index: {}", path);
@@ -108,10 +120,7 @@ pub fn spawn_indexer(state: Arc<AppState>, interval_secs: u64) {
         }
     });
 
-    info!(
-        "Background indexer started (interval: {}s)",
-        interval_secs
-    );
+    info!("Background indexer started (interval: {}s)", interval_secs);
 }
 
 async fn index_storage(state: &AppState) {

@@ -5,11 +5,14 @@ use base64::Engine;
 use common::auth::Claims;
 use serde::Deserialize;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// GET /api/auth/info — return current user info from OIDC claims.
-pub async fn auth_info(claims: Option<axum::Extension<Claims>>, State(state): State<AppState>) -> Response {
+pub async fn auth_info(
+    claims: Option<axum::Extension<Claims>>,
+    State(state): State<AppState>,
+) -> Response {
     let auth_type = if state.oidc.is_some() {
         "oidc"
     } else if state.admin_user.is_some() {
@@ -52,7 +55,10 @@ pub async fn auth_info(claims: Option<axum::Extension<Claims>>, State(state): St
 ///
 /// The code_verifier is stored server-side in a short-lived cache
 /// and verified during callback.
-pub async fn auth_login(State(state): State<AppState>, Query(params): Query<LoginParams>) -> Response {
+pub async fn auth_login(
+    State(state): State<AppState>,
+    Query(params): Query<LoginParams>,
+) -> Response {
     let oidc = match &state.oidc {
         Some(v) => v,
         None => {
@@ -62,7 +68,10 @@ pub async fn auth_login(State(state): State<AppState>, Query(params): Query<Logi
 
     let config = oidc.config();
     let redirect_uri = params.redirect.unwrap_or_else(|| "/ui/".to_string());
-    let callback_url = format!("{}/api/auth/callback?redirect={}", state.external_url, redirect_uri);
+    let callback_url = format!(
+        "{}/api/auth/callback?redirect={}",
+        state.external_url, redirect_uri
+    );
 
     // Generate PKCE verifier and challenge
     let code_verifier = generate_code_verifier();
@@ -82,13 +91,18 @@ pub async fn auth_login(State(state): State<AppState>, Query(params): Query<Logi
     );
 
     // Store code_verifier + state for later callback verification
-    oidc.store_pkce_session(&state_param, &code_verifier, &redirect_uri, &callback_url).await;
+    oidc.store_pkce_session(&state_param, &code_verifier, &redirect_uri, &callback_url)
+        .await;
 
     // Return the auth URL as JSON (the frontend can redirect)
-    (StatusCode::OK, axum::Json(serde_json::json!({
-        "authorization_url": auth_url,
-        "state": state_param,
-    }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "authorization_url": auth_url,
+            "state": state_param,
+        })),
+    )
+        .into_response()
 }
 
 /// GET /api/auth/callback — handle OIDC callback.
@@ -96,7 +110,10 @@ pub async fn auth_login(State(state): State<AppState>, Query(params): Query<Logi
 /// Exchanges the authorization code for tokens, validates the ID token,
 /// and returns the user info. The frontend can then store the access token
 /// for subsequent API calls.
-pub async fn auth_callback(State(state): State<AppState>, Query(params): Query<CallbackParams>) -> Response {
+pub async fn auth_callback(
+    State(state): State<AppState>,
+    Query(params): Query<CallbackParams>,
+) -> Response {
     let oidc = match &state.oidc {
         Some(v) => v,
         None => {
@@ -108,16 +125,18 @@ pub async fn auth_callback(State(state): State<AppState>, Query(params): Query<C
     let session = match oidc.consume_pkce_session(&params.state).await {
         Some(s) => s,
         None => {
-            return ApiError::bad_request(ApiError::BAD_REQUEST, "Invalid or expired state parameter");
+            return ApiError::bad_request(
+                ApiError::BAD_REQUEST,
+                "Invalid or expired state parameter",
+            );
         }
     };
 
     // Exchange authorization code for tokens
-    let token_response = match oidc.exchange_code(
-        &params.code,
-        &session.code_verifier,
-        &session.callback_url,
-    ).await {
+    let token_response = match oidc
+        .exchange_code(&params.code, &session.code_verifier, &session.callback_url)
+        .await
+    {
         Ok(r) => r,
         Err(e) => {
             tracing::error!("Token exchange failed: {}", e);
@@ -131,7 +150,8 @@ pub async fn auth_callback(State(state): State<AppState>, Query(params): Query<C
     };
 
     // Validate the ID token to get claims
-    let id_token_str = token_response.get("id_token")
+    let id_token_str = token_response
+        .get("id_token")
         .and_then(|v| v.as_str())
         .unwrap_or("");
     let claims = match oidc.validate_token(id_token_str).await {
@@ -144,23 +164,35 @@ pub async fn auth_callback(State(state): State<AppState>, Query(params): Query<C
 
     // Return the access token and user info to the frontend
     // The frontend stores the access_token and sends it as Bearer token
-    let access_token = token_response.get("access_token")
-        .and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let token_type = token_response.get("token_type")
-        .and_then(|v| v.as_str()).unwrap_or("Bearer").to_string();
-    let expires_in = token_response.get("expires_in")
-        .and_then(|v| v.as_u64()).unwrap_or(3600);
-    (StatusCode::OK, axum::Json(serde_json::json!({
-        "access_token": access_token,
-        "token_type": token_type,
-        "expires_in": expires_in,
-        "user": {
-            "sub": claims.sub,
-            "email": claims.email,
-            "name": claims.name,
-        },
-        "redirect": session.redirect_uri,
-    }))).into_response()
+    let access_token = token_response
+        .get("access_token")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let token_type = token_response
+        .get("token_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Bearer")
+        .to_string();
+    let expires_in = token_response
+        .get("expires_in")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(3600);
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "access_token": access_token,
+            "token_type": token_type,
+            "expires_in": expires_in,
+            "user": {
+                "sub": claims.sub,
+                "email": claims.email,
+                "name": claims.name,
+            },
+            "redirect": session.redirect_uri,
+        })),
+    )
+        .into_response()
 }
 
 #[derive(Debug, Deserialize)]
@@ -207,10 +239,18 @@ mod tests {
     #[test]
     fn test_generate_code_verifier_length() {
         let verifier = generate_code_verifier();
-        assert!(verifier.len() >= 43, "Verifier must be at least 43 chars, got {}", verifier.len());
+        assert!(
+            verifier.len() >= 43,
+            "Verifier must be at least 43 chars, got {}",
+            verifier.len()
+        );
         assert!(verifier.len() <= 128);
         for c in verifier.chars() {
-            assert!(c.is_ascii_alphanumeric() || "-._~".contains(c), "Invalid char: {}", c);
+            assert!(
+                c.is_ascii_alphanumeric() || "-._~".contains(c),
+                "Invalid char: {}",
+                c
+            );
         }
     }
 
@@ -314,9 +354,17 @@ mod auth_tests {
         assert_eq!(resp.status(), StatusCode::OK);
         let json = body_json(resp).await;
         let expected_fields = [
-            "version", "auth_enabled", "search_enabled", "wasm_enabled",
-            "wasm_workers_enabled", "cedar_enabled", "metadata_persistent",
-            "cas_enabled", "storage", "external_url", "wopi_configured",
+            "version",
+            "auth_enabled",
+            "search_enabled",
+            "wasm_enabled",
+            "wasm_workers_enabled",
+            "cedar_enabled",
+            "metadata_persistent",
+            "cas_enabled",
+            "storage",
+            "external_url",
+            "wopi_configured",
         ];
         for field in &expected_fields {
             assert!(json.get(*field).is_some(), "Missing field: {}", field);

@@ -1,7 +1,7 @@
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use dashmap::DashMap;
 
 use super::clock::VectorClock;
 
@@ -57,7 +57,9 @@ impl SyncStore {
         let id = op.id.clone();
         if self.ops.len() >= self.max_ops {
             let to_remove = self.ops.len() - self.max_ops + 1;
-            let keys: Vec<String> = self.ops.iter()
+            let keys: Vec<String> = self
+                .ops
+                .iter()
                 .take(to_remove)
                 .map(|e| e.key().clone())
                 .collect();
@@ -69,7 +71,8 @@ impl SyncStore {
     }
 
     pub fn get_ops_since(&self, clock: u64) -> Vec<SyncOp> {
-        self.ops.iter()
+        self.ops
+            .iter()
             .filter(|e| e.value().clock.counter > clock)
             .map(|e| e.value().clone())
             .collect()
@@ -86,7 +89,9 @@ impl SyncStore {
 }
 
 impl Default for SyncStore {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

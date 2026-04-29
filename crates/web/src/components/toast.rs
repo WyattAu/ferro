@@ -114,10 +114,18 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
     let (dismissed, set_dismissed) = create_signal(false);
 
     let bg_class = match toast.toast_type {
-        ToastType::Success => "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200",
-        ToastType::Error => "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200",
-        ToastType::Info => "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200",
-        ToastType::Warning => "bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200",
+        ToastType::Success => {
+            "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200"
+        }
+        ToastType::Error => {
+            "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"
+        }
+        ToastType::Info => {
+            "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200"
+        }
+        ToastType::Warning => {
+            "bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200"
+        }
     };
 
     let icon_class = match toast.toast_type {

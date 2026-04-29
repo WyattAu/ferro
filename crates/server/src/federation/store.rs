@@ -132,7 +132,9 @@ mod tests {
             r#type: ActivityType::Create,
             actor: "https://example.com/actor/alice".to_string(),
             object: serde_json::json!({"type": "Note"}),
-            to: Some(vec!["https://www.w3.org/ns/activitystreams#Public".to_string()]),
+            to: Some(vec![
+                "https://www.w3.org/ns/activitystreams#Public".to_string(),
+            ]),
             cc: None,
             published: published.to_string(),
             target: None,
@@ -201,7 +203,10 @@ mod tests {
     fn test_store_bounded_max_entries() {
         let store = ActivityStore::with_max_entries(3);
         for i in 0..5 {
-            store.add_to_inbox(make_activity(&format!("msg-{}", i), &format!("2024-01-{:02}T00:00:00+00:00", i + 1)));
+            store.add_to_inbox(make_activity(
+                &format!("msg-{}", i),
+                &format!("2024-01-{:02}T00:00:00+00:00", i + 1),
+            ));
         }
         assert!(store.inbox_len() <= 3);
     }

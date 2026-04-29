@@ -45,15 +45,17 @@ impl RateLimiter {
             self.clients.retain(|_, bucket| bucket.last_refill > cutoff);
         }
 
-        let mut bucket = self.clients.entry(client_ip.to_string()).or_insert(ClientBucket {
-            tokens: self.config.max_requests,
-            last_refill: Instant::now(),
-        });
+        let mut bucket = self
+            .clients
+            .entry(client_ip.to_string())
+            .or_insert(ClientBucket {
+                tokens: self.config.max_requests,
+                last_refill: Instant::now(),
+            });
 
         let now = Instant::now();
         let elapsed = now.duration_since(bucket.last_refill);
-        let tokens_to_add = (elapsed.as_secs_f64()
-            / self.config.window.as_secs_f64()
+        let tokens_to_add = (elapsed.as_secs_f64() / self.config.window.as_secs_f64()
             * self.config.max_requests as f64) as u32;
 
         if tokens_to_add > 0 {
@@ -127,7 +129,9 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(250)).await;
 
         let cutoff = Instant::now() - Duration::from_millis(200);
-        limiter.clients.retain(|_, bucket| bucket.last_refill > cutoff);
+        limiter
+            .clients
+            .retain(|_, bucket| bucket.last_refill > cutoff);
         assert_eq!(limiter.clients.len(), 0);
     }
 
@@ -139,9 +143,16 @@ mod tests {
         });
 
         for i in 0..5 {
-            assert!(limiter.check("exact").await, "Request {} should be allowed", i + 1);
+            assert!(
+                limiter.check("exact").await,
+                "Request {} should be allowed",
+                i + 1
+            );
         }
-        assert!(!limiter.check("exact").await, "6th request should be blocked");
+        assert!(
+            !limiter.check("exact").await,
+            "6th request should be blocked"
+        );
     }
 
     #[tokio::test]
@@ -158,6 +169,9 @@ mod tests {
 
         tokio::time::sleep(Duration::from_millis(300)).await;
 
-        assert!(limiter.check("recovery").await, "Should be allowed after window expires");
+        assert!(
+            limiter.check("recovery").await,
+            "Should be allowed after window expires"
+        );
     }
 }

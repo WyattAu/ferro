@@ -1,8 +1,8 @@
 use bytes::Bytes;
 use common::metadata::FileMetadata;
 use common::webdav::{LockDepth, LockScope};
-use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
+use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 
 pub fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -32,7 +32,10 @@ pub fn build_multistatus_xml(items: &[(String, FileMetadata)]) -> Bytes {
 
         let _ = writer.write_event(Event::Start(BytesStart::new("D:getlastmodified")));
         let _ = writer.write_event(Event::Text(BytesText::new(
-            &meta.modified_at.format("%a, %d %b %Y %H:%M:%S GMT").to_string(),
+            &meta
+                .modified_at
+                .format("%a, %d %b %Y %H:%M:%S GMT")
+                .to_string(),
         )));
         let _ = writer.write_event(Event::End(BytesEnd::new("D:getlastmodified")));
 
@@ -104,7 +107,9 @@ impl LockRequest {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
                     current_element = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                    let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
+                    let local = current_element
+                        .strip_prefix("D:")
+                        .unwrap_or(&current_element);
                     match local {
                         "exclusive" => request.scope = LockScope::Exclusive,
                         "shared" => request.scope = LockScope::Shared,
@@ -113,7 +118,9 @@ impl LockRequest {
                 }
                 Ok(Event::Text(ref e)) => {
                     let text = e.unescape().unwrap_or_default();
-                    let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
+                    let local = current_element
+                        .strip_prefix("D:")
+                        .unwrap_or(&current_element);
                     match local {
                         "href" => {
                             request.owner = Some(text.to_string());
@@ -178,7 +185,10 @@ pub fn build_lock_response_xml(
     let _ = writer.write_event(Event::End(BytesEnd::new("D:owner")));
 
     let _ = writer.write_event(Event::Start(BytesStart::new("D:timeout")));
-    let _ = writer.write_event(Event::Text(BytesText::new(&format!("Second-{}", timeout_secs))));
+    let _ = writer.write_event(Event::Text(BytesText::new(&format!(
+        "Second-{}",
+        timeout_secs
+    ))));
     let _ = writer.write_event(Event::End(BytesEnd::new("D:timeout")));
 
     let _ = writer.write_event(Event::Start(BytesStart::new("D:locktoken")));
@@ -236,7 +246,9 @@ pub fn parse_proppatch(body: &[u8]) -> Vec<PropPatchOp> {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
                 current_element = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
+                let local = current_element
+                    .strip_prefix("D:")
+                    .unwrap_or(&current_element);
                 match local {
                     "set" => {
                         in_set = true;
@@ -264,14 +276,18 @@ pub fn parse_proppatch(body: &[u8]) -> Vec<PropPatchOp> {
             Ok(Event::Text(ref e)) => {
                 if in_prop && in_set {
                     let text = e.unescape().unwrap_or_default();
-                    let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
+                    let local = current_element
+                        .strip_prefix("D:")
+                        .unwrap_or(&current_element);
                     ops.push(PropPatchOp {
                         name: local.to_string(),
                         value: Some(text.to_string()),
                         operation: current_operation.clone(),
                     });
                 } else if in_prop && in_remove {
-                    let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
+                    let local = current_element
+                        .strip_prefix("D:")
+                        .unwrap_or(&current_element);
                     ops.push(PropPatchOp {
                         name: local.to_string(),
                         value: None,
@@ -367,10 +383,7 @@ mod tests {
         let req = LockRequest::parse(xml);
         assert_eq!(req.scope, LockScope::Exclusive);
         assert_eq!(req.timeout_hint, Some(3600));
-        assert_eq!(
-            req.owner,
-            Some("http://example.com/~user/".to_string())
-        );
+        assert_eq!(req.owner, Some("http://example.com/~user/".to_string()));
     }
 
     #[test]
@@ -399,8 +412,7 @@ mod tests {
 
     #[test]
     fn test_build_lock_response_xml() {
-        let xml =
-            build_lock_response_xml("urn:uuid:test", "infinity", "user1", 60, "/test.txt");
+        let xml = build_lock_response_xml("urn:uuid:test", "infinity", "user1", 60, "/test.txt");
         let xml_str = String::from_utf8(xml.to_vec()).unwrap();
         assert!(xml_str.contains("<D:locktoken>"));
         assert!(xml_str.contains("urn:uuid:test"));

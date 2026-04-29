@@ -46,7 +46,7 @@ impl DesktopConfig {
         #[cfg(target_os = "linux")]
         {
             PathBuf::from("/mnt/ferro")
- }
+        }
         #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
         {
             PathBuf::from("/tmp/ferro")

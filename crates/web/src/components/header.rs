@@ -1,6 +1,6 @@
 use leptos::*;
 
-use crate::api::{SearchResultEntry, SearchFilters};
+use crate::api::{SearchFilters, SearchResultEntry};
 use crate::auth;
 use crate::components::theme_toggle::ThemeToggle;
 use leptos_router::A;
@@ -22,7 +22,10 @@ pub fn provide_header_state() -> HeaderState {
     let open_search = Callback::new(move |_| {
         set_trigger_search.update(|v| *v += 1);
     });
-    let state = HeaderState { trigger_search, open_search };
+    let state = HeaderState {
+        trigger_search,
+        open_search,
+    };
     provide_context(state);
     state
 }
@@ -75,13 +78,10 @@ pub fn Header() -> impl IntoView {
                     move || {
                         if let Some(window) = web_sys::window() {
                             if let Some(doc) = window.document() {
-                                if let Ok(Some(input)) =
-                                    doc.query_selector("#header-search-input")
+                                if let Ok(Some(input)) = doc.query_selector("#header-search-input")
                                 {
                                     use wasm_bindgen::JsCast;
-                                    if let Ok(el) =
-                                        input.dyn_into::<web_sys::HtmlInputElement>()
-                                    {
+                                    if let Ok(el) = input.dyn_into::<web_sys::HtmlInputElement>() {
                                         let _ = el.focus();
                                     }
                                 }
@@ -176,31 +176,36 @@ pub fn Header() -> impl IntoView {
             let cb = closure.into_js_value();
             if let Some(window) = web_sys::window() {
                 if let Some(document) = window.document() {
-                    let handler = wasm_bindgen::closure::Closure::<dyn Fn(ev::KeyboardEvent)>::new(move |ev: web_sys::KeyboardEvent| {
-                        let input: Option<web_sys::HtmlInputElement> = ev
-                            .target()
-                            .and_then(|t| {
+                    let handler = wasm_bindgen::closure::Closure::<dyn Fn(ev::KeyboardEvent)>::new(
+                        move |ev: web_sys::KeyboardEvent| {
+                            let input: Option<web_sys::HtmlInputElement> =
+                                ev.target().and_then(|t| {
+                                    use wasm_bindgen::JsCast;
+                                    t.dyn_into::<web_sys::HtmlInputElement>().ok()
+                                });
+                            if let Some(input) = input {
                                 use wasm_bindgen::JsCast;
-                                t.dyn_into::<web_sys::HtmlInputElement>().ok()
-                            });
-                        if let Some(input) = input {
-                            use wasm_bindgen::JsCast;
-                            let func = cb.clone();
-                            if let Some(prev) = debounce_timer {
-                                let _ = web_sys::window().unwrap().clear_timeout_with_handle(prev);
+                                let func = cb.clone();
+                                if let Some(prev) = debounce_timer {
+                                    let _ =
+                                        web_sys::window().unwrap().clear_timeout_with_handle(prev);
+                                }
+                                debounce_timer = Some(
+                                    web_sys::window()
+                                        .unwrap()
+                                        .set_timeout_with_callback_and_timeout_and_arguments_0(
+                                            func.unchecked_ref(),
+                                            300,
+                                        )
+                                        .unwrap(),
+                                );
                             }
-                            debounce_timer = Some(
-                                web_sys::window()
-                                    .unwrap()
-                                    .set_timeout_with_callback_and_timeout_and_arguments_0(
-                                        func.unchecked_ref(),
-                                        300,
-                                    )
-                                    .unwrap(),
-                            );
-                        }
-                    });
-                    let _ = document.add_event_listener_with_callback("input", handler.as_ref().unchecked_ref());
+                        },
+                    );
+                    let _ = document.add_event_listener_with_callback(
+                        "input",
+                        handler.as_ref().unchecked_ref(),
+                    );
                     handler.forget();
                 }
             }
@@ -376,8 +381,16 @@ fn QuotaIndicator(info: crate::api::QuotaInfo) -> impl IntoView {
     let quota_str = format_size(info.quota_bytes);
     let percent = info.used_percent;
     let is_over_90 = percent > 90.0;
-    let bar_color = if is_over_90 { "bg-red-500" } else { "bg-blue-500" };
-    let text_color = if is_over_90 { "text-red-600 dark:text-red-400" } else { "text-gray-500 dark:text-gray-400" };
+    let bar_color = if is_over_90 {
+        "bg-red-500"
+    } else {
+        "bg-blue-500"
+    };
+    let text_color = if is_over_90 {
+        "text-red-600 dark:text-red-400"
+    } else {
+        "text-gray-500 dark:text-gray-400"
+    };
 
     view! {
         <div class="hidden md:flex items-center gap-2 text-xs">
@@ -414,7 +427,10 @@ fn format_size(bytes: u64) -> String {
 }
 
 #[component]
-fn SearchResultsList(results: ReadSignal<Vec<SearchResultEntry>>, query: ReadSignal<String>) -> impl IntoView {
+fn SearchResultsList(
+    results: ReadSignal<Vec<SearchResultEntry>>,
+    query: ReadSignal<String>,
+) -> impl IntoView {
     let navigate = leptos_router::use_navigate();
     view! {
         {move || {

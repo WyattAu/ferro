@@ -43,10 +43,7 @@ async fn test_delete_address_book() {
 #[tokio::test]
 async fn test_get_address_book() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "My Book")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "My Book").await.unwrap();
 
     let fetched = store.get_address_book("user1", &book.id).await;
     assert!(fetched.is_some());
@@ -126,14 +123,8 @@ async fn test_delete_contact() {
 #[tokio::test]
 async fn test_contact_isolation() {
     let store = InMemoryAddressBookStore::new();
-    let book1 = store
-        .create_address_book("user1", "Book 1")
-        .await
-        .unwrap();
-    let book2 = store
-        .create_address_book("user1", "Book 2")
-        .await
-        .unwrap();
+    let book1 = store.create_address_book("user1", "Book 1").await.unwrap();
+    let book2 = store.create_address_book("user1", "Book 2").await.unwrap();
 
     let vcard = sample_vcard("iso-1", "Isolated", "Iso", "Lated");
     store.create_contact(&book1.id, &vcard).await.unwrap();

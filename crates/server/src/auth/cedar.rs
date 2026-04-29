@@ -1,5 +1,5 @@
-use cedar_policy::{Authorizer, Context, Decision, EntityUid, Entities, PolicySet, Request};
 use axum::response::IntoResponse;
+use cedar_policy::{Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request};
 use common::auth::{AuthDecision, AuthRequest, Claims};
 use common::error::{FerroError, Result};
 use serde::{Deserialize, Serialize};
@@ -47,11 +47,9 @@ impl CedarAuthorizer {
                 .parse()
                 .map_err(|e| FerroError::Internal(format!("Policy {} parse error: {:?}", i, e)))?;
             for policy in ps.policies() {
-                policy_set
-                    .add(policy.clone())
-                    .map_err(|e| {
-                        FerroError::Internal(format!("Add policy {} error: {:?}", i, e))
-                    })?;
+                policy_set.add(policy.clone()).map_err(|e| {
+                    FerroError::Internal(format!("Add policy {} error: {:?}", i, e))
+                })?;
             }
         }
 
@@ -152,9 +150,7 @@ fn http_method_to_action(method: &axum::http::Method) -> &'static str {
     match *method {
         axum::http::Method::GET | axum::http::Method::HEAD => "read",
         axum::http::Method::DELETE => "delete",
-        axum::http::Method::PUT
-        | axum::http::Method::POST
-        | axum::http::Method::PATCH => "write",
+        axum::http::Method::PUT | axum::http::Method::POST | axum::http::Method::PATCH => "write",
         _ => {
             // WebDAV methods are represented as custom Method variants.
             // Match by the method as-str to handle PROPFIND, MKCOL, COPY, MOVE, etc.
@@ -217,7 +213,10 @@ pub async fn cedar_middleware(
     let action = http_method_to_action(request.method());
     let resource = path;
 
-    match authorizer.is_authorized_simple(&claims.sub, action, resource).await {
+    match authorizer
+        .is_authorized_simple(&claims.sub, action, resource)
+        .await
+    {
         Ok(true) => next.run(request).await,
         Ok(false) => {
             warn!(
@@ -227,11 +226,7 @@ pub async fn cedar_middleware(
                 action,
                 claims.sub
             );
-            (
-                axum::http::StatusCode::FORBIDDEN,
-                "Forbidden by policy",
-            )
-                .into_response()
+            (axum::http::StatusCode::FORBIDDEN, "Forbidden by policy").into_response()
         }
         Err(e) => {
             warn!("Cedar authorization error: {}", e);
@@ -257,12 +252,42 @@ mod tests {
     #[tokio::test]
     async fn test_default_policy_allows_everything() {
         let authorizer = CedarAuthorizer::new().unwrap();
-        assert!(authorizer.is_authorized_simple("alice", "read", "/file.txt").await.unwrap());
-        assert!(authorizer.is_authorized_simple("alice", "write", "/file.txt").await.unwrap());
-        assert!(authorizer.is_authorized_simple("alice", "delete", "/file.txt").await.unwrap());
-        assert!(authorizer.is_authorized_simple("alice", "list", "/").await.unwrap());
-        assert!(authorizer.is_authorized_simple("alice", "admin", "/file.txt").await.unwrap());
-        assert!(authorizer.is_authorized_simple("anonymous", "read", "/file.txt").await.unwrap());
+        assert!(
+            authorizer
+                .is_authorized_simple("alice", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
+        assert!(
+            authorizer
+                .is_authorized_simple("alice", "write", "/file.txt")
+                .await
+                .unwrap()
+        );
+        assert!(
+            authorizer
+                .is_authorized_simple("alice", "delete", "/file.txt")
+                .await
+                .unwrap()
+        );
+        assert!(
+            authorizer
+                .is_authorized_simple("alice", "list", "/")
+                .await
+                .unwrap()
+        );
+        assert!(
+            authorizer
+                .is_authorized_simple("alice", "admin", "/file.txt")
+                .await
+                .unwrap()
+        );
+        assert!(
+            authorizer
+                .is_authorized_simple("anonymous", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
     }
 
     #[tokio::test]
@@ -277,16 +302,39 @@ mod tests {
                 resource
             );
         "#;
-        authorizer.load_policies(&[restrictive.to_string()]).await.unwrap();
+        authorizer
+            .load_policies(&[restrictive.to_string()])
+            .await
+            .unwrap();
 
         // alice can read (explicit permit)
-        assert!(authorizer.is_authorized_simple("alice", "read", "/file.txt").await.unwrap());
+        assert!(
+            authorizer
+                .is_authorized_simple("alice", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
         // bob is denied (no matching permit)
-        assert!(!authorizer.is_authorized_simple("bob", "read", "/file.txt").await.unwrap());
+        assert!(
+            !authorizer
+                .is_authorized_simple("bob", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
         // alice can't write (no permit for write)
-        assert!(!authorizer.is_authorized_simple("alice", "write", "/file.txt").await.unwrap());
+        assert!(
+            !authorizer
+                .is_authorized_simple("alice", "write", "/file.txt")
+                .await
+                .unwrap()
+        );
         // anonymous is denied
-        assert!(!authorizer.is_authorized_simple("anonymous", "read", "/file.txt").await.unwrap());
+        assert!(
+            !authorizer
+                .is_authorized_simple("anonymous", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
     }
 
     #[test]

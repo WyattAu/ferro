@@ -1,9 +1,9 @@
 use leptos::*;
 
 use crate::components::clipboard::provide_clipboard_state;
-use crate::components::command_palette::{provide_command_palette_state, CommandPalette};
+use crate::components::command_palette::{CommandPalette, provide_command_palette_state};
 use crate::components::file_browser::FileBrowser;
-use crate::components::header::{provide_header_state, Header};
+use crate::components::header::{Header, provide_header_state};
 use crate::components::theme_toggle::provide_theme_state;
 
 #[component]

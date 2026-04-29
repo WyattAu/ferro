@@ -3,8 +3,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// Query parameters for presigned URL generation.
 #[derive(Debug, Deserialize)]
@@ -25,13 +25,20 @@ pub async fn get_upload_url(
 ) -> Response {
     match &state.presigned_generator {
         Some(generator) => {
-            match generator.generate_put_url(&params.path, params.expires).await {
-                Ok(url) => (StatusCode::OK, axum::Json(serde_json::json!({
-                    "url": url.as_str(),
-                    "method": "PUT",
-                    "expires_in": params.expires,
-                    "path": params.path,
-                }))).into_response(),
+            match generator
+                .generate_put_url(&params.path, params.expires)
+                .await
+            {
+                Ok(url) => (
+                    StatusCode::OK,
+                    axum::Json(serde_json::json!({
+                        "url": url.as_str(),
+                        "method": "PUT",
+                        "expires_in": params.expires,
+                        "path": params.path,
+                    })),
+                )
+                    .into_response(),
                 Err(e) => ApiError::with_details(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ApiError::INTERNAL_ERROR,
@@ -51,13 +58,20 @@ pub async fn get_download_url(
 ) -> Response {
     match &state.presigned_generator {
         Some(generator) => {
-            match generator.generate_get_url(&params.path, params.expires).await {
-                Ok(url) => (StatusCode::OK, axum::Json(serde_json::json!({
-                    "url": url.as_str(),
-                    "method": "GET",
-                    "expires_in": params.expires,
-                    "path": params.path,
-                }))).into_response(),
+            match generator
+                .generate_get_url(&params.path, params.expires)
+                .await
+            {
+                Ok(url) => (
+                    StatusCode::OK,
+                    axum::Json(serde_json::json!({
+                        "url": url.as_str(),
+                        "method": "GET",
+                        "expires_in": params.expires,
+                        "path": params.path,
+                    })),
+                )
+                    .into_response(),
                 Err(e) => ApiError::with_details(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ApiError::INTERNAL_ERROR,

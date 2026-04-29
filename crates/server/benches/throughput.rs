@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use tokio::runtime::Runtime;
 
 mod helpers;
@@ -16,24 +16,20 @@ fn bench_upload_throughput(c: &mut Criterion) {
         let body = generate_test_body(*size);
 
         // Sequential upload
-        group
-            .bench_with_input(BenchmarkId::new("sequential", label), size, |b, _| {
-                b.iter(|| {
-                    rt.block_on(async {
-                        let state = create_test_app_state();
-                        let app = create_test_router(state);
-                        make_request(&app, "PUT", "/bench.txt", body.clone()).await;
-                    })
+        group.bench_with_input(BenchmarkId::new("sequential", label), size, |b, _| {
+            b.iter(|| {
+                rt.block_on(async {
+                    let state = create_test_app_state();
+                    let app = create_test_router(state);
+                    make_request(&app, "PUT", "/bench.txt", body.clone()).await;
                 })
-            });
+            })
+        });
 
         // Concurrent uploads (1KB and 1MB only — 10MB concurrent would be too slow)
         if *size <= 1024 * 1024 {
             for &clients in &[10usize, 50, 100] {
-                let bench_id = BenchmarkId::new(
-                    format!("concurrent_{}clients", clients),
-                    label,
-                );
+                let bench_id = BenchmarkId::new(format!("concurrent_{}clients", clients), label);
                 group.bench_with_input(bench_id, &(size, clients), |b, _| {
                     b.iter(|| {
                         rt.block_on(async {
@@ -75,36 +71,27 @@ fn bench_download_throughput(c: &mut Criterion) {
 
     for (size, label) in sizes.iter().zip(size_labels.iter()) {
         // Sequential download
-        group
-            .bench_with_input(BenchmarkId::new("sequential", label), size, |b, &size| {
-                b.iter(|| {
-                    rt.block_on(async {
-                        let state = create_test_app_state();
-                        create_test_file(&state, "/bench.txt", size).await;
-                        let app = create_test_router(state);
-                        make_request(&app, "GET", "/bench.txt", Bytes::new()).await;
-                    })
+        group.bench_with_input(BenchmarkId::new("sequential", label), size, |b, &size| {
+            b.iter(|| {
+                rt.block_on(async {
+                    let state = create_test_app_state();
+                    create_test_file(&state, "/bench.txt", size).await;
+                    let app = create_test_router(state);
+                    make_request(&app, "GET", "/bench.txt", Bytes::new()).await;
                 })
-            });
+            })
+        });
 
         // Concurrent downloads (1KB and 1MB only)
         if *size <= 1024 * 1024 {
             for &clients in &[10usize, 50, 100] {
-                let bench_id = BenchmarkId::new(
-                    format!("concurrent_{}clients", clients),
-                    label,
-                );
+                let bench_id = BenchmarkId::new(format!("concurrent_{}clients", clients), label);
                 group.bench_with_input(bench_id, &(size, clients), |b, &(size, clients)| {
                     b.iter(|| {
                         rt.block_on(async {
                             let state = create_test_app_state();
-                                for i in 0..clients {
-                                    create_test_file(
-                                        &state,
-                                        &format!("/bench_{}.txt", i),
-                                        *size,
-                                    )
-                                    .await;
+                            for i in 0..clients {
+                                create_test_file(&state, &format!("/bench_{}.txt", i), *size).await;
                             }
                             let app = create_test_router(state);
                             let mut handles = Vec::with_capacity(clients);
@@ -133,9 +120,5 @@ fn bench_download_throughput(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
-    benches,
-    bench_upload_throughput,
-    bench_download_throughput
-);
+criterion_group!(benches, bench_upload_throughput, bench_download_throughput);
 criterion_main!(benches);

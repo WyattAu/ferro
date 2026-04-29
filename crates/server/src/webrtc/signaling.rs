@@ -38,7 +38,10 @@ pub async fn create_offer(
     let watch_url = format!("/api/webrtc/offer/{}", session_id);
     (
         StatusCode::OK,
-        axum::Json(CreateOfferResponse { session_id, watch_url }),
+        axum::Json(CreateOfferResponse {
+            session_id,
+            watch_url,
+        }),
     )
         .into_response()
 }
@@ -95,7 +98,10 @@ pub async fn add_ice_candidate(
     Path(session_id): Path<String>,
     axum::Json(req): axum::Json<IceRequest>,
 ) -> Response {
-    if state.webrtc_offers.add_ice_candidate(&session_id, req.candidate) {
+    if state
+        .webrtc_offers
+        .add_ice_candidate(&session_id, req.candidate)
+    {
         StatusCode::OK.into_response()
     } else {
         StatusCode::NOT_FOUND.into_response()

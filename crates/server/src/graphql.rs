@@ -19,11 +19,7 @@ impl Query {
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
         let limit = limit.unwrap_or(100).min(1000) as usize;
-        Ok(files
-            .into_iter()
-            .take(limit)
-            .map(FileItem::from)
-            .collect())
+        Ok(files.into_iter().take(limit).map(FileItem::from).collect())
     }
 
     async fn file(
@@ -90,11 +86,7 @@ impl Mutation {
         Ok(FileItem::from(meta))
     }
 
-    async fn delete_file(
-        &self,
-        ctx: &Context<'_>,
-        path: String,
-    ) -> async_graphql::Result<bool> {
+    async fn delete_file(&self, ctx: &Context<'_>, path: String) -> async_graphql::Result<bool> {
         let state = ctx.data::<crate::AppState>().unwrap();
         state
             .storage

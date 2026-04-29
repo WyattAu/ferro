@@ -1,1 +1,1 @@
-pub use crate::search::{handle_get_preferences, handle_update_preferences, UserPreferences};
+pub use crate::search::{UserPreferences, handle_get_preferences, handle_update_preferences};

@@ -235,8 +235,7 @@ impl CalendarStore for InMemoryCalendarStore {
                     if c.name == "VCALENDAR" {
                         c.children.iter().find_map(|child| {
                             if child.name == "VEVENT" || child.name == "VTODO" {
-                                crate::ical::get_first_prop(child, "UID")
-                                    .map(|p| p.value.clone())
+                                crate::ical::get_first_prop(child, "UID").map(|p| p.value.clone())
                             } else {
                                 None
                             }
@@ -293,7 +292,10 @@ impl CalendarStore for InMemoryCalendarStore {
                 event.ical_data = ical.to_string();
                 event.etag = etag.clone();
                 event.updated_at = now;
-                entry.value().events.insert(event_uid.to_string(), event.clone());
+                entry
+                    .value()
+                    .events
+                    .insert(event_uid.to_string(), event.clone());
                 return Ok(event);
             }
         }
@@ -509,10 +511,7 @@ impl AddressBookStore for InMemoryAddressBookStore {
                 if entry.value().contacts.contains_key(&uid) {
                     return Err(StoreError("Contact already exists".to_string()));
                 }
-                entry
-                    .value()
-                    .contacts
-                    .insert(uid.clone(), contact.clone());
+                entry.value().contacts.insert(uid.clone(), contact.clone());
                 return Ok(contact);
             }
         }

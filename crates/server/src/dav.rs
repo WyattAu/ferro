@@ -1,7 +1,7 @@
+use axum::Extension;
 use axum::body::Bytes;
 use axum::extract::{Path, State};
 use axum::response::{IntoResponse, Response};
-use axum::Extension;
 
 use crate::AppState;
 
@@ -28,7 +28,8 @@ pub async fn caldav_list(State(state): State<AppState>) -> Response {
 }
 
 pub async fn caldav_create(State(state): State<AppState>) -> Response {
-    ferro_dav::caldav::create_calendar_handler(axum::extract::State(caldav_state(&state).await)).await
+    ferro_dav::caldav::create_calendar_handler(axum::extract::State(caldav_state(&state).await))
+        .await
 }
 
 pub async fn caldav_delete(
@@ -42,10 +43,7 @@ pub async fn caldav_delete(
     .await
 }
 
-pub async fn caldav_props(
-    State(state): State<AppState>,
-    Path(calendar): Path<String>,
-) -> Response {
+pub async fn caldav_props(State(state): State<AppState>, Path(calendar): Path<String>) -> Response {
     ferro_dav::caldav::calendar_properties(
         axum::extract::State(caldav_state(&state).await),
         Path(calendar),
@@ -93,10 +91,7 @@ pub async fn carddav_options() -> impl IntoResponse {
 }
 
 pub async fn carddav_list(State(state): State<AppState>) -> Response {
-    ferro_dav::carddav::list_address_books(axum::extract::State(
-        carddav_state(&state).await,
-    ))
-    .await
+    ferro_dav::carddav::list_address_books(axum::extract::State(carddav_state(&state).await)).await
 }
 
 pub async fn carddav_create(State(state): State<AppState>) -> Response {
@@ -106,10 +101,7 @@ pub async fn carddav_create(State(state): State<AppState>) -> Response {
     .await
 }
 
-pub async fn carddav_delete(
-    State(state): State<AppState>,
-    Path(book): Path<String>,
-) -> Response {
+pub async fn carddav_delete(State(state): State<AppState>, Path(book): Path<String>) -> Response {
     ferro_dav::carddav::delete_address_book_handler(
         axum::extract::State(carddav_state(&state).await),
         Path(book),
@@ -117,10 +109,7 @@ pub async fn carddav_delete(
     .await
 }
 
-pub async fn carddav_props(
-    State(state): State<AppState>,
-    Path(book): Path<String>,
-) -> Response {
+pub async fn carddav_props(State(state): State<AppState>, Path(book): Path<String>) -> Response {
     ferro_dav::carddav::address_book_properties(
         axum::extract::State(carddav_state(&state).await),
         Path(book),

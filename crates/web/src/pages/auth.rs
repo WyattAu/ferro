@@ -7,10 +7,7 @@ fn parse_query_string(search: &str) -> std::collections::HashMap<String, String>
     let query = search.trim_start_matches('?');
     for pair in query.split('&') {
         if let Some((key, value)) = pair.split_once('=') {
-            map.insert(
-                urlencoding_decode(key),
-                urlencoding_decode(value),
-            );
+            map.insert(urlencoding_decode(key), urlencoding_decode(value));
         }
     }
     map

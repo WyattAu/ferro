@@ -1,10 +1,10 @@
 use ferro_common::error::{FerroError, Result};
 use ferro_common::metadata::FileMetadata;
+use std::path::Path;
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
-use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy, DocAddress, Score};
-use std::path::Path;
+use tantivy::{DocAddress, Index, IndexReader, IndexWriter, ReloadPolicy, Score};
 use tracing::{debug, info};
 
 /// Full-text search engine backed by Tantivy.
@@ -46,7 +46,8 @@ impl SearchEngine {
         let index = Index::create_in_dir(index_path, schema.clone())
             .map_err(|e| FerroError::Internal(format!("Failed to create search index: {}", e)))?;
 
-        let writer = index.writer(50_000_000)
+        let writer = index
+            .writer(50_000_000)
             .map_err(|e| FerroError::Internal(format!("Failed to create index writer: {}", e)))?;
 
         let reader = index
@@ -77,20 +78,27 @@ impl SearchEngine {
             .map_err(|e| FerroError::Internal(format!("Failed to open search index: {}", e)))?;
 
         let schema = index.schema();
-        let path_field = schema.get_field("path")
+        let path_field = schema
+            .get_field("path")
             .map_err(|_| FerroError::Internal("Missing 'path' field in schema".to_string()))?;
-        let path_id_field = schema.get_field("path_id")
+        let path_id_field = schema
+            .get_field("path_id")
             .map_err(|_| FerroError::Internal("Missing 'path_id' field in schema".to_string()))?;
-        let content_field = schema.get_field("content")
+        let content_field = schema
+            .get_field("content")
             .map_err(|_| FerroError::Internal("Missing 'content' field in schema".to_string()))?;
-        let name_field = schema.get_field("name")
+        let name_field = schema
+            .get_field("name")
             .map_err(|_| FerroError::Internal("Missing 'name' field in schema".to_string()))?;
-        let mime_field = schema.get_field("mime_type")
+        let mime_field = schema
+            .get_field("mime_type")
             .map_err(|_| FerroError::Internal("Missing 'mime_type' field in schema".to_string()))?;
-        let owner_field = schema.get_field("owner")
+        let owner_field = schema
+            .get_field("owner")
             .map_err(|_| FerroError::Internal("Missing 'owner' field in schema".to_string()))?;
 
-        let writer = index.writer(50_000_000)
+        let writer = index
+            .writer(50_000_000)
             .map_err(|e| FerroError::Internal(format!("Failed to create index writer: {}", e)))?;
 
         let reader = index
@@ -124,7 +132,8 @@ impl SearchEngine {
         doc.add_text(self.mime_field, &metadata.mime_type);
         doc.add_text(self.owner_field, &metadata.owner);
 
-        self.writer.add_document(doc)
+        self.writer
+            .add_document(doc)
             .map_err(|e| FerroError::Internal(format!("Failed to index document: {}", e)))?;
 
         debug!("Indexed metadata for: {}", metadata.path);
@@ -143,10 +152,15 @@ impl SearchEngine {
         doc.add_text(self.owner_field, &metadata.owner);
         doc.add_text(self.content_field, content);
 
-        self.writer.add_document(doc)
+        self.writer
+            .add_document(doc)
             .map_err(|e| FerroError::Internal(format!("Failed to index content: {}", e)))?;
 
-        debug!("Indexed content for: {} ({} bytes)", metadata.path, content.len());
+        debug!(
+            "Indexed content for: {} ({} bytes)",
+            metadata.path,
+            content.len()
+        );
         Ok(())
     }
 
@@ -160,9 +174,11 @@ impl SearchEngine {
 
     /// Commit pending index changes and reload the reader.
     pub fn commit(&mut self) -> Result<()> {
-        self.writer.commit()
+        self.writer
+            .commit()
             .map_err(|e| FerroError::Internal(format!("Failed to commit index: {}", e)))?;
-        self.reader.reload()
+        self.reader
+            .reload()
             .map_err(|e| FerroError::Internal(format!("Failed to reload reader: {}", e)))?;
         Ok(())
     }
@@ -171,18 +187,24 @@ impl SearchEngine {
     pub fn search(&self, query_str: &str, limit: usize) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
 
-        let query_parser = QueryParser::for_index(&self.index, vec![self.content_field, self.name_field, self.path_field]);
-        let query = query_parser.parse_query(query_str)
+        let query_parser = QueryParser::for_index(
+            &self.index,
+            vec![self.content_field, self.name_field, self.path_field],
+        );
+        let query = query_parser
+            .parse_query(query_str)
             .map_err(|e| FerroError::Internal(format!("Query parse error: {}", e)))?;
 
-        let top_docs: Vec<(Score, DocAddress)> = searcher.search(&query, &TopDocs::with_limit(limit))
+        let top_docs: Vec<(Score, DocAddress)> = searcher
+            .search(&query, &TopDocs::with_limit(limit))
             .map_err(|e| FerroError::Internal(format!("Search failed: {}", e)))?;
 
         let results: Vec<SearchResult> = top_docs
             .into_iter()
             .map(|(score, doc_addr)| {
                 let doc: TantivyDocument = searcher.doc(doc_addr).unwrap_or_default();
-                let path = doc.get_first(self.path_field)
+                let path = doc
+                    .get_first(self.path_field)
                     .and_then(|v| match v {
                         OwnedValue::Str(s) => Some(s.as_str()),
                         _ => None,
@@ -193,7 +215,8 @@ impl SearchEngine {
                 SearchResult {
                     path,
                     score: score as f64,
-                    snippet: doc.get_first(self.content_field)
+                    snippet: doc
+                        .get_first(self.content_field)
                         .and_then(|v| match v {
                             OwnedValue::Str(s) => Some(s.as_str()),
                             _ => None,
@@ -211,8 +234,8 @@ impl SearchEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use ferro_common::metadata::ContentHash;
+    use tempfile::TempDir;
 
     fn make_search_engine() -> (SearchEngine, TempDir) {
         let tmp = TempDir::new().unwrap();
@@ -248,7 +271,9 @@ mod tests {
         let (mut engine, _tmp) = make_search_engine();
 
         let meta = make_metadata("/docs/readme.txt");
-        engine.index_content(&meta, "Ferro is a high-performance storage orchestrator").unwrap();
+        engine
+            .index_content(&meta, "Ferro is a high-performance storage orchestrator")
+            .unwrap();
         engine.commit().unwrap();
 
         let results = engine.search("storage orchestrator", 10).unwrap();

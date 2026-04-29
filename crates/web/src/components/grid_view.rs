@@ -1,7 +1,7 @@
 use leptos::*;
 
 use crate::api::FileEntry;
-use crate::components::file_icon::{file_type_from_extension, FileIcon, FileType};
+use crate::components::file_icon::{FileIcon, FileType, file_type_from_extension};
 
 fn format_size(bytes: u64) -> String {
     const KB: u64 = 1024;
@@ -30,22 +30,15 @@ pub fn GridCard(
     on_preview: Callback<String>,
     is_favorited: bool,
     on_toggle_favorite: Callback<String>,
-    #[prop(default = false)]
-    show_checkbox: bool,
-    #[prop(default = false)]
-    is_selected: bool,
+    #[prop(default = false)] show_checkbox: bool,
+    #[prop(default = false)] is_selected: bool,
     #[prop(default = Callback::new(move |_: (String, usize, bool, bool)| {}))]
     on_toggle_select: Callback<(String, usize, bool, bool)>,
-    #[prop(default = Callback::new(move |_: String| {}))]
-    on_copy: Callback<String>,
-    #[prop(default = Callback::new(move |_: String| {}))]
-    on_move: Callback<String>,
-    #[prop(default = false)]
-    is_locked: bool,
-    #[prop(default = String::new())]
-    lock_owner: String,
-    #[prop(default = String::new())]
-    lock_expires: String,
+    #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
+    #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
+    #[prop(default = false)] is_locked: bool,
+    #[prop(default = String::new())] lock_owner: String,
+    #[prop(default = String::new())] lock_expires: String,
 ) -> impl IntoView {
     let file_type = if entry.is_collection {
         FileType::Folder

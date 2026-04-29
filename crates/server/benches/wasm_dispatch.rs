@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use ferro_core::wasm::{WasmWorkerRuntime, WorkerConfig, WorkerEvent};
 use tokio::runtime::Runtime;
 
@@ -58,9 +58,7 @@ fn bench_wasm_dispatch(c: &mut Criterion) {
 
                 b.iter(|| {
                     rt.block_on(async {
-                        let matches = runtime
-                            .find_matching_workers("/documents/report.pdf")
-                            .await;
+                        let matches = runtime.find_matching_workers("/documents/report.pdf").await;
                         black_box(matches);
                     })
                 })

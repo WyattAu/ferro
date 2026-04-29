@@ -2,14 +2,14 @@ use async_trait::async_trait;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{Duration, Utc};
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 const MAX_SHARE_LINKS: usize = 10_000;
 
@@ -104,7 +104,11 @@ impl ShareStoreTrait for ShareStore {
 
     async fn list(&self) -> Vec<ShareLink> {
         let links = self.links.read().await;
-        links.iter().filter(|l| l.expires_at > Utc::now()).cloned().collect()
+        links
+            .iter()
+            .filter(|l| l.expires_at > Utc::now())
+            .cloned()
+            .collect()
     }
 
     async fn increment_download(&self, token: &str) -> bool {
@@ -130,37 +134,45 @@ pub async fn create_share(
     axum::Json(req): axum::Json<CreateShareRequest>,
 ) -> Response {
     let link = state.share_store.create(req, "anonymous".to_string()).await;
-    (StatusCode::CREATED, axum::Json(serde_json::json!({
-        "token": link.token,
-        "url": format!("/s/{}", link.token),
-        "path": link.path,
-        "expires_at": link.expires_at.to_rfc3339(),
-        "max_downloads": link.max_downloads,
-    }))).into_response()
+    (
+        StatusCode::CREATED,
+        axum::Json(serde_json::json!({
+            "token": link.token,
+            "url": format!("/s/{}", link.token),
+            "path": link.path,
+            "expires_at": link.expires_at.to_rfc3339(),
+            "max_downloads": link.max_downloads,
+        })),
+    )
+        .into_response()
 }
 
 /// List all active share links.
 pub async fn list_shares(State(state): State<AppState>) -> Response {
     let links: Vec<ShareLink> = state.share_store.list().await;
-    let items: Vec<serde_json::Value> = links.iter().map(|l| {
-        serde_json::json!({
-            "token": l.token,
-            "url": format!("/s/{}", l.token),
-            "path": l.path,
-            "expires_at": l.expires_at.to_rfc3339(),
-            "max_downloads": l.max_downloads,
-            "download_count": l.download_count,
-            "created_by": l.created_by,
+    let items: Vec<serde_json::Value> = links
+        .iter()
+        .map(|l| {
+            serde_json::json!({
+                "token": l.token,
+                "url": format!("/s/{}", l.token),
+                "path": l.path,
+                "expires_at": l.expires_at.to_rfc3339(),
+                "max_downloads": l.max_downloads,
+                "download_count": l.download_count,
+                "created_by": l.created_by,
+            })
         })
-    }).collect();
-    (StatusCode::OK, axum::Json(serde_json::json!({ "shares": items }))).into_response()
+        .collect();
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "shares": items })),
+    )
+        .into_response()
 }
 
 /// Delete a share link by token.
-pub async fn delete_share(
-    State(state): State<AppState>,
-    Path(token): Path<String>,
-) -> Response {
+pub async fn delete_share(State(state): State<AppState>, Path(token): Path<String>) -> Response {
     if state.share_store.delete(&token).await {
         (StatusCode::NO_CONTENT, "").into_response()
     } else {
@@ -195,7 +207,10 @@ pub async fn serve_share(
         match provided_password {
             Some(pw) if constant_time_eq(pw, required_password) => {}
             Some(_) => {
-                return ApiError::unauthorized(ApiError::SHARE_PASSWORD_INVALID, "Invalid password");
+                return ApiError::unauthorized(
+                    ApiError::SHARE_PASSWORD_INVALID,
+                    "Invalid password",
+                );
             }
             None => {
                 return ApiError::with_details(
@@ -221,9 +236,26 @@ pub async fn serve_share(
     state.share_store.increment_download(&token).await;
 
     let mut headers = axum::http::HeaderMap::new();
-    headers.insert("Content-Type", axum::http::HeaderValue::from_str(&meta.mime_type).unwrap_or_else(|_| axum::http::HeaderValue::from_static("application/octet-stream")));
-    headers.insert("Content-Length", axum::http::HeaderValue::from_str(&meta.size.to_string()).unwrap_or_else(|_| axum::http::HeaderValue::from_static("0")));
-    headers.insert("Content-Disposition", axum::http::HeaderValue::from_str(&format!("attachment; filename=\"{}\"", link.path.rsplit('/').next().unwrap_or("download"))).unwrap_or_else(|_| axum::http::HeaderValue::from_static("attachment; filename=\"download\"")));
+    headers.insert(
+        "Content-Type",
+        axum::http::HeaderValue::from_str(&meta.mime_type)
+            .unwrap_or_else(|_| axum::http::HeaderValue::from_static("application/octet-stream")),
+    );
+    headers.insert(
+        "Content-Length",
+        axum::http::HeaderValue::from_str(&meta.size.to_string())
+            .unwrap_or_else(|_| axum::http::HeaderValue::from_static("0")),
+    );
+    headers.insert(
+        "Content-Disposition",
+        axum::http::HeaderValue::from_str(&format!(
+            "attachment; filename=\"{}\"",
+            link.path.rsplit('/').next().unwrap_or("download")
+        ))
+        .unwrap_or_else(|_| {
+            axum::http::HeaderValue::from_static("attachment; filename=\"download\"")
+        }),
+    );
 
     let stream = tokio_util::io::ReaderStream::new(reader);
     let body = axum::body::Body::from_stream(stream);

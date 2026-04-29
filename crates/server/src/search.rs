@@ -4,8 +4,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 pub async fn handle_search(
     State(state): State<AppState>,
@@ -42,7 +42,9 @@ pub async fn handle_search(
                         match sort.as_str() {
                             "name" => {
                                 items.sort_by(|a, b| {
-                                    a.get("name").and_then(|v| v.as_str()).unwrap_or("")
+                                    a.get("name")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
                                         .cmp(b.get("name").and_then(|v| v.as_str()).unwrap_or(""))
                                 });
                             }
@@ -258,7 +260,11 @@ pub async fn handle_list_locks(State(state): State<AppState>) -> Response {
             expires_at,
         });
     }
-    (StatusCode::OK, axum::Json(serde_json::json!({ "locks": lock_responses }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "locks": lock_responses })),
+    )
+        .into_response()
 }
 
 pub async fn handle_unlock_by_token(
@@ -266,7 +272,11 @@ pub async fn handle_unlock_by_token(
     Path(token): Path<String>,
 ) -> Response {
     match state.lock_manager.release_lock(&token).await {
-        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "released": true }))).into_response(),
+        Ok(()) => (
+            StatusCode::OK,
+            axum::Json(serde_json::json!({ "released": true })),
+        )
+            .into_response(),
         Err(e) => ApiError::not_found(ApiError::NOT_FOUND, format!("Lock not found: {}", e)),
     }
 }
@@ -283,13 +293,18 @@ pub async fn handle_force_unlock(
     if let Some(lock) = state.lock_manager.check_lock(path).await {
         let token = lock.token.as_str().to_string();
         match state.lock_manager.release_lock(&token).await {
-            Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({
-                "unlocked": true,
-                "path": path,
-                "token": token,
-            })))
-            .into_response(),
-            Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to unlock: {}", e)),
+            Ok(()) => (
+                StatusCode::OK,
+                axum::Json(serde_json::json!({
+                    "unlocked": true,
+                    "path": path,
+                    "token": token,
+                })),
+            )
+                .into_response(),
+            Err(e) => {
+                ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to unlock: {}", e))
+            }
         }
     } else {
         ApiError::not_found(ApiError::NOT_FOUND, format!("No active lock on {}", path))
@@ -298,7 +313,11 @@ pub async fn handle_force_unlock(
 
 pub async fn handle_get_preferences(State(state): State<AppState>) -> Response {
     let prefs = state.preferences.get().await;
-    (StatusCode::OK, axum::Json(serde_json::to_value(prefs).unwrap_or_default())).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::to_value(prefs).unwrap_or_default()),
+    )
+        .into_response()
 }
 
 pub async fn handle_update_preferences(
@@ -306,7 +325,11 @@ pub async fn handle_update_preferences(
     axum::Json(body): axum::Json<serde_json::Value>,
 ) -> Response {
     let prefs = state.preferences.update(body).await;
-    (StatusCode::OK, axum::Json(serde_json::to_value(prefs).unwrap_or_default())).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::to_value(prefs).unwrap_or_default()),
+    )
+        .into_response()
 }
 
 #[cfg(test)]

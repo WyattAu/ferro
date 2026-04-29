@@ -1,15 +1,14 @@
 use tauri::{
+    Manager,
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    Manager,
 };
 
 use ferro_desktop::commands::DesktopState;
 use ferro_desktop::config::DesktopConfig;
 use ferro_desktop::tauri_commands::{
-    cmd_default_mount_point, cmd_get_config, cmd_get_mount_progress,
-    cmd_get_mount_status, cmd_mount, cmd_open_path, cmd_save_config,
-    cmd_show_notification, cmd_unmount,
+    cmd_default_mount_point, cmd_get_config, cmd_get_mount_progress, cmd_get_mount_status,
+    cmd_mount, cmd_open_path, cmd_save_config, cmd_show_notification, cmd_unmount,
 };
 
 #[tauri::command]

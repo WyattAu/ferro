@@ -12,22 +12,15 @@ pub fn FileRow(
     on_preview: Callback<String>,
     is_favorited: bool,
     on_toggle_favorite: Callback<String>,
-    #[prop(default = false)]
-    show_checkbox: bool,
-    #[prop(default = false)]
-    is_selected: bool,
+    #[prop(default = false)] show_checkbox: bool,
+    #[prop(default = false)] is_selected: bool,
     #[prop(default = Callback::new(move |_: (String, usize, bool, bool)| {}))]
     on_toggle_select: Callback<(String, usize, bool, bool)>,
-    #[prop(default = Callback::new(move |_: String| {}))]
-    on_copy: Callback<String>,
-    #[prop(default = Callback::new(move |_: String| {}))]
-    on_move: Callback<String>,
-    #[prop(default = false)]
-    is_locked: bool,
-    #[prop(default = String::new())]
-    lock_owner: String,
-    #[prop(default = String::new())]
-    lock_expires: String,
+    #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
+    #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
+    #[prop(default = false)] is_locked: bool,
+    #[prop(default = String::new())] lock_owner: String,
+    #[prop(default = String::new())] lock_expires: String,
 ) -> impl IntoView {
     let icon = if entry.is_collection {
         view! {

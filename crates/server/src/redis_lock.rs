@@ -6,7 +6,7 @@ use redis::aio::ConnectionManager;
 use std::time::Duration;
 use tracing::debug;
 
-use crate::lock::{parent_path, LockManagerTrait};
+use crate::lock::{LockManagerTrait, parent_path};
 
 const DEFAULT_TIMEOUT_SECS: u32 = 86400;
 const REDIS_OP_TIMEOUT: Duration = Duration::from_secs(5);
@@ -43,10 +43,12 @@ impl RedisLockManager {
 
     async fn get_lock_info(&self, path: &str) -> Option<LockInfo> {
         let key = Self::lock_key(path);
-        let result: Vec<(String, String)> = tokio::time::timeout(
-            REDIS_OP_TIMEOUT,
-            async { redis::cmd("HGETALL").arg(&key).query_async(&mut self.client.clone()).await },
-        )
+        let result: Vec<(String, String)> = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+            redis::cmd("HGETALL")
+                .arg(&key)
+                .query_async(&mut self.client.clone())
+                .await
+        })
         .await
         .ok()?
         .ok()?;
@@ -56,7 +58,10 @@ impl RedisLockManager {
         }
 
         let get = |name: &str| -> Option<String> {
-            result.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone())
+            result
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v.clone())
         };
 
         let token_str = get("token")?;
@@ -78,8 +83,12 @@ impl RedisLockManager {
             .map(|dt| dt.with_timezone(&Utc))
             .unwrap_or_else(Utc::now);
 
-        let timeout_seconds: u32 = get("timeout_seconds").and_then(|s| s.parse().ok()).unwrap_or(60);
-        let refresh_count: u32 = get("refresh_count").and_then(|s| s.parse().ok()).unwrap_or(0);
+        let timeout_seconds: u32 = get("timeout_seconds")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(60);
+        let refresh_count: u32 = get("refresh_count")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
 
         Some(LockInfo {
             token,
@@ -103,25 +112,38 @@ impl RedisLockManager {
         let mut pipe = redis::pipe();
         pipe.cmd("HSET")
             .arg(&key)
-            .arg("token").arg(lock.token.as_str())
-            .arg("path").arg(&lock.path)
-            .arg("principal").arg(&lock.principal)
-            .arg("scope").arg(format!("{:?}", lock.scope))
-            .arg("depth").arg(format!("{:?}", lock.depth))
-            .arg("lock_type").arg(format!("{:?}", lock.lock_type))
-            .arg("timeout_seconds").arg(lock.timeout_seconds)
-            .arg("created_at").arg(lock.created_at.to_rfc3339())
-            .arg("refresh_count").arg(lock.refresh_count);
+            .arg("token")
+            .arg(lock.token.as_str())
+            .arg("path")
+            .arg(&lock.path)
+            .arg("principal")
+            .arg(&lock.principal)
+            .arg("scope")
+            .arg(format!("{:?}", lock.scope))
+            .arg("depth")
+            .arg(format!("{:?}", lock.depth))
+            .arg("lock_type")
+            .arg(format!("{:?}", lock.lock_type))
+            .arg("timeout_seconds")
+            .arg(lock.timeout_seconds)
+            .arg("created_at")
+            .arg(lock.created_at.to_rfc3339())
+            .arg("refresh_count")
+            .arg(lock.refresh_count);
         pipe.cmd("EXPIRE").arg(&key).arg(ttl);
         pipe.cmd("SET")
-            .arg(&token_index).arg(&lock.path)
-            .arg("EX").arg(ttl)
+            .arg(&token_index)
+            .arg(&lock.path)
+            .arg("EX")
+            .arg(ttl)
             .arg("NX");
 
-        tokio::time::timeout(REDIS_OP_TIMEOUT, async { pipe.query_async::<()>(&mut conn).await })
-            .await
-            .map_err(|_| FerroError::Timeout)?
-            .map_err(|e| FerroError::Internal(format!("Redis HSET failed: {}", e)))?;
+        tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+            pipe.query_async::<()>(&mut conn).await
+        })
+        .await
+        .map_err(|_| FerroError::Timeout)?
+        .map_err(|e| FerroError::Internal(format!("Redis HSET failed: {}", e)))?;
 
         Ok(())
     }
@@ -133,10 +155,12 @@ impl LockManagerTrait for RedisLockManager {
         let lock = self.get_lock_info(path).await?;
         if lock.is_expired() {
             let key = Self::lock_key(path);
-            let _ = tokio::time::timeout(
-                REDIS_OP_TIMEOUT,
-                async { redis::cmd("DEL").arg(&key).query_async::<()>(&mut self.client.clone()).await },
-            )
+            let _ = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+                redis::cmd("DEL")
+                    .arg(&key)
+                    .query_async::<()>(&mut self.client.clone())
+                    .await
+            })
             .await;
             return None;
         }
@@ -165,7 +189,9 @@ impl LockManagerTrait for RedisLockManager {
                 )));
             }
             check_path = parent;
-            if check_path == "/" { break; }
+            if check_path == "/" {
+                break;
+            }
         }
 
         Ok(())
@@ -215,10 +241,12 @@ impl LockManagerTrait for RedisLockManager {
     async fn release_lock(&self, token: &str) -> Result<()> {
         let token_index_key = Self::token_index_key(token);
 
-        let path: Option<String> = tokio::time::timeout(
-            REDIS_OP_TIMEOUT,
-            async { redis::cmd("GET").arg(&token_index_key).query_async(&mut self.client.clone()).await },
-        )
+        let path: Option<String> = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+            redis::cmd("GET")
+                .arg(&token_index_key)
+                .query_async(&mut self.client.clone())
+                .await
+        })
         .await
         .map_err(|_| FerroError::Timeout)?
         .map_err(|e| FerroError::Internal(format!("Redis GET failed: {}", e)))?;
@@ -243,18 +271,23 @@ impl LockManagerTrait for RedisLockManager {
         );
 
         let mut conn = self.client.clone();
-        let deleted: i32 = tokio::time::timeout(
-            REDIS_OP_TIMEOUT,
-            async { script.key(&lock_key).arg(token).invoke_async(&mut conn).await },
-        )
+        let deleted: i32 = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+            script
+                .key(&lock_key)
+                .arg(token)
+                .invoke_async(&mut conn)
+                .await
+        })
         .await
         .map_err(|_| FerroError::Timeout)?
         .map_err(|e| FerroError::Internal(format!("Redis Lua script failed: {}", e)))?;
 
-        let _ = tokio::time::timeout(
-            REDIS_OP_TIMEOUT,
-            async { redis::cmd("DEL").arg(&token_index_key).query_async::<()>(&mut self.client.clone()).await },
-        )
+        let _ = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+            redis::cmd("DEL")
+                .arg(&token_index_key)
+                .query_async::<()>(&mut self.client.clone())
+                .await
+        })
         .await;
 
         if deleted > 0 {
@@ -268,10 +301,12 @@ impl LockManagerTrait for RedisLockManager {
     async fn refresh_lock(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo> {
         let token_index_key = Self::token_index_key(token);
 
-        let path: Option<String> = tokio::time::timeout(
-            REDIS_OP_TIMEOUT,
-            async { redis::cmd("GET").arg(&token_index_key).query_async(&mut self.client.clone()).await },
-        )
+        let path: Option<String> = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+            redis::cmd("GET")
+                .arg(&token_index_key)
+                .query_async(&mut self.client.clone())
+                .await
+        })
         .await
         .map_err(|_| FerroError::Timeout)?
         .map_err(|e| FerroError::Internal(format!("Redis GET failed: {}", e)))?;
@@ -307,9 +342,8 @@ impl LockManagerTrait for RedisLockManager {
         let mut cursor: u64 = 0;
 
         loop {
-            let (new_cursor, keys): (u64, Vec<String>) = match tokio::time::timeout(
-                REDIS_OP_TIMEOUT,
-                async {
+            let (new_cursor, keys): (u64, Vec<String>) =
+                match tokio::time::timeout(REDIS_OP_TIMEOUT, async {
                     redis::cmd("SCAN")
                         .arg(cursor)
                         .arg("MATCH")
@@ -318,13 +352,12 @@ impl LockManagerTrait for RedisLockManager {
                         .arg(100)
                         .query_async(&mut self.client.clone())
                         .await
-                },
-            )
-            .await
-            {
-                Ok(Ok(result)) => result,
-                _ => break,
-            };
+                })
+                .await
+                {
+                    Ok(Ok(result)) => result,
+                    _ => break,
+                };
 
             cursor = new_cursor;
             for key in keys {
@@ -335,7 +368,9 @@ impl LockManagerTrait for RedisLockManager {
                 }
             }
 
-            if cursor == 0 { break; }
+            if cursor == 0 {
+                break;
+            }
         }
 
         locks
@@ -344,10 +379,12 @@ impl LockManagerTrait for RedisLockManager {
 
 impl RedisLockManager {
     async fn get_lock_info_by_key(&self, key: &str) -> Option<LockInfo> {
-        let result: Vec<(String, String)> = tokio::time::timeout(
-            REDIS_OP_TIMEOUT,
-            async { redis::cmd("HGETALL").arg(key).query_async(&mut self.client.clone()).await },
-        )
+        let result: Vec<(String, String)> = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+            redis::cmd("HGETALL")
+                .arg(key)
+                .query_async(&mut self.client.clone())
+                .await
+        })
         .await
         .ok()?
         .ok()?;
@@ -357,7 +394,10 @@ impl RedisLockManager {
         }
 
         let get = |name: &str| -> Option<String> {
-            result.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone())
+            result
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v.clone())
         };
 
         let token_str = get("token")?;
@@ -379,8 +419,12 @@ impl RedisLockManager {
             .map(|dt| dt.with_timezone(&Utc))
             .unwrap_or_else(Utc::now);
 
-        let timeout_seconds: u32 = get("timeout_seconds").and_then(|s| s.parse().ok()).unwrap_or(60);
-        let refresh_count: u32 = get("refresh_count").and_then(|s| s.parse().ok()).unwrap_or(0);
+        let timeout_seconds: u32 = get("timeout_seconds")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(60);
+        let refresh_count: u32 = get("refresh_count")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
 
         Some(LockInfo {
             token,

@@ -44,11 +44,15 @@ pub async fn bulk_delete(
         }
     }
 
-    (StatusCode::OK, axum::Json(serde_json::json!({
-        "succeeded": succeeded,
-        "failed": failed,
-        "total_requested": body.paths.len(),
-    }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "succeeded": succeeded,
+            "failed": failed,
+            "total_requested": body.paths.len(),
+        })),
+    )
+        .into_response()
 }
 
 #[cfg(test)]
@@ -99,10 +103,7 @@ mod tests {
         let resp = bulk_delete(
             State(state.clone()),
             axum::Json(BulkDeleteRequest {
-                paths: vec![
-                    "/exists.txt".to_string(),
-                    "/missing.txt".to_string(),
-                ],
+                paths: vec!["/exists.txt".to_string(), "/missing.txt".to_string()],
             }),
         )
         .await;
@@ -117,9 +118,7 @@ mod tests {
 
         let resp = bulk_delete(
             State(state),
-            axum::Json(BulkDeleteRequest {
-                paths: vec![],
-            }),
+            axum::Json(BulkDeleteRequest { paths: vec![] }),
         )
         .await;
 

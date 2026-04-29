@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use chrono::Utc;
-use common::webdav::{LockDepth, LockInfo, LockScope, LockToken, LockType};
 use common::error::FerroError;
 use common::error::Result;
+use common::webdav::{LockDepth, LockInfo, LockScope, LockToken, LockType};
 use dashmap::DashMap;
 use std::sync::Arc;
 use tracing::{debug, warn};
@@ -176,7 +176,9 @@ impl LockManager {
                 )));
             }
             check_path = parent;
-            if check_path == "/" { break; }
+            if check_path == "/" {
+                break;
+            }
         }
 
         Ok(())
@@ -260,7 +262,9 @@ impl Default for LockManager {
 }
 
 pub(crate) fn parent_path(path: &str) -> Option<&str> {
-    if path == "/" { return None; }
+    if path == "/" {
+        return None;
+    }
     let trimmed = path.trim_end_matches('/');
     match trimmed.rfind('/') {
         Some(0) => Some("/"),
@@ -348,7 +352,9 @@ mod tests {
             )
             .unwrap();
 
-        let refreshed = mgr.refresh_lock_sync(&lock.token.as_str(), Some(120)).unwrap();
+        let refreshed = mgr
+            .refresh_lock_sync(&lock.token.as_str(), Some(120))
+            .unwrap();
         assert_eq!(refreshed.timeout_seconds, 120);
         assert_eq!(refreshed.refresh_count, 1);
     }
@@ -416,9 +422,16 @@ mod tests {
     #[tokio::test]
     async fn test_trait_acquire_and_release() {
         let mgr = LockManager::new();
-        let lock = mgr.acquire_lock(
-            "/test.txt", "user1", LockScope::Exclusive, LockDepth::Zero, None,
-        ).await.unwrap();
+        let lock = mgr
+            .acquire_lock(
+                "/test.txt",
+                "user1",
+                LockScope::Exclusive,
+                LockDepth::Zero,
+                None,
+            )
+            .await
+            .unwrap();
         assert_eq!(mgr.lock_count(), 1);
 
         mgr.release_lock(&lock.token.as_str()).await.unwrap();
@@ -429,8 +442,14 @@ mod tests {
     async fn test_trait_check_lock_for_write() {
         let mgr = LockManager::new();
         mgr.acquire_lock(
-            "/parent", "user1", LockScope::Exclusive, LockDepth::Infinity, None,
-        ).await.unwrap();
+            "/parent",
+            "user1",
+            LockScope::Exclusive,
+            LockDepth::Infinity,
+            None,
+        )
+        .await
+        .unwrap();
 
         assert!(mgr.check_lock_for_write("/parent/child.txt").await.is_err());
     }
@@ -438,8 +457,12 @@ mod tests {
     #[tokio::test]
     async fn test_trait_all_locks() {
         let mgr = LockManager::new();
-        mgr.acquire_lock("/a", "u1", LockScope::Exclusive, LockDepth::Zero, None).await.unwrap();
-        mgr.acquire_lock("/b", "u2", LockScope::Shared, LockDepth::Zero, None).await.unwrap();
+        mgr.acquire_lock("/a", "u1", LockScope::Exclusive, LockDepth::Zero, None)
+            .await
+            .unwrap();
+        mgr.acquire_lock("/b", "u2", LockScope::Shared, LockDepth::Zero, None)
+            .await
+            .unwrap();
 
         let locks = mgr.all_locks().await;
         assert_eq!(locks.len(), 2);

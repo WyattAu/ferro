@@ -6,9 +6,7 @@
 //! Without the feature, they're plain async functions usable in tests and
 //! the CLI-only mode.
 
-use crate::commands::{
-    ConfigResponse, DesktopState, MountStatusResponse, SaveConfigRequest,
-};
+use crate::commands::{ConfigResponse, DesktopState, MountStatusResponse, SaveConfigRequest};
 use crate::rclone::MountProgress;
 
 #[cfg(feature = "tauri")]
@@ -174,7 +172,6 @@ pub async fn standalone_unmount(state: &DesktopState) -> Result<String, String> 
 
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     fn test_default_mount_point() {

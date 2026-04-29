@@ -1,10 +1,10 @@
 use crate::store::DynAddressBookStore;
 use crate::xml_ext::{self, DavProp, DavResponse, PropStat};
+use axum::Extension;
 use axum::body::Bytes;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::Extension;
 
 #[derive(Clone)]
 pub struct CardDavState {
@@ -17,7 +17,9 @@ pub async fn options_handler() -> impl IntoResponse {
     headers.insert("DAV", "1, 2, addressbook".parse().unwrap());
     headers.insert(
         "Allow",
-        "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT".parse().unwrap(),
+        "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT"
+            .parse()
+            .unwrap(),
     );
     (StatusCode::NO_CONTENT, headers)
 }
@@ -35,7 +37,8 @@ pub async fn list_address_books(State(state): State<CardDavState>) -> Response {
                         name: "D:resourcetype".to_string(),
                         namespace: None,
                         value: Some(
-                            "<A:addressbook xmlns:A=\"urn:ietf:params:xml:ns:carddav\"/>".to_string(),
+                            "<A:addressbook xmlns:A=\"urn:ietf:params:xml:ns:carddav\"/>"
+                                .to_string(),
                         ),
                     },
                     DavProp {
@@ -122,7 +125,11 @@ pub async fn delete_address_book_handler(
     State(state): State<CardDavState>,
     Path(book): Path<String>,
 ) -> Response {
-    match state.store.delete_address_book(&state.principal, &book).await {
+    match state
+        .store
+        .delete_address_book(&state.principal, &book)
+        .await
+    {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }

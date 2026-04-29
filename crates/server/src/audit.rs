@@ -37,7 +37,10 @@ impl AuditLog {
     }
 
     /// Add optional SQLite persistence to this audit log.
-    pub fn with_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
+    pub fn with_persistence(
+        mut self,
+        persistence: Arc<ferro_core::persistence::SqlitePersistence>,
+    ) -> Self {
         self.persistence = Some(persistence);
         self
     }
@@ -61,17 +64,19 @@ impl AuditLog {
         }
 
         if let Some(ref p) = self.persistence {
-            let _ = p.log(ferro_core::persistence::PersistedAuditEntry {
-                id: 0,
-                timestamp: entry.timestamp.clone(),
-                method: entry.method.clone(),
-                path: entry.path.clone(),
-                user: entry.user.clone(),
-                status: entry.status,
-                client_ip: entry.client_ip.clone(),
-                user_agent: entry.user_agent.clone(),
-                content_length: entry.content_length,
-            }).await;
+            let _ = p
+                .log(ferro_core::persistence::PersistedAuditEntry {
+                    id: 0,
+                    timestamp: entry.timestamp.clone(),
+                    method: entry.method.clone(),
+                    path: entry.path.clone(),
+                    user: entry.user.clone(),
+                    status: entry.status,
+                    client_ip: entry.client_ip.clone(),
+                    user_agent: entry.user_agent.clone(),
+                    content_length: entry.content_length,
+                })
+                .await;
         }
     }
 
@@ -83,7 +88,15 @@ impl AuditLog {
     /// Return the most recent audit entries.
     pub async fn recent(&self, limit: usize) -> Vec<AuditEntry> {
         let entries = self.entries.read().await;
-        entries.iter().rev().take(limit).cloned().collect::<Vec<_>>().into_iter().rev().collect()
+        entries
+            .iter()
+            .rev()
+            .take(limit)
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect()
     }
 
     /// Return the total number of audit entries.
@@ -104,16 +117,20 @@ impl AuditLog {
     pub async fn recent_with_offset(&self, limit: usize, offset: usize) -> Vec<AuditEntry> {
         if let Some(ref p) = self.persistence {
             let persisted = p.recent(limit).await.unwrap_or_default();
-            persisted.into_iter().skip(offset).map(|e| AuditEntry {
-                timestamp: e.timestamp,
-                method: e.method,
-                path: e.path,
-                user: e.user,
-                status: e.status,
-                client_ip: e.client_ip,
-                user_agent: e.user_agent,
-                content_length: e.content_length,
-            }).collect()
+            persisted
+                .into_iter()
+                .skip(offset)
+                .map(|e| AuditEntry {
+                    timestamp: e.timestamp,
+                    method: e.method,
+                    path: e.path,
+                    user: e.user,
+                    status: e.status,
+                    client_ip: e.client_ip,
+                    user_agent: e.user_agent,
+                    content_length: e.content_length,
+                })
+                .collect()
         } else {
             let entries = self.entries.read().await;
             entries.iter().skip(offset).take(limit).cloned().collect()

@@ -19,7 +19,8 @@ impl PgMetadataStore {
             .await
             .map_err(|e| FerroError::Internal(format!("Failed to connect to PostgreSQL: {}", e)))?;
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS file_metadata (
                 path VARCHAR(4096) PRIMARY KEY,
                 content_hash VARCHAR(64) NOT NULL,
@@ -31,15 +32,18 @@ impl PgMetadataStore {
                 owner VARCHAR(256) NOT NULL DEFAULT 'anonymous',
                 etag VARCHAR(128) NOT NULL DEFAULT ''
             )
-        "#)
+        "#,
+        )
         .execute(&pool)
         .await
         .map_err(|e| FerroError::Internal(format!("Migration failed: {}", e)))?;
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE INDEX IF NOT EXISTS idx_file_metadata_path_prefix
             ON file_metadata (path varchar_pattern_ops)
-        "#)
+        "#,
+        )
         .execute(&pool)
         .await
         .map_err(|e| FerroError::Internal(format!("Index creation failed: {}", e)))?;
@@ -127,13 +131,12 @@ impl MetadataStore for PgMetadataStore {
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {
-        let result: (bool,) = sqlx::query_as(
-            "SELECT EXISTS(SELECT 1 FROM file_metadata WHERE path = $1)"
-        )
-        .bind(path)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| FerroError::Internal(format!("Exists check failed: {}", e)))?;
+        let result: (bool,) =
+            sqlx::query_as("SELECT EXISTS(SELECT 1 FROM file_metadata WHERE path = $1)")
+                .bind(path)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("Exists check failed: {}", e)))?;
 
         Ok(result.0)
     }
@@ -151,7 +154,8 @@ impl SqliteMetadataStore {
             .await
             .map_err(|e| FerroError::Internal(format!("Failed to connect to SQLite: {}", e)))?;
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS file_metadata (
                 path TEXT PRIMARY KEY,
                 content_hash TEXT NOT NULL,
@@ -163,7 +167,8 @@ impl SqliteMetadataStore {
                 owner TEXT NOT NULL DEFAULT 'anonymous',
                 etag TEXT NOT NULL DEFAULT ''
             )
-        "#)
+        "#,
+        )
         .execute(&pool)
         .await
         .map_err(|e| FerroError::Internal(format!("Migration failed: {}", e)))?;
@@ -233,7 +238,11 @@ impl MetadataStore for SqliteMetadataStore {
     }
 
     async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>> {
-        let parent_prefix = if prefix == "/" { "" } else { prefix.trim_end_matches('/') };
+        let parent_prefix = if prefix == "/" {
+            ""
+        } else {
+            prefix.trim_end_matches('/')
+        };
         let pattern = format!("{}%", parent_prefix);
         let exclude_pattern = if parent_prefix.is_empty() {
             "/%/%/%".to_string()
@@ -254,13 +263,12 @@ impl MetadataStore for SqliteMetadataStore {
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {
-        let result: (bool,) = sqlx::query_as(
-            "SELECT EXISTS(SELECT 1 FROM file_metadata WHERE path = ?)"
-        )
-        .bind(path)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| FerroError::Internal(format!("Exists check failed: {}", e)))?;
+        let result: (bool,) =
+            sqlx::query_as("SELECT EXISTS(SELECT 1 FROM file_metadata WHERE path = ?)")
+                .bind(path)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("Exists check failed: {}", e)))?;
 
         Ok(result.0)
     }
@@ -426,26 +434,35 @@ mod tests {
     async fn test_sqlite_list() {
         let store = setup_store().await;
 
-        store.put(FileMetadata::new(
-            "/docs/readme.md".to_string(),
-            ContentHash::new("a".repeat(64)),
-            100,
-            "user".to_string(),
-        )).await.unwrap();
+        store
+            .put(FileMetadata::new(
+                "/docs/readme.md".to_string(),
+                ContentHash::new("a".repeat(64)),
+                100,
+                "user".to_string(),
+            ))
+            .await
+            .unwrap();
 
-        store.put(FileMetadata::new(
-            "/docs/nested/file.txt".to_string(),
-            ContentHash::new("b".repeat(64)),
-            200,
-            "user".to_string(),
-        )).await.unwrap();
+        store
+            .put(FileMetadata::new(
+                "/docs/nested/file.txt".to_string(),
+                ContentHash::new("b".repeat(64)),
+                200,
+                "user".to_string(),
+            ))
+            .await
+            .unwrap();
 
-        store.put(FileMetadata::new(
-            "/other/file.txt".to_string(),
-            ContentHash::new("c".repeat(64)),
-            300,
-            "user".to_string(),
-        )).await.unwrap();
+        store
+            .put(FileMetadata::new(
+                "/other/file.txt".to_string(),
+                ContentHash::new("c".repeat(64)),
+                300,
+                "user".to_string(),
+            ))
+            .await
+            .unwrap();
 
         let items = store.list("/docs").await.unwrap();
         assert_eq!(items.len(), 1);

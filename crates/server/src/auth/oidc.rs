@@ -4,7 +4,7 @@ use axum::middleware::Next;
 use axum::response::Response;
 use common::auth::Claims;
 use common::error::{FerroError, Result};
-use jsonwebtoken::{decode_header, Validation};
+use jsonwebtoken::{Validation, decode_header};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -64,14 +64,23 @@ impl OidcValidator {
     }
 
     /// Store a PKCE session for later callback verification.
-    pub async fn store_pkce_session(&self, state: &str, code_verifier: &str, redirect_uri: &str, callback_url: &str) {
+    pub async fn store_pkce_session(
+        &self,
+        state: &str,
+        code_verifier: &str,
+        redirect_uri: &str,
+        callback_url: &str,
+    ) {
         let mut sessions = self.pkce_sessions.write().await;
-        sessions.insert(state.to_string(), PkceSession {
-            code_verifier: code_verifier.to_string(),
-            redirect_uri: redirect_uri.to_string(),
-            callback_url: callback_url.to_string(),
-            created_at: Instant::now(),
-        });
+        sessions.insert(
+            state.to_string(),
+            PkceSession {
+                code_verifier: code_verifier.to_string(),
+                redirect_uri: redirect_uri.to_string(),
+                callback_url: callback_url.to_string(),
+                created_at: Instant::now(),
+            },
+        );
         // Cleanup old sessions (older than 10 minutes)
         let cutoff = Instant::now() - Duration::from_secs(600);
         sessions.retain(|_, s| s.created_at > cutoff);
@@ -129,7 +138,9 @@ impl OidcValidator {
             .map_err(|e| FerroError::Internal(format!("Token exchange request failed: {}", e)))?
             .json::<serde_json::Value>()
             .await
-            .map_err(|e| FerroError::Internal(format!("Token exchange response parse failed: {}", e)))?;
+            .map_err(|e| {
+                FerroError::Internal(format!("Token exchange response parse failed: {}", e))
+            })?;
 
         Ok(response)
     }
@@ -186,9 +197,7 @@ impl OidcValidator {
                 .map_err(|e| FerroError::Internal(format!("OIDC discovery failed: {}", e)))?
                 .json()
                 .await
-                .map_err(|e| {
-                    FerroError::Internal(format!("OIDC discovery parse failed: {}", e))
-                })?;
+                .map_err(|e| FerroError::Internal(format!("OIDC discovery parse failed: {}", e)))?;
 
             discovery
                 .get("jwks_uri")
@@ -211,9 +220,8 @@ impl OidcValidator {
             .await
             .map_err(|e| FerroError::Internal(format!("JWKS parse failed: {}", e)))?;
 
-        let jwk_set: jsonwebtoken::jwk::JwkSet =
-            serde_json::from_value(jwks_response)
-                .map_err(|e| FerroError::Internal(format!("JWKS deserialize failed: {}", e)))?;
+        let jwk_set: jsonwebtoken::jwk::JwkSet = serde_json::from_value(jwks_response)
+            .map_err(|e| FerroError::Internal(format!("JWKS deserialize failed: {}", e)))?;
 
         let mut keys = HashMap::new();
         for jwk in jwk_set.keys.into_iter() {
@@ -319,7 +327,8 @@ pub async fn auth_middleware(
     request.extensions_mut().insert(claims);
     request.headers_mut().insert(
         "X-Ferro-User",
-        axum::http::HeaderValue::from_str(&user_sub).unwrap_or_else(|_| axum::http::HeaderValue::from_static("anonymous")),
+        axum::http::HeaderValue::from_str(&user_sub)
+            .unwrap_or_else(|_| axum::http::HeaderValue::from_static("anonymous")),
     );
     next.run(request).await
 }
@@ -348,14 +357,13 @@ mod tests {
         let header_json = serde_json::to_string(&header).unwrap();
         let claims_json = serde_json::to_string(claims).unwrap();
 
-        let header_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(header_json.as_bytes());
-        let claims_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(claims_json.as_bytes());
+        let header_b64 =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header_json.as_bytes());
+        let claims_b64 =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(claims_json.as_bytes());
 
         // Fake signature (not validated by decode_claims_unsafe)
-        let signature = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(b"fake-signature");
+        let signature = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b"fake-signature");
 
         format!("{}.{}.{}", header_b64, claims_b64, signature)
     }

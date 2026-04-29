@@ -26,7 +26,10 @@ pub async fn webfinger(
     State(state): State<crate::AppState>,
     Query(params): Query<WebFingerQuery>,
 ) -> Response {
-    let resource = params.resource.strip_prefix("acct:").unwrap_or(&params.resource);
+    let resource = params
+        .resource
+        .strip_prefix("acct:")
+        .unwrap_or(&params.resource);
     let parts: Vec<&str> = resource.splitn(2, '@').collect();
     if parts.len() != 2 {
         return (StatusCode::BAD_REQUEST, "Invalid resource").into_response();

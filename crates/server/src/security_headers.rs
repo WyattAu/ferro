@@ -2,7 +2,10 @@ use axum::http::{Request, Response};
 use axum::middleware::Next;
 
 /// Middleware that adds security headers (CSP, HSTS, X-Frame-Options, etc.) to responses.
-pub async fn security_headers_middleware(req: Request<axum::body::Body>, next: Next) -> Response<axum::body::Body> {
+pub async fn security_headers_middleware(
+    req: Request<axum::body::Body>,
+    next: Next,
+) -> Response<axum::body::Body> {
     let is_https = req
         .headers()
         .get("x-forwarded-proto")
@@ -69,31 +72,21 @@ mod tests {
     async fn test_security_headers_present() {
         let app = make_app();
         let resp = app
-            .oneshot(
-                Request::builder()
-                    .uri("/test")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
 
         let headers = resp.headers();
-        assert_eq!(
-            headers.get("X-Content-Type-Options").unwrap(),
-            "nosniff"
-        );
-        assert_eq!(
-            headers.get("X-Frame-Options").unwrap(),
-            "DENY"
-        );
-        assert_eq!(
-            headers.get("X-XSS-Protection").unwrap(),
-            "0"
-        );
-        let csp = headers.get("Content-Security-Policy").unwrap().to_str().unwrap();
+        assert_eq!(headers.get("X-Content-Type-Options").unwrap(), "nosniff");
+        assert_eq!(headers.get("X-Frame-Options").unwrap(), "DENY");
+        assert_eq!(headers.get("X-XSS-Protection").unwrap(), "0");
+        let csp = headers
+            .get("Content-Security-Policy")
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert!(csp.contains("default-src 'self'"));
         assert!(csp.contains("frame-ancestors 'none'"));
         assert_eq!(
@@ -112,12 +105,7 @@ mod tests {
 
         let resp = app
             .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/test")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
             .await
             .unwrap();
 

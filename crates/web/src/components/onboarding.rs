@@ -42,12 +42,24 @@ impl OnboardingStep {
 
     fn description(&self) -> &'static str {
         match self {
-            OnboardingStep::Welcome => "Ferro is your personal storage orchestrator. Upload, organize, share, and manage your files with ease. Let us show you around.",
-            OnboardingStep::Upload => "Click the Upload button or drag and drop files directly into the browser to upload them. You can upload multiple files at once.",
-            OnboardingStep::Organize => "Use the New Folder button to create directories. Navigate using breadcrumbs or the parent directory button to keep your files organized.",
-            OnboardingStep::Share => "Share any file with others using the share button. Create time-limited links with optional password protection.",
-            OnboardingStep::Settings => "Access Settings from the gear icon in the header. Customize your theme, default view, sort order, and other preferences.",
-            OnboardingStep::Shortcuts => "Press Ctrl+K to open the command palette for quick access to actions. Use Ctrl+F to search, Ctrl+A to select all, and more.",
+            OnboardingStep::Welcome => {
+                "Ferro is your personal storage orchestrator. Upload, organize, share, and manage your files with ease. Let us show you around."
+            }
+            OnboardingStep::Upload => {
+                "Click the Upload button or drag and drop files directly into the browser to upload them. You can upload multiple files at once."
+            }
+            OnboardingStep::Organize => {
+                "Use the New Folder button to create directories. Navigate using breadcrumbs or the parent directory button to keep your files organized."
+            }
+            OnboardingStep::Share => {
+                "Share any file with others using the share button. Create time-limited links with optional password protection."
+            }
+            OnboardingStep::Settings => {
+                "Access Settings from the gear icon in the header. Customize your theme, default view, sort order, and other preferences."
+            }
+            OnboardingStep::Shortcuts => {
+                "Press Ctrl+K to open the command palette for quick access to actions. Use Ctrl+F to search, Ctrl+A to select all, and more."
+            }
         }
     }
 }

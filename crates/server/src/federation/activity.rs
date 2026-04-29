@@ -38,7 +38,9 @@ impl Activity {
             r#type: ActivityType::Create,
             actor: actor.to_string(),
             object,
-            to: Some(vec!["https://www.w3.org/ns/activitystreams#Public".to_string()]),
+            to: Some(vec![
+                "https://www.w3.org/ns/activitystreams#Public".to_string(),
+            ]),
             cc: None,
             published: Utc::now().to_rfc3339(),
             target: None,
@@ -52,7 +54,9 @@ impl Activity {
             r#type: ActivityType::Announce,
             actor: actor.to_string(),
             object,
-            to: Some(vec!["https://www.w3.org/ns/activitystreams#Public".to_string()]),
+            to: Some(vec![
+                "https://www.w3.org/ns/activitystreams#Public".to_string(),
+            ]),
             cc: None,
             published: Utc::now().to_rfc3339(),
             target: Some(serde_json::json!(target)),
@@ -112,7 +116,11 @@ mod tests {
             serde_json::json!({"type": "Document"}),
         );
         assert_eq!(activity.r#type, ActivityType::Create);
-        assert!(activity.id.starts_with("https://example.com/actor/alice/activities/"));
+        assert!(
+            activity
+                .id
+                .starts_with("https://example.com/actor/alice/activities/")
+        );
         assert!(activity.target.is_none());
         assert!(activity.to.is_some());
     }
@@ -137,7 +145,10 @@ mod tests {
             "https://other.com/actor/bob",
         );
         assert_eq!(activity.r#type, ActivityType::Follow);
-        assert_eq!(activity.object.as_str().unwrap(), "https://other.com/actor/bob");
+        assert_eq!(
+            activity.object.as_str().unwrap(),
+            "https://other.com/actor/bob"
+        );
         let to = activity.to.unwrap();
         assert_eq!(to[0], "https://other.com/actor/bob");
     }

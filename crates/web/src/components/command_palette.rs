@@ -113,51 +113,45 @@ pub fn CommandPalette() -> impl IntoView {
         });
     }
 
-    let handle_keydown = move |ev: ev::KeyboardEvent| {
-        match ev.key().as_str() {
-            "ArrowDown" => {
-                ev.prevent_default();
-                let cmds = filtered_commands();
-                if cmds.len() <= 1 {
-                    return;
-                }
-                let current = highlighted_id.get();
-                if let Some(pos) = cmds.iter().position(|c| c.id == current) {
-                    let next = (pos + 1) % cmds.len();
-                    set_highlighted_id.set(cmds[next].id.clone());
-                }
+    let handle_keydown = move |ev: ev::KeyboardEvent| match ev.key().as_str() {
+        "ArrowDown" => {
+            ev.prevent_default();
+            let cmds = filtered_commands();
+            if cmds.len() <= 1 {
+                return;
             }
-            "ArrowUp" => {
-                ev.prevent_default();
-                let cmds = filtered_commands();
-                if cmds.len() <= 1 {
-                    return;
-                }
-                let current = highlighted_id.get();
-                if let Some(pos) = cmds.iter().position(|c| c.id == current) {
-                    let prev = if pos == 0 {
-                        cmds.len() - 1
-                    } else {
-                        pos - 1
-                    };
-                    set_highlighted_id.set(cmds[prev].id.clone());
-                }
+            let current = highlighted_id.get();
+            if let Some(pos) = cmds.iter().position(|c| c.id == current) {
+                let next = (pos + 1) % cmds.len();
+                set_highlighted_id.set(cmds[next].id.clone());
             }
-            "Enter" => {
-                ev.prevent_default();
-                let cmds = filtered_commands();
-                let current = highlighted_id.get();
-                if let Some(cmd) = cmds.iter().find(|c| c.id == current) {
-                    let cmd = cmd.clone();
-                    state.close();
-                    cmd.action.call(());
-                }
-            }
-            "Escape" => {
-                state.close();
-            }
-            _ => {}
         }
+        "ArrowUp" => {
+            ev.prevent_default();
+            let cmds = filtered_commands();
+            if cmds.len() <= 1 {
+                return;
+            }
+            let current = highlighted_id.get();
+            if let Some(pos) = cmds.iter().position(|c| c.id == current) {
+                let prev = if pos == 0 { cmds.len() - 1 } else { pos - 1 };
+                set_highlighted_id.set(cmds[prev].id.clone());
+            }
+        }
+        "Enter" => {
+            ev.prevent_default();
+            let cmds = filtered_commands();
+            let current = highlighted_id.get();
+            if let Some(cmd) = cmds.iter().find(|c| c.id == current) {
+                let cmd = cmd.clone();
+                state.close();
+                cmd.action.call(());
+            }
+        }
+        "Escape" => {
+            state.close();
+        }
+        _ => {}
     };
 
     view! {

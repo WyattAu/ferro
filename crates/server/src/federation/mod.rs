@@ -1,5 +1,5 @@
 use axum::extract::{Path, Query, State};
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use serde_json::json;
@@ -11,7 +11,10 @@ pub mod webfinger;
 
 use activity::{Activity, ActivityType};
 
-pub async fn get_actor(State(state): State<crate::AppState>, Path(username): Path<String>) -> Response {
+pub async fn get_actor(
+    State(state): State<crate::AppState>,
+    Path(username): Path<String>,
+) -> Response {
     let base_url = &state.external_url;
     let actor = actor::Actor::new(base_url, &username, &username);
 
@@ -43,7 +46,10 @@ pub async fn nodeinfo(State(_state): State<crate::AppState>) -> Response {
 
     (
         StatusCode::OK,
-        [(header::CONTENT_TYPE, "application/json; profile=application/activity+json")],
+        [(
+            header::CONTENT_TYPE,
+            "application/json; profile=application/activity+json",
+        )],
         axum::Json(info),
     )
         .into_response()
@@ -75,7 +81,9 @@ pub async fn inbox(
         ActivityType::Create | ActivityType::Update | ActivityType::Delete => {}
         ActivityType::Announce => {}
         ActivityType::Undo => {
-            state.activity_store.remove_follower("admin", &activity.actor);
+            state
+                .activity_store
+                .remove_follower("admin", &activity.actor);
         }
         _ => {}
     }
@@ -87,8 +95,15 @@ pub async fn list_inbox(
     State(state): State<crate::AppState>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Response {
-    let offset = params.get("offset").and_then(|v| v.parse().ok()).unwrap_or(0);
-    let limit = params.get("limit").and_then(|v| v.parse().ok()).unwrap_or(20).min(100);
+    let offset = params
+        .get("offset")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+    let limit = params
+        .get("limit")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(20)
+        .min(100);
     let activities = state.activity_store.get_inbox(offset, limit);
     (StatusCode::OK, axum::Json(activities)).into_response()
 }
@@ -97,8 +112,15 @@ pub async fn list_outbox(
     State(state): State<crate::AppState>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Response {
-    let offset = params.get("offset").and_then(|v| v.parse().ok()).unwrap_or(0);
-    let limit = params.get("limit").and_then(|v| v.parse().ok()).unwrap_or(20).min(100);
+    let offset = params
+        .get("offset")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+    let limit = params
+        .get("limit")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(20)
+        .min(100);
     let activities = state.activity_store.get_outbox(offset, limit);
     (StatusCode::OK, axum::Json(activities)).into_response()
 }

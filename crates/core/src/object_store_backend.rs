@@ -4,10 +4,10 @@ use ferro_common::error::{FerroError, Result};
 use ferro_common::metadata::{ContentHash, FileMetadata};
 use ferro_common::storage::{StorageEngine, StorageReader};
 use futures::{StreamExt, TryStreamExt};
-use object_store::path::Path as ObjPath;
-use object_store::ObjectStore;
-use std::sync::Arc;
 use object_store::MultipartUpload;
+use object_store::ObjectStore;
+use object_store::path::Path as ObjPath;
+use std::sync::Arc;
 use tracing::debug;
 
 /// Minimum size (bytes) to use multipart upload.
@@ -79,34 +79,32 @@ impl StorageEngine for ObjectStoreStorageEngine {
         true
     }
 
-    async fn put_multipart(
-        &self,
-        path: &str,
-        content: Bytes,
-        owner: &str,
-    ) -> Result<FileMetadata> {
+    async fn put_multipart(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata> {
         let obj_path = self.to_obj_path(path);
         let hash = ContentHash::compute(&content);
         let size = content.len() as u64;
 
-        let mut upload = self
-            .store
-            .put_multipart(&obj_path)
-            .await
-            .map_err(|e| FerroError::StorageBackend(format!("Failed to initiate multipart upload: {}", e)))?;
+        let mut upload = self.store.put_multipart(&obj_path).await.map_err(|e| {
+            FerroError::StorageBackend(format!("Failed to initiate multipart upload: {}", e))
+        })?;
 
         let mut parts = Vec::new();
         for chunk in content.chunks(MULTIPART_CHUNK_SIZE) {
-            let part = upload.put_part(object_store::PutPayload::from_bytes(Bytes::copy_from_slice(chunk)));
+            let part = upload.put_part(object_store::PutPayload::from_bytes(
+                Bytes::copy_from_slice(chunk),
+            ));
             parts.push(part);
         }
 
         for part in parts {
-            part.await
-                .map_err(|e| FerroError::StorageBackend(format!("Multipart part upload failed: {}", e)))?;
+            part.await.map_err(|e| {
+                FerroError::StorageBackend(format!("Multipart part upload failed: {}", e))
+            })?;
         }
 
-        upload.complete().await
+        upload
+            .complete()
+            .await
             .map_err(|e| FerroError::StorageBackend(format!("Multipart complete failed: {}", e)))?;
 
         let meta = FileMetadata::new(path.to_string(), hash, size, owner.to_string());
@@ -256,7 +254,10 @@ impl StorageEngine for ObjectStoreStorageEngine {
             .await
             .map_err(|e| FerroError::StorageBackend(e.to_string()))?;
         debug!("MKCOL {}", path);
-        Ok(FileMetadata::new_collection(path.to_string(), owner.to_string()))
+        Ok(FileMetadata::new_collection(
+            path.to_string(),
+            owner.to_string(),
+        ))
     }
 
     async fn list_all(&self, prefix: &str, max_depth: u32) -> Result<Vec<FileMetadata>> {
@@ -271,8 +272,15 @@ impl StorageEngine for ObjectStoreStorageEngine {
                 continue;
             }
             // Calculate depth relative to queried path
-            let base = if prefix == "/" { "" } else { prefix.trim_end_matches('/') };
-            let relative = vpath.strip_prefix(base).unwrap_or(&vpath).trim_start_matches('/');
+            let base = if prefix == "/" {
+                ""
+            } else {
+                prefix.trim_end_matches('/')
+            };
+            let relative = vpath
+                .strip_prefix(base)
+                .unwrap_or(&vpath)
+                .trim_start_matches('/');
             let depth = relative.matches('/').count() as u32;
             if depth >= max_depth {
                 continue;
@@ -304,7 +312,8 @@ mod tests {
 
     fn make_test_engine() -> (ObjectStoreStorageEngine, TempDir) {
         let tmp = TempDir::new().unwrap();
-        let local: Arc<dyn ObjectStore> = Arc::new(LocalFileSystem::new_with_prefix(tmp.path()).unwrap());
+        let local: Arc<dyn ObjectStore> =
+            Arc::new(LocalFileSystem::new_with_prefix(tmp.path()).unwrap());
         let engine = ObjectStoreStorageEngine::new(local);
         (engine, tmp)
     }
@@ -314,7 +323,10 @@ mod tests {
         let (engine, _tmp) = make_test_engine();
         let content = Bytes::from("hello world");
 
-        let meta = engine.put("/test.txt", content.clone(), "user1").await.unwrap();
+        let meta = engine
+            .put("/test.txt", content.clone(), "user1")
+            .await
+            .unwrap();
         assert_eq!(meta.path, "/test.txt");
         assert_eq!(meta.size, 11);
         assert_eq!(meta.owner, "user1");
@@ -326,7 +338,10 @@ mod tests {
     #[tokio::test]
     async fn test_put_delete() {
         let (engine, _tmp) = make_test_engine();
-        engine.put("/test.txt", Bytes::from("hello"), "user1").await.unwrap();
+        engine
+            .put("/test.txt", Bytes::from("hello"), "user1")
+            .await
+            .unwrap();
         assert!(engine.exists("/test.txt").await.unwrap());
 
         engine.delete("/test.txt").await.unwrap();
@@ -336,8 +351,14 @@ mod tests {
     #[tokio::test]
     async fn test_create_collection_and_list() {
         let (engine, _tmp) = make_test_engine();
-        engine.put("/docs/a.txt", Bytes::from("aaa"), "user1").await.unwrap();
-        engine.put("/docs/b.txt", Bytes::from("bbb"), "user1").await.unwrap();
+        engine
+            .put("/docs/a.txt", Bytes::from("aaa"), "user1")
+            .await
+            .unwrap();
+        engine
+            .put("/docs/b.txt", Bytes::from("bbb"), "user1")
+            .await
+            .unwrap();
 
         let items = engine.list("/docs").await.unwrap();
         let files: Vec<&FileMetadata> = items.iter().filter(|m| !m.is_collection).collect();
@@ -347,7 +368,10 @@ mod tests {
     #[tokio::test]
     async fn test_copy() {
         let (engine, _tmp) = make_test_engine();
-        engine.put("/src.txt", Bytes::from("hello"), "user1").await.unwrap();
+        engine
+            .put("/src.txt", Bytes::from("hello"), "user1")
+            .await
+            .unwrap();
 
         engine.copy("/src.txt", "/dst.txt").await.unwrap();
         assert!(engine.exists("/src.txt").await.unwrap());
@@ -361,7 +385,10 @@ mod tests {
     #[tokio::test]
     async fn test_move_path() {
         let (engine, _tmp) = make_test_engine();
-        engine.put("/old.txt", Bytes::from("hello"), "user1").await.unwrap();
+        engine
+            .put("/old.txt", Bytes::from("hello"), "user1")
+            .await
+            .unwrap();
 
         engine.move_path("/old.txt", "/new.txt").await.unwrap();
         assert!(!engine.exists("/old.txt").await.unwrap());
@@ -376,14 +403,20 @@ mod tests {
         let (engine, _tmp) = make_test_engine();
         assert!(!engine.exists("/nope.txt").await.unwrap());
 
-        engine.put("/yes.txt", Bytes::from("data"), "user1").await.unwrap();
+        engine
+            .put("/yes.txt", Bytes::from("data"), "user1")
+            .await
+            .unwrap();
         assert!(engine.exists("/yes.txt").await.unwrap());
     }
 
     #[tokio::test]
     async fn test_nested_collections() {
         let (engine, _tmp) = make_test_engine();
-        engine.put("/a/b/c/file.txt", Bytes::from("nested"), "user1").await.unwrap();
+        engine
+            .put("/a/b/c/file.txt", Bytes::from("nested"), "user1")
+            .await
+            .unwrap();
 
         let items = engine.list("/a/b").await.unwrap();
         assert!(!items.is_empty());
@@ -392,9 +425,18 @@ mod tests {
     #[tokio::test]
     async fn test_list_all_descendants() {
         let (engine, _tmp) = make_test_engine();
-        engine.put("/root/f1.txt", Bytes::from("a"), "user1").await.unwrap();
-        engine.put("/root/sub/f2.txt", Bytes::from("b"), "user1").await.unwrap();
-        engine.put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1").await.unwrap();
+        engine
+            .put("/root/f1.txt", Bytes::from("a"), "user1")
+            .await
+            .unwrap();
+        engine
+            .put("/root/sub/f2.txt", Bytes::from("b"), "user1")
+            .await
+            .unwrap();
+        engine
+            .put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1")
+            .await
+            .unwrap();
 
         let all = engine.list_all("/root", 100).await.unwrap();
         assert_eq!(all.len(), 3);
@@ -403,15 +445,28 @@ mod tests {
     #[tokio::test]
     async fn test_list_all_depth_limit() {
         let (engine, _tmp) = make_test_engine();
-        engine.put("/root/f1.txt", Bytes::from("a"), "user1").await.unwrap();
-        engine.put("/root/sub/f2.txt", Bytes::from("b"), "user1").await.unwrap();
-        engine.put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1").await.unwrap();
+        engine
+            .put("/root/f1.txt", Bytes::from("a"), "user1")
+            .await
+            .unwrap();
+        engine
+            .put("/root/sub/f2.txt", Bytes::from("b"), "user1")
+            .await
+            .unwrap();
+        engine
+            .put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1")
+            .await
+            .unwrap();
 
         // depth=1 → immediate children (f1.txt + sub/)
         let items = engine.list_all("/root", 1).await.unwrap();
         // object_store may return common_prefixes as "sub/" which has 0 slashes
         // relative to "root", so depth=1 includes them
-        assert!(items.len() >= 1, "Expected at least 1 item at depth 1, got {}", items.len());
+        assert!(
+            items.len() >= 1,
+            "Expected at least 1 item at depth 1, got {}",
+            items.len()
+        );
 
         // depth=100 → everything
         let items = engine.list_all("/root", 100).await.unwrap();
@@ -422,7 +477,10 @@ mod tests {
     async fn test_get_stream_reads_correctly() {
         let (engine, _tmp) = make_test_engine();
         let content = Bytes::from("streaming test data");
-        engine.put("/stream.txt", content.clone(), "user1").await.unwrap();
+        engine
+            .put("/stream.txt", content.clone(), "user1")
+            .await
+            .unwrap();
 
         let mut reader = engine.get_stream("/stream.txt").await.unwrap();
         let mut buf = vec![0u8; 64];
@@ -443,7 +501,10 @@ mod tests {
     async fn test_get_stream_large_file() {
         let (engine, _tmp) = make_test_engine();
         let large_content = Bytes::from(vec![0xAB_u8; 100_000]);
-        engine.put("/large.bin", large_content.clone(), "user1").await.unwrap();
+        engine
+            .put("/large.bin", large_content.clone(), "user1")
+            .await
+            .unwrap();
 
         let mut reader = engine.get_stream("/large.bin").await.unwrap();
         let mut buf = vec![0u8; 8192];
@@ -452,7 +513,9 @@ mod tests {
         let mut total_read = 0usize;
         loop {
             let n = reader.read(&mut buf).await.unwrap();
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
             assert!(buf[..n].iter().all(|&b| b == 0xAB));
             total_read += n;
         }
@@ -464,7 +527,10 @@ mod tests {
         let (engine, _tmp) = make_test_engine();
         let content = Bytes::from(vec![0u8; 2 * 1024 * 1024]);
 
-        let meta = engine.put_multipart("/large.bin", content.clone(), "user1").await.unwrap();
+        let meta = engine
+            .put_multipart("/large.bin", content.clone(), "user1")
+            .await
+            .unwrap();
         assert_eq!(meta.size, 2 * 1024 * 1024);
         assert_eq!(meta.path, "/large.bin");
 
@@ -483,7 +549,10 @@ mod tests {
         let (engine, _tmp) = make_test_engine();
         let content = Bytes::from("hello");
 
-        let meta = engine.put_multipart("/small.bin", content.clone(), "user1").await.unwrap();
+        let meta = engine
+            .put_multipart("/small.bin", content.clone(), "user1")
+            .await
+            .unwrap();
         assert_eq!(meta.size, 5);
 
         let retrieved = engine.get("/small.bin").await.unwrap();
@@ -495,7 +564,10 @@ mod tests {
         let (engine, _tmp) = make_test_engine();
         let content = Bytes::from(vec![0x42_u8; MULTIPART_CHUNK_SIZE * 3]);
 
-        let meta = engine.put_multipart("/boundary.bin", content.clone(), "user1").await.unwrap();
+        let meta = engine
+            .put_multipart("/boundary.bin", content.clone(), "user1")
+            .await
+            .unwrap();
         assert_eq!(meta.size, (MULTIPART_CHUNK_SIZE * 3) as u64);
 
         let retrieved = engine.get("/boundary.bin").await.unwrap();

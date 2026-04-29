@@ -51,12 +51,18 @@ impl DesktopState {
     }
 
     pub async fn mount_drive(&self) -> Result<String, String> {
-        self.mount_service.mount().await.map_err(|e| e.to_string())?;
+        self.mount_service
+            .mount()
+            .await
+            .map_err(|e| e.to_string())?;
         Ok("mounted".to_string())
     }
 
     pub async fn unmount_drive(&self) -> Result<String, String> {
-        self.mount_service.unmount().await.map_err(|e| e.to_string())?;
+        self.mount_service
+            .unmount()
+            .await
+            .map_err(|e| e.to_string())?;
         Ok("unmounted".to_string())
     }
 
@@ -65,7 +71,11 @@ impl DesktopState {
         let config = self.config.read().await;
         MountStatusResponse {
             is_mounted,
-            status: if is_mounted { "connected".to_string() } else { "disconnected".to_string() },
+            status: if is_mounted {
+                "connected".to_string()
+            } else {
+                "disconnected".to_string()
+            },
             server_url: config.server_url.clone(),
             mount_point: config.mount_point.display().to_string(),
         }
@@ -87,14 +97,24 @@ impl DesktopState {
 
     pub async fn save_config(&self, request: SaveConfigRequest) -> Result<(), String> {
         let mut config = self.config.write().await;
-        if let Some(url) = request.server_url { config.server_url = url; }
-        if let Some(user) = request.username { config.username = user; }
-        if let Some(pass) = request.password { config.password = pass; }
+        if let Some(url) = request.server_url {
+            config.server_url = url;
+        }
+        if let Some(user) = request.username {
+            config.username = user;
+        }
+        if let Some(pass) = request.password {
+            config.password = pass;
+        }
         if let Some(mp) = request.mount_point {
             config.mount_point = std::path::PathBuf::from(mp);
         }
-        if let Some(am) = request.auto_mount { config.auto_mount = am; }
-        if let Some(si) = request.sync_interval_secs { config.sync_interval_secs = si; }
+        if let Some(am) = request.auto_mount {
+            config.auto_mount = am;
+        }
+        if let Some(si) = request.sync_interval_secs {
+            config.sync_interval_secs = si;
+        }
         Ok(())
     }
 }

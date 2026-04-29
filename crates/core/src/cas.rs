@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use bytes::Bytes;
-use ferro_common::metadata::ContentHash;
 use ferro_common::error::{FerroError, Result};
+use ferro_common::metadata::ContentHash;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;

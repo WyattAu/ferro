@@ -62,7 +62,11 @@ impl Default for InMemoryFavoriteStore {
 /// List the current user's favorite paths.
 pub async fn list_favorites(State(state): State<AppState>) -> Response {
     let favorites = state.favorites.list().await;
-    (StatusCode::OK, axum::Json(serde_json::json!({ "paths": favorites }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "paths": favorites })),
+    )
+        .into_response()
 }
 
 /// Request body for adding/removing a favorite path.
@@ -77,7 +81,11 @@ pub async fn add_favorite(
     axum::Json(body): axum::Json<FavoritePath>,
 ) -> Response {
     state.favorites.add(body.path).await;
-    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "ok": true })),
+    )
+        .into_response()
 }
 
 /// Remove a path from the current user's favorites.
@@ -86,7 +94,11 @@ pub async fn remove_favorite(
     axum::Json(body): axum::Json<FavoritePath>,
 ) -> Response {
     state.favorites.remove(&body.path).await;
-    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "ok": true })),
+    )
+        .into_response()
 }
 
 /// List recently created/modified files from the audit log.
@@ -115,7 +127,11 @@ pub async fn list_recent(State(state): State<AppState>) -> Response {
         }
     }
 
-    (StatusCode::OK, axum::Json(serde_json::json!({ "files": recent_files }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "files": recent_files })),
+    )
+        .into_response()
 }
 
 #[cfg(test)]
@@ -139,16 +155,22 @@ mod tests {
 
         let resp = add_favorite(
             State(state.clone()),
-            axum::Json(FavoritePath { path: "/test.txt".to_string() }),
-        ).await;
+            axum::Json(FavoritePath {
+                path: "/test.txt".to_string(),
+            }),
+        )
+        .await;
         assert_eq!(resp.status(), StatusCode::OK);
 
         assert!(state.favorites.contains("/test.txt").await);
 
         let resp = remove_favorite(
             State(state.clone()),
-            axum::Json(FavoritePath { path: "/test.txt".to_string() }),
-        ).await;
+            axum::Json(FavoritePath {
+                path: "/test.txt".to_string(),
+            }),
+        )
+        .await;
         assert_eq!(resp.status(), StatusCode::OK);
 
         assert!(!state.favorites.contains("/test.txt").await);

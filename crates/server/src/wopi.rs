@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tracing::info;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// WOPI query parameters.
 #[derive(Debug, Deserialize)]
@@ -53,24 +53,49 @@ fn split_contents_suffix(path: &str) -> Option<(&str, &str)> {
 #[allow(clippy::result_large_err)]
 fn validate_access_token(state: &AppState, token: &Option<String>) -> Result<String, Response> {
     let t = match token {
-        None => return Err(ApiError::unauthorized(ApiError::TOKEN_INVALID, "Missing access_token parameter")),
-        Some(t) if t.is_empty() => return Err(ApiError::unauthorized(ApiError::TOKEN_INVALID, "Empty access_token")),
+        None => {
+            return Err(ApiError::unauthorized(
+                ApiError::TOKEN_INVALID,
+                "Missing access_token parameter",
+            ));
+        }
+        Some(t) if t.is_empty() => {
+            return Err(ApiError::unauthorized(
+                ApiError::TOKEN_INVALID,
+                "Empty access_token",
+            ));
+        }
         Some(t) => t,
     };
 
     let decoded = match base64::engine::general_purpose::STANDARD.decode(t) {
         Ok(d) => d,
-        Err(_) => return Err(ApiError::unauthorized(ApiError::TOKEN_INVALID, "Invalid access_token encoding")),
+        Err(_) => {
+            return Err(ApiError::unauthorized(
+                ApiError::TOKEN_INVALID,
+                "Invalid access_token encoding",
+            ));
+        }
     };
 
     let decoded_str = match String::from_utf8(decoded) {
         Ok(s) => s,
-        Err(_) => return Err(ApiError::unauthorized(ApiError::TOKEN_INVALID, "Invalid access_token")),
+        Err(_) => {
+            return Err(ApiError::unauthorized(
+                ApiError::TOKEN_INVALID,
+                "Invalid access_token",
+            ));
+        }
     };
 
     let sep_idx = match decoded_str.rfind(':') {
         Some(i) => i,
-        None => return Err(ApiError::unauthorized(ApiError::TOKEN_INVALID, "Invalid access_token format")),
+        None => {
+            return Err(ApiError::unauthorized(
+                ApiError::TOKEN_INVALID,
+                "Invalid access_token format",
+            ));
+        }
     };
     let (payload_str, sig_hex) = decoded_str.split_at(sep_idx);
     let sig_hex = &sig_hex[1..];
@@ -84,18 +109,29 @@ fn validate_access_token(state: &AppState, token: &Option<String>) -> Result<Str
     };
 
     if sig_hex != expected_sig {
-        return Err(ApiError::unauthorized(ApiError::TOKEN_INVALID, "Invalid access_token signature"));
+        return Err(ApiError::unauthorized(
+            ApiError::TOKEN_INVALID,
+            "Invalid access_token signature",
+        ));
     }
 
     let payload: serde_json::Value = match serde_json::from_str(payload_str) {
         Ok(p) => p,
-        Err(_) => return Err(ApiError::unauthorized(ApiError::TOKEN_INVALID, "Invalid access_token payload")),
+        Err(_) => {
+            return Err(ApiError::unauthorized(
+                ApiError::TOKEN_INVALID,
+                "Invalid access_token payload",
+            ));
+        }
     };
 
     if let Some(exp) = payload.get("exp").and_then(|v| v.as_i64()) {
         let now = chrono::Utc::now().timestamp();
         if now > exp {
-            return Err(ApiError::unauthorized(ApiError::TOKEN_EXPIRED, "Access token expired"));
+            return Err(ApiError::unauthorized(
+                ApiError::TOKEN_EXPIRED,
+                "Access token expired",
+            ));
         }
     }
 
@@ -111,7 +147,7 @@ pub async fn wopi_discovery(State(state): State<AppState>) -> Response {
     let urlsrc = state.wopi_office_url.as_str();
 
     let discovery_xml = format!(
-r#"<?xml version="1.0" encoding="utf-8"?>
+        r#"<?xml version="1.0" encoding="utf-8"?>
 <wopi-discovery>
   <net-zone name="external-https">
     <app name="Edit" favIconUrl="" checkLicense="true">
@@ -134,7 +170,8 @@ r#"<?xml version="1.0" encoding="utf-8"?>
       <action name="view" ext="txt" urlsrc="{urlsrc}"/>
     </app>
   </net-zone>
-</wopi-discovery>"#);
+</wopi-discovery>"#
+    );
 
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(
@@ -200,7 +237,6 @@ async fn check_file_info_inner(state: &AppState, path: &str) -> Response {
     let meta = match state.storage.head(&full_path).await {
         Ok(m) => m,
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
-
     };
 
     let file_name = meta
@@ -235,18 +271,14 @@ async fn get_file_inner(state: &AppState, path: &str) -> Response {
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
     };
 
-    let meta = state
-        .storage
-        .head(&full_path)
-        .await
-        .unwrap_or_else(|_| {
-            common::metadata::FileMetadata::new(
-                full_path.clone(),
-                common::metadata::ContentHash::new("0".repeat(64)),
-                content.len() as u64,
-                "anonymous".to_string(),
-            )
-        });
+    let meta = state.storage.head(&full_path).await.unwrap_or_else(|_| {
+        common::metadata::FileMetadata::new(
+            full_path.clone(),
+            common::metadata::ContentHash::new("0".repeat(64)),
+            content.len() as u64,
+            "anonymous".to_string(),
+        )
+    });
 
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(
@@ -299,13 +331,17 @@ async fn lock_file_inner(state: &AppState, path: &str) -> Response {
     let full_path = format!("/{}", path);
     let principal = "wopi-editor".to_string();
 
-    match state.lock_manager.acquire_lock(
-        &full_path,
-        &principal,
-        common::webdav::LockScope::Exclusive,
-        common::webdav::LockDepth::Zero,
-        None,
-    ).await {
+    match state
+        .lock_manager
+        .acquire_lock(
+            &full_path,
+            &principal,
+            common::webdav::LockScope::Exclusive,
+            common::webdav::LockDepth::Zero,
+            None,
+        )
+        .await
+    {
         Ok(lock) => {
             let response = WopiLockResponse {
                 lock_id: lock.token.as_str().to_string(),
@@ -350,8 +386,13 @@ pub async fn wopi_issue_token(
     const DEFAULT_WOPI_SECRET: &str = "ferro-wopi-token-secret-change-me";
 
     if state.wopi_token_secret == DEFAULT_WOPI_SECRET {
-        tracing::error!("WOPI token secret is not configured. Set --wopi-token-secret to a strong random value.");
-        return ApiError::internal("WOPI_TOKEN_SECRET_NOT_SET", "WOPI token secret is not configured. Set --wopi-token-secret to a strong random value.");
+        tracing::error!(
+            "WOPI token secret is not configured. Set --wopi-token-secret to a strong random value."
+        );
+        return ApiError::internal(
+            "WOPI_TOKEN_SECRET_NOT_SET",
+            "WOPI token secret is not configured. Set --wopi-token-secret to a strong random value.",
+        );
     }
 
     let full_path = format!("/{}", path.trim_matches('/'));
@@ -370,18 +411,24 @@ pub async fn wopi_issue_token(
     });
 
     let payload_str = serde_json::to_string(&token_payload).unwrap_or_default();
-    let mut mac = hmac::Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes()).expect("HMAC key exceeds block size — this should never happen with reasonable secrets");
+    let mut mac = hmac::Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes())
+        .expect("HMAC key exceeds block size — this should never happen with reasonable secrets");
     mac.update(payload_str.as_bytes());
     let signature = mac.finalize();
     let sig_hex = hex::encode(signature.into_bytes());
 
-    let token = base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", payload_str, sig_hex));
+    let token =
+        base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", payload_str, sig_hex));
 
-    (StatusCode::OK, axum::Json(serde_json::json!({
-        "access_token": token,
-        "expires_in": 28800,
-        "token_ttl": 28800,
-    }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "access_token": token,
+            "expires_in": 28800,
+            "token_ttl": 28800,
+        })),
+    )
+        .into_response()
 }
 
 #[cfg(test)]
@@ -418,7 +465,10 @@ mod tests {
         let token_a = sign_token(&payload, secret_a);
         let token_b = sign_token(&payload, secret_b);
 
-        assert_ne!(token_a, token_b, "Tokens signed with different secrets must differ");
+        assert_ne!(
+            token_a, token_b,
+            "Tokens signed with different secrets must differ"
+        );
 
         let state_a = AppState::in_memory().with_wopi_token_secret(secret_a.to_string());
         let state_b = AppState::in_memory().with_wopi_token_secret(secret_b.to_string());
@@ -433,7 +483,9 @@ mod tests {
         let payload = build_token_payload("/docs/report.odt", "alice", 4000000000);
         let token = sign_token(&payload, secret);
 
-        let decoded = base64::engine::general_purpose::STANDARD.decode(&token).unwrap();
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(&token)
+            .unwrap();
         let decoded_str = String::from_utf8(decoded).unwrap();
         // The format is "{json_payload}:{hex_signature}".
         // Since JSON contains ':', split from the right (hex sig has no ':').

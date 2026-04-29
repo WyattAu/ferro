@@ -1,17 +1,17 @@
+use crate::AppState;
+use crate::audit;
+use crate::sync::clock::VectorClock;
+use crate::sync::ops::{OpType, SyncOp};
+use crate::xml::escape_xml;
 use axum::body::Body;
 use axum::extract::{Path as AxumPath, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
-use common::path::normalize_path;
-use common::webdav::LockDepth;
 use common::error::FerroError;
 use common::error::Result;
-use crate::audit;
-use crate::AppState;
-use crate::sync::clock::VectorClock;
-use crate::sync::ops::{OpType, SyncOp};
-use crate::xml::escape_xml;
+use common::path::normalize_path;
+use common::webdav::LockDepth;
 use tracing::{debug, warn};
 
 /// Maximum recursion depth for PROPFIND depth:infinity to prevent DoS.
@@ -84,11 +84,14 @@ pub async fn handle_any(
         Ok(p) => p,
         Err(e) => {
             warn!("Path sanitization failed for '{}': {}", raw_path, e);
-            let status = StatusCode::from_u16(e.status_code())
-                .unwrap_or(StatusCode::BAD_REQUEST);
-            return (status, axum::Json(serde_json::json!({
-                "error": e.to_string(),
-            }))).into_response();
+            let status = StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::BAD_REQUEST);
+            return (
+                status,
+                axum::Json(serde_json::json!({
+                    "error": e.to_string(),
+                })),
+            )
+                .into_response();
         }
     };
     debug!("{} {}", method, path_str);
@@ -158,30 +161,34 @@ pub async fn handle_any(
         Err(e) => e.status_code(),
     };
 
-    let client_ip = headers.get("X-Forwarded-For")
+    let client_ip = headers
+        .get("X-Forwarded-For")
         .or_else(|| headers.get("X-Real-Ip"))
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
-    let user_agent = headers.get("User-Agent")
+    let user_agent = headers
+        .get("User-Agent")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
     let user = user_sub.unwrap_or("anonymous").to_string();
 
-    audit_log.log(audit::build_audit_entry(
-        method.as_str(),
-        &path_str,
-        &user,
-        status_code,
-        client_ip,
-        user_agent,
-    )).await;
+    audit_log
+        .log(audit::build_audit_entry(
+            method.as_str(),
+            &path_str,
+            &user,
+            status_code,
+            client_ip,
+            user_agent,
+        ))
+        .await;
 
     match result {
         Ok(response) => response,
         Err(e) => {
             warn!("Error handling {} {}: {}", method, path_str, e);
-            let status = StatusCode::from_u16(e.status_code())
-                .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            let status =
+                StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
             let xml = format!(
                 r#"<?xml version="1.0" encoding="utf-8"?><d:error xmlns:d="DAV:"><s:message>{}</s:message></d:error>"#,
                 escape_xml(&e.to_string())
@@ -204,15 +211,14 @@ async fn handle_options(_path: &str) -> Result<Response> {
     Ok((StatusCode::OK, headers, "").into_response())
 }
 
-async fn handle_propfind(
-    state: AppState,
-    path: &str,
-    headers: &HeaderMap,
-) -> Result<Response> {
+async fn handle_propfind(state: AppState, path: &str, headers: &HeaderMap) -> Result<Response> {
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {
-        return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
+        return Err(FerroError::InvalidArgument(format!(
+            "Invalid path: {}",
+            path
+        )));
     }
 
     let depth = headers
@@ -249,7 +255,10 @@ async fn handle_propfind(
 
 fn multistatus_response(xml: Bytes) -> Response {
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", HeaderValue::from_static("application/xml; charset=utf-8"));
+    headers.insert(
+        "Content-Type",
+        HeaderValue::from_static("application/xml; charset=utf-8"),
+    );
     (StatusCode::MULTI_STATUS, headers, Body::from(xml)).into_response()
 }
 
@@ -306,7 +315,10 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {
-        return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
+        return Err(FerroError::InvalidArgument(format!(
+            "Invalid path: {}",
+            path
+        )));
     }
 
     let meta = state.storage.head(&path).await?;
@@ -340,7 +352,8 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
     );
     resp_headers.insert(
         "Content-Length",
-        HeaderValue::from_str(&meta.size.to_string()).map_err(|e| FerroError::Internal(e.to_string()))?,
+        HeaderValue::from_str(&meta.size.to_string())
+            .map_err(|e| FerroError::Internal(e.to_string()))?,
     );
     resp_headers.insert(
         "ETag",
@@ -348,8 +361,13 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
     );
     resp_headers.insert(
         "Last-Modified",
-        HeaderValue::from_str(&meta.modified_at.format("%a, %d %b %Y %H:%M:%S GMT").to_string())
-            .map_err(|e| FerroError::Internal(e.to_string()))?,
+        HeaderValue::from_str(
+            &meta
+                .modified_at
+                .format("%a, %d %b %Y %H:%M:%S GMT")
+                .to_string(),
+        )
+        .map_err(|e| FerroError::Internal(e.to_string()))?,
     );
 
     Ok((StatusCode::OK, resp_headers, body).into_response())
@@ -359,7 +377,10 @@ async fn handle_head(state: AppState, path: &str, headers: &HeaderMap) -> Result
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {
-        return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
+        return Err(FerroError::InvalidArgument(format!(
+            "Invalid path: {}",
+            path
+        )));
     }
 
     let meta = state.storage.head(&path).await?;
@@ -383,7 +404,8 @@ async fn handle_head(state: AppState, path: &str, headers: &HeaderMap) -> Result
     );
     resp_headers.insert(
         "Content-Length",
-        HeaderValue::from_str(&meta.size.to_string()).map_err(|e| FerroError::Internal(e.to_string()))?,
+        HeaderValue::from_str(&meta.size.to_string())
+            .map_err(|e| FerroError::Internal(e.to_string()))?,
     );
     resp_headers.insert(
         "ETag",
@@ -391,8 +413,13 @@ async fn handle_head(state: AppState, path: &str, headers: &HeaderMap) -> Result
     );
     resp_headers.insert(
         "Last-Modified",
-        HeaderValue::from_str(&meta.modified_at.format("%a, %d %b %Y %H:%M:%S GMT").to_string())
-            .map_err(|e| FerroError::Internal(e.to_string()))?,
+        HeaderValue::from_str(
+            &meta
+                .modified_at
+                .format("%a, %d %b %Y %H:%M:%S GMT")
+                .to_string(),
+        )
+        .map_err(|e| FerroError::Internal(e.to_string()))?,
     );
 
     Ok((StatusCode::OK, resp_headers, "").into_response())
@@ -455,7 +482,10 @@ async fn handle_put(
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {
-        return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
+        return Err(FerroError::InvalidArgument(format!(
+            "Invalid path: {}",
+            path
+        )));
     }
 
     if let Some(lock) = state.lock_manager.check_lock(&path).await {
@@ -499,13 +529,21 @@ async fn handle_put(
     if let Some(cas) = &state.cas_store {
         let hash = common::metadata::ContentHash::compute(&body);
         if cas.dedup_check(&hash).await? {
-            debug!("CAS DEDUP: {} already stored (hash: {})", path, &hash.as_str()[..16]);
+            debug!(
+                "CAS DEDUP: {} already stored (hash: {})",
+                path,
+                &hash.as_str()[..16]
+            );
             let meta = match state.storage.head(&path).await {
                 Ok(m) => m,
                 Err(_) => state.storage.put(&path, body.clone(), &owner).await?,
             };
             let mut resp_headers = HeaderMap::new();
-            resp_headers.insert("ETag", HeaderValue::from_str(&meta.etag).map_err(|e| FerroError::Internal(e.to_string()))?);
+            resp_headers.insert(
+                "ETag",
+                HeaderValue::from_str(&meta.etag)
+                    .map_err(|e| FerroError::Internal(e.to_string()))?,
+            );
             return Ok((StatusCode::NO_CONTENT, resp_headers, "").into_response());
         }
     }
@@ -558,7 +596,9 @@ async fn handle_put(
         let path = path.clone();
         state.recently_processed.insert(path.clone());
         if state.recently_processed.len() > MAX_RECENTLY_PROCESSED {
-            let to_remove: Vec<String> = state.recently_processed.iter()
+            let to_remove: Vec<String> = state
+                .recently_processed
+                .iter()
                 .take(MAX_RECENTLY_PROCESSED / 2)
                 .map(|r| r.key().clone())
                 .collect();
@@ -571,12 +611,14 @@ async fn handle_put(
             for worker in workers {
                 if let Ok(content) = storage.get(&path).await {
                     tracing::info!("Triggering worker {} for {}", worker.pattern, path);
-                    let _ = runtime.execute(
-                        &worker.module_path,
-                        &worker.function_name,
-                        &content,
-                        Some(worker.config.clone()),
-                    ).await;
+                    let _ = runtime
+                        .execute(
+                            &worker.module_path,
+                            &worker.function_name,
+                            &content,
+                            Some(worker.config.clone()),
+                        )
+                        .await;
                 }
             }
         });
@@ -585,14 +627,19 @@ async fn handle_put(
     crate::webhooks::fire_webhooks(
         state.webhooks.clone(),
         crate::webhooks::WebhookEvent {
-            event: if already_existed { "file.modify".to_string() } else { "file.upload".to_string() },
+            event: if already_existed {
+                "file.modify".to_string()
+            } else {
+                "file.upload".to_string()
+            },
             timestamp: chrono::Utc::now().to_rfc3339(),
             path: path.clone(),
             size: Some(meta.size),
             user: Some(owner.clone()),
             etag: Some(meta.etag),
         },
-    ).await;
+    )
+    .await;
 
     {
         let (op_id, clock) = state.sync_store.next_op_id();
@@ -618,7 +665,10 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {
-        return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
+        return Err(FerroError::InvalidArgument(format!(
+            "Invalid path: {}",
+            path
+        )));
     }
 
     if let Some(lock) = state.lock_manager.check_lock(&path).await {
@@ -642,7 +692,8 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
             user: None,
             etag: None,
         },
-    ).await;
+    )
+    .await;
 
     {
         let owner = extract_owner(headers, None);
@@ -669,17 +720,17 @@ async fn handle_mkcol(state: AppState, path: &str) -> Result<Response> {
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {
-        return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
+        return Err(FerroError::InvalidArgument(format!(
+            "Invalid path: {}",
+            path
+        )));
     }
 
     if state.storage.exists(&path).await? {
         return Err(FerroError::AlreadyExists(path.to_string()));
     }
 
-    state
-        .storage
-        .create_collection(&path, "anonymous")
-        .await?;
+    state.storage.create_collection(&path, "anonymous").await?;
 
     {
         let (op_id, clock) = state.sync_store.next_op_id();
@@ -708,24 +759,19 @@ async fn handle_mkcol(state: AppState, path: &str) -> Result<Response> {
             user: Some("anonymous".to_string()),
             etag: None,
         },
-    ).await;
+    )
+    .await;
 
     Ok(StatusCode::CREATED.into_response())
 }
 
-async fn handle_copy(
-    state: AppState,
-    path: &str,
-    headers: &HeaderMap,
-) -> Result<Response> {
+async fn handle_copy(state: AppState, path: &str, headers: &HeaderMap) -> Result<Response> {
     let path = normalize_path(path);
 
     let destination = headers
         .get("Destination")
         .and_then(|v| v.to_str().ok())
-        .ok_or_else(|| {
-            FerroError::InvalidArgument("Missing Destination header".to_string())
-        })?;
+        .ok_or_else(|| FerroError::InvalidArgument("Missing Destination header".to_string()))?;
 
     // WebDAV Destination header is a full URI (RFC 4918 §10.4); extract just the path.
     let dest = strip_uri_authority(destination);
@@ -743,7 +789,10 @@ async fn handle_copy(
         return Err(FerroError::LockConflict(format!("Source locked: {}", e)));
     }
     if let Err(e) = state.lock_manager.check_lock_for_write(&dest).await {
-        return Err(FerroError::LockConflict(format!("Destination locked: {}", e)));
+        return Err(FerroError::LockConflict(format!(
+            "Destination locked: {}",
+            e
+        )));
     }
 
     state.storage.copy(&path, &dest).await?;
@@ -756,19 +805,13 @@ async fn handle_copy(
     Ok((StatusCode::CREATED, resp_headers, "").into_response())
 }
 
-async fn handle_move(
-    state: AppState,
-    path: &str,
-    headers: &HeaderMap,
-) -> Result<Response> {
+async fn handle_move(state: AppState, path: &str, headers: &HeaderMap) -> Result<Response> {
     let path = normalize_path(path);
 
     let destination = headers
         .get("Destination")
         .and_then(|v| v.to_str().ok())
-        .ok_or_else(|| {
-            FerroError::InvalidArgument("Missing Destination header".to_string())
-        })?;
+        .ok_or_else(|| FerroError::InvalidArgument("Missing Destination header".to_string()))?;
 
     // WebDAV Destination header is a full URI (RFC 4918 §10.4); extract just the path.
     let dest = strip_uri_authority(destination);
@@ -786,7 +829,10 @@ async fn handle_move(
         return Err(FerroError::LockConflict(format!("Source locked: {}", e)));
     }
     if let Err(e) = state.lock_manager.check_lock_for_write(&dest).await {
-        return Err(FerroError::LockConflict(format!("Destination locked: {}", e)));
+        return Err(FerroError::LockConflict(format!(
+            "Destination locked: {}",
+            e
+        )));
     }
 
     state.storage.move_path(&path, &dest).await?;
@@ -826,7 +872,10 @@ async fn handle_lock(
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {
-        return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
+        return Err(FerroError::InvalidArgument(format!(
+            "Invalid path: {}",
+            path
+        )));
     }
 
     // RFC 4918 §9.10.2: If the request includes an If header with a lock token,
@@ -853,13 +902,16 @@ async fn handle_lock(
             .to_string()
     });
 
-    let lock = state.lock_manager.acquire_lock(
-        &path,
-        &principal,
-        lock_request.scope,
-        depth,
-        lock_request.timeout_hint,
-    ).await?;
+    let lock = state
+        .lock_manager
+        .acquire_lock(
+            &path,
+            &principal,
+            lock_request.scope,
+            depth,
+            lock_request.timeout_hint,
+        )
+        .await?;
 
     let lock_token = lock.token.as_str();
     let xml = crate::xml::build_lock_response_xml(
@@ -884,18 +936,12 @@ async fn handle_lock(
     Ok((StatusCode::OK, resp_headers, Body::from(xml)).into_response())
 }
 
-async fn handle_unlock(
-    state: AppState,
-    _path: &str,
-    headers: &HeaderMap,
-) -> Result<Response> {
+async fn handle_unlock(state: AppState, _path: &str, headers: &HeaderMap) -> Result<Response> {
     let lock_token = headers
         .get("Lock-Token")
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("<").and_then(|r| r.strip_suffix(">")))
-        .ok_or_else(|| {
-            FerroError::InvalidArgument("Missing Lock-Token header".to_string())
-        })?;
+        .ok_or_else(|| FerroError::InvalidArgument("Missing Lock-Token header".to_string()))?;
 
     state.lock_manager.release_lock(lock_token).await?;
     Ok(StatusCode::NO_CONTENT.into_response())
@@ -911,7 +957,11 @@ async fn handle_lock_refresh(
 ) -> Result<Response> {
     let lock_request = crate::xml::LockRequest::parse(body);
 
-    match state.lock_manager.refresh_lock(lock_token, lock_request.timeout_hint).await {
+    match state
+        .lock_manager
+        .refresh_lock(lock_token, lock_request.timeout_hint)
+        .await
+    {
         Ok(lock) => {
             let principal = lock.principal.clone();
             let xml = crate::xml::build_lock_response_xml(
@@ -938,7 +988,10 @@ async fn handle_lock_refresh(
         }
         Err(_) => {
             // Lock not found or expired — treat as new lock request
-            debug!("LOCK refresh failed for {}, treating as new lock", lock_token);
+            debug!(
+                "LOCK refresh failed for {}, treating as new lock",
+                lock_token
+            );
             let lock_request = crate::xml::LockRequest::parse(body);
             let depth = headers
                 .get("Depth")
@@ -954,13 +1007,16 @@ async fn handle_lock_refresh(
                     .to_string()
             });
 
-            let lock = state.lock_manager.acquire_lock(
-                path,
-                &principal,
-                lock_request.scope,
-                depth,
-                lock_request.timeout_hint,
-            ).await?;
+            let lock = state
+                .lock_manager
+                .acquire_lock(
+                    path,
+                    &principal,
+                    lock_request.scope,
+                    depth,
+                    lock_request.timeout_hint,
+                )
+                .await?;
 
             let lock_token = lock.token.as_str();
             let xml = crate::xml::build_lock_response_xml(
@@ -1013,7 +1069,10 @@ async fn handle_proppatch(
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {
-        return Err(FerroError::InvalidArgument(format!("Invalid path: {}", path)));
+        return Err(FerroError::InvalidArgument(format!(
+            "Invalid path: {}",
+            path
+        )));
     }
 
     if !state.storage.exists(&path).await? {
@@ -1027,7 +1086,10 @@ async fn handle_proppatch(
     let xml = crate::xml::build_proppatch_response(&path, &props);
 
     let mut resp_headers = HeaderMap::new();
-    resp_headers.insert("Content-Type", HeaderValue::from_static("application/xml; charset=utf-8"));
+    resp_headers.insert(
+        "Content-Type",
+        HeaderValue::from_static("application/xml; charset=utf-8"),
+    );
 
     debug!("PROPPATCH {} ({} properties)", path, props.len());
     Ok((StatusCode::MULTI_STATUS, resp_headers, Body::from(xml)).into_response())
@@ -1037,11 +1099,11 @@ async fn handle_proppatch(
 mod tests {
     use super::*;
     use crate::storage::InMemoryStorageEngine;
-    use common::storage::StorageEngine;
+    use axum::Router;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use axum::routing::any;
-    use axum::Router;
+    use common::storage::StorageEngine;
     use std::sync::Arc;
     use tower::ServiceExt;
 
@@ -1056,8 +1118,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_check() {
-        let app = Router::new()
-            .route("/.well-known/ferro", axum::routing::get(|| async { "Ferro OK" }));
+        let app = Router::new().route(
+            "/.well-known/ferro",
+            axum::routing::get(|| async { "Ferro OK" }),
+        );
 
         let response = app
             .oneshot(
@@ -1266,7 +1330,13 @@ mod tests {
             .await
             .unwrap();
 
-        let etag = get_resp.headers().get("ETag").unwrap().to_str().unwrap().to_string();
+        let etag = get_resp
+            .headers()
+            .get("ETag")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
 
         // GET with If-None-Match — should return 304
         let resp = app
@@ -1433,8 +1503,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_body_size_limit_rejected() {
-        let state = AppState::in_memory()
-            .with_max_body_size(100);
+        let state = AppState::in_memory().with_max_body_size(100);
 
         let app = Router::new()
             .route("/", any(handle_any))
@@ -1458,8 +1527,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_body_size_limit_accepted() {
-        let state = AppState::in_memory()
-            .with_max_body_size(1024);
+        let state = AppState::in_memory().with_max_body_size(1024);
 
         let app = Router::new()
             .route("/", any(handle_any))
@@ -1484,8 +1552,7 @@ mod tests {
     #[tokio::test]
     async fn test_concurrent_puts_different_files() {
         let storage: Arc<dyn StorageEngine> = Arc::new(InMemoryStorageEngine::new());
-        let mut state = AppState::in_memory()
-            .with_max_body_size(1024 * 1024);
+        let mut state = AppState::in_memory().with_max_body_size(1024 * 1024);
         state.storage = storage.clone();
 
         let app = Router::new()
@@ -1517,7 +1584,11 @@ mod tests {
             statuses.push(handle.await.unwrap());
         }
         for status in &statuses {
-            assert_eq!(*status, StatusCode::CREATED, "All concurrent PUTs should succeed");
+            assert_eq!(
+                *status,
+                StatusCode::CREATED,
+                "All concurrent PUTs should succeed"
+            );
         }
 
         // Verify all files exist
@@ -1528,10 +1599,12 @@ mod tests {
     #[tokio::test]
     async fn test_concurrent_gets_same_file() {
         let storage: Arc<dyn StorageEngine> = Arc::new(InMemoryStorageEngine::new());
-        storage.put("/shared.txt", Bytes::from("shared content"), "user1").await.unwrap();
+        storage
+            .put("/shared.txt", Bytes::from("shared content"), "user1")
+            .await
+            .unwrap();
 
-        let mut state = AppState::in_memory()
-            .with_max_body_size(1024 * 1024);
+        let mut state = AppState::in_memory().with_max_body_size(1024 * 1024);
         state.storage = storage.clone();
 
         let app = Router::new()
@@ -1563,17 +1636,23 @@ mod tests {
             statuses.push(handle.await.unwrap());
         }
         for status in &statuses {
-            assert_eq!(*status, StatusCode::OK, "All concurrent GETs should succeed");
+            assert_eq!(
+                *status,
+                StatusCode::OK,
+                "All concurrent GETs should succeed"
+            );
         }
     }
 
     #[tokio::test]
     async fn test_lock_refresh_via_if_header() {
         let storage: Arc<dyn StorageEngine> = Arc::new(InMemoryStorageEngine::new());
-        storage.put("/lockme.txt", Bytes::from("content"), "user1").await.unwrap();
+        storage
+            .put("/lockme.txt", Bytes::from("content"), "user1")
+            .await
+            .unwrap();
 
-        let mut state = AppState::in_memory()
-            .with_max_body_size(1024 * 1024);
+        let mut state = AppState::in_memory().with_max_body_size(1024 * 1024);
         state.storage = storage.clone();
 
         let app = Router::new()
@@ -1603,7 +1682,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(lock_resp.status(), StatusCode::OK);
-        let lock_token = lock_resp.headers().get("Lock-Token").unwrap().to_str().unwrap().to_string();
+        let lock_token = lock_resp
+            .headers()
+            .get("Lock-Token")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
 
         // Step 2: Refresh the lock using If header
         let refresh_resp = app
@@ -1674,7 +1759,12 @@ mod tests {
                 )
                 .await
                 .unwrap();
-            assert_eq!(put_resp.status(), StatusCode::CREATED, "PUT failed for {}", name);
+            assert_eq!(
+                put_resp.status(),
+                StatusCode::CREATED,
+                "PUT failed for {}",
+                name
+            );
 
             let get_resp = app
                 .clone()
@@ -1710,7 +1800,12 @@ mod tests {
                 )
                 .await
                 .unwrap();
-            assert_eq!(put_resp.status(), StatusCode::CREATED, "PUT failed for {}", name);
+            assert_eq!(
+                put_resp.status(),
+                StatusCode::CREATED,
+                "PUT failed for {}",
+                name
+            );
 
             let get_resp = app
                 .clone()
@@ -1853,7 +1948,13 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(put1.status(), StatusCode::CREATED);
-        let etag1 = put1.headers().get("ETag").unwrap().to_str().unwrap().to_string();
+        let etag1 = put1
+            .headers()
+            .get("ETag")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
 
         let put2 = app
             .clone()
@@ -1867,7 +1968,13 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(put2.status(), StatusCode::NO_CONTENT);
-        let etag2 = put2.headers().get("ETag").unwrap().to_str().unwrap().to_string();
+        let etag2 = put2
+            .headers()
+            .get("ETag")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
 
         assert_ne!(etag1, etag2, "ETag should change after overwrite");
     }
@@ -1958,8 +2065,7 @@ mod tests {
     #[tokio::test]
     async fn test_concurrent_put_same_file_no_panic() {
         let storage: Arc<dyn StorageEngine> = Arc::new(InMemoryStorageEngine::new());
-        let mut state = AppState::in_memory()
-            .with_max_body_size(1024 * 1024);
+        let mut state = AppState::in_memory().with_max_body_size(1024 * 1024);
         state.storage = storage.clone();
 
         let app = Router::new()
@@ -1998,7 +2104,10 @@ mod tests {
         }
 
         let content = storage.get("/race.txt").await.unwrap();
-        assert!(!content.is_empty(), "File should have content from last writer");
+        assert!(
+            !content.is_empty(),
+            "File should have content from last writer"
+        );
     }
 
     #[tokio::test]
@@ -2084,8 +2193,14 @@ mod tests {
         use http_body_util::BodyExt;
         let body = resp.into_body().collect().await.unwrap().to_bytes();
         let xml = String::from_utf8(body.to_vec()).unwrap();
-        assert!(xml.contains("root-file.txt"), "Root listing should contain root-file.txt");
-        assert!(xml.contains("root-dir"), "Root listing should contain root-dir");
+        assert!(
+            xml.contains("root-file.txt"),
+            "Root listing should contain root-file.txt"
+        );
+        assert!(
+            xml.contains("root-dir"),
+            "Root listing should contain root-dir"
+        );
     }
 
     #[tokio::test]

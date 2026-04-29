@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use tokio::runtime::Runtime;
 
 mod helpers;
@@ -37,23 +37,12 @@ fn bench_webdav_ops(c: &mut Criterion) {
                         // Populate with items
                         for i in 0..item_count {
                             let body = generate_test_body(64);
-                            make_request(
-                                &app,
-                                "PUT",
-                                &format!("/bench_dir/file_{}.txt", i),
-                                body,
-                            )
-                            .await;
+                            make_request(&app, "PUT", &format!("/bench_dir/file_{}.txt", i), body)
+                                .await;
                         }
 
                         // Benchmark the PROPFIND
-                        make_request(
-                            &app,
-                            "PROPFIND",
-                            "/bench_dir",
-                            Bytes::new(),
-                        )
-                        .await;
+                        make_request(&app, "PROPFIND", "/bench_dir", Bytes::new()).await;
                     })
                 })
             },
@@ -88,13 +77,8 @@ fn bench_webdav_ops(c: &mut Criterion) {
                         make_request(&app, "MKCOL", "/del_dir", Bytes::new()).await;
                         for i in 0..child_count {
                             let body = generate_test_body(64);
-                            make_request(
-                                &app,
-                                "PUT",
-                                &format!("/del_dir/file_{}.txt", i),
-                                body,
-                            )
-                            .await;
+                            make_request(&app, "PUT", &format!("/del_dir/file_{}.txt", i), body)
+                                .await;
                         }
 
                         // Benchmark recursive delete (delete collection + children)

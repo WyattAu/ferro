@@ -1,7 +1,7 @@
+use crate::AppState;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use crate::AppState;
 
 /// GET /metrics/prometheus — return server metrics in Prometheus format.
 pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Response {
@@ -18,14 +18,14 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
         }
     }
 
-    let request_count = state.request_count.load(std::sync::atomic::Ordering::Relaxed);
+    let request_count = state
+        .request_count
+        .load(std::sync::atomic::Ordering::Relaxed);
 
     let mut headers = HeaderMap::new();
     headers.insert(
         "Content-Type",
-        "text/plain; version=0.0.4; charset=utf-8"
-            .parse()
-            .unwrap(),
+        "text/plain; version=0.0.4; charset=utf-8".parse().unwrap(),
     );
 
     let output = format!(
@@ -57,8 +57,8 @@ ferro_http_requests_total {request_count}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::build_router;
     use crate::AppState;
+    use crate::build_router;
     use http_body_util::BodyExt;
     use tower::ServiceExt;
 
@@ -81,7 +81,12 @@ mod tests {
             .unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
-        let ct = resp.headers().get("Content-Type").unwrap().to_str().unwrap();
+        let ct = resp
+            .headers()
+            .get("Content-Type")
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert!(ct.starts_with("text/plain"));
     }
 

@@ -80,10 +80,14 @@ pub fn provide_auth_state() -> AuthState {
     let (loading, set_loading) = create_signal(true);
 
     let state = AuthState::new(
-        access_token, set_access_token,
-        user, set_user,
-        auth_enabled, set_auth_enabled,
-        loading, set_loading,
+        access_token,
+        set_access_token,
+        user,
+        set_user,
+        auth_enabled,
+        set_auth_enabled,
+        loading,
+        set_loading,
     );
 
     provide_context(state.clone());
@@ -145,8 +149,14 @@ pub fn init_auth(state: &AuthState) {
                     if let Some(sub) = data.get("sub").and_then(|v| v.as_str()) {
                         let user = UserInfo {
                             sub: sub.to_string(),
-                            email: data.get("email").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            name: data.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            email: data
+                                .get("email")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
+                            name: data
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string()),
                         };
                         state.set_user.set(Some(user));
                     } else {

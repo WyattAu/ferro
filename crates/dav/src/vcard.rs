@@ -124,11 +124,7 @@ fn parse_address(value: &str, types: Vec<String>) -> VcardAddress {
 fn extract_types(params: &HashMap<String, String>) -> Vec<String> {
     params
         .get("TYPE")
-        .map(|v| {
-            v.split(',')
-                .map(|s| s.trim().to_uppercase())
-                .collect()
-        })
+        .map(|v| v.split(',').map(|s| s.trim().to_uppercase()).collect())
         .unwrap_or_default()
 }
 
@@ -169,7 +165,8 @@ pub fn parse_vcard(input: &str) -> Result<Vcard, String> {
             "UID" => vcard.uid = Some(prop.value),
             "FN" => vcard.fn_name = prop.value,
             "N" => {
-                let (family, given, additional, prefix, suffix) = parse_structured_name(&prop.value);
+                let (family, given, additional, prefix, suffix) =
+                    parse_structured_name(&prop.value);
                 vcard.family_name = family;
                 vcard.given_name = given;
                 vcard.additional_names = additional;
@@ -258,7 +255,11 @@ pub fn serialize_vcard(vcard: &Vcard) -> String {
             params.push_str(&format!("PREF={}", pref));
         }
         if !params.is_empty() {
-            s.push_str(&format!("EMAIL;{}:{}\r\n", params, escape_vcard_value(&email.value)));
+            s.push_str(&format!(
+                "EMAIL;{}:{}\r\n",
+                params,
+                escape_vcard_value(&email.value)
+            ));
         } else {
             s.push_str(&format!("EMAIL:{}\r\n", escape_vcard_value(&email.value)));
         }
@@ -276,7 +277,11 @@ pub fn serialize_vcard(vcard: &Vcard) -> String {
             params.push_str(&format!("PREF={}", pref));
         }
         if !params.is_empty() {
-            s.push_str(&format!("TEL;{}:{}\r\n", params, escape_vcard_value(&phone.value)));
+            s.push_str(&format!(
+                "TEL;{}:{}\r\n",
+                params,
+                escape_vcard_value(&phone.value)
+            ));
         } else {
             s.push_str(&format!("TEL:{}\r\n", escape_vcard_value(&phone.value)));
         }
@@ -298,7 +303,11 @@ pub fn serialize_vcard(vcard: &Vcard) -> String {
             addr.country
         );
         if !params.is_empty() {
-            s.push_str(&format!("ADR;{}:{}\r\n", params, escape_vcard_value(&addr_val)));
+            s.push_str(&format!(
+                "ADR;{}:{}\r\n",
+                params,
+                escape_vcard_value(&addr_val)
+            ));
         } else {
             s.push_str(&format!("ADR:{}\r\n", escape_vcard_value(&addr_val)));
         }

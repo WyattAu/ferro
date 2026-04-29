@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::warn;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// A stored file version.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,14 +58,14 @@ impl From<&VersionMeta> for VersionResponse {
 }
 
 fn path_hash(path: &str) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(path.as_bytes());
     hex::encode(hasher.finalize())
 }
 
 fn compute_content_hash(data: &[u8]) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(data);
     hex::encode(hasher.finalize())
@@ -117,16 +117,23 @@ pub async fn list_versions(State(state): State<AppState>, Path(path): Path<Strin
         None => return ApiError::bad_request("NO_DATA_DIR", "Versioning requires --data-dir"),
     };
 
-    let metas = tokio::task::spawn_blocking(move || {
-        read_meta(&data_dir, &normalized)
-    }).await.unwrap_or_else(|_| Vec::new());
+    let metas = tokio::task::spawn_blocking(move || read_meta(&data_dir, &normalized))
+        .await
+        .unwrap_or_else(|_| Vec::new());
 
     let versions: Vec<VersionResponse> = metas.iter().map(VersionResponse::from).collect();
-    (StatusCode::OK, axum::Json(serde_json::json!({ "versions": versions }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "versions": versions })),
+    )
+        .into_response()
 }
 
 /// GET /api/files/:path/versions/:version_id — download a specific version.
-pub async fn get_version(State(state): State<AppState>, Path((path, version_id)): Path<(String, u64)>) -> Response {
+pub async fn get_version(
+    State(state): State<AppState>,
+    Path((path, version_id)): Path<(String, u64)>,
+) -> Response {
     let normalized = common::path::normalize_path(&path);
     let data_dir = match &state.data_dir {
         Some(d) => d.clone(),
@@ -141,9 +148,13 @@ pub async fn get_version(State(state): State<AppState>, Path((path, version_id))
                 let content = std::fs::read(&m.file_path)?;
                 Ok::<_, std::io::Error>((m.clone(), content))
             }
-            None => Err(std::io::Error::new(std::io::ErrorKind::NotFound, "version not found")),
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "version not found",
+            )),
         }
-    }).await;
+    })
+    .await;
 
     match result {
         Ok(Ok((_meta, content))) => {
@@ -153,23 +164,26 @@ pub async fn get_version(State(state): State<AppState>, Path((path, version_id))
         Ok(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => {
             ApiError::not_found("VERSION_NOT_FOUND", "Version not found")
         }
-        Ok(Err(e)) => ApiError::internal("VERSION_READ_ERROR", format!("Failed to read version: {}", e)),
+        Ok(Err(e)) => ApiError::internal(
+            "VERSION_READ_ERROR",
+            format!("Failed to read version: {}", e),
+        ),
         Err(_) => ApiError::internal("VERSION_ERROR", "Internal error"),
     }
 }
 
 /// POST /api/files/:path/versions — create a new file version.
-pub async fn create_version(
-    State(state): State<AppState>,
-    Path(path): Path<String>,
-) -> Response {
+pub async fn create_version(State(state): State<AppState>, Path(path): Path<String>) -> Response {
     let normalized = common::path::normalize_path(&path);
     let data_dir = match &state.data_dir {
         Some(d) => d.clone(),
         None => return ApiError::bad_request("NO_DATA_DIR", "Versioning requires --data-dir"),
     };
 
-    let author = state.admin_user.clone().unwrap_or_else(|| "anonymous".to_string());
+    let author = state
+        .admin_user
+        .clone()
+        .unwrap_or_else(|| "anonymous".to_string());
 
     let content = match state.storage.get(&normalized).await {
         Ok(c) => c,
@@ -217,13 +231,18 @@ pub async fn create_version(
 
         write_meta(&dd, &norm, &metas).map_err(|e| e.to_string())?;
         Ok((new_id, content_hash))
-    }).await;
+    })
+    .await;
 
     match result {
-        Ok(Ok((id, hash))) => (StatusCode::CREATED, axum::Json(serde_json::json!({
-            "id": id,
-            "content_hash": hash,
-        }))).into_response(),
+        Ok(Ok((id, hash))) => (
+            StatusCode::CREATED,
+            axum::Json(serde_json::json!({
+                "id": id,
+                "content_hash": hash,
+            })),
+        )
+            .into_response(),
         Ok(Err(e)) => ApiError::internal("VERSION_CREATE_ERROR", e),
         Err(_) => ApiError::internal("VERSION_ERROR", "Internal error"),
     }
@@ -250,16 +269,27 @@ pub async fn delete_version(
                 write_meta(&data_dir, &normalized, &metas)?;
                 Ok::<_, std::io::Error>(())
             }
-            None => Err(std::io::Error::new(std::io::ErrorKind::NotFound, "version not found")),
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "version not found",
+            )),
         }
-    }).await;
+    })
+    .await;
 
     match result {
-        Ok(Ok(())) => (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response(),
+        Ok(Ok(())) => (
+            StatusCode::OK,
+            axum::Json(serde_json::json!({ "ok": true })),
+        )
+            .into_response(),
         Ok(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => {
             ApiError::not_found("VERSION_NOT_FOUND", "Version not found")
         }
-        Ok(Err(e)) => ApiError::internal("VERSION_DELETE_ERROR", format!("Failed to delete version: {}", e)),
+        Ok(Err(e)) => ApiError::internal(
+            "VERSION_DELETE_ERROR",
+            format!("Failed to delete version: {}", e),
+        ),
         Err(_) => ApiError::internal("VERSION_ERROR", "Internal error"),
     }
 }
@@ -274,7 +304,10 @@ pub async fn auto_version(state: &AppState, path: &str, previous_content: bytes:
         None => return,
     };
     let normalized = path.to_string();
-    let author = state.admin_user.clone().unwrap_or_else(|| "anonymous".to_string());
+    let author = state
+        .admin_user
+        .clone()
+        .unwrap_or_else(|| "anonymous".to_string());
     let max_versions = state.max_file_versions;
 
     let result = tokio::task::spawn_blocking(move || {
@@ -321,7 +354,8 @@ pub async fn auto_version(state: &AppState, path: &str, previous_content: bytes:
         if let Err(e) = write_meta(&data_dir, &normalized, &metas) {
             warn!("Failed to write version meta: {}", e);
         }
-    }).await;
+    })
+    .await;
 
     if let Err(e) = result {
         warn!("Auto-versioning failed for {}: {:?}", path, e);
@@ -366,7 +400,11 @@ impl DiffResult {
             to_version: to,
             is_binary: true,
             lines: vec![],
-            stats: DiffStats { additions: 0, deletions: 0, unchanged: 0 },
+            stats: DiffStats {
+                additions: 0,
+                deletions: 0,
+                unchanged: 0,
+            },
         }
     }
 }
@@ -407,12 +445,17 @@ pub async fn diff_versions(
             (None, _) => Err(format!("Version {} not found", from_id)),
             (_, None) => Err(format!("Version {} not found", to_id)),
         }
-    }).await;
+    })
+    .await;
 
     match result {
         Ok(Ok((content1, content2))) => {
-            let mime = mime_guess::from_path(&normalized).first_or_octet_stream().to_string();
-            let is_text = mime.starts_with("text/") || mime == "application/json" || mime == "application/xml";
+            let mime = mime_guess::from_path(&normalized)
+                .first_or_octet_stream()
+                .to_string();
+            let is_text = mime.starts_with("text/")
+                || mime == "application/json"
+                || mime == "application/xml";
 
             let diff = if is_text {
                 compute_line_diff(
@@ -509,7 +552,11 @@ fn compute_line_diff(old: &str, new: &str, from_version: String, to_version: Str
         to_version,
         is_binary: false,
         lines: diff_lines,
-        stats: DiffStats { additions, deletions, unchanged },
+        stats: DiffStats {
+            additions,
+            deletions,
+            unchanged,
+        },
     }
 }
 
@@ -579,7 +626,11 @@ mod tests {
     #[tokio::test]
     async fn test_create_version() {
         let (state, _tmp) = versioned_state();
-        state.storage.put("/test.txt", bytes::Bytes::from("hello"), "test").await.unwrap();
+        state
+            .storage
+            .put("/test.txt", bytes::Bytes::from("hello"), "test")
+            .await
+            .unwrap();
 
         let resp = create_version(State(state.clone()), Path("test.txt".to_string())).await;
         assert_eq!(resp.status(), StatusCode::CREATED);
@@ -591,7 +642,11 @@ mod tests {
     #[tokio::test]
     async fn test_create_version_idempotent() {
         let (state, _tmp) = versioned_state();
-        state.storage.put("/idem.txt", bytes::Bytes::from("same content"), "test").await.unwrap();
+        state
+            .storage
+            .put("/idem.txt", bytes::Bytes::from("same content"), "test")
+            .await
+            .unwrap();
 
         let resp1 = create_version(State(state.clone()), Path("idem.txt".to_string())).await;
         assert_eq!(resp1.status(), StatusCode::CREATED);
@@ -609,10 +664,18 @@ mod tests {
     #[tokio::test]
     async fn test_list_versions() {
         let (state, _tmp) = versioned_state();
-        state.storage.put("/list.txt", bytes::Bytes::from("v1"), "test").await.unwrap();
+        state
+            .storage
+            .put("/list.txt", bytes::Bytes::from("v1"), "test")
+            .await
+            .unwrap();
         create_version(State(state.clone()), Path("list.txt".to_string())).await;
 
-        state.storage.put("/list.txt", bytes::Bytes::from("v2"), "test").await.unwrap();
+        state
+            .storage
+            .put("/list.txt", bytes::Bytes::from("v2"), "test")
+            .await
+            .unwrap();
         create_version(State(state.clone()), Path("list.txt".to_string())).await;
 
         let resp = list_versions(State(state.clone()), Path("list.txt".to_string())).await;
@@ -629,24 +692,44 @@ mod tests {
             .with_data_dir(data_dir.clone())
             .with_max_file_versions(2);
 
-        state.storage.put("/evict.txt", bytes::Bytes::from("v1"), "test").await.unwrap();
+        state
+            .storage
+            .put("/evict.txt", bytes::Bytes::from("v1"), "test")
+            .await
+            .unwrap();
         create_version(State(state.clone()), Path("evict.txt".to_string())).await;
 
-        state.storage.put("/evict.txt", bytes::Bytes::from("v2"), "test").await.unwrap();
+        state
+            .storage
+            .put("/evict.txt", bytes::Bytes::from("v2"), "test")
+            .await
+            .unwrap();
         create_version(State(state.clone()), Path("evict.txt".to_string())).await;
 
-        state.storage.put("/evict.txt", bytes::Bytes::from("v3"), "test").await.unwrap();
+        state
+            .storage
+            .put("/evict.txt", bytes::Bytes::from("v3"), "test")
+            .await
+            .unwrap();
         create_version(State(state.clone()), Path("evict.txt".to_string())).await;
 
         let resp = list_versions(State(state.clone()), Path("evict.txt".to_string())).await;
         let json = body_json(resp).await;
-        assert_eq!(json["versions"].as_array().unwrap().len(), 2, "Should evict oldest version");
+        assert_eq!(
+            json["versions"].as_array().unwrap().len(),
+            2,
+            "Should evict oldest version"
+        );
     }
 
     #[tokio::test]
     async fn test_delete_version() {
         let (state, _tmp) = versioned_state();
-        state.storage.put("/del.txt", bytes::Bytes::from("content"), "test").await.unwrap();
+        state
+            .storage
+            .put("/del.txt", bytes::Bytes::from("content"), "test")
+            .await
+            .unwrap();
         let resp = create_version(State(state.clone()), Path("del.txt".to_string())).await;
         let json = body_json(resp).await;
         let id = json["id"].as_u64().unwrap();
@@ -669,7 +752,11 @@ mod tests {
     #[tokio::test]
     async fn test_auto_version_called() {
         let (state, _tmp) = versioned_state();
-        state.storage.put("/auto.txt", bytes::Bytes::from("original"), "test").await.unwrap();
+        state
+            .storage
+            .put("/auto.txt", bytes::Bytes::from("original"), "test")
+            .await
+            .unwrap();
 
         let prev = bytes::Bytes::from("original");
         auto_version(&state, "/auto.txt", prev).await;
@@ -682,7 +769,11 @@ mod tests {
     #[tokio::test]
     async fn test_version_no_data_dir() {
         let state = AppState::in_memory();
-        state.storage.put("/no-dir.txt", bytes::Bytes::from("x"), "test").await.unwrap();
+        state
+            .storage
+            .put("/no-dir.txt", bytes::Bytes::from("x"), "test")
+            .await
+            .unwrap();
 
         let resp = create_version(State(state.clone()), Path("no-dir.txt".to_string())).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
@@ -691,13 +782,25 @@ mod tests {
     #[tokio::test]
     async fn test_diff_versions() {
         let (state, _tmp) = versioned_state();
-        state.storage.put("/diff.txt", bytes::Bytes::from("hello\nworld\n"), "test").await.unwrap();
+        state
+            .storage
+            .put("/diff.txt", bytes::Bytes::from("hello\nworld\n"), "test")
+            .await
+            .unwrap();
 
         let resp = create_version(State(state.clone()), Path("diff.txt".to_string())).await;
         let json = body_json(resp).await;
         let id1 = json["id"].as_u64().unwrap();
 
-        state.storage.put("/diff.txt", bytes::Bytes::from("hello\nferro\nworld\n"), "test").await.unwrap();
+        state
+            .storage
+            .put(
+                "/diff.txt",
+                bytes::Bytes::from("hello\nferro\nworld\n"),
+                "test",
+            )
+            .await
+            .unwrap();
         let resp = create_version(State(state.clone()), Path("diff.txt".to_string())).await;
         let json = body_json(resp).await;
         let id2 = json["id"].as_u64().unwrap();
@@ -705,8 +808,12 @@ mod tests {
         let resp = diff_versions(
             State(state.clone()),
             Path("diff.txt".to_string()),
-            Query(DiffParams { from: id1.to_string(), to: id2.to_string() }),
-        ).await;
+            Query(DiffParams {
+                from: id1.to_string(),
+                to: id2.to_string(),
+            }),
+        )
+        .await;
 
         assert_eq!(resp.status(), StatusCode::OK);
         let json = body_json(resp).await;
@@ -723,8 +830,12 @@ mod tests {
         let resp = diff_versions(
             State(state.clone()),
             Path("nope.txt".to_string()),
-            Query(DiffParams { from: "1".to_string(), to: "2".to_string() }),
-        ).await;
+            Query(DiffParams {
+                from: "1".to_string(),
+                to: "2".to_string(),
+            }),
+        )
+        .await;
 
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
@@ -732,13 +843,29 @@ mod tests {
     #[tokio::test]
     async fn test_diff_binary_file() {
         let (state, _tmp) = versioned_state();
-        state.storage.put("/img.png", bytes::Bytes::from_static(b"\x89PNG\r\n\x1a\n"), "test").await.unwrap();
+        state
+            .storage
+            .put(
+                "/img.png",
+                bytes::Bytes::from_static(b"\x89PNG\r\n\x1a\n"),
+                "test",
+            )
+            .await
+            .unwrap();
 
         let resp = create_version(State(state.clone()), Path("img.png".to_string())).await;
         let json = body_json(resp).await;
         let id1 = json["id"].as_u64().unwrap();
 
-        state.storage.put("/img.png", bytes::Bytes::from_static(b"\x89PNG\r\n\x1a\n\x00\x00"), "test").await.unwrap();
+        state
+            .storage
+            .put(
+                "/img.png",
+                bytes::Bytes::from_static(b"\x89PNG\r\n\x1a\n\x00\x00"),
+                "test",
+            )
+            .await
+            .unwrap();
         let resp = create_version(State(state.clone()), Path("img.png".to_string())).await;
         let json = body_json(resp).await;
         let id2 = json["id"].as_u64().unwrap();
@@ -746,8 +873,12 @@ mod tests {
         let resp = diff_versions(
             State(state.clone()),
             Path("img.png".to_string()),
-            Query(DiffParams { from: id1.to_string(), to: id2.to_string() }),
-        ).await;
+            Query(DiffParams {
+                from: id1.to_string(),
+                to: id2.to_string(),
+            }),
+        )
+        .await;
 
         assert_eq!(resp.status(), StatusCode::OK);
         let json = body_json(resp).await;
@@ -761,8 +892,12 @@ mod tests {
         let resp = diff_versions(
             State(state.clone()),
             Path("test.txt".to_string()),
-            Query(DiffParams { from: "abc".to_string(), to: "2".to_string() }),
-        ).await;
+            Query(DiffParams {
+                from: "abc".to_string(),
+                to: "2".to_string(),
+            }),
+        )
+        .await;
 
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
@@ -770,7 +905,11 @@ mod tests {
     #[tokio::test]
     async fn test_diff_identical_versions() {
         let (state, _tmp) = versioned_state();
-        state.storage.put("/same.txt", bytes::Bytes::from("unchanged"), "test").await.unwrap();
+        state
+            .storage
+            .put("/same.txt", bytes::Bytes::from("unchanged"), "test")
+            .await
+            .unwrap();
 
         let resp = create_version(State(state.clone()), Path("same.txt".to_string())).await;
         let json = body_json(resp).await;
@@ -779,8 +918,12 @@ mod tests {
         let resp = diff_versions(
             State(state.clone()),
             Path("same.txt".to_string()),
-            Query(DiffParams { from: id.to_string(), to: id.to_string() }),
-        ).await;
+            Query(DiffParams {
+                from: id.to_string(),
+                to: id.to_string(),
+            }),
+        )
+        .await;
 
         assert_eq!(resp.status(), StatusCode::OK);
         let json = body_json(resp).await;
@@ -803,7 +946,11 @@ mod tests {
         assert_eq!(added.len(), 1);
         assert_eq!(added[0].content, "line2.5");
 
-        let removed: Vec<_> = result.lines.iter().filter(|l| l.type_ == "removed").collect();
+        let removed: Vec<_> = result
+            .lines
+            .iter()
+            .filter(|l| l.type_ == "removed")
+            .collect();
         assert_eq!(removed.len(), 1);
         assert_eq!(removed[0].content, "line2");
     }

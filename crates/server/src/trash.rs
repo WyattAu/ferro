@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::warn;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 const MAX_TRASH_ENTRIES: usize = 1_000;
 
@@ -50,7 +50,11 @@ fn generate_trash_path() -> String {
     format!("{}_{}", ts, &hash[..16])
 }
 
-fn write_trash_file(trash_dir: &str, filename: &str, content: &[u8]) -> Result<PathBuf, std::io::Error> {
+fn write_trash_file(
+    trash_dir: &str,
+    filename: &str,
+    content: &[u8],
+) -> Result<PathBuf, std::io::Error> {
     let dir = PathBuf::from(trash_dir);
     std::fs::create_dir_all(&dir)?;
     let file_path = dir.join(filename);
@@ -58,19 +62,23 @@ fn write_trash_file(trash_dir: &str, filename: &str, content: &[u8]) -> Result<P
     Ok(file_path)
 }
 
-async fn write_trash_file_async(trash_dir: &str, filename: &str, content: bytes::Bytes) -> Result<PathBuf, std::io::Error> {
+async fn write_trash_file_async(
+    trash_dir: &str,
+    filename: &str,
+    content: bytes::Bytes,
+) -> Result<PathBuf, std::io::Error> {
     let dir = trash_dir.to_string();
     let filename = filename.to_string();
-    tokio::task::spawn_blocking(move || {
-        write_trash_file(&dir, &filename, &content)
-    }).await.map_err(std::io::Error::other)?
+    tokio::task::spawn_blocking(move || write_trash_file(&dir, &filename, &content))
+        .await
+        .map_err(std::io::Error::other)?
 }
 
 async fn read_trash_file_async(trash_path: &str) -> Result<bytes::Bytes, std::io::Error> {
     let path = trash_path.to_string();
-    tokio::task::spawn_blocking(move || {
-        std::fs::read(&path).map(bytes::Bytes::from)
-    }).await.map_err(std::io::Error::other)?
+    tokio::task::spawn_blocking(move || std::fs::read(&path).map(bytes::Bytes::from))
+        .await
+        .map_err(std::io::Error::other)?
 }
 
 fn delete_trash_file(trash_path: &str) {
@@ -104,7 +112,11 @@ pub async fn list_trash(State(state): State<AppState>) -> Response {
         .iter()
         .map(|r| TrashedEntryResponse::from(r.value()))
         .collect();
-    (StatusCode::OK, axum::Json(serde_json::json!({ "entries": entries }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "entries": entries })),
+    )
+        .into_response()
 }
 
 pub async fn move_to_trash(
@@ -158,7 +170,11 @@ pub async fn move_to_trash(
     state.trash.insert(normalized, entry);
     evict_oldest_if_needed(&state.trash);
 
-    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "ok": true })),
+    )
+        .into_response()
 }
 
 pub async fn restore_trash(
@@ -176,10 +192,7 @@ pub async fn restore_trash(
         Ok(bytes) => bytes,
         Err(_) => {
             state.trash.insert(normalized, entry);
-            return ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                "Trash file not found on disk",
-            );
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Trash file not found on disk");
         }
     };
 
@@ -189,15 +202,16 @@ pub async fn restore_trash(
         .await
     {
         state.trash.insert(normalized, entry);
-        return ApiError::internal(
-            ApiError::INTERNAL_ERROR,
-            format!("Restore failed: {}", e),
-        );
+        return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Restore failed: {}", e));
     }
 
     delete_trash_file(&entry.trash_path);
 
-    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "ok": true })),
+    )
+        .into_response()
 }
 
 pub async fn purge_trash(
@@ -212,7 +226,11 @@ pub async fn purge_trash(
         return ApiError::not_found("TRASH_NOT_FOUND", "File not found in trash");
     }
 
-    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "ok": true })),
+    )
+        .into_response()
 }
 
 pub async fn empty_trash(State(state): State<AppState>) -> Response {
@@ -220,13 +238,14 @@ pub async fn empty_trash(State(state): State<AppState>) -> Response {
         delete_trash_file(&entry.trash_path);
     }
     state.trash.clear();
-    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "ok": true })),
+    )
+        .into_response()
 }
 
-pub async fn purge_expired(
-    state: &AppState,
-    ttl: std::time::Duration,
-) -> usize {
+pub async fn purge_expired(state: &AppState, ttl: std::time::Duration) -> usize {
     let cutoff = chrono::Utc::now() - ttl;
     let mut keys_to_remove = Vec::new();
 
@@ -250,15 +269,17 @@ pub async fn purge_expired(
     purged
 }
 
-pub async fn soft_delete(
-    state: &AppState,
-    path: &str,
-) -> Result<(), Response> {
+pub async fn soft_delete(state: &AppState, path: &str) -> Result<(), Response> {
     let normalized = common::path::normalize_path(path);
 
     let content = match state.storage.get(&normalized).await {
         Ok(c) => c,
-        Err(_) => return Err(ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found")),
+        Err(_) => {
+            return Err(ApiError::not_found(
+                ApiError::FILE_NOT_FOUND,
+                "File not found",
+            ));
+        }
     };
 
     let size = content.len() as u64;
@@ -437,11 +458,7 @@ mod tests {
     #[tokio::test]
     async fn test_move_nonexistent_to_trash() {
         let state = test_state();
-        let resp = move_to_trash(
-            State(state),
-            axum::extract::Path("nope.txt".to_string()),
-        )
-        .await;
+        let resp = move_to_trash(State(state), axum::extract::Path("nope.txt".to_string())).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 
@@ -486,7 +503,11 @@ mod tests {
 
         state
             .storage
-            .put("/disk-test.txt", bytes::Bytes::from("disk content"), "anonymous")
+            .put(
+                "/disk-test.txt",
+                bytes::Bytes::from("disk content"),
+                "anonymous",
+            )
             .await
             .unwrap();
 
@@ -526,7 +547,11 @@ mod tests {
 
         state
             .storage
-            .put("/purge-disk.txt", bytes::Bytes::from("purge me"), "anonymous")
+            .put(
+                "/purge-disk.txt",
+                bytes::Bytes::from("purge me"),
+                "anonymous",
+            )
             .await
             .unwrap();
 

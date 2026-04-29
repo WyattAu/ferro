@@ -3,8 +3,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// Manifest describing a backup's contents.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,7 +54,10 @@ pub async fn create_backup(State(state): State<AppState>) -> Response {
     let entries = match state.storage.list_all("/", 10000).await {
         Ok(e) => e,
         Err(e) => {
-            return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to list files: {}", e));
+            return ApiError::internal(
+                ApiError::INTERNAL_ERROR,
+                format!("Failed to list files: {}", e),
+            );
         }
     };
 
@@ -204,10 +207,7 @@ pub async fn restore_backup(
     let manifest: BackupManifest = match serde_json::from_str(&manifest_content) {
         Ok(m) => m,
         Err(_) => {
-            return ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                "Failed to parse backup manifest",
-            );
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to parse backup manifest");
         }
     };
 
@@ -253,10 +253,7 @@ pub async fn restore_backup(
 }
 
 /// DELETE /api/admin/backup/:id — delete a backup.
-pub async fn delete_backup(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_backup(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let data_dir = match &state.data_dir {
         Some(d) => d.clone(),
         None => {
@@ -267,9 +264,7 @@ pub async fn delete_backup(
         }
     };
 
-    let backup_dir = std::path::Path::new(&data_dir)
-        .join("backups")
-        .join(&id);
+    let backup_dir = std::path::Path::new(&data_dir).join("backups").join(&id);
 
     if !backup_dir.exists() {
         return ApiError::not_found(ApiError::NOT_FOUND, "Backup not found");
@@ -288,8 +283,8 @@ pub async fn delete_backup(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::build_router;
     use crate::AppState;
+    use crate::build_router;
     use http_body_util::BodyExt;
     use tower::ServiceExt;
 
@@ -428,7 +423,10 @@ mod tests {
             .await
             .unwrap();
 
-        let backup_id = body_json(backup_resp).await["id"].as_str().unwrap().to_string();
+        let backup_id = body_json(backup_resp).await["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         let restore1 = app
             .clone()
@@ -494,7 +492,10 @@ mod tests {
             .await
             .unwrap();
 
-        let backup_id = body_json(backup_resp).await["id"].as_str().unwrap().to_string();
+        let backup_id = body_json(backup_resp).await["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
 
         let del_resp = app
             .clone()

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use ferro_common::metadata::{ContentHash, FileMetadata};
-use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderValue};
 use serde::{Deserialize, Serialize};
 
 pub struct FerroClient {
@@ -28,7 +28,10 @@ impl FerroClient {
     pub fn new(server_url: &str, token: Option<&str>) -> Result<Self> {
         let mut headers = reqwest::header::HeaderMap::new();
         if let Some(t) = token {
-            headers.insert(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", t))?);
+            headers.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", t))?,
+            );
         }
 
         let http = reqwest::Client::builder()
@@ -54,7 +57,11 @@ impl FerroClient {
 
     pub async fn get_capabilities(&self) -> Result<ServerCapabilities> {
         let url = format!("{}/", self.server_url);
-        let resp = self.http.request(reqwest::Method::OPTIONS, &url).send().await?;
+        let resp = self
+            .http
+            .request(reqwest::Method::OPTIONS, &url)
+            .send()
+            .await?;
 
         let dav = resp
             .headers()
@@ -231,11 +238,29 @@ impl FerroClient {
         let claims = body.get("claims").cloned().unwrap_or_default();
 
         Ok(UserInfo {
-            subject: claims.get("sub").and_then(|v| v.as_str()).unwrap_or("anonymous").to_string(),
-            issuer: claims.get("iss").and_then(|v| v.as_str()).unwrap_or("ferro").to_string(),
-            audience: claims.get("aud").and_then(|v| v.as_str()).unwrap_or("ferro").to_string(),
-            email: claims.get("email").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            name: claims.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            subject: claims
+                .get("sub")
+                .and_then(|v| v.as_str())
+                .unwrap_or("anonymous")
+                .to_string(),
+            issuer: claims
+                .get("iss")
+                .and_then(|v| v.as_str())
+                .unwrap_or("ferro")
+                .to_string(),
+            audience: claims
+                .get("aud")
+                .and_then(|v| v.as_str())
+                .unwrap_or("ferro")
+                .to_string(),
+            email: claims
+                .get("email")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            name: claims
+                .get("name")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
         })
     }
 
@@ -248,10 +273,21 @@ impl FerroClient {
             anyhow::bail!("List shares failed: {}", resp.status());
         }
         let body: serde_json::Value = resp.json().await?;
-        Ok(body.get("shares").and_then(|v| v.as_array()).cloned().unwrap_or_default().into_iter().collect())
+        Ok(body
+            .get("shares")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .collect())
     }
 
-    pub async fn create_share(&self, path: &str, expires_hours: Option<u64>, password: Option<&str>) -> Result<serde_json::Value> {
+    pub async fn create_share(
+        &self,
+        path: &str,
+        expires_hours: Option<u64>,
+        password: Option<&str>,
+    ) -> Result<serde_json::Value> {
         let url = format!("{}/api/shares", self.server_url);
         let mut body = serde_json::json!({
             "path": path,
@@ -285,12 +321,22 @@ impl FerroClient {
             anyhow::bail!("List snapshots failed: {}", resp.status());
         }
         let body: serde_json::Value = resp.json().await?;
-        Ok(body.as_array().cloned().unwrap_or_default().into_iter().collect())
+        Ok(body
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .collect())
     }
 
     pub async fn create_snapshot(&self) -> Result<serde_json::Value> {
         let url = format!("{}/api/snapshots", self.server_url);
-        let resp = self.http.post(&url).json(&serde_json::json!({})).send().await?;
+        let resp = self
+            .http
+            .post(&url)
+            .json(&serde_json::json!({}))
+            .send()
+            .await?;
         if !resp.status().is_success() {
             anyhow::bail!("Create snapshot failed: {}", resp.status());
         }
@@ -359,12 +405,13 @@ impl FerroClient {
 
 /// Parse a WebDAV PROPFIND multistatus XML response into a list of FileMetadata.
 fn parse_propfind_response(xml: &str) -> Result<Vec<FileMetadata>> {
-    use quick_xml::events::Event;
     use quick_xml::Reader;
+    use quick_xml::events::Event;
 
     let mut entries = Vec::new();
     let mut current_href = String::new();
-    let mut current_props: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut current_props: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     let mut in_prop = false;
     let mut current_tag = String::new();
     let mut capture_text = false;
@@ -411,19 +458,27 @@ fn parse_propfind_response(xml: &str) -> Result<Vec<FileMetadata>> {
                 } else if local_name.as_ref() == b"response" {
                     // End of a response block — emit entry
                     if !current_href.is_empty() {
-                        let is_collection = current_props.get("resourcetype")
+                        let is_collection = current_props
+                            .get("resourcetype")
                             .map(|v| v.contains("collection"))
                             .unwrap_or(false);
-                        let size = current_props.get("getcontentlength")
+                        let size = current_props
+                            .get("getcontentlength")
                             .and_then(|v| v.parse().ok())
                             .unwrap_or(0);
-                        let etag = current_props.get("getetag")
+                        let etag = current_props.get("getetag").cloned().unwrap_or_default();
+                        let mime_type = current_props
+                            .get("getcontenttype")
                             .cloned()
-                            .unwrap_or_default();
-                        let mime_type = current_props.get("getcontenttype")
-                            .cloned()
-                            .unwrap_or_else(|| if is_collection { "httpd/unix-directory".to_string() } else { "application/octet-stream".to_string() });
-                        let modified_at = current_props.get("getlastmodified")
+                            .unwrap_or_else(|| {
+                                if is_collection {
+                                    "httpd/unix-directory".to_string()
+                                } else {
+                                    "application/octet-stream".to_string()
+                                }
+                            });
+                        let modified_at = current_props
+                            .get("getlastmodified")
                             .and_then(|v| chrono::DateTime::parse_from_rfc2822(v).ok())
                             .map(|dt| dt.with_timezone(&chrono::Utc))
                             .unwrap_or_else(chrono::Utc::now);
@@ -454,19 +509,23 @@ fn parse_propfind_response(xml: &str) -> Result<Vec<FileMetadata>> {
                     text_buf.push_str(&e.unescape().unwrap_or_default());
                 }
             }
-            Ok(Event::Decl(_) | Event::PI(_) | Event::DocType(_) | Event::Comment(_) | Event::CData(_)) => {}
+            Ok(
+                Event::Decl(_)
+                | Event::PI(_)
+                | Event::DocType(_)
+                | Event::Comment(_)
+                | Event::CData(_),
+            ) => {}
             Ok(Event::Eof) => break,
             Err(e) => anyhow::bail!("XML parse error: {}", e),
         }
         buf.clear();
     }
 
-    entries.sort_by(|a, b| {
-        match (a.is_collection, b.is_collection) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.path.to_lowercase().cmp(&b.path.to_lowercase()),
-        }
+    entries.sort_by(|a, b| match (a.is_collection, b.is_collection) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.path.to_lowercase().cmp(&b.path.to_lowercase()),
     });
 
     Ok(entries)
@@ -539,7 +598,8 @@ mod tests {
         assert_eq!(client.server_url(), "http://localhost:8080");
         assert!(client.token.is_none());
 
-        let client_with_token = FerroClient::new("http://localhost:8080/", Some("test-token")).unwrap();
+        let client_with_token =
+            FerroClient::new("http://localhost:8080/", Some("test-token")).unwrap();
         assert_eq!(client_with_token.server_url(), "http://localhost:8080");
         assert_eq!(client_with_token.token.as_deref(), Some("test-token"));
     }

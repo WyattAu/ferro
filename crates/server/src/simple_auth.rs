@@ -5,7 +5,7 @@ use base64::Engine;
 use subtle::ConstantTimeEq;
 
 use crate::api_error::ApiError;
-use crate::users::{UserStoreTrait, UserInfo, UserRole};
+use crate::users::{UserInfo, UserRole, UserStoreTrait};
 
 /// Middleware implementing HTTP Basic authentication with user store lookup.
 pub async fn simple_auth_middleware(
@@ -112,7 +112,8 @@ mod tests {
     fn make_auth_app(user: Option<&str>, pass: Option<&str>) -> axum::Router {
         let admin_user = user.map(|s| s.to_string());
         let admin_password = pass.map(|s| s.to_string());
-        let user_store: std::sync::Arc<dyn UserStoreTrait> = std::sync::Arc::new(crate::users::InMemoryUserStore::new());
+        let user_store: std::sync::Arc<dyn UserStoreTrait> =
+            std::sync::Arc::new(crate::users::InMemoryUserStore::new());
         axum::Router::new()
             .route("/api/test", axum::routing::get(|| async { "ok" }))
             .route("/.well-known/ferro", axum::routing::get(|| async { "ok" }))
@@ -121,14 +122,17 @@ mod tests {
             .route("/api/auth/login", axum::routing::get(|| async { "ok" }))
             .route("/api/auth/callback", axum::routing::get(|| async { "ok" }))
             .route("/metrics", axum::routing::get(|| async { "ok" }))
-            .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: Next| {
-                let admin_user = admin_user.clone();
-                let admin_password = admin_password.clone();
-                let user_store = user_store.clone();
-                async move {
-                    simple_auth_middleware(req, admin_user, admin_password, user_store, next).await
-                }
-            }))
+            .layer(axum::middleware::from_fn(
+                move |req: axum::extract::Request, next: Next| {
+                    let admin_user = admin_user.clone();
+                    let admin_password = admin_password.clone();
+                    let user_store = user_store.clone();
+                    async move {
+                        simple_auth_middleware(req, admin_user, admin_password, user_store, next)
+                            .await
+                    }
+                },
+            ))
     }
 
     #[tokio::test]
@@ -151,15 +155,15 @@ mod tests {
         async fn check(path: &str) {
             let app = make_auth_app(Some("admin"), Some("secret"));
             let resp = app
-                .oneshot(
-                    Request::builder()
-                        .uri(path)
-                        .body(Body::empty())
-                        .unwrap(),
-                )
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
                 .await
                 .unwrap();
-            assert_eq!(resp.status(), StatusCode::OK, "path {} should be public", path);
+            assert_eq!(
+                resp.status(),
+                StatusCode::OK,
+                "path {} should be public",
+                path
+            );
         }
         check("/.well-known/ferro").await;
         check("/api/config").await;
@@ -283,7 +287,11 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(resp.status(), StatusCode::OK, "Password 'pass:word' should be accepted via split on first colon");
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Password 'pass:word' should be accepted via split on first colon"
+        );
     }
 
     #[tokio::test]
@@ -306,7 +314,8 @@ mod tests {
     async fn test_very_long_credentials_handled() {
         let app = make_auth_app(Some("admin"), Some("secret"));
         let long_user = "x".repeat(10_000);
-        let creds = base64::engine::general_purpose::STANDARD.encode(format!("{}:password", long_user));
+        let creds =
+            base64::engine::general_purpose::STANDARD.encode(format!("{}:password", long_user));
         let resp = app
             .oneshot(
                 Request::builder()
@@ -317,7 +326,11 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "Very long credentials should be rejected");
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNAUTHORIZED,
+            "Very long credentials should be rejected"
+        );
     }
 
     #[tokio::test]
@@ -343,14 +356,17 @@ mod tests {
         let admin_password = Some("secret".to_string());
         let app = axum::Router::new()
             .route("/api/test", axum::routing::get(|| async { "ok" }))
-            .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: Next| {
-                let admin_user = admin_user.clone();
-                let admin_password = admin_password.clone();
-                let user_store = store.clone();
-                async move {
-                    simple_auth_middleware(req, admin_user, admin_password, user_store, next).await
-                }
-            }));
+            .layer(axum::middleware::from_fn(
+                move |req: axum::extract::Request, next: Next| {
+                    let admin_user = admin_user.clone();
+                    let admin_password = admin_password.clone();
+                    let user_store = store.clone();
+                    async move {
+                        simple_auth_middleware(req, admin_user, admin_password, user_store, next)
+                            .await
+                    }
+                },
+            ));
 
         let creds = base64::engine::general_purpose::STANDARD.encode("testuser:userpass");
         let resp = app
@@ -389,14 +405,17 @@ mod tests {
         let admin_password = Some("secret".to_string());
         let app = axum::Router::new()
             .route("/api/test", axum::routing::get(|| async { "ok" }))
-            .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: Next| {
-                let admin_user = admin_user.clone();
-                let admin_password = admin_password.clone();
-                let user_store = store.clone();
-                async move {
-                    simple_auth_middleware(req, admin_user, admin_password, user_store, next).await
-                }
-            }));
+            .layer(axum::middleware::from_fn(
+                move |req: axum::extract::Request, next: Next| {
+                    let admin_user = admin_user.clone();
+                    let admin_password = admin_password.clone();
+                    let user_store = store.clone();
+                    async move {
+                        simple_auth_middleware(req, admin_user, admin_password, user_store, next)
+                            .await
+                    }
+                },
+            ));
 
         let creds = base64::engine::general_purpose::STANDARD.encode("testuser2:wrong");
         let resp = app
@@ -418,21 +437,27 @@ mod tests {
         let admin_user = Some("admin".to_string());
         let admin_password = Some("secret".to_string());
         let app = axum::Router::new()
-            .route("/api/test", axum::routing::get(|req: axum::extract::Request| async move {
-                let info = req.extensions().get::<UserInfo>();
-                match info {
-                    Some(i) => format!("user:{}", i.username),
-                    None => "no user info".to_string(),
-                }
-            }))
-            .layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: Next| {
-                let admin_user = admin_user.clone();
-                let admin_password = admin_password.clone();
-                let user_store = store.clone();
-                async move {
-                    simple_auth_middleware(req, admin_user, admin_password, user_store, next).await
-                }
-            }));
+            .route(
+                "/api/test",
+                axum::routing::get(|req: axum::extract::Request| async move {
+                    let info = req.extensions().get::<UserInfo>();
+                    match info {
+                        Some(i) => format!("user:{}", i.username),
+                        None => "no user info".to_string(),
+                    }
+                }),
+            )
+            .layer(axum::middleware::from_fn(
+                move |req: axum::extract::Request, next: Next| {
+                    let admin_user = admin_user.clone();
+                    let admin_password = admin_password.clone();
+                    let user_store = store.clone();
+                    async move {
+                        simple_auth_middleware(req, admin_user, admin_password, user_store, next)
+                            .await
+                    }
+                },
+            ));
 
         let creds = base64::engine::general_purpose::STANDARD.encode("admin:secret");
         let resp = app

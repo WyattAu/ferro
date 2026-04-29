@@ -1,4 +1,7 @@
-#![cfg_attr(all(not(debug_assertions), feature = "tauri"), windows_subsystem = "windows")]
+#![cfg_attr(
+    all(not(debug_assertions), feature = "tauri"),
+    windows_subsystem = "windows"
+)]
 
 #[cfg(feature = "tauri")]
 mod gui;

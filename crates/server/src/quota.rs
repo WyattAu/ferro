@@ -31,13 +31,17 @@ pub async fn get_quota(State(state): State<AppState>) -> Response {
         (used_bytes as f64 / quota_bytes as f64) * 100.0
     };
 
-    (StatusCode::OK, axum::Json(QuotaInfo {
-        used_bytes,
-        quota_bytes,
-        used_percent,
-        file_count,
-        unlimited,
-    })).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(QuotaInfo {
+            used_bytes,
+            quota_bytes,
+            used_percent,
+            file_count,
+            unlimited,
+        }),
+    )
+        .into_response()
 }
 
 /// Check whether an upload would exceed the storage quota.
@@ -53,20 +57,28 @@ pub fn check_quota(state: &AppState, content_len: u64) -> Result<(), &'static st
 
 /// Record storage usage delta (positive for uploads, negative for deletes).
 pub fn record_usage(state: &AppState, bytes: i64) {
-    state.used_bytes.fetch_update(
-        std::sync::atomic::Ordering::Relaxed,
-        std::sync::atomic::Ordering::Relaxed,
-        |current| current.checked_add_signed(bytes),
-    ).ok();
+    state
+        .used_bytes
+        .fetch_update(
+            std::sync::atomic::Ordering::Relaxed,
+            std::sync::atomic::Ordering::Relaxed,
+            |current| current.checked_add_signed(bytes),
+        )
+        .ok();
 
     if bytes > 0 {
-        state.file_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        state
+            .file_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     } else if bytes < 0 {
-        state.file_count.fetch_update(
-            std::sync::atomic::Ordering::Relaxed,
-            std::sync::atomic::Ordering::Relaxed,
-            |c| c.checked_sub(1),
-        ).ok();
+        state
+            .file_count
+            .fetch_update(
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+                |c| c.checked_sub(1),
+            )
+            .ok();
     }
 }
 
@@ -91,14 +103,21 @@ pub fn parse_human_size(s: &str) -> Option<u64> {
 
 /// Check if a PUT operation would exceed the quota (best-effort pre-check).
 /// Uses the atomic counter for fast checks. Returns Ok(()) if within quota.
-pub fn enforce_quota(state: &AppState, content_length: u64) -> Result<(), Box<axum::response::Response>> {
+pub fn enforce_quota(
+    state: &AppState,
+    content_length: u64,
+) -> Result<(), Box<axum::response::Response>> {
     if let Some(quota_bytes) = state.quota_bytes {
         if quota_bytes == 0 {
             return Ok(());
         }
         let used = state.used_bytes.load(std::sync::atomic::Ordering::Relaxed);
         if used + content_length > quota_bytes {
-            return Err(Box::new(ApiError::quota_exceeded(used, quota_bytes, content_length)));
+            return Err(Box::new(ApiError::quota_exceeded(
+                used,
+                quota_bytes,
+                content_length,
+            )));
         }
     }
     Ok(())
@@ -107,7 +126,8 @@ pub fn enforce_quota(state: &AppState, content_length: u64) -> Result<(), Box<ax
 /// Calculate total storage usage by summing file sizes from the storage backend.
 pub async fn calculate_usage(state: &AppState) -> u64 {
     match state.storage.list_all("/", 100_000).await {
-        Ok(files) => files.iter()
+        Ok(files) => files
+            .iter()
             .filter(|f| !f.is_collection)
             .map(|f| f.size)
             .sum(),
@@ -144,7 +164,10 @@ mod tests {
         let state = crate::AppState::in_memory();
         let response = get_quota(axum::extract::State(state)).await;
         assert_eq!(response.status(), StatusCode::OK);
-        let bytes = http_body_util::BodyExt::collect(response.into_body()).await.unwrap().to_bytes();
+        let bytes = http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .unwrap()
+            .to_bytes();
         let info: QuotaInfo = serde_json::from_slice(&bytes).unwrap();
         assert!(info.unlimited);
         assert_eq!(info.used_bytes, 0);
@@ -156,11 +179,16 @@ mod tests {
             quota_bytes: Some(10_737_418_240),
             ..crate::AppState::in_memory()
         };
-        quota_state.used_bytes.store(5_000_000_000, std::sync::atomic::Ordering::Relaxed);
+        quota_state
+            .used_bytes
+            .store(5_000_000_000, std::sync::atomic::Ordering::Relaxed);
 
         let response = get_quota(axum::extract::State(quota_state)).await;
         assert_eq!(response.status(), StatusCode::OK);
-        let bytes = http_body_util::BodyExt::collect(response.into_body()).await.unwrap().to_bytes();
+        let bytes = http_body_util::BodyExt::collect(response.into_body())
+            .await
+            .unwrap()
+            .to_bytes();
         let info: QuotaInfo = serde_json::from_slice(&bytes).unwrap();
         assert!(!info.unlimited);
         assert_eq!(info.quota_bytes, 10_737_418_240);
@@ -170,12 +198,16 @@ mod tests {
     #[test]
     fn test_check_quota_under_limit() {
         let state = crate::AppState::in_memory();
-        state.used_bytes.store(500, std::sync::atomic::Ordering::Relaxed);
+        state
+            .used_bytes
+            .store(500, std::sync::atomic::Ordering::Relaxed);
         let check_state = crate::AppState {
             quota_bytes: Some(1000),
             ..crate::AppState::in_memory()
         };
-        check_state.used_bytes.store(500, std::sync::atomic::Ordering::Relaxed);
+        check_state
+            .used_bytes
+            .store(500, std::sync::atomic::Ordering::Relaxed);
         assert!(check_quota(&check_state, 400).is_ok());
     }
 
@@ -185,7 +217,9 @@ mod tests {
             quota_bytes: Some(1000),
             ..crate::AppState::in_memory()
         };
-        check_state.used_bytes.store(800, std::sync::atomic::Ordering::Relaxed);
+        check_state
+            .used_bytes
+            .store(800, std::sync::atomic::Ordering::Relaxed);
         assert!(check_quota(&check_state, 300).is_err());
     }
 
@@ -193,11 +227,23 @@ mod tests {
     fn test_record_usage() {
         let state = crate::AppState::in_memory();
         record_usage(&state, 100);
-        assert_eq!(state.used_bytes.load(std::sync::atomic::Ordering::Relaxed), 100);
-        assert_eq!(state.file_count.load(std::sync::atomic::Ordering::Relaxed), 1);
+        assert_eq!(
+            state.used_bytes.load(std::sync::atomic::Ordering::Relaxed),
+            100
+        );
+        assert_eq!(
+            state.file_count.load(std::sync::atomic::Ordering::Relaxed),
+            1
+        );
         record_usage(&state, -50);
-        assert_eq!(state.used_bytes.load(std::sync::atomic::Ordering::Relaxed), 50);
-        assert_eq!(state.file_count.load(std::sync::atomic::Ordering::Relaxed), 0);
+        assert_eq!(
+            state.used_bytes.load(std::sync::atomic::Ordering::Relaxed),
+            50
+        );
+        assert_eq!(
+            state.file_count.load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
     }
 
     #[test]
@@ -206,7 +252,9 @@ mod tests {
             quota_bytes: Some(1000),
             ..crate::AppState::in_memory()
         };
-        state.used_bytes.store(500, std::sync::atomic::Ordering::Relaxed);
+        state
+            .used_bytes
+            .store(500, std::sync::atomic::Ordering::Relaxed);
         assert!(enforce_quota(&state, 400).is_ok());
     }
 
@@ -216,7 +264,9 @@ mod tests {
             quota_bytes: Some(1000),
             ..crate::AppState::in_memory()
         };
-        state.used_bytes.store(800, std::sync::atomic::Ordering::Relaxed);
+        state
+            .used_bytes
+            .store(800, std::sync::atomic::Ordering::Relaxed);
         let result = enforce_quota(&state, 300);
         assert!(result.is_err());
     }
@@ -230,8 +280,16 @@ mod tests {
     #[tokio::test]
     async fn test_calculate_usage() {
         let state = crate::AppState::in_memory();
-        state.storage.put("/a.txt", bytes::Bytes::from("hello"), "anon").await.unwrap();
-        state.storage.put("/b.txt", bytes::Bytes::from("world!!"), "anon").await.unwrap();
+        state
+            .storage
+            .put("/a.txt", bytes::Bytes::from("hello"), "anon")
+            .await
+            .unwrap();
+        state
+            .storage
+            .put("/b.txt", bytes::Bytes::from("world!!"), "anon")
+            .await
+            .unwrap();
         let usage = calculate_usage(&state).await;
         assert_eq!(usage, 12);
     }

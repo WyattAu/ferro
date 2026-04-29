@@ -2,14 +2,14 @@ use leptos::*;
 use leptos_router::A;
 
 use crate::api;
-use crate::components::clipboard::{use_clipboard_state, ClipboardAction};
-use crate::components::command_palette::{use_command_palette_state, Command};
+use crate::components::clipboard::{ClipboardAction, use_clipboard_state};
+use crate::components::command_palette::{Command, use_command_palette_state};
 use crate::components::file_preview::FilePreview;
 use crate::components::file_row::FileRow;
 use crate::components::grid_view::GridView;
 use crate::components::header::use_header_state;
-use crate::components::skeleton::{SkeletonList, SkeletonGrid, SkeletonFavorites, SkeletonRecent};
-use crate::components::theme_toggle::{use_theme_state, Theme};
+use crate::components::skeleton::{SkeletonFavorites, SkeletonGrid, SkeletonList, SkeletonRecent};
+use crate::components::theme_toggle::{Theme, use_theme_state};
 use crate::components::toast::ToastContext;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -68,7 +68,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let (favorites_loading, set_favorites_loading) = create_signal(false);
     let (recent_loading, set_recent_loading) = create_signal(false);
 
-    let (selected_paths, set_selected_paths) = create_signal(std::collections::HashSet::<String>::new());
+    let (selected_paths, set_selected_paths) =
+        create_signal(std::collections::HashSet::<String>::new());
     let selected_paths_signal = selected_paths;
     let favorites_signal = favorites;
     let (select_mode, set_select_mode) = create_signal(false);
@@ -230,9 +231,16 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let go_up = move |_: ev::MouseEvent| {
         let path = current_path.get();
         if path != "/" {
-            let parent = path.rfind('/').map(|i| {
-                if i == 0 { "/".to_string() } else { path[..i].to_string() }
-            }).unwrap_or("/".to_string());
+            let parent = path
+                .rfind('/')
+                .map(|i| {
+                    if i == 0 {
+                        "/".to_string()
+                    } else {
+                        path[..i].to_string()
+                    }
+                })
+                .unwrap_or("/".to_string());
             load_directory(parent);
         }
     };
@@ -300,7 +308,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let path = share_path.get();
         let password = share_password.get();
         let expires_str = share_expires.get();
-        let pw = if password.is_empty() { None } else { Some(password) };
+        let pw = if password.is_empty() {
+            None
+        } else {
+            Some(password)
+        };
         let expires: u32 = expires_str.parse().unwrap_or(168);
         set_share_creating.set(true);
         set_share_error.set(String::new());
@@ -324,13 +336,13 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
     let do_copy_share_url = move |_: ev::MouseEvent| {
         let url = share_url.get();
-        if !url.is_empty() && let Some(window) = web_sys::window() {
+        if !url.is_empty()
+            && let Some(window) = web_sys::window()
+        {
             let nav = window.navigator();
             let clipboard = nav.clipboard();
             wasm_bindgen_futures::spawn_local(async move {
-                let _ = wasm_bindgen_futures::JsFuture::from(
-                    clipboard.write_text(&url)
-                ).await;
+                let _ = wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&url)).await;
             });
             set_share_copied.set(true);
             ToastContext::info("Link copied to clipboard");
@@ -356,7 +368,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     match api::upload_file(&file_path, &bytes).await {
                         Ok(()) => {
                             ToastContext::success(format!("File uploaded: {}", file_name));
-                            api::show_notification("Upload Complete", &format!("{} uploaded successfully", file_name));
+                            api::show_notification(
+                                "Upload Complete",
+                                &format!("{} uploaded successfully", file_name),
+                            );
                             reload();
                         }
                         Err(e) => {
@@ -436,14 +451,15 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         }
     };
 
-    let is_fav = move |path: String| -> bool {
-        favorites.with(|f| f.contains(&path))
-    };
+    let is_fav = move |path: String| -> bool { favorites.with(|f| f.contains(&path)) };
 
     let fav_entries = move || {
         let favs = favorites.get();
         let entries = all_entries.get();
-        entries.into_iter().filter(|e| favs.contains(&e.path)).collect::<Vec<_>>()
+        entries
+            .into_iter()
+            .filter(|e| favs.contains(&e.path))
+            .collect::<Vec<_>>()
     };
 
     let show_files_view = move || active_tab.get() == BrowserTab::Files;
@@ -497,11 +513,14 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
     let do_select_all = move || {
         let entries = all_entries.get();
-        let all_selected = entries.iter().all(|e| selected_paths.with(|s| s.contains(&e.path)));
+        let all_selected = entries
+            .iter()
+            .all(|e| selected_paths.with(|s| s.contains(&e.path)));
         if all_selected {
             set_selected_paths.set(std::collections::HashSet::new());
         } else {
-            let all: std::collections::HashSet<String> = entries.iter().map(|e| e.path.clone()).collect();
+            let all: std::collections::HashSet<String> =
+                entries.iter().map(|e| e.path.clone()).collect();
             set_selected_paths.set(all);
         }
     };
@@ -616,9 +635,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     };
 
-    let is_entry_selected = move |path: String| -> bool {
-        selected_paths.with(|s| s.contains(&path))
-    };
+    let is_entry_selected =
+        move |path: String| -> bool { selected_paths.with(|s| s.contains(&path)) };
 
     let load_activity = move || {
         spawn_local(async move {
@@ -796,8 +814,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         spawn_local(async move {
             if let Some(window) = web_sys::window() {
                 if let Some(document) = window.document() {
-                    let cb = wasm_bindgen::closure::Closure::wrap(
-                        Box::new(move |ev: web_sys::KeyboardEvent| {
+                    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
+                        move |ev: web_sys::KeyboardEvent| {
                             let tag = ev
                                 .target()
                                 .and_then(|t| {
@@ -875,12 +893,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                     cv();
                                 }
                             }
-                        }) as Box<dyn Fn(web_sys::KeyboardEvent)>,
-                    );
-                    let _ = document.add_event_listener_with_callback(
-                        "keydown",
-                        cb.as_ref().unchecked_ref(),
-                    );
+                        },
+                    )
+                        as Box<dyn Fn(web_sys::KeyboardEvent)>);
+                    let _ = document
+                        .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
                     cb.forget();
                 }
             }
@@ -947,9 +964,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let grid_cb_share = Callback::new(do_share);
     let grid_cb_preview = Callback::new(open_preview);
     let grid_cb_fav = Callback::new(do_toggle_favorite);
-    let grid_cb_select = Callback::new(move |(path, idx, shift, ctrl): (String, usize, bool, bool)| {
-        toggle_select(path, idx, shift, ctrl);
-    });
+    let grid_cb_select = Callback::new(
+        move |(path, idx, shift, ctrl): (String, usize, bool, bool)| {
+            toggle_select(path, idx, shift, ctrl);
+        },
+    );
     let grid_cb_copy = Callback::new(do_copy);
     let grid_cb_move = Callback::new(do_move);
 

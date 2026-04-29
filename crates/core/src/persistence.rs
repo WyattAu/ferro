@@ -172,15 +172,14 @@ impl crate::cas::CasStore for SqlitePersistence {
         let size = content.len() as i64;
 
         // INSERT OR IGNORE handles dedup — if hash already exists, skip
-        let result = sqlx::query(
-            "INSERT OR IGNORE INTO cas_content (hash, content, size) VALUES (?, ?, ?)"
-        )
-        .bind(hash_str)
-        .bind(content.as_ref())
-        .bind(size)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| FerroError::Internal(format!("CAS put failed: {}", e)))?;
+        let result =
+            sqlx::query("INSERT OR IGNORE INTO cas_content (hash, content, size) VALUES (?, ?, ?)")
+                .bind(hash_str)
+                .bind(content.as_ref())
+                .bind(size)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("CAS put failed: {}", e)))?;
 
         if result.rows_affected() > 0 {
             debug!("CAS PUT: stored content {}", &hash_str[..16]);
@@ -192,26 +191,24 @@ impl crate::cas::CasStore for SqlitePersistence {
     }
 
     async fn get_content(&self, hash: &ContentHash) -> Result<Bytes> {
-        let row: Option<(Vec<u8>,)> = sqlx::query_as(
-            "SELECT content FROM cas_content WHERE hash = ?"
-        )
-        .bind(hash.as_str())
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| FerroError::Internal(format!("CAS get failed: {}", e)))?;
+        let row: Option<(Vec<u8>,)> =
+            sqlx::query_as("SELECT content FROM cas_content WHERE hash = ?")
+                .bind(hash.as_str())
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("CAS get failed: {}", e)))?;
 
         row.map(|(bytes,)| Bytes::from(bytes))
             .ok_or_else(|| FerroError::NotFound(format!("content hash {}", hash.as_str())))
     }
 
     async fn exists(&self, hash: &ContentHash) -> Result<bool> {
-        let result: Option<(i64,)> = sqlx::query_as(
-            "SELECT COUNT(*) as cnt FROM cas_content WHERE hash = ?"
-        )
-        .bind(hash.as_str())
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| FerroError::Internal(format!("CAS exists check failed: {}", e)))?;
+        let result: Option<(i64,)> =
+            sqlx::query_as("SELECT COUNT(*) as cnt FROM cas_content WHERE hash = ?")
+                .bind(hash.as_str())
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("CAS exists check failed: {}", e)))?;
 
         Ok(result.map(|(cnt,)| cnt > 0).unwrap_or(false))
     }
@@ -221,12 +218,10 @@ impl crate::cas::CasStore for SqlitePersistence {
     }
 
     async fn content_count(&self) -> usize {
-        let result: Option<(i64,)> = sqlx::query_as(
-            "SELECT COUNT(*) as cnt FROM cas_content"
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .unwrap_or(None);
+        let result: Option<(i64,)> = sqlx::query_as("SELECT COUNT(*) as cnt FROM cas_content")
+            .fetch_optional(&self.pool)
+            .await
+            .unwrap_or(None);
 
         result.map(|(cnt,)| cnt as usize).unwrap_or(0)
     }
@@ -238,8 +233,9 @@ impl crate::cas::CasStore for SqlitePersistence {
 impl SnapshotStore for SqlitePersistence {
     async fn create(&self, description: String, entries: Vec<FileMetadata>) -> Result<String> {
         let id = uuid::Uuid::new_v4().to_string();
-        let entries_json = serde_json::to_string(&entries)
-            .map_err(|e| FerroError::Internal(format!("Failed to serialize snapshot entries: {}", e)))?;
+        let entries_json = serde_json::to_string(&entries).map_err(|e| {
+            FerroError::Internal(format!("Failed to serialize snapshot entries: {}", e))
+        })?;
         let entry_count = entries.len();
 
         sqlx::query(
@@ -266,13 +262,15 @@ impl SnapshotStore for SqlitePersistence {
         .await
         .map_err(|e| FerroError::Internal(format!("Snapshot get failed: {}", e)))?;
 
-        row.map(|(id, created_at, description, entries_json, entry_count)| PersistedSnapshot {
-            id,
-            created_at,
-            description,
-            entries_json,
-            entry_count: entry_count as usize,
-        })
+        row.map(
+            |(id, created_at, description, entries_json, entry_count)| PersistedSnapshot {
+                id,
+                created_at,
+                description,
+                entries_json,
+                entry_count: entry_count as usize,
+            },
+        )
         .ok_or_else(|| FerroError::NotFound(format!("snapshot {}", id)))
     }
 
@@ -286,12 +284,14 @@ impl SnapshotStore for SqlitePersistence {
 
         Ok(rows
             .into_iter()
-            .map(|(id, created_at, description, entry_count)| PersistedSnapshotSummary {
-                id,
-                created_at,
-                description,
-                entry_count: entry_count as usize,
-            })
+            .map(
+                |(id, created_at, description, entry_count)| PersistedSnapshotSummary {
+                    id,
+                    created_at,
+                    description,
+                    entry_count: entry_count as usize,
+                },
+            )
             .collect())
     }
 
@@ -309,12 +309,10 @@ impl SnapshotStore for SqlitePersistence {
     }
 
     async fn entry_count(&self) -> usize {
-        let result: Option<(i64,)> = sqlx::query_as(
-            "SELECT COUNT(*) as cnt FROM snapshots"
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .unwrap_or(None);
+        let result: Option<(i64,)> = sqlx::query_as("SELECT COUNT(*) as cnt FROM snapshots")
+            .fetch_optional(&self.pool)
+            .await
+            .unwrap_or(None);
 
         result.map(|(cnt,)| cnt as usize).unwrap_or(0)
     }
@@ -328,7 +326,7 @@ impl AuditLogStore for SqlitePersistence {
         sqlx::query(
             r#"INSERT INTO audit_log
                 (timestamp, method, path, user, status, client_ip, user_agent, content_length)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#,
         )
         .bind(&entry.timestamp)
         .bind(&entry.method)
@@ -360,12 +358,10 @@ impl AuditLogStore for SqlitePersistence {
     }
 
     async fn count(&self) -> usize {
-        let result: Option<(i64,)> = sqlx::query_as(
-            "SELECT COUNT(*) as cnt FROM audit_log"
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .unwrap_or(None);
+        let result: Option<(i64,)> = sqlx::query_as("SELECT COUNT(*) as cnt FROM audit_log")
+            .fetch_optional(&self.pool)
+            .await
+            .unwrap_or(None);
 
         result.map(|(cnt,)| cnt as usize).unwrap_or(0)
     }
@@ -430,7 +426,10 @@ mod tests {
             42,
             "user1".to_string(),
         )];
-        let id = store.create("test snapshot".to_string(), entries).await.unwrap();
+        let id = store
+            .create("test snapshot".to_string(), entries)
+            .await
+            .unwrap();
 
         let summary = store.list().await.unwrap();
         assert_eq!(summary.len(), 1);
@@ -480,17 +479,20 @@ mod tests {
     async fn test_audit_multiple_entries() {
         let (_tmp, store) = make_store().await;
         for i in 0..5 {
-            store.log(PersistedAuditEntry {
-                id: 0,
-                timestamp: "2026-04-21T12:00:00Z".to_string(),
-                method: "GET".to_string(),
-                path: format!("/file{}.txt", i),
-                user: "bob".to_string(),
-                status: 200,
-                client_ip: None,
-                user_agent: None,
-                content_length: None,
-            }).await.unwrap();
+            store
+                .log(PersistedAuditEntry {
+                    id: 0,
+                    timestamp: "2026-04-21T12:00:00Z".to_string(),
+                    method: "GET".to_string(),
+                    path: format!("/file{}.txt", i),
+                    user: "bob".to_string(),
+                    status: 200,
+                    client_ip: None,
+                    user_agent: None,
+                    content_length: None,
+                })
+                .await
+                .unwrap();
         }
         assert_eq!(store.count().await, 5);
         assert_eq!(store.recent(2).await.unwrap().len(), 2);
@@ -510,11 +512,20 @@ mod tests {
         assert_eq!(store.list().await.unwrap().len(), 1);
 
         // Audit
-        store.log(PersistedAuditEntry {
-            id: 0, timestamp: "now".to_string(), method: "GET".to_string(),
-            path: "/".to_string(), user: "test".to_string(), status: 200,
-            client_ip: None, user_agent: None, content_length: None,
-        }).await.unwrap();
+        store
+            .log(PersistedAuditEntry {
+                id: 0,
+                timestamp: "now".to_string(),
+                method: "GET".to_string(),
+                path: "/".to_string(),
+                user: "test".to_string(),
+                status: 200,
+                client_ip: None,
+                user_agent: None,
+                content_length: None,
+            })
+            .await
+            .unwrap();
 
         assert_eq!(store.content_count().await, 1);
         assert_eq!(store.entry_count().await, 1);

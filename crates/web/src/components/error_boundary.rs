@@ -9,23 +9,29 @@ pub fn ErrorBoundary(children: Children) -> impl IntoView {
         let set_err = set_error_msg;
         spawn_local(async move {
             if let Some(window) = web_sys::window() {
-                let cb = wasm_bindgen::closure::Closure::wrap(
-                    Box::new(move |msg: String, _source: String, _lineno: u32, _colno: u32, _error: wasm_bindgen::JsValue| {
+                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
+                    move |msg: String,
+                          _source: String,
+                          _lineno: u32,
+                          _colno: u32,
+                          _error: wasm_bindgen::JsValue| {
                         set_err.set(Some(msg));
-                    }) as Box<dyn Fn(String, String, u32, u32, wasm_bindgen::JsValue)>,
-                );
+                    },
+                )
+                    as Box<dyn Fn(String, String, u32, u32, wasm_bindgen::JsValue)>);
                 let _ = window.set_onerror(Some(cb.as_ref().unchecked_ref()));
                 cb.forget();
 
                 let set_err2 = set_err;
-                let cb2 = wasm_bindgen::closure::Closure::wrap(
-                    Box::new(move |ev: wasm_bindgen::JsValue| {
+                let cb2 = wasm_bindgen::closure::Closure::wrap(Box::new(
+                    move |ev: wasm_bindgen::JsValue| {
                         let msg = js_sys::JSON::stringify(&ev)
                             .map(|s| s.as_string().unwrap_or_default())
                             .unwrap_or_else(|_| "Unknown promise rejection".to_string());
                         set_err2.set(Some(msg));
-                    }) as Box<dyn Fn(wasm_bindgen::JsValue)>,
-                );
+                    },
+                )
+                    as Box<dyn Fn(wasm_bindgen::JsValue)>);
                 let _ = window.set_onunhandledrejection(Some(cb2.as_ref().unchecked_ref()));
                 cb2.forget();
             }

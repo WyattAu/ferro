@@ -21,7 +21,9 @@ impl std::fmt::Display for LdapError {
 
 impl LdapError {
     pub fn new(msg: impl Into<String>) -> Self {
-        Self { message: msg.into() }
+        Self {
+            message: msg.into(),
+        }
     }
 }
 
@@ -30,13 +32,15 @@ pub async fn ldap_authenticate(
     username: &str,
     password: &str,
 ) -> Result<crate::users::User, LdapError> {
-    let settings = ldap3::LdapConnSettings::new()
-        .set_conn_timeout(std::time::Duration::from_secs(5));
+    let settings =
+        ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
 
     let (_conn, mut ldap) = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
         ldap3::LdapConnAsync::with_settings(settings, &config.url),
-    ).await {
+    )
+    .await
+    {
         Ok(Ok(result)) => result,
         Ok(Err(e)) => return Err(LdapError::new(format!("LDAP connection failed: {}", e))),
         Err(_) => return Err(LdapError::new("LDAP connection timed out (5s)")),
@@ -45,7 +49,9 @@ pub async fn ldap_authenticate(
     let bind_result = match tokio::time::timeout(
         std::time::Duration::from_secs(10),
         ldap.simple_bind(&config.bind_dn, &config.bind_password),
-    ).await {
+    )
+    .await
+    {
         Ok(Ok(result)) => result,
         Ok(Err(e)) => return Err(LdapError::new(format!("LDAP service bind error: {}", e))),
         Err(_) => return Err(LdapError::new("LDAP bind timed out (10s)")),
@@ -68,7 +74,9 @@ pub async fn ldap_authenticate(
                 "uid",
             ],
         ),
-    ).await {
+    )
+    .await
+    {
         Ok(Ok(result)) => result,
         Ok(Err(e)) => return Err(LdapError::new(format!("LDAP search failed: {}", e))),
         Err(_) => return Err(LdapError::new("LDAP search timed out (10s)")),
@@ -79,7 +87,9 @@ pub async fn ldap_authenticate(
         Err(_) => return Err(LdapError::new("LDAP search returned no results")),
     };
 
-    let entry = entries.into_iter().next()
+    let entry = entries
+        .into_iter()
+        .next()
         .ok_or_else(|| LdapError::new("User not found in LDAP"))?;
 
     let search_entry = ldap3::SearchEntry::construct(entry);
@@ -89,12 +99,14 @@ pub async fn ldap_authenticate(
         tracing::warn!("LDAP unbind failed: {}", e);
     }
 
-    let settings2 = ldap3::LdapConnSettings::new()
-        .set_conn_timeout(std::time::Duration::from_secs(5));
+    let settings2 =
+        ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
     let (_conn2, mut ldap_user) = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
         ldap3::LdapConnAsync::with_settings(settings2, &config.url),
-    ).await {
+    )
+    .await
+    {
         Ok(Ok(result)) => result,
         Ok(Err(e)) => return Err(LdapError::new(format!("LDAP reconnection failed: {}", e))),
         Err(_) => return Err(LdapError::new("LDAP user connection timed out (5s)")),
@@ -103,7 +115,9 @@ pub async fn ldap_authenticate(
     let user_bind_result = match tokio::time::timeout(
         std::time::Duration::from_secs(10),
         ldap_user.simple_bind(&user_dn, password),
-    ).await {
+    )
+    .await
+    {
         Ok(Ok(result)) => result,
         Ok(Err(e)) => return Err(LdapError::new(format!("LDAP user bind error: {}", e))),
         Err(_) => return Err(LdapError::new("LDAP user bind timed out (10s)")),

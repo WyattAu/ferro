@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use ring::{digest, hmac, rand};
 use ring::rand::SecureRandom;
+use ring::{digest, hmac, rand};
 
 use super::traits::{CryptoProvider, Result};
 use crate::CryptoError;

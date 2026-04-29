@@ -3,8 +3,7 @@ use leptos::*;
 #[component]
 pub fn Tooltip(
     text: String,
-    #[prop(default = "top".to_string())]
-    position: String,
+    #[prop(default = "top".to_string())] position: String,
     children: Children,
 ) -> impl IntoView {
     let _position_class = match position.as_str() {
