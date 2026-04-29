@@ -9,6 +9,7 @@ name = "ferro-desktop"
 path = "src/main.rs"
 
 [features]
+default = []
 tauri = [
     "dep:tauri",
     "dep:tauri-build",
@@ -16,6 +17,14 @@ tauri = [
     "dep:tauri-plugin-dialog",
     "dep:tauri-plugin-fs",
     "dep:tauri-plugin-notification",
+]
+mobile = [
+    "dep:tauri",
+    "dep:tauri-plugin-shell",
+    "dep:tauri-plugin-dialog",
+    "dep:tauri-plugin-fs",
+    "dep:tauri-plugin-notification",
+    "dep:tauri-plugin-http",
 ]
 
 [dependencies]
@@ -25,6 +34,7 @@ tauri-plugin-shell = { version = "2", optional = true }
 tauri-plugin-dialog = { version = "2", optional = true }
 tauri-plugin-fs = { version = "2", optional = true }
 tauri-plugin-notification = { version = "2", optional = true }
+tauri-plugin-http = { version = "2", optional = true }
 serde = { workspace = true }
 serde_json = "1"
 tokio = { workspace = true }

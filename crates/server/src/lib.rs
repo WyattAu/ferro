@@ -1,6 +1,7 @@
 pub mod activity;
 pub mod admin_api;
 pub mod graphql;
+pub mod sync;
 pub mod api;
 pub mod api_error;
 pub mod audit;
@@ -84,6 +85,7 @@ use users::{InMemoryUserStore, UserStoreTrait};
 use favorites::FavoriteStore;
 use shares::ShareStoreTrait;
 use search::PreferenceStore;
+use sync::ops::SyncStore;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -125,6 +127,7 @@ pub struct AppState {
     pub address_book_store: Arc<dyn ferro_dav::store::AddressBookStore>,
     pub webrtc_offers: Arc<webrtc::offers::OfferStore>,
     pub activity_store: Arc<federation::store::ActivityStore>,
+    pub sync_store: Arc<SyncStore>,
 }
 
 impl AppState {
@@ -168,6 +171,7 @@ impl AppState {
             address_book_store: Arc::new(ferro_dav::store::InMemoryAddressBookStore::new()),
             webrtc_offers: Arc::new(webrtc::offers::OfferStore::new()),
             activity_store: Arc::new(federation::store::ActivityStore::new()),
+            sync_store: Arc::new(SyncStore::new()),
         }
     }
 
@@ -431,7 +435,7 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_
         }
     });
 
-    let mut router = Router::new()
+    let router = Router::new()
         .route("/", any(webdav::handle_any))
         .route("/.well-known/ferro", axum::routing::get(health_check))
         .route("/healthz", axum::routing::get(liveness))
@@ -510,6 +514,9 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_
         .route("/api/webrtc/offer/:session_id/ice", axum::routing::post(webrtc::signaling::add_ice_candidate))
         .route("/api/webrtc/offer/:session_id/poll", axum::routing::get(webrtc::signaling::poll_answer))
         .route("/api/graphql", axum::routing::get(graphql::graphql_playground).post(graphql::graphql_handler))
+        .route("/api/sync/events", axum::routing::get(sync::events::sync_events))
+        .route("/api/sync/delta", axum::routing::get(sync::events::sync_delta))
+        .route("/api/sync/status", axum::routing::get(sync::events::sync_status))
         .route("/*path", any(webdav::handle_any))
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route("/dav/cal/", axum::routing::get(dav::caldav_list).put(dav::caldav_create))

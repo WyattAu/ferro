@@ -147,7 +147,7 @@ pub async fn federated_share(
     let file_object = json!({
         "type": "Document",
         "id": format!("{}/files/{}", state.external_url, req.path),
-        "name": req.path.split('/').last().unwrap_or("file"),
+        "name": req.path.split('/').next_back().unwrap_or("file"),
         "url": format!("{}/dav/{}", state.external_url, req.path),
     });
 

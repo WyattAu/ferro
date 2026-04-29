@@ -127,6 +127,38 @@ impl ThumbnailService {
                 .map_err(|e| format!("Failed to parse PDF: {}", e))?;
             let pages = file.num_pages();
 
+            let title = file
+                .trailer
+                .info_dict
+                .as_ref()
+                .and_then(|info| info.title.as_ref())
+                .map(|s| s.to_string_lossy())
+                .unwrap_or_else(|| "PDF Document".to_string());
+
+            let creation_date = file
+                .trailer
+                .info_dict
+                .as_ref()
+                .and_then(|info| info.creation_date.as_ref())
+                .map(|d| format!("{}-{:02}-{:02}", d.year, d.month, d.day));
+
+            let file_size = content.len();
+            let size_str = if file_size > 1_048_576 {
+                format!("{:.1} MB", file_size as f64 / 1_048_576.0)
+            } else {
+                format!("{} KB", file_size / 1024)
+            };
+
+            let display_title = if title.len() > 30 {
+                format!("{}...", &title[..27])
+            } else {
+                title.clone()
+            };
+
+            let date_str = creation_date
+                .as_deref()
+                .unwrap_or("");
+
             let svg = format!(
                 r##"<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
                 <rect width="256" height="256" rx="12" fill="#fee2e2"/>
@@ -135,9 +167,18 @@ impl ThumbnailService {
                 <rect x="56" y="66" width="120" height="10" rx="2" fill="#fecaca"/>
                 <rect x="56" y="86" width="130" height="10" rx="2" fill="#fecaca"/>
                 <rect x="56" y="106" width="100" height="10" rx="2" fill="#fecaca"/>
-                <text x="128" y="190" text-anchor="middle" font-family="system-ui" font-size="20" font-weight="bold" fill="#dc2626">PDF</text>
-                <text x="128" y="212" text-anchor="middle" font-family="system-ui" font-size="14" fill="#b91c1c">{pages} pages</text>
-            </svg>"##
+                <text x="128" y="175" text-anchor="middle" font-family="system-ui" font-size="16" font-weight="bold" fill="#dc2626">{}</text>
+                <text x="128" y="195" text-anchor="middle" font-family="system-ui" font-size="11" fill="#b91c1c">{} pages · {}</text>
+                <text x="128" y="212" text-anchor="middle" font-family="system-ui" font-size="10" fill="#9ca3af">{}</text>
+            </svg>"##,
+                display_title,
+                pages,
+                size_str,
+                if !date_str.is_empty() {
+                    format!("{} · {}", title, date_str)
+                } else {
+                    title
+                },
             );
             Ok(Bytes::from(svg))
         })
@@ -308,6 +349,7 @@ startxref
         let svg = String::from_utf8(thumb.to_vec()).unwrap();
         assert!(svg.contains("PDF"), "SVG should contain 'PDF': {}", svg);
         assert!(svg.contains("1 pages"), "SVG should contain '1 pages': {}", svg);
+        assert!(svg.contains("KB"), "SVG should contain file size: {}", svg);
 
         let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test4").await;
     }

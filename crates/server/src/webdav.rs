@@ -9,6 +9,8 @@ use common::error::FerroError;
 use common::error::Result;
 use crate::audit;
 use crate::AppState;
+use crate::sync::clock::VectorClock;
+use crate::sync::ops::{OpType, SyncOp};
 use crate::xml::escape_xml;
 use tracing::{debug, warn};
 
@@ -587,15 +589,32 @@ async fn handle_put(
             timestamp: chrono::Utc::now().to_rfc3339(),
             path: path.clone(),
             size: Some(meta.size),
-            user: Some(owner),
+            user: Some(owner.clone()),
             etag: Some(meta.etag),
         },
     ).await;
 
+    {
+        let (op_id, clock) = state.sync_store.next_op_id();
+        state.sync_store.record_op(SyncOp {
+            id: op_id,
+            site_id: "local".to_string(),
+            clock: VectorClock::new("local").with_counter(clock),
+            r#type: OpType::Update,
+            path: path.to_string(),
+            new_path: None,
+            size: meta.size,
+            mime_type: Some(meta.mime_type.clone()),
+            owner,
+            checksum: meta.content_hash.as_str().to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        });
+    }
+
     Ok((status, resp_headers, "").into_response())
 }
 
-async fn handle_delete(state: AppState, path: &str, _headers: &HeaderMap) -> Result<Response> {
+async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Result<Response> {
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {
@@ -625,6 +644,24 @@ async fn handle_delete(state: AppState, path: &str, _headers: &HeaderMap) -> Res
         },
     ).await;
 
+    {
+        let owner = extract_owner(headers, None);
+        let (op_id, clock) = state.sync_store.next_op_id();
+        state.sync_store.record_op(SyncOp {
+            id: op_id,
+            site_id: "local".to_string(),
+            clock: VectorClock::new("local").with_counter(clock),
+            r#type: OpType::Delete,
+            path: path.to_string(),
+            new_path: None,
+            size: 0,
+            mime_type: None,
+            owner,
+            checksum: String::new(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        });
+    }
+
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -643,6 +680,23 @@ async fn handle_mkcol(state: AppState, path: &str) -> Result<Response> {
         .storage
         .create_collection(&path, "anonymous")
         .await?;
+
+    {
+        let (op_id, clock) = state.sync_store.next_op_id();
+        state.sync_store.record_op(SyncOp {
+            id: op_id,
+            site_id: "local".to_string(),
+            clock: VectorClock::new("local").with_counter(clock),
+            r#type: OpType::Create,
+            path: path.to_string(),
+            new_path: None,
+            size: 0,
+            mime_type: None,
+            owner: "anonymous".to_string(),
+            checksum: String::new(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        });
+    }
 
     crate::webhooks::fire_webhooks(
         state.webhooks.clone(),
@@ -736,6 +790,24 @@ async fn handle_move(
     }
 
     state.storage.move_path(&path, &dest).await?;
+
+    {
+        let owner = extract_owner(headers, None);
+        let (op_id, clock) = state.sync_store.next_op_id();
+        state.sync_store.record_op(SyncOp {
+            id: op_id,
+            site_id: "local".to_string(),
+            clock: VectorClock::new("local").with_counter(clock),
+            r#type: OpType::Rename,
+            path: path.to_string(),
+            new_path: Some(dest.clone()),
+            size: 0,
+            mime_type: None,
+            owner,
+            checksum: String::new(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        });
+    }
 
     let mut resp_headers = HeaderMap::new();
     resp_headers.insert(

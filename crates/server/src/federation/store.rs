@@ -74,7 +74,7 @@ impl ActivityStore {
     pub fn add_follower(&self, actor: &str, follower: &str) {
         self.followers
             .entry(actor.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(follower.to_string());
     }
 
@@ -101,7 +101,7 @@ impl ActivityStore {
     pub fn add_following(&self, actor: &str, target: &str) {
         self.following
             .entry(actor.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(target.to_string());
     }
 
