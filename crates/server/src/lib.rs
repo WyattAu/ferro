@@ -1,5 +1,6 @@
 pub mod activity;
 pub mod admin_api;
+pub mod graphql;
 pub mod api;
 pub mod api_error;
 pub mod audit;
@@ -9,6 +10,7 @@ pub mod bulk;
 pub mod config;
 pub mod conflict;
 pub mod dav;
+pub mod encryption;
 pub mod error;
 pub mod favorites;
 pub mod federation;
@@ -122,6 +124,7 @@ pub struct AppState {
     pub calendar_store: Arc<dyn ferro_dav::store::CalendarStore>,
     pub address_book_store: Arc<dyn ferro_dav::store::AddressBookStore>,
     pub webrtc_offers: Arc<webrtc::offers::OfferStore>,
+    pub activity_store: Arc<federation::store::ActivityStore>,
 }
 
 impl AppState {
@@ -164,6 +167,7 @@ impl AppState {
             calendar_store: Arc::new(ferro_dav::store::InMemoryCalendarStore::new()),
             address_book_store: Arc::new(ferro_dav::store::InMemoryAddressBookStore::new()),
             webrtc_offers: Arc::new(webrtc::offers::OfferStore::new()),
+            activity_store: Arc::new(federation::store::ActivityStore::new()),
         }
     }
 
@@ -465,6 +469,8 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_
         .route("/api/bulk/delete", axum::routing::post(bulk::bulk_delete))
         .route("/api/files/move", axum::routing::post(move_copy::move_file))
         .route("/api/files/copy", axum::routing::post(move_copy::copy_file))
+        .route("/api/files/encrypt", axum::routing::post(encryption::encrypt_file))
+        .route("/api/files/decrypt", axum::routing::post(encryption::decrypt_file))
         .route("/api/quota", axum::routing::get(quota::get_quota))
         .route("/api/activity", axum::routing::get(activity::get_activity))
         .route("/api/thumbnail/*path", axum::routing::get(thumbnails::get_thumbnail))
@@ -492,12 +498,18 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_
         .route("/api/files/{path}/diff", axum::routing::get(versioning::diff_versions))
         .route("/.well-known/webfinger", axum::routing::get(federation::webfinger::webfinger))
         .route("/fed/actor/:username", axum::routing::get(federation::get_actor))
+        .route("/fed/actor/:username/followers", axum::routing::get(federation::list_followers))
+        .route("/fed/actor/:username/following", axum::routing::get(federation::list_following))
+        .route("/fed/inbox", axum::routing::post(federation::inbox).get(federation::list_inbox))
+        .route("/fed/outbox", axum::routing::get(federation::list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
+        .route("/api/fed/share", axum::routing::post(federation::federated_share))
         .route("/api/webrtc/offer", axum::routing::post(webrtc::signaling::create_offer))
         .route("/api/webrtc/offer/:session_id", axum::routing::get(webrtc::signaling::get_offer))
         .route("/api/webrtc/offer/:session_id/answer", axum::routing::post(webrtc::signaling::submit_answer))
         .route("/api/webrtc/offer/:session_id/ice", axum::routing::post(webrtc::signaling::add_ice_candidate))
         .route("/api/webrtc/offer/:session_id/poll", axum::routing::get(webrtc::signaling::poll_answer))
+        .route("/api/graphql", axum::routing::get(graphql::graphql_playground).post(graphql::graphql_handler))
         .route("/*path", any(webdav::handle_any))
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route("/dav/cal/", axum::routing::get(dav::caldav_list).put(dav::caldav_create))
@@ -521,7 +533,10 @@ pub fn build_router_with_static(state: AppState, static_dir: Option<&str>, cors_
         }))
         .layer(axum::middleware::from_fn(security_headers::security_headers_middleware))
         .layer(CompressionLayer::new())
-        .with_state(state);
+        .with_state(state.clone());
+
+    let schema = graphql::build_schema(state);
+    let mut router = router.layer(axum::Extension(schema));
 
     if let Some(dir) = static_dir {
         let static_dir_path = std::path::Path::new(dir);
