@@ -7,12 +7,16 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 
+/// Shared state for CalDAV Axum handlers.
 #[derive(Clone)]
 pub struct CalDavState {
+    /// The calendar store backend.
     pub store: DynCalendarStore,
+    /// The authenticated principal (user).
     pub principal: String,
 }
 
+/// Handle HTTP OPTIONS for CalDAV capability discovery.
 pub async fn options_handler() -> impl IntoResponse {
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -87,6 +91,7 @@ fn dav_ok_with_content_type(content_type: &str, etag: &str, body: String) -> Res
         })
 }
 
+/// List all calendars for the authenticated principal.
 pub async fn list_calendars(State(state): State<CalDavState>) -> Response {
     let calendars = state.store.list_calendars(&state.principal).await;
     let responses: Vec<DavResponse> = calendars
@@ -121,6 +126,7 @@ pub async fn list_calendars(State(state): State<CalDavState>) -> Response {
     dav_multistatus(xml_ext::build_dav_multistatus(&responses))
 }
 
+/// Retrieve properties of a specific calendar.
 pub async fn calendar_properties(
     State(state): State<CalDavState>,
     Path(calendar): Path<String>,
@@ -164,6 +170,7 @@ pub async fn calendar_properties(
     dav_multistatus(body)
 }
 
+/// Create a new calendar (MKCALENDAR).
 pub async fn create_calendar_handler(State(state): State<CalDavState>) -> Response {
     match state
         .store
@@ -175,6 +182,7 @@ pub async fn create_calendar_handler(State(state): State<CalDavState>) -> Respon
     }
 }
 
+/// Delete a calendar.
 pub async fn delete_calendar_handler(
     State(state): State<CalDavState>,
     Path(calendar): Path<String>,
@@ -189,6 +197,7 @@ pub async fn delete_calendar_handler(
     }
 }
 
+/// Retrieve a calendar event by calendar ID and UID.
 pub async fn get_event(
     State(state): State<CalDavState>,
     Path((calendar, uid)): Path<(String, String)>,
@@ -200,6 +209,7 @@ pub async fn get_event(
     dav_ok_with_content_type("text/calendar; charset=utf-8", &event.etag, event.ical_data)
 }
 
+/// Create or update a calendar event (PUT).
 pub async fn put_event(
     State(state): State<CalDavState>,
     Path((calendar, uid)): Path<(String, String)>,
@@ -220,6 +230,7 @@ pub async fn put_event(
     }
 }
 
+/// Delete a calendar event.
 pub async fn delete_event(
     State(state): State<CalDavState>,
     Path((calendar, uid)): Path<(String, String)>,
@@ -230,6 +241,7 @@ pub async fn delete_event(
     }
 }
 
+/// Handle a CalDAV REPORT request (calendar-query).
 pub async fn handle_report(
     State(state): State<CalDavState>,
     Extension(body): Extension<Bytes>,

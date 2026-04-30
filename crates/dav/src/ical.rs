@@ -1,16 +1,24 @@
 use std::collections::HashMap;
 
+/// A single property within an iCalendar component.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IcalProperty {
+    /// Property name (e.g. "DTSTART", "SUMMARY").
     pub name: String,
+    /// Parameter key-value pairs (e.g. {"VALUE": "DATE"}).
     pub params: HashMap<String, String>,
+    /// Property value.
     pub value: String,
 }
 
+/// A parsed iCalendar component (e.g. VCALENDAR, VEVENT, VTODO).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IcalComponent {
+    /// Component name (e.g. "VCALENDAR", "VEVENT").
     pub name: String,
+    /// Properties grouped by name, preserving multiple occurrences.
     pub properties: HashMap<String, Vec<IcalProperty>>,
+    /// Nested child components.
     pub children: Vec<IcalComponent>,
 }
 
@@ -120,6 +128,7 @@ fn parse_component_lines(lines: &[&str], offset: &mut usize) -> Option<IcalCompo
     Some(component)
 }
 
+/// Parse an iCalendar (RFC 5545) string into structured components.
 pub fn parse_ical(input: &str) -> Result<Vec<IcalComponent>, String> {
     let unfolded = unfold_lines(input);
     let lines: Vec<&str> = unfolded.lines().collect();
@@ -178,6 +187,7 @@ fn serialize_component(component: &IcalComponent, indent: usize) -> String {
     s
 }
 
+/// Serialize a list of iCalendar components back to an iCalendar string.
 pub fn serialize_ical(components: &[IcalComponent]) -> String {
     let mut s = String::new();
     for comp in components {
@@ -186,10 +196,12 @@ pub fn serialize_ical(components: &[IcalComponent]) -> String {
     s
 }
 
+/// Get the first property with the given name from a component.
 pub fn get_first_prop<'a>(component: &'a IcalComponent, name: &str) -> Option<&'a IcalProperty> {
     component.properties.get(name).and_then(|v| v.first())
 }
 
+/// Get all properties with the given name from a component.
 pub fn get_all_props<'a>(component: &'a IcalComponent, name: &str) -> Vec<&'a IcalProperty> {
     component
         .properties

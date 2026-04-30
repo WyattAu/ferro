@@ -13,8 +13,9 @@ base64 = { version = "0.22", optional = true }
 tokio = { workspace = true, features = ["rt"] }
 
 [features]
-default = ["ring", "bcrypt", "base64"]
-fips = ["ring", "bcrypt", "base64"]
+default = ["ring"]
+ring = ["dep:ring", "dep:bcrypt", "dep:base64"]
+fips = ["ring"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

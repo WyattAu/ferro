@@ -5,6 +5,7 @@ use ring::{digest, hmac, rand};
 use super::traits::{CryptoProvider, Result};
 use crate::CryptoError;
 
+/// HMAC-SHA256 implementation using the Ring cryptography library.
 pub struct RingProvider {
     _private: (),
 }

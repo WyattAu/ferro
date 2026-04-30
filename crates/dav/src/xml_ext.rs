@@ -1,6 +1,7 @@
 use quick_xml::Writer;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 
+/// Escape special XML characters in a string.
 pub fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -9,6 +10,7 @@ pub fn escape_xml(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
+/// Build a WebDAV multistatus XML response body.
 pub fn build_dav_multistatus(responses: &[DavResponse]) -> Vec<u8> {
     let mut writer = Writer::new(Vec::new());
 
@@ -74,25 +76,36 @@ fn write_text(writer: &mut Writer<Vec<u8>>, tag: &str, text: &str) {
     let _ = writer.write_event(Event::End(BytesEnd::new(tag)));
 }
 
+/// A single WebDAV response element with href and property statuses.
 #[derive(Debug, Clone)]
 pub struct DavResponse {
+    /// Resource href.
     pub href: String,
+    /// Property status groups.
     pub propstats: Vec<PropStat>,
 }
 
+/// A WebDAV propstat element containing status code and properties.
 #[derive(Debug, Clone)]
 pub struct PropStat {
+    /// HTTP status code (e.g. 200, 404).
     pub status: u16,
+    /// Properties with their status.
     pub props: Vec<DavProp>,
 }
 
+/// A single WebDAV property element.
 #[derive(Debug, Clone)]
 pub struct DavProp {
+    /// Property name (possibly namespace-prefixed, e.g. "D:getetag").
     pub name: String,
+    /// Optional XML namespace URI.
     pub namespace: Option<String>,
+    /// Property value content (for leaf properties).
     pub value: Option<String>,
 }
 
+/// Parse a CalDAV calendar-query time-range filter from an XML request body.
 pub fn parse_calendar_query_time_range(body: &[u8]) -> Option<(String, String)> {
     let mut start = None;
     let mut end = None;
@@ -131,6 +144,7 @@ pub fn parse_calendar_query_time_range(body: &[u8]) -> Option<(String, String)> 
     }
 }
 
+/// Parse a CardDAV addressbook-query prop-filter name from an XML request body.
 pub fn parse_addressbook_query_filter(body: &[u8]) -> Option<String> {
     let mut filter_text = None;
 

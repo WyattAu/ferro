@@ -6,53 +6,86 @@ use std::sync::Arc;
 #[cfg(feature = "persistence")]
 use tracing::warn;
 
+/// Information about a calendar collection.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CalendarInfo {
+    /// Unique identifier for this calendar.
     pub id: String,
+    /// Owner principal of this calendar.
     pub principal: String,
+    /// Display name shown to users.
     pub name: String,
+    /// Hex color code for calendar clients.
     pub color: String,
+    /// Synchronization token for change detection.
     pub ctag: String,
+    /// When this calendar was created.
     pub created_at: DateTime<Utc>,
+    /// When this calendar was last modified.
     pub updated_at: DateTime<Utc>,
 }
 
+/// Information about a calendar event.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EventInfo {
+    /// Unique identifier for this event (UID from iCalendar data).
     pub uid: String,
+    /// ID of the calendar this event belongs to.
     pub calendar_id: String,
+    /// Raw iCalendar (RFC 5545) data.
     pub ical_data: String,
+    /// Entity tag for conditional requests.
     pub etag: String,
+    /// When this event was created.
     pub created_at: DateTime<Utc>,
+    /// When this event was last modified.
     pub updated_at: DateTime<Utc>,
 }
 
+/// Time-range filter for calendar event queries.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CalFilter {
+    /// Include events starting at or after this time.
     pub start: Option<DateTime<Utc>>,
+    /// Include events ending at or before this time.
     pub end: Option<DateTime<Utc>>,
 }
 
+/// Information about an address book collection.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AddressBookInfo {
+    /// Unique identifier for this address book.
     pub id: String,
+    /// Owner principal of this address book.
     pub principal: String,
+    /// Display name shown to users.
     pub name: String,
+    /// Synchronization token for change detection.
     pub ctag: String,
+    /// When this address book was created.
     pub created_at: DateTime<Utc>,
+    /// When this address book was last modified.
     pub updated_at: DateTime<Utc>,
 }
 
+/// Information about a contact (vCard).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ContactInfo {
+    /// Unique identifier for this contact (UID from vCard data).
     pub uid: String,
+    /// ID of the address book this contact belongs to.
     pub address_book_id: String,
+    /// Raw vCard (RFC 6350) data.
     pub vcard_data: String,
+    /// Entity tag for conditional requests.
     pub etag: String,
+    /// When this contact was created.
     pub created_at: DateTime<Utc>,
+    /// When this contact was last modified.
     pub updated_at: DateTime<Utc>,
 }
 
+/// Error type for store operations.
 #[derive(Debug, Clone)]
 pub struct StoreError(String);
 
@@ -64,8 +97,10 @@ impl std::fmt::Display for StoreError {
 
 impl std::error::Error for StoreError {}
 
+/// Result type for store operations.
 pub type StoreResult<T> = Result<T, StoreError>;
 
+/// Trait for calendar data storage backends.
 #[async_trait]
 pub trait CalendarStore: Send + Sync {
     async fn list_calendars(&self, principal: &str) -> Vec<CalendarInfo>;
@@ -90,6 +125,7 @@ pub trait CalendarStore: Send + Sync {
     async fn query_events(&self, calendar_id: &str, filter: &CalFilter) -> Vec<EventInfo>;
 }
 
+/// Trait for address book data storage backends.
 #[async_trait]
 pub trait AddressBookStore: Send + Sync {
     async fn list_address_books(&self, principal: &str) -> Vec<AddressBookInfo>;
@@ -124,9 +160,11 @@ struct AddressBookData {
     contacts: DashMap<String, ContactInfo>,
 }
 
+/// Thread-safe database handle for persistence.
 #[cfg(feature = "persistence")]
 pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
 
+/// In-memory calendar store with optional SQLite persistence.
 #[derive(Debug, Clone)]
 pub struct InMemoryCalendarStore {
     calendars: DashMap<String, CalendarData>,
@@ -135,6 +173,7 @@ pub struct InMemoryCalendarStore {
 }
 
 impl InMemoryCalendarStore {
+    /// Create a new empty in-memory calendar store.
     pub fn new() -> Self {
         Self {
             calendars: DashMap::new(),
@@ -144,6 +183,7 @@ impl InMemoryCalendarStore {
     }
 
     #[cfg(feature = "persistence")]
+    /// Create an in-memory calendar store backed by a shared SQLite database.
     pub fn with_db(db: DbHandle) -> Self {
         {
             let conn = db.lock().unwrap();
@@ -606,6 +646,7 @@ fn parse_ical_datetime(
     }
 }
 
+/// In-memory address book store with optional SQLite persistence.
 #[derive(Debug, Clone)]
 pub struct InMemoryAddressBookStore {
     address_books: DashMap<String, AddressBookData>,
@@ -614,6 +655,7 @@ pub struct InMemoryAddressBookStore {
 }
 
 impl InMemoryAddressBookStore {
+    /// Create a new empty in-memory address book store.
     pub fn new() -> Self {
         Self {
             address_books: DashMap::new(),
@@ -623,6 +665,7 @@ impl InMemoryAddressBookStore {
     }
 
     #[cfg(feature = "persistence")]
+    /// Create an in-memory address book store backed by a shared SQLite database.
     pub fn with_db(db: DbHandle) -> Self {
         {
             let conn = db.lock().unwrap();
@@ -992,7 +1035,9 @@ impl AddressBookStore for InMemoryAddressBookStore {
     }
 }
 
+/// Type-erased calendar store reference for use in async contexts.
 pub type DynCalendarStore = Arc<dyn CalendarStore>;
+/// Type-erased address book store reference for use in async contexts.
 pub type DynAddressBookStore = Arc<dyn AddressBookStore>;
 
 #[cfg(test)]

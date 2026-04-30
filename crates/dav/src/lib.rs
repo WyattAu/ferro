@@ -1,9 +1,13 @@
-pub mod caldav;
-pub mod carddav;
 pub mod ical;
 pub mod store;
 pub mod vcard;
 pub mod xml_ext;
+
+#[cfg(feature = "handlers")]
+pub mod caldav;
+
+#[cfg(feature = "handlers")]
+pub mod carddav;
 
 #[cfg(test)]
 mod tests;

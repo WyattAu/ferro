@@ -2,7 +2,9 @@ use anyhow::Result;
 use bytes::Bytes;
 use reqwest::Client;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::SystemTime;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
@@ -21,6 +23,68 @@ use futures::stream;
 
 const TTL: std::time::Duration = std::time::Duration::from_secs(1);
 
+#[derive(Debug, Clone)]
+struct InodeEntry {
+    path: String,
+    ino: u64,
+    is_dir: bool,
+    size: u64,
+    modified: SystemTime,
+}
+
+#[cfg(target_os = "linux")]
+impl InodeEntry {
+    fn to_file_attr(&self, uid: u32, gid: u32) -> FileAttr {
+        FileAttr {
+            ino: self.ino,
+            size: self.size,
+            blocks: self.size.div_ceil(512),
+            atime: self.modified.into(),
+            mtime: self.modified.into(),
+            ctime: self.modified.into(),
+            kind: if self.is_dir {
+                FileType::Directory
+            } else {
+                FileType::RegularFile
+            },
+            perm: if self.is_dir { 0o755 } else { 0o644 },
+            nlink: if self.is_dir { 2 } else { 1 },
+            uid,
+            gid,
+            rdev: 0,
+            blksize: 4096,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct FileHandleEntry {
+    #[allow(dead_code)]
+    path: String,
+    flags: u32,
+    #[allow(dead_code)]
+    ino: u64,
+}
+
+impl FileHandleEntry {
+    fn is_readable(&self) -> bool {
+        (self.flags & libc::O_ACCMODE as u32) != libc::O_WRONLY as u32
+    }
+
+    fn is_writable(&self) -> bool {
+        (self.flags & libc::O_ACCMODE as u32) != libc::O_RDONLY as u32
+    }
+}
+
+struct HeadResult {
+    size: u64,
+    #[allow(dead_code)]
+    modified: String,
+    #[allow(dead_code)]
+    content_type: String,
+    is_collection: bool,
+}
+
 pub struct FerroFs {
     client: Client,
     server_url: String,
@@ -28,6 +92,9 @@ pub struct FerroFs {
     uid: u32,
     gid: u32,
     cache: Arc<RwLock<HashMap<String, Bytes>>>,
+    inodes: Arc<RwLock<HashMap<u64, InodeEntry>>>,
+    file_handles: Arc<RwLock<HashMap<u64, FileHandleEntry>>>,
+    fh_counter: Arc<AtomicU64>,
 }
 
 #[allow(dead_code)]
@@ -52,12 +119,73 @@ impl FerroFs {
             uid,
             gid,
             cache: Arc::new(RwLock::new(HashMap::new())),
+            inodes: Arc::new(RwLock::new(HashMap::new())),
+            file_handles: Arc::new(RwLock::new(HashMap::new())),
+            fh_counter: Arc::new(AtomicU64::new(0)),
         })
     }
 
     fn make_url(&self, path: &str) -> String {
         let encoded = urlencoding::encode(path.trim_start_matches('/'));
         format!("{}/{}", self.server_url, encoded)
+    }
+
+    fn next_fh(&self) -> u64 {
+        self.fh_counter.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    async fn ino_to_path(&self, ino: u64) -> String {
+        if ino == 1 {
+            return "/".to_string();
+        }
+        let inodes = self.inodes.read().await;
+        inodes
+            .get(&ino)
+            .map(|e| e.path.clone())
+            .unwrap_or_else(|| format!("/unknown-{}", ino))
+    }
+
+    async fn webdav_head(&self, path: &str) -> Result<HeadResult> {
+        let url = self.make_url(path);
+        let mut req = self.client.head(&url);
+        if let Some(ref auth) = self.auth_header {
+            req = req.header("Authorization", auth);
+        }
+        let resp = req.send().await?;
+
+        let size: u64 = resp
+            .headers()
+            .get("content-length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+
+        let modified = resp
+            .headers()
+            .get("last-modified")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+
+        let content_type = resp
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+
+        let is_collection = resp
+            .headers()
+            .get("dav:resourcetype")
+            .map(|v| v.to_str().unwrap_or("").contains("collection"))
+            .unwrap_or(false);
+
+        Ok(HeadResult {
+            size,
+            modified,
+            content_type,
+            is_collection,
+        })
     }
 
     async fn webdav_propfind(&self, path: &str) -> Result<Vec<FileEntry>> {
@@ -264,25 +392,6 @@ fn dir_attr(ino: u64, uid: u32, gid: u32) -> FileAttr {
 }
 
 #[cfg(target_os = "linux")]
-fn file_attr(ino: u64, size: u64, uid: u32, gid: u32) -> FileAttr {
-    FileAttr {
-        ino,
-        size,
-        blocks: size.div_ceil(512),
-        atime: now_timestamp(),
-        mtime: now_timestamp(),
-        ctime: now_timestamp(),
-        kind: FileType::RegularFile,
-        perm: 0o644,
-        nlink: 1,
-        uid,
-        gid,
-        rdev: 0,
-        blksize: 4096,
-    }
-}
-
-#[cfg(target_os = "linux")]
 impl Filesystem for FerroFs {
     type DirEntryStream<'a> = stream::Iter<std::vec::IntoIter<FuseResult<DirectoryEntry>>>;
     type DirEntryPlusStream<'a> = stream::Iter<std::vec::IntoIter<FuseResult<DirectoryEntryPlus>>>;
@@ -301,7 +410,12 @@ impl Filesystem for FerroFs {
         parent: u64,
         name: &std::ffi::OsStr,
     ) -> FuseResult<ReplyEntry> {
-        let child_path = format!("/{}/{}", parent, name.to_string_lossy());
+        let parent_path = self.ino_to_path(parent).await;
+        let child_path = format!(
+            "{}/{}",
+            parent_path.trim_end_matches('/'),
+            name.to_string_lossy()
+        );
         debug!(
             "lookup: parent={} name={} -> {}",
             parent,
@@ -309,23 +423,22 @@ impl Filesystem for FerroFs {
             child_path
         );
 
-        match self.webdav_propfind(&child_path).await {
-            Ok(entries) => {
-                if let Some(entry) = entries.first() {
-                    let ino = path_to_ino(&entry.path);
-                    let attr = if entry.is_collection {
-                        dir_attr(ino, self.uid, self.gid)
-                    } else {
-                        file_attr(ino, entry.size, self.uid, self.gid)
-                    };
-                    Ok(ReplyEntry {
-                        ttl: TTL,
-                        attr,
-                        generation: 0,
-                    })
-                } else {
-                    Err(libc::ENOENT.into())
-                }
+        match self.webdav_head(&child_path).await {
+            Ok(meta) => {
+                let ino = path_to_ino(&child_path);
+                let entry = InodeEntry {
+                    path: child_path.clone(),
+                    ino,
+                    is_dir: meta.is_collection,
+                    size: meta.size,
+                    modified: SystemTime::now(),
+                };
+                self.inodes.write().await.insert(ino, entry.clone());
+                Ok(ReplyEntry {
+                    ttl: TTL,
+                    attr: entry.to_file_attr(self.uid, self.gid),
+                    generation: 0,
+                })
             }
             Err(_) => Err(libc::ENOENT.into()),
         }
@@ -345,17 +458,37 @@ impl Filesystem for FerroFs {
                 attr: dir_attr(1, self.uid, self.gid),
             });
         }
-        Err(libc::ENOENT.into())
+        let inodes = self.inodes.read().await;
+        match inodes.get(&inode) {
+            Some(entry) => Ok(ReplyAttr {
+                ttl: TTL,
+                attr: entry.to_file_attr(self.uid, self.gid),
+            }),
+            None => Err(libc::ENOENT.into()),
+        }
     }
 
     async fn setattr(
         &self,
         _req: Request,
-        _inode: u64,
+        inode: u64,
         _fh: Option<u64>,
         _set_attr: SetAttr,
     ) -> FuseResult<ReplyAttr> {
-        Err(libc::ENOSYS.into())
+        if inode == 1 {
+            return Ok(ReplyAttr {
+                ttl: TTL,
+                attr: dir_attr(1, self.uid, self.gid),
+            });
+        }
+        let inodes = self.inodes.read().await;
+        match inodes.get(&inode) {
+            Some(entry) => Ok(ReplyAttr {
+                ttl: TTL,
+                attr: entry.to_file_attr(self.uid, self.gid),
+            }),
+            None => Err(libc::ENOENT.into()),
+        }
     }
 
     async fn readlink(&self, _req: Request, _inode: u64) -> FuseResult<ReplyData> {
@@ -376,20 +509,74 @@ impl Filesystem for FerroFs {
     async fn mkdir(
         &self,
         _req: Request,
-        _parent: u64,
-        _name: &std::ffi::OsStr,
+        parent: u64,
+        name: &std::ffi::OsStr,
         _mode: u32,
         _umask: u32,
     ) -> FuseResult<ReplyEntry> {
-        Err(libc::ENOSYS.into())
+        let parent_path = self.ino_to_path(parent).await;
+        let child_path = format!(
+            "{}/{}",
+            parent_path.trim_end_matches('/'),
+            name.to_string_lossy()
+        );
+
+        self.webdav_mkcol(&child_path)
+            .await
+            .map_err(|_| libc::EIO)?;
+
+        let ino = path_to_ino(&child_path);
+        let entry = InodeEntry {
+            path: child_path.clone(),
+            ino,
+            is_dir: true,
+            size: 0,
+            modified: SystemTime::now(),
+        };
+        let attr = entry.to_file_attr(self.uid, self.gid);
+        self.inodes.write().await.insert(ino, entry);
+
+        Ok(ReplyEntry {
+            ttl: TTL,
+            attr,
+            generation: 0,
+        })
     }
 
-    async fn unlink(&self, _req: Request, _parent: u64, _name: &std::ffi::OsStr) -> FuseResult<()> {
-        Err(libc::ENOSYS.into())
+    async fn unlink(&self, _req: Request, parent: u64, name: &std::ffi::OsStr) -> FuseResult<()> {
+        let parent_path = self.ino_to_path(parent).await;
+        let child_path = format!(
+            "{}/{}",
+            parent_path.trim_end_matches('/'),
+            name.to_string_lossy()
+        );
+
+        self.webdav_delete(&child_path)
+            .await
+            .map_err(|_| libc::ENOENT)?;
+
+        let ino = path_to_ino(&child_path);
+        self.inodes.write().await.remove(&ino);
+
+        Ok(())
     }
 
-    async fn rmdir(&self, _req: Request, _parent: u64, _name: &std::ffi::OsStr) -> FuseResult<()> {
-        Err(libc::ENOSYS.into())
+    async fn rmdir(&self, _req: Request, parent: u64, name: &std::ffi::OsStr) -> FuseResult<()> {
+        let parent_path = self.ino_to_path(parent).await;
+        let child_path = format!(
+            "{}/{}",
+            parent_path.trim_end_matches('/'),
+            name.to_string_lossy()
+        );
+
+        self.webdav_delete(&child_path)
+            .await
+            .map_err(|_| libc::ENOENT)?;
+
+        let ino = path_to_ino(&child_path);
+        self.inodes.write().await.remove(&ino);
+
+        Ok(())
     }
 
     async fn symlink(
@@ -405,12 +592,52 @@ impl Filesystem for FerroFs {
     async fn rename(
         &self,
         _req: Request,
-        _parent: u64,
-        _name: &std::ffi::OsStr,
-        _new_parent: u64,
-        _new_name: &std::ffi::OsStr,
+        parent: u64,
+        name: &std::ffi::OsStr,
+        newparent: u64,
+        newname: &std::ffi::OsStr,
     ) -> FuseResult<()> {
-        Err(libc::ENOSYS.into())
+        let old_path = format!(
+            "{}/{}",
+            self.ino_to_path(parent)
+                .await
+                .trim_end_matches('/'),
+            name.to_string_lossy()
+        );
+        let new_path = format!(
+            "{}/{}",
+            self.ino_to_path(newparent)
+                .await
+                .trim_end_matches('/'),
+            newname.to_string_lossy()
+        );
+
+        let url = self.make_url(&old_path);
+        let destination = self.make_url(&new_path);
+
+        let mut req = self
+            .client
+            .request(reqwest::Method::from_bytes(b"MOVE").unwrap(), &url);
+        req = req.header("Destination", &destination);
+        if let Some(ref auth) = self.auth_header {
+            req = req.header("Authorization", auth);
+        }
+        let resp = req.send().await.map_err(|_| libc::EIO)?;
+
+        if !resp.status().is_success() && resp.status().as_u16() != 204 {
+            return Err(libc::EIO.into());
+        }
+
+        let old_ino = path_to_ino(&old_path);
+        let new_ino = path_to_ino(&new_path);
+        let mut inodes = self.inodes.write().await;
+        if let Some(mut entry) = inodes.remove(&old_ino) {
+            entry.path = new_path;
+            entry.ino = new_ino;
+            inodes.insert(new_ino, entry);
+        }
+
+        Ok(())
     }
 
     async fn link(
@@ -423,36 +650,78 @@ impl Filesystem for FerroFs {
         Err(libc::ENOSYS.into())
     }
 
-    async fn open(&self, _req: Request, _inode: u64, _flags: u32) -> FuseResult<ReplyOpen> {
-        debug!("open: ino={}", _inode);
-        Ok(ReplyOpen { fh: 0, flags: 0 })
+    async fn open(&self, _req: Request, inode: u64, flags: u32) -> FuseResult<ReplyOpen> {
+        debug!("open: ino={}", inode);
+        let path = self.ino_to_path(inode).await;
+        let fh = self.next_fh();
+        let handle = FileHandleEntry {
+            path,
+            flags,
+            ino: inode,
+        };
+        self.file_handles.write().await.insert(fh, handle);
+        Ok(ReplyOpen { fh, flags: 0 })
     }
 
     async fn read(
         &self,
         _req: Request,
         _inode: u64,
-        _fh: u64,
-        _offset: u64,
+        fh: u64,
+        offset: u64,
         size: u32,
     ) -> FuseResult<ReplyData> {
-        debug!("read: ino={} size={}", _inode, size);
+        debug!("read: fh={} offset={} size={}", fh, offset, size);
+        let handles = self.file_handles.read().await;
+        let handle = handles.get(&fh).ok_or(libc::EBADF)?;
+        if !handle.is_readable() {
+            return Err(libc::EBADF.into());
+        }
+        let path = handle.path.clone();
+        drop(handles);
+
+        let data = self.webdav_get(&path).await.map_err(|_| libc::EIO)?;
+
+        let start = offset as usize;
+        let end = std::cmp::min(start + size as usize, data.len());
+        if start >= data.len() {
+            return Ok(ReplyData {
+                data: Bytes::new(),
+            });
+        }
         Ok(ReplyData {
-            data: Bytes::from(vec![0u8; size as usize]),
+            data: data.slice(start..end),
         })
     }
 
     async fn write(
         &self,
         _req: Request,
-        _inode: u64,
-        _fh: u64,
+        ino: u64,
+        fh: u64,
         _offset: u64,
         data: &[u8],
         _write_flags: u32,
         _flags: u32,
     ) -> FuseResult<ReplyWrite> {
-        debug!("write: ino={} size={}", _inode, data.len());
+        debug!("write: ino={} fh={} size={}", ino, fh, data.len());
+        let handles = self.file_handles.read().await;
+        let handle = handles.get(&fh).ok_or(libc::EBADF)?;
+        if !handle.is_writable() {
+            return Err(libc::EBADF.into());
+        }
+        let path = handle.path.clone();
+        drop(handles);
+
+        self.webdav_put(&path, data, None)
+            .await
+            .map_err(|_| libc::EIO)?;
+
+        if let Some(entry) = self.inodes.write().await.get_mut(&ino) {
+            entry.size = data.len() as u64;
+            entry.modified = SystemTime::now();
+        }
+
         Ok(ReplyWrite {
             written: data.len() as u32,
         })
@@ -472,11 +741,12 @@ impl Filesystem for FerroFs {
         &self,
         _req: Request,
         _inode: u64,
-        _fh: u64,
+        fh: u64,
         _flags: u32,
         _lock_owner: u64,
         _flush: bool,
     ) -> FuseResult<()> {
+        self.file_handles.write().await.remove(&fh);
         Ok(())
     }
 
@@ -484,9 +754,17 @@ impl Filesystem for FerroFs {
         Ok(())
     }
 
-    async fn opendir(&self, _req: Request, _inode: u64, _flags: u32) -> FuseResult<ReplyOpen> {
-        debug!("opendir: ino={}", _inode);
-        Ok(ReplyOpen { fh: 0, flags: 0 })
+    async fn opendir(&self, _req: Request, inode: u64, _flags: u32) -> FuseResult<ReplyOpen> {
+        debug!("opendir: ino={}", inode);
+        let path = self.ino_to_path(inode).await;
+        let fh = self.next_fh();
+        let handle = FileHandleEntry {
+            path,
+            flags: libc::O_RDONLY as u32,
+            ino: inode,
+        };
+        self.file_handles.write().await.insert(fh, handle);
+        Ok(ReplyOpen { fh, flags: 0 })
     }
 
     async fn readdir<'a>(
@@ -505,22 +783,23 @@ impl Filesystem for FerroFs {
     async fn readdirplus<'a>(
         &'a self,
         _req: Request,
-        _parent: u64,
+        parent: u64,
         _fh: u64,
         _offset: u64,
         _lock_owner: u64,
     ) -> FuseResult<ReplyDirectoryPlus<Self::DirEntryPlusStream<'a>>> {
-        debug!("readdirplus: parent={}", _parent);
+        debug!("readdirplus: parent={}", parent);
 
+        let dir_path = self.ino_to_path(parent).await;
         let mut entries = Vec::new();
 
         entries.push(Ok(DirectoryEntryPlus {
-            inode: 1,
+            inode: parent,
             generation: 0,
             kind: FileType::Directory,
             name: ".".into(),
             offset: 1,
-            attr: dir_attr(1, self.uid, self.gid),
+            attr: dir_attr(parent, self.uid, self.gid),
             entry_ttl: TTL,
             attr_ttl: TTL,
         }));
@@ -535,19 +814,30 @@ impl Filesystem for FerroFs {
             attr_ttl: TTL,
         }));
 
-        match self.webdav_propfind("/").await {
+        match self.webdav_propfind(&dir_path).await {
             Ok(items) => {
                 for (i, item) in items.iter().enumerate() {
+                    let item_path_trimmed = item.path.trim_end_matches('/');
+                    let dir_path_trimmed = dir_path.trim_end_matches('/');
+                    if item_path_trimmed == dir_path_trimmed {
+                        continue;
+                    }
+
                     let name = item.path.rsplit('/').next().unwrap_or("");
                     if name.is_empty() {
                         continue;
                     }
+
                     let ino = path_to_ino(&item.path);
-                    let attr = if item.is_collection {
-                        dir_attr(ino, self.uid, self.gid)
-                    } else {
-                        file_attr(ino, item.size, self.uid, self.gid)
+                    let entry = InodeEntry {
+                        path: item.path.clone(),
+                        ino,
+                        is_dir: item.is_collection,
+                        size: item.size,
+                        modified: SystemTime::now(),
                     };
+                    let attr = entry.to_file_attr(self.uid, self.gid);
+
                     entries.push(Ok(DirectoryEntryPlus {
                         inode: ino,
                         generation: 0,
@@ -558,10 +848,12 @@ impl Filesystem for FerroFs {
                         entry_ttl: TTL,
                         attr_ttl: TTL,
                     }));
+
+                    self.inodes.write().await.insert(ino, entry);
                 }
             }
             Err(e) => {
-                warn!("Failed to list directory: {}", e);
+                warn!("Failed to list directory {}: {}", dir_path, e);
             }
         }
 
@@ -574,9 +866,10 @@ impl Filesystem for FerroFs {
         &self,
         _req: Request,
         _inode: u64,
-        _fh: u64,
+        fh: u64,
         _flags: u32,
     ) -> FuseResult<()> {
+        self.file_handles.write().await.remove(&fh);
         Ok(())
     }
 
@@ -610,12 +903,48 @@ impl Filesystem for FerroFs {
     async fn create(
         &self,
         _req: Request,
-        _parent: u64,
-        _name: &std::ffi::OsStr,
+        parent: u64,
+        name: &std::ffi::OsStr,
         _mode: u32,
-        _flags: u32,
+        flags: u32,
     ) -> FuseResult<ReplyCreated> {
-        Err(libc::ENOSYS.into())
+        let parent_path = self.ino_to_path(parent).await;
+        let child_path = format!(
+            "{}/{}",
+            parent_path.trim_end_matches('/'),
+            name.to_string_lossy()
+        );
+
+        self.webdav_put(&child_path, &[], None)
+            .await
+            .map_err(|_| libc::EIO)?;
+
+        let ino = path_to_ino(&child_path);
+        let entry = InodeEntry {
+            path: child_path.clone(),
+            ino,
+            is_dir: false,
+            size: 0,
+            modified: SystemTime::now(),
+        };
+        let attr = entry.to_file_attr(self.uid, self.gid);
+        self.inodes.write().await.insert(ino, entry);
+
+        let fh = self.next_fh();
+        let file_handle = FileHandleEntry {
+            path: child_path,
+            flags,
+            ino: attr.ino,
+        };
+        self.file_handles.write().await.insert(fh, file_handle);
+
+        Ok(ReplyCreated {
+            ttl: TTL,
+            attr,
+            generation: 0,
+            fh,
+            flags: 0,
+        })
     }
 }
 
@@ -682,5 +1011,97 @@ mod tests {
     fn test_make_url_trailing_slash() {
         let fs = FerroFs::new("http://localhost:8080/", None, 1000, 1000).unwrap();
         assert_eq!(fs.make_url("/file.txt"), "http://localhost:8080/file.txt");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_inode_entry_file_attr() {
+        let entry = InodeEntry {
+            path: "/file.txt".to_string(),
+            ino: 42,
+            is_dir: false,
+            size: 1024,
+            modified: SystemTime::UNIX_EPOCH,
+        };
+        let attr = entry.to_file_attr(1000, 1000);
+        assert_eq!(attr.ino, 42);
+        assert_eq!(attr.size, 1024);
+        assert_eq!(attr.perm, 0o644);
+        assert_eq!(attr.nlink, 1);
+        assert_eq!(attr.kind, FileType::RegularFile);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_inode_entry_dir_attr() {
+        let entry = InodeEntry {
+            path: "/docs".to_string(),
+            ino: 43,
+            is_dir: true,
+            size: 0,
+            modified: SystemTime::UNIX_EPOCH,
+        };
+        let attr = entry.to_file_attr(1000, 1000);
+        assert_eq!(attr.perm, 0o755);
+        assert_eq!(attr.nlink, 2);
+        assert_eq!(attr.kind, FileType::Directory);
+    }
+
+    #[test]
+    fn test_file_handle_readable() {
+        let h = FileHandleEntry {
+            path: "/f".into(),
+            flags: libc::O_RDONLY as u32,
+            ino: 1,
+        };
+        assert!(h.is_readable());
+        assert!(!h.is_writable());
+    }
+
+    #[test]
+    fn test_file_handle_writable() {
+        let h = FileHandleEntry {
+            path: "/f".into(),
+            flags: libc::O_WRONLY as u32,
+            ino: 1,
+        };
+        assert!(!h.is_readable());
+        assert!(h.is_writable());
+    }
+
+    #[test]
+    fn test_file_handle_rdwr() {
+        let h = FileHandleEntry {
+            path: "/f".into(),
+            flags: libc::O_RDWR as u32,
+            ino: 1,
+        };
+        assert!(h.is_readable());
+        assert!(h.is_writable());
+    }
+
+    #[test]
+    fn test_next_fh_increments() {
+        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000).unwrap();
+        let fh1 = fs.next_fh();
+        let fh2 = fs.next_fh();
+        let fh3 = fs.next_fh();
+        assert_eq!(fh1, 1);
+        assert_eq!(fh2, 2);
+        assert_eq!(fh3, 3);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_inode_entry_blocks_calculation() {
+        let entry = InodeEntry {
+            path: "/big".to_string(),
+            ino: 99,
+            is_dir: false,
+            size: 10000,
+            modified: SystemTime::UNIX_EPOCH,
+        };
+        let attr = entry.to_file_attr(1000, 1000);
+        assert_eq!(attr.blocks, (10000 + 511) / 512);
     }
 }

@@ -1,49 +1,84 @@
 use std::collections::HashMap;
 
+/// A single property line in a vCard.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VcardProperty {
+    /// Property name (e.g. "FN", "EMAIL", "TEL").
     pub name: String,
+    /// Parameter key-value pairs (e.g. {"TYPE": "HOME"}).
     pub params: HashMap<String, String>,
+    /// Property value.
     pub value: String,
 }
 
+/// A typed value with TYPE parameters (used for emails, phones).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VcardValue {
+    /// The value string (e.g. "user@example.com").
     pub value: String,
+    /// TYPE parameter values (e.g. ["HOME", "INTERNET"]).
     pub types: Vec<String>,
+    /// PREF parameter value (preference order).
     pub pref: Option<u32>,
 }
 
+/// A structured postal address from a vCard ADR property.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VcardAddress {
+    /// Post office box.
     pub po_box: String,
+    /// Extended address.
     pub extended: String,
+    /// Street address.
     pub street: String,
+    /// City or locality.
     pub city: String,
+    /// State or region.
     pub region: String,
+    /// Postal code.
     pub postal_code: String,
+    /// Country name.
     pub country: String,
+    /// TYPE parameter values (e.g. ["HOME", "WORK"]).
     pub types: Vec<String>,
 }
 
+/// A parsed vCard (RFC 6350) contact.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Vcard {
+    /// Unique identifier for the contact.
     pub uid: Option<String>,
+    /// Formatted name (FN property).
     pub fn_name: String,
+    /// Family name (last name).
     pub family_name: String,
+    /// Given name (first name).
     pub given_name: String,
+    /// Additional/middle names.
     pub additional_names: String,
+    /// Name prefix (e.g. "Dr.").
     pub prefix: String,
+    /// Name suffix (e.g. "Jr.").
     pub suffix: String,
+    /// Email addresses.
     pub emails: Vec<VcardValue>,
+    /// Phone numbers.
     pub phones: Vec<VcardValue>,
+    /// Postal addresses.
     pub addresses: Vec<VcardAddress>,
+    /// Organization name.
     pub org: Option<String>,
+    /// Job title.
     pub title: Option<String>,
+    /// Business role.
     pub role: Option<String>,
+    /// Photo URL or data.
     pub photo: Option<String>,
+    /// Last revision timestamp.
     pub rev: Option<String>,
+    /// vCard version (e.g. "3.0" or "4.0").
     pub version: Option<String>,
+    /// Additional properties not mapped to named fields.
     pub properties: HashMap<String, Vec<VcardProperty>>,
 }
 
@@ -132,6 +167,7 @@ fn extract_pref(params: &HashMap<String, String>) -> Option<u32> {
     params.get("PREF").and_then(|v| v.parse().ok())
 }
 
+/// Parse a vCard (RFC 6350) string into a structured contact.
 pub fn parse_vcard(input: &str) -> Result<Vcard, String> {
     let unfolded = unfold_lines(input);
     let lines: Vec<&str> = unfolded.lines().collect();
@@ -218,6 +254,7 @@ fn escape_vcard_value(s: &str) -> String {
         .replace('\n', "\\n")
 }
 
+/// Serialize a vCard contact to its RFC 6350 string representation.
 pub fn serialize_vcard(vcard: &Vcard) -> String {
     let mut s = String::new();
     s.push_str("BEGIN:VCARD\r\n");

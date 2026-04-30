@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 
+/// Result type for cryptographic operations.
 pub type Result<T> = std::result::Result<T, crate::CryptoError>;
 
+/// Abstraction over cryptographic provider implementations.
 #[async_trait]
 pub trait CryptoProvider: Send + Sync {
     async fn sha256(&self, data: &[u8]) -> Result<Vec<u8>>;

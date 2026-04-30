@@ -2,16 +2,20 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferro_common::error::{FerroError, Result};
 use ferro_common::metadata::{ContentHash, FileMetadata};
-use sqlx::{FromRow, PgPool, SqlitePool};
+use sqlx::{FromRow, SqlitePool};
+#[cfg(feature = "postgres")]
+use sqlx::PgPool;
 use tracing::debug;
 
 use crate::metadata::MetadataStore;
 
 /// PostgreSQL-backed metadata store.
+#[cfg(feature = "postgres")]
 pub struct PgMetadataStore {
     pool: PgPool,
 }
 
+#[cfg(feature = "postgres")]
 impl PgMetadataStore {
     /// Connect to PostgreSQL and create the metadata table if it does not exist.
     pub async fn new(database_url: &str) -> Result<Self> {
@@ -58,6 +62,7 @@ impl PgMetadataStore {
     }
 }
 
+#[cfg(feature = "postgres")]
 #[async_trait]
 impl MetadataStore for PgMetadataStore {
     async fn get(&self, path: &str) -> Result<FileMetadata> {

@@ -1,3 +1,4 @@
+#[cfg(feature = "ring")]
 pub mod ring_provider;
 pub mod traits;
 
@@ -5,6 +6,7 @@ pub use traits::{CryptoProvider, Result};
 
 use thiserror::Error;
 
+/// Errors that can occur during cryptographic operations.
 #[derive(Debug, Error)]
 pub enum CryptoError {
     #[error("Internal crypto error: {0}")]

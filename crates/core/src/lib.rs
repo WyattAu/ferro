@@ -2,10 +2,32 @@
 
 pub mod cas;
 pub mod metadata;
-pub mod object_store_backend;
-pub mod persistence;
 pub mod presigned;
-pub mod search;
-pub mod sqlx_metadata;
 pub mod storage;
+
+#[cfg(feature = "sqlite")]
+pub mod persistence;
+
+#[cfg(feature = "sqlite")]
+pub mod sqlx_metadata;
+
+#[cfg(feature = "postgres")]
+pub use sqlx_metadata::PgMetadataStore;
+
+#[cfg(feature = "search")]
+pub mod search;
+
+#[cfg(feature = "wasm")]
 pub mod wasm;
+
+#[cfg(feature = "object_store")]
+pub mod object_store_backend;
+
+#[cfg(feature = "object_store")]
+pub use object_store_backend::ObjectStoreStorageEngine;
+
+#[cfg(feature = "object_store")]
+pub use object_store_backend::MULTIPART_THRESHOLD;
+
+#[cfg(feature = "object_store")]
+pub use object_store_backend::MULTIPART_CHUNK_SIZE;

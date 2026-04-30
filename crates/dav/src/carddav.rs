@@ -6,12 +6,16 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 
+/// Shared state for CardDAV Axum handlers.
 #[derive(Clone)]
 pub struct CardDavState {
+    /// The address book store backend.
     pub store: DynAddressBookStore,
+    /// The authenticated principal (user).
     pub principal: String,
 }
 
+/// Handle HTTP OPTIONS for CardDAV capability discovery.
 pub async fn options_handler() -> impl IntoResponse {
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -86,6 +90,7 @@ fn dav_ok_with_content_type(content_type: &str, etag: &str, body: String) -> Res
         })
 }
 
+/// List all address books for the authenticated principal.
 pub async fn list_address_books(State(state): State<CardDavState>) -> Response {
     let books = state.store.list_address_books(&state.principal).await;
     let responses: Vec<DavResponse> = books
@@ -121,6 +126,7 @@ pub async fn list_address_books(State(state): State<CardDavState>) -> Response {
     dav_multistatus(xml_ext::build_dav_multistatus(&responses))
 }
 
+/// Retrieve properties of a specific address book.
 pub async fn address_book_properties(
     State(state): State<CardDavState>,
     Path(book): Path<String>,
@@ -159,6 +165,7 @@ pub async fn address_book_properties(
     dav_multistatus(body)
 }
 
+/// Create a new address book.
 pub async fn create_address_book_handler(State(state): State<CardDavState>) -> Response {
     match state
         .store
@@ -170,6 +177,7 @@ pub async fn create_address_book_handler(State(state): State<CardDavState>) -> R
     }
 }
 
+/// Delete an address book.
 pub async fn delete_address_book_handler(
     State(state): State<CardDavState>,
     Path(book): Path<String>,
@@ -184,6 +192,7 @@ pub async fn delete_address_book_handler(
     }
 }
 
+/// Retrieve a contact by address book ID and UID.
 pub async fn get_contact(
     State(state): State<CardDavState>,
     Path((book, uid)): Path<(String, String)>,
@@ -199,6 +208,7 @@ pub async fn get_contact(
     )
 }
 
+/// Create or update a contact (PUT).
 pub async fn put_contact(
     State(state): State<CardDavState>,
     Path((book, uid)): Path<(String, String)>,
@@ -219,6 +229,7 @@ pub async fn put_contact(
     }
 }
 
+/// Delete a contact.
 pub async fn delete_contact(
     State(state): State<CardDavState>,
     Path((book, uid)): Path<(String, String)>,
@@ -229,6 +240,7 @@ pub async fn delete_contact(
     }
 }
 
+/// Handle a CardDAV REPORT request (addressbook-query).
 pub async fn handle_report(
     State(state): State<CardDavState>,
     Extension(body): Extension<Bytes>,

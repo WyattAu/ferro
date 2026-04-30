@@ -333,6 +333,7 @@ async fn main() -> anyhow::Result<()> {
         // Legacy path: --metadata-db for PostgreSQL metadata
         let state = if let Some(db_url) = &cli.metadata_db {
             info!("PostgreSQL metadata enabled: {}", db_url);
+            #[cfg(feature = "pg")]
             match ferro_core::sqlx_metadata::PgMetadataStore::new(db_url).await {
                 Ok(store) => {
                     info!("Connected to PostgreSQL metadata store");
@@ -345,6 +346,11 @@ async fn main() -> anyhow::Result<()> {
                     );
                     state
                 }
+            }
+            #[cfg(not(feature = "pg"))]
+            {
+                tracing::warn!("PostgreSQL metadata requested but 'pg' feature is not enabled");
+                state
             }
         } else {
             state
