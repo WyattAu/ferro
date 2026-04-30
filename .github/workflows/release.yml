@@ -51,7 +51,7 @@ jobs:
       - name: Build
         run: cargo build --release -p ferro-server --target ${{ matrix.target }} --no-default-features
       - name: Upload binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: target/${{ matrix.target }}/release/${{ matrix.binary }}

@@ -115,12 +115,12 @@ jobs:
       - name: Build release
         run: cargo build --release --bin ferro-server --bin ferro-cli
       - name: Upload server binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ferro-server-linux
           path: target/release/ferro-server
       - name: Upload CLI binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ferro-cli-linux
           path: target/release/ferro-cli
@@ -204,7 +204,7 @@ jobs:
         working-directory: e2e
         env:
           BASE_URL: http://localhost:8888
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-results
