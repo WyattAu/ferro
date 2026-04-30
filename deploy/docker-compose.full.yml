@@ -1,0 +1,11 @@
+# Usage: docker compose -f docker-compose.yml -f docker-compose.pg.yml -f docker-compose.redis.yml up -d
+# Requires: POSTGRES_PASSWORD env var (optional, defaults to ferro)
+#
+# This file documents the full stack. To deploy:
+#   export POSTGRES_PASSWORD=your-secure-password
+#   docker compose -f docker-compose.yml -f docker-compose.pg.yml -f docker-compose.redis.yml up -d
+#
+# All three layers compose together:
+#   docker-compose.yml       → base ferro service
+#   docker-compose.pg.yml    → PostgreSQL backend
+#   docker-compose.redis.yml → Redis distributed locks

@@ -2,12 +2,14 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use dashmap::DashMap;
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::warn;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use crate::db::DbHandle;
 
 const MAX_TRASH_ENTRIES: usize = 1_000;
 
@@ -106,6 +108,60 @@ fn evict_oldest_if_needed(trash: &DashMap<String, TrashedEntry>) {
     }
 }
 
+pub fn persist_trash_insert(db: &DbHandle, entry: &TrashedEntry) {
+    let conn = db.lock().unwrap();
+    if let Err(e) = conn.execute(
+        "INSERT OR REPLACE INTO trash (original_path, trash_path, deleted_at, size, mime_type) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![
+            entry.original_path,
+            entry.trash_path,
+            entry.deleted_at.to_rfc3339(),
+            entry.size as i64,
+            entry.mime_type,
+        ],
+    ) {
+        warn!("Failed to persist trash entry to SQLite: {}", e);
+    }
+}
+
+pub fn persist_trash_remove(db: &DbHandle, original_path: &str) {
+    let conn = db.lock().unwrap();
+    if let Err(e) = conn.execute("DELETE FROM trash WHERE original_path = ?1", params![original_path])
+    {
+        warn!("Failed to remove trash entry from SQLite: {}", e);
+    }
+}
+
+pub fn persist_trash_clear(db: &DbHandle) {
+    let conn = db.lock().unwrap();
+    if let Err(e) = conn.execute("DELETE FROM trash", []) {
+        warn!("Failed to clear trash entries from SQLite: {}", e);
+    }
+}
+
+pub fn load_trash_from_db(conn: &rusqlite::Connection) -> Result<Vec<TrashedEntry>, rusqlite::Error> {
+    let mut stmt = conn
+        .prepare("SELECT original_path, trash_path, deleted_at, size, mime_type FROM trash")?;
+    let rows = stmt.query_map([], |row| {
+        let deleted_at_str: String = row.get(2)?;
+        let deleted_at = chrono::DateTime::parse_from_rfc3339(&deleted_at_str)
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|_| chrono::Utc::now());
+        Ok(TrashedEntry {
+            original_path: row.get(0)?,
+            trash_path: row.get(1)?,
+            deleted_at,
+            size: row.get::<_, i64>(3)? as u64,
+            mime_type: row.get(4)?,
+        })
+    })?;
+    let mut entries = Vec::new();
+    for row in rows {
+        entries.push(row?);
+    }
+    Ok(entries)
+}
+
 pub async fn list_trash(State(state): State<AppState>) -> Response {
     let entries: Vec<TrashedEntryResponse> = state
         .trash
@@ -167,8 +223,11 @@ pub async fn move_to_trash(
         mime_type,
     };
 
-    state.trash.insert(normalized, entry);
+    state.trash.insert(normalized.clone(), entry);
     evict_oldest_if_needed(&state.trash);
+    if let Some(ref db) = state.db {
+        persist_trash_insert(db, &state.trash.get(&normalized).unwrap());
+    }
 
     (
         StatusCode::OK,
@@ -187,6 +246,10 @@ pub async fn restore_trash(
         Some((_, entry)) => entry,
         None => return ApiError::not_found("TRASH_NOT_FOUND", "File not found in trash"),
     };
+
+    if let Some(ref db) = state.db {
+        persist_trash_remove(db, &normalized);
+    }
 
     let content = match read_trash_file_async(&entry.trash_path).await {
         Ok(bytes) => bytes,
@@ -222,6 +285,9 @@ pub async fn purge_trash(
 
     if let Some((_, entry)) = state.trash.remove(&normalized) {
         delete_trash_file(&entry.trash_path);
+        if let Some(ref db) = state.db {
+            persist_trash_remove(db, &normalized);
+        }
     } else {
         return ApiError::not_found("TRASH_NOT_FOUND", "File not found in trash");
     }
@@ -238,6 +304,9 @@ pub async fn empty_trash(State(state): State<AppState>) -> Response {
         delete_trash_file(&entry.trash_path);
     }
     state.trash.clear();
+    if let Some(ref db) = state.db {
+        persist_trash_clear(db);
+    }
     (
         StatusCode::OK,
         axum::Json(serde_json::json!({ "ok": true })),
@@ -318,8 +387,11 @@ pub async fn soft_delete(state: &AppState, path: &str) -> Result<(), Response> {
         mime_type,
     };
 
-    state.trash.insert(normalized, entry);
+    state.trash.insert(normalized.clone(), entry);
     evict_oldest_if_needed(&state.trash);
+    if let Some(ref db) = state.db {
+        persist_trash_insert(db, &state.trash.get(&normalized).unwrap());
+    }
     Ok(())
 }
 

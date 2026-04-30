@@ -1,0 +1,42 @@
+services:
+  ferro:
+    image: ghcr.io/wyattau/ferro:latest
+    container_name: ferro
+    restart: unless-stopped
+    ports:
+      - "${FERRO_PORT:-8080}:8080"
+    volumes:
+      - ferro-data:/data:Z
+    environment:
+      FERRO_DATA_DIR: /data
+      FERRO_HOST: 0.0.0.0
+      FERRO_PORT: 8080
+      FERRO_LOG_FORMAT: json
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    read_only: false
+    tmpfs:
+      - /tmp:size=100m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  ferro-data:

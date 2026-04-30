@@ -3,13 +3,16 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use chrono::{Duration, Utc};
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing::warn;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use crate::db::DbHandle;
 
 const MAX_SHARE_LINKS: usize = 10_000;
 
@@ -47,6 +50,7 @@ pub trait ShareStoreTrait: Send + Sync {
 /// In-memory share link store.
 pub struct ShareStore {
     links: Arc<RwLock<Vec<ShareLink>>>,
+    db: Option<DbHandle>,
 }
 
 impl ShareStore {
@@ -54,6 +58,92 @@ impl ShareStore {
     pub fn new() -> Self {
         Self {
             links: Arc::new(RwLock::new(Vec::new())),
+            db: None,
+        }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    fn persist_create(&self, link: &ShareLink) {
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap();
+            if let Err(e) = conn.execute(
+                "INSERT OR REPLACE INTO shares (token, file_path, password, expires_at, created_at, created_by, download_count, max_downloads, is_public) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    link.token,
+                    link.path,
+                    link.password,
+                    link.expires_at.to_rfc3339(),
+                    chrono::Utc::now().to_rfc3339(),
+                    link.created_by,
+                    link.download_count as i64,
+                    link.max_downloads.map(|d| d as i64),
+                    link.password.is_none() as i32,
+                ],
+            ) {
+                warn!("Failed to persist share to SQLite: {}", e);
+            }
+        }
+    }
+
+    fn persist_delete(&self, token: &str) {
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap();
+            if let Err(e) = conn.execute("DELETE FROM shares WHERE token = ?1", params![token]) {
+                warn!("Failed to delete share from SQLite: {}", e);
+            }
+        }
+    }
+
+    fn persist_download(&self, token: &str, count: u32) {
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap();
+            if let Err(e) = conn.execute(
+                "UPDATE shares SET download_count = ?1 WHERE token = ?2",
+                params![count as i64, token],
+            ) {
+                warn!("Failed to update share download count in SQLite: {}", e);
+            }
+        }
+    }
+
+    pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<ShareLink>, rusqlite::Error> {
+        let mut stmt = conn.prepare(
+            "SELECT token, file_path, password, expires_at, created_by, download_count, max_downloads FROM shares",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let expires_at_str: String = row.get(3)?;
+            let expires_at = chrono::DateTime::parse_from_rfc3339(&expires_at_str)
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+                .unwrap_or_else(|_| Utc::now());
+            Ok(ShareLink {
+                token: row.get(0)?,
+                path: row.get(1)?,
+                password: row.get(2)?,
+                expires_at,
+                max_downloads: row.get::<_, Option<i64>>(6)?.map(|d| d as u32),
+                download_count: row.get::<_, i64>(5)? as u32,
+                created_by: row.get(4)?,
+            })
+        })?;
+        let mut links = Vec::new();
+        for row in rows {
+            links.push(row?);
+        }
+        Ok(links)
+    }
+
+    pub async fn load_link(&self, link: ShareLink) {
+        self.links.write().await.push(link);
+    }
+
+    pub fn load_links_blocking(&self, links: Vec<ShareLink>) {
+        let mut guard = self.links.blocking_write();
+        for link in links {
+            guard.push(link);
         }
     }
 }
@@ -84,6 +174,7 @@ impl ShareStoreTrait for ShareStore {
                 links.drain(..excess);
             }
         }
+        self.persist_create(&link);
         link
     }
 
@@ -96,6 +187,7 @@ impl ShareStoreTrait for ShareStore {
         let mut links = self.links.write().await;
         if let Some(pos) = links.iter().position(|l| l.token == token) {
             links.remove(pos);
+            self.persist_delete(token);
             true
         } else {
             false
@@ -115,6 +207,8 @@ impl ShareStoreTrait for ShareStore {
         let mut links = self.links.write().await;
         if let Some(link) = links.iter_mut().find(|l| l.token == token) {
             link.download_count += 1;
+            let count = link.download_count;
+            self.persist_download(token, count);
             true
         } else {
             false

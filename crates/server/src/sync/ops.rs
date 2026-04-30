@@ -1,9 +1,12 @@
 use dashmap::DashMap;
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use tracing::warn;
 
 use super::clock::VectorClock;
+use crate::db::DbHandle;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -31,9 +34,10 @@ pub struct SyncOp {
 }
 
 pub struct SyncStore {
-    pub ops: Arc<DashMap<String, SyncOp>>,
+    pub(crate) ops: Arc<DashMap<String, SyncOp>>,
     max_ops: usize,
     global_clock: Arc<AtomicU64>,
+    db: Option<DbHandle>,
 }
 
 impl SyncStore {
@@ -42,6 +46,7 @@ impl SyncStore {
             ops: Arc::new(DashMap::new()),
             max_ops: 100_000,
             global_clock: Arc::new(AtomicU64::new(1)),
+            db: None,
         }
     }
 
@@ -50,7 +55,13 @@ impl SyncStore {
             ops: Arc::new(DashMap::new()),
             max_ops,
             global_clock: Arc::new(AtomicU64::new(1)),
+            db: None,
         }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
     }
 
     pub fn record_op(&self, op: SyncOp) {
@@ -67,7 +78,28 @@ impl SyncStore {
                 self.ops.remove(&key);
             }
         }
-        self.ops.insert(id, op);
+        self.ops.insert(id.clone(), op.clone());
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap();
+            if let Err(e) = conn.execute(
+                "INSERT OR REPLACE INTO sync_ops (op_id, site_id, clock_counter, op_type, path, new_path, size, mime_type, owner, checksum, timestamp) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                params![
+                    op.id,
+                    op.site_id,
+                    op.clock.counter as i64,
+                    format!("{:?}", op.r#type),
+                    op.path,
+                    op.new_path,
+                    op.size as i64,
+                    op.mime_type,
+                    op.owner,
+                    op.checksum,
+                    op.timestamp,
+                ],
+            ) {
+                warn!("Failed to persist sync op to SQLite: {}", e);
+            }
+        }
     }
 
     pub fn get_ops_since(&self, clock: u64) -> Vec<SyncOp> {
@@ -85,6 +117,50 @@ impl SyncStore {
     pub fn next_op_id(&self) -> (String, u64) {
         let clock = self.global_clock.fetch_add(1, Ordering::SeqCst);
         (format!("op-{}", clock), clock)
+    }
+
+    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
+        let mut stmt = conn.prepare(
+            "SELECT op_id, site_id, clock_counter, op_type, path, new_path, size, mime_type, owner, checksum, timestamp FROM sync_ops ORDER BY clock_counter ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let site_id: String = row.get(1)?;
+            let clock_counter: i64 = row.get(2)?;
+            let op_type_str: String = row.get(3)?;
+            let op_type = match op_type_str.as_str() {
+                "Create" => OpType::Create,
+                "Update" => OpType::Update,
+                "Delete" => OpType::Delete,
+                "Rename" => OpType::Rename,
+                "Share" => OpType::Share,
+                _ => OpType::Create,
+            };
+            Ok(SyncOp {
+                id: row.get(0)?,
+                site_id: row.get(1)?,
+                clock: VectorClock::new(&site_id).with_counter(clock_counter as u64),
+                r#type: op_type,
+                path: row.get(4)?,
+                new_path: row.get(5)?,
+                size: row.get::<_, i64>(6)? as u64,
+                mime_type: row.get(7)?,
+                owner: row.get(8)?,
+                checksum: row.get(9)?,
+                timestamp: row.get(10)?,
+            })
+        })?;
+        let mut max_clock = 0u64;
+        for row in rows {
+            let op: SyncOp = row?;
+            if op.clock.counter > max_clock {
+                max_clock = op.clock.counter;
+            }
+            self.ops.insert(op.id.clone(), op);
+        }
+        if max_clock > 0 {
+            self.global_clock.store(max_clock + 1, Ordering::SeqCst);
+        }
+        Ok(())
     }
 }
 

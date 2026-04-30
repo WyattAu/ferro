@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ferro
+  labels:
+    app.kubernetes.io/name: ferro
+    app.kubernetes.io/part-of: ferro
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferro
+  namespace: ferro
+  labels:
+    app: ferro
+    app.kubernetes.io/name: ferro
+    app.kubernetes.io/part-of: ferro
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ferro
+  template:
+    metadata:
+      labels:
+        app: ferro
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: ferro
+          image: ghcr.io/wyattau/ferro:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: FERRO_DATA_DIR
+              value: /data
+            - name: FERRO_LOG_FORMAT
+              value: json
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ferro-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferro
+  namespace: ferro
+  labels:
+    app: ferro
+    app.kubernetes.io/name: ferro
+    app.kubernetes.io/part-of: ferro
+spec:
+  selector:
+    app: ferro
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ferro
+  namespace: ferro
+  labels:
+    app: ferro
+    app.kubernetes.io/name: ferro
+    app.kubernetes.io/part-of: ferro
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  rules:
+    - host: ferro.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ferro
+                port:
+                  number: 80
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ferro-data
+  namespace: ferro
+  labels:
+    app: ferro
+    app.kubernetes.io/name: ferro
+    app.kubernetes.io/part-of: ferro
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

@@ -1,3 +1,5 @@
+# Development docker-compose — for production, use deploy/docker-compose.yml
+# See deploy/README.md for all deployment options
 services:
   ferro:
     build: .

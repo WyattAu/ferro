@@ -1,7 +1,11 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use dashmap::DashMap;
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
+
+use crate::db::DbHandle;
 
 /// User role determining access level.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -191,6 +195,7 @@ pub struct InMemoryUserStore {
     users: DashMap<String, User>,
     username_index: DashMap<String, String>,
     email_index: DashMap<String, String>,
+    db: Option<DbHandle>,
 }
 
 impl InMemoryUserStore {
@@ -200,7 +205,13 @@ impl InMemoryUserStore {
             users: DashMap::new(),
             username_index: DashMap::new(),
             email_index: DashMap::new(),
+            db: None,
         }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
     }
 
     /// Create an admin user with the given username and password.
@@ -219,6 +230,106 @@ impl InMemoryUserStore {
             is_ldap: false,
             password_hash: Some(hash_password(password)),
         }
+    }
+
+    pub fn load_from_db(&self, user: User) {
+        let username = user.username.clone();
+        let email = user.email.clone();
+        let id = user.id.clone();
+        if !self.username_index.contains_key(&username) {
+            self.username_index.insert(username, id.clone());
+        }
+        if !email.is_empty() && !self.email_index.contains_key(&email) {
+            self.email_index.insert(email, id.clone());
+        }
+        self.users.insert(id, user);
+    }
+
+    fn persist_user(&self, user: &User) {
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap();
+            if let Err(e) = conn.execute(
+                "INSERT OR REPLACE INTO users (id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                params![
+                    user.id,
+                    user.username,
+                    user.display_name,
+                    user.email,
+                    format!("{:?}", user.role),
+                    user.created_at.to_rfc3339(),
+                    user.last_login.map(|l| l.to_rfc3339()),
+                    format!("{:?}", user.status),
+                    user.storage_quota_bytes.unwrap_or(0) as i64,
+                    user.storage_used_bytes as i64,
+                    user.is_ldap as i32,
+                    user.password_hash,
+                ],
+            ) {
+                warn!("Failed to persist user to SQLite: {}", e);
+            }
+        }
+    }
+
+    fn delete_user_from_db(&self, id: &str) {
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap();
+            if let Err(e) = conn.execute("DELETE FROM users WHERE id = ?1", params![id]) {
+                warn!("Failed to delete user from SQLite: {}", e);
+            }
+        }
+    }
+
+    pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<User>, rusqlite::Error> {
+        let mut stmt = conn.prepare(
+            "SELECT id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash FROM users",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let role_str: String = row.get(4)?;
+            let role = match role_str.as_str() {
+                "Admin" => UserRole::Admin,
+                "User" => UserRole::User,
+                "ReadOnly" => UserRole::ReadOnly,
+                _ => UserRole::User,
+            };
+            let status_str: String = row.get(7)?;
+            let status = match status_str.as_str() {
+                "Active" => UserStatus::Active,
+                "Disabled" => UserStatus::Disabled,
+                "Locked" => UserStatus::Locked,
+                _ => UserStatus::Active,
+            };
+            let created_at_str: String = row.get(5)?;
+            let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+                .unwrap_or_else(|_| Utc::now());
+            let last_login: Option<String> = row.get(6)?;
+            let last_login = last_login
+                .and_then(|s| {
+                    chrono::DateTime::parse_from_rfc3339(&s)
+                        .map(|dt| dt.with_timezone(&chrono::Utc))
+                        .ok()
+                });
+            let quota: i64 = row.get(8)?;
+            Ok(User {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                display_name: row.get(2)?,
+                email: row.get(3)?,
+                role,
+                created_at,
+                last_login,
+                status,
+                storage_quota_bytes: if quota == 0 { None } else { Some(quota as u64) },
+                storage_used_bytes: row.get::<_, i64>(9)? as u64,
+                is_ldap: row.get::<_, i32>(10)? != 0,
+                password_hash: row.get(11)?,
+            })
+        })?;
+        let mut users = Vec::new();
+        for row in rows {
+            users.push(row?);
+        }
+        Ok(users)
     }
 }
 
@@ -254,6 +365,7 @@ impl UserStoreTrait for InMemoryUserStore {
             self.email_index.insert(email, id.clone());
         }
         self.users.insert(id, user.clone());
+        self.persist_user(&user);
         Ok(user)
     }
 
@@ -322,6 +434,7 @@ impl UserStoreTrait for InMemoryUserStore {
         }
 
         self.users.insert(id.to_string(), user.clone());
+        self.persist_user(&user);
         Ok(user)
     }
 
@@ -332,19 +445,32 @@ impl UserStoreTrait for InMemoryUserStore {
         if !user.email.is_empty() {
             self.email_index.remove(&user.email);
         }
+        self.delete_user_from_db(id);
         Ok(())
     }
 
     async fn update_last_login(&self, id: &str) {
         if let Some(mut user) = self.users.get_mut(id) {
             user.last_login = Some(Utc::now());
+            let u = user.clone();
+            drop(user);
+            if let Some(ref db) = self.db {
+                let conn = db.lock().unwrap();
+                if let Err(e) = conn.execute(
+                    "UPDATE users SET last_login = ?1 WHERE id = ?2",
+                    params![u.last_login.map(|l| l.to_rfc3339()), u.id],
+                ) {
+                    warn!("Failed to persist last_login to SQLite: {}", e);
+                }
+            }
         }
     }
 
     async fn set_password(&self, id: &str, password_hash: &str) -> Result<(), UserError> {
         let mut user = self.get_user(id).await?;
         user.password_hash = Some(password_hash.to_string());
-        self.users.insert(id.to_string(), user);
+        self.users.insert(id.to_string(), user.clone());
+        self.persist_user(&user);
         Ok(())
     }
 

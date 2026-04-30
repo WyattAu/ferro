@@ -1,3 +1,4 @@
+# Development overlay — for production, use deploy/docker-compose.pg.yml
 services:
   ferro:
     depends_on:

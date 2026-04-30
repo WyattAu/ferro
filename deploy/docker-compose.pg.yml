@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ferro-postgres
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ferro
+      POSTGRES_USER: ferro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ferro}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ferro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ferro:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FERRO_DATABASE_URL: postgres://ferro:${POSTGRES_PASSWORD:-ferro}@postgres:5432/ferro
+
+volumes:
+  postgres-data:

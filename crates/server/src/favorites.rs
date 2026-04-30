@@ -3,9 +3,12 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use dashmap::DashSet;
+use rusqlite::params;
 use serde::Deserialize;
+use tracing::warn;
 
 use crate::AppState;
+use crate::db::DbHandle;
 
 /// Trait for managing user favorite paths.
 #[async_trait]
@@ -18,7 +21,8 @@ pub trait FavoriteStore: Send + Sync {
 
 /// In-memory favorite store backed by a [`DashSet`].
 pub struct InMemoryFavoriteStore {
-    favorites: DashSet<String>,
+    pub(crate) favorites: DashSet<String>,
+    db: Option<DbHandle>,
 }
 
 const MAX_FAVORITES: usize = 10_000;
@@ -28,7 +32,40 @@ impl InMemoryFavoriteStore {
     pub fn new() -> Self {
         Self {
             favorites: DashSet::new(),
+            db: None,
         }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    fn persist_add(&self, path: &str) {
+        if let Some(ref db) = self.db
+            && let Err(e) =
+                db.lock().unwrap().execute("INSERT OR IGNORE INTO favorites (path) VALUES (?1)", params![path])
+        {
+            warn!("Failed to persist favorite to SQLite: {}", e);
+        }
+    }
+
+    fn persist_remove(&self, path: &str) {
+        if let Some(ref db) = self.db
+            && let Err(e) = db.lock().unwrap().execute("DELETE FROM favorites WHERE path = ?1", params![path])
+        {
+            warn!("Failed to remove favorite from SQLite: {}", e);
+        }
+    }
+
+    pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<String>, rusqlite::Error> {
+        let mut stmt = conn.prepare("SELECT path FROM favorites")?;
+        let rows = stmt.query_map([], |row| row.get(0))?;
+        let mut paths = Vec::new();
+        for row in rows {
+            paths.push(row?);
+        }
+        Ok(paths)
     }
 }
 
@@ -40,7 +77,8 @@ impl FavoriteStore for InMemoryFavoriteStore {
 
     async fn add(&self, path: String) {
         if self.favorites.len() < MAX_FAVORITES {
-            self.favorites.insert(path);
+            self.favorites.insert(path.clone());
+            self.persist_add(&path);
         }
     }
 
@@ -50,6 +88,7 @@ impl FavoriteStore for InMemoryFavoriteStore {
 
     async fn remove(&self, path: &str) {
         self.favorites.remove(path);
+        self.persist_remove(path);
     }
 }
 

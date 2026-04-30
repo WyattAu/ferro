@@ -4,8 +4,11 @@ use common::error::FerroError;
 use common::error::Result;
 use common::webdav::{LockDepth, LockInfo, LockScope, LockToken, LockType};
 use dashmap::DashMap;
+use rusqlite::params;
 use std::sync::Arc;
 use tracing::{debug, warn};
+
+use crate::db::DbHandle;
 
 /// Trait for managing WebDAV locks across the server.
 #[async_trait]
@@ -28,9 +31,10 @@ pub trait LockManagerTrait: Send + Sync {
 
 /// In-memory lock manager backed by a [`DashMap`].
 pub struct LockManager {
-    locks: Arc<DashMap<String, LockInfo>>,
+    pub(crate) locks: Arc<DashMap<String, LockInfo>>,
     default_timeout_secs: u32,
     max_timeout_secs: u32,
+    db: Option<DbHandle>,
 }
 
 impl LockManager {
@@ -40,6 +44,7 @@ impl LockManager {
             locks: Arc::new(DashMap::new()),
             default_timeout_secs: 60,
             max_timeout_secs: 3600,
+            db: None,
         }
     }
 
@@ -49,6 +54,41 @@ impl LockManager {
             locks: Arc::new(DashMap::new()),
             default_timeout_secs,
             max_timeout_secs,
+            db: None,
+        }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    fn persist_lock(&self, lock: &LockInfo) {
+        if let Some(ref db) = self.db
+            && let Err(e) = db.lock().unwrap().execute(
+                "INSERT OR REPLACE INTO locks (token, path, principal, scope, lock_type, depth, timeout_seconds, created_at, refresh_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    lock.token.as_str(),
+                    lock.path,
+                    lock.principal,
+                    format!("{:?}", lock.scope),
+                    format!("{:?}", lock.lock_type),
+                    format!("{:?}", lock.depth),
+                    lock.timeout_seconds as i64,
+                    lock.created_at.to_rfc3339(),
+                    lock.refresh_count as i64,
+                ],
+            )
+        {
+            warn!("Failed to persist lock to SQLite: {}", e);
+        }
+    }
+
+    fn persist_release(&self, token: &str) {
+        if let Some(ref db) = self.db
+            && let Err(e) = db.lock().unwrap().execute("DELETE FROM locks WHERE token = ?1", params![token])
+        {
+            warn!("Failed to delete lock from SQLite: {}", e);
         }
     }
 
@@ -97,6 +137,7 @@ impl LockManager {
         );
 
         self.locks.insert(path.to_string(), lock.clone());
+        self.persist_lock(&lock);
         Ok(lock)
     }
 
@@ -120,6 +161,7 @@ impl LockManager {
                     entry.key(),
                     lock.refresh_count
                 );
+                self.persist_lock(&lock);
                 return Ok(lock);
             }
         }
@@ -140,6 +182,7 @@ impl LockManager {
         if let Some(key) = found {
             self.locks.remove(&key);
             debug!("LOCK released: {}", key);
+            self.persist_release(token);
             Ok(())
         } else {
             Err(FerroError::LockTokenNotFound(token.to_string()))
@@ -214,6 +257,56 @@ impl LockManager {
                 true
             }
         });
+    }
+
+    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
+        let mut stmt = conn.prepare(
+            "SELECT token, path, principal, scope, lock_type, depth, timeout_seconds, created_at, refresh_count FROM locks",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let token_str: String = row.get(0)?;
+            let token_uuid = token_str.strip_prefix("urn:uuid:").unwrap_or(&token_str);
+            let token = common::webdav::LockToken::from_str_custom(token_uuid)
+                .unwrap_or_default();
+            let scope_str: String = row.get(3)?;
+            let scope = match scope_str.as_str() {
+                "Exclusive" => LockScope::Exclusive,
+                "Shared" => LockScope::Shared,
+                _ => LockScope::Exclusive,
+            };
+            let lock_type_str: String = row.get(4)?;
+            let lock_type = match lock_type_str.as_str() {
+                "Write" => LockType::Write,
+                _ => LockType::Write,
+            };
+            let depth_str: String = row.get(5)?;
+            let depth = match depth_str.as_str() {
+                "Infinity" | "infinity" => LockDepth::Infinity,
+                _ => LockDepth::Zero,
+            };
+            let created_at_str: String = row.get(7)?;
+            let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+                .unwrap_or_else(|_| Utc::now());
+            Ok(LockInfo {
+                token,
+                path: row.get(1)?,
+                principal: row.get(2)?,
+                scope,
+                lock_type,
+                depth,
+                timeout_seconds: row.get::<_, i64>(6)? as u32,
+                created_at,
+                refresh_count: row.get::<_, i64>(8)? as u32,
+            })
+        })?;
+        for row in rows {
+            let lock: LockInfo = row?;
+            if !lock.is_expired() {
+                self.locks.insert(lock.path.clone(), lock);
+            }
+        }
+        Ok(())
     }
 }
 

@@ -278,6 +278,18 @@ async fn main() -> anyhow::Result<()> {
 
         info!("SQLite persistence enabled at {}", db_url);
 
+        // Open a rusqlite connection for DashMap store persistence
+        let db_handle = match ferro_server::db::open_db(data_dir) {
+            Ok(conn) => {
+                info!("SQLite DashMap persistence enabled");
+                Some(std::sync::Arc::new(std::sync::Mutex::new(conn)))
+            }
+            Err(e) => {
+                tracing::warn!("SQLite DashMap persistence failed: {}, using in-memory stores", e);
+                None
+            }
+        };
+
         match ferro_core::persistence::SqlitePersistence::new(&db_url).await {
             Ok(persistence) => {
                 let persistence = std::sync::Arc::new(persistence);
@@ -298,11 +310,20 @@ async fn main() -> anyhow::Result<()> {
                 state = state.with_audit_persistence(persistence.clone());
                 state = state.with_snapshot_persistence(persistence.clone());
 
+                // DashMap store persistence
+                if let Some(db) = db_handle {
+                    state = state.with_db(db);
+                }
+
                 state
             }
             Err(e) => {
                 tracing::warn!("SQLite persistence failed: {}, using in-memory stores", e);
-                state
+                if let Some(db) = db_handle {
+                    state.with_db(db)
+                } else {
+                    state
+                }
             }
         }
     } else {
@@ -339,6 +360,7 @@ async fn main() -> anyhow::Result<()> {
     let state = state
         .with_max_body_size(cli.max_body_size)
         .with_external_url(cli.external_url)
+        .with_federation_secret(cli.federation_secret)
         .with_max_file_versions(cli.max_file_versions);
 
     let mut state = if let Some(ref data_dir) = cli.data_dir {
@@ -497,6 +519,18 @@ async fn main() -> anyhow::Result<()> {
             state
         }
     };
+
+    // Load webhooks from SQLite (async, requires tokio runtime)
+    if let Some(ref db) = state.db {
+        let hooks: Vec<ferro_server::webhooks::WebhookConfig> = {
+            let conn = db.lock().unwrap();
+            ferro_server::webhooks::load_webhooks_from_db(&conn).unwrap_or_default()
+        };
+        if !hooks.is_empty() {
+            let mut wh = state.webhooks.write().await;
+            wh.extend(hooks);
+        }
+    }
 
     // Validate storage backend is reachable
     match state.storage.list("/").await {

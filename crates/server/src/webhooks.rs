@@ -1,12 +1,15 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing::warn;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use crate::db::DbHandle;
 
 const MAX_WEBHOOKS: usize = 100;
 
@@ -156,6 +159,10 @@ pub async fn create_webhook(
 
     state.webhooks.write().await.push(config.clone());
 
+    if let Some(ref db) = state.db {
+        persist_webhook_create(db, &config);
+    }
+
     (StatusCode::CREATED, axum::Json(config)).into_response()
 }
 
@@ -172,6 +179,9 @@ pub async fn delete_webhook(State(state): State<AppState>, Path(id): Path<String
     hooks.retain(|h| h.id != id);
 
     if hooks.len() < before {
+        if let Some(ref db) = state.db {
+            persist_webhook_delete(db, &id);
+        }
         (StatusCode::NO_CONTENT, "").into_response()
     } else {
         ApiError::not_found(ApiError::NOT_FOUND, "Webhook not found")
@@ -185,6 +195,49 @@ pub struct CreateWebhookInput {
     pub secret: Option<String>,
     pub events: Vec<String>,
     pub enabled: Option<bool>,
+}
+
+pub fn persist_webhook_create(db: &DbHandle, config: &WebhookConfig) {
+    let conn = db.lock().unwrap();
+    if let Err(e) = conn.execute(
+        "INSERT OR REPLACE INTO webhooks (id, url, events, secret, enabled) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![
+            config.id,
+            config.url,
+            serde_json::to_string(&config.events).unwrap_or_default(),
+            config.secret,
+            config.enabled as i32,
+        ],
+    ) {
+        warn!("Failed to persist webhook to SQLite: {}", e);
+    }
+}
+
+pub fn persist_webhook_delete(db: &DbHandle, id: &str) {
+    let conn = db.lock().unwrap();
+    if let Err(e) = conn.execute("DELETE FROM webhooks WHERE id = ?1", params![id]) {
+        warn!("Failed to delete webhook from SQLite: {}", e);
+    }
+}
+
+pub fn load_webhooks_from_db(conn: &rusqlite::Connection) -> Result<Vec<WebhookConfig>, rusqlite::Error> {
+    let mut stmt = conn.prepare("SELECT id, url, events, secret, enabled FROM webhooks")?;
+    let rows = stmt.query_map([], |row| {
+        let events_json: String = row.get(2)?;
+        let events: Vec<String> = serde_json::from_str(&events_json).unwrap_or_default();
+        Ok(WebhookConfig {
+            id: row.get(0)?,
+            url: row.get(1)?,
+            secret: row.get(3)?,
+            events,
+            enabled: row.get::<_, i32>(4)? != 0,
+        })
+    })?;
+    let mut hooks = Vec::new();
+    for row in rows {
+        hooks.push(row?);
+    }
+    Ok(hooks)
 }
 
 #[cfg(test)]

@@ -42,6 +42,7 @@ pub struct FileConfig {
     pub external_url: Option<String>,
     pub wopi_token_secret: Option<String>,
     pub wopi_office_url: Option<String>,
+    pub federation_secret: Option<String>,
     pub oidc_issuer: Option<String>,
     pub oidc_client_id: Option<String>,
     pub oidc_audience: Option<String>,
@@ -154,6 +155,11 @@ pub struct ServerConfig {
     /// When empty (default), WOPI integration is effectively disabled.
     #[arg(long, env = "FERRO_WOPI_OFFICE_URL", default_value = "")]
     pub wopi_office_url: String,
+
+    /// Secret used for verifying HTTP Signatures on the federation inbox (HMAC-SHA256).
+    /// When empty (default), federation is disabled and the inbox returns 503.
+    #[arg(long, env = "FERRO_FEDERATION_SECRET", default_value = "")]
+    pub federation_secret: String,
 
     /// Admin username for simple authentication (enables Basic Auth)
     #[arg(long, env = "FERRO_ADMIN_USER")]
@@ -305,6 +311,9 @@ where
         && let Some(ref url) = file.wopi_office_url
     {
         cli.wopi_office_url = url.clone();
+    }
+    if !was_set("federation_secret") {
+        cli.federation_secret = file.federation_secret.clone().unwrap_or_default();
     }
     if !was_set("oidc_issuer") {
         cli.oidc_issuer = file.oidc_issuer.clone();

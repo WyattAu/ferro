@@ -10,6 +10,7 @@ pub mod bulk;
 pub mod config;
 pub mod conflict;
 pub mod dav;
+pub mod db;
 pub mod encryption;
 pub mod error;
 pub mod favorites;
@@ -91,6 +92,7 @@ use favorites::FavoriteStore;
 use search::PreferenceStore;
 use shares::ShareStoreTrait;
 use sync::ops::SyncStore;
+use db::DbHandle;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -132,11 +134,13 @@ pub struct AppState {
     pub address_book_store: Arc<dyn ferro_dav::store::AddressBookStore>,
     pub webrtc_offers: Arc<webrtc::offers::OfferStore>,
     pub activity_store: Arc<federation::store::ActivityStore>,
+    pub federation_secret: String,
     pub sync_store: Arc<SyncStore>,
     pub tags: Arc<tags::TagStore>,
     pub idempotency_store: Arc<idempotency::IdempotencyStore>,
     pub storage_health: Arc<storage_health::StorageHealthMonitor>,
     pub ws_manager: Arc<ws::WsManager>,
+    pub db: Option<DbHandle>,
 }
 
 impl AppState {
@@ -180,11 +184,13 @@ impl AppState {
             address_book_store: Arc::new(ferro_dav::store::InMemoryAddressBookStore::new()),
             webrtc_offers: Arc::new(webrtc::offers::OfferStore::new()),
             activity_store: Arc::new(federation::store::ActivityStore::new()),
+            federation_secret: String::new(),
             sync_store: Arc::new(SyncStore::new()),
             tags: Arc::new(tags::TagStore::new()),
             idempotency_store: Arc::new(idempotency::IdempotencyStore::new()),
             storage_health: Arc::new(storage_health::StorageHealthMonitor::new()),
             ws_manager: Arc::new(ws::WsManager::new()),
+            db: None,
         }
     }
 
@@ -253,6 +259,11 @@ impl AppState {
         self
     }
 
+    pub fn with_federation_secret(mut self, secret: String) -> Self {
+        self.federation_secret = secret;
+        self
+    }
+
     pub fn with_wopi_office_url(mut self, url: String) -> Self {
         self.wopi_office_url = url;
         self
@@ -315,6 +326,57 @@ impl AppState {
 
     pub fn with_data_dir(mut self, dir: String) -> Self {
         self.data_dir = Some(dir);
+        self
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db.clone());
+        let conn = db.lock().unwrap();
+
+        let user_store = users::InMemoryUserStore::new().with_db(db.clone());
+        if let Ok(users) = users::InMemoryUserStore::load_all_from_db(&conn) {
+            for user in users {
+                user_store.load_from_db(user);
+            }
+        }
+        self.user_store = Arc::new(user_store);
+
+        let share_store = shares::ShareStore::new().with_db(db.clone());
+        if let Ok(loaded) = shares::ShareStore::load_all_from_db(&conn) {
+            share_store.load_links_blocking(loaded);
+        }
+        self.share_store = Arc::new(share_store);
+
+        let fav_store = favorites::InMemoryFavoriteStore::new().with_db(db.clone());
+        if let Ok(paths) = favorites::InMemoryFavoriteStore::load_all_from_db(&conn) {
+            for path in paths {
+                fav_store.favorites.insert(path);
+            }
+        }
+        self.favorites = Arc::new(fav_store);
+
+        let tags_store = tags::TagStore::new().with_db(db.clone());
+        let _ = tags_store.load_all_from_db(&conn);
+        self.tags = Arc::new(tags_store);
+
+        let sync_store = sync::ops::SyncStore::new().with_db(db.clone());
+        let _ = sync_store.load_all_from_db(&conn);
+        self.sync_store = Arc::new(sync_store);
+
+        let activity_store = federation::store::ActivityStore::new().with_db(db.clone());
+        let _ = activity_store.load_all_from_db(&conn);
+        self.activity_store = Arc::new(activity_store);
+
+        if let Ok(entries) = trash::load_trash_from_db(&conn) {
+            for entry in entries {
+                self.trash.insert(entry.original_path.clone(), entry);
+            }
+        }
+
+        let lock_mgr = lock::LockManager::new().with_db(db.clone());
+        let _ = lock_mgr.load_all_from_db(&conn);
+        self.lock_manager = Arc::new(lock_mgr);
+
         self
     }
 

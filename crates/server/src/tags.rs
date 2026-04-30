@@ -2,12 +2,15 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use dashmap::DashMap;
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use tracing::warn;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use crate::db::DbHandle;
 
 const MAX_TAGS_PER_FILE: usize = 50;
 const MAX_TAGGED_FILES: usize = 10_000;
@@ -20,14 +23,21 @@ pub struct FileTags {
 
 #[derive(Debug, Clone)]
 pub struct TagStore {
-    entries: Arc<DashMap<String, HashSet<String>>>,
+    pub(crate) entries: Arc<DashMap<String, HashSet<String>>>,
+    db: Option<DbHandle>,
 }
 
 impl TagStore {
     pub fn new() -> Self {
         Self {
             entries: Arc::new(DashMap::new()),
+            db: None,
         }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
     }
 
     pub fn add_tag(&self, path: &str, tag: &str) -> Result<(), String> {
@@ -52,6 +62,14 @@ impl TagStore {
             ));
         }
         entry.value_mut().insert(tag.to_string());
+        if let Some(ref db) = self.db
+            && let Err(e) = db.lock().unwrap().execute(
+                "INSERT OR IGNORE INTO file_tags (file_path, tag) VALUES (?1, ?2)",
+                params![path, tag],
+            )
+        {
+            warn!("Failed to persist tag to SQLite: {}", e);
+        }
         Ok(())
     }
 
@@ -61,6 +79,15 @@ impl TagStore {
             if entry.value().is_empty() {
                 drop(entry);
                 self.entries.remove(path);
+            }
+            if removed
+                && let Some(ref db) = self.db
+                && let Err(e) = db.lock().unwrap().execute(
+                    "DELETE FROM file_tags WHERE file_path = ?1 AND tag = ?2",
+                    params![path, tag],
+                )
+            {
+                warn!("Failed to remove tag from SQLite: {}", e);
             }
             removed
         } else {
@@ -97,6 +124,26 @@ impl TagStore {
 
     pub fn remove_file(&self, path: &str) {
         self.entries.remove(path);
+        if let Some(ref db) = self.db
+            && let Err(e) =
+                db.lock().unwrap().execute("DELETE FROM file_tags WHERE file_path = ?1", params![path])
+        {
+            warn!("Failed to remove file tags from SQLite: {}", e);
+        }
+    }
+
+    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
+        let mut stmt = conn.prepare("SELECT file_path, tag FROM file_tags")?;
+        let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
+        for row in rows {
+            let (path, tag): (String, String) = row?;
+            self.entries
+                .entry(path)
+                .or_default()
+                .value_mut()
+                .insert(tag);
+        }
+        Ok(())
     }
 }
 
