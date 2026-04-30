@@ -2,7 +2,18 @@
 name = "ferro-core"
 version = "0.1.0"
 edition.workspace = true
+description = "Storage backends, search, and WASM runtime for Ferro"
+readme = "README.md"
 license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+keywords = ["storage", "sqlite", "tantivy", "wasmtime", "object-store", "s3"]
+categories = ["asynchronous", "database", "filesystem", "wasm"]
+rust-version = "1.85"
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["sqlite", "search", "wasm", "object_store"]

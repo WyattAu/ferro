@@ -9,6 +9,7 @@ members = [
     "crates/cli",
     "crates/crypto",
     "crates/fuse",
+    "crates/client",
 ]
 resolver = "2"
 

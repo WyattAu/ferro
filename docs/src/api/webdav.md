@@ -1,0 +1,185 @@
+# WebDAV API
+
+Ferro provides a fully compliant WebDAV server supporting Class 1 (PROPFIND), Class 2 (LOCK/UNLOCK), and Class 3 (PROPPATCH) operations.
+
+## Base URL
+
+All WebDAV operations use the root path as the base collection:
+
+```
+http://localhost:8080/
+```
+
+## Supported Methods
+
+| Method | Description | RFC |
+|--------|-------------|-----|
+| `OPTIONS` | Discover supported methods and DAV capabilities | RFC 4918 |
+| `PROPFIND` | Retrieve properties for one or more resources | RFC 4918 |
+| `GET` | Retrieve file content | RFC 7231 |
+| `PUT` | Create or update a file | RFC 7231 |
+| `DELETE` | Remove a resource | RFC 7231 |
+| `MKCOL` | Create a collection (directory) | RFC 4918 |
+| `COPY` | Copy a resource to a new location | RFC 4918 |
+| `MOVE` | Move a resource to a new location | RFC 4918 |
+| `LOCK` | Lock a resource | RFC 4918 |
+| `UNLOCK` | Release a lock | RFC 4918 |
+| `PROPPATCH` | Modify resource properties | RFC 4918 |
+
+## Depth Header
+
+The `Depth` header controls PROPFIND recursion:
+
+| Value | Behavior |
+|-------|----------|
+| `0` | Only the requested resource (no children) |
+| `1` | The resource and its immediate children |
+| `infinity` | The resource and all descendants (not fully supported) |
+
+## Sync-Token Support
+
+Ferro supports WebDAV sync-collection for incremental synchronization. Use the sync endpoint to get changes since a given sync token:
+
+```bash
+curl -X REPORT http://localhost:8080/ \
+  -H "Content-Type: application/xml" \
+  -d '<?xml version="1.0" encoding="utf-8"?>
+       <D:sync-collection xmlns:D="DAV:">
+         <D:sync-token>token-value</D:sync-token>
+         <D:sync-level>1</D:sync-level>
+       </D:sync-collection>'
+```
+
+## Examples with curl
+
+### Create a directory
+
+```bash
+curl -X MKCOL http://localhost:8080/documents/
+```
+
+### Upload a file
+
+```bash
+curl -X PUT http://localhost:8080/documents/report.pdf \
+  -H "Content-Type: application/pdf" \
+  --data-binary @report.pdf
+```
+
+### List directory contents (PROPFIND Depth: 1)
+
+```bash
+curl -X PROPFIND http://localhost:8080/documents/ \
+  -H "Depth: 1" \
+  -H "Content-Type: application/xml" \
+  -d '<?xml version="1.0" encoding="utf-8"?>
+       <D:propfind xmlns:D="DAV:">
+         <D:prop>
+           <D:resourcetype/>
+           <D:getcontentlength/>
+           <D:getlastmodified/>
+           <D:getetag/>
+         </D:prop>
+       </D:propfind>'
+```
+
+Response (207 Multi-Status):
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/documents/</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:resourcetype><D:collection/></D:resourcetype>
+        <D:getcontentlength>0</D:getcontentlength>
+        <D:getlastmodified>Mon, 01 Jan 2024 00:00:00 GMT</D:getlastmodified>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response>
+    <D:href>/documents/report.pdf</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:resourcetype/>
+        <D:getcontentlength>12345</D:getcontentlength>
+        <D:getlastmodified>Mon, 01 Jan 2024 12:00:00 GMT</D:getlastmodified>
+        <D:getetag>"abc123"</D:getetag>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>
+```
+
+### Lock a file
+
+```bash
+curl -X LOCK http://localhost:8080/documents/report.pdf \
+  -H "Content-Type: application/xml" \
+  -H "Timeout: Second-3600" \
+  -d '<?xml version="1.0" encoding="utf-8"?>
+       <D:lockinfo xmlns:D="DAV:">
+         <D:locktype><D:write/></D:locktype>
+         <D:lockscope><D:exclusive/></D:lockscope>
+         <D:owner>
+           <D:href>mailto:user@example.com</D:href>
+         </D:owner>
+       </D:lockinfo>'
+```
+
+### Unlock a file
+
+```bash
+curl -X UNLOCK http://localhost:8080/documents/report.pdf \
+  -H "Lock-Token: opaquelocktoken:abc123"
+```
+
+### Move a file
+
+```bash
+curl -X MOVE http://localhost:8080/documents/report.pdf \
+  -H "Destination: http://localhost:8080/archive/report.pdf"
+```
+
+### Copy a file
+
+```bash
+curl -X COPY http://localhost:8080/documents/report.pdf \
+  -H "Destination: http://localhost:8080/backup/report.pdf"
+```
+
+### Delete a file
+
+```bash
+curl -X DELETE http://localhost:8080/documents/report.pdf
+```
+
+### Delete a directory
+
+```bash
+curl -X DELETE http://localhost:8080/documents/
+```
+
+## Locking
+
+Ferro supports WebDAV locking with the following lock types:
+
+| Property | Value |
+|----------|-------|
+| Lock types | `write` |
+| Lock scopes | `exclusive` |
+| Lock timeout | Configurable (default: 3600 seconds) |
+| Lock tokens | Opaque token strings |
+
+Locks are tracked in-memory or in the SQLite database (when `--data-dir` is set). Expired locks are cleaned up periodically.
+
+## DAV Header
+
+The `DAV` response header advertises server capabilities:
+
+```
+DAV: 1, 2, 3
+```

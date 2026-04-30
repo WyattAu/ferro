@@ -2,8 +2,18 @@
 name = "ferro-fuse"
 version = "2.2.0"
 edition.workspace = true
+description = "FUSE filesystem mount for Ferro servers"
+readme = "README.md"
 license.workspace = true
-description = "FUSE filesystem mount for Ferro"
+repository = "https://github.com/WyattAu/ferro"
+keywords = ["fuse", "filesystem", "webdav", "mount", "linux"]
+categories = ["asynchronous", "filesystem", "os::unix-apis"]
+rust-version = "1.85"
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [[bin]]
 name = "ferro-fuse"

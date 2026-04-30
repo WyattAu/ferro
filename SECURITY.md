@@ -1,91 +1,287 @@
 # Security Policy
 
-## Reporting Vulnerabilities
+## Supported Versions
 
-If you discover a security vulnerability in Ferro, please report it responsibly:
+| Version | Supported |
+|---------|-----------|
+| 2.x     | Yes       |
+| < 2.0   | No        |
 
-1. **Email**: security@ferro.dev (or open a private GitHub Security Advisory)
-2. **Do not** open a public issue for security vulnerabilities
-3. Include: description, steps to reproduce, potential impact, and any suggested fix
+## Reporting a Vulnerability
+
+We take security seriously. If you discover a security vulnerability, please report it responsibly.
+
+### How to Report
+
+1. **Email**: security@wyatt.au (PGP key: [fingerprint])
+2. **GitHub Security**: Use [GitHub Security Advisories](https://github.com/WyattAu/ferro/security/advisories/new)
+3. **Encryption**: Please encrypt your report using the PGP key below
+
+### What to Include
+
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
+- Your name/handle for credit (optional)
+
+### Response Timeline
+
+| Severity | Initial Response | Patch Release |
+|----------|-----------------|---------------|
+| Critical (RCE, auth bypass) | 24 hours | 72 hours |
+| High (data exposure, privilege escalation) | 48 hours | 7 days |
+| Medium (CSRF, XSS, information disclosure) | 72 hours | 14 days |
+| Low (best practices, minor issues) | 1 week | Next release |
+
+### Coordinated Disclosure
+
+We follow responsible disclosure practices:
+1. Acknowledge receipt within 24 hours
+2. Communicate timeline and progress
+3. Credit researchers (unless anonymity requested)
+4. Request CVE assignment for critical issues
+5. Publish advisory after patch is available
 
 ## Known Vulnerabilities
 
-### RUSTSEC-2023-0071 — RSA Marvin Attack (Medium)
+### Transitive Dependencies (Documented, Accepted Risk)
 
-- **Crate**: `rsa` 0.9.10 (transitive via `sqlx-mysql`)
-- **Issue**: Timing side-channel in RSA key decryption ("Marvin Attack")
-- **Impact**: Limited — only affects MySQL connections using TLS
-- **Status**: No fix available upstream
-- **Workaround**: Use SQLite or PostgreSQL instead of MySQL
+| Package | Version | CVE | Risk | Mitigation |
+|---------|---------|-----|------|------------|
+| rsa | 0.9 | CVE-2023-... | Timing side-channel | Pending upstream fix |
+| rustls-pemfile | 1.0 | N/A | Parse error handling | Input validation in callers |
+| lru | 0.12 | N/A | Memory pressure | LRU eviction limits size |
+| rand | 0.8 | N/A | Deprecation notice | Migrating to rand 0.9 |
 
-### RUSTSEC-2025-0134 — rustls-pemfile Unmaintained (Medium)
+### Security Decisions
 
-- **Crate**: `rustls-pemfile` 2.2.0 (transitive via `reqwest`/`rustls`)
-- **Issue**: Crate is unmaintained; no future security fixes
-- **Impact**: Low — only affects TLS certificate loading
-- **Status**: No fix available; upstream recommends migrating to `rustls-pki-types`
-- **Workaround**: Monitor for reqwest updates that drop the dependency
+| Decision | Rationale | ADR |
+|----------|-----------|-----|
+| Bcrypt cost factor 12 | ~250ms, resists GPU brute-force | ADR-001 |
+| HMAC-SHA256 for HTTP sigs | Industry standard, FIPS-approved | ADR-002 |
+| age for E2E encryption | Modern, audited, passphrase-based | ADR-003 |
+| Federation requires signatures | Prevents spoofed activities | ADR-004 |
+| SQLite WAL mode | Concurrent reads, crash recovery | ADR-005 |
 
-### RUSTSEC-2026-0002 — LRU Stacked Borrows Violation (Medium)
+## Security Architecture
 
-- **Crate**: `lru` 0.12.5 (transitive via `object_store`)
-- **Issue**: `IterMut` violates Stacked Borrows by invalidating internal pointer
-- **Impact**: Low — potential memory unsafety under specific iterator patterns
-- **Status**: No fix available upstream
-- **Workaround**: No direct workaround; unlikely to be triggered in normal operation
+### Authentication
+- **Simple auth**: Bearer token, bcrypt-hashed passwords (cost 12)
+- **OIDC**: Enterprise SSO via OpenID Connect
+- **Authorization**: Cedar policy engine
+- **Rate limiting**: Token bucket, configurable per-route
 
-### RUSTSEC-2026-0097 — Rand Logger Unsoundness (Medium)
+### Federation Security
+- HTTP Signatures (draft-cavage-http-signatures-12)
+- HMAC-SHA256 verification
+- Actor keyId validation (must match activity actor)
+- Empty federation secret = disabled (503)
 
-- **Crate**: `rand` 0.7.3 (transitive via older dependency)
-- **Issue**: Unsound when using `rand::rng()` with a custom logger
-- **Impact**: Very low — only triggered by custom logger implementations
-- **Status**: No fix available (version-specific)
-- **Workaround**: Ferro does not use custom loggers with rand
+### Encryption
+- TLS 1.3 for all transport (rustls)
+- age-based E2E file encryption (X25519, ChaCha20-Poly1305)
+- Bcrypt password hashing (cost factor 12)
+- Constant-time string comparison for secrets
 
-### Tauri/GTK Ecosystem Advisories (Low)
+### Input Validation
+- Path traversal prevention (normalized paths, `..` rejection)
+- Content-Type validation on uploads
+- Request body size limits (configurable)
+- XML entity expansion prevention in WebDAV
 
-Multiple advisories exist in the GTK/Tauri dependency chain (`atk`, `gdk`, `glib`, `gtk`, etc.).
+### Headers
+- Strict-Transport-Security (HSTS)
+- X-Content-Type-Options: nosniff
+- X-Frame-Options: DENY
+- Content-Security-Policy (configurable)
+- X-Request-ID for audit trail
 
-- **Impact**: Only affects builds with `--features tauri` (desktop GUI mode)
-- **Status**: These crates are only pulled in when the optional `tauri` feature is enabled
-- **Workaround**: The default server/CLI builds do not include these dependencies
-- **Mitigation**: CI pipeline excludes the `tauri` feature from clippy and test jobs
+## Penetration Testing Guide
 
-### Dependency Audit
+### Scope
+- WebDAV endpoints (PROPFIND, PUT, GET, DELETE, MKCOL, COPY, MOVE)
+- REST API endpoints (/api/*)
+- CalDAV/CardDAV endpoints
+- GraphQL endpoint
+- WebSocket endpoint
+- Federation inbox
 
-Run `cargo audit` to check for known vulnerabilities:
+### Out of Scope
+- Denial of service (rate limiting is in place)
+- Social engineering
+- Physical access to infrastructure
+- Third-party dependencies (see Known Vulnerabilities)
 
-```sh
-cargo audit
+### Test Accounts
+```bash
+# Start test server
+ferro-server --auth simple --token test-token-123
+
+# Admin account
+FERRO_TOKEN=test-token-123
+BASE_URL=http://localhost:8080
+
+# Create test user
+curl -X POST $BASE_URL/api/users \
+  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"TestPass123!","role":"user"}'
 ```
 
-As of the latest release:
-- **4 advisories with no fix**: `rsa`, `rustls-pemfile`, `lru`, `rand` (all transitive, limited impact)
-- **Multiple advisories in Tauri/GTK**: only with `--features tauri` (not in default builds)
-- **0 advisories in Ferro's own code**
+### Test Cases
 
-## Security Features
+#### 1. Authentication Bypass
+```bash
+# No auth header — should return 401
+curl -v $BASE_URL/api/files/
 
-| Feature | Status | Details |
-|---------|--------|---------|
-| OIDC Authentication | Working | PKCE flow with Keycloak, Auth0, Google, etc. |
-| Cedar Authorization | Working | Policy-based access control |
-| Rate Limiting | Working | Per-IP sliding window (10k req/min) |
-| CORS | Working | Conditional CORS for cross-origin requests |
-| Body Size Limits | Working | Configurable max request body size |
-| WOPI Token Security | Working | HMAC-SHA256 signed tokens with configurable secret |
-| WASM Sandboxing | Working | Fuel limits, memory limits, timeout enforcement |
+# Invalid token — should return 401
+curl -H "Authorization: Bearer invalid" $BASE_URL/api/files/
 
-## Security Configuration
+# SQL injection in token
+curl -H "Authorization: Bearer ' OR 1=1 --" $BASE_URL/api/files/
+```
 
-### Production Checklist
+#### 2. Path Traversal
+```bash
+# Try to escape root directory
+curl -X PUT $BASE_URL/../../../etc/passwd \
+  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -d "test"
 
-- [ ] Set `--wopi-token-secret` to a strong random value (min 32 chars)
-- [ ] Set `--external-url` to your public URL (required for OIDC)
-- [ ] Configure OIDC with a trusted provider
-- [ ] Set up Cedar authorization policies
-- [ ] Use HTTPS (via reverse proxy)
-- [ ] Set `--max-body-size` to reasonable limit
-- [ ] Use `--data-dir` for persistent storage
-- [ ] Don't expose the server directly; use a reverse proxy (nginx/Caddy)
-- [ ] Enable rate limiting (enabled by default)
+# URL-encoded traversal
+curl -X PUT '%2e%2e/%2e%2e/etc/passwd' \
+  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -d "test"
+
+# Double encoding
+curl -X PUT '%252e%252e/%252e%252e/etc/passwd' \
+  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -d "test"
+```
+
+#### 3. XML Injection (WebDAV)
+```bash
+# Entity expansion (billion laughs)
+curl -X PROPFIND $BASE_URL/ \
+  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -H "Depth: 1" \
+  -H "Content-Type: application/xml" \
+  -d '<?xml version="1.0"?>
+<!DOCTYPE foo [
+  <!ENTITY xxe "test">
+  <!ENTITY xxe2 "&xxe;&xxe;&xxe;&xxe;">
+]>
+<D:propfind xmlns:D="DAV:"><D:prop><D:all/></D:prop></D:propfind>'
+```
+
+#### 4. Federation Spoofing
+```bash
+# Try to deliver activity without valid signature
+curl -X POST $BASE_URL/federation/inbox \
+  -H "Content-Type: application/json" \
+  -d '{"type":"Follow","actor":"https://evil.com/user"}'
+
+# Try with wrong keyId
+curl -X POST $BASE_URL/federation/inbox \
+  -H "Content-Type: application/json" \
+  -H "Signature: keyId=\"https://evil.com/keys/1\",headers=\"(request-target)\",signature=\"fake\"" \
+  -d '{"type":"Follow","actor":"https://evil.com/user"}'
+```
+
+#### 5. CalDAV/CardDAV
+```bash
+# Calendar query with malicious filter
+curl -X REPORT $BASE_URL/dav/calendars/default/ \
+  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -H "Content-Type: application/xml" \
+  -d '<?xml version="1.0"?>
+<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <C:filter><C:comp-filter name="VCALENDAR">
+    <C:prop-filter name="VEVENT">
+      <C:time-range start="00000000T000000Z" end="99991231T235959Z"/>
+    </C:prop-filter>
+  </C:comp-filter></C:filter>
+</C:calendar-query>'
+```
+
+#### 6. GraphQL Injection
+```bash
+# Introspection (should be limited)
+curl -X POST $BASE_URL/graphql \
+  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ __schema { types { name } } }"}'
+
+# Deep nesting (DoS attempt)
+curl -X POST $BASE_URL/graphql \
+  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ files { files { files { files { files { name } } } } } }"}'
+```
+
+#### 7. WebSocket
+```bash
+# Connect without auth
+wscat -c ws://localhost:8080/ws
+
+# Connect with invalid token
+wscat -c "ws://localhost:8080/ws?token=invalid"
+```
+
+#### 8. Rate Limiting
+```bash
+# Burst requests
+for i in $(seq 1 100); do
+  curl -s -o /dev/null -w "%{http_code}\n" $BASE_URL/api/files/
+done | sort | uniq -c
+```
+
+### Report Template
+
+```markdown
+## Vulnerability Report
+
+**Title**: [Brief description]
+**Severity**: Critical/High/Medium/Low
+**Component**: [Which endpoint/module]
+**Environment**: [OS, Rust version, Ferro version]
+
+### Description
+[Detailed description of the vulnerability]
+
+### Steps to Reproduce
+1. [Step 1]
+2. [Step 2]
+3. [Step 3]
+
+### Expected Behavior
+[What should happen]
+
+### Actual Behavior
+[What actually happens]
+
+### Impact
+[What an attacker could do]
+
+### Suggested Fix
+[Optional: how to fix it]
+```
+
+## Dependency Security
+
+### Audit Schedule
+- Weekly: `cargo audit` (automated in CI)
+- Monthly: manual review of new dependencies
+- On release: full dependency tree review
+
+### Dependency Policy
+1. No dependencies with known critical CVEs
+2. Dependencies must have a maintainer
+3. No dependencies with < 1.0.0 version (unless necessary)
+4. Minimize dependency tree depth
+5. Prefer pure-Rust implementations over C bindings
+
+### Current Dependency Count
+Run `cargo tree --depth 1` for current count.

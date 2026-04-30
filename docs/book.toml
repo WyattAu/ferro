@@ -1,0 +1,18 @@
+[book]
+title = "Ferro Documentation"
+authors = ["Wyatt Au"]
+language = "en"
+multilingual = false
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/WyattAu/ferro"
+edit-url-template = "https://github.com/WyattAu/ferro/edit/main/docs/{path}"
+
+[output.html.search]
+limit-results = 30

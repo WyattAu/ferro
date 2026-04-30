@@ -1,0 +1,148 @@
+# Docker Deployment
+
+## Quick Start
+
+The fastest way to run Ferro:
+
+```bash
+docker compose up -d
+```
+
+This starts Ferro with in-memory storage on port 8080.
+
+## Base Configuration
+
+The Docker Compose configs use a layered overlay pattern. Start with the base and add overlays as needed:
+
+| File | Adds |
+|------|------|
+| `docker-compose.yml` | Ferro only |
+| `docker-compose.pg.yml` | PostgreSQL |
+| `docker-compose.redis.yml` | Redis |
+
+## Single Node (Minimal)
+
+```bash
+cd deploy
+docker compose up -d
+```
+
+### docker-compose.yml
+
+```yaml
+services:
+  ferro:
+    image: ghcr.io/wyattau/ferro:latest
+    container_name: ferro
+    restart: unless-stopped
+    ports:
+      - "${FERRO_PORT:-8080}:8080"
+    volumes:
+      - ferro-data:/data
+    environment:
+      FERRO_DATA_DIR: /data
+      FERRO_HOST: 0.0.0.0
+      FERRO_PORT: 8080
+      FERRO_LOG_FORMAT: json
+      FERRO_LOG_LEVEL: info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  ferro-data:
+    driver: local
+```
+
+## With PostgreSQL
+
+```bash
+POSTGRES_PASSWORD=your-password \
+  docker compose -f docker-compose.yml -f docker-compose.pg.yml up -d
+```
+
+## With PostgreSQL and Redis
+
+```bash
+POSTGRES_PASSWORD=your-password \
+  docker compose -f docker-compose.yml -f docker-compose.pg.yml -f docker-compose.redis.yml up -d
+```
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FERRO_PORT` | `8080` | Host port mapping |
+| `POSTGRES_PASSWORD` | `ferro` | PostgreSQL password |
+| `FERRO_DATA_DIR` | `/data` | Persistent data directory in container |
+| `FERRO_LOG_FORMAT` | `json` | Log format |
+| `FERRO_LOG_LEVEL` | `info` | Log level |
+
+## Health Check
+
+The container includes a health check that hits `/healthz`:
+
+```bash
+docker inspect --format='{{.State.Health.Status}}' ferro
+```
+
+## With Reverse Proxy (Caddy)
+
+For production, use Caddy for automatic HTTPS:
+
+```yaml
+services:
+  ferro:
+    build: .
+    expose:
+      - "8080"
+    volumes:
+      - ferro-data:/data
+    environment:
+      - FERRO_DATA_DIR=/data
+      - FERRO_STATIC_DIR=/app/ui
+      - FERRO_ADMIN_USER=admin
+      - FERRO_ADMIN_PASSWORD=changeme
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/.well-known/ferro"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - DOMAIN=localhost
+    depends_on:
+      - ferro
+    restart: unless-stopped
+
+volumes:
+  ferro-data:
+  caddy-data:
+  caddy-config:
+```
+
+## Tips
+
+- Use named volumes for persistent data (`ferro-data`)
+- Set `FERRO_LOG_FORMAT=json` for structured logging in production
+- Set memory limits via `deploy.resources.limits`
+- Use `docker compose logs -f ferro` to follow logs
+- The health check uses `/healthz` for liveness monitoring

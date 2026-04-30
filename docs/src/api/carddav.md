@@ -1,0 +1,170 @@
+# CardDAV API
+
+Ferro implements the CardDAV protocol (RFC 6352) for address book access. Contact data is stored as vCard (RFC 6350) resources.
+
+## Base URL
+
+```
+http://localhost:8080/dav/card/
+```
+
+## Address Book Discovery
+
+### Discover address book home
+
+```bash
+curl -X OPTIONS http://localhost:8080/dav/card \
+  -H "Authorization: Bearer TOKEN"
+```
+
+Response includes `DAV: addressbook` header.
+
+### List address books
+
+```bash
+curl -X GET http://localhost:8080/dav/card/ \
+  -H "Authorization: Bearer TOKEN"
+```
+
+### Get address book properties
+
+```bash
+curl -X PROPFIND http://localhost:8080/dav/card/contacts/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Depth: 0" \
+  -H "Content-Type: application/xml" \
+  -d '<?xml version="1.0" encoding="utf-8"?>
+       <D:propfind xmlns:D="DAV:" xmlns:CR="urn:ietf:params:xml:ns:carddav">
+         <D:prop>
+           <D:displayname/>
+           <CR:addressbook-description/>
+           <CR:getctag/>
+         </D:prop>
+       </D:propfind>'
+```
+
+## Address Book Operations
+
+### Create an address book
+
+```bash
+curl -X PUT http://localhost:8080/dav/card/friends/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/xml" \
+  -d '<?xml version="1.0" encoding="utf-8"?>
+       <D:mkcol xmlns:D="DAV:" xmlns:CR="urn:ietf:params:xml:ns:carddav">
+         <D:set>
+           <D:prop>
+             <D:resourcetype>
+               <D:collection/>
+               <CR:addressbook/>
+             </D:resourcetype>
+             <D:displayname>Friends</D:displayname>
+           </D:prop>
+         </D:set>
+       </D:mkcol>'
+```
+
+### Delete an address book
+
+```bash
+curl -X DELETE http://localhost:8080/dav/card/friends/ \
+  -H "Authorization: Bearer TOKEN"
+```
+
+## Contact Operations
+
+### Create a contact
+
+```bash
+curl -X PUT http://localhost:8080/dav/card/contacts/jane.vcf \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: text/vcard" \
+  -d 'BEGIN:VCARD
+VERSION:3.0
+FN:Jane Doe
+N:Doe;Jane;;;
+EMAIL:jane@example.com
+TEL:+1-555-0100
+END:VCARD'
+```
+
+### Get a contact
+
+```bash
+curl http://localhost:8080/dav/card/contacts/jane.vcf \
+  -H "Authorization: Bearer TOKEN"
+```
+
+### Update a contact
+
+```bash
+curl -X PUT http://localhost:8080/dav/card/contacts/jane.vcf \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: text/vcard" \
+  -d 'BEGIN:VCARD
+VERSION:3.0
+FN:Jane Smith
+N:Smith;Jane;;;
+EMAIL:jane.smith@example.com
+TEL:+1-555-0200
+END:VCARD'
+```
+
+### Delete a contact
+
+```bash
+curl -X DELETE http://localhost:8080/dav/card/contacts/jane.vcf \
+  -H "Authorization: Bearer TOKEN"
+```
+
+## Address Book Query (REPORT)
+
+### Query contacts by filter
+
+```bash
+curl -X REPORT http://localhost:8080/dav/card/contacts/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/xml" \
+  -d '<?xml version="1.0" encoding="utf-8"?>
+       <CR:addressbook-query xmlns:CR="urn:ietf:params:xml:ns:carddav" xmlns:D="DAV:">
+         <D:prop>
+           <D:getetag/>
+           <CR:address-data/>
+         </D:prop>
+         <CR:filter>
+           <CR:prop-filter name="FN">
+             <CR:text-match match-type="contains">Jane</CR:text-match>
+           </CR:prop-filter>
+         </CR:filter>
+       </CR:addressbook-query>'
+```
+
+## CTag Support
+
+Address books expose a `getctag` property that changes whenever any contact is modified. Use this for efficient synchronization:
+
+```bash
+curl -X PROPFIND http://localhost:8080/dav/card/contacts/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Depth: 0" \
+  -H "Content-Type: application/xml" \
+  -d '<?xml version="1.0" encoding="utf-8"?>
+       <D:propfind xmlns:D="DAV:" xmlns:CR="urn:ietf:params:xml:ns:carddav">
+         <D:prop>
+           <CR:getctag/>
+         </D:prop>
+       </D:propfind>'
+```
+
+## Compatible Clients
+
+| Client | Platform | Notes |
+|--------|----------|-------|
+| Thunderbird | Cross-platform | Built-in CardDAV support |
+| macOS Contacts | macOS | Native CardDAV |
+| DAVx5 | Android | CardDAV + CalDAV |
+| Evolution | Linux | GNOME contacts |
+| khard | CLI | Command-line address book |
+
+See the [CalDAV Clients Guide](../guides/caldav-clients.md) for setup instructions.

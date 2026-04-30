@@ -2,7 +2,18 @@
 name = "ferro-dav"
 version = "0.1.0"
 edition.workspace = true
+description = "CalDAV, CardDAV, and WebDAV protocol implementations for Ferro"
+readme = "README.md"
 license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+keywords = ["caldav", "carddav", "webdav", "icalendar", "vcard", "rfc4791"]
+categories = ["asynchronous", "network-programming", "web-programming"]
+rust-version = "1.85"
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["handlers"]

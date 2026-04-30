@@ -32,7 +32,7 @@ pub async fn security_headers_middleware(
     headers.insert(
         axum::http::header::CONTENT_SECURITY_POLICY,
         axum::http::HeaderValue::from_static(
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'none'",
         ),
     );
     headers.insert(
@@ -41,7 +41,7 @@ pub async fn security_headers_middleware(
     );
     headers.insert(
         "Permissions-Policy",
-        axum::http::HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
+        axum::http::HeaderValue::from_static("camera=(), microphone=(), geolocation=(), payment=()"),
     );
 
     if is_https {
@@ -95,7 +95,7 @@ mod tests {
         );
         assert_eq!(
             headers.get("Permissions-Policy").unwrap(),
-            "camera=(), microphone=(), geolocation=()"
+            "camera=(), microphone=(), geolocation=(), payment=()"
         );
     }
 

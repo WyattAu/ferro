@@ -6,6 +6,17 @@ use tracing::{info, warn};
 
 use crate::AppState;
 
+static FEDERATION_CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLock::new(|| {
+    reqwest::Client::builder()
+        .user_agent("ferro-server/2.5.0")
+        .pool_max_idle_per_host(10)
+        .pool_idle_timeout(std::time::Duration::from_secs(90))
+        .timeout(std::time::Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .expect("Failed to build federation HTTP client")
+});
+
 /// Deliver an activity to all followers' inboxes.
 /// This is called after recording a local activity (Create, Update, Delete, etc.)
 pub async fn deliver_to_followers(state: &AppState, activity: &Value) -> Vec<Result<(), String>> {
@@ -36,13 +47,7 @@ pub async fn deliver_to_followers(state: &AppState, activity: &Value) -> Vec<Res
 
 /// POST a signed activity to a single remote inbox.
 pub async fn deliver_to_inbox(inbox_url: &str, activity: &Value) -> Result<(), String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .user_agent("Ferro/2.0 (ActivityPub)")
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-
-    let response = client
+    let response = FEDERATION_CLIENT
         .post(inbox_url)
         .header("Content-Type", "application/activity+json")
         .json(activity)

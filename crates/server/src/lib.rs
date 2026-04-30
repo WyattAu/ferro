@@ -50,6 +50,7 @@ pub mod sync;
 pub mod tags;
 pub mod thumbnails;
 pub mod trash;
+pub mod upload;
 pub mod user_api;
 pub mod user_paths;
 pub mod users;
@@ -142,6 +143,7 @@ pub struct AppState {
     pub storage_health: Arc<storage_health::StorageHealthMonitor>,
     pub ws_manager: Arc<ws::WsManager>,
     pub db: Option<DbHandle>,
+    pub upload_store: upload::UploadStore,
 }
 
 impl AppState {
@@ -193,6 +195,7 @@ impl AppState {
             storage_health: Arc::new(storage_health::StorageHealthMonitor::new()),
             ws_manager: Arc::new(ws::WsManager::new()),
             db: None,
+            upload_store: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
         }
     }
 
@@ -833,6 +836,20 @@ pub fn build_router_with_static(
             axum::routing::get(sync::events::sync_status),
         )
         .route("/api/ws", axum::routing::get(ws::ws_handler))
+        .route("/api/upload/init", axum::routing::post(upload::init_upload))
+        .route(
+            "/api/upload/:upload_id/chunk/:chunk_index",
+            axum::routing::put(upload::upload_chunk),
+        )
+        .route(
+            "/api/upload/:upload_id/complete",
+            axum::routing::post(upload::complete_upload),
+        )
+        .route(
+            "/api/upload/:upload_id",
+            axum::routing::delete(upload::cancel_upload),
+        )
+        .route("/api/uploads", axum::routing::get(upload::list_uploads))
         .route("/*path", any(webdav::handle_any))
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route(

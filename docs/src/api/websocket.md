@@ -1,0 +1,137 @@
+# WebSocket API
+
+Ferro provides real-time notifications via WebSocket. Clients connect to receive JSON messages for file operations as they happen.
+
+## Connection
+
+```
+ws://localhost:8080/api/ws
+```
+
+### Connect with a client
+
+```bash
+wscat -c ws://localhost:8080/api/ws
+```
+
+Or in JavaScript:
+
+```javascript
+const ws = new WebSocket('ws://localhost:8080/api/ws');
+ws.onmessage = (event) => console.log(JSON.parse(event.data));
+```
+
+## Authentication
+
+WebSocket connections inherit the server's authentication configuration. When simple auth or OIDC is enabled, the WebSocket connection requires authentication through the same mechanism.
+
+## Event Types
+
+All events are JSON objects with a `type` field:
+
+### file_created
+
+Emitted when a new file is uploaded or created.
+
+```json
+{
+  "type": "file_created",
+  "path": "/documents/report.pdf",
+  "size": 12345,
+  "owner": "admin"
+}
+```
+
+### file_updated
+
+Emitted when a file's content is modified.
+
+```json
+{
+  "type": "file_updated",
+  "path": "/documents/report.pdf",
+  "size": 15000,
+  "owner": "admin"
+}
+```
+
+### file_deleted
+
+Emitted when a file or directory is deleted.
+
+```json
+{
+  "type": "file_deleted",
+  "path": "/documents/old-file.txt",
+  "owner": "admin"
+}
+```
+
+### file_moved
+
+Emitted when a file is moved or renamed.
+
+```json
+{
+  "type": "file_moved",
+  "from": "/documents/report.pdf",
+  "to": "/archive/report.pdf",
+  "owner": "admin"
+}
+```
+
+### file_shared
+
+Emitted when a share link is created for a file.
+
+```json
+{
+  "type": "file_shared",
+  "path": "/documents/report.pdf",
+  "token": "abc123def456",
+  "owner": "admin"
+}
+```
+
+### sync_op
+
+Emitted when a sync operation occurs (for client synchronization).
+
+```json
+{
+  "type": "sync_op",
+  "clock": 42,
+  "op_type": "create",
+  "path": "/documents/new-file.txt"
+}
+```
+
+### storage_health
+
+Emitted when the storage backend health status changes.
+
+```json
+{
+  "type": "storage_health",
+  "healthy": true,
+  "backend": "local"
+}
+```
+
+## Connection Limits
+
+| Parameter | Value |
+|-----------|-------|
+| Max connections | 1,000 |
+| Broadcast channel size | 1,024 messages |
+| Protocol | WebSocket (RFC 6455) |
+
+When the maximum connection limit is reached, new connections are rejected.
+
+## Message Flow
+
+The WebSocket connection is unidirectional from server to client -- the server pushes events, and clients receive them. The server does not process messages sent by clients (except for close and ping frames).
+
+## Reconnection
+
+If the connection is lost, clients should reconnect with exponential backoff. The sync API (`/api/sync/events`, `/api/sync/delta`) can be used to catch up on missed events after reconnection.

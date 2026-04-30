@@ -2,7 +2,18 @@
 name = "ferro-common"
 version = "0.1.0"
 edition.workspace = true
+description = "Core types and traits for the Ferro storage ecosystem"
+readme = "README.md"
 license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+keywords = ["storage", "webdav", "filesystem", "trait", "async"]
+categories = ["asynchronous", "filesystem", "data-structures"]
+rust-version = "1.85"
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 serde = { workspace = true }

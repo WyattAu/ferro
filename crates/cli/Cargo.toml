@@ -2,7 +2,10 @@
 name = "ferro-cli"
 version = "0.1.0"
 edition.workspace = true
+description = "Command-line client for Ferro servers"
 license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
 
 [dependencies]
 ferro-common = { package = "ferro-common", path = "../common" }

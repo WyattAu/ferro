@@ -1,0 +1,69 @@
+# Podman Deployment
+
+Run Ferro with rootless containers using Podman and systemd integration.
+
+## Quick Start
+
+```bash
+cd deploy/podman
+podman-compose -f podman-compose.yml up -d
+```
+
+## Podman Machine (macOS/Windows)
+
+```bash
+podman machine init
+podman machine start
+eval $(podman machine env)
+podman-compose -f podman-compose.yml up -d
+```
+
+## Systemd Integration
+
+Generate and install a systemd user service for auto-start:
+
+```bash
+podman generate systemd --new --files --name ferro
+cp container-ferro.service ~/.config/systemd/user/
+systemctl --user enable --now container-ferro.service
+```
+
+This ensures Ferro starts automatically on login and restarts on failure.
+
+## SELinux
+
+The Podman configuration includes SELinux label support (`:z` and `:Z` volume options) for proper file access on SELinux-enabled systems.
+
+## Common Issues
+
+### Permission denied on volume
+
+```bash
+# Use :Z for single-container volumes
+podman run -v ./data:/data:Z ghcr.io/wyattau/ferro:latest
+```
+
+### Container won't start
+
+```bash
+# Check logs
+podman logs ferro
+
+# Check container status
+podman ps -a
+```
+
+### Port already in use
+
+```bash
+# Check what's using port 8080
+ss -tlnp | grep 8080
+```
+
+## Advantages over Docker
+
+- Rootless by default (no root daemon)
+- Native systemd integration
+- SELinux support out of the box
+- Compatible with Docker Compose files via `podman-compose`
+- OCI-compliant containers

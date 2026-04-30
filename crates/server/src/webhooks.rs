@@ -13,6 +13,16 @@ use crate::db::DbHandle;
 
 const MAX_WEBHOOKS: usize = 100;
 
+static WEBHOOK_CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLock::new(|| {
+    reqwest::Client::builder()
+        .pool_max_idle_per_host(10)
+        .pool_idle_timeout(std::time::Duration::from_secs(90))
+        .timeout(std::time::Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .expect("Failed to build webhook HTTP client")
+});
+
 /// Configuration for a webhook subscription.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookConfig {
@@ -76,7 +86,7 @@ pub async fn fire_webhooks(webhooks: Arc<RwLock<Vec<WebhookConfig>>>, event: Web
 
             let signature = sign_payload(&hook_clone.secret, &payload);
 
-            let client = reqwest::Client::new();
+            let client = &WEBHOOK_CLIENT;
             let mut delay = std::time::Duration::from_secs(1);
 
             for attempt in 0..3 {

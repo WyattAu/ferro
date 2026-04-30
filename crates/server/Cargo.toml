@@ -2,7 +2,10 @@
 name = "ferro-server"
 version = "0.1.0"
 edition.workspace = true
+description = "Ferro server with WebDAV, CalDAV, and CardDAV support"
 license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
 
 [features]
 default = []
