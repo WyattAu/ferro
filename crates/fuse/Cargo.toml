@@ -1,0 +1,32 @@
+[package]
+name = "ferro-fuse"
+version = "2.2.0"
+edition.workspace = true
+license.workspace = true
+description = "FUSE filesystem mount for Ferro"
+
+[[bin]]
+name = "ferro-fuse"
+path = "src/main.rs"
+
+[dependencies]
+ferro-common = { path = "../common" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive", "env"] }
+bytes = "1"
+chrono = { version = "0.4", features = ["serde"] }
+libc = "0.2"
+futures = "0.3"
+anyhow = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+base64 = "0.22"
+urlencoding = "2"
+lazy-regex = "3"
+async-trait = "0.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+fuse3 = { version = "0.7", features = ["tokio-runtime"] }

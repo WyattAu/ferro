@@ -43,8 +43,10 @@ impl InMemoryFavoriteStore {
 
     fn persist_add(&self, path: &str) {
         if let Some(ref db) = self.db
-            && let Err(e) =
-                db.lock().unwrap().execute("INSERT OR IGNORE INTO favorites (path) VALUES (?1)", params![path])
+            && let Err(e) = db.lock().unwrap().execute(
+                "INSERT OR IGNORE INTO favorites (path) VALUES (?1)",
+                params![path],
+            )
         {
             warn!("Failed to persist favorite to SQLite: {}", e);
         }
@@ -52,7 +54,10 @@ impl InMemoryFavoriteStore {
 
     fn persist_remove(&self, path: &str) {
         if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap().execute("DELETE FROM favorites WHERE path = ?1", params![path])
+            && let Err(e) = db
+                .lock()
+                .unwrap()
+                .execute("DELETE FROM favorites WHERE path = ?1", params![path])
         {
             warn!("Failed to remove favorite from SQLite: {}", e);
         }

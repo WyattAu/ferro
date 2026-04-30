@@ -110,7 +110,9 @@ impl ShareStore {
         }
     }
 
-    pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<ShareLink>, rusqlite::Error> {
+    pub fn load_all_from_db(
+        conn: &rusqlite::Connection,
+    ) -> Result<Vec<ShareLink>, rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT token, file_path, password, expires_at, created_by, download_count, max_downloads FROM shares",
         )?;

@@ -220,7 +220,9 @@ pub fn persist_webhook_delete(db: &DbHandle, id: &str) {
     }
 }
 
-pub fn load_webhooks_from_db(conn: &rusqlite::Connection) -> Result<Vec<WebhookConfig>, rusqlite::Error> {
+pub fn load_webhooks_from_db(
+    conn: &rusqlite::Connection,
+) -> Result<Vec<WebhookConfig>, rusqlite::Error> {
     let mut stmt = conn.prepare("SELECT id, url, events, secret, enabled FROM webhooks")?;
     let rows = stmt.query_map([], |row| {
         let events_json: String = row.get(2)?;

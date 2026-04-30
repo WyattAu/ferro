@@ -3,6 +3,9 @@ use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use std::sync::Arc;
 
+#[cfg(feature = "persistence")]
+use tracing::warn;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CalendarInfo {
     pub id: String,
@@ -121,15 +124,148 @@ struct AddressBookData {
     contacts: DashMap<String, ContactInfo>,
 }
 
+#[cfg(feature = "persistence")]
+pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+
 #[derive(Debug, Clone)]
 pub struct InMemoryCalendarStore {
     calendars: DashMap<String, CalendarData>,
+    #[cfg(feature = "persistence")]
+    db: Option<DbHandle>,
 }
 
 impl InMemoryCalendarStore {
     pub fn new() -> Self {
         Self {
             calendars: DashMap::new(),
+            #[cfg(feature = "persistence")]
+            db: None,
+        }
+    }
+
+    #[cfg(feature = "persistence")]
+    pub fn with_db(db: DbHandle) -> Self {
+        {
+            let conn = db.lock().unwrap();
+            let _ = conn.execute_batch(
+                "
+                CREATE TABLE IF NOT EXISTS calendars (
+                    principal TEXT NOT NULL,
+                    calendar_id TEXT NOT NULL,
+                    name TEXT NOT NULL DEFAULT '',
+                    color TEXT NOT NULL DEFAULT '',
+                    description TEXT NOT NULL DEFAULT '',
+                    ctag TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY (principal, calendar_id)
+                );
+                CREATE TABLE IF NOT EXISTS calendar_events (
+                    calendar_id TEXT NOT NULL,
+                    uid TEXT NOT NULL,
+                    ical_data TEXT NOT NULL,
+                    etag TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (calendar_id, uid)
+                );
+                ",
+            );
+        }
+
+        let store = Self {
+            calendars: DashMap::new(),
+            db: Some(db.clone()),
+        };
+
+        store.load_all_from_db(&db);
+        store
+    }
+
+    #[cfg(feature = "persistence")]
+    fn load_all_from_db(&self, db: &DbHandle) {
+        let conn = match db.lock() {
+            Ok(c) => c,
+            Err(e) => {
+                warn!("Failed to lock DB for loading calendars: {}", e);
+                return;
+            }
+        };
+
+        if let Ok(mut stmt) =
+            conn.prepare("SELECT principal, calendar_id, name, color, ctag FROM calendars")
+        {
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
+            });
+            if let Ok(rows) = rows {
+                for row in rows.flatten() {
+                    let (principal, calendar_id, name, color, ctag) = row;
+                    let now = Utc::now();
+                    let key = Self::calendar_key(&principal, &calendar_id);
+                    self.calendars.insert(
+                        key,
+                        CalendarData {
+                            info: CalendarInfo {
+                                id: calendar_id,
+                                principal,
+                                name,
+                                color,
+                                ctag,
+                                created_at: now,
+                                updated_at: now,
+                            },
+                            events: DashMap::new(),
+                        },
+                    );
+                }
+            }
+        }
+
+        if let Ok(mut stmt) = conn.prepare(
+            "SELECT calendar_id, uid, ical_data, etag, created_at, updated_at FROM calendar_events",
+        ) {
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            });
+            if let Ok(rows) = rows {
+                for row in rows.flatten() {
+                    let (calendar_id, uid, ical_data, etag, created_at_str, updated_at_str) = row;
+                    let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now());
+                    let updated_at = chrono::DateTime::parse_from_rfc3339(&updated_at_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now());
+                    for entry in self.calendars.iter() {
+                        if entry.value().info.id == calendar_id {
+                            entry.value().events.insert(
+                                uid.clone(),
+                                EventInfo {
+                                    uid,
+                                    calendar_id,
+                                    ical_data,
+                                    etag,
+                                    created_at,
+                                    updated_at,
+                                },
+                            );
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -193,6 +329,19 @@ impl CalendarStore for InMemoryCalendarStore {
                 events: DashMap::new(),
             },
         );
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "INSERT OR REPLACE INTO calendars (principal, calendar_id, name, color, ctag) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    rusqlite::params![info.principal, info.id, info.name, info.color, info.ctag],
+                ) {
+                    warn!("Failed to persist calendar to SQLite: {}", e);
+                }
+            }
+        }
+
         Ok(info)
     }
 
@@ -201,6 +350,25 @@ impl CalendarStore for InMemoryCalendarStore {
         if self.calendars.remove(&key).is_none() {
             return Err(StoreError("Calendar not found".to_string()));
         }
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "DELETE FROM calendar_events WHERE calendar_id = ?1",
+                    rusqlite::params![calendar_id],
+                ) {
+                    warn!("Failed to delete calendar events from SQLite: {}", e);
+                }
+                if let Err(e) = conn.execute(
+                    "DELETE FROM calendars WHERE principal = ?1 AND calendar_id = ?2",
+                    rusqlite::params![principal, calendar_id],
+                ) {
+                    warn!("Failed to delete calendar from SQLite: {}", e);
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -264,6 +432,26 @@ impl CalendarStore for InMemoryCalendarStore {
                     return Err(StoreError("Event already exists".to_string()));
                 }
                 entry.value().events.insert(uid.clone(), event.clone());
+
+                #[cfg(feature = "persistence")]
+                if let Some(ref db) = self.db {
+                    if let Ok(conn) = db.lock() {
+                        if let Err(e) = conn.execute(
+                            "INSERT OR REPLACE INTO calendar_events (calendar_id, uid, ical_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                            rusqlite::params![
+                                event.calendar_id,
+                                event.uid,
+                                event.ical_data,
+                                event.etag,
+                                event.created_at.to_rfc3339(),
+                                event.updated_at.to_rfc3339(),
+                            ],
+                        ) {
+                            warn!("Failed to persist event to SQLite: {}", e);
+                        }
+                    }
+                }
+
                 return Ok(event);
             }
         }
@@ -296,6 +484,26 @@ impl CalendarStore for InMemoryCalendarStore {
                     .value()
                     .events
                     .insert(event_uid.to_string(), event.clone());
+
+                #[cfg(feature = "persistence")]
+                if let Some(ref db) = self.db {
+                    if let Ok(conn) = db.lock() {
+                        if let Err(e) = conn.execute(
+                            "INSERT OR REPLACE INTO calendar_events (calendar_id, uid, ical_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                            rusqlite::params![
+                                event.calendar_id,
+                                event.uid,
+                                event.ical_data,
+                                event.etag,
+                                event.created_at.to_rfc3339(),
+                                event.updated_at.to_rfc3339(),
+                            ],
+                        ) {
+                            warn!("Failed to persist event update to SQLite: {}", e);
+                        }
+                    }
+                }
+
                 return Ok(event);
             }
         }
@@ -309,6 +517,19 @@ impl CalendarStore for InMemoryCalendarStore {
                 if entry.value().events.remove(event_uid).is_none() {
                     return Err(StoreError("Event not found".to_string()));
                 }
+
+                #[cfg(feature = "persistence")]
+                if let Some(ref db) = self.db {
+                    if let Ok(conn) = db.lock() {
+                        if let Err(e) = conn.execute(
+                            "DELETE FROM calendar_events WHERE calendar_id = ?1 AND uid = ?2",
+                            rusqlite::params![calendar_id, event_uid],
+                        ) {
+                            warn!("Failed to delete event from SQLite: {}", e);
+                        }
+                    }
+                }
+
                 return Ok(());
             }
         }
@@ -388,12 +609,134 @@ fn parse_ical_datetime(
 #[derive(Debug, Clone)]
 pub struct InMemoryAddressBookStore {
     address_books: DashMap<String, AddressBookData>,
+    #[cfg(feature = "persistence")]
+    db: Option<DbHandle>,
 }
 
 impl InMemoryAddressBookStore {
     pub fn new() -> Self {
         Self {
             address_books: DashMap::new(),
+            #[cfg(feature = "persistence")]
+            db: None,
+        }
+    }
+
+    #[cfg(feature = "persistence")]
+    pub fn with_db(db: DbHandle) -> Self {
+        {
+            let conn = db.lock().unwrap();
+            let _ = conn.execute_batch(
+                "
+                CREATE TABLE IF NOT EXISTS address_books (
+                    principal TEXT NOT NULL,
+                    book_id TEXT NOT NULL,
+                    name TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY (principal, book_id)
+                );
+                CREATE TABLE IF NOT EXISTS contacts (
+                    book_id TEXT NOT NULL,
+                    uid TEXT NOT NULL,
+                    vcard_data TEXT NOT NULL,
+                    etag TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (book_id, uid)
+                );
+                ",
+            );
+        }
+
+        let store = Self {
+            address_books: DashMap::new(),
+            db: Some(db.clone()),
+        };
+
+        store.load_all_from_db(&db);
+        store
+    }
+
+    #[cfg(feature = "persistence")]
+    fn load_all_from_db(&self, db: &DbHandle) {
+        let conn = match db.lock() {
+            Ok(c) => c,
+            Err(e) => {
+                warn!("Failed to lock DB for loading address books: {}", e);
+                return;
+            }
+        };
+
+        if let Ok(mut stmt) = conn.prepare("SELECT principal, book_id, name FROM address_books") {
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            });
+            if let Ok(rows) = rows {
+                for row in rows.flatten() {
+                    let (principal, book_id, name) = row;
+                    let now = Utc::now();
+                    let key = Self::book_key(&principal, &book_id);
+                    self.address_books.insert(
+                        key,
+                        AddressBookData {
+                            info: AddressBookInfo {
+                                id: book_id,
+                                principal,
+                                name,
+                                ctag: Self::next_ctag(),
+                                created_at: now,
+                                updated_at: now,
+                            },
+                            contacts: DashMap::new(),
+                        },
+                    );
+                }
+            }
+        }
+
+        if let Ok(mut stmt) = conn
+            .prepare("SELECT book_id, uid, vcard_data, etag, created_at, updated_at FROM contacts")
+        {
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            });
+            if let Ok(rows) = rows {
+                for row in rows.flatten() {
+                    let (book_id, uid, vcard_data, etag, created_at_str, updated_at_str) = row;
+                    let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now());
+                    let updated_at = chrono::DateTime::parse_from_rfc3339(&updated_at_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now());
+                    for entry in self.address_books.iter() {
+                        if entry.value().info.id == book_id {
+                            entry.value().contacts.insert(
+                                uid.clone(),
+                                ContactInfo {
+                                    uid,
+                                    address_book_id: book_id.clone(),
+                                    vcard_data,
+                                    etag,
+                                    created_at,
+                                    updated_at,
+                                },
+                            );
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -455,6 +798,19 @@ impl AddressBookStore for InMemoryAddressBookStore {
                 contacts: DashMap::new(),
             },
         );
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "INSERT OR REPLACE INTO address_books (principal, book_id, name) VALUES (?1, ?2, ?3)",
+                    rusqlite::params![info.principal, info.id, info.name],
+                ) {
+                    warn!("Failed to persist address book to SQLite: {}", e);
+                }
+            }
+        }
+
         Ok(info)
     }
 
@@ -463,6 +819,25 @@ impl AddressBookStore for InMemoryAddressBookStore {
         if self.address_books.remove(&key).is_none() {
             return Err(StoreError("Address book not found".to_string()));
         }
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "DELETE FROM contacts WHERE book_id = ?1",
+                    rusqlite::params![book_id],
+                ) {
+                    warn!("Failed to delete contacts from SQLite: {}", e);
+                }
+                if let Err(e) = conn.execute(
+                    "DELETE FROM address_books WHERE principal = ?1 AND book_id = ?2",
+                    rusqlite::params![principal, book_id],
+                ) {
+                    warn!("Failed to delete address book from SQLite: {}", e);
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -512,6 +887,26 @@ impl AddressBookStore for InMemoryAddressBookStore {
                     return Err(StoreError("Contact already exists".to_string()));
                 }
                 entry.value().contacts.insert(uid.clone(), contact.clone());
+
+                #[cfg(feature = "persistence")]
+                if let Some(ref db) = self.db {
+                    if let Ok(conn) = db.lock() {
+                        if let Err(e) = conn.execute(
+                            "INSERT OR REPLACE INTO contacts (book_id, uid, vcard_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                            rusqlite::params![
+                                contact.address_book_id,
+                                contact.uid,
+                                contact.vcard_data,
+                                contact.etag,
+                                contact.created_at.to_rfc3339(),
+                                contact.updated_at.to_rfc3339(),
+                            ],
+                        ) {
+                            warn!("Failed to persist contact to SQLite: {}", e);
+                        }
+                    }
+                }
+
                 return Ok(contact);
             }
         }
@@ -544,6 +939,26 @@ impl AddressBookStore for InMemoryAddressBookStore {
                     .value()
                     .contacts
                     .insert(contact_uid.to_string(), contact.clone());
+
+                #[cfg(feature = "persistence")]
+                if let Some(ref db) = self.db {
+                    if let Ok(conn) = db.lock() {
+                        if let Err(e) = conn.execute(
+                            "INSERT OR REPLACE INTO contacts (book_id, uid, vcard_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                            rusqlite::params![
+                                contact.address_book_id,
+                                contact.uid,
+                                contact.vcard_data,
+                                contact.etag,
+                                contact.created_at.to_rfc3339(),
+                                contact.updated_at.to_rfc3339(),
+                            ],
+                        ) {
+                            warn!("Failed to persist contact update to SQLite: {}", e);
+                        }
+                    }
+                }
+
                 return Ok(contact);
             }
         }
@@ -557,6 +972,19 @@ impl AddressBookStore for InMemoryAddressBookStore {
                 if entry.value().contacts.remove(contact_uid).is_none() {
                     return Err(StoreError("Contact not found".to_string()));
                 }
+
+                #[cfg(feature = "persistence")]
+                if let Some(ref db) = self.db {
+                    if let Ok(conn) = db.lock() {
+                        if let Err(e) = conn.execute(
+                            "DELETE FROM contacts WHERE book_id = ?1 AND uid = ?2",
+                            rusqlite::params![book_id, contact_uid],
+                        ) {
+                            warn!("Failed to delete contact from SQLite: {}", e);
+                        }
+                    }
+                }
+
                 return Ok(());
             }
         }
@@ -566,3 +994,137 @@ impl AddressBookStore for InMemoryAddressBookStore {
 
 pub type DynCalendarStore = Arc<dyn CalendarStore>;
 pub type DynAddressBookStore = Arc<dyn AddressBookStore>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_calendar_create_and_list() {
+        let store = InMemoryCalendarStore::new();
+        let info = store
+            .create_calendar("user1", "Personal", "#ff0000")
+            .await
+            .unwrap();
+        assert_eq!(info.name, "Personal");
+        assert_eq!(info.color, "#ff0000");
+
+        let calendars = store.list_calendars("user1").await;
+        assert_eq!(calendars.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_address_book_create_and_list() {
+        let store = InMemoryAddressBookStore::new();
+        let info = store
+            .create_address_book("user1", "Contacts")
+            .await
+            .unwrap();
+        assert_eq!(info.name, "Contacts");
+
+        let books = store.list_address_books("user1").await;
+        assert_eq!(books.len(), 1);
+    }
+
+    #[cfg(feature = "persistence")]
+    #[tokio::test]
+    async fn test_calendar_persistence_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let db: DbHandle = Arc::new(std::sync::Mutex::new(conn));
+
+        let store1 = InMemoryCalendarStore::with_db(db.clone());
+        let info = store1
+            .create_calendar("user1", "Work", "#0000ff")
+            .await
+            .unwrap();
+        let cal_id = info.id.clone();
+
+        let ical = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:test-event-1\r\nSUMMARY:Meeting\r\nDTSTART:20240101T100000Z\r\nDTEND:20240101T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        let event = store1.create_event(&cal_id, ical).await.unwrap();
+
+        drop(store1);
+
+        let store2 = InMemoryCalendarStore::with_db(db.clone());
+        let calendars = store2.list_calendars("user1").await;
+        assert_eq!(calendars.len(), 1);
+        assert_eq!(calendars[0].name, "Work");
+        assert_eq!(calendars[0].color, "#0000ff");
+
+        let events = store2.list_events(&cal_id).await;
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].uid, event.uid);
+    }
+
+    #[cfg(feature = "persistence")]
+    #[tokio::test]
+    async fn test_address_book_persistence_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let db: DbHandle = Arc::new(std::sync::Mutex::new(conn));
+
+        let store1 = InMemoryAddressBookStore::with_db(db.clone());
+        let info = store1
+            .create_address_book("user1", "Personal")
+            .await
+            .unwrap();
+        let book_id = info.id.clone();
+
+        let vcard = "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:John Doe\r\nUID:contact-1\r\nEND:VCARD\r\n";
+        let contact = store1.create_contact(&book_id, vcard).await.unwrap();
+
+        drop(store1);
+
+        let store2 = InMemoryAddressBookStore::with_db(db.clone());
+        let books = store2.list_address_books("user1").await;
+        assert_eq!(books.len(), 1);
+        assert_eq!(books[0].name, "Personal");
+
+        let contacts = store2.list_contacts(&book_id).await;
+        assert_eq!(contacts.len(), 1);
+        assert_eq!(contacts[0].uid, contact.uid);
+    }
+
+    #[cfg(feature = "persistence")]
+    #[tokio::test]
+    async fn test_calendar_delete_persistence() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let db: DbHandle = Arc::new(std::sync::Mutex::new(conn));
+
+        let store1 = InMemoryCalendarStore::with_db(db.clone());
+        let info = store1
+            .create_calendar("user1", "Temp", "#ff0000")
+            .await
+            .unwrap();
+        store1.delete_calendar("user1", &info.id).await.unwrap();
+        drop(store1);
+
+        let store2 = InMemoryCalendarStore::with_db(db);
+        let calendars = store2.list_calendars("user1").await;
+        assert!(calendars.is_empty());
+    }
+
+    #[cfg(feature = "persistence")]
+    #[tokio::test]
+    async fn test_contact_delete_persistence() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        let db: DbHandle = Arc::new(std::sync::Mutex::new(conn));
+
+        let store1 = InMemoryAddressBookStore::with_db(db.clone());
+        let info = store1.create_address_book("user1", "Book").await.unwrap();
+        let vcard = "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Temp\r\nUID:temp-1\r\nEND:VCARD\r\n";
+        let contact = store1.create_contact(&info.id, vcard).await.unwrap();
+        store1.delete_contact(&info.id, &contact.uid).await.unwrap();
+        drop(store1);
+
+        let store2 = InMemoryAddressBookStore::with_db(db);
+        let contacts = store2.list_contacts(&info.id).await;
+        assert!(contacts.is_empty());
+    }
+}

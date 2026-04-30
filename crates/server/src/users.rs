@@ -303,12 +303,11 @@ impl InMemoryUserStore {
                 .map(|dt| dt.with_timezone(&chrono::Utc))
                 .unwrap_or_else(|_| Utc::now());
             let last_login: Option<String> = row.get(6)?;
-            let last_login = last_login
-                .and_then(|s| {
-                    chrono::DateTime::parse_from_rfc3339(&s)
-                        .map(|dt| dt.with_timezone(&chrono::Utc))
-                        .ok()
-                });
+            let last_login = last_login.and_then(|s| {
+                chrono::DateTime::parse_from_rfc3339(&s)
+                    .map(|dt| dt.with_timezone(&chrono::Utc))
+                    .ok()
+            });
             let quota: i64 = row.get(8)?;
             Ok(User {
                 id: row.get(0)?,

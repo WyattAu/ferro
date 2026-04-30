@@ -221,6 +221,12 @@ async fn handle_propfind(state: AppState, path: &str, headers: &HeaderMap) -> Re
         )));
     }
 
+    let sync_token = headers
+        .get("Sync-Token")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|t| t.rsplit('/').next())
+        .and_then(|n| n.parse::<u64>().ok());
+
     let depth = headers
         .get("Depth")
         .and_then(|v| v.to_str().ok())
@@ -249,8 +255,20 @@ async fn handle_propfind(state: AppState, path: &str, headers: &HeaderMap) -> Re
         }
     }
 
+    if let Some(token) = sync_token {
+        let current = state.sync_clock.load(std::sync::atomic::Ordering::SeqCst);
+        if token >= current {
+            items = items.into_iter().take(1).collect();
+        }
+    }
+
+    let current_clock = state.sync_clock.load(std::sync::atomic::Ordering::SeqCst);
     let xml = crate::xml::build_multistatus_xml(&items);
-    Ok(multistatus_response(xml))
+    if sync_token.is_some() {
+        Ok(sync_token_multistatus_response(xml, current_clock))
+    } else {
+        Ok(multistatus_response(xml))
+    }
 }
 
 fn multistatus_response(xml: Bytes) -> Response {
@@ -259,6 +277,19 @@ fn multistatus_response(xml: Bytes) -> Response {
         "Content-Type",
         HeaderValue::from_static("application/xml; charset=utf-8"),
     );
+    (StatusCode::MULTI_STATUS, headers, Body::from(xml)).into_response()
+}
+
+fn sync_token_multistatus_response(xml: Bytes, clock: u64) -> Response {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Content-Type",
+        HeaderValue::from_static("application/xml; charset=utf-8"),
+    );
+    let token_value = format!("http://ferro.local/sync/token/{}", clock);
+    if let Ok(val) = HeaderValue::from_str(&token_value) {
+        headers.insert("Sync-Token", val);
+    }
     (StatusCode::MULTI_STATUS, headers, Body::from(xml)).into_response()
 }
 
@@ -641,6 +672,10 @@ async fn handle_put(
     )
     .await;
 
+    state
+        .sync_clock
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
     {
         let (op_id, clock) = state.sync_store.next_op_id();
         state.sync_store.record_op(SyncOp {
@@ -713,6 +748,10 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
     )
     .await;
 
+    state
+        .sync_clock
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
     let owner = extract_owner(headers, None);
     {
         let (op_id, clock) = state.sync_store.next_op_id();
@@ -756,6 +795,10 @@ async fn handle_mkcol(state: AppState, path: &str) -> Result<Response> {
     }
 
     state.storage.create_collection(&path, "anonymous").await?;
+
+    state
+        .sync_clock
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
     {
         let (op_id, clock) = state.sync_store.next_op_id();
@@ -822,6 +865,10 @@ async fn handle_copy(state: AppState, path: &str, headers: &HeaderMap) -> Result
 
     state.storage.copy(&path, &dest).await?;
 
+    state
+        .sync_clock
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
     let mut resp_headers = HeaderMap::new();
     resp_headers.insert(
         "Location",
@@ -861,6 +908,10 @@ async fn handle_move(state: AppState, path: &str, headers: &HeaderMap) -> Result
     }
 
     state.storage.move_path(&path, &dest).await?;
+
+    state
+        .sync_clock
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
     let owner = extract_owner(headers, None);
     {
@@ -2286,5 +2337,148 @@ mod tests {
 
     fn urlencoding(s: &str) -> String {
         url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
+    }
+
+    #[test]
+    fn test_sync_token_extraction() {
+        let token = "http://ferro.local/sync/token/42";
+        let counter = token.rsplit('/').next().unwrap().parse::<u64>().unwrap();
+        assert_eq!(counter, 42);
+    }
+
+    #[test]
+    fn test_sync_token_extraction_large_number() {
+        let token = "http://ferro.local/sync/token/9999999999";
+        let counter = token.rsplit('/').next().unwrap().parse::<u64>().unwrap();
+        assert_eq!(counter, 9999999999);
+    }
+
+    #[test]
+    fn test_sync_token_malformed_returns_none() {
+        let token = "http://ferro.local/sync/token/notanumber";
+        let result = token.rsplit('/').next().unwrap().parse::<u64>();
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_propfind_without_sync_token_has_no_sync_header() {
+        let app = make_test_app();
+
+        app.clone()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/nosync.txt")
+                    .body(Body::from("data"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PROPFIND")
+                    .uri("/")
+                    .header("Depth", "1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::MULTI_STATUS);
+        assert!(
+            resp.headers().get("Sync-Token").is_none(),
+            "PROPFIND without Sync-Token request should not include Sync-Token in response"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_propfind_with_sync_token_returns_sync_header() {
+        let app = make_test_app();
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("PROPFIND")
+                    .uri("/")
+                    .header("Depth", "1")
+                    .header("Sync-Token", "http://ferro.local/sync/token/0")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::MULTI_STATUS);
+        let sync_token = resp.headers().get("Sync-Token").unwrap().to_str().unwrap();
+        assert!(
+            sync_token.starts_with("http://ferro.local/sync/token/"),
+            "Sync-Token header should start with the expected prefix, got: {}",
+            sync_token
+        );
+        let counter: u64 = sync_token.rsplit('/').next().unwrap().parse().unwrap();
+        assert!(
+            counter >= 1,
+            "Sync-Token counter should be >= 1, got {}",
+            counter
+        );
+    }
+
+    #[tokio::test]
+    async fn test_sync_token_clock_increments_on_write() {
+        let state = AppState::in_memory();
+        let app = Router::new()
+            .route("/", any(handle_any))
+            .route("/*path", any(handle_any))
+            .with_state(state);
+
+        app.clone()
+            .oneshot(
+                Request::builder()
+                    .method("PROPFIND")
+                    .uri("/")
+                    .header("Depth", "1")
+                    .header("Sync-Token", "http://ferro.local/sync/token/0")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        app.clone()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/inc.txt")
+                    .body(Body::from("data"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PROPFIND")
+                    .uri("/")
+                    .header("Depth", "1")
+                    .header("Sync-Token", "http://ferro.local/sync/token/0")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let sync_token = resp.headers().get("Sync-Token").unwrap().to_str().unwrap();
+        let counter: u64 = sync_token.rsplit('/').next().unwrap().parse().unwrap();
+        assert!(
+            counter >= 2,
+            "Sync-Token should increment after write, got {}",
+            counter
+        );
     }
 }

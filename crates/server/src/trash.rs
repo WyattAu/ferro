@@ -126,8 +126,10 @@ pub fn persist_trash_insert(db: &DbHandle, entry: &TrashedEntry) {
 
 pub fn persist_trash_remove(db: &DbHandle, original_path: &str) {
     let conn = db.lock().unwrap();
-    if let Err(e) = conn.execute("DELETE FROM trash WHERE original_path = ?1", params![original_path])
-    {
+    if let Err(e) = conn.execute(
+        "DELETE FROM trash WHERE original_path = ?1",
+        params![original_path],
+    ) {
         warn!("Failed to remove trash entry from SQLite: {}", e);
     }
 }
@@ -139,9 +141,11 @@ pub fn persist_trash_clear(db: &DbHandle) {
     }
 }
 
-pub fn load_trash_from_db(conn: &rusqlite::Connection) -> Result<Vec<TrashedEntry>, rusqlite::Error> {
-    let mut stmt = conn
-        .prepare("SELECT original_path, trash_path, deleted_at, size, mime_type FROM trash")?;
+pub fn load_trash_from_db(
+    conn: &rusqlite::Connection,
+) -> Result<Vec<TrashedEntry>, rusqlite::Error> {
+    let mut stmt =
+        conn.prepare("SELECT original_path, trash_path, deleted_at, size, mime_type FROM trash")?;
     let rows = stmt.query_map([], |row| {
         let deleted_at_str: String = row.get(2)?;
         let deleted_at = chrono::DateTime::parse_from_rfc3339(&deleted_at_str)

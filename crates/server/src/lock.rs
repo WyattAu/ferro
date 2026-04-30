@@ -86,7 +86,10 @@ impl LockManager {
 
     fn persist_release(&self, token: &str) {
         if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap().execute("DELETE FROM locks WHERE token = ?1", params![token])
+            && let Err(e) = db
+                .lock()
+                .unwrap()
+                .execute("DELETE FROM locks WHERE token = ?1", params![token])
         {
             warn!("Failed to delete lock from SQLite: {}", e);
         }
@@ -259,15 +262,17 @@ impl LockManager {
         });
     }
 
-    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
+    pub fn load_all_from_db(
+        &self,
+        conn: &rusqlite::Connection,
+    ) -> std::result::Result<(), rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT token, path, principal, scope, lock_type, depth, timeout_seconds, created_at, refresh_count FROM locks",
         )?;
         let rows = stmt.query_map([], |row| {
             let token_str: String = row.get(0)?;
             let token_uuid = token_str.strip_prefix("urn:uuid:").unwrap_or(&token_str);
-            let token = common::webdav::LockToken::from_str_custom(token_uuid)
-                .unwrap_or_default();
+            let token = common::webdav::LockToken::from_str_custom(token_uuid).unwrap_or_default();
             let scope_str: String = row.get(3)?;
             let scope = match scope_str.as_str() {
                 "Exclusive" => LockScope::Exclusive,

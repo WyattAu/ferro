@@ -2,7 +2,7 @@ use clap::Parser;
 use ferro_server::auth::cedar::CedarAuthorizer;
 use ferro_server::auth::oidc::OidcConfig;
 use ferro_server::config::ServerConfig;
-use ferro_server::config::{FileConfig, apply_file_config, load_config_file};
+use ferro_server::config::{FileConfigValues, apply_file_config, load_config_file};
 use ferro_server::users::UserStoreTrait;
 use ferro_server::{AppState, build_router_with_static};
 use tracing::info;
@@ -19,7 +19,7 @@ async fn main() -> anyhow::Result<()> {
     } else if std::path::Path::new("/etc/ferro/ferro.toml").exists() {
         load_config_file("/etc/ferro/ferro.toml")?
     } else {
-        FileConfig::default()
+        FileConfigValues::default()
     };
 
     apply_file_config(&original_args, &mut cli, &file_config);
@@ -285,7 +285,10 @@ async fn main() -> anyhow::Result<()> {
                 Some(std::sync::Arc::new(std::sync::Mutex::new(conn)))
             }
             Err(e) => {
-                tracing::warn!("SQLite DashMap persistence failed: {}, using in-memory stores", e);
+                tracing::warn!(
+                    "SQLite DashMap persistence failed: {}, using in-memory stores",
+                    e
+                );
                 None
             }
         };

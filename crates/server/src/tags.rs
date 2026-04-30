@@ -125,16 +125,23 @@ impl TagStore {
     pub fn remove_file(&self, path: &str) {
         self.entries.remove(path);
         if let Some(ref db) = self.db
-            && let Err(e) =
-                db.lock().unwrap().execute("DELETE FROM file_tags WHERE file_path = ?1", params![path])
+            && let Err(e) = db
+                .lock()
+                .unwrap()
+                .execute("DELETE FROM file_tags WHERE file_path = ?1", params![path])
         {
             warn!("Failed to remove file tags from SQLite: {}", e);
         }
     }
 
-    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
+    pub fn load_all_from_db(
+        &self,
+        conn: &rusqlite::Connection,
+    ) -> std::result::Result<(), rusqlite::Error> {
         let mut stmt = conn.prepare("SELECT file_path, tag FROM file_tags")?;
-        let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
         for row in rows {
             let (path, tag): (String, String) = row?;
             self.entries

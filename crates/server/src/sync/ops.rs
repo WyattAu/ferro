@@ -119,7 +119,10 @@ impl SyncStore {
         (format!("op-{}", clock), clock)
     }
 
-    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
+    pub fn load_all_from_db(
+        &self,
+        conn: &rusqlite::Connection,
+    ) -> std::result::Result<(), rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT op_id, site_id, clock_counter, op_type, path, new_path, size, mime_type, owner, checksum, timestamp FROM sync_ops ORDER BY clock_counter ASC",
         )?;

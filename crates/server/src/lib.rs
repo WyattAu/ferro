@@ -88,11 +88,11 @@ use snapshots::SnapshotStore;
 use trash::TrashedEntry;
 use users::{InMemoryUserStore, UserStoreTrait};
 
+use db::DbHandle;
 use favorites::FavoriteStore;
 use search::PreferenceStore;
 use shares::ShareStoreTrait;
 use sync::ops::SyncStore;
-use db::DbHandle;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -125,6 +125,7 @@ pub struct AppState {
     pub file_count: Arc<std::sync::atomic::AtomicU64>,
     pub preferences: Arc<dyn PreferenceStore>,
     pub request_count: Arc<std::sync::atomic::AtomicU64>,
+    pub sync_clock: Arc<std::sync::atomic::AtomicU64>,
     pub webhooks: Arc<tokio::sync::RwLock<Vec<webhooks::WebhookConfig>>>,
     pub thumbnail_size: u32,
     pub data_dir: Option<String>,
@@ -175,6 +176,7 @@ impl AppState {
             file_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             preferences: Arc::new(search::InMemoryPreferenceStore::new()),
             request_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            sync_clock: Arc::new(std::sync::atomic::AtomicU64::new(1)),
             webhooks: Arc::new(tokio::sync::RwLock::new(Vec::new())),
             data_dir: None,
             thumbnail_size: 256,

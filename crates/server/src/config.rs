@@ -25,10 +25,9 @@ pub async fn get_server_config(State(state): State<AppState>) -> Response {
 use clap::Parser;
 use serde::Deserialize;
 
-/// Configuration loaded from a TOML file.
+/// Configuration values loaded from a TOML file.
 #[derive(Debug, Clone, Deserialize, Default)]
-#[serde(default)]
-pub struct FileConfig {
+pub struct FileConfigValues {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub log_level: Option<String>,
@@ -56,6 +55,17 @@ pub struct FileConfig {
     pub trash_ttl: Option<String>,
     pub graceful_shutdown_timeout: Option<u64>,
     pub cors_allowed_origins: Option<String>,
+}
+
+/// Configuration loaded from a TOML file with include support.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct FileConfig {
+    /// Include other TOML files (merged in order, later files override earlier)
+    #[serde(default)]
+    pub include: Vec<String>,
+    /// The actual configuration values
+    #[serde(flatten)]
+    pub values: FileConfigValues,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -234,17 +244,93 @@ pub struct ServerConfig {
     pub ldap_user_search_base: String,
 }
 
-/// Load and parse a TOML configuration file.
-pub fn load_config_file(path: &str) -> anyhow::Result<FileConfig> {
+/// Load and parse a TOML configuration file, resolving includes recursively.
+pub fn load_config_file(path: &str) -> anyhow::Result<FileConfigValues> {
+    let mut chain = Vec::new();
+    load_config_file_inner(path, &mut chain)
+}
+
+fn load_config_file_inner(
+    path: &str,
+    chain: &mut Vec<std::path::PathBuf>,
+) -> anyhow::Result<FileConfigValues> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| anyhow::anyhow!("Failed to read config file {}: {}", path, e))?;
+
+    let canonical = std::path::Path::new(path)
+        .canonicalize()
+        .map_err(|e| anyhow::anyhow!("Failed to resolve config file path {}: {}", path, e))?;
+
+    if chain.contains(&canonical) {
+        return Err(anyhow::anyhow!(
+            "Config file include cycle detected: {}",
+            path
+        ));
+    }
+
+    chain.push(canonical);
+
     let config: FileConfig = toml::from_str(&content)
         .map_err(|e| anyhow::anyhow!("Failed to parse config file {}: {}", path, e))?;
-    Ok(config)
+
+    let mut merged = config.values;
+
+    for include_path in &config.include {
+        let resolved = if std::path::Path::new(include_path).is_absolute() {
+            include_path.clone()
+        } else {
+            let base_dir = std::path::Path::new(path)
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| ".".to_string());
+            format!("{}/{}", base_dir, include_path)
+        };
+
+        let included = load_config_file_inner(&resolved, chain)?;
+        merged = merge_configs(merged, included);
+    }
+
+    chain.pop();
+
+    Ok(merged)
+}
+
+fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileConfigValues {
+    FileConfigValues {
+        host: override_.host.or(base.host),
+        port: override_.port.or(base.port),
+        log_level: override_.log_level.or(base.log_level),
+        log_format: override_.log_format.or(base.log_format),
+        storage: override_.storage.or(base.storage),
+        data_dir: override_.data_dir.or(base.data_dir),
+        static_dir: override_.static_dir.or(base.static_dir),
+        max_body_size: override_.max_body_size.or(base.max_body_size),
+        admin_user: override_.admin_user.or(base.admin_user),
+        admin_password: override_.admin_password.or(base.admin_password),
+        external_url: override_.external_url.or(base.external_url),
+        wopi_token_secret: override_.wopi_token_secret.or(base.wopi_token_secret),
+        wopi_office_url: override_.wopi_office_url.or(base.wopi_office_url),
+        federation_secret: override_.federation_secret.or(base.federation_secret),
+        oidc_issuer: override_.oidc_issuer.or(base.oidc_issuer),
+        oidc_client_id: override_.oidc_client_id.or(base.oidc_client_id),
+        oidc_audience: override_.oidc_audience.or(base.oidc_audience),
+        oidc_jwks_uri: override_.oidc_jwks_uri.or(base.oidc_jwks_uri),
+        cedar_policy_file: override_.cedar_policy_file.or(base.cedar_policy_file),
+        search_index_path: override_.search_index_path.or(base.search_index_path),
+        metadata_db: override_.metadata_db.or(base.metadata_db),
+        cas_enabled: override_.cas_enabled.or(base.cas_enabled),
+        wasm_enabled: override_.wasm_enabled.or(base.wasm_enabled),
+        storage_quota: override_.storage_quota.or(base.storage_quota),
+        trash_ttl: override_.trash_ttl.or(base.trash_ttl),
+        graceful_shutdown_timeout: override_
+            .graceful_shutdown_timeout
+            .or(base.graceful_shutdown_timeout),
+        cors_allowed_origins: override_.cors_allowed_origins.or(base.cors_allowed_origins),
+    }
 }
 
 /// Apply file-based configuration, without overriding CLI flags.
-pub fn apply_file_config<I, T>(args: I, cli: &mut ServerConfig, file: &FileConfig)
+pub fn apply_file_config<I, T>(args: I, cli: &mut ServerConfig, file: &FileConfigValues)
 where
     I: IntoIterator<Item = T>,
     T: Into<std::ffi::OsString> + Clone,
@@ -541,7 +627,7 @@ mod tests {
 
     #[test]
     fn test_apply_file_config_overrides_defaults() {
-        let file = FileConfig {
+        let file = FileConfigValues {
             host: Some("192.168.1.1".into()),
             port: Some(3000),
             log_level: Some("debug".into()),
@@ -575,7 +661,7 @@ mod tests {
 
     #[test]
     fn test_apply_file_config_does_not_override_cli_flags() {
-        let file = FileConfig {
+        let file = FileConfigValues {
             host: Some("192.168.1.1".into()),
             port: Some(3000),
             log_level: Some("debug".into()),
@@ -614,5 +700,157 @@ mod tests {
         assert_eq!(parse_bytes("1024KB").unwrap(), 1048576);
         assert_eq!(parse_bytes("1024B").unwrap(), 1024);
         assert!(parse_bytes("invalid").is_err());
+    }
+
+    #[test]
+    fn test_merge_configs_override() {
+        let base = FileConfigValues {
+            host: Some("0.0.0.0".into()),
+            port: Some(8080),
+            log_level: Some("info".into()),
+            admin_user: Some("base_admin".into()),
+            ..Default::default()
+        };
+        let override_ = FileConfigValues {
+            host: Some("192.168.1.1".into()),
+            port: Some(3000),
+            admin_password: Some("secret".into()),
+            ..Default::default()
+        };
+        let merged = merge_configs(base, override_);
+        assert_eq!(merged.host.as_deref(), Some("192.168.1.1"));
+        assert_eq!(merged.port, Some(3000));
+        assert_eq!(merged.log_level.as_deref(), Some("info"));
+        assert_eq!(merged.admin_user.as_deref(), Some("base_admin"));
+        assert_eq!(merged.admin_password.as_deref(), Some("secret"));
+    }
+
+    #[test]
+    fn test_merge_configs_base_only() {
+        let base = FileConfigValues {
+            host: Some("10.0.0.1".into()),
+            port: Some(9090),
+            wasm_enabled: Some(true),
+            ..Default::default()
+        };
+        let override_ = FileConfigValues::default();
+        let merged = merge_configs(base, override_);
+        assert_eq!(merged.host.as_deref(), Some("10.0.0.1"));
+        assert_eq!(merged.port, Some(9090));
+        assert_eq!(merged.wasm_enabled, Some(true));
+        assert!(merged.admin_user.is_none());
+    }
+
+    #[test]
+    fn test_load_config_file_not_found() {
+        let result = load_config_file("/nonexistent/path/ferro.toml");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_load_config_file_with_include() {
+        let dir = tempfile::tempdir().unwrap();
+        let base_path = dir.path().join("base.toml");
+        let override_path = dir.path().join("override.toml");
+
+        std::fs::write(
+            &base_path,
+            r#"
+            host = "0.0.0.0"
+            port = 8080
+            log_level = "info"
+            admin_user = "base_user"
+            include = ["override.toml"]
+            "#,
+        )
+        .unwrap();
+
+        std::fs::write(
+            &override_path,
+            r#"
+            host = "192.168.1.1"
+            port = 3000
+            admin_password = "secret"
+            "#,
+        )
+        .unwrap();
+
+        let config = load_config_file(base_path.to_str().unwrap()).unwrap();
+        assert_eq!(config.host.as_deref(), Some("192.168.1.1"));
+        assert_eq!(config.port, Some(3000));
+        assert_eq!(config.log_level.as_deref(), Some("info"));
+        assert_eq!(config.admin_user.as_deref(), Some("base_user"));
+        assert_eq!(config.admin_password.as_deref(), Some("secret"));
+    }
+
+    #[test]
+    fn test_load_config_file_cycle_detection() {
+        let dir = tempfile::tempdir().unwrap();
+        let a_path = dir.path().join("a.toml");
+        let b_path = dir.path().join("b.toml");
+
+        std::fs::write(
+            &a_path,
+            r#"
+            host = "0.0.0.0"
+            include = ["b.toml"]
+            "#,
+        )
+        .unwrap();
+
+        std::fs::write(
+            &b_path,
+            r#"
+            port = 3000
+            include = ["a.toml"]
+            "#,
+        )
+        .unwrap();
+
+        let result = load_config_file(a_path.to_str().unwrap());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("cycle"));
+    }
+
+    #[test]
+    fn test_load_config_file_nested_include() {
+        let dir = tempfile::tempdir().unwrap();
+        let base_path = dir.path().join("base.toml");
+        let mid_path = dir.path().join("mid.toml");
+        let override_path = dir.path().join("override.toml");
+
+        std::fs::write(
+            &base_path,
+            r#"
+            host = "0.0.0.0"
+            log_level = "debug"
+            include = ["mid.toml"]
+            "#,
+        )
+        .unwrap();
+
+        std::fs::write(
+            &mid_path,
+            r#"
+            port = 3000
+            include = ["override.toml"]
+            "#,
+        )
+        .unwrap();
+
+        std::fs::write(
+            &override_path,
+            r#"
+            host = "10.0.0.1"
+            admin_user = "admin"
+            "#,
+        )
+        .unwrap();
+
+        let config = load_config_file(base_path.to_str().unwrap()).unwrap();
+        assert_eq!(config.host.as_deref(), Some("10.0.0.1"));
+        assert_eq!(config.port, Some(3000));
+        assert_eq!(config.log_level.as_deref(), Some("debug"));
+        assert_eq!(config.admin_user.as_deref(), Some("admin"));
     }
 }

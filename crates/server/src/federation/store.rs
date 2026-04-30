@@ -47,7 +47,9 @@ impl ActivityStore {
         if let Some(ref db) = self.db {
             let raw_json = serde_json::to_string(&activity).unwrap_or_default();
             let obj_json = serde_json::to_string(&activity.object).unwrap_or_default();
-            let target_json = activity.target.map(|t| serde_json::to_string(&t).unwrap_or_default());
+            let target_json = activity
+                .target
+                .map(|t| serde_json::to_string(&t).unwrap_or_default());
             let _ = db.lock().unwrap().execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'inbox')",
                 params![
@@ -84,7 +86,9 @@ impl ActivityStore {
         if let Some(ref db) = self.db {
             let raw_json = serde_json::to_string(&activity).unwrap_or_default();
             let obj_json = serde_json::to_string(&activity.object).unwrap_or_default();
-            let target_json = activity.target.map(|t| serde_json::to_string(&t).unwrap_or_default());
+            let target_json = activity
+                .target
+                .map(|t| serde_json::to_string(&t).unwrap_or_default());
             let _ = db.lock().unwrap().execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'outbox')",
                 params![
@@ -181,9 +185,12 @@ impl ActivityStore {
         self.outbox.len()
     }
 
-    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
-        let mut stmt = conn
-            .prepare("SELECT activity_id, raw_json, box_type FROM fed_activities")?;
+    pub fn load_all_from_db(
+        &self,
+        conn: &rusqlite::Connection,
+    ) -> std::result::Result<(), rusqlite::Error> {
+        let mut stmt =
+            conn.prepare("SELECT activity_id, raw_json, box_type FROM fed_activities")?;
         let rows = stmt.query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -212,10 +219,7 @@ impl ActivityStore {
         })?;
         for row in rows {
             let (actor, follower): (String, String) = row?;
-            self.followers
-                .entry(actor)
-                .or_default()
-                .push(follower);
+            self.followers.entry(actor).or_default().push(follower);
         }
 
         let mut stmt = conn.prepare("SELECT actor, target FROM fed_following")?;

@@ -73,10 +73,7 @@ pub async fn inbox(
             .into_response();
     }
 
-    let signature_header = req
-        .headers()
-        .get("Signature")
-        .and_then(|v| v.to_str().ok());
+    let signature_header = req.headers().get("Signature").and_then(|v| v.to_str().ok());
 
     match signature_header {
         None => {
@@ -301,12 +298,7 @@ mod tests {
 
     type HmacSha256 = Hmac<Sha256>;
 
-    fn create_hmac_signature(
-        secret: &str,
-        method: &str,
-        path: &str,
-        key_id: &str,
-    ) -> String {
+    fn create_hmac_signature(secret: &str, method: &str, path: &str, key_id: &str) -> String {
         let signing_string = format!("(request-target): {} {}", method.to_lowercase(), path);
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(signing_string.as_bytes());
@@ -368,7 +360,9 @@ mod tests {
     fn test_signature_verification_actor_mismatch_detected() {
         let secret = "test-secret";
         let key_id = "https://example.com/actor/alice#main-key";
-        let sig = HttpSignature::parse(&create_hmac_signature(secret, "POST", "/fed/inbox", key_id)).unwrap();
+        let sig =
+            HttpSignature::parse(&create_hmac_signature(secret, "POST", "/fed/inbox", key_id))
+                .unwrap();
 
         let sig_actor = http_sig::actor_from_key_id(&sig.key_id);
         let activity_actor = "https://example.com/actor/bob";
@@ -379,7 +373,9 @@ mod tests {
     fn test_signature_verification_actor_match() {
         let secret = "test-secret";
         let key_id = "https://example.com/actor/alice#main-key";
-        let sig = HttpSignature::parse(&create_hmac_signature(secret, "POST", "/fed/inbox", key_id)).unwrap();
+        let sig =
+            HttpSignature::parse(&create_hmac_signature(secret, "POST", "/fed/inbox", key_id))
+                .unwrap();
 
         let sig_actor = http_sig::actor_from_key_id(&sig.key_id);
         let activity_actor = "https://example.com/actor/alice";
