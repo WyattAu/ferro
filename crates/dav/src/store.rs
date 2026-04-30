@@ -466,37 +466,55 @@ impl CalendarStore for InMemoryCalendarStore {
             updated_at: now,
         };
 
-        for entry in self.calendars.iter() {
-            if entry.value().info.id == calendar_id {
-                if entry.value().events.contains_key(&uid) {
-                    return Err(StoreError("Event already exists".to_string()));
-                }
-                entry.value().events.insert(uid.clone(), event.clone());
+        let cal_key = self
+            .calendars
+            .iter()
+            .find(|e| e.value().info.id == calendar_id)
+            .map(|e| e.key().clone());
 
-                #[cfg(feature = "persistence")]
-                if let Some(ref db) = self.db {
-                    if let Ok(conn) = db.lock() {
-                        if let Err(e) = conn.execute(
-                            "INSERT OR REPLACE INTO calendar_events (calendar_id, uid, ical_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                            rusqlite::params![
-                                event.calendar_id,
-                                event.uid,
-                                event.ical_data,
-                                event.etag,
-                                event.created_at.to_rfc3339(),
-                                event.updated_at.to_rfc3339(),
-                            ],
-                        ) {
-                            warn!("Failed to persist event to SQLite: {}", e);
-                        }
-                    }
-                }
+        let Some(cal_key) = cal_key else {
+            return Err(StoreError("Calendar not found".to_string()));
+        };
 
-                return Ok(event);
+        let Some(mut cal_entry) = self.calendars.get_mut(&cal_key) else {
+            return Err(StoreError("Calendar not found".to_string()));
+        };
+
+        if cal_entry.events.contains_key(&uid) {
+            return Err(StoreError("Event already exists".to_string()));
+        }
+        cal_entry.events.insert(uid.clone(), event.clone());
+        let new_ctag = Self::next_ctag();
+        #[cfg(feature = "persistence")]
+        let principal = cal_entry.info.principal.clone();
+        cal_entry.info.ctag = new_ctag.clone();
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "INSERT OR REPLACE INTO calendar_events (calendar_id, uid, ical_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    rusqlite::params![
+                        event.calendar_id,
+                        event.uid,
+                        event.ical_data,
+                        event.etag,
+                        event.created_at.to_rfc3339(),
+                        event.updated_at.to_rfc3339(),
+                    ],
+                ) {
+                    warn!("Failed to persist event to SQLite: {}", e);
+                }
+                if let Err(e) = conn.execute(
+                    "UPDATE calendars SET ctag = ?1 WHERE principal = ?2 AND calendar_id = ?3",
+                    rusqlite::params![new_ctag, principal, cal_entry.info.id],
+                ) {
+                    warn!("Failed to persist calendar ctag to SQLite: {}", e);
+                }
             }
         }
 
-        Err(StoreError("Calendar not found".to_string()))
+        Ok(event)
     }
 
     async fn update_event(
@@ -508,72 +526,105 @@ impl CalendarStore for InMemoryCalendarStore {
         let now = Utc::now();
         let etag = format!("\"{}\"", now.timestamp());
 
-        for entry in self.calendars.iter() {
-            if entry.value().info.id == calendar_id {
-                let mut event = entry
-                    .value()
-                    .events
-                    .get(event_uid)
-                    .ok_or_else(|| StoreError("Event not found".to_string()))?
-                    .value()
-                    .clone();
-                event.ical_data = ical.to_string();
-                event.etag = etag.clone();
-                event.updated_at = now;
-                entry
-                    .value()
-                    .events
-                    .insert(event_uid.to_string(), event.clone());
+        let cal_key = self
+            .calendars
+            .iter()
+            .find(|e| e.value().info.id == calendar_id)
+            .map(|e| e.key().clone());
 
-                #[cfg(feature = "persistence")]
-                if let Some(ref db) = self.db {
-                    if let Ok(conn) = db.lock() {
-                        if let Err(e) = conn.execute(
-                            "INSERT OR REPLACE INTO calendar_events (calendar_id, uid, ical_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                            rusqlite::params![
-                                event.calendar_id,
-                                event.uid,
-                                event.ical_data,
-                                event.etag,
-                                event.created_at.to_rfc3339(),
-                                event.updated_at.to_rfc3339(),
-                            ],
-                        ) {
-                            warn!("Failed to persist event update to SQLite: {}", e);
-                        }
-                    }
+        let Some(cal_key) = cal_key else {
+            return Err(StoreError("Calendar not found".to_string()));
+        };
+
+        let Some(mut cal_entry) = self.calendars.get_mut(&cal_key) else {
+            return Err(StoreError("Calendar not found".to_string()));
+        };
+
+        let mut event = cal_entry
+            .events
+            .get(event_uid)
+            .ok_or_else(|| StoreError("Event not found".to_string()))?
+            .value()
+            .clone();
+        event.ical_data = ical.to_string();
+        event.etag = etag.clone();
+        event.updated_at = now;
+        cal_entry.events.insert(event_uid.to_string(), event.clone());
+        let new_ctag = Self::next_ctag();
+        #[cfg(feature = "persistence")]
+        let principal = cal_entry.info.principal.clone();
+        cal_entry.info.ctag = new_ctag.clone();
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "INSERT OR REPLACE INTO calendar_events (calendar_id, uid, ical_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    rusqlite::params![
+                        event.calendar_id,
+                        event.uid,
+                        event.ical_data,
+                        event.etag,
+                        event.created_at.to_rfc3339(),
+                        event.updated_at.to_rfc3339(),
+                    ],
+                ) {
+                    warn!("Failed to persist event update to SQLite: {}", e);
                 }
-
-                return Ok(event);
+                if let Err(e) = conn.execute(
+                    "UPDATE calendars SET ctag = ?1 WHERE principal = ?2 AND calendar_id = ?3",
+                    rusqlite::params![new_ctag, principal, cal_entry.info.id],
+                ) {
+                    warn!("Failed to persist calendar ctag to SQLite: {}", e);
+                }
             }
         }
 
-        Err(StoreError("Calendar not found".to_string()))
+        Ok(event)
     }
 
     async fn delete_event(&self, calendar_id: &str, event_uid: &str) -> StoreResult<()> {
-        for entry in self.calendars.iter() {
-            if entry.value().info.id == calendar_id {
-                if entry.value().events.remove(event_uid).is_none() {
-                    return Err(StoreError("Event not found".to_string()));
-                }
+        let cal_key = self
+            .calendars
+            .iter()
+            .find(|e| e.value().info.id == calendar_id)
+            .map(|e| e.key().clone());
 
-                #[cfg(feature = "persistence")]
-                if let Some(ref db) = self.db {
-                    if let Ok(conn) = db.lock() {
-                        if let Err(e) = conn.execute(
-                            "DELETE FROM calendar_events WHERE calendar_id = ?1 AND uid = ?2",
-                            rusqlite::params![calendar_id, event_uid],
-                        ) {
-                            warn!("Failed to delete event from SQLite: {}", e);
-                        }
-                    }
-                }
+        let Some(cal_key) = cal_key else {
+            return Err(StoreError("Calendar not found".to_string()));
+        };
 
-                return Ok(());
+        let Some(mut cal_entry) = self.calendars.get_mut(&cal_key) else {
+            return Err(StoreError("Calendar not found".to_string()));
+        };
+
+        if cal_entry.events.remove(event_uid).is_none() {
+            return Err(StoreError("Event not found".to_string()));
+        }
+        let new_ctag = Self::next_ctag();
+        #[cfg(feature = "persistence")]
+        let principal = cal_entry.info.principal.clone();
+        cal_entry.info.ctag = new_ctag.clone();
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "DELETE FROM calendar_events WHERE calendar_id = ?1 AND uid = ?2",
+                    rusqlite::params![calendar_id, event_uid],
+                ) {
+                    warn!("Failed to delete event from SQLite: {}", e);
+                }
+                if let Err(e) = conn.execute(
+                    "UPDATE calendars SET ctag = ?1 WHERE principal = ?2 AND calendar_id = ?3",
+                    rusqlite::params![new_ctag, principal, cal_entry.info.id],
+                ) {
+                    warn!("Failed to persist calendar ctag to SQLite: {}", e);
+                }
             }
         }
-        Err(StoreError("Calendar not found".to_string()))
+
+        Ok(())
     }
 
     async fn query_events(&self, calendar_id: &str, filter: &CalFilter) -> Vec<EventInfo> {
@@ -592,7 +643,9 @@ impl CalendarStore for InMemoryCalendarStore {
 
                 let vevent = comps.iter().find_map(|c| {
                     if c.name == "VCALENDAR" {
-                        c.children.iter().find(|ch| ch.name == "VEVENT")
+                        c.children
+                            .iter()
+                            .find(|ch| ch.name == "VEVENT" || ch.name == "VTODO")
                     } else {
                         None
                     }
@@ -924,37 +977,55 @@ impl AddressBookStore for InMemoryAddressBookStore {
             updated_at: now,
         };
 
-        for entry in self.address_books.iter() {
-            if entry.value().info.id == book_id {
-                if entry.value().contacts.contains_key(&uid) {
-                    return Err(StoreError("Contact already exists".to_string()));
-                }
-                entry.value().contacts.insert(uid.clone(), contact.clone());
+        let ab_key = self
+            .address_books
+            .iter()
+            .find(|e| e.value().info.id == book_id)
+            .map(|e| e.key().clone());
 
-                #[cfg(feature = "persistence")]
-                if let Some(ref db) = self.db {
-                    if let Ok(conn) = db.lock() {
-                        if let Err(e) = conn.execute(
-                            "INSERT OR REPLACE INTO contacts (book_id, uid, vcard_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                            rusqlite::params![
-                                contact.address_book_id,
-                                contact.uid,
-                                contact.vcard_data,
-                                contact.etag,
-                                contact.created_at.to_rfc3339(),
-                                contact.updated_at.to_rfc3339(),
-                            ],
-                        ) {
-                            warn!("Failed to persist contact to SQLite: {}", e);
-                        }
-                    }
-                }
+        let Some(ab_key) = ab_key else {
+            return Err(StoreError("Address book not found".to_string()));
+        };
 
-                return Ok(contact);
+        let Some(mut ab_entry) = self.address_books.get_mut(&ab_key) else {
+            return Err(StoreError("Address book not found".to_string()));
+        };
+
+        if ab_entry.contacts.contains_key(&uid) {
+            return Err(StoreError("Contact already exists".to_string()));
+        }
+        ab_entry.contacts.insert(uid.clone(), contact.clone());
+        let new_ctag = Self::next_ctag();
+        #[cfg(feature = "persistence")]
+        let principal = ab_entry.info.principal.clone();
+        ab_entry.info.ctag = new_ctag.clone();
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "INSERT OR REPLACE INTO contacts (book_id, uid, vcard_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    rusqlite::params![
+                        contact.address_book_id,
+                        contact.uid,
+                        contact.vcard_data,
+                        contact.etag,
+                        contact.created_at.to_rfc3339(),
+                        contact.updated_at.to_rfc3339(),
+                    ],
+                ) {
+                    warn!("Failed to persist contact to SQLite: {}", e);
+                }
+                if let Err(e) = conn.execute(
+                    "UPDATE address_books SET ctag = ?1 WHERE principal = ?2 AND book_id = ?3",
+                    rusqlite::params![new_ctag, principal, ab_entry.info.id],
+                ) {
+                    warn!("Failed to persist address book ctag to SQLite: {}", e);
+                }
             }
         }
 
-        Err(StoreError("Address book not found".to_string()))
+        Ok(contact)
     }
 
     async fn update_contact(
@@ -966,72 +1037,105 @@ impl AddressBookStore for InMemoryAddressBookStore {
         let now = Utc::now();
         let etag = format!("\"{}\"", now.timestamp());
 
-        for entry in self.address_books.iter() {
-            if entry.value().info.id == book_id {
-                let mut contact = entry
-                    .value()
-                    .contacts
-                    .get(contact_uid)
-                    .ok_or_else(|| StoreError("Contact not found".to_string()))?
-                    .value()
-                    .clone();
-                contact.vcard_data = vcard.to_string();
-                contact.etag = etag.clone();
-                contact.updated_at = now;
-                entry
-                    .value()
-                    .contacts
-                    .insert(contact_uid.to_string(), contact.clone());
+        let ab_key = self
+            .address_books
+            .iter()
+            .find(|e| e.value().info.id == book_id)
+            .map(|e| e.key().clone());
 
-                #[cfg(feature = "persistence")]
-                if let Some(ref db) = self.db {
-                    if let Ok(conn) = db.lock() {
-                        if let Err(e) = conn.execute(
-                            "INSERT OR REPLACE INTO contacts (book_id, uid, vcard_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                            rusqlite::params![
-                                contact.address_book_id,
-                                contact.uid,
-                                contact.vcard_data,
-                                contact.etag,
-                                contact.created_at.to_rfc3339(),
-                                contact.updated_at.to_rfc3339(),
-                            ],
-                        ) {
-                            warn!("Failed to persist contact update to SQLite: {}", e);
-                        }
-                    }
+        let Some(ab_key) = ab_key else {
+            return Err(StoreError("Address book not found".to_string()));
+        };
+
+        let Some(mut ab_entry) = self.address_books.get_mut(&ab_key) else {
+            return Err(StoreError("Address book not found".to_string()));
+        };
+
+        let mut contact = ab_entry
+            .contacts
+            .get(contact_uid)
+            .ok_or_else(|| StoreError("Contact not found".to_string()))?
+            .value()
+            .clone();
+        contact.vcard_data = vcard.to_string();
+        contact.etag = etag.clone();
+        contact.updated_at = now;
+        ab_entry.contacts.insert(contact_uid.to_string(), contact.clone());
+        let new_ctag = Self::next_ctag();
+        #[cfg(feature = "persistence")]
+        let principal = ab_entry.info.principal.clone();
+        ab_entry.info.ctag = new_ctag.clone();
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "INSERT OR REPLACE INTO contacts (book_id, uid, vcard_data, etag, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    rusqlite::params![
+                        contact.address_book_id,
+                        contact.uid,
+                        contact.vcard_data,
+                        contact.etag,
+                        contact.created_at.to_rfc3339(),
+                        contact.updated_at.to_rfc3339(),
+                    ],
+                ) {
+                    warn!("Failed to persist contact update to SQLite: {}", e);
                 }
-
-                return Ok(contact);
+                if let Err(e) = conn.execute(
+                    "UPDATE address_books SET ctag = ?1 WHERE principal = ?2 AND book_id = ?3",
+                    rusqlite::params![new_ctag, principal, ab_entry.info.id],
+                ) {
+                    warn!("Failed to persist address book ctag to SQLite: {}", e);
+                }
             }
         }
 
-        Err(StoreError("Address book not found".to_string()))
+        Ok(contact)
     }
 
     async fn delete_contact(&self, book_id: &str, contact_uid: &str) -> StoreResult<()> {
-        for entry in self.address_books.iter() {
-            if entry.value().info.id == book_id {
-                if entry.value().contacts.remove(contact_uid).is_none() {
-                    return Err(StoreError("Contact not found".to_string()));
-                }
+        let ab_key = self
+            .address_books
+            .iter()
+            .find(|e| e.value().info.id == book_id)
+            .map(|e| e.key().clone());
 
-                #[cfg(feature = "persistence")]
-                if let Some(ref db) = self.db {
-                    if let Ok(conn) = db.lock() {
-                        if let Err(e) = conn.execute(
-                            "DELETE FROM contacts WHERE book_id = ?1 AND uid = ?2",
-                            rusqlite::params![book_id, contact_uid],
-                        ) {
-                            warn!("Failed to delete contact from SQLite: {}", e);
-                        }
-                    }
-                }
+        let Some(ab_key) = ab_key else {
+            return Err(StoreError("Address book not found".to_string()));
+        };
 
-                return Ok(());
+        let Some(mut ab_entry) = self.address_books.get_mut(&ab_key) else {
+            return Err(StoreError("Address book not found".to_string()));
+        };
+
+        if ab_entry.contacts.remove(contact_uid).is_none() {
+            return Err(StoreError("Contact not found".to_string()));
+        }
+        let new_ctag = Self::next_ctag();
+        #[cfg(feature = "persistence")]
+        let principal = ab_entry.info.principal.clone();
+        ab_entry.info.ctag = new_ctag.clone();
+
+        #[cfg(feature = "persistence")]
+        if let Some(ref db) = self.db {
+            if let Ok(conn) = db.lock() {
+                if let Err(e) = conn.execute(
+                    "DELETE FROM contacts WHERE book_id = ?1 AND uid = ?2",
+                    rusqlite::params![book_id, contact_uid],
+                ) {
+                    warn!("Failed to delete contact from SQLite: {}", e);
+                }
+                if let Err(e) = conn.execute(
+                    "UPDATE address_books SET ctag = ?1 WHERE principal = ?2 AND book_id = ?3",
+                    rusqlite::params![new_ctag, principal, ab_entry.info.id],
+                ) {
+                    warn!("Failed to persist address book ctag to SQLite: {}", e);
+                }
             }
         }
-        Err(StoreError("Address book not found".to_string()))
+
+        Ok(())
     }
 }
 

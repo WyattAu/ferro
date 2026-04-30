@@ -15,6 +15,21 @@ END:VCALENDAR\r\n",
     )
 }
 
+fn sample_todo_ical(uid: &str, summary: &str, dtstart: &str, due: &str) -> String {
+    format!(
+        "BEGIN:VCALENDAR\r\n\
+VERSION:2.0\r\n\
+BEGIN:VTODO\r\n\
+UID:{}\r\n\
+SUMMARY:{}\r\n\
+DTSTART:{}\r\n\
+DUE:{}\r\n\
+END:VTODO\r\n\
+END:VCALENDAR\r\n",
+        uid, summary, dtstart, due
+    )
+}
+
 #[tokio::test]
 async fn test_create_and_list_calendars() {
     let store = InMemoryCalendarStore::new();
@@ -215,4 +230,90 @@ async fn test_calendar_isolation() {
     let events2 = store.list_events(&cal2.id).await;
     assert_eq!(events1.len(), 1);
     assert_eq!(events2.len(), 0);
+}
+
+#[tokio::test]
+async fn test_ctag_bumps_on_create_event() {
+    let store = InMemoryCalendarStore::new();
+    let cal = store
+        .create_calendar("user1", "Cal", "#ffffff")
+        .await
+        .unwrap();
+    let ctag_before = cal.ctag.clone();
+
+    let ical = sample_event_ical("ctag-1", "CTag Test", "20260427T100000Z", "20260427T110000Z");
+    store.create_event(&cal.id, &ical).await.unwrap();
+
+    let cal_after = store.get_calendar("user1", &cal.id).await.unwrap();
+    assert_ne!(ctag_before, cal_after.ctag);
+}
+
+#[tokio::test]
+async fn test_ctag_bumps_on_update_event() {
+    let store = InMemoryCalendarStore::new();
+    let cal = store
+        .create_calendar("user1", "Cal", "#ffffff")
+        .await
+        .unwrap();
+
+    let ical = sample_event_ical("ctag-2", "CTag Test", "20260427T100000Z", "20260427T110000Z");
+    store.create_event(&cal.id, &ical).await.unwrap();
+    let ctag_before = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
+
+    let updated = sample_event_ical("ctag-2", "Updated", "20260427T100000Z", "20260427T120000Z");
+    store.update_event(&cal.id, "ctag-2", &updated).await.unwrap();
+
+    let ctag_after = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
+    assert_ne!(ctag_before, ctag_after);
+}
+
+#[tokio::test]
+async fn test_ctag_bumps_on_delete_event() {
+    let store = InMemoryCalendarStore::new();
+    let cal = store
+        .create_calendar("user1", "Cal", "#ffffff")
+        .await
+        .unwrap();
+
+    let ical = sample_event_ical("ctag-3", "CTag Test", "20260427T100000Z", "20260427T110000Z");
+    store.create_event(&cal.id, &ical).await.unwrap();
+    let ctag_before = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
+
+    store.delete_event(&cal.id, "ctag-3").await.unwrap();
+
+    let ctag_after = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
+    assert_ne!(ctag_before, ctag_after);
+}
+
+#[tokio::test]
+async fn test_query_includes_vtodo() {
+    let store = InMemoryCalendarStore::new();
+    let cal = store
+        .create_calendar("user1", "Cal", "#ffffff")
+        .await
+        .unwrap();
+
+    let todo = sample_todo_ical("todo-1", "Buy Milk", "20260401T100000Z", "20260402T110000Z");
+    store.create_event(&cal.id, &todo).await.unwrap();
+
+    let filter = CalFilter {
+        start: Some(
+            chrono::NaiveDate::from_ymd_opt(2026, 4, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap()
+                .and_utc(),
+        ),
+        end: Some(
+            chrono::NaiveDate::from_ymd_opt(2026, 4, 30)
+                .unwrap()
+                .and_hms_opt(23, 59, 59)
+                .unwrap()
+                .and_utc(),
+        ),
+    };
+
+    let results = store.query_events(&cal.id, &filter).await;
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].uid, "todo-1");
 }

@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ferro</title>
+    <style>
+        /* === Reset & Base === */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; }
+
+        /* === CSS Variables (Light) === */
+        :root {
+            --bg: #ffffff;
+            --bg-secondary: #f6f6f6;
+            --bg-tertiary: #ececec;
+            --bg-hover: #e8e8e8;
+            --bg-selected: #d4e4ff;
+            --bg-sidebar: #f2f2f2;
+            --text: #1a1a1a;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            --border: #d8d8d8;
+            --accent: #0066d6;
+            --accent-hover: #0052a3;
+            --accent-light: #e8f0fe;
+            --danger: #cc3333;
+            --danger-hover: #b52a2a;
+            --success: #1a8c1a;
+            --toolbar-h: 44px;
+            --status-h: 28px;
+            --sidebar-w: 200px;
+            --radius: 4px;
+        }
+
+        /* === Dark Theme === */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1e1e1e;
+                --bg-secondary: #252526;
+                --bg-tertiary: #2d2d2d;
+                --bg-hover: #2a2d2e;
+                --bg-selected: #094771;
+                --bg-sidebar: #1f1f1f;
+                --text: #cccccc;
+                --text-secondary: #858585;
+                --text-tertiary: #5a5a5a;
+                --border: #3e3e3e;
+                --accent: #0078d4;
+                --accent-hover: #1a8adf;
+                --accent-light: #094771;
+                --danger: #f44747;
+                --danger-hover: #ff6b6b;
+                --success: #89d185;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--bg);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button { font-family: inherit; font-size: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+        input { font-family: inherit; font-size: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 10px; outline: none; }
+        input:focus { border-color: var(--accent); }
+
+        .hidden { display: none !important; }
+
+        /* === Connect Dialog === */
+        .overlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .dialog {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 28px 32px;
+            width: 400px;
+            max-width: 90vw;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        .dialog h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 4px; }
+        .form-group input { width: 100%; }
+        .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+        .error-text { color: var(--danger); font-size: 12px; margin-top: 8px; min-height: 18px; }
+        .btn {
+            padding: 6px 16px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .btn:hover { background: var(--bg-hover); }
+        .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+        .btn-danger { color: var(--danger); }
+        .btn-danger:hover { background: var(--bg-hover); }
+
+        /* === Layout === */
+        #app { display: flex; flex-direction: column; height: 100vh; }
+
+        /* === Toolbar === */
+        .toolbar {
+            display: flex; align-items: center; justify-content: space-between;
+            height: var(--toolbar-h); padding: 0 8px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            flex-shrink: 0;
+            gap: 4px;
+        }
+        .toolbar-group { display: flex; align-items: center; gap: 2px; }
+        .toolbar-btn {
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: var(--radius);
+            color: var(--text-secondary);
+            transition: background 0.15s, color 0.15s;
+            flex-shrink: 0;
+        }
+        .toolbar-btn:hover { background: var(--bg-hover); color: var(--text); }
+        .toolbar-btn:active { background: var(--bg-tertiary); }
+        .toolbar-btn:disabled { opacity: 0.4; cursor: default; }
+        .toolbar-btn:disabled:hover { background: none; color: var(--text-secondary); }
+        .toolbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+
+        .path-bar {
+            flex: 1; min-width: 0;
+            display: flex; align-items: center;
+            padding: 0 8px; height: 30px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .breadcrumbs {
+            display: flex; align-items: center; gap: 2px;
+            white-space: nowrap; overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .breadcrumbs::-webkit-scrollbar { display: none; }
+        .breadcrumb {
+            padding: 2px 4px;
+            border-radius: 3px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 13px;
+            flex-shrink: 0;
+            transition: background 0.15s, color 0.15s;
+        }
+        .breadcrumb:hover { background: var(--bg-hover); color: var(--text); }
+        .breadcrumb.active { color: var(--text); font-weight: 500; }
+        .breadcrumb-sep { color: var(--text-tertiary); flex-shrink: 0; user-select: none; }
+
+        /* === Content === */
+        .content { display: flex; flex: 1; overflow: hidden; }
+
+        /* === Sidebar === */
+        .sidebar {
+            width: var(--sidebar-w); min-width: var(--sidebar-w);
+            border-right: 1px solid var(--border);
+            background: var(--bg-sidebar);
+            overflow-y: auto;
+            display: flex; flex-direction: column;
+            flex-shrink: 0;
+        }
+        .sidebar-header {
+            padding: 10px 12px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-tertiary);
+        }
+        .tree { flex: 1; overflow-y: auto; padding-bottom: 12px; }
+        .tree-item {
+            display: flex; align-items: center; gap: 4px;
+            padding: 3px 8px 3px 0;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: background 0.1s;
+            user-select: none;
+        }
+        .tree-item:hover { background: var(--bg-hover); }
+        .tree-item.active { background: var(--bg-selected); color: var(--text); }
+        .tree-toggle { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .tree-icon { display: flex; align-items: center; flex-shrink: 0; }
+        .tree-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+
+        /* === File List === */
+        .file-list-container {
+            flex: 1; display: flex; flex-direction: column;
+            overflow: hidden; min-width: 0;
+            position: relative;
+        }
+        .file-list-header {
+            display: flex; align-items: center;
+            height: 30px; padding: 0 12px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+        .col-name { flex: 1; min-width: 0; }
+        .col-size { width: 90px; text-align: right; flex-shrink: 0; }
+        .col-modified { width: 180px; text-align: right; flex-shrink: 0; }
+
+        .file-list {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            padding: 4px 0;
+        }
+        .file-list.drag-over::after {
+            content: "Drop files to upload";
+            position: absolute; inset: 32px 8px 8px 8px;
+            background: var(--accent-light);
+            border: 2px dashed var(--accent);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 500; color: var(--accent);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .file-entry {
+            display: flex; align-items: center;
+            padding: 4px 12px;
+            cursor: default;
+            user-select: none;
+            transition: background 0.08s;
+        }
+        .file-entry:hover { background: var(--bg-hover); }
+        .file-entry.selected { background: var(--bg-selected); }
+        .file-entry .file-icon { display: flex; align-items: center; margin-right: 8px; flex-shrink: 0; color: var(--text-tertiary); }
+        .file-entry .file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-entry .file-size { width: 90px; text-align: right; color: var(--text-secondary); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .file-entry .file-modified { width: 180px; text-align: right; color: var(--text-secondary); flex-shrink: 0; }
+
+        .empty-state {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            height: 100%; color: var(--text-tertiary);
+            gap: 8px;
+        }
+        .empty-state svg { opacity: 0.4; }
+        .empty-state span { font-size: 13px; }
+
+        .loading {
+            display: flex; align-items: center; justify-content: center;
+            height: 100%; color: var(--text-tertiary);
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            width: 24px; height: 24px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        /* === Status Bar === */
+        .status-bar {
+            display: flex; align-items: center;
+            height: var(--status-h); padding: 0 12px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+            font-size: 12px;
+            color: var(--text-secondary);
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .status-item { display: flex; align-items: center; gap: 4px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .status-dot.connected { background: var(--success); }
+        .status-dot.disconnected { background: var(--danger); }
+        .status-bar .spacer { flex: 1; }
+
+        /* === Context Menu === */
+        .context-menu {
+            position: fixed;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 4px 0;
+            min-width: 160px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            z-index: 2000;
+        }
+        .context-item {
+            padding: 6px 16px;
+            cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+            transition: background 0.1s;
+        }
+        .context-item:hover { background: var(--bg-hover); }
+        .context-item.danger { color: var(--danger); }
+        .context-item.danger:hover { background: rgba(204, 51, 51, 0.08); }
+        .context-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+        /* === Scrollbars === */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Connect Dialog -->
+        <div id="connect-overlay" class="overlay">
+            <div class="dialog">
+                <h2>Connect to Ferro Server</h2>
+                <div class="form-group">
+                    <label for="connect-url">Server URL</label>
+                    <input type="text" id="connect-url" placeholder="http://localhost:8080" spellcheck="false">
+                </div>
+                <div class="form-group">
+                    <label for="connect-token">Auth Token</label>
+                    <input type="password" id="connect-token" placeholder="Bearer token">
+                </div>
+                <div class="dialog-actions">
+                    <button id="connect-btn" class="btn btn-primary">Connect</button>
+                </div>
+                <div id="connect-error" class="error-text"></div>
+            </div>
+        </div>
+
+        <!-- Rename Dialog -->
+        <div id="rename-overlay" class="overlay hidden">
+            <div class="dialog">
+                <h2>Rename</h2>
+                <div class="form-group">
+                    <label for="rename-input">New Name</label>
+                    <input type="text" id="rename-input">
+                </div>
+                <div class="dialog-actions">
+                    <button id="rename-cancel" class="btn">Cancel</button>
+                    <button id="rename-ok" class="btn btn-primary">Rename</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Folder Dialog -->
+        <div id="mkdir-overlay" class="overlay hidden">
+            <div class="dialog">
+                <h2>New Folder</h2>
+                <div class="form-group">
+                    <label for="mkdir-input">Folder Name</label>
+                    <input type="text" id="mkdir-input" placeholder="untitled folder">
+                </div>
+                <div class="dialog-actions">
+                    <button id="mkdir-cancel" class="btn">Cancel</button>
+                    <button id="mkdir-ok" class="btn btn-primary">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm Delete Dialog -->
+        <div id="delete-overlay" class="overlay hidden">
+            <div class="dialog">
+                <h2>Confirm Delete</h2>
+                <p id="delete-message" style="margin-bottom: 4px; color: var(--text-secondary);"></p>
+                <div class="dialog-actions">
+                    <button id="delete-cancel" class="btn">Cancel</button>
+                    <button id="delete-ok" class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div id="main" class="hidden">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" id="btn-back" title="Back">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <button class="toolbar-btn" id="btn-forward" title="Forward">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                    <button class="toolbar-btn" id="btn-up" title="Up">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    </button>
+                    <button class="toolbar-btn" id="btn-home" title="Home">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    </button>
+                    <button class="toolbar-btn" id="btn-refresh" title="Refresh">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    </button>
+                    <div class="path-bar">
+                        <div id="breadcrumbs" class="breadcrumbs"></div>
+                    </div>
+                </div>
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" id="btn-upload" title="Upload Files">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    </button>
+                    <button class="toolbar-btn" id="btn-mkdir" title="New Folder">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+                    </button>
+                    <button class="toolbar-btn" id="btn-delete" title="Delete Selected">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                    <div class="toolbar-sep"></div>
+                    <button class="toolbar-btn" id="btn-disconnect" title="Disconnect">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="content">
+                <div class="sidebar" id="sidebar">
+                    <div class="sidebar-header">Folders</div>
+                    <div id="tree" class="tree"></div>
+                </div>
+                <div class="file-list-container" id="file-list-container">
+                    <div class="file-list-header">
+                        <span class="col-name">Name</span>
+                        <span class="col-size">Size</span>
+                        <span class="col-modified">Modified</span>
+                    </div>
+                    <div id="file-list" class="file-list"></div>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <span class="status-item"><span id="status-dot" class="status-dot disconnected"></span><span id="status-connection">Disconnected</span></span>
+                <span class="status-item" id="status-items"></span>
+                <span class="status-item" id="status-size"></span>
+                <span class="spacer"></span>
+                <span class="status-item" id="status-path"></span>
+            </div>
+        </div>
+
+        <!-- Context Menu -->
+        <div id="context-menu" class="context-menu hidden">
+            <div class="context-item" data-action="open">Open</div>
+            <div class="context-item" data-action="download">Download</div>
+            <div class="context-sep"></div>
+            <div class="context-item" data-action="rename">Rename</div>
+            <div class="context-sep"></div>
+            <div class="context-item danger" data-action="delete">Delete</div>
+        </div>
+    </div>
+
+    <script>
+        /* === Tauri API === */
+        const { invoke } = window.__TAURI__.core;
+
+        /* === State === */
+        let serverUrl = '';
+        let authToken = '';
+        let currentPath = '/';
+        let currentEntries = [];
+        let selectedEntry = null;
+        let pathHistory = ['/'];
+        let historyIndex = 0;
+        let treeData = {};
+        let expandedPaths = new Set(['/']);
+        let contextTarget = null;
+
+        /* === SVG Icons === */
+        const ICO = {
+            folder: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+            file: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+            chevronR: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>',
+            chevronD: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>',
+            empty: '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+        };
+
+        /* === Utilities === */
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function formatSize(bytes) {
+            if (bytes === 0) return '--';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            const val = bytes / Math.pow(1024, i);
+            return val.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '--';
+            try {
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return dateStr;
+                return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch { return dateStr; }
+        }
+
+        function normalizePath(p) {
+            if (!p.startsWith('/')) p = '/' + p;
+            return p.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+        }
+
+        function joinPath(base, name) {
+            if (base === '/') return '/' + name;
+            return base + '/' + name;
+        }
+
+        function parentPath(p) {
+            if (p === '/') return '/';
+            const idx = p.lastIndexOf('/');
+            return idx <= 0 ? '/' : p.substring(0, idx);
+        }
+
+        /* === DOM References === */
+        const $id = id => document.getElementById(id);
+        const connectOverlay = $id('connect-overlay');
+        const connectUrl = $id('connect-url');
+        const connectToken = $id('connect-token');
+        const connectBtn = $id('connect-btn');
+        const connectError = $id('connect-error');
+        const mainEl = $id('main');
+        const breadcrumbs = $id('breadcrumbs');
+        const treeEl = $id('tree');
+        const fileList = $id('file-list');
+        const fileListContainer = $id('file-list-container');
+        const contextMenu = $id('context-menu');
+        const renameOverlay = $id('rename-overlay');
+        const renameInput = $id('rename-input');
+        const mkdirOverlay = $id('mkdir-overlay');
+        const mkdirInput = $id('mkdir-input');
+        const deleteOverlay = $id('delete-overlay');
+        const deleteMessage = $id('delete-message');
+
+        /* === Connection === */
+        async function connect() {
+            const url = connectUrl.value.trim().replace(/\/+$/, '');
+            const token = connectToken.value.trim();
+            if (!url) { connectError.textContent = 'Server URL is required'; return; }
+
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Connecting...';
+            connectError.textContent = '';
+
+            try {
+                const info = await invoke('test_connection', { url, token });
+                serverUrl = url;
+                authToken = token;
+                localStorage.setItem('ferro_connection', JSON.stringify({ url: serverUrl, token: authToken }));
+                connectOverlay.classList.add('hidden');
+                mainEl.classList.remove('hidden');
+                await navigate('/');
+                await loadTree();
+                updateConnectionStatus(true, info.serverName);
+            } catch (err) {
+                connectError.textContent = String(err);
+            } finally {
+                connectBtn.disabled = false;
+                connectBtn.textContent = 'Connect';
+            }
+        }
+
+        function disconnect() {
+            serverUrl = '';
+            authToken = '';
+            currentPath = '/';
+            currentEntries = [];
+            selectedEntry = null;
+            treeData = {};
+            localStorage.removeItem('ferro_connection');
+            mainEl.classList.add('hidden');
+            connectOverlay.classList.remove('hidden');
+            connectError.textContent = '';
+            connectUrl.value = '';
+            connectToken.value = '';
+        }
+
+        function updateConnectionStatus(connected, name) {
+            const dot = $id('status-dot');
+            const text = $id('status-connection');
+            dot.className = 'status-dot ' + (connected ? 'connected' : 'disconnected');
+            text.textContent = connected ? (name || 'Connected') : 'Disconnected';
+        }
+
+        /* === Navigation === */
+        async function navigate(path, addToHistory) {
+            if (addToHistory !== false) {
+                pathHistory = pathHistory.slice(0, historyIndex + 1);
+                pathHistory.push(path);
+                historyIndex = pathHistory.length - 1;
+            }
+            currentPath = normalizePath(path);
+            selectedEntry = null;
+            updateToolbar();
+            await loadDirectory();
+        }
+
+        async function loadDirectory() {
+            fileList.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            try {
+                const json = await invoke('list_directory', { url: serverUrl, token: authToken, path: currentPath });
+                currentEntries = JSON.parse(json);
+                renderFileList();
+                renderSidebar();
+                updateStatus();
+            } catch (err) {
+                fileList.innerHTML = `<div class="empty-state"><span>Error: ${escapeHtml(String(err))}</span></div>`;
+                currentEntries = [];
+            }
+        }
+
+        async function loadTree() {
+            try {
+                const json = await invoke('list_directory', { url: serverUrl, token: authToken, path: '/', depth: 'infinity' });
+                const allEntries = JSON.parse(json);
+                treeData = {};
+                for (const entry of allEntries) {
+                    if (!entry.isDir) continue;
+                    const p = entry.path.replace(/\/$/, '');
+                    const parent = parentPath(p);
+                    if (!treeData[parent]) treeData[parent] = [];
+                    treeData[parent].push(entry);
+                }
+                for (const key in treeData) {
+                    treeData[key].sort((a, b) => a.name.localeCompare(b.name));
+                }
+                renderTree();
+            } catch { /* tree loading is best-effort */ }
+        }
+
+        function goBack() {
+            if (historyIndex > 0) { historyIndex--; navigate(pathHistory[historyIndex], false); }
+        }
+
+        function goForward() {
+            if (historyIndex < pathHistory.length - 1) { historyIndex++; navigate(pathHistory[historyIndex], false); }
+        }
+
+        function goUp() {
+            if (currentPath !== '/') navigate(parentPath(currentPath));
+        }
+
+        function goHome() { navigate('/'); }
+
+        /* === Rendering === */
+        function updateToolbar() {
+            $id('btn-back').disabled = historyIndex <= 0;
+            $id('btn-forward').disabled = historyIndex >= pathHistory.length - 1;
+            $id('btn-up').disabled = currentPath === '/';
+            renderBreadcrumbs();
+        }
+
+        function renderBreadcrumbs() {
+            const parts = currentPath.split('/').filter(Boolean);
+            let html = '';
+            html += `<span class="breadcrumb ${parts.length === 0 ? 'active' : ''}" data-path="/">/</span>`;
+            let accumulated = '';
+            for (let i = 0; i < parts.length; i++) {
+                accumulated += '/' + parts[i];
+                const isLast = i === parts.length - 1;
+                html += `<span class="breadcrumb-sep">/</span>`;
+                html += `<span class="breadcrumb ${isLast ? 'active' : ''}" data-path="${escapeHtml(accumulated)}">${escapeHtml(parts[i])}</span>`;
+            }
+            breadcrumbs.innerHTML = html;
+        }
+
+        function renderFileList() {
+            if (currentEntries.length === 0) {
+                fileList.innerHTML = `<div class="empty-state">${ICO.empty}<span>This folder is empty</span></div>`;
+                return;
+            }
+            const sorted = [...currentEntries].sort((a, b) => {
+                if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+                return a.name.localeCompare(b.name);
+            });
+            fileList.innerHTML = sorted.map(entry => `
+                <div class="file-entry" data-path="${escapeHtml(entry.path)}" data-is-dir="${entry.isDir}" data-name="${escapeHtml(entry.name)}">
+                    <span class="file-icon">${entry.isDir ? ICO.folder : ICO.file}</span>
+                    <span class="file-name">${escapeHtml(entry.name)}</span>
+                    <span class="file-size">${entry.isDir ? '--' : formatSize(entry.size)}</span>
+                    <span class="file-modified">${formatDate(entry.modified)}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderSidebar() {
+            renderTree();
+        }
+
+        function renderTree() {
+            treeEl.innerHTML = renderTreeLevel('/', 0);
+        }
+
+        function renderTreeLevel(parentPath, level) {
+            const children = treeData[parentPath] || [];
+            let html = '';
+            for (const child of children) {
+                const hasChildren = (treeData[child.path.replace(/\/$/, '')] || []).length > 0;
+                const isExpanded = expandedPaths.has(child.path.replace(/\/$/, ''));
+                const isActive = currentPath === child.path.replace(/\/$/, '') || currentPath.startsWith(child.path.replace(/\/$/, '') + '/');
+                const pl = level * 16 + 8;
+
+                html += `<div class="tree-item ${isActive ? 'active' : ''}" data-path="${escapeHtml(child.path.replace(/\/$/, ''))}" style="padding-left:${pl}px">`;
+                html += `<span class="tree-toggle">${hasChildren ? (isExpanded ? ICO.chevronD : ICO.chevronR) : ''}</span>`;
+                html += `<span class="tree-icon">${ICO.folder}</span>`;
+                html += `<span class="tree-label">${escapeHtml(child.name)}</span>`;
+                html += `</div>`;
+
+                if (hasChildren && isExpanded) {
+                    html += renderTreeLevel(child.path.replace(/\/$/, ''), level + 1);
+                }
+            }
+            return html;
+        }
+
+        function updateStatus() {
+            const dirs = currentEntries.filter(e => e.isDir).length;
+            const files = currentEntries.filter(e => !e.isDir).length;
+            const totalSize = currentEntries.reduce((s, e) => s + e.size, 0);
+            const parts = [];
+            if (dirs > 0) parts.push(`${dirs} folder${dirs > 1 ? 's' : ''}`);
+            if (files > 0) parts.push(`${files} file${files > 1 ? 's' : ''}`);
+            $id('status-items').textContent = parts.join(', ') || 'Empty';
+            $id('status-size').textContent = totalSize > 0 ? formatSize(totalSize) + ' total' : '';
+            $id('status-path').textContent = currentPath;
+        }
+
+        function selectEntry(entryEl) {
+            document.querySelectorAll('.file-entry.selected').forEach(e => e.classList.remove('selected'));
+            if (entryEl) {
+                entryEl.classList.add('selected');
+                selectedEntry = {
+                    path: entryEl.dataset.path,
+                    isDir: entryEl.dataset.isDir === 'true',
+                    name: entryEl.dataset.name,
+                };
+            } else {
+                selectedEntry = null;
+            }
+        }
+
+        /* === File Operations === */
+        async function uploadFiles() {
+            try {
+                const { open } = window.__TAURI__.dialog;
+                const { readFile } = window.__TAURI__.fs;
+                const selected = await open({ multiple: true, directory: false });
+                if (!selected) return;
+                const paths = Array.isArray(selected) ? selected : [selected];
+                for (const fp of paths) {
+                    const data = await readFile(fp);
+                    const fileName = fp.split(/[/\\]/).pop();
+                    const destPath = joinPath(currentPath, fileName);
+                    await invoke('put_file', { url: serverUrl, token: authToken, path: destPath, data: Array.from(data) });
+                }
+                await loadDirectory();
+                await loadTree();
+            } catch (err) {
+                showError(String(err));
+            }
+        }
+
+        async function uploadDroppedFiles(fileList) {
+            for (const file of fileList) {
+                try {
+                    const buffer = await file.arrayBuffer();
+                    const data = Array.from(new Uint8Array(buffer));
+                    const destPath = joinPath(currentPath, file.name);
+                    await invoke('put_file', { url: serverUrl, token: authToken, path: destPath, data });
+                } catch (err) {
+                    showError(`Failed to upload ${file.name}: ${err}`);
+                    return;
+                }
+            }
+            await loadDirectory();
+            await loadTree();
+        }
+
+        async function downloadFile(entry) {
+            try {
+                const { save } = window.__TAURI__.dialog;
+                const { writeFile } = window.__TAURI__.fs;
+                const filePath = await save({ defaultPath: entry.name });
+                if (!filePath) return;
+                const data = await invoke('get_file', { url: serverUrl, token: authToken, path: entry.path });
+                await writeFile(filePath, new Uint8Array(data));
+            } catch (err) {
+                showError(`Download failed: ${err}`);
+            }
+        }
+
+        function showNewFolderDialog() {
+            mkdirInput.value = '';
+            mkdirOverlay.classList.remove('hidden');
+            mkdirInput.focus();
+        }
+
+        async function createFolder(name) {
+            if (!name) return;
+            try {
+                const destPath = joinPath(currentPath, name);
+                await invoke('create_directory', { url: serverUrl, token: authToken, path: destPath });
+                await loadDirectory();
+                await loadTree();
+            } catch (err) {
+                showError(`Failed to create folder: ${err}`);
+            }
+        }
+
+        function showRenameDialog(entry) {
+            if (!entry) return;
+            renameInput.value = entry.name;
+            renameOverlay.classList.remove('hidden');
+            renameInput.focus();
+            renameInput.select();
+        }
+
+        async function renameItem(entry, newName) {
+            if (!entry || !newName || newName === entry.name) return;
+            try {
+                const parent = parentPath(entry.path);
+                const from = entry.path;
+                const to = joinPath(parent, newName);
+                await invoke('move_item', { url: serverUrl, token: authToken, from, to });
+                await loadDirectory();
+                await loadTree();
+            } catch (err) {
+                showError(`Rename failed: ${err}`);
+            }
+        }
+
+        function showDeleteConfirm(entry) {
+            if (!entry) return;
+            const type = entry.isDir ? 'folder' : 'file';
+            deleteMessage.textContent = `Are you sure you want to delete ${type} "${entry.name}"?`;
+            deleteOverlay.classList.remove('hidden');
+        }
+
+        async function deleteItem(entry) {
+            if (!entry) return;
+            try {
+                await invoke('delete_item', { url: serverUrl, token: authToken, path: entry.path });
+                selectedEntry = null;
+                await loadDirectory();
+                await loadTree();
+            } catch (err) {
+                showError(`Delete failed: ${err}`);
+            }
+        }
+
+        function showError(msg) {
+            $id('status-connection').textContent = msg;
+            setTimeout(() => updateConnectionStatus(true), 4000);
+        }
+
+        /* === Event Handlers === */
+
+        /* Connect dialog */
+        connectBtn.addEventListener('click', connect);
+        connectToken.addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
+        connectUrl.addEventListener('keydown', e => { if (e.key === 'Enter') connectToken.focus(); });
+
+        /* Toolbar buttons */
+        $id('btn-back').addEventListener('click', goBack);
+        $id('btn-forward').addEventListener('click', goForward);
+        $id('btn-up').addEventListener('click', goUp);
+        $id('btn-home').addEventListener('click', goHome);
+        $id('btn-refresh').addEventListener('click', async () => { await loadDirectory(); await loadTree(); });
+        $id('btn-upload').addEventListener('click', uploadFiles);
+        $id('btn-mkdir').addEventListener('click', showNewFolderDialog);
+        $id('btn-delete').addEventListener('click', () => { if (selectedEntry) showDeleteConfirm(selectedEntry); });
+        $id('btn-disconnect').addEventListener('click', disconnect);
+
+        /* Breadcrumbs */
+        breadcrumbs.addEventListener('click', e => {
+            const bc = e.target.closest('.breadcrumb');
+            if (bc && bc.dataset.path) navigate(bc.dataset.path);
+        });
+
+        /* File list: click, double-click */
+        fileList.addEventListener('click', e => {
+            const entryEl = e.target.closest('.file-entry');
+            selectEntry(entryEl || null);
+        });
+
+        fileList.addEventListener('dblclick', e => {
+            const entryEl = e.target.closest('.file-entry');
+            if (!entryEl) return;
+            const entry = { path: entryEl.dataset.path, isDir: entryEl.dataset.isDir === 'true', name: entryEl.dataset.name };
+            if (entry.isDir) {
+                navigate(entry.path);
+            } else {
+                downloadFile(entry);
+            }
+        });
+
+        /* File list: drag-and-drop */
+        fileListContainer.addEventListener('dragover', e => { e.preventDefault(); fileListContainer.classList.add('drag-over'); });
+        fileListContainer.addEventListener('dragleave', e => { if (!fileListContainer.contains(e.relatedTarget)) fileListContainer.classList.remove('drag-over'); });
+        fileListContainer.addEventListener('drop', e => {
+            e.preventDefault();
+            fileListContainer.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) uploadDroppedFiles(e.dataTransfer.files);
+        });
+
+        /* Sidebar: tree item click */
+        treeEl.addEventListener('click', e => {
+            const item = e.target.closest('.tree-item');
+            if (!item) return;
+            const path = item.dataset.path;
+            const p = path.replace(/\/$/, '');
+
+            /* Toggle expand if it has children */
+            if (treeData[p] && treeData[p].length > 0) {
+                if (expandedPaths.has(p)) { expandedPaths.delete(p); } else { expandedPaths.add(p); }
+            }
+            navigate(p);
+        });
+
+        /* Context menu */
+        fileList.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            const entryEl = e.target.closest('.file-entry');
+            if (entryEl) {
+                selectEntry(entryEl);
+                contextTarget = { path: entryEl.dataset.path, isDir: entryEl.dataset.isDir === 'true', name: entryEl.dataset.name };
+                showContextMenu(e.clientX, e.clientY, true);
+            } else {
+                contextTarget = null;
+                showContextMenu(e.clientX, e.clientY, false);
+            }
+        });
+
+        document.addEventListener('click', () => contextMenu.classList.add('hidden'));
+
+        contextMenu.addEventListener('click', e => {
+            const item = e.target.closest('.context-item');
+            if (!item || !contextTarget) return;
+            const action = item.dataset.action;
+            if (action === 'open') {
+                if (contextTarget.isDir) navigate(contextTarget.path);
+                else downloadFile(contextTarget);
+            } else if (action === 'download') {
+                downloadFile(contextTarget);
+            } else if (action === 'rename') {
+                showRenameDialog(contextTarget);
+            } else if (action === 'delete') {
+                showDeleteConfirm(contextTarget);
+            }
+            contextMenu.classList.add('hidden');
+        });
+
+        function showContextMenu(x, y, hasTarget) {
+            const items = contextMenu.querySelectorAll('.context-item');
+            items[0].style.display = hasTarget ? '' : 'none'; /* Open */
+            items[1].style.display = (hasTarget && !contextTarget?.isDir) ? '' : 'none'; /* Download */
+            items[2].style.display = ''; /* separator handled by layout */
+            items[3].style.display = hasTarget ? '' : 'none'; /* Rename */
+            /* Delete is always visible but only works with a target */
+
+            contextMenu.classList.remove('hidden');
+            /* Adjust position to stay within viewport */
+            const rect = contextMenu.getBoundingClientRect();
+            if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 4;
+            if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 4;
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+        }
+
+        /* Keyboard shortcuts */
+        document.addEventListener('keydown', e => {
+            /* Don't handle if a dialog input is focused */
+            if (e.target.tagName === 'INPUT') return;
+
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (e.key === 'Backspace' && !selectedEntry) { goUp(); return; }
+                if (selectedEntry) { e.preventDefault(); showDeleteConfirm(selectedEntry); }
+            }
+            if (e.key === 'F2' && selectedEntry) { e.preventDefault(); showRenameDialog(selectedEntry); }
+            if (e.key === 'Enter' && selectedEntry) {
+                e.preventDefault();
+                if (selectedEntry.isDir) navigate(selectedEntry.path);
+                else downloadFile(selectedEntry);
+            }
+            if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                document.querySelectorAll('.file-entry').forEach(el => el.classList.add('selected'));
+            }
+        });
+
+        /* Rename dialog */
+        $id('rename-cancel').addEventListener('click', () => renameOverlay.classList.add('hidden'));
+        $id('rename-ok').addEventListener('click', () => {
+            if (selectedEntry) renameItem(selectedEntry, renameInput.value.trim());
+            renameOverlay.classList.add('hidden');
+        });
+        renameInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { $id('rename-ok').click(); }
+            if (e.key === 'Escape') { renameOverlay.classList.add('hidden'); }
+        });
+
+        /* New folder dialog */
+        $id('mkdir-cancel').addEventListener('click', () => mkdirOverlay.classList.add('hidden'));
+        $id('mkdir-ok').addEventListener('click', () => {
+            createFolder(mkdirInput.value.trim());
+            mkdirOverlay.classList.add('hidden');
+        });
+        mkdirInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { $id('mkdir-ok').click(); }
+            if (e.key === 'Escape') { mkdirOverlay.classList.add('hidden'); }
+        });
+
+        /* Delete dialog */
+        $id('delete-cancel').addEventListener('click', () => deleteOverlay.classList.add('hidden'));
+        $id('delete-ok').addEventListener('click', () => {
+            if (selectedEntry) deleteItem(selectedEntry);
+            deleteOverlay.classList.add('hidden');
+        });
+
+        /* Close overlays on backdrop click */
+        [renameOverlay, mkdirOverlay, deleteOverlay].forEach(overlay => {
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.add('hidden'); });
+        });
+
+        /* === Init === */
+        function init() {
+            const saved = localStorage.getItem('ferro_connection');
+            if (saved) {
+                try {
+                    const conn = JSON.parse(saved);
+                    if (conn.url) {
+                        connectUrl.value = conn.url || '';
+                        connectToken.value = conn.token || '';
+                        serverUrl = conn.url;
+                        authToken = conn.token || '';
+                        mainEl.classList.remove('hidden');
+                        connectOverlay.classList.add('hidden');
+                        navigate('/').then(() => loadTree()).then(() => updateConnectionStatus(true));
+                    }
+                } catch { /* ignore parse errors */ }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

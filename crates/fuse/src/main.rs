@@ -1,3 +1,6 @@
+#[cfg(feature = "offline-cache")]
+mod cache;
+
 #[cfg(target_os = "linux")]
 mod fs;
 
@@ -30,6 +33,10 @@ struct Cli {
     #[arg(long, default_value_t = true)]
     #[allow(dead_code)]
     foreground: bool,
+
+    #[cfg(feature = "offline-cache")]
+    #[arg(long, env = "FERRO_CACHE_DIR")]
+    cache_dir: Option<String>,
 }
 
 #[cfg(target_os = "linux")]
@@ -55,7 +62,21 @@ async fn main() -> anyhow::Result<()> {
     let uid = unsafe { libc::getuid() };
     let gid = unsafe { libc::getgid() };
 
-    let fs_impl = fs::FerroFs::new(&cli.server_url, cli.token.as_deref(), uid, gid)?;
+    #[cfg(feature = "offline-cache")]
+    let cache_dir = Some(
+        cli.cache_dir
+            .clone()
+            .unwrap_or_else(|| {
+                std::env::var("HOME")
+                    .map(|h| format!("{}/.cache/ferro-fuse", h))
+                    .unwrap_or_else(|_| "/tmp/ferro-fuse".to_string())
+            }),
+    );
+    #[cfg(not(feature = "offline-cache"))]
+    let cache_dir: Option<String> = None;
+
+    let fs_impl =
+        fs::FerroFs::new(&cli.server_url, cli.token.as_deref(), uid, gid, cache_dir.as_deref())?;
 
     info!(
         "Mounting Ferro at {} (server: {})",

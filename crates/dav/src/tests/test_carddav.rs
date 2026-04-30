@@ -149,3 +149,56 @@ async fn test_create_duplicate_contact_fails() {
     let result = store.create_contact(&book.id, &vcard).await;
     assert!(result.is_err());
 }
+
+#[tokio::test]
+async fn test_ctag_bumps_on_create_contact() {
+    let store = InMemoryAddressBookStore::new();
+    let book = store
+        .create_address_book("user1", "Contacts")
+        .await
+        .unwrap();
+    let ctag_before = book.ctag.clone();
+
+    let vcard = sample_vcard("ctag-1", "CTag Test", "Test", "CTag");
+    store.create_contact(&book.id, &vcard).await.unwrap();
+
+    let book_after = store.get_address_book("user1", &book.id).await.unwrap();
+    assert_ne!(ctag_before, book_after.ctag);
+}
+
+#[tokio::test]
+async fn test_ctag_bumps_on_update_contact() {
+    let store = InMemoryAddressBookStore::new();
+    let book = store
+        .create_address_book("user1", "Contacts")
+        .await
+        .unwrap();
+
+    let vcard = sample_vcard("ctag-2", "CTag Test", "Test", "CTag");
+    store.create_contact(&book.id, &vcard).await.unwrap();
+    let ctag_before = store.get_address_book("user1", &book.id).await.unwrap().ctag;
+
+    let updated = sample_vcard("ctag-2", "Updated Name", "Test", "CTag");
+    store.update_contact(&book.id, "ctag-2", &updated).await.unwrap();
+
+    let ctag_after = store.get_address_book("user1", &book.id).await.unwrap().ctag;
+    assert_ne!(ctag_before, ctag_after);
+}
+
+#[tokio::test]
+async fn test_ctag_bumps_on_delete_contact() {
+    let store = InMemoryAddressBookStore::new();
+    let book = store
+        .create_address_book("user1", "Contacts")
+        .await
+        .unwrap();
+
+    let vcard = sample_vcard("ctag-3", "CTag Test", "Test", "CTag");
+    store.create_contact(&book.id, &vcard).await.unwrap();
+    let ctag_before = store.get_address_book("user1", &book.id).await.unwrap().ctag;
+
+    store.delete_contact(&book.id, "ctag-3").await.unwrap();
+
+    let ctag_after = store.get_address_book("user1", &book.id).await.unwrap().ctag;
+    assert_ne!(ctag_before, ctag_after);
+}

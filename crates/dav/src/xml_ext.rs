@@ -116,7 +116,7 @@ pub fn parse_calendar_query_time_range(body: &[u8]) -> Option<(String, String)> 
 
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(ref e)) => {
+            Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
                 let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                 let local = name.strip_prefix("C:").unwrap_or(&name);
                 if local == "time-range" {
@@ -144,36 +144,35 @@ pub fn parse_calendar_query_time_range(body: &[u8]) -> Option<(String, String)> 
     }
 }
 
-/// Parse a CardDAV addressbook-query prop-filter name from an XML request body.
+/// Parse a CardDAV addressbook-query text-match filter from an XML request body.
+/// Returns the text to match against if a `<text-match>` element is found.
 pub fn parse_addressbook_query_filter(body: &[u8]) -> Option<String> {
     let mut filter_text = None;
 
     let mut reader = quick_xml::Reader::from_reader(body);
     reader.config_mut().trim_text(true);
     let mut buf = Vec::new();
-    let mut in_prop_filter = false;
+    let mut in_text_match = false;
 
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
                 let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                 let local = name.strip_prefix("A:").unwrap_or(&name);
-                if local == "prop-filter" {
-                    for attr in e.attributes().flatten() {
-                        let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
-                        let val = String::from_utf8_lossy(&attr.value).to_string();
-                        if key == "name" {
-                            filter_text = Some(val);
-                        }
-                    }
-                    in_prop_filter = true;
+                let local = local.strip_prefix("C:").unwrap_or(local);
+                if local == "text-match" {
+                    in_text_match = true;
                 }
-                if in_prop_filter && local == "text-match" {
-                    in_prop_filter = false;
+            }
+            Ok(Event::Text(ref e))
+                if in_text_match && filter_text.is_none() => {
+                let text = String::from_utf8_lossy(e.as_ref()).to_string();
+                if !text.is_empty() {
+                    filter_text = Some(text);
                 }
             }
             Ok(Event::End(_)) => {
-                in_prop_filter = false;
+                in_text_match = false;
             }
             Ok(Event::Eof) => break,
             Err(_) => break,

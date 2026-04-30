@@ -8,6 +8,11 @@ use std::time::SystemTime;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
+#[cfg(feature = "offline-cache")]
+use crate::cache::OfflineCache;
+#[cfg(feature = "offline-cache")]
+use std::path::PathBuf;
+
 #[cfg(target_os = "linux")]
 use fuse3::raw::reply::*;
 #[cfg(target_os = "linux")]
@@ -95,11 +100,19 @@ pub struct FerroFs {
     inodes: Arc<RwLock<HashMap<u64, InodeEntry>>>,
     file_handles: Arc<RwLock<HashMap<u64, FileHandleEntry>>>,
     fh_counter: Arc<AtomicU64>,
+    #[cfg(feature = "offline-cache")]
+    offline_cache: Option<OfflineCache>,
 }
 
 #[allow(dead_code)]
 impl FerroFs {
-    pub fn new(server_url: &str, token: Option<&str>, uid: u32, gid: u32) -> Result<Self> {
+    pub fn new(
+        server_url: &str,
+        token: Option<&str>,
+        uid: u32,
+        gid: u32,
+        cache_dir: Option<&str>,
+    ) -> Result<Self> {
         let client = Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()?;
@@ -112,6 +125,14 @@ impl FerroFs {
             }
         });
 
+        #[cfg(feature = "offline-cache")]
+        let offline_cache = match cache_dir {
+            Some(dir) => Some(OfflineCache::new(PathBuf::from(dir)).map_err(|e| anyhow::anyhow!(e))?),
+            None => None,
+        };
+        #[cfg(not(feature = "offline-cache"))]
+        let _ = cache_dir;
+
         Ok(Self {
             client,
             server_url: server_url.trim_end_matches('/').to_string(),
@@ -122,6 +143,8 @@ impl FerroFs {
             inodes: Arc::new(RwLock::new(HashMap::new())),
             file_handles: Arc::new(RwLock::new(HashMap::new())),
             fh_counter: Arc::new(AtomicU64::new(0)),
+            #[cfg(feature = "offline-cache")]
+            offline_cache,
         })
     }
 
@@ -216,6 +239,21 @@ impl FerroFs {
             }
         }
 
+        #[cfg(feature = "offline-cache")]
+        if let Some(ref oc) = self.offline_cache
+            && let Ok(Some(data)) = oc.get(path).await
+        {
+            let bytes = Bytes::from(data);
+            if bytes.len() < 10 * 1024 * 1024 {
+                let mut mem_cache = self.cache.write().await;
+                mem_cache.insert(path.to_string(), bytes.clone());
+                if mem_cache.len() > 10_000 {
+                    mem_cache.clear();
+                }
+            }
+            return Ok(bytes);
+        }
+
         let url = self.make_url(path);
         let mut req = self.client.get(&url);
         if let Some(ref auth) = self.auth_header {
@@ -226,6 +264,11 @@ impl FerroFs {
             anyhow::bail!("GET {} failed: {}", url, resp.status());
         }
         let data = resp.bytes().await?;
+
+        #[cfg(feature = "offline-cache")]
+        if let Some(ref oc) = self.offline_cache {
+            let _ = oc.put(path, &data, None).await;
+        }
 
         if data.len() < 10 * 1024 * 1024 {
             let mut cache = self.cache.write().await;
@@ -247,14 +290,34 @@ impl FerroFs {
         if let Some(ref auth) = self.auth_header {
             req = req.header("Authorization", auth);
         }
-        let resp = req.send().await?;
+        let resp = match req.send().await {
+            Ok(r) => r,
+            Err(e) => {
+                #[cfg(feature = "offline-cache")]
+                if let Some(ref oc) = self.offline_cache {
+                    let _ = oc.queue_write(path, data).await;
+                    return Ok(());
+                }
+                return Err(e.into());
+            }
+        };
         if !resp.status().is_success() && resp.status().as_u16() != 204 {
+            #[cfg(feature = "offline-cache")]
+            if let Some(ref oc) = self.offline_cache {
+                let _ = oc.queue_write(path, data).await;
+                return Ok(());
+            }
             anyhow::bail!("PUT {} failed: {}", url, resp.status());
         }
 
         if data.len() < 10 * 1024 * 1024 {
             let mut cache = self.cache.write().await;
             cache.insert(path.to_string(), Bytes::from(data.to_vec()));
+        }
+
+        #[cfg(feature = "offline-cache")]
+        if let Some(ref oc) = self.offline_cache {
+            let _ = oc.put(path, data, None).await;
         }
 
         Ok(())
@@ -271,10 +334,17 @@ impl FerroFs {
             anyhow::bail!("DELETE {} failed: {}", url, resp.status());
         }
 
-        let mut cache = self.cache.write().await;
-        cache.remove(path);
-        let prefix = format!("{}/", path);
-        cache.retain(|k, _| !k.starts_with(&prefix));
+        {
+            let mut cache = self.cache.write().await;
+            cache.remove(path);
+            let prefix = format!("{}/", path);
+            cache.retain(|k, _| !k.starts_with(&prefix));
+        }
+
+        #[cfg(feature = "offline-cache")]
+        if let Some(ref oc) = self.offline_cache {
+            let _ = oc.invalidate(path);
+        }
 
         Ok(())
     }
@@ -975,13 +1045,13 @@ mod tests {
 
     #[test]
     fn test_ferro_fs_new() {
-        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000);
+        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000, None);
         assert!(fs.is_ok());
     }
 
     #[test]
     fn test_ferro_fs_new_with_token() {
-        let fs = FerroFs::new("http://localhost:8080", Some("mytoken"), 1000, 1000);
+        let fs = FerroFs::new("http://localhost:8080", Some("mytoken"), 1000, 1000, None);
         assert!(fs.is_ok());
         let fs = fs.unwrap();
         assert!(fs.auth_header.is_some());
@@ -990,7 +1060,7 @@ mod tests {
 
     #[test]
     fn test_ferro_fs_new_with_basic_auth() {
-        let fs = FerroFs::new("http://localhost:8080", Some("user:pass"), 1000, 1000);
+        let fs = FerroFs::new("http://localhost:8080", Some("user:pass"), 1000, 1000, None);
         assert!(fs.is_ok());
         let fs = fs.unwrap();
         assert!(fs.auth_header.is_some());
@@ -999,7 +1069,7 @@ mod tests {
 
     #[test]
     fn test_make_url() {
-        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000).unwrap();
+        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000, None).unwrap();
         assert_eq!(fs.make_url("/file.txt"), "http://localhost:8080/file.txt");
         assert_eq!(
             fs.make_url("/path with spaces/file.txt"),
@@ -1009,7 +1079,7 @@ mod tests {
 
     #[test]
     fn test_make_url_trailing_slash() {
-        let fs = FerroFs::new("http://localhost:8080/", None, 1000, 1000).unwrap();
+        let fs = FerroFs::new("http://localhost:8080/", None, 1000, 1000, None).unwrap();
         assert_eq!(fs.make_url("/file.txt"), "http://localhost:8080/file.txt");
     }
 
@@ -1082,7 +1152,7 @@ mod tests {
 
     #[test]
     fn test_next_fh_increments() {
-        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000).unwrap();
+        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000, None).unwrap();
         let fh1 = fs.next_fh();
         let fh2 = fs.next_fh();
         let fh3 = fs.next_fh();

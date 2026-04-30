@@ -245,7 +245,7 @@ pub async fn handle_report(
     State(state): State<CardDavState>,
     Extension(body): Extension<Bytes>,
 ) -> Response {
-    let _filter_prop = xml_ext::parse_addressbook_query_filter(&body);
+    let filter_text = xml_ext::parse_addressbook_query_filter(&body);
 
     let books = state.store.list_address_books(&state.principal).await;
     let mut responses = Vec::new();
@@ -253,12 +253,9 @@ pub async fn handle_report(
     for book in &books {
         let contacts = state.store.list_contacts(&book.id).await;
         for contact in &contacts {
-            let include = if let Some(ref prop) = _filter_prop {
-                contact.vcard_data.contains(prop)
-                    || contact
-                        .vcard_data
-                        .to_uppercase()
-                        .contains(&prop.to_uppercase())
+            let include = if let Some(ref query) = filter_text {
+                let query_lower = query.to_lowercase();
+                contact.vcard_data.to_lowercase().contains(&query_lower)
             } else {
                 true
             };

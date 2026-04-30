@@ -9,6 +9,10 @@ description = "FUSE filesystem mount for Ferro"
 name = "ferro-fuse"
 path = "src/main.rs"
 
+[features]
+default = ["offline-cache"]
+offline-cache = ["dep:rusqlite", "dep:sha2", "dep:hex"]
+
 [dependencies]
 ferro-common = { path = "../common" }
 tokio = { workspace = true }
@@ -27,6 +31,12 @@ base64 = "0.22"
 urlencoding = "2"
 lazy-regex = "3"
 async-trait = "0.1"
+rusqlite = { version = "0.31", features = ["bundled"], optional = true }
+sha2 = { version = "0.10", optional = true }
+hex = { version = "0.4", optional = true }
+
+[dev-dependencies]
+tempfile = "3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 fuse3 = { version = "0.7", features = ["tokio-runtime"] }

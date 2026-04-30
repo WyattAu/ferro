@@ -17,6 +17,8 @@ tauri = [
     "dep:tauri-plugin-dialog",
     "dep:tauri-plugin-fs",
     "dep:tauri-plugin-notification",
+    "dep:roxmltree",
+    "dep:reqwest",
 ]
 mobile = [
     "dep:tauri",
@@ -25,6 +27,8 @@ mobile = [
     "dep:tauri-plugin-fs",
     "dep:tauri-plugin-notification",
     "dep:tauri-plugin-http",
+    "dep:roxmltree",
+    "dep:reqwest",
 ]
 
 [dependencies]
@@ -35,6 +39,8 @@ tauri-plugin-dialog = { version = "2", optional = true }
 tauri-plugin-fs = { version = "2", optional = true }
 tauri-plugin-notification = { version = "2", optional = true }
 tauri-plugin-http = { version = "2", optional = true }
+roxmltree = { version = "0.20", optional = true }
+reqwest = { version = "0.12", features = ["json"], optional = true }
 serde = { workspace = true }
 serde_json = "1"
 tokio = { workspace = true }
