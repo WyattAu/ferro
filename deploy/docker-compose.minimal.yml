@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  ferro-server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: ferro-server
+    ports: ["8080:8080"]
+    volumes: ["ferro-data:/data"]
+    environment:
+      - FERRO_ADMIN_PASSWORD=${FERRO_ADMIN_PASSWORD:-changeme}
+    restart: unless-stopped
+
+  ferro-web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    container_name: ferro-web
+    ports: ["80:80"]
+    depends_on: [ferro-server]
+
+volumes:
+  ferro-data:

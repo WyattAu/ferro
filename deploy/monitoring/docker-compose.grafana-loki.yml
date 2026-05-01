@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  ferro:
+    image: ghcr.io/wyattau/ferro:latest
+    ports: ["8080:8080"]
+    volumes: ["ferro-data:/data"]
+    environment:
+      - FERRO_ADMIN_PASSWORD=admin
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    ports: ["3100:3100"]
+    volumes: ["loki-data:/loki"]
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus-loki.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3000:3000"]
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - grafana-provisioning:/etc/grafana/provisioning
+    depends_on: [prometheus, loki]
+    restart: unless-stopped
+
+volumes:
+  ferro-data:
+  loki-data:
+  prometheus-data:
+  grafana-data:

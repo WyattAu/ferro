@@ -1,0 +1,10 @@
+# VictoriaLogs provisioning defaults
+# This directory can contain VictoriaLogs configuration files
+# that are mounted into the VictoriaLogs container.
+
+# Example: rules for log parsing, retention policies, etc.
+# retention:
+#   period: 30d
+#
+# logql:
+#   enabled: true

@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  ferro:
+    image: ghcr.io/wyattau/ferro:latest
+    ports: ["8080:8080"]
+    volumes: ["ferro-data:/data"]
+    environment:
+      - FERRO_ADMIN_PASSWORD=admin
+    restart: unless-stopped
+
+  victoria-metrics:
+    image: victoriametrics/victoriametrics:latest
+    ports: ["8428:8428"]
+    volumes: ["vm-data:/victoria-metrics-data"]
+    command:
+      - --promscrape.config=/etc/promscrape.yml
+      - --promscrape.configStrictParse=false
+    restart: unless-stopped
+
+  victoria-logs:
+    image: victoriametrics/victorialogs:latest
+    ports: ["9428:9428"]
+    volumes:
+      - vl-data:/victoria-logs-data
+      - ./vl-provisioning:/etc/victoria-logs-provisioning
+    command:
+      - --storageDataPath=/victoria-logs-data
+    restart: unless-stopped
+
+  vmagent:
+    image: victoriametrics/vmagent:latest
+    volumes:
+      - ./prometheus-vm.yml:/etc/prometheus/prometheus.yml
+    command:
+      - --promscrape.config=/etc/prometheus/prometheus.yml
+      - --remoteWrite.url=http://victoria-metrics:8428/api/v1/write
+    depends_on: [victoria-metrics]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3000:3000"]
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - grafana-provisioning-vm:/etc/grafana/provisioning
+    depends_on: [victoria-metrics, victoria-logs]
+    restart: unless-stopped
+
+volumes:
+  ferro-data:
+  vm-data:
+  vl-data:
+  grafana-data:

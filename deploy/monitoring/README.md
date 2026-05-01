@@ -1,45 +1,114 @@
 # Ferro Monitoring Stack
 
-Prometheus + Grafana monitoring for Ferro with pre-built dashboards and alerting rules.
+Monitoring for Ferro with pre-built dashboards and alerting rules. Supports two monitoring stacks:
+
+- **Grafana + Loki** — Industry-standard log aggregation with Prometheus metrics
+- **VictoriaMetrics + VictoriaLogs** — High-performance alternative with lower resource usage
 
 ## Quick Start
 
+### Option A: Grafana + Loki
+
 ```bash
-docker compose -f deploy/docker-compose.yml \
-  -f deploy/monitoring/docker-compose.monitoring.yml \
-  up -d
+docker compose -f deploy/monitoring/docker-compose.grafana-loki.yml up -d
+```
+
+### Option B: VictoriaMetrics + VictoriaLogs
+
+```bash
+docker compose -f deploy/monitoring/docker-compose.victoria.yml up -d
 ```
 
 Grafana will be available at `http://localhost:3000` (default credentials: `admin` / `admin`).
 
 ## Architecture
 
+### Grafana + Loki Stack
+
 ```
 ┌──────────┐     /metrics    ┌────────────┐
 │  Ferro   │ ───────────────▶│ Prometheus │
 │  :8080   │                 │   :9090    │
-└──────────┘                 └─────┬──────┘
-                                   │ rules
-                                   ▼
-┌──────────────┐           ┌──────────────┐
-│    Grafana   │◀──────────│ Alertmanager │
-│    :3000     │  alerts   │    :9093     │
-└──────────────┘           └──────────────┘
-
-┌──────────────┐
-│ Node Exporter│
-│    :9100     │
-└──────────────┘
+└────┬─────┘                 └─────┬──────┘
+     │                             │
+     │ logs                        │ metrics
+     ▼                             ▼
+┌──────────┐                 ┌──────────────┐
+│  Loki    │                 │    Grafana   │
+│  :3100   │────────────────▶│    :3000     │
+└──────────┘   logs          └──────────────┘
 ```
+
+### VictoriaMetrics + VictoriaLogs Stack
+
+```
+┌──────────┐     /metrics    ┌──────────┐
+│  Ferro   │ ───────────────▶│ vmagent  │
+│  :8080   │                 └────┬─────┘
+└────┬─────┘                      │ remote write
+     │                            ▼
+     │ logs                 ┌──────────────────┐
+     ▼                     │ VictoriaMetrics  │
+┌──────────────┐           │     :8428        │
+│ VictoriaLogs │──────────▶└────────┬─────────┘
+│    :9428     │  metrics           │
+└──────────────┘                    ▼
+                              ┌──────────────┐
+                              │    Grafana   │
+                              │    :3000     │
+                              └──────────────┘
+```
+
+## Feature Comparison
+
+| Feature | Grafana + Loki | VictoriaMetrics + VictoriaLogs |
+|---------|---------------|-------------------------------|
+| Metrics storage | Prometheus | VictoriaMetrics |
+| Log storage | Loki | VictoriaLogs |
+| Query language | PromQL + LogQL | PromQL + LogsQL |
+| Resource usage | Higher | Lower |
+| Long-term storage | Requires extra config | Built-in |
+| High cardinality | Good | Excellent |
+| Prometheus compatibility | Native | Native (PromQL-compatible) |
+| Community plugins | Extensive | Growing |
+| Docker Compose | `docker-compose.grafana-loki.yml` | `docker-compose.victoria.yml` |
 
 ## Importing Dashboards
 
 1. Open Grafana at `http://localhost:3000`
 2. Navigate to **Dashboards** > **Import**
 3. Upload the JSON files from `deploy/monitoring/dashboards/`:
-   - `ferro-overview.json` — Server overview (HTTP, resources, storage, federation)
-   - `ferro-webdav.json` — WebDAV/CalDAV/CardDAV operations and performance
-4. Select the `${DS_PROMETHEUS}` datasource when prompted
+
+### Grafana + Loki Dashboards
+
+| Dashboard | File | Description |
+|-----------|------|-------------|
+| Logs Overview | `grafana-loki/logs-overview.json` | Log volume, errors, sources, full-text search |
+| Audit Log | `grafana-loki/audit-log.json` | Audit events, action breakdown, user activity |
+
+### VictoriaMetrics Dashboards
+
+| Dashboard | File | Description |
+|-----------|------|-------------|
+| Overview | `victoriametrics/overview.json` | HTTP, storage, federation, CRDT sync |
+| Logs Overview | `victoriametrics/logs-overview.json` | Log volume, errors, ingestion, query performance |
+
+### Stack-Agnostic Dashboards
+
+| Dashboard | File | Description |
+|-----------|------|-------------|
+| Server Overview | `ferro-overview.json` | HTTP, resources, storage, federation |
+| WebDAV | `ferro-webdav.json` | WebDAV/CalDAV/CardDAV operations and performance |
+| Admin Dashboard | `admin-dashboard.json` | Combined admin view (works with either stack) |
+
+### Datasource Variables
+
+When importing, select the appropriate datasource for each variable:
+
+- `${DS_PROMETHEUS}` — Prometheus or VictoriaMetrics
+- `${DS_LOKI}` — Loki datasource
+- `${DS_VICTORIAMETRICS}` — VictoriaMetrics datasource
+- `${DS_VICTORIALOGS}` — VictoriaLogs datasource
 
 Dashboards are also auto-provisioned if you use the provided Docker Compose config (they mount into `/etc/grafana/provisioning/dashboards/`).
 
@@ -64,6 +133,8 @@ Dashboards are also auto-provisioned if you use the provided Docker Compose conf
 | `http_request_duration_seconds_bucket` | Request latency histogram |
 | `http_request_duration_seconds_sum` | Request latency sum |
 | `http_request_duration_seconds_count` | Request latency count |
+| `http_request_size_bytes_sum` | Total request bytes |
+| `http_response_size_bytes_sum` | Total response bytes |
 
 ### Application
 
@@ -73,10 +144,18 @@ Dashboards are also auto-provisioned if you use the provided Docker Compose conf
 | `ferro_storage_health_status` | Storage backend health (1 = healthy) |
 | `ferro_storage_files_total` | Total files in storage |
 | `ferro_storage_bytes_total` | Total bytes in storage |
+| `ferro_storage_capacity_bytes` | Storage capacity |
+| `ferro_storage_trash_bytes_total` | Trash size |
 | `ferro_storage_operations_total` | Storage operations (label: `operation`) |
 | `ferro_federation_inbox_total` | Federation inbox deliveries |
 | `ferro_federation_delivery_total` | Federation outgoing deliveries |
 | `ferro_federation_errors_total` | Federation errors |
+| `ferro_federation_followers` | Followers count |
+| `ferro_federation_following` | Following count |
+| `ferro_version_info` | Server version info |
+| `ferro_auth_failures_total` | Failed authentication attempts |
+| `ferro_auth_attempts_total` | Authentication attempts (label: `result`) |
+| `ferro_active_sessions` | Active sessions |
 
 ### WebDAV / CalDAV / CardDAV
 
@@ -87,6 +166,13 @@ Dashboards are also auto-provisioned if you use the provided Docker Compose conf
 | `ferro_caldav_operations_total` | Calendar operations (label: `operation`) |
 | `ferro_carddav_report_total` | CardDAV REPORT requests |
 | `ferro_carddav_operations_total` | Address book operations (label: `operation`) |
+
+### CRDT Sync
+
+| Metric | Description |
+|--------|-------------|
+| `ferro_crdt_sync_operations_total` | Sync operations (label: `operation`) |
+| `ferro_crdt_sync_sessions_active` | Active sync sessions |
 
 ## Available Alerts
 
@@ -151,13 +237,26 @@ receivers:
 
 ```
 deploy/monitoring/
-├── prometheus.yml          # Prometheus scrape config & rules
-├── alertmanager.yml        # Alert routing & receivers
+├── prometheus.yml                          # Prometheus scrape config (original)
+├── prometheus-loki.yml                     # Prometheus scrape config for Loki stack
+├── prometheus-vm.yml                       # Prometheus scrape config for VictoriaMetrics
+├── docker-compose.grafana-loki.yml         # Docker Compose: Grafana + Loki
+├── docker-compose.victoria.yml             # Docker Compose: VictoriaMetrics + VictoriaLogs
+├── alertmanager.yml                        # Alert routing & receivers
 ├── alerts/
-│   ├── infrastructure.yml  # Infrastructure alerts
-│   └── application.yml     # Application alerts
+│   ├── infrastructure.yml                  # Infrastructure alerts
+│   └── application.yml                     # Application alerts
 ├── dashboards/
-│   ├── ferro-overview.json # Overview dashboard
-│   └── ferro-webdav.json   # WebDAV dashboard
+│   ├── ferro-overview.json                 # Overview dashboard (Prometheus)
+│   ├── ferro-webdav.json                   # WebDAV dashboard (Prometheus)
+│   ├── admin-dashboard.json                # Combined admin dashboard (any stack)
+│   ├── grafana-loki/
+│   │   ├── logs-overview.json              # Log overview (Loki)
+│   │   └── audit-log.json                  # Audit log viewer (Loki)
+│   └── victoriametrics/
+│       ├── overview.json                   # Overview (VictoriaMetrics)
+│       └── logs-overview.json              # Log overview (VictoriaLogs)
+├── vl-provisioning/
+│   └── defaults.yml                        # VictoriaLogs provisioning defaults
 └── README.md
 ```

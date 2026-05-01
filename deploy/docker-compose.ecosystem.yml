@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  ferro-server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: ferro-server
+    ports: ["8080:8080"]
+    volumes:
+      - ferro-data:/data
+    environment:
+      - FERRO_ADMIN_USER=admin
+      - FERRO_ADMIN_PASSWORD=${FERRO_ADMIN_PASSWORD:-changeme}
+      - RUST_LOG=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/.well-known/ferro"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  ferro-web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    container_name: ferro-web
+    ports: ["80:80"]
+    depends_on:
+      ferro-server:
+        condition: service_healthy
+    environment:
+      - FERRO_SERVER_URL=http://ferro-server:8080
+    restart: unless-stopped
+
+  ferro-admin:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.admin
+    container_name: ferro-admin
+    ports: ["8081:80"]
+    depends_on:
+      ferro-server:
+        condition: service_healthy
+    environment:
+      - FERRO_SERVER_URL=http://ferro-server:8080
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    container_name: ferro-loki
+    ports: ["3100:3100"]
+    volumes: ["loki-data:/loki"]
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ferro-prometheus
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus-ecosystem.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ferro-grafana
+    ports: ["3000:3000"]
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus, loki, ferro-server]
+    restart: unless-stopped
+
+volumes:
+  ferro-data:
+  loki-data:
+  prometheus-data:
+  grafana-data:

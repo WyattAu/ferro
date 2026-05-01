@@ -11,6 +11,8 @@ members = [
     "crates/fuse",
     "crates/client",
     "crates/benchmarks",
+    "crates/admin",
+    "crates/observability",
 ]
 resolver = "2"
 

@@ -315,6 +315,28 @@ cd crates/web
 trunk build --release
 ```
 
+## Ecosystem Packages
+
+Ferro is a collection of independently deployable packages:
+
+| Package | Binary | Purpose |
+|---|---|---|
+| ferro-server | `ferro-server` | Core storage server with WebDAV, API, and metrics endpoints |
+| ferro-web | static files (nginx) | User-facing file browser |
+| ferro-admin | static files (nginx) | Admin panel for system management |
+| ferro-cli | `ferro-cli` | Admin CLI tool |
+| ferro-fuse | `ferro-fuse` | FUSE filesystem mount |
+| ferro-observability | endpoints in ferro-server | `/metrics` and `/healthz` endpoints for monitoring |
+
+### Deploy the Full Ecosystem
+
+```bash
+cd deploy
+docker compose -f docker-compose.ecosystem.yml up -d
+```
+
+See [deploy/README-ecosystem.md](deploy/README-ecosystem.md) for all deployment options, environment variables, and port mappings.
+
 ## Architecture
 
 Ferro is built as a Rust workspace with 6 crates:
