@@ -451,10 +451,7 @@ fn api_routes() -> Router<AppState> {
                 .delete(policies::delete_policy),
         )
         .route("/config", axum::routing::get(config::get_server_config))
-        .route(
-            "/upload-url",
-            axum::routing::get(presigned::get_upload_url),
-        )
+        .route("/upload-url", axum::routing::get(presigned::get_upload_url))
         .route(
             "/download-url",
             axum::routing::get(presigned::get_download_url),
@@ -489,22 +486,10 @@ fn api_routes() -> Router<AppState> {
         )
         .route("/recent", axum::routing::get(favorites::list_recent))
         .route("/trash", axum::routing::get(trash::list_trash))
-        .route(
-            "/trash/{path}",
-            axum::routing::delete(trash::move_to_trash),
-        )
-        .route(
-            "/trash/restore",
-            axum::routing::post(trash::restore_trash),
-        )
-        .route(
-            "/trash/purge",
-            axum::routing::delete(trash::purge_trash),
-        )
-        .route(
-            "/trash/empty",
-            axum::routing::delete(trash::empty_trash),
-        )
+        .route("/trash/{path}", axum::routing::delete(trash::move_to_trash))
+        .route("/trash/restore", axum::routing::post(trash::restore_trash))
+        .route("/trash/purge", axum::routing::delete(trash::purge_trash))
+        .route("/trash/empty", axum::routing::delete(trash::empty_trash))
         .route("/bulk/delete", axum::routing::post(bulk::bulk_delete))
         .route("/batch/copy", axum::routing::post(batch::batch_copy))
         .route("/batch/move", axum::routing::post(batch::batch_move))
@@ -552,30 +537,18 @@ fn api_routes() -> Router<AppState> {
             "/locks/{token}",
             axum::routing::delete(search::handle_unlock_by_token),
         )
-        .route(
-            "/admin/stats",
-            axum::routing::get(admin_api::admin_stats),
-        )
+        .route("/admin/stats", axum::routing::get(admin_api::admin_stats))
         .route(
             "/admin/storage",
             axum::routing::get(admin_api::admin_storage),
         )
-        .route(
-            "/admin/audit",
-            axum::routing::get(admin_api::admin_audit),
-        )
+        .route("/admin/audit", axum::routing::get(admin_api::admin_audit))
         .route(
             "/admin/backup/:id",
             axum::routing::delete(backup::delete_backup),
         )
-        .route(
-            "/admin/backup",
-            axum::routing::post(backup::create_backup),
-        )
-        .route(
-            "/admin/backups",
-            axum::routing::get(backup::list_backups),
-        )
+        .route("/admin/backup", axum::routing::post(backup::create_backup))
+        .route("/admin/backups", axum::routing::get(backup::list_backups))
         .route(
             "/admin/restore",
             axum::routing::post(backup::restore_backup),
@@ -650,10 +623,7 @@ fn api_routes() -> Router<AppState> {
             "/sync/events",
             axum::routing::get(sync::events::sync_events),
         )
-        .route(
-            "/sync/delta",
-            axum::routing::get(sync::events::sync_delta),
-        )
+        .route("/sync/delta", axum::routing::get(sync::events::sync_delta))
         .route(
             "/sync/status",
             axum::routing::get(sync::events::sync_status),
@@ -1149,10 +1119,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), axum::http::StatusCode::OK);
-        assert_eq!(
-            response.headers().get("deprecation").unwrap(),
-            "true"
-        );
+        assert_eq!(response.headers().get("deprecation").unwrap(), "true");
         assert_eq!(
             response.headers().get("sunset").unwrap(),
             "Sat, 01 May 2027 00:00:00 GMT"

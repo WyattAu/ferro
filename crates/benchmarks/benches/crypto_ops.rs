@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use ferro_crypto::CryptoProvider;
 
 fn bench_password_hash(c: &mut Criterion) {
@@ -28,7 +28,10 @@ fn bench_password_verify(c: &mut Criterion) {
             let provider = &*provider;
             let hashed = &*hashed;
             async move {
-                provider.verify_password("test_password", hashed).await.unwrap();
+                provider
+                    .verify_password("test_password", hashed)
+                    .await
+                    .unwrap();
             }
         })
     });

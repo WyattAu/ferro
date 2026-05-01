@@ -1,7 +1,7 @@
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -50,15 +50,23 @@ pub async fn init_upload(
         path: req.path,
         chunk_size,
         received_chunks: HashMap::new(),
-        total_chunks: req
-            .total_size
-            .map(|s| (s as usize).div_ceil(chunk_size)),
+        total_chunks: req.total_size.map(|s| (s as usize).div_ceil(chunk_size)),
         created_at: std::time::Instant::now(),
     };
 
-    state.upload_store.write().await.insert(upload_id.clone(), upload);
+    state
+        .upload_store
+        .write()
+        .await
+        .insert(upload_id.clone(), upload);
 
-    (StatusCode::OK, Json(InitUploadResponse { upload_id, chunk_size }))
+    (
+        StatusCode::OK,
+        Json(InitUploadResponse {
+            upload_id,
+            chunk_size,
+        }),
+    )
 }
 
 pub async fn upload_chunk(
@@ -102,7 +110,11 @@ pub async fn complete_upload(
                 }
             }
 
-            match state.storage.put(&path, bytes::Bytes::from(data), "anonymous").await {
+            match state
+                .storage
+                .put(&path, bytes::Bytes::from(data), "anonymous")
+                .await
+            {
                 Ok(_) => StatusCode::CREATED,
                 Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
             }

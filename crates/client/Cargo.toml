@@ -24,7 +24,7 @@ urlencoding = "2"
 
 [features]
 default = []
-ffi = []
+ffi = ["tokio/rt-multi-thread"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

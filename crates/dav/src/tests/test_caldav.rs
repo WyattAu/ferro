@@ -241,7 +241,12 @@ async fn test_ctag_bumps_on_create_event() {
         .unwrap();
     let ctag_before = cal.ctag.clone();
 
-    let ical = sample_event_ical("ctag-1", "CTag Test", "20260427T100000Z", "20260427T110000Z");
+    let ical = sample_event_ical(
+        "ctag-1",
+        "CTag Test",
+        "20260427T100000Z",
+        "20260427T110000Z",
+    );
     store.create_event(&cal.id, &ical).await.unwrap();
 
     let cal_after = store.get_calendar("user1", &cal.id).await.unwrap();
@@ -256,12 +261,20 @@ async fn test_ctag_bumps_on_update_event() {
         .await
         .unwrap();
 
-    let ical = sample_event_ical("ctag-2", "CTag Test", "20260427T100000Z", "20260427T110000Z");
+    let ical = sample_event_ical(
+        "ctag-2",
+        "CTag Test",
+        "20260427T100000Z",
+        "20260427T110000Z",
+    );
     store.create_event(&cal.id, &ical).await.unwrap();
     let ctag_before = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
 
     let updated = sample_event_ical("ctag-2", "Updated", "20260427T100000Z", "20260427T120000Z");
-    store.update_event(&cal.id, "ctag-2", &updated).await.unwrap();
+    store
+        .update_event(&cal.id, "ctag-2", &updated)
+        .await
+        .unwrap();
 
     let ctag_after = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
     assert_ne!(ctag_before, ctag_after);
@@ -275,7 +288,12 @@ async fn test_ctag_bumps_on_delete_event() {
         .await
         .unwrap();
 
-    let ical = sample_event_ical("ctag-3", "CTag Test", "20260427T100000Z", "20260427T110000Z");
+    let ical = sample_event_ical(
+        "ctag-3",
+        "CTag Test",
+        "20260427T100000Z",
+        "20260427T110000Z",
+    );
     store.create_event(&cal.id, &ical).await.unwrap();
     let ctag_before = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
 

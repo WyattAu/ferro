@@ -41,7 +41,9 @@ pub async fn security_headers_middleware(
     );
     headers.insert(
         "Permissions-Policy",
-        axum::http::HeaderValue::from_static("camera=(), microphone=(), geolocation=(), payment=()"),
+        axum::http::HeaderValue::from_static(
+            "camera=(), microphone=(), geolocation=(), payment=()",
+        ),
     );
 
     if is_https {

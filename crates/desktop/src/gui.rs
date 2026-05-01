@@ -110,13 +110,12 @@ fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<FileEntry> {
             })
             .unwrap_or_default();
 
-        let etag = prop
-            .and_then(|p| {
-                p.children()
-                    .find(|n| n.is_element() && n.tag_name().name() == "getetag")
-                    .and_then(|n| n.text())
-                    .map(|t| t.to_string())
-            });
+        let etag = prop.and_then(|p| {
+            p.children()
+                .find(|n| n.is_element() && n.tag_name().name() == "getetag")
+                .and_then(|n| n.text())
+                .map(|t| t.to_string())
+        });
 
         entries.push(FileEntry {
             name,
@@ -229,11 +228,7 @@ pub async fn put_file(
 }
 
 #[tauri::command]
-pub async fn create_directory(
-    url: String,
-    token: String,
-    path: String,
-) -> Result<(), String> {
+pub async fn create_directory(url: String, token: String, path: String) -> Result<(), String> {
     let client = build_client(&token)?;
     let full_url = format!("{}{}", url.trim_end_matches('/'), path);
     let response = client
@@ -270,12 +265,7 @@ pub async fn delete_item(url: String, token: String, path: String) -> Result<(),
 }
 
 #[tauri::command]
-pub async fn move_item(
-    url: String,
-    token: String,
-    from: String,
-    to: String,
-) -> Result<(), String> {
+pub async fn move_item(url: String, token: String, from: String, to: String) -> Result<(), String> {
     let client = build_client(&token)?;
     let from_url = format!("{}{}", url.trim_end_matches('/'), from);
     let to_url = format!("{}{}", url.trim_end_matches('/'), to);

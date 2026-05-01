@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -52,7 +52,9 @@ impl OfflineCache {
         let cache_key = Self::hash_content(data);
         let blob_path = self.blobs_dir.join(&cache_key);
 
-        fs::write(&blob_path, data).await.map_err(|e| e.to_string())?;
+        fs::write(&blob_path, data)
+            .await
+            .map_err(|e| e.to_string())?;
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -74,9 +76,7 @@ impl OfflineCache {
             let mut stmt = db
                 .prepare("SELECT cache_key FROM cache_entries WHERE remote_path = ?1")
                 .map_err(|e| e.to_string())?;
-            let key: Option<String> = stmt
-                .query_row(params![remote_path], |row| row.get(0))
-                .ok();
+            let key: Option<String> = stmt.query_row(params![remote_path], |row| row.get(0)).ok();
             match key {
                 Some(k) => k,
                 None => return Ok(None),
@@ -108,7 +108,9 @@ impl OfflineCache {
     pub async fn queue_write(&self, remote_path: &str, data: &[u8]) -> Result<(), String> {
         let cache_key = Self::hash_content(data);
         let blob_path = self.blobs_dir.join(&cache_key);
-        fs::write(&blob_path, data).await.map_err(|e| e.to_string())?;
+        fs::write(&blob_path, data)
+            .await
+            .map_err(|e| e.to_string())?;
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -128,12 +130,17 @@ impl OfflineCache {
     pub fn get_pending_writes(&self) -> Result<Vec<(String, String)>, String> {
         let db = self.db.lock().map_err(|e| e.to_string())?;
         let mut stmt = db
-            .prepare("SELECT remote_path, local_blob_key FROM pending_writes ORDER BY queued_at ASC")
+            .prepare(
+                "SELECT remote_path, local_blob_key FROM pending_writes ORDER BY queued_at ASC",
+            )
             .map_err(|e| e.to_string())?;
         let rows = stmt
-            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
             .map_err(|e| e.to_string())?;
-        rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())
     }
 
     #[allow(dead_code)]
@@ -288,8 +295,14 @@ mod tests {
         let dir = tempdir().unwrap();
         let cache = OfflineCache::new(dir.path().to_path_buf()).unwrap();
 
-        cache.put("/path1.txt", b"same content", None).await.unwrap();
-        cache.put("/path2.txt", b"same content", None).await.unwrap();
+        cache
+            .put("/path1.txt", b"same content", None)
+            .await
+            .unwrap();
+        cache
+            .put("/path2.txt", b"same content", None)
+            .await
+            .unwrap();
 
         assert!(cache.get("/path1.txt").await.unwrap().is_some());
         assert!(cache.get("/path2.txt").await.unwrap().is_some());

@@ -66,7 +66,10 @@ pub struct FerroBytes {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ferro_client_new(server_url: *const c_char, token: *const c_char) -> *mut FerroClientHandle {
+pub unsafe extern "C" fn ferro_client_new(
+    server_url: *const c_char,
+    token: *const c_char,
+) -> *mut FerroClientHandle {
     if server_url.is_null() || token.is_null() {
         return ptr::null_mut();
     }
@@ -119,10 +122,18 @@ pub unsafe extern "C" fn ferro_file_list_free(list: *mut FerroFileList) {
     let list = unsafe { Box::from_raw(list) };
     for i in 0..list.count {
         let entry = unsafe { &*list.entries.add(i) };
-        if !entry.name.is_null() { unsafe { drop(CString::from_raw(entry.name)) }; }
-        if !entry.path.is_null() { unsafe { drop(CString::from_raw(entry.path)) }; }
-        if !entry.modified.is_null() { unsafe { drop(CString::from_raw(entry.modified)) }; }
-        if !entry.etag.is_null() { unsafe { drop(CString::from_raw(entry.etag)) }; }
+        if !entry.name.is_null() {
+            unsafe { drop(CString::from_raw(entry.name)) };
+        }
+        if !entry.path.is_null() {
+            unsafe { drop(CString::from_raw(entry.path)) };
+        }
+        if !entry.modified.is_null() {
+            unsafe { drop(CString::from_raw(entry.modified)) };
+        }
+        if !entry.etag.is_null() {
+            unsafe { drop(CString::from_raw(entry.etag)) };
+        }
     }
     if !list.entries.is_null() && list.count > 0 {
         unsafe { drop(Vec::from_raw_parts(list.entries, list.count, list.count)) };
@@ -170,10 +181,25 @@ mod tests {
 
     #[test]
     fn test_result_from_error() {
-        assert_eq!(FerroResult::from(&ClientError::AuthFailed), FerroResult::ErrorAuth);
-        assert_eq!(FerroResult::from(&ClientError::NotFound("/x".into())), FerroResult::ErrorNotFound);
-        assert_eq!(FerroResult::from(&ClientError::XmlParse("bad".into())), FerroResult::ErrorXml);
-        assert_eq!(FerroResult::from(&ClientError::Http { status: 500, body: "err".into() }), FerroResult::ErrorHttp);
+        assert_eq!(
+            FerroResult::from(&ClientError::AuthFailed),
+            FerroResult::ErrorAuth
+        );
+        assert_eq!(
+            FerroResult::from(&ClientError::NotFound("/x".into())),
+            FerroResult::ErrorNotFound
+        );
+        assert_eq!(
+            FerroResult::from(&ClientError::XmlParse("bad".into())),
+            FerroResult::ErrorXml
+        );
+        assert_eq!(
+            FerroResult::from(&ClientError::Http {
+                status: 500,
+                body: "err".into()
+            }),
+            FerroResult::ErrorHttp
+        );
     }
 
     #[test]
@@ -193,10 +219,18 @@ mod tests {
         assert!(!ffi.is_dir);
 
         unsafe {
-            if !ffi.name.is_null() { drop(CString::from_raw(ffi.name)); }
-            if !ffi.path.is_null() { drop(CString::from_raw(ffi.path)); }
-            if !ffi.modified.is_null() { drop(CString::from_raw(ffi.modified)); }
-            if !ffi.etag.is_null() { drop(CString::from_raw(ffi.etag)); }
+            if !ffi.name.is_null() {
+                drop(CString::from_raw(ffi.name));
+            }
+            if !ffi.path.is_null() {
+                drop(CString::from_raw(ffi.path));
+            }
+            if !ffi.modified.is_null() {
+                drop(CString::from_raw(ffi.modified));
+            }
+            if !ffi.etag.is_null() {
+                drop(CString::from_raw(ffi.etag));
+            }
         }
     }
 

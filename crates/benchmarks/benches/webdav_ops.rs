@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 fn bench_path_normalization(c: &mut Criterion) {
     c.bench_function("normalize_simple_path", |b| {

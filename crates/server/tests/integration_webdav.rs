@@ -222,7 +222,12 @@ async fn test_move_file_old_404_new_200() {
         .unwrap();
     assert_eq!(move_resp.status(), StatusCode::CREATED);
     assert_eq!(
-        move_resp.headers().get("Location").unwrap().to_str().unwrap(),
+        move_resp
+            .headers()
+            .get("Location")
+            .unwrap()
+            .to_str()
+            .unwrap(),
         "/dst.txt"
     );
 
@@ -366,7 +371,11 @@ async fn test_put_get_roundtrip_content_matches() {
         .to_string();
 
     let body = body_bytes(response).await;
-    assert_eq!(&body[..], content.as_ref(), "Downloaded content must match uploaded content");
+    assert_eq!(
+        &body[..],
+        content.as_ref(),
+        "Downloaded content must match uploaded content"
+    );
 
     let cond = app
         .clone()
@@ -549,10 +558,7 @@ async fn test_put_overwrite_updates_content() {
         .to_str()
         .unwrap()
         .to_string();
-    assert_ne!(
-        etag1, etag2,
-        "ETag must change after overwrite"
-    );
+    assert_ne!(etag1, etag2, "ETag must change after overwrite");
 
     let get2 = app
         .oneshot(

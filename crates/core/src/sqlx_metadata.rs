@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferro_common::error::{FerroError, Result};
 use ferro_common::metadata::{ContentHash, FileMetadata};
-use sqlx::{FromRow, SqlitePool};
 #[cfg(feature = "postgres")]
 use sqlx::PgPool;
+use sqlx::{FromRow, SqlitePool};
 use tracing::debug;
 
 use crate::metadata::MetadataStore;

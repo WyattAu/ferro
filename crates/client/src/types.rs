@@ -33,7 +33,11 @@ impl UploadProgress {
         Self {
             bytes_uploaded: uploaded,
             total_bytes: total,
-            percent: if total > 0 { (uploaded as f64 / total as f64) * 100.0 } else { 0.0 },
+            percent: if total > 0 {
+                (uploaded as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            },
         }
     }
 }

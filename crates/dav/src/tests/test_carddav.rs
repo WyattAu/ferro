@@ -176,12 +176,23 @@ async fn test_ctag_bumps_on_update_contact() {
 
     let vcard = sample_vcard("ctag-2", "CTag Test", "Test", "CTag");
     store.create_contact(&book.id, &vcard).await.unwrap();
-    let ctag_before = store.get_address_book("user1", &book.id).await.unwrap().ctag;
+    let ctag_before = store
+        .get_address_book("user1", &book.id)
+        .await
+        .unwrap()
+        .ctag;
 
     let updated = sample_vcard("ctag-2", "Updated Name", "Test", "CTag");
-    store.update_contact(&book.id, "ctag-2", &updated).await.unwrap();
+    store
+        .update_contact(&book.id, "ctag-2", &updated)
+        .await
+        .unwrap();
 
-    let ctag_after = store.get_address_book("user1", &book.id).await.unwrap().ctag;
+    let ctag_after = store
+        .get_address_book("user1", &book.id)
+        .await
+        .unwrap()
+        .ctag;
     assert_ne!(ctag_before, ctag_after);
 }
 
@@ -195,10 +206,18 @@ async fn test_ctag_bumps_on_delete_contact() {
 
     let vcard = sample_vcard("ctag-3", "CTag Test", "Test", "CTag");
     store.create_contact(&book.id, &vcard).await.unwrap();
-    let ctag_before = store.get_address_book("user1", &book.id).await.unwrap().ctag;
+    let ctag_before = store
+        .get_address_book("user1", &book.id)
+        .await
+        .unwrap()
+        .ctag;
 
     store.delete_contact(&book.id, "ctag-3").await.unwrap();
 
-    let ctag_after = store.get_address_book("user1", &book.id).await.unwrap().ctag;
+    let ctag_after = store
+        .get_address_book("user1", &book.id)
+        .await
+        .unwrap()
+        .ctag;
     assert_ne!(ctag_before, ctag_after);
 }

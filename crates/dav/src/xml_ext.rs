@@ -164,8 +164,7 @@ pub fn parse_addressbook_query_filter(body: &[u8]) -> Option<String> {
                     in_text_match = true;
                 }
             }
-            Ok(Event::Text(ref e))
-                if in_text_match && filter_text.is_none() => {
+            Ok(Event::Text(ref e)) if in_text_match && filter_text.is_none() => {
                 let text = String::from_utf8_lossy(e.as_ref()).to_string();
                 if !text.is_empty() {
                     filter_text = Some(text);

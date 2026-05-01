@@ -20,12 +20,20 @@ impl FerroClient {
             .build()
             .expect("Failed to build HTTP client");
 
-        Self { base_url, token: token.to_string(), http }
+        Self {
+            base_url,
+            token: token.to_string(),
+            http,
+        }
     }
 
     pub fn with_client(server_url: &str, token: &str, http: reqwest::Client) -> Self {
         let base_url = server_url.trim_end_matches('/').to_string();
-        Self { base_url, token: token.to_string(), http }
+        Self {
+            base_url,
+            token: token.to_string(),
+            http,
+        }
     }
 
     pub fn server_url(&self) -> &str {
@@ -82,18 +90,22 @@ impl FerroClient {
         let response = self.propfind_raw(&url, "0").await?;
         let body = response.text().await.map_err(ClientError::Network)?;
         let entries = parse_multistatus(&body, path);
-        entries.into_iter().next().ok_or_else(|| ClientError::NotFound(path.to_string()))
+        entries
+            .into_iter()
+            .next()
+            .ok_or_else(|| ClientError::NotFound(path.to_string()))
     }
 
     pub async fn get(&self, path: &str) -> Result<Vec<u8>, ClientError> {
         let url = self.build_url(path);
-        let response = self.http.get(&url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
+        let response = self.http.get(&url).bearer_auth(&self.token).send().await?;
 
         match response.status().as_u16() {
-            200 => Ok(response.bytes().await.map_err(ClientError::Network)?.to_vec()),
+            200 => Ok(response
+                .bytes()
+                .await
+                .map_err(ClientError::Network)?
+                .to_vec()),
             404 => Err(ClientError::NotFound(path.to_string())),
             401 => Err(ClientError::AuthFailed),
             status => {
@@ -105,12 +117,15 @@ impl FerroClient {
 
     pub async fn get_text(&self, path: &str) -> Result<String, ClientError> {
         let bytes = self.get(path).await?;
-        String::from_utf8(bytes).map_err(|e| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
+        String::from_utf8(bytes)
+            .map_err(|e| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
     }
 
     pub async fn put(&self, path: &str, data: &[u8]) -> Result<(), ClientError> {
         let url = self.build_url(path);
-        let response = self.http.put(&url)
+        let response = self
+            .http
+            .put(&url)
             .bearer_auth(&self.token)
             .header(CONTENT_TYPE, "application/octet-stream")
             .body(data.to_vec())
@@ -120,7 +135,10 @@ impl FerroClient {
         match response.status().as_u16() {
             201 | 204 => Ok(()),
             401 => Err(ClientError::AuthFailed),
-            409 => Err(ClientError::Http { status: 409, body: "Conflict".to_string() }),
+            409 => Err(ClientError::Http {
+                status: 409,
+                body: "Conflict".to_string(),
+            }),
             status => {
                 let body = response.text().await.unwrap_or_default();
                 Err(ClientError::Http { status, body })
@@ -134,7 +152,9 @@ impl FerroClient {
 
     pub async fn delete(&self, path: &str) -> Result<(), ClientError> {
         let url = self.build_url(path);
-        let response = self.http.delete(&url)
+        let response = self
+            .http
+            .delete(&url)
             .bearer_auth(&self.token)
             .send()
             .await?;
@@ -152,7 +172,9 @@ impl FerroClient {
 
     pub async fn create_directory(&self, path: &str) -> Result<(), ClientError> {
         let url = self.build_url(path);
-        let response = self.http.request(reqwest::Method::from_bytes(b"MKCOL").unwrap(), &url)
+        let response = self
+            .http
+            .request(reqwest::Method::from_bytes(b"MKCOL").unwrap(), &url)
             .bearer_auth(&self.token)
             .send()
             .await?;
@@ -160,7 +182,10 @@ impl FerroClient {
         match response.status().as_u16() {
             201 => Ok(()),
             401 => Err(ClientError::AuthFailed),
-            405 => Err(ClientError::Http { status: 405, body: "Already exists".to_string() }),
+            405 => Err(ClientError::Http {
+                status: 405,
+                body: "Already exists".to_string(),
+            }),
             status => {
                 let body = response.text().await.unwrap_or_default();
                 Err(ClientError::Http { status, body })
@@ -171,7 +196,9 @@ impl FerroClient {
     pub async fn move_item(&self, from: &str, to: &str) -> Result<(), ClientError> {
         let url = self.build_url(from);
         let destination = self.build_url(to);
-        let response = self.http.request(reqwest::Method::from_bytes(b"MOVE").unwrap(), &url)
+        let response = self
+            .http
+            .request(reqwest::Method::from_bytes(b"MOVE").unwrap(), &url)
             .bearer_auth(&self.token)
             .header("Destination", &destination)
             .send()
@@ -191,7 +218,9 @@ impl FerroClient {
     pub async fn copy(&self, from: &str, to: &str) -> Result<(), ClientError> {
         let url = self.build_url(from);
         let destination = self.build_url(to);
-        let response = self.http.request(reqwest::Method::from_bytes(b"COPY").unwrap(), &url)
+        let response = self
+            .http
+            .request(reqwest::Method::from_bytes(b"COPY").unwrap(), &url)
             .bearer_auth(&self.token)
             .header("Destination", &destination)
             .send()
@@ -233,7 +262,9 @@ impl FerroClient {
   </D:prop>
 </D:propfind>"#;
 
-        let response = self.http.request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), url)
+        let response = self
+            .http
+            .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), url)
             .bearer_auth(&self.token)
             .header("Depth", depth)
             .header(CONTENT_TYPE, "application/xml")
@@ -305,7 +336,12 @@ fn parse_multistatus(xml: &str, base_path: &str) -> Vec<FileEntry> {
             }
         }
 
-        let name = href.trim_matches('/').rsplit('/').next().unwrap_or("").to_string();
+        let name = href
+            .trim_matches('/')
+            .rsplit('/')
+            .next()
+            .unwrap_or("")
+            .to_string();
 
         entries.push(FileEntry {
             name,
@@ -441,7 +477,10 @@ mod tests {
 
     #[test]
     fn test_error_status_code() {
-        let err = ClientError::Http { status: 404, body: "not found".into() };
+        let err = ClientError::Http {
+            status: 404,
+            body: "not found".into(),
+        };
         assert_eq!(err.status_code(), Some(404));
 
         let err = ClientError::AuthFailed;

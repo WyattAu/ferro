@@ -1,6 +1,6 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use ferro_core::storage::InMemoryStorageEngine;
+use criterion::{Criterion, criterion_group, criterion_main};
 use ferro_common::storage::StorageEngine;
+use ferro_core::storage::InMemoryStorageEngine;
 use std::sync::Arc;
 
 fn bench_put(c: &mut Criterion) {
@@ -13,7 +13,11 @@ fn bench_put(c: &mut Criterion) {
             let storage = storage.clone();
             async move {
                 storage
-                    .put("/bench/test.txt", bytes::Bytes::from(vec![0u8; 1024]), "bench")
+                    .put(
+                        "/bench/test.txt",
+                        bytes::Bytes::from(vec![0u8; 1024]),
+                        "bench",
+                    )
                     .await
                     .unwrap();
             }
@@ -25,7 +29,11 @@ fn bench_put(c: &mut Criterion) {
             let storage = storage.clone();
             async move {
                 storage
-                    .put("/bench/test.txt", bytes::Bytes::from(vec![0u8; 10_240]), "bench")
+                    .put(
+                        "/bench/test.txt",
+                        bytes::Bytes::from(vec![0u8; 10_240]),
+                        "bench",
+                    )
                     .await
                     .unwrap();
             }
@@ -37,7 +45,11 @@ fn bench_put(c: &mut Criterion) {
             let storage = storage.clone();
             async move {
                 storage
-                    .put("/bench/test.txt", bytes::Bytes::from(vec![0u8; 102_400]), "bench")
+                    .put(
+                        "/bench/test.txt",
+                        bytes::Bytes::from(vec![0u8; 102_400]),
+                        "bench",
+                    )
                     .await
                     .unwrap();
             }
@@ -52,7 +64,11 @@ fn bench_get(c: &mut Criterion) {
 
     rt.block_on(async {
         storage
-            .put("/bench/test.txt", bytes::Bytes::from(vec![0u8; 10_240]), "bench")
+            .put(
+                "/bench/test.txt",
+                bytes::Bytes::from(vec![0u8; 10_240]),
+                "bench",
+            )
             .await
             .unwrap();
     });
@@ -103,7 +119,11 @@ fn bench_delete(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             let storage = InMemoryStorageEngine::new();
             storage
-                .put("/bench/test.txt", bytes::Bytes::from_static(b"data"), "bench")
+                .put(
+                    "/bench/test.txt",
+                    bytes::Bytes::from_static(b"data"),
+                    "bench",
+                )
                 .await
                 .unwrap();
             storage.delete("/bench/test.txt").await.unwrap();
@@ -117,7 +137,11 @@ fn bench_exists(c: &mut Criterion) {
 
     rt.block_on(async {
         storage
-            .put("/bench/test.txt", bytes::Bytes::from_static(b"data"), "bench")
+            .put(
+                "/bench/test.txt",
+                bytes::Bytes::from_static(b"data"),
+                "bench",
+            )
             .await
             .unwrap();
     });
@@ -150,7 +174,11 @@ fn bench_head(c: &mut Criterion) {
 
     rt.block_on(async {
         storage
-            .put("/bench/test.txt", bytes::Bytes::from_static(b"test data content"), "bench")
+            .put(
+                "/bench/test.txt",
+                bytes::Bytes::from_static(b"test data content"),
+                "bench",
+            )
             .await
             .unwrap();
     });

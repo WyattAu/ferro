@@ -2,8 +2,8 @@ use anyhow::Result;
 use bytes::Bytes;
 use reqwest::Client;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
@@ -127,7 +127,9 @@ impl FerroFs {
 
         #[cfg(feature = "offline-cache")]
         let offline_cache = match cache_dir {
-            Some(dir) => Some(OfflineCache::new(PathBuf::from(dir)).map_err(|e| anyhow::anyhow!(e))?),
+            Some(dir) => {
+                Some(OfflineCache::new(PathBuf::from(dir)).map_err(|e| anyhow::anyhow!(e))?)
+            }
             None => None,
         };
         #[cfg(not(feature = "offline-cache"))]
@@ -669,16 +671,12 @@ impl Filesystem for FerroFs {
     ) -> FuseResult<()> {
         let old_path = format!(
             "{}/{}",
-            self.ino_to_path(parent)
-                .await
-                .trim_end_matches('/'),
+            self.ino_to_path(parent).await.trim_end_matches('/'),
             name.to_string_lossy()
         );
         let new_path = format!(
             "{}/{}",
-            self.ino_to_path(newparent)
-                .await
-                .trim_end_matches('/'),
+            self.ino_to_path(newparent).await.trim_end_matches('/'),
             newname.to_string_lossy()
         );
 
@@ -755,9 +753,7 @@ impl Filesystem for FerroFs {
         let start = offset as usize;
         let end = std::cmp::min(start + size as usize, data.len());
         if start >= data.len() {
-            return Ok(ReplyData {
-                data: Bytes::new(),
-            });
+            return Ok(ReplyData { data: Bytes::new() });
         }
         Ok(ReplyData {
             data: data.slice(start..end),
@@ -932,13 +928,7 @@ impl Filesystem for FerroFs {
         })
     }
 
-    async fn releasedir(
-        &self,
-        _req: Request,
-        _inode: u64,
-        fh: u64,
-        _flags: u32,
-    ) -> FuseResult<()> {
+    async fn releasedir(&self, _req: Request, _inode: u64, fh: u64, _flags: u32) -> FuseResult<()> {
         self.file_handles.write().await.remove(&fh);
         Ok(())
     }

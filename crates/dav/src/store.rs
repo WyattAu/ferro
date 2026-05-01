@@ -549,7 +549,9 @@ impl CalendarStore for InMemoryCalendarStore {
         event.ical_data = ical.to_string();
         event.etag = etag.clone();
         event.updated_at = now;
-        cal_entry.events.insert(event_uid.to_string(), event.clone());
+        cal_entry
+            .events
+            .insert(event_uid.to_string(), event.clone());
         let new_ctag = Self::next_ctag();
         #[cfg(feature = "persistence")]
         let principal = cal_entry.info.principal.clone();
@@ -1060,7 +1062,9 @@ impl AddressBookStore for InMemoryAddressBookStore {
         contact.vcard_data = vcard.to_string();
         contact.etag = etag.clone();
         contact.updated_at = now;
-        ab_entry.contacts.insert(contact_uid.to_string(), contact.clone());
+        ab_entry
+            .contacts
+            .insert(contact_uid.to_string(), contact.clone());
         let new_ctag = Self::next_ctag();
         #[cfg(feature = "persistence")]
         let principal = ab_entry.info.principal.clone();
