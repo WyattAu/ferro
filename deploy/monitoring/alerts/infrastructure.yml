@@ -1,0 +1,47 @@
+groups:
+  - name: ferro_infrastructure
+    rules:
+      - alert: FerroInstanceDown
+        expr: up{job="ferro"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ferro instance down ({{ $labels.instance }})"
+          description: "Ferro server has been down for more than 1 minute."
+
+      - alert: FerroHighMemoryUsage
+        expr: process_resident_memory_bytes{job="ferro"} / on(instance) node_memory_MemTotal_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage ({{ $labels.instance }})"
+          description: "Ferro is using more than 85% of available memory."
+
+      - alert: FerroHighCPUUsage
+        expr: rate(process_cpu_seconds_total{job="ferro"}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage ({{ $labels.instance }})"
+          description: "Ferro CPU usage has exceeded 80% for 5 minutes."
+
+      - alert: FerroHighFileDescriptorUsage
+        expr: process_open_fds{job="ferro"} / process_max_fds{job="ferro"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High file descriptor usage ({{ $labels.instance }})"
+          description: "Ferro is using more than 80% of available file descriptors."
+
+      - alert: FerroDiskSpaceLow
+        expr: node_filesystem_avail_bytes{mountpoint="/data"} / node_filesystem_size_bytes{mountpoint="/data"} < 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Less than 15% disk space available."

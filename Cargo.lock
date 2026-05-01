@@ -2541,6 +2541,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-benchmarks"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "criterion",
+ "ferro-common",
+ "ferro-core",
+ "ferro-crypto",
+ "ferro-dav",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "ferro-cli"
 version = "0.1.0"
 dependencies = [

@@ -195,6 +195,10 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_CORS_ALLOWED_ORIGINS", default_value = "*")]
     pub cors_allowed_origins: String,
 
+    /// API version prefix (default: "v1"). Routes are mounted at /api/{version}.
+    #[arg(long, env = "FERRO_API_VERSION", default_value = "v1")]
+    pub api_version: String,
+
     /// Comma-separated list of allowed CORS origins (alternative flag, same as --cors-allowed-origins).
     #[arg(long, env = "FERRO_CORS_ORIGINS", default_value = "*")]
     pub cors_origins: String,

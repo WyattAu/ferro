@@ -1,0 +1,48 @@
+groups:
+  - name: ferro_application
+    rules:
+      - alert: FerroHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="ferro", status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="ferro"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate ({{ $labels.instance }})"
+          description: "More than 5% of requests are returning 5xx errors."
+
+      - alert: FerroHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="ferro"}[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency ({{ $labels.instance }})"
+          description: "95th percentile latency is above 5 seconds."
+
+      - alert: FerroRequestRateAnomaly
+        expr: |
+          abs(
+            sum(rate(http_requests_total{job="ferro"}[1h]))
+            -
+            avg_over_time(sum(rate(http_requests_total{job="ferro"}[1h]))[7d:])
+          ) / avg_over_time(sum(rate(http_requests_total{job="ferro"}[1h]))[7d:]) > 2
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: "Request rate anomaly detected"
+          description: "Request rate deviates more than 200% from 7-day average."
+
+      - alert: FerroStorageHealthDegraded
+        expr: ferro_storage_health_status{job="ferro"} != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Storage health degraded ({{ $labels.instance }})"
+          description: "Storage backend health check is failing."

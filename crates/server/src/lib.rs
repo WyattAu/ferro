@@ -419,13 +419,267 @@ pub fn make_app() -> Router {
 }
 
 pub fn build_router(state: AppState) -> Router {
-    build_router_with_static(state, None, "*")
+    build_router_with_static(state, None, "*", "v1")
+}
+
+fn api_routes() -> Router<AppState> {
+    Router::new()
+        .route("/auth/info", axum::routing::get(api::auth_info))
+        .route("/auth/login", axum::routing::get(api::auth_login))
+        .route("/auth/callback", axum::routing::get(api::auth_callback))
+        .route("/search", axum::routing::get(search::handle_search))
+        .route(
+            "/workers",
+            axum::routing::get(workers::list_workers).post(workers::register_worker),
+        )
+        .route(
+            "/workers/upload",
+            axum::routing::post(wasm_upload::upload_wasm_module),
+        )
+        .route(
+            "/workers/modules/{filename}",
+            axum::routing::delete(wasm_upload::delete_wasm_module),
+        )
+        .route(
+            "/workers/modules",
+            axum::routing::get(wasm_upload::list_wasm_modules),
+        )
+        .route(
+            "/policies",
+            axum::routing::get(policies::list_policies)
+                .post(policies::add_policy)
+                .delete(policies::delete_policy),
+        )
+        .route("/config", axum::routing::get(config::get_server_config))
+        .route(
+            "/upload-url",
+            axum::routing::get(presigned::get_upload_url),
+        )
+        .route(
+            "/download-url",
+            axum::routing::get(presigned::get_download_url),
+        )
+        .route(
+            "/shares",
+            axum::routing::get(shares::list_shares).post(shares::create_share),
+        )
+        .route(
+            "/shares/:token",
+            axum::routing::delete(shares::delete_share),
+        )
+        .route("/audit", axum::routing::get(audit_handler))
+        .route("/storage/stats", axum::routing::get(storage_stats))
+        .route(
+            "/snapshots",
+            axum::routing::get(snapshots::list_snapshots).post(snapshots::create_snapshot),
+        )
+        .route(
+            "/snapshots/:id",
+            axum::routing::delete(snapshots::delete_snapshot_by_id),
+        )
+        .route(
+            "/snapshots/:id/restore",
+            axum::routing::post(snapshots::restore_snapshot),
+        )
+        .route(
+            "/favorites",
+            axum::routing::get(favorites::list_favorites)
+                .put(favorites::add_favorite)
+                .delete(favorites::remove_favorite),
+        )
+        .route("/recent", axum::routing::get(favorites::list_recent))
+        .route("/trash", axum::routing::get(trash::list_trash))
+        .route(
+            "/trash/{path}",
+            axum::routing::delete(trash::move_to_trash),
+        )
+        .route(
+            "/trash/restore",
+            axum::routing::post(trash::restore_trash),
+        )
+        .route(
+            "/trash/purge",
+            axum::routing::delete(trash::purge_trash),
+        )
+        .route(
+            "/trash/empty",
+            axum::routing::delete(trash::empty_trash),
+        )
+        .route("/bulk/delete", axum::routing::post(bulk::bulk_delete))
+        .route("/batch/copy", axum::routing::post(batch::batch_copy))
+        .route("/batch/move", axum::routing::post(batch::batch_move))
+        .route("/files/move", axum::routing::post(move_copy::move_file))
+        .route("/files/copy", axum::routing::post(move_copy::copy_file))
+        .route(
+            "/files/encrypt",
+            axum::routing::post(encryption::encrypt_file),
+        )
+        .route(
+            "/files/decrypt",
+            axum::routing::post(encryption::decrypt_file),
+        )
+        .route("/quota", axum::routing::get(quota::get_quota))
+        .route("/activity", axum::routing::get(activity::get_activity))
+        .route("/tags", axum::routing::get(tags::list_tags))
+        .route(
+            "/tags/{path}",
+            axum::routing::get(tags::get_tags).post(tags::add_tags),
+        )
+        .route(
+            "/tags/{path}/{tag}",
+            axum::routing::delete(tags::remove_tag),
+        )
+        .route("/tags/search", axum::routing::get(tags::search_by_tag))
+        .route(
+            "/health/storage",
+            axum::routing::get(storage_health::storage_health_handler),
+        )
+        .route(
+            "/thumbnail/*path",
+            axum::routing::get(thumbnails::get_thumbnail),
+        )
+        .route(
+            "/preferences",
+            axum::routing::get(search::handle_get_preferences)
+                .put(search::handle_update_preferences),
+        )
+        .route("/locks", axum::routing::get(search::handle_list_locks))
+        .route(
+            "/locks/force-unlock",
+            axum::routing::post(search::handle_force_unlock),
+        )
+        .route(
+            "/locks/{token}",
+            axum::routing::delete(search::handle_unlock_by_token),
+        )
+        .route(
+            "/admin/stats",
+            axum::routing::get(admin_api::admin_stats),
+        )
+        .route(
+            "/admin/storage",
+            axum::routing::get(admin_api::admin_storage),
+        )
+        .route(
+            "/admin/audit",
+            axum::routing::get(admin_api::admin_audit),
+        )
+        .route(
+            "/admin/backup/:id",
+            axum::routing::delete(backup::delete_backup),
+        )
+        .route(
+            "/admin/backup",
+            axum::routing::post(backup::create_backup),
+        )
+        .route(
+            "/admin/backups",
+            axum::routing::get(backup::list_backups),
+        )
+        .route(
+            "/admin/restore",
+            axum::routing::post(backup::restore_backup),
+        )
+        .route(
+            "/admin/webhooks/:id",
+            axum::routing::delete(webhooks::delete_webhook),
+        )
+        .route(
+            "/admin/webhooks",
+            axum::routing::post(webhooks::create_webhook).get(webhooks::list_webhooks),
+        )
+        .route(
+            "/admin/users",
+            axum::routing::post(user_api::create_user).get(user_api::list_users),
+        )
+        .route(
+            "/admin/users/{id}",
+            axum::routing::get(user_api::get_user)
+                .put(user_api::update_user)
+                .delete(user_api::delete_user),
+        )
+        .route(
+            "/admin/users/{id}/reset-password",
+            axum::routing::post(user_api::reset_password),
+        )
+        .route(
+            "/users/me",
+            axum::routing::get(user_api::get_current_user).put(user_api::update_current_user),
+        )
+        .route(
+            "/files/{path}/versions",
+            axum::routing::get(versioning::list_versions).post(versioning::create_version),
+        )
+        .route(
+            "/files/{path}/versions/{version_id}",
+            axum::routing::get(versioning::get_version).delete(versioning::delete_version),
+        )
+        .route(
+            "/files/{path}/diff",
+            axum::routing::get(versioning::diff_versions),
+        )
+        .route(
+            "/fed/share",
+            axum::routing::post(federation::federated_share),
+        )
+        .route(
+            "/webrtc/offer",
+            axum::routing::post(webrtc::signaling::create_offer),
+        )
+        .route(
+            "/webrtc/offer/:session_id",
+            axum::routing::get(webrtc::signaling::get_offer),
+        )
+        .route(
+            "/webrtc/offer/:session_id/answer",
+            axum::routing::post(webrtc::signaling::submit_answer),
+        )
+        .route(
+            "/webrtc/offer/:session_id/ice",
+            axum::routing::post(webrtc::signaling::add_ice_candidate),
+        )
+        .route(
+            "/webrtc/offer/:session_id/poll",
+            axum::routing::get(webrtc::signaling::poll_answer),
+        )
+        .route(
+            "/graphql",
+            axum::routing::get(graphql::graphql_playground).post(graphql::graphql_handler),
+        )
+        .route(
+            "/sync/events",
+            axum::routing::get(sync::events::sync_events),
+        )
+        .route(
+            "/sync/delta",
+            axum::routing::get(sync::events::sync_delta),
+        )
+        .route(
+            "/sync/status",
+            axum::routing::get(sync::events::sync_status),
+        )
+        .route("/ws", axum::routing::get(ws::ws_handler))
+        .route("/upload/init", axum::routing::post(upload::init_upload))
+        .route(
+            "/upload/:upload_id/chunk/:chunk_index",
+            axum::routing::put(upload::upload_chunk),
+        )
+        .route(
+            "/upload/:upload_id/complete",
+            axum::routing::post(upload::complete_upload),
+        )
+        .route(
+            "/upload/:upload_id",
+            axum::routing::delete(upload::cancel_upload),
+        )
+        .route("/uploads", axum::routing::get(upload::list_uploads))
 }
 
 pub fn build_router_with_static(
     state: AppState,
     static_dir: Option<&str>,
     cors_allowed_origins: &str,
+    api_version: &str,
 ) -> Router {
     let request_counter = state.request_count.clone();
     let auth_enabled = state.auth_enabled();
@@ -556,69 +810,37 @@ pub fn build_router_with_static(
             }
         });
 
+    let versioned_api_path = format!("/api/{}", api_version);
+    let api_version_for_header = api_version.to_string();
+    let deprecation_layer = axum::middleware::from_fn(
+        move |req: axum::extract::Request, next: axum::middleware::Next| {
+            let ver = api_version_for_header.clone();
+            async move {
+                let mut response = next.run(req).await;
+                response.headers_mut().insert(
+                    axum::http::HeaderName::from_static("deprecation"),
+                    axum::http::HeaderValue::from_static("true"),
+                );
+                response.headers_mut().insert(
+                    axum::http::HeaderName::from_static("sunset"),
+                    axum::http::HeaderValue::from_static("Sat, 01 May 2027 00:00:00 GMT"),
+                );
+                let link = format!("</api/{}>; rel=\"successor-version\"", ver);
+                response.headers_mut().insert(
+                    axum::http::header::LINK,
+                    axum::http::HeaderValue::from_str(&link).unwrap(),
+                );
+                response
+            }
+        },
+    );
+
     let router = Router::new()
         .route("/", any(webdav::handle_any))
         .route("/.well-known/ferro", axum::routing::get(health_check))
         .route("/healthz", axum::routing::get(liveness))
         .route("/readyz", axum::routing::get(readiness))
-        .route("/api/auth/info", axum::routing::get(api::auth_info))
-        .route("/api/auth/login", axum::routing::get(api::auth_login))
-        .route("/api/auth/callback", axum::routing::get(api::auth_callback))
-        .route("/api/search", axum::routing::get(search::handle_search))
-        .route(
-            "/api/workers",
-            axum::routing::get(workers::list_workers).post(workers::register_worker),
-        )
-        .route(
-            "/api/workers/upload",
-            axum::routing::post(wasm_upload::upload_wasm_module),
-        )
-        .route(
-            "/api/workers/modules/{filename}",
-            axum::routing::delete(wasm_upload::delete_wasm_module),
-        )
-        .route(
-            "/api/workers/modules",
-            axum::routing::get(wasm_upload::list_wasm_modules),
-        )
-        .route(
-            "/api/policies",
-            axum::routing::get(policies::list_policies)
-                .post(policies::add_policy)
-                .delete(policies::delete_policy),
-        )
-        .route("/api/config", axum::routing::get(config::get_server_config))
-        .route(
-            "/api/upload-url",
-            axum::routing::get(presigned::get_upload_url),
-        )
-        .route(
-            "/api/download-url",
-            axum::routing::get(presigned::get_download_url),
-        )
-        .route(
-            "/api/shares",
-            axum::routing::get(shares::list_shares).post(shares::create_share),
-        )
-        .route(
-            "/api/shares/:token",
-            axum::routing::delete(shares::delete_share),
-        )
         .route("/s/:token", axum::routing::get(shares::serve_share))
-        .route("/api/audit", axum::routing::get(audit_handler))
-        .route("/api/storage/stats", axum::routing::get(storage_stats))
-        .route(
-            "/api/snapshots",
-            axum::routing::get(snapshots::list_snapshots).post(snapshots::create_snapshot),
-        )
-        .route(
-            "/api/snapshots/:id",
-            axum::routing::delete(snapshots::delete_snapshot_by_id),
-        )
-        .route(
-            "/api/snapshots/:id/restore",
-            axum::routing::post(snapshots::restore_snapshot),
-        )
         .route(
             "/wopi/files/*path",
             axum::routing::get(wopi::wopi_get).post(wopi::wopi_post),
@@ -631,147 +853,10 @@ pub fn build_router_with_static(
             "/hosting/discovery",
             axum::routing::get(wopi::wopi_discovery),
         )
-        .route(
-            "/api/favorites",
-            axum::routing::get(favorites::list_favorites)
-                .put(favorites::add_favorite)
-                .delete(favorites::remove_favorite),
-        )
-        .route("/api/recent", axum::routing::get(favorites::list_recent))
-        .route("/api/trash", axum::routing::get(trash::list_trash))
-        .route(
-            "/api/trash/{path}",
-            axum::routing::delete(trash::move_to_trash),
-        )
-        .route(
-            "/api/trash/restore",
-            axum::routing::post(trash::restore_trash),
-        )
-        .route(
-            "/api/trash/purge",
-            axum::routing::delete(trash::purge_trash),
-        )
-        .route(
-            "/api/trash/empty",
-            axum::routing::delete(trash::empty_trash),
-        )
-        .route("/api/bulk/delete", axum::routing::post(bulk::bulk_delete))
-        .route("/api/batch/copy", axum::routing::post(batch::batch_copy))
-        .route("/api/batch/move", axum::routing::post(batch::batch_move))
-        .route("/api/files/move", axum::routing::post(move_copy::move_file))
-        .route("/api/files/copy", axum::routing::post(move_copy::copy_file))
-        .route(
-            "/api/files/encrypt",
-            axum::routing::post(encryption::encrypt_file),
-        )
-        .route(
-            "/api/files/decrypt",
-            axum::routing::post(encryption::decrypt_file),
-        )
-        .route("/api/quota", axum::routing::get(quota::get_quota))
-        .route("/api/activity", axum::routing::get(activity::get_activity))
-        .route("/api/tags", axum::routing::get(tags::list_tags))
-        .route(
-            "/api/tags/{path}",
-            axum::routing::get(tags::get_tags).post(tags::add_tags),
-        )
-        .route(
-            "/api/tags/{path}/{tag}",
-            axum::routing::delete(tags::remove_tag),
-        )
-        .route("/api/tags/search", axum::routing::get(tags::search_by_tag))
-        .route(
-            "/api/health/storage",
-            axum::routing::get(storage_health::storage_health_handler),
-        )
-        .route(
-            "/api/thumbnail/*path",
-            axum::routing::get(thumbnails::get_thumbnail),
-        )
-        .route(
-            "/api/preferences",
-            axum::routing::get(search::handle_get_preferences)
-                .put(search::handle_update_preferences),
-        )
-        .route("/api/locks", axum::routing::get(search::handle_list_locks))
-        .route(
-            "/api/locks/force-unlock",
-            axum::routing::post(search::handle_force_unlock),
-        )
-        .route(
-            "/api/locks/{token}",
-            axum::routing::delete(search::handle_unlock_by_token),
-        )
         .route("/metrics", axum::routing::get(metrics::metrics_handler))
         .route(
             "/metrics/prometheus",
             axum::routing::get(prometheus_metrics::prometheus_metrics_handler),
-        )
-        .route(
-            "/api/admin/stats",
-            axum::routing::get(admin_api::admin_stats),
-        )
-        .route(
-            "/api/admin/storage",
-            axum::routing::get(admin_api::admin_storage),
-        )
-        .route(
-            "/api/admin/audit",
-            axum::routing::get(admin_api::admin_audit),
-        )
-        .route(
-            "/api/admin/backup/:id",
-            axum::routing::delete(backup::delete_backup),
-        )
-        .route(
-            "/api/admin/backup",
-            axum::routing::post(backup::create_backup),
-        )
-        .route(
-            "/api/admin/backups",
-            axum::routing::get(backup::list_backups),
-        )
-        .route(
-            "/api/admin/restore",
-            axum::routing::post(backup::restore_backup),
-        )
-        .route(
-            "/api/admin/webhooks/:id",
-            axum::routing::delete(webhooks::delete_webhook),
-        )
-        .route(
-            "/api/admin/webhooks",
-            axum::routing::post(webhooks::create_webhook).get(webhooks::list_webhooks),
-        )
-        .route(
-            "/api/admin/users",
-            axum::routing::post(user_api::create_user).get(user_api::list_users),
-        )
-        .route(
-            "/api/admin/users/{id}",
-            axum::routing::get(user_api::get_user)
-                .put(user_api::update_user)
-                .delete(user_api::delete_user),
-        )
-        .route(
-            "/api/admin/users/{id}/reset-password",
-            axum::routing::post(user_api::reset_password),
-        )
-        .route(
-            "/api/users/me",
-            axum::routing::get(user_api::get_current_user).put(user_api::update_current_user),
-        )
-        .route(
-            "/api/files/{path}/versions",
-            axum::routing::get(versioning::list_versions).post(versioning::create_version),
-        )
-        .route(
-            "/api/files/{path}/versions/{version_id}",
-            axum::routing::get(versioning::get_version).delete(versioning::delete_version),
-        )
-        .route(
-            "/api/files/{path}/diff",
-            axum::routing::get(versioning::diff_versions),
         )
         .route(
             "/.well-known/webfinger",
@@ -795,61 +880,8 @@ pub fn build_router_with_static(
         )
         .route("/fed/outbox", axum::routing::get(federation::list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
-        .route(
-            "/api/fed/share",
-            axum::routing::post(federation::federated_share),
-        )
-        .route(
-            "/api/webrtc/offer",
-            axum::routing::post(webrtc::signaling::create_offer),
-        )
-        .route(
-            "/api/webrtc/offer/:session_id",
-            axum::routing::get(webrtc::signaling::get_offer),
-        )
-        .route(
-            "/api/webrtc/offer/:session_id/answer",
-            axum::routing::post(webrtc::signaling::submit_answer),
-        )
-        .route(
-            "/api/webrtc/offer/:session_id/ice",
-            axum::routing::post(webrtc::signaling::add_ice_candidate),
-        )
-        .route(
-            "/api/webrtc/offer/:session_id/poll",
-            axum::routing::get(webrtc::signaling::poll_answer),
-        )
-        .route(
-            "/api/graphql",
-            axum::routing::get(graphql::graphql_playground).post(graphql::graphql_handler),
-        )
-        .route(
-            "/api/sync/events",
-            axum::routing::get(sync::events::sync_events),
-        )
-        .route(
-            "/api/sync/delta",
-            axum::routing::get(sync::events::sync_delta),
-        )
-        .route(
-            "/api/sync/status",
-            axum::routing::get(sync::events::sync_status),
-        )
-        .route("/api/ws", axum::routing::get(ws::ws_handler))
-        .route("/api/upload/init", axum::routing::post(upload::init_upload))
-        .route(
-            "/api/upload/:upload_id/chunk/:chunk_index",
-            axum::routing::put(upload::upload_chunk),
-        )
-        .route(
-            "/api/upload/:upload_id/complete",
-            axum::routing::post(upload::complete_upload),
-        )
-        .route(
-            "/api/upload/:upload_id",
-            axum::routing::delete(upload::cancel_upload),
-        )
-        .route("/api/uploads", axum::routing::get(upload::list_uploads))
+        .nest(&versioned_api_path, api_routes())
+        .nest("/api", api_routes().layer(deprecation_layer))
         .route("/*path", any(webdav::handle_any))
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route(
@@ -1094,4 +1126,88 @@ pub async fn storage_stats(State(state): State<AppState>) -> Response {
         })),
     )
         .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_deprecation_headers_on_legacy_api() {
+        let app = build_router(AppState::in_memory());
+
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/config")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        assert_eq!(
+            response.headers().get("deprecation").unwrap(),
+            "true"
+        );
+        assert_eq!(
+            response.headers().get("sunset").unwrap(),
+            "Sat, 01 May 2027 00:00:00 GMT"
+        );
+        assert_eq!(
+            response.headers().get("link").unwrap(),
+            "</api/v1>; rel=\"successor-version\""
+        );
+    }
+
+    #[tokio::test]
+    async fn test_no_deprecation_headers_on_versioned_api() {
+        let app = build_router(AppState::in_memory());
+
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/v1/config")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        assert!(response.headers().get("deprecation").is_none());
+        assert!(response.headers().get("sunset").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_versioned_api_returns_same_response() {
+        let legacy_resp = build_router(AppState::in_memory())
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/config")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let v1_resp = build_router(AppState::in_memory())
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/v1/config")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let legacy_bytes = legacy_resp.into_body().collect().await.unwrap().to_bytes();
+        let v1_bytes = v1_resp.into_body().collect().await.unwrap().to_bytes();
+        let legacy_json: serde_json::Value = serde_json::from_slice(&legacy_bytes).unwrap();
+        let v1_json: serde_json::Value = serde_json::from_slice(&v1_bytes).unwrap();
+        assert_eq!(legacy_json, v1_json);
+    }
 }

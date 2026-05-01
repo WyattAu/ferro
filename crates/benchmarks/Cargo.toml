@@ -1,0 +1,31 @@
+[package]
+name = "ferro-benchmarks"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+ferro-core = { path = "../core" }
+ferro-common = { path = "../common" }
+ferro-dav = { path = "../dav" }
+ferro-crypto = { path = "../crypto" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
+bytes = "1"
+serde_json = "1"
+
+[[bench]]
+name = "storage"
+harness = false
+
+[[bench]]
+name = "dav_parsing"
+harness = false
+
+[[bench]]
+name = "crypto_ops"
+harness = false
+
+[[bench]]
+name = "webdav_ops"
+harness = false
