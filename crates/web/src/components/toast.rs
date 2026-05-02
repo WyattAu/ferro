@@ -115,16 +115,16 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
 
     let bg_class = match toast.toast_type {
         ToastType::Success => {
-            "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200"
+            "surface brutal-border border-l-4 border-l-green-600 text-green-700 dark:text-green-400"
         }
         ToastType::Error => {
-            "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200"
+            "surface brutal-border border-l-4 border-l-red-600 text-red-700 dark:text-red-400"
         }
         ToastType::Info => {
-            "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200"
+            "surface brutal-border border-l-4 border-l-blue-600 text-blue-700 dark:text-blue-400"
         }
         ToastType::Warning => {
-            "bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200"
+            "surface brutal-border border-l-4 border-l-yellow-600 text-yellow-700 dark:text-yellow-400"
         }
     };
 
@@ -184,7 +184,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
     view! {
         <div
             class=move || format!(
-                "pointer-events-auto border rounded-lg shadow-lg px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-in-out {} {}",
+                "pointer-events-auto brutal-border surface shadow-iron px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-in-out rounded-sm {} {}",
                 bg_class,
                 if dismissed.get() { "opacity-0 -translate-x-full scale-95" } else { "opacity-100 translate-x-0 scale-100" }
             )
@@ -195,7 +195,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
             <span class={icon_class} aria-hidden="true">{icon}</span>
             <p class="flex-1 text-sm font-medium">{message_text}</p>
             <button
-                class="p-0.5 rounded opacity-60 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-current"
+                class="p-0.5 rounded-sm opacity-60 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-current font-mono"
                 aria-label="Dismiss notification"
                 on:click=handle_dismiss
             >

@@ -200,11 +200,11 @@ pub fn OnboardingOverlay() -> impl IntoView {
         {move || visible.get().then(|| view! {
             <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" on:click=handle_skip></div>
-                <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-[calc(100%-2rem)] sm:w-[480px] max-h-[90vh] overflow-y-auto transition-all duration-200 scale-100 opacity-100">
+                <div class="relative brutal-block rounded shadow-2xl w-[calc(100%-2rem)] sm:w-[480px] max-h-[90vh] overflow-y-auto transition-all duration-200 scale-100 opacity-100">
                     <div class="p-6 sm:p-8">
                         <div class="flex justify-end mb-2">
                             <button
-                                class="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1"
+                                class="text-sm text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 font-mono text-label"
                                 on:click=handle_skip
                             >
                                 "Skip tour"
@@ -213,29 +213,29 @@ pub fn OnboardingOverlay() -> impl IntoView {
 
                         <div class="text-center mb-6">
                             {step_icon(current_step())}
-                            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mt-4">
+                            <h2 class="text-xl font-bold font-mono text-gray-900 mt-4 tracking-tight">
                                 {current_step().title()}
                             </h2>
-                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-4">
+                            <div class="w-full bg-gray-200 rounded-sm h-3 mt-4">
                                 <div
-                                    class="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                                    class="bg-blue-600 h-3 rounded-sm transition-all duration-300"
                                     style=move || format!("width: {}%", progress())
                                 ></div>
                             </div>
-                            <span class="text-xs text-gray-400 dark:text-gray-500 mt-1 block">
+                            <span class="text-xs text-gray-400 mt-1 block font-mono">
                                 {move || format!("Step {} of {}", current_step().index() + 1, OnboardingStep::total())}
                             </span>
                         </div>
 
-                        <p class="text-sm text-gray-600 dark:text-gray-300 text-center leading-relaxed mb-8">
+                        <p class="text-sm text-gray-600 text-center leading-relaxed mb-8 font-mono">
                             {current_step().description()}
                         </p>
 
                         <div class="flex items-center justify-between gap-3">
                             <button
                                 class=move || format!(
-                                    "px-4 py-2 text-sm rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 {}",
-                                    if is_first() { "invisible" } else { "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" }
+                                    "px-4 py-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 {}",
+                                    if is_first() { "invisible" } else { "text-gray-600 hover:text-gray-800 hover:bg-gray-100" }
                                 )
                                 on:click=handle_back
                                 disabled=is_first()
@@ -257,7 +257,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
 
                             <button
                                 class=move || format!(
-                                    "px-5 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 {}",
+                                    "px-5 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 brutal-border font-bold uppercase {}",
                                     if is_last() { "bg-green-600 text-white hover:bg-green-700" } else { "bg-blue-600 text-white hover:bg-blue-700" }
                                 )
                                 on:click=handle_next

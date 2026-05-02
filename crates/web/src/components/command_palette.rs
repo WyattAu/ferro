@@ -157,36 +157,36 @@ pub fn CommandPalette() -> impl IntoView {
     view! {
         {move || state.is_open.get().then(|| view! {
             <div
-                class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-start justify-center pt-[15vh] sm:pt-[20vh]"
+                class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-start justify-center pt-[15vh] sm:pt-[20vh] backdrop-blur-sm"
                 role="dialog"
                 aria-label="Command palette"
                 on:click=move |_| state.close()
             >
                 <div
-                    class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[calc(100%-2rem)] sm:w-full sm:max-w-lg mx-auto overflow-hidden"
+                    class="brutal-block rounded shadow-2xl w-[calc(100%-2rem)] sm:w-full sm:max-w-lg mx-auto overflow-hidden"
                     on:click=move |ev| ev.stop_propagation()
                     on:keydown=handle_keydown
                 >
-                    <div class="flex items-center border-b border-gray-200 dark:border-gray-700 px-4">
-                        <svg class="w-5 h-5 text-gray-400 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="flex items-center border-b border-gray-200 px-4">
+                        <svg class="w-5 h-5 text-accent mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                         <input
                             type="text"
-                            class="w-full py-3 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none text-sm"
+                            class="w-full py-3 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none text-sm font-mono"
                             placeholder="Type a command..."
                             prop:value=search
                             on:input=move |ev| set_search.set(event_target_value(&ev))
                             aria-label="Search commands"
                         />
-                        <kbd class="hidden sm:inline-block px-2 py-0.5 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 ml-2 shrink-0">"ESC"</kbd>
+                        <kbd class="hidden sm:inline-block px-2 py-0.5 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-sm brutal-border ml-2 shrink-0 font-mono">"ESC"</kbd>
                     </div>
                     <div class="max-h-64 overflow-y-auto py-1" role="listbox">
                         {move || {
                             let cmds = filtered_commands();
                             if cmds.is_empty() {
                                 view! {
-                                    <div class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                                    <div class="px-4 py-8 text-center text-sm text-gray-500">
                                         "No matching commands"
                                     </div>
                                 }.into_any()
@@ -213,9 +213,9 @@ pub fn CommandPalette() -> impl IntoView {
                                                     class=move || format!(
                                                         "w-full flex items-center justify-between px-4 py-2.5 text-sm text-left transition-colors min-h-[44px] {}",
                                                         if hl_id.get() == cmd_id_class {
-                                                            "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                                            "bg-blue-50 dark:bg-blue-900/30 text-accent dark:text-accent border-l-4 border-l-blue-600"
                                                         } else {
-                                                            "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                            "text-gray-700 hover:bg-gray-100"
                                                         }
                                                     )
                                                     role="option"
@@ -228,7 +228,7 @@ pub fn CommandPalette() -> impl IntoView {
                                                 >
                                                     <span>{cmd_label}</span>
                                                     {cmd_shortcut.map(|shortcut| view! {
-                                                        <span class="text-xs text-gray-400 dark:text-gray-500 font-mono ml-4 shrink-0">{shortcut}</span>
+                                                        <span class="text-xs text-gray-400 font-mono ml-4 shrink-0 surface brutal-border px-1.5 py-0.5 rounded-sm">{shortcut}</span>
                                                     })}
                                                 </button>
                                             }

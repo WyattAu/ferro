@@ -45,15 +45,15 @@ pub fn file_type_color(ft: FileType) -> &'static str {
     match ft {
         FileType::Folder => "text-yellow-500",
         FileType::Image => "text-purple-500",
-        FileType::Video => "text-pink-500",
-        FileType::Audio => "text-orange-500",
-        FileType::Pdf => "text-red-500",
-        FileType::Text => "text-gray-500 dark:text-gray-400",
-        FileType::Code => "text-green-500",
+        FileType::Video => "text-red-600",
+        FileType::Audio => "text-green-600",
+        FileType::Pdf => "text-yellow-500",
+        FileType::Text => "text-gray-800 dark:text-gray-300",
+        FileType::Code => "text-gray-800 dark:text-gray-300",
         FileType::Archive => "text-amber-600",
         FileType::Spreadsheet => "text-emerald-500",
         FileType::Presentation => "text-orange-600",
-        FileType::Generic => "text-gray-400 dark:text-gray-500",
+        FileType::Generic => "text-gray-500 dark:text-gray-400",
     }
 }
 

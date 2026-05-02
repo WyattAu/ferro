@@ -227,16 +227,16 @@ pub fn Header() -> impl IntoView {
     let has_searched = move || search_total.get() > 0 || !search_results.with(Vec::is_empty);
 
     view! {
-        <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-3 shadow-sm">
+        <header class="surface border-b px-4 sm:px-6 py-3 shadow-concrete">
             <div class="flex items-center justify-between max-w-7xl mx-auto">
                 <div class="flex items-center gap-3">
-                    <A href="/" class="flex items-center gap-2 no-underline">
-                        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                            <span class="text-white font-bold text-sm">"F"</span>
+                    <A href="/" class="flex items-center gap-3 no-underline">
+                        <div class="w-10 h-10 brutal-border flex items-center justify-center bg-white dark:bg-gray-800" style="font-family: var(--font-display);">
+                            <span class="font-bold text-xl" style="color: var(--accent); letter-spacing: -0.03em;">"F"</span>
                         </div>
                         <div class="hidden sm:block">
-                            <h1 class="text-lg font-bold text-gray-900 dark:text-gray-100 leading-none">"Ferro"</h1>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">"Storage Orchestrator"</span>
+                            <h1 class="font-mono font-bold text-xl leading-none" style="letter-spacing: -0.02em; color: var(--text-primary);">"Ferro"</h1>
+                            <span class="text-label">"Storage Orchestrator"</span>
                         </div>
                     </A>
                 </div>
@@ -247,7 +247,7 @@ pub fn Header() -> impl IntoView {
                     })}
 
                     <button
-                        class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         on:click=toggle_search
                         aria-label="Search files"
                     >
@@ -258,7 +258,7 @@ pub fn Header() -> impl IntoView {
 
                     <A
                         href="/ui/settings"
-                        class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
+                        class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -282,14 +282,15 @@ pub fn Header() -> impl IntoView {
                             let auth_st = auth_state.clone();
                             view! {
                                 <div class="flex items-center gap-2 sm:gap-3">
-                                    <div class="w-7 h-7 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                                        <span class="text-blue-600 dark:text-blue-300 font-medium text-xs">
+                                    <div class="w-8 h-8 brutal-border flex items-center justify-center bg-white dark:bg-gray-800">
+                                        <span class="font-mono font-bold text-sm" style="color: var(--accent);">
                                             {display_name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_else(|| "?".to_string())}
                                         </span>
                                     </div>
-                                    <span class="text-gray-700 dark:text-gray-300 hidden sm:inline">{display_name}</span>
+                                    <span class="font-mono font-medium text-sm hidden sm:inline" style="color: var(--text-primary);">{display_name}</span>
                                     <button
-                                        class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                                        class="text-xs text-label hover:text-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                                        style="text-transform: uppercase; letter-spacing: 0.08em;"
                                         on:click=move |_| auth::logout(&auth_st)
                                     >
                                         "Sign out"
@@ -300,7 +301,8 @@ pub fn Header() -> impl IntoView {
                             view! {
                                 <a
                                     href="/ui/auth/login"
-                                    class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 no-underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                                    class="font-mono text-xs font-bold uppercase no-underline px-3 py-2 brutal-border hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                                    style="letter-spacing: 0.08em; color: var(--accent);"
                                 >
                                     "Sign in"
                                 </a>
@@ -311,14 +313,14 @@ pub fn Header() -> impl IntoView {
             </div>
 
             {move || show_search.get().then(|| view! {
-                <div class="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-6 py-3 max-w-7xl mx-auto">
+                <div class="border-t bg-gray-50 dark:bg-gray-900 px-6 py-3 max-w-7xl mx-auto slide-up">
                     <div class="flex items-center gap-2 mb-2">
                         <div class="relative flex-1">
                             <input
                                 type="text"
                                 id="header-search-input"
                                 placeholder="Search files..."
-                                class="w-full px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                class="w-full px-4 py-2 pl-10 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                                 prop:value=search_query
                                 on:input=on_search_input
                                 on:keydown=on_search_submit
@@ -328,7 +330,7 @@ pub fn Header() -> impl IntoView {
                             </svg>
                         </div>
                         <button
-                            class="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg transition-colors"
+                            class="p-2 text-gray-500 hover:text-blue-600 rounded transition-colors"
                             on:click=close_search
                             aria-label="Close search"
                         >
@@ -341,7 +343,8 @@ pub fn Header() -> impl IntoView {
                     {move || show_search.get().then(|| view! {
                         <div class="flex items-center gap-2 mb-2">
                             <select
-                                class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                style="letter-spacing: 0.05em;"
                                 on:change=on_type_change
                             >
                                 <option value="" selected=move || filter_type.get().is_empty()>"All Types"</option>
@@ -349,7 +352,8 @@ pub fn Header() -> impl IntoView {
                                 <option value="folder" selected=move || filter_type.get() == "folder">"Folders"</option>
                             </select>
                             <select
-                                class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                style="letter-spacing: 0.05em;"
                                 on:change=on_sort_change
                             >
                                 <option value="" selected=move || filter_sort.get().is_empty()>"Relevance"</option>
@@ -361,10 +365,10 @@ pub fn Header() -> impl IntoView {
                     })}
 
                     {move || searching.get().then(|| view! {
-                        <div class="text-sm text-gray-500 dark:text-gray-400">"Searching..."</div>
+                        <div class="text-sm font-mono text-gray-500">"Searching..."</div>
                     })}
                     {move || has_searched().then(|| view! {
-                        <div class="text-xs text-gray-400 dark:text-gray-500 mb-1">
+                        <div class="text-xs font-mono text-gray-400 mb-1" style="letter-spacing: 0.05em;">
                             {move || format!("{} result(s)", search_total.get())}
                         </div>
                     })}
@@ -393,14 +397,14 @@ fn QuotaIndicator(info: crate::api::QuotaInfo) -> impl IntoView {
     };
 
     view! {
-        <div class="hidden md:flex items-center gap-2 text-xs">
-            <div class="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" title=move || format!("{}% used", percent as u32)>
+        <div class="hidden md:flex items-center gap-2 font-mono text-xs" style="letter-spacing: 0.03em;">
+            <div class="w-28 h-3 bg-gray-200 dark:bg-gray-700 rounded-none overflow-hidden brutal-border" title=move || format!("{}% used", percent as u32)>
                 <div
-                    class=move || format!("h-full rounded-full transition-all {}", bar_color)
-                    style=move || format!("width: {}%", percent.min(100.0))
+                    class=move || format!("h-full transition-all {}", bar_color)
+                    style=move || format!("width: {}%;", percent.min(100.0))
                 ></div>
             </div>
-            <span class=text_color>
+            <span class=text_color style="font-weight: 600;">
                 {move || format!("{} / {} ({}%)", used_str, quota_str, percent as u32)}
             </span>
         </div>
@@ -445,14 +449,14 @@ fn SearchResultsList(
                         <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        <div class="text-sm text-gray-500 dark:text-gray-400">"No files match your search"</div>
-                        <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">"Check spelling, try different keywords, or remove filters"</div>
+                        <div class="font-mono font-semibold text-sm text-gray-500">"No files match your search"</div>
+                        <div class="text-xs text-gray-400 mt-1">"Check spelling, try different keywords, or remove filters"</div>
                     </div>
                 }.into_any();
             }
             let nav = navigate.clone();
             view! {
-                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm max-h-64 overflow-auto">
+                <div class="surface brutal-border shadow-xl max-h-64 overflow-auto rounded-lg">
                     <For
                         each=move || results.get()
                         key=|r| r.path.clone()
@@ -464,20 +468,20 @@ fn SearchResultsList(
                             let parent = dir_path.rfind('/').map(|i| &dir_path[..i]).unwrap_or("/");
                             view! {
                                 <a
-                                    class="block w-full text-left px-4 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-b border-gray-100 dark:border-gray-700 last:border-0 cursor-pointer no-underline text-inherit"
+                                    class="block w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-0 cursor-pointer no-underline text-inherit transition-colors"
                                     href=format!("/files{}", parent)
                                 >
                                     <div class="flex items-center gap-2">
-                                        <svg class="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
                                         <div class="min-w-0">
-                                            <div class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{result.name.clone()}</div>
-                                            <div class="text-xs text-gray-500 dark:text-gray-400 truncate">{result.path.clone()}</div>
+                                            <div class="text-sm font-semibold font-mono truncate">{result.name.clone()}</div>
+                                            <div class="text-xs text-gray-500 font-mono truncate">{result.path.clone()}</div>
                                         </div>
                                     </div>
                                     {result.snippet.as_ref().map(|s| view! {
-                                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 ml-6 truncate">{s.clone()}</div>
+                                        <div class="text-xs text-gray-500 mt-0.5 ml-6 truncate">{s.clone()}</div>
                                     })}
                                 </a>
                             }

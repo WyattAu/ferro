@@ -137,8 +137,8 @@ pub fn GridCard(
     view! {
         <div
             class=move || format!(
-                "group relative bg-white dark:bg-gray-800 border rounded-xl p-3 sm:p-4 cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600 {}",
-                if is_selected { "border-blue-500 dark:border-blue-400 ring-2 ring-blue-200 dark:ring-blue-800" } else { "border-gray-200 dark:border-gray-700" }
+                "group relative surface brutal-border rounded-xl p-3 sm:p-4 cursor-pointer transition-all duration-200 hover:shadow-xl hover:border-blue-400 {}",
+                if is_selected { "border-blue-500 dark:border-blue-400 ring-2 ring-200" } else { "" }
             )
             role="gridcell"
             tabindex="0"
@@ -149,7 +149,7 @@ pub fn GridCard(
                 <div class="absolute top-2 left-2 z-10">
                     <input
                         type="checkbox"
-                        class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                        class="rounded border text-blue-600 focus:ring-blue-500 w-4 h-4"
                         prop:checked=is_selected
                         aria_label=format!("Select {}", name_for_actions)
                         on:click=handle_checkbox_click
@@ -159,7 +159,7 @@ pub fn GridCard(
 
             <button
                 class="absolute top-2 right-2 z-10 p-1 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                class=move || if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20" } else { "text-gray-300 dark:text-gray-600 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 opacity-0 group-hover:opacity-100" }
+                class=move || if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 opacity-0 group-hover:opacity-100" }
                 aria_label=format!("{} {}", if is_favorited { "Unfavorite" } else { "Favorite" }, name_for_actions)
                 title=if is_favorited { "Remove from favorites" } else { "Add to favorites" }
                 on:click=handle_favorite_click
@@ -189,8 +189,7 @@ pub fn GridCard(
                 </div>
 
                 <div class="w-full min-h-[2.5rem] flex items-center justify-center">
-                    <span
-                        class="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-full px-1"
+                    <span class="text-xs sm:text-sm font-medium text-gray-900 truncate max-w-full px-1"
                         class=move || if entry_is_collection { "font-semibold" } else { "font-medium" }
                         title=entry_name.clone()
                     >
@@ -198,14 +197,14 @@ pub fn GridCard(
                     </span>
                 </div>
 
-                <span class="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">{&size_str}</span>
-                <span class="text-[10px] text-gray-400 dark:text-gray-500 hidden sm:block">{&modified_display}</span>
+                <span class="text-[10px] sm:text-xs text-gray-500">{&size_str}</span>
+                <span class="text-[10px] text-gray-400 hidden sm:block">{&modified_display}</span>
             </div>
 
-            <div class="flex items-center justify-center gap-1 pt-2 border-t border-gray-100 dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div class="flex items-center justify-center gap-1 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
-                        class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         aria_label=format!("Download {}", name_for_actions)
                         title="Download"
                         on:click=handle_download_click
@@ -217,7 +216,7 @@ pub fn GridCard(
                 })}
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
-                        class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         aria_label=format!("Share {}", name_for_actions)
                         title="Share"
                         on:click=handle_share_click
@@ -228,7 +227,7 @@ pub fn GridCard(
                     </button>
                 })}
                 <button
-                    class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     aria_label=format!("Copy {}", name_for_actions)
                     title="Copy"
                     on:click=handle_copy_click
@@ -238,7 +237,7 @@ pub fn GridCard(
                     </svg>
                 </button>
                 <button
-                    class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     aria_label=format!("Move {}", name_for_actions)
                     title="Move"
                     on:click=handle_move_click
@@ -249,7 +248,7 @@ pub fn GridCard(
                 </button>
                 {(!is_locked).then(|| view! {
                     <button
-                        class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         aria_label=format!("Delete {}", name_for_actions)
                         title="Delete"
                         on:click=handle_delete_click

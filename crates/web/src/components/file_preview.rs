@@ -106,24 +106,24 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
 
     view! {
         <div
-            class="fixed inset-0 bg-black dark:bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4"
+            class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
             aria-label="File preview"
             on:keydown=handle_keydown
         >
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="brutal-block rounded shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 // Header
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <div class="min-w-0 flex-1">
-                        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">{name}</h2>
-                        <div class="flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <h2 class="text-section font-mono text-gray-900 truncate">{name}</h2>
+                        <div class="flex items-center gap-4 mt-1 text-sm text-gray-500 font-mono">
                             <span>{size_str}</span>
                             <span>{modified}</span>
                         </div>
                     </div>
                     <button
-                        class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ml-4"
+                        class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded surface shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ml-4"
                         aria-label="Close preview"
                         on:click=close
                     >
@@ -138,18 +138,18 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                     {move || loading.get().then(|| view! {
                         <div class="flex items-center justify-center py-12">
                             <div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                            <span class="ml-3 text-gray-500 dark:text-gray-400">"Loading..."</span>
+                            <span class="ml-3 text-gray-500">"Loading..."</span>
                         </div>
                     })}
 
                     {move || error.get().map(|e| view! {
-                        <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-400">
+                        <div class="bg-red-50 border-l-4 border-l-red-500 rounded p-4 text-red-700">
                             "Failed to load file: " {e}
                         </div>
                     })}
 
                     {move || content.get().map(|text| view! {
-                        <pre class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-sm text-gray-800 dark:text-gray-200 overflow-auto whitespace-pre-wrap font-mono">{text}</pre>
+                        <pre class="bg-gray-50 dark:bg-gray-900 border rounded p-4 text-sm text-gray-800 overflow-auto whitespace-pre-wrap font-mono">{text}</pre>
                     })}
 
                     {move || (!loading.get() && content.get().is_none() && error.get().is_none()).then(|| view! {
@@ -186,18 +186,18 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                 "pdf" => view! {
                                     <iframe
                                         src={p}
-                                        class="w-full h-[60vh] rounded-lg border border-gray-200 dark:border-gray-700"
+                                        class="w-full h-[60vh] rounded-lg border"
                                         title={n}
                                     ></iframe>
                                 }.into_any(),
                                 _ => view! {
                                     <div class="flex flex-col items-center justify-center py-12 text-center">
-                                        <svg class="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
-                                        <p class="text-gray-500 dark:text-gray-400 mb-4">"Preview not available for this file type"</p>
+                                        <p class="text-gray-500 mb-4">"Preview not available for this file type"</p>
                                         <button
-                                            class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                            class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                             on:click=move |_| {
                                                 let path = p.clone();
                                                 spawn_local(async move {
