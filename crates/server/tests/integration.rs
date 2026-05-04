@@ -36,7 +36,7 @@ fn make_wopi_token(path: &str) -> String {
     let exp = chrono::Utc::now().timestamp() + 3600;
     let payload = serde_json::json!({ "path": path, "user": "test", "exp": exp });
     let payload_str = serde_json::to_string(&payload).unwrap();
-    use hmac::Mac;
+    use hmac::{KeyInit, Mac};
     use sha2::Sha256;
     let mut mac = hmac::Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
     mac.update(payload_str.as_bytes());

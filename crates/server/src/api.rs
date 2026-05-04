@@ -213,7 +213,7 @@ fn generate_code_verifier() -> String {
     use rand::Rng;
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
     let random_bytes: Vec<u8> = (0..64)
-        .map(|_| CHARS[rand::thread_rng().gen_range(0..CHARS.len())])
+        .map(|_| CHARS[rand::rng().random_range(0..CHARS.len())])
         .collect();
     String::from_utf8(random_bytes).unwrap_or_default()
 }

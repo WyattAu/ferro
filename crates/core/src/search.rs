@@ -196,7 +196,7 @@ impl SearchEngine {
             .map_err(|e| FerroError::Internal(format!("Query parse error: {}", e)))?;
 
         let top_docs: Vec<(Score, DocAddress)> = searcher
-            .search(&query, &TopDocs::with_limit(limit))
+            .search(&query, &TopDocs::with_limit(limit).order_by_score())
             .map_err(|e| FerroError::Internal(format!("Search failed: {}", e)))?;
 
         let results: Vec<SearchResult> = top_docs
@@ -205,10 +205,7 @@ impl SearchEngine {
                 let doc: TantivyDocument = searcher.doc(doc_addr).unwrap_or_default();
                 let path = doc
                     .get_first(self.path_field)
-                    .and_then(|v| match v {
-                        OwnedValue::Str(s) => Some(s.as_str()),
-                        _ => None,
-                    })
+                    .and_then(|v| v.as_str())
                     .unwrap_or("<unknown>")
                     .to_string();
 
@@ -217,10 +214,7 @@ impl SearchEngine {
                     score: score as f64,
                     snippet: doc
                         .get_first(self.content_field)
-                        .and_then(|v| match v {
-                            OwnedValue::Str(s) => Some(s.as_str()),
-                            _ => None,
-                        })
+                        .and_then(|v| v.as_str())
                         .map(|s| s.chars().take(200).collect()),
                 }
             })

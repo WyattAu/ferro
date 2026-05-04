@@ -40,7 +40,7 @@ impl ThumbnailService {
         let mut hasher = Sha256::new();
         hasher.update(path.as_bytes());
         let result = hasher.finalize();
-        format!("{:x}", result)
+        hex::encode(result)
     }
 
     pub fn is_supported(mime_type: &str) -> bool {

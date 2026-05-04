@@ -2,7 +2,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use base64::Engine;
-use hmac::Mac;
+use hmac::{KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tracing::info;
@@ -435,7 +435,7 @@ pub async fn wopi_issue_token(
 mod tests {
     use crate::AppState;
     use base64::Engine;
-    use hmac::Mac;
+    use hmac::{KeyInit, Mac};
 
     fn build_token_payload(path: &str, user: &str, exp: i64) -> String {
         let payload = serde_json::json!({

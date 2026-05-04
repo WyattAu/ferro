@@ -293,7 +293,7 @@ pub async fn federated_share(
 mod tests {
     use super::*;
     use base64::{Engine as _, engine::general_purpose::STANDARD};
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
 
     type HmacSha256 = Hmac<Sha256>;

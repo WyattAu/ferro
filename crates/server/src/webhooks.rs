@@ -49,7 +49,7 @@ pub struct WebhookEvent {
 
 /// Compute an HMAC-SHA256 signature for webhook payload verification.
 pub fn sign_payload(secret: &str, payload: &[u8]) -> String {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
 
     type HmacSha256 = Hmac<Sha256>;
