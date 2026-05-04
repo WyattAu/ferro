@@ -88,7 +88,7 @@ impl LockManager {
         if let Some(ref db) = self.db
             && let Err(e) = db
                 .lock()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .execute("DELETE FROM locks WHERE token = ?1", params![token])
         {
             warn!("Failed to delete lock from SQLite: {}", e);

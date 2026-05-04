@@ -56,7 +56,7 @@ impl InMemoryFavoriteStore {
         if let Some(ref db) = self.db
             && let Err(e) = db
                 .lock()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .execute("DELETE FROM favorites WHERE path = ?1", params![path])
         {
             warn!("Failed to remove favorite from SQLite: {}", e);

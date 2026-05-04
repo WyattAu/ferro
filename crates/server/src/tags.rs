@@ -127,7 +127,7 @@ impl TagStore {
         if let Some(ref db) = self.db
             && let Err(e) = db
                 .lock()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .execute("DELETE FROM file_tags WHERE file_path = ?1", params![path])
         {
             warn!("Failed to remove file tags from SQLite: {}", e);
