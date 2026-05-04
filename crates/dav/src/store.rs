@@ -186,7 +186,7 @@ impl InMemoryCalendarStore {
     /// Create an in-memory calendar store backed by a shared SQLite database.
     pub fn with_db(db: DbHandle) -> Self {
         {
-            let conn = db.lock().unwrap();
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             let _ = conn.execute_batch(
                 "
                 CREATE TABLE IF NOT EXISTS calendars (
@@ -723,7 +723,7 @@ impl InMemoryAddressBookStore {
     /// Create an in-memory address book store backed by a shared SQLite database.
     pub fn with_db(db: DbHandle) -> Self {
         {
-            let conn = db.lock().unwrap();
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             let _ = conn.execute_batch(
                 "
                 CREATE TABLE IF NOT EXISTS address_books (

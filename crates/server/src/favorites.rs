@@ -43,7 +43,7 @@ impl InMemoryFavoriteStore {
 
     fn persist_add(&self, path: &str) {
         if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap().execute(
+            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "INSERT OR IGNORE INTO favorites (path) VALUES (?1)",
                 params![path],
             )

@@ -80,7 +80,7 @@ impl SyncStore {
         }
         self.ops.insert(id.clone(), op.clone());
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap();
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO sync_ops (op_id, site_id, clock_counter, op_type, path, new_path, size, mime_type, owner, checksum, timestamp) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                 params![

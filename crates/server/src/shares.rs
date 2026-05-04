@@ -69,7 +69,7 @@ impl ShareStore {
 
     fn persist_create(&self, link: &ShareLink) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap();
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO shares (token, file_path, password, expires_at, created_at, created_by, download_count, max_downloads, is_public) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                 params![
@@ -91,7 +91,7 @@ impl ShareStore {
 
     fn persist_delete(&self, token: &str) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap();
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             if let Err(e) = conn.execute("DELETE FROM shares WHERE token = ?1", params![token]) {
                 warn!("Failed to delete share from SQLite: {}", e);
             }
@@ -100,7 +100,7 @@ impl ShareStore {
 
     fn persist_download(&self, token: &str, count: u32) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap();
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             if let Err(e) = conn.execute(
                 "UPDATE shares SET download_count = ?1 WHERE token = ?2",
                 params![count as i64, token],

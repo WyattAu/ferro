@@ -34,7 +34,7 @@ tokio = { workspace = true }
 dashmap = "6"
 quick-xml = { version = "0.37", features = ["serialize"] }
 urlencoding = "2"
-rusqlite = { version = "0.31", features = ["bundled"], optional = true }
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

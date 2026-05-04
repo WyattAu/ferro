@@ -63,7 +63,7 @@ impl TagStore {
         }
         entry.value_mut().insert(tag.to_string());
         if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap().execute(
+            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "INSERT OR IGNORE INTO file_tags (file_path, tag) VALUES (?1, ?2)",
                 params![path, tag],
             )
@@ -82,7 +82,7 @@ impl TagStore {
             }
             if removed
                 && let Some(ref db) = self.db
-                && let Err(e) = db.lock().unwrap().execute(
+                && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                     "DELETE FROM file_tags WHERE file_path = ?1 AND tag = ?2",
                     params![path, tag],
                 )

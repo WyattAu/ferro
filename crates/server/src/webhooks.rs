@@ -208,7 +208,7 @@ pub struct CreateWebhookInput {
 }
 
 pub fn persist_webhook_create(db: &DbHandle, config: &WebhookConfig) {
-    let conn = db.lock().unwrap();
+    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute(
         "INSERT OR REPLACE INTO webhooks (id, url, events, secret, enabled) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
@@ -224,7 +224,7 @@ pub fn persist_webhook_create(db: &DbHandle, config: &WebhookConfig) {
 }
 
 pub fn persist_webhook_delete(db: &DbHandle, id: &str) {
-    let conn = db.lock().unwrap();
+    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute("DELETE FROM webhooks WHERE id = ?1", params![id]) {
         warn!("Failed to delete webhook from SQLite: {}", e);
     }

@@ -247,7 +247,7 @@ impl InMemoryUserStore {
 
     fn persist_user(&self, user: &User) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap();
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO users (id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 params![
@@ -272,7 +272,7 @@ impl InMemoryUserStore {
 
     fn delete_user_from_db(&self, id: &str) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap();
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             if let Err(e) = conn.execute("DELETE FROM users WHERE id = ?1", params![id]) {
                 warn!("Failed to delete user from SQLite: {}", e);
             }
@@ -454,7 +454,7 @@ impl UserStoreTrait for InMemoryUserStore {
             let u = user.clone();
             drop(user);
             if let Some(ref db) = self.db {
-                let conn = db.lock().unwrap();
+                let conn = db.lock().unwrap_or_else(|e| e.into_inner());
                 if let Err(e) = conn.execute(
                     "UPDATE users SET last_login = ?1 WHERE id = ?2",
                     params![u.last_login.map(|l| l.to_rfc3339()), u.id],

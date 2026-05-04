@@ -337,7 +337,7 @@ impl AppState {
 
     pub fn with_db(mut self, db: DbHandle) -> Self {
         self.db = Some(db.clone());
-        let conn = db.lock().unwrap();
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
 
         let user_store = users::InMemoryUserStore::new().with_db(db.clone());
         if let Ok(users) = users::InMemoryUserStore::load_all_from_db(&conn) {
@@ -797,9 +797,11 @@ pub fn build_router_with_static(
                     axum::http::HeaderValue::from_static("Sat, 01 May 2027 00:00:00 GMT"),
                 );
                 let link = format!("</api/{}>; rel=\"successor-version\"", ver);
+                let link_val = axum::http::HeaderValue::from_str(&link)
+                    .expect("API version must be visible ASCII for HTTP headers");
                 response.headers_mut().insert(
                     axum::http::header::LINK,
-                    axum::http::HeaderValue::from_str(&link).unwrap(),
+                    link_val,
                 );
                 response
             }

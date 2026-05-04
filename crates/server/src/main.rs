@@ -534,7 +534,7 @@ async fn main() -> anyhow::Result<()> {
     // Load webhooks from SQLite (async, requires tokio runtime)
     if let Some(ref db) = state.db {
         let hooks: Vec<ferro_server::webhooks::WebhookConfig> = {
-            let conn = db.lock().unwrap();
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             ferro_server::webhooks::load_webhooks_from_db(&conn).unwrap_or_default()
         };
         if !hooks.is_empty() {

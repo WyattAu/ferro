@@ -109,7 +109,7 @@ fn evict_oldest_if_needed(trash: &DashMap<String, TrashedEntry>) {
 }
 
 pub fn persist_trash_insert(db: &DbHandle, entry: &TrashedEntry) {
-    let conn = db.lock().unwrap();
+    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute(
         "INSERT OR REPLACE INTO trash (original_path, trash_path, deleted_at, size, mime_type) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
@@ -125,7 +125,7 @@ pub fn persist_trash_insert(db: &DbHandle, entry: &TrashedEntry) {
 }
 
 pub fn persist_trash_remove(db: &DbHandle, original_path: &str) {
-    let conn = db.lock().unwrap();
+    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute(
         "DELETE FROM trash WHERE original_path = ?1",
         params![original_path],
@@ -135,7 +135,7 @@ pub fn persist_trash_remove(db: &DbHandle, original_path: &str) {
 }
 
 pub fn persist_trash_clear(db: &DbHandle) {
-    let conn = db.lock().unwrap();
+    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute("DELETE FROM trash", []) {
         warn!("Failed to clear trash entries from SQLite: {}", e);
     }
@@ -227,10 +227,12 @@ pub async fn move_to_trash(
         mime_type,
     };
 
-    state.trash.insert(normalized.clone(), entry);
+    state.trash.insert(normalized.clone(), entry.clone());
     evict_oldest_if_needed(&state.trash);
     if let Some(ref db) = state.db {
-        persist_trash_insert(db, &state.trash.get(&normalized).unwrap());
+        // Use the local entry directly instead of re-fetching from DashMap,
+        // which may have evicted this entry during evict_oldest_if_needed.
+        persist_trash_insert(db, &entry);
     }
 
     (
@@ -391,10 +393,12 @@ pub async fn soft_delete(state: &AppState, path: &str) -> Result<(), Response> {
         mime_type,
     };
 
-    state.trash.insert(normalized.clone(), entry);
+    state.trash.insert(normalized.clone(), entry.clone());
     evict_oldest_if_needed(&state.trash);
     if let Some(ref db) = state.db {
-        persist_trash_insert(db, &state.trash.get(&normalized).unwrap());
+        // Use the local entry directly instead of re-fetching from DashMap,
+        // which may have evicted this entry during evict_oldest_if_needed.
+        persist_trash_insert(db, &entry);
     }
     Ok(())
 }

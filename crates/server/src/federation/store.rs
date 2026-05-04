@@ -50,7 +50,7 @@ impl ActivityStore {
             let target_json = activity
                 .target
                 .map(|t| serde_json::to_string(&t).unwrap_or_default());
-            let _ = db.lock().unwrap().execute(
+            let _ = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'inbox')",
                 params![
                     id,
@@ -89,7 +89,7 @@ impl ActivityStore {
             let target_json = activity
                 .target
                 .map(|t| serde_json::to_string(&t).unwrap_or_default());
-            let _ = db.lock().unwrap().execute(
+            let _ = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'outbox')",
                 params![
                     id,
@@ -125,7 +125,7 @@ impl ActivityStore {
             .or_default()
             .push(follower.to_string());
         if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap().execute(
+            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "INSERT OR IGNORE INTO fed_followers (actor, follower) VALUES (?1, ?2)",
                 params![actor, follower],
             )
@@ -139,7 +139,7 @@ impl ActivityStore {
             followers.retain(|f| f != follower);
         }
         if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap().execute(
+            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "DELETE FROM fed_followers WHERE actor = ?1 AND follower = ?2",
                 params![actor, follower],
             )
@@ -168,7 +168,7 @@ impl ActivityStore {
             .or_default()
             .push(target.to_string());
         if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap().execute(
+            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "INSERT OR IGNORE INTO fed_following (actor, target) VALUES (?1, ?2)",
                 params![actor, target],
             )

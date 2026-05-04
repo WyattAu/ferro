@@ -65,7 +65,7 @@ impl LockManager {
 
     fn persist_lock(&self, lock: &LockInfo) {
         if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap().execute(
+            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "INSERT OR REPLACE INTO locks (token, path, principal, scope, lock_type, depth, timeout_seconds, created_at, refresh_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                 params![
                     lock.token.as_str(),
