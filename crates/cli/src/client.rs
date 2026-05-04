@@ -401,6 +401,57 @@ impl FerroClient {
         }
         Ok(resp.json().await?)
     }
+
+    /// Generic GET returning JSON.
+    pub async fn get_json(&self, path: &str) -> Result<serde_json::Value> {
+        let url = format!("{}{}", self.server_url, path);
+        let mut req = self.http.get(&url);
+        if let Some(token) = &self.token {
+            req = req.header(AUTHORIZATION, format!("Bearer {}", token));
+        }
+        let resp = req.send().await?;
+        if !resp.status().is_success() {
+            anyhow::bail!("GET {} failed: {}", url, resp.status());
+        }
+        Ok(resp.json().await?)
+    }
+
+    /// Generic POST with JSON body returning JSON.
+    pub async fn post_json(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("{}{}", self.server_url, path);
+        let mut req = self.http.post(&url).json(body);
+        if let Some(token) = &self.token {
+            req = req.header(AUTHORIZATION, format!("Bearer {}", token));
+        }
+        let resp = req.send().await?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let error_body: serde_json::Value = resp.json().await.unwrap_or_default();
+            if let Some(msg) = error_body.get("error").and_then(|v| v.as_str()) {
+                anyhow::bail!("POST {} failed ({}): {}", url, status, msg);
+            }
+            anyhow::bail!("POST {} failed: {}", url, status);
+        }
+        Ok(resp.json().await?)
+    }
+
+    /// Generic DELETE.
+    pub async fn delete(&self, path: &str) -> Result<()> {
+        let url = format!("{}{}", self.server_url, path);
+        let mut req = self.http.delete(&url);
+        if let Some(token) = &self.token {
+            req = req.header(AUTHORIZATION, format!("Bearer {}", token));
+        }
+        let resp = req.send().await?;
+        if !resp.status().is_success() {
+            anyhow::bail!("DELETE {} failed: {}", url, resp.status());
+        }
+        Ok(())
+    }
 }
 
 /// Parse a WebDAV PROPFIND multistatus XML response into a list of FileMetadata.

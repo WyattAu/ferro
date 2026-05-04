@@ -34,8 +34,8 @@ pub struct Image {
 
 /// Generate an RSA-2048 key pair encoded as PEM.
 fn generate_rsa_key_pem() -> String {
-    let key_pair = rcgen::KeyPair::generate()
-        .expect("failed to generate RSA key pair for federation actor");
+    let key_pair =
+        rcgen::KeyPair::generate().expect("failed to generate RSA key pair for federation actor");
     key_pair.serialize_pem()
 }
 
@@ -91,9 +91,18 @@ mod tests {
     fn test_actor_has_real_public_key() {
         let actor = Actor::new("https://files.example.com", "admin", "Admin");
         // Verify it's a valid PEM-formatted RSA key
-        assert!(actor.public_key.public_key_pem.contains("-----BEGIN"), "PEM should have BEGIN marker");
-        assert!(actor.public_key.public_key_pem.contains("-----"), "PEM should have END marker");
-        assert!(actor.public_key.public_key_pem.len() > 100, "PEM should be substantial");
+        assert!(
+            actor.public_key.public_key_pem.contains("-----BEGIN"),
+            "PEM should have BEGIN marker"
+        );
+        assert!(
+            actor.public_key.public_key_pem.contains("-----"),
+            "PEM should have END marker"
+        );
+        assert!(
+            actor.public_key.public_key_pem.len() > 100,
+            "PEM should be substantial"
+        );
         // Verify it does NOT contain the placeholder
         assert!(!actor.public_key.public_key_pem.contains("TODO"));
     }

@@ -799,10 +799,9 @@ pub fn build_router_with_static(
                 let link = format!("</api/{}>; rel=\"successor-version\"", ver);
                 let link_val = axum::http::HeaderValue::from_str(&link)
                     .expect("API version must be visible ASCII for HTTP headers");
-                response.headers_mut().insert(
-                    axum::http::header::LINK,
-                    link_val,
-                );
+                response
+                    .headers_mut()
+                    .insert(axum::http::header::LINK, link_val);
                 response
             }
         },

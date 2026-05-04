@@ -48,6 +48,9 @@ enum Commands {
     #[command(subcommand)]
     Snapshot(SnapshotCommands),
 
+    #[command(subcommand)]
+    Backup(BackupCommands),
+
     Info,
 }
 
@@ -130,6 +133,18 @@ enum SnapshotCommands {
     Restore { id: String },
 }
 
+#[derive(Subcommand, Debug)]
+enum BackupCommands {
+    /// Create a full backup
+    Create,
+    /// List all backups
+    List,
+    /// Restore from a backup
+    Restore { id: String },
+    /// Delete a backup
+    Delete { id: String },
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -151,6 +166,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Policy(cmd) => handle_policy(cmd, &ferro_client).await,
         Commands::Share(cmd) => handle_share(cmd, &ferro_client).await,
         Commands::Snapshot(cmd) => handle_snapshot(cmd, &ferro_client).await,
+        Commands::Backup(ref cmd) => cmd_backup(&ferro_client, cmd).await,
         Commands::Info => cmd_info(&ferro_client).await,
     }
 }
@@ -430,6 +446,66 @@ async fn handle_snapshot(
             println!("Restoring snapshot {}...", id);
             client.restore_snapshot(&id).await?;
             println!("Snapshot {} restored", id);
+        }
+    }
+    Ok(())
+}
+
+async fn cmd_backup(client: &client::FerroClient, cmd: &BackupCommands) -> anyhow::Result<()> {
+    match cmd {
+        BackupCommands::Create => {
+            println!("Creating backup...");
+            let resp = client
+                .post_json("/api/admin/backup", &serde_json::json!({}))
+                .await?;
+            let id = resp
+                .get("backup_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            let files = resp.get("file_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            let size = resp
+                .get("total_bytes")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            println!(
+                "Backup {} created ({} files, {:.2} MB)",
+                id,
+                files,
+                size as f64 / 1_048_576.0
+            );
+        }
+        BackupCommands::List => {
+            let resp = client.get_json("/api/admin/backups").await?;
+            let backups = resp.get("backups").and_then(|v| v.as_array());
+            match backups {
+                Some(arr) if !arr.is_empty() => {
+                    println!("{:<30} {:>10} {:>12}", "ID", "FILES", "SIZE");
+                    println!("{}", "-".repeat(70));
+                    for b in arr {
+                        let id = b.get("backup_id").and_then(|v| v.as_str()).unwrap_or("?");
+                        let files = b.get("file_count").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let size = b.get("total_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+                        println!(
+                            "{:<30} {:>10} {:>8.1} MB",
+                            id,
+                            files,
+                            size as f64 / 1_048_576.0
+                        );
+                    }
+                }
+                _ => println!("No backups found"),
+            }
+        }
+        BackupCommands::Restore { id } => {
+            println!("Restoring backup {}...", id);
+            client
+                .post_json("/api/admin/restore", &serde_json::json!({"backup_id": id}))
+                .await?;
+            println!("Backup {} restored", id);
+        }
+        BackupCommands::Delete { id } => {
+            client.delete(&format!("/api/admin/backup/{}", id)).await?;
+            println!("Deleted backup: {}", id);
         }
     }
     Ok(())

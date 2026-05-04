@@ -207,21 +207,31 @@ async fn main() -> anyhow::Result<()> {
     };
     let state = {
         let search_path = std::path::Path::new(&search_index_path);
-        match ferro_core::search::SearchEngine::open(search_path) {
-            Ok(engine) => {
-                info!("Search engine enabled at {:?}", search_path);
-                state.with_search(engine)
-            }
-            Err(_) => match ferro_core::search::SearchEngine::new(search_path) {
+        // Ensure the search index directory exists before attempting to open/create
+        if let Err(e) = std::fs::create_dir_all(search_path) {
+            tracing::warn!(
+                "Search engine unavailable: could not create directory {:?}: {}",
+                search_path,
+                e
+            );
+            state
+        } else {
+            match ferro_core::search::SearchEngine::open(search_path) {
                 Ok(engine) => {
-                    info!("Search engine created at {:?}", search_path);
+                    info!("Search engine enabled at {:?}", search_path);
                     state.with_search(engine)
                 }
-                Err(e) => {
-                    tracing::warn!("Search engine unavailable: {}", e);
-                    state
-                }
-            },
+                Err(_) => match ferro_core::search::SearchEngine::new(search_path) {
+                    Ok(engine) => {
+                        info!("Search engine created at {:?}", search_path);
+                        state.with_search(engine)
+                    }
+                    Err(e) => {
+                        tracing::warn!("Search engine unavailable: {}", e);
+                        state
+                    }
+                },
+            }
         }
     };
 
