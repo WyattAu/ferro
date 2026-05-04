@@ -2832,7 +2832,7 @@ dependencies = [
  "object_store",
  "pdf",
  "quick-xml 0.37.5",
- "rand 0.8.6",
+ "rand 0.9.4",
  "rcgen",
  "redis",
  "reqwest 0.12.28",
