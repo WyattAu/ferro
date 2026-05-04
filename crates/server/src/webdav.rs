@@ -148,6 +148,14 @@ pub async fn handle_any(
             "LOCK" => handle_lock(state, &resolved_path, &headers, &body).await,
             "UNLOCK" => handle_unlock(state, &resolved_path, &headers).await,
             "PROPPATCH" => handle_proppatch(state, &resolved_path, &headers, &body).await,
+            "MKCALENDAR" | "REPORT" if resolved_path.starts_with("/dav/cal") => {
+                let m = method.clone();
+                Ok(crate::dav::dispatch_caldav(state, &m, &resolved_path, body).await)
+            }
+            "REPORT" if resolved_path.starts_with("/dav/card") => {
+                let m = method.clone();
+                Ok(crate::dav::dispatch_carddav(state, &m, &resolved_path, body).await)
+            }
             _ => Err(FerroError::InvalidArgument(format!(
                 "Method {} not supported",
                 method

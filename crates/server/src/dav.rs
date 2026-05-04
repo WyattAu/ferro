@@ -1,6 +1,7 @@
 use axum::Extension;
 use axum::body::Bytes;
 use axum::extract::{Path, State};
+use axum::http::Method;
 use axum::response::{IntoResponse, Response};
 
 use crate::AppState;
@@ -16,6 +17,46 @@ async fn carddav_state(state: &AppState) -> ferro_dav::carddav::CardDavState {
     ferro_dav::carddav::CardDavState {
         store: state.address_book_store.clone(),
         principal: "default".to_string(),
+    }
+}
+
+/// Dispatch CalDAV-specific methods (MKCALENDAR, REPORT) that the generic
+/// WebDAV handler doesn't support. Called from webdav::handle_any when the
+/// path starts with /dav/cal/.
+pub async fn dispatch_caldav(
+    state: crate::AppState,
+    method: &Method,
+    _path: &str,
+    body: Bytes,
+) -> Response {
+    let cal_state = caldav_state(&state).await;
+    match method.as_str() {
+        "MKCALENDAR" => {
+            ferro_dav::caldav::create_calendar_handler(axum::extract::State(cal_state)).await
+        }
+        "REPORT" => {
+            ferro_dav::caldav::handle_report(axum::extract::State(cal_state), Extension(body)).await
+        }
+        _ => axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response(),
+    }
+}
+
+/// Dispatch CardDAV-specific methods (REPORT) that the generic WebDAV handler
+/// doesn't support. Called from webdav::handle_any when the path starts with
+/// /dav/card/.
+pub async fn dispatch_carddav(
+    state: crate::AppState,
+    method: &Method,
+    _path: &str,
+    body: Bytes,
+) -> Response {
+    let card_state = carddav_state(&state).await;
+    match method.as_str() {
+        "REPORT" => {
+            ferro_dav::carddav::handle_report(axum::extract::State(card_state), Extension(body))
+                .await
+        }
+        _ => axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response(),
     }
 }
 

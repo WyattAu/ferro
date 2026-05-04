@@ -854,7 +854,7 @@ pub fn build_router_with_static(
         .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
         .nest(&versioned_api_path, api_routes())
         .nest("/api", api_routes().layer(deprecation_layer))
-        .route("/*path", any(webdav::handle_any))
+        // CalDAV and CardDAV routes (registered before /*path catch-all)
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route(
             "/dav/cal/",
@@ -890,6 +890,8 @@ pub fn build_router_with_static(
                 .put(dav::carddav_put_contact)
                 .delete(dav::carddav_delete_contact),
         )
+        // WebDAV catch-all
+        .route("/*path", any(webdav::handle_any))
         .layer(rate_limit_layer)
         .layer(cedar_layer)
         .layer(auth_layer)
