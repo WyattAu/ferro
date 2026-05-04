@@ -19,6 +19,8 @@ pub const MULTIPART_CHUNK_SIZE: usize = 5 * 1024 * 1024;
 pub struct ObjectStoreStorageEngine {
     store: Arc<dyn ObjectStore>,
     prefix: String,
+    /// Base filesystem path for local storage (enables real mkdir for collections).
+    local_base: Option<std::path::PathBuf>,
 }
 
 impl ObjectStoreStorageEngine {
@@ -26,6 +28,7 @@ impl ObjectStoreStorageEngine {
         Self {
             store,
             prefix: String::new(),
+            local_base: None,
         }
     }
 
@@ -34,6 +37,17 @@ impl ObjectStoreStorageEngine {
         Self {
             store,
             prefix: prefix.trim_start_matches('/').to_string(),
+            local_base: None,
+        }
+    }
+
+    /// Create a new storage engine for local filesystem with a known base path.
+    /// This enables real `mkdir` calls for collections instead of empty file markers.
+    pub fn with_local_base(store: Arc<dyn ObjectStore>, base: std::path::PathBuf) -> Self {
+        Self {
+            store,
+            prefix: String::new(),
+            local_base: Some(base),
         }
     }
 
@@ -207,52 +221,111 @@ impl StorageEngine for ObjectStoreStorageEngine {
 
     async fn head(&self, path: &str) -> Result<FileMetadata> {
         let obj_path = self.to_obj_path(path);
-        let meta = self
-            .store
-            .head(&obj_path)
-            .await
-            .map_err(|e| FerroError::NotFound(format!("{}: {}", path, e)))?;
+        match self.store.head(&obj_path).await {
+            Ok(meta) => {
+                let etag = meta.e_tag.clone().unwrap_or_default();
+                let is_collection = path.ends_with('/') || (meta.size == 0 && path.contains('/'));
 
-        let etag = meta.e_tag.clone().unwrap_or_default();
-        let is_collection = path.ends_with('/') || (meta.size == 0 && path.contains('/'));
-
-        Ok(FileMetadata {
-            path: path.to_string(),
-            content_hash: ContentHash::from_etag(&etag),
-            size: meta.size as u64,
-            mime_type: if is_collection {
-                "httpd/unix-directory".to_string()
-            } else {
-                "application/octet-stream".to_string()
-            },
-            is_collection,
-            created_at: meta.last_modified,
-            modified_at: meta.last_modified,
-            owner: "unknown".to_string(),
-            etag: format!("\"{}\"", etag),
-        })
+                Ok(FileMetadata {
+                    path: path.to_string(),
+                    content_hash: ContentHash::from_etag(&etag),
+                    size: meta.size as u64,
+                    mime_type: if is_collection {
+                        "httpd/unix-directory".to_string()
+                    } else {
+                        "application/octet-stream".to_string()
+                    },
+                    is_collection,
+                    created_at: meta.last_modified,
+                    modified_at: meta.last_modified,
+                    owner: "unknown".to_string(),
+                    etag: format!("\"{}\"", etag),
+                })
+            }
+            Err(_) if self.local_base.is_some() => {
+                // Fallback: check if it's a real directory on local filesystem
+                let clean = path.trim_start_matches('/');
+                let fs_path = self.local_base.as_ref().unwrap().join(clean);
+                let metadata = tokio::fs::metadata(&fs_path)
+                    .await
+                    .map_err(|e| FerroError::NotFound(format!("{}: {}", path, e)))?;
+                if metadata.is_dir() {
+                    let modified = metadata
+                        .modified()
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    let chrono_modified: chrono::DateTime<chrono::Utc> = modified.into();
+                    Ok(FileMetadata {
+                        path: path.to_string(),
+                        etag: format!("\"col-{}\"", chrono_modified.timestamp_millis()),
+                        content_hash: ContentHash::new("0".repeat(64)),
+                        size: 0,
+                        mime_type: "httpd/unix-directory".to_string(),
+                        is_collection: true,
+                        created_at: chrono_modified,
+                        modified_at: chrono_modified,
+                        owner: "unknown".to_string(),
+                    })
+                } else {
+                    let modified = metadata
+                        .modified()
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    let chrono_modified: chrono::DateTime<chrono::Utc> = modified.into();
+                    Ok(FileMetadata {
+                        path: path.to_string(),
+                        content_hash: ContentHash::new("0".repeat(64)),
+                        size: metadata.len(),
+                        mime_type: "application/octet-stream".to_string(),
+                        is_collection: false,
+                        created_at: chrono_modified,
+                        modified_at: chrono_modified,
+                        owner: "unknown".to_string(),
+                        etag: String::new(),
+                    })
+                }
+            }
+            Err(e) => Err(FerroError::NotFound(format!("{}: {}", path, e))),
+        }
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {
         let obj_path = self.to_obj_path(path);
         match self.store.head(&obj_path).await {
             Ok(_) => Ok(true),
-            Err(object_store::Error::NotFound { .. }) => Ok(false),
+            Err(object_store::Error::NotFound { .. }) => {
+                // For local storage, also check if it's a real directory
+                if let Some(ref base) = self.local_base {
+                    let clean = path.trim_start_matches('/');
+                    let fs_path = base.join(clean);
+                    Ok(fs_path.exists())
+                } else {
+                    Ok(false)
+                }
+            }
             Err(e) => Err(FerroError::StorageBackend(e.to_string())),
         }
     }
 
     async fn create_collection(&self, path: &str, owner: &str) -> Result<FileMetadata> {
-        let dir_path = if path.ends_with('/') {
-            path.to_string()
+        // For local filesystem, create a real directory instead of an empty file marker
+        if let Some(ref base) = self.local_base {
+            let clean = path.trim_start_matches('/');
+            let dir_path = base.join(clean);
+            tokio::fs::create_dir_all(&dir_path)
+                .await
+                .map_err(|e| FerroError::StorageBackend(format!("Failed to create directory {:?}: {}", dir_path, e)))?;
         } else {
-            format!("{}/", path)
-        };
-        let obj_path = self.to_obj_path(&dir_path);
-        self.store
-            .put(&obj_path, Bytes::new().into())
-            .await
-            .map_err(|e| FerroError::StorageBackend(e.to_string()))?;
+            // For cloud object stores, create an empty marker object (directory is implicit)
+            let dir_path = if path.ends_with('/') {
+                path.to_string()
+            } else {
+                format!("{}/", path)
+            };
+            let obj_path = self.to_obj_path(&dir_path);
+            self.store
+                .put(&obj_path, Bytes::new().into())
+                .await
+                .map_err(|e| FerroError::StorageBackend(e.to_string()))?;
+        }
         debug!("MKCOL {}", path);
         Ok(FileMetadata::new_collection(
             path.to_string(),

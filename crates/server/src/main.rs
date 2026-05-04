@@ -65,9 +65,11 @@ async fn main() -> anyhow::Result<()> {
                 .ok_or_else(|| anyhow::anyhow!("Invalid local storage path: {}", path))?;
             let store = object_store::local::LocalFileSystem::new_with_prefix(dir)
                 .map_err(|e| anyhow::anyhow!("Failed to open local storage at {}: {}", dir, e))?;
+            let base_path = std::path::PathBuf::from(dir);
             AppState::new(std::sync::Arc::new(
-                ferro_server::object_store_backend::ObjectStoreStorageEngine::new(
+                ferro_server::object_store_backend::ObjectStoreStorageEngine::with_local_base(
                     std::sync::Arc::new(store),
+                    base_path,
                 ),
             ))
         }
@@ -603,12 +605,23 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let addr = format!("{}:{}", cli.host, cli.port);
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
+
+    // Build the listener from std so we can set a larger listen backlog.
+    // tokio::net::TcpListener::bind uses the OS default (typically 128),
+    // which causes connection drops under burst uploads. We also enable
+    // TCP_NODELAY via axum::serve for lower latency on small requests.
+    let std_listener = std::net::TcpListener::bind(&addr)?;
+    std_listener
+        .set_nonblocking(true)
+        .expect("failed to set non-blocking");
+    let listener = tokio::net::TcpListener::from_std(std_listener)?;
     info!("Ferro server listening on {}", addr);
 
     let graceful_timeout = cli.graceful_shutdown_timeout;
 
-    let server = axum::serve(listener, app).with_graceful_shutdown(shutdown_signal());
+    let server = axum::serve(listener, app)
+        .tcp_nodelay(true)
+        .with_graceful_shutdown(shutdown_signal());
 
     match tokio::time::timeout(std::time::Duration::from_secs(graceful_timeout), server).await {
         Ok(Ok(())) => {}

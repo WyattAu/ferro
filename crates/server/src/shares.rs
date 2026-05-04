@@ -143,10 +143,12 @@ impl ShareStore {
     }
 
     pub fn load_links_blocking(&self, links: Vec<ShareLink>) {
-        let mut guard = self.links.blocking_write();
-        for link in links {
-            guard.push(link);
-        }
+        tokio::task::block_in_place(|| {
+            let mut guard = self.links.blocking_write();
+            for link in links {
+                guard.push(link);
+            }
+        });
     }
 }
 
