@@ -40,7 +40,7 @@ url = "2"
 uuid = { version = "1", features = ["v4"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 sqlx = { version = "0.8.1", default-features = false, features = ["runtime-tokio", "macros", "chrono", "uuid"], optional = true }
-tantivy = { version = "0.22", optional = true }
+tantivy = { version = "0.26", optional = true }
 wasmtime = { version = "44.0", optional = true }
 wasmtime-wasi = { version = "44.0", optional = true }
 object_store = { version = "0.11", optional = true }
