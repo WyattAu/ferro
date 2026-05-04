@@ -154,10 +154,22 @@ impl StorageEngine for ObjectStoreStorageEngine {
 
     async fn delete(&self, path: &str) -> Result<()> {
         let obj_path = self.to_obj_path(path);
-        self.store
-            .delete(&obj_path)
-            .await
-            .map_err(|e| FerroError::NotFound(format!("{}: {}", path, e)))?;
+        if let Err(e) = self.store.delete(&obj_path).await {
+            // object_store::LocalFileSystem::delete uses remove_file, which fails
+            // on directories. Fall back to filesystem remove_dir for local storage.
+            if let Some(ref base) = self.local_base {
+                let clean = path.trim_start_matches('/').trim_end_matches('/');
+                let fs_path = base.join(clean);
+                if fs_path.is_dir() {
+                    tokio::fs::remove_dir(&fs_path)
+                        .await
+                        .map_err(|e| FerroError::StorageBackend(format!("{}: {}", path, e)))?;
+                    debug!("DELETE dir {}", path);
+                    return Ok(());
+                }
+            }
+            return Err(FerroError::NotFound(format!("{}: {}", path, e)));
+        }
         debug!("DELETE {}", path);
         Ok(())
     }

@@ -714,6 +714,28 @@ async fn handle_put(
     Ok((status, resp_headers, "").into_response())
 }
 
+/// Recursively delete a path and all its children (RFC 4918 §9.6.1).
+/// For collections, deletes all descendants depth-first, then the collection itself.
+fn delete_recursive<'a>(
+    state: &'a AppState,
+    path: &'a str,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+    Box::pin(async move {
+        if matches!(
+            state.storage.head(path).await,
+            Ok(meta) if meta.is_collection
+        ) {
+            let children = state.storage.list(path).await?;
+            for child in &children {
+                delete_recursive(state, &child.path).await?;
+            }
+        }
+        state.storage.delete(path).await?;
+        crate::indexer::remove_file(state, path).await;
+        Ok(())
+    })
+}
+
 async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Result<Response> {
     let path = normalize_path(path);
 
@@ -731,9 +753,9 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
         )));
     }
 
-    state.storage.delete(&path).await?;
-
-    crate::indexer::remove_file(&state, &path).await;
+    // RFC 4918 §9.6.1: DELETE on a collection removes the collection and all
+    // its members recursively.
+    delete_recursive(&state, &path).await?;
 
     crate::webhooks::fire_webhooks(
         state.webhooks.clone(),
