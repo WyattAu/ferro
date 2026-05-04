@@ -117,7 +117,6 @@ pub fn actor_from_key_id(key_id: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::HeaderValue;
 
     fn make_signature(key_id: &str, headers: &[&str], sig_b64: &str) -> String {
         format!(

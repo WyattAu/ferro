@@ -36,7 +36,6 @@ mod tests {
         let data = Bytes::from("hello world");
         let reader = StorageReader::new(Box::pin(Cursor::new(data.clone())));
         let mut buf = vec![0u8; 64];
-        let mut read_buf = ReadBuf::new(&mut buf);
 
         use tokio::io::AsyncReadExt;
         let reader = &mut Box::pin(reader);

@@ -76,9 +76,9 @@ use common::storage::StorageEngine;
 use dashmap::{DashMap, DashSet};
 use lock::{LockManager, LockManagerTrait};
 use std::sync::Arc;
+use tower::limit::ConcurrencyLimitLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::services::{ServeDir, ServeFile};
-use tower::limit::ConcurrencyLimitLayer;
 
 use auth::cedar::CedarAuthorizer;
 use auth::oidc::OidcValidator;
@@ -905,7 +905,9 @@ pub fn build_router_with_static(
             security_headers::security_headers_middleware,
         ))
         .layer(CompressionLayer::new())
-        .layer(axum::extract::DefaultBodyLimit::max(state.max_body_size as usize))
+        .layer(axum::extract::DefaultBodyLimit::max(
+            state.max_body_size as usize,
+        ))
         // Cap concurrent in-flight requests to prevent the tokio runtime and
         // storage backend from being overwhelmed. Excess connections queue in
         // the kernel listen backlog instead of competing for resources.

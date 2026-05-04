@@ -83,8 +83,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_json_formatter_level_mapping() {
         assert_eq!(

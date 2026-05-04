@@ -310,9 +310,12 @@ impl StorageEngine for ObjectStoreStorageEngine {
         if let Some(ref base) = self.local_base {
             let clean = path.trim_start_matches('/');
             let dir_path = base.join(clean);
-            tokio::fs::create_dir_all(&dir_path)
-                .await
-                .map_err(|e| FerroError::StorageBackend(format!("Failed to create directory {:?}: {}", dir_path, e)))?;
+            tokio::fs::create_dir_all(&dir_path).await.map_err(|e| {
+                FerroError::StorageBackend(format!(
+                    "Failed to create directory {:?}: {}",
+                    dir_path, e
+                ))
+            })?;
         } else {
             // For cloud object stores, create an empty marker object (directory is implicit)
             let dir_path = if path.ends_with('/') {
