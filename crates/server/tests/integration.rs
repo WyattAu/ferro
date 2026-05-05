@@ -1927,7 +1927,11 @@ async fn test_rest_list_files_root() {
     let body = body_string(resp).await;
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     let entries = json["entries"].as_array().unwrap();
-    assert!(entries.len() >= 1, "Expected at least 1 entry, got {}", entries.len());
+    assert!(
+        entries.len() >= 1,
+        "Expected at least 1 entry, got {}",
+        entries.len()
+    );
 
     let hello = entries
         .iter()

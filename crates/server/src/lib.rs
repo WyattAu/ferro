@@ -453,6 +453,9 @@ fn api_routes() -> Router<AppState> {
         )
         .route("/config", axum::routing::get(config::get_server_config))
         .route("/files", axum::routing::get(api::list_files))
+        .route("/files/mkdir", axum::routing::post(api::mkdir))
+        .route("/files/move", axum::routing::post(move_copy::move_file))
+        .route("/files/copy", axum::routing::post(move_copy::copy_file))
         .route("/upload-url", axum::routing::get(presigned::get_upload_url))
         .route(
             "/download-url",
@@ -495,8 +498,6 @@ fn api_routes() -> Router<AppState> {
         .route("/bulk/delete", axum::routing::post(bulk::bulk_delete))
         .route("/batch/copy", axum::routing::post(batch::batch_copy))
         .route("/batch/move", axum::routing::post(batch::batch_move))
-        .route("/files/move", axum::routing::post(move_copy::move_file))
-        .route("/files/copy", axum::routing::post(move_copy::copy_file))
         .route(
             "/files/encrypt",
             axum::routing::post(encryption::encrypt_file),
@@ -890,6 +891,13 @@ pub fn build_router_with_static(
             axum::routing::get(dav::carddav_get_contact)
                 .put(dav::carddav_put_contact)
                 .delete(dav::carddav_delete_contact),
+        )
+        // REST file content endpoints (must be before the WebDAV catch-all)
+        .route(
+            "/api/v1/files/{*path}",
+            axum::routing::get(api::get_file)
+                .put(api::put_file)
+                .delete(api::delete_file),
         )
         // WebDAV catch-all
         .route("/*path", any(webdav::handle_any))

@@ -301,7 +301,11 @@ pub async fn list_files(
     Query(params): Query<ListFilesParams>,
 ) -> Response {
     let path = params.path.as_deref().unwrap_or("/").trim_matches('/');
-    let normalized = if path.is_empty() { "/" } else { &format!("/{path}") };
+    let normalized = if path.is_empty() {
+        "/"
+    } else {
+        &format!("/{path}")
+    };
     let depth = params.depth.unwrap_or(1);
 
     // Verify the target is a collection. For "/", synthesize a root collection
@@ -376,6 +380,298 @@ pub async fn list_files(
         axum::Json(serde_json::json!({ "entries": json_entries })),
     )
         .into_response()
+}
+
+/// GET /api/v1/files/{path} — download file content or get collection metadata.
+///
+/// For files: returns the raw content with Content-Type, ETag, and Content-Length headers.
+/// For collections: returns JSON metadata (same as FileEntryJson).
+/// Supports If-None-Match / If-Match for conditional requests (304 Not Modified).
+pub async fn get_file(
+    State(state): State<AppState>,
+    axum::extract::Path(path): axum::extract::Path<String>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let path = normalize_api_path(&path);
+
+    let meta = match state.storage.head(&path).await {
+        Ok(m) => m,
+        Err(e) => {
+            return (
+                StatusCode::NOT_FOUND,
+                axum::Json(serde_json::json!({
+                    "error": "not_found",
+                    "message": e.to_string(),
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let etag = meta.etag.clone();
+
+    // Conditional request: If-None-Match → 304
+    if headers
+        .get("if-none-match")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v == etag || v == "*")
+    {
+        return (StatusCode::NOT_MODIFIED, [(axum::http::header::ETAG, etag)]).into_response();
+    }
+
+    if meta.is_collection {
+        // Return JSON metadata for collections
+        let entry = FileEntryJson {
+            name: path.rsplit('/').next().unwrap_or(&path).to_string(),
+            path: meta.path,
+            size: meta.size,
+            is_collection: true,
+            mime_type: meta.mime_type,
+            etag: meta.etag,
+            content_hash: meta.content_hash.as_str().to_string(),
+            modified_at: meta.modified_at.to_rfc3339(),
+            created_at: meta.created_at.to_rfc3339(),
+        };
+        (StatusCode::OK, axum::Json(serde_json::json!(entry))).into_response()
+    } else {
+        // Stream file content
+        let content_type = meta.mime_type.clone();
+        let content_length = meta.size.to_string();
+        let filename = path.rsplit('/').next().unwrap_or("file").to_string();
+        match state.storage.get(&path).await {
+            Ok(content) => (
+                [
+                    (axum::http::header::CONTENT_TYPE, content_type),
+                    (axum::http::header::ETAG, meta.etag),
+                    (axum::http::header::CONTENT_LENGTH, content_length),
+                    (
+                        axum::http::header::CONTENT_DISPOSITION,
+                        format!("inline; filename=\"{filename}\""),
+                    ),
+                ],
+                content,
+            )
+                .into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({
+                    "error": "read_failed",
+                    "message": e.to_string(),
+                })),
+            )
+                .into_response(),
+        }
+    }
+}
+
+/// PUT /api/v1/files/{path} — upload/replace file content.
+///
+/// Request body is the raw file content. Supports If-Match for CAS (409 Precondition Failed).
+/// Returns JSON with metadata including ETag and content hash.
+pub async fn put_file(
+    State(state): State<AppState>,
+    axum::extract::Path(path): axum::extract::Path<String>,
+    headers: axum::http::HeaderMap,
+    body: axum::body::Bytes,
+) -> Response {
+    let path = normalize_api_path(&path);
+
+    // If-Match: CAS — verify existing ETag matches
+    #[allow(clippy::collapsible_if)]
+    if let Some(if_match) = headers.get("if-match").and_then(|v| v.to_str().ok()) {
+        if let Ok(existing) = state.storage.head(&path).await {
+            if if_match != existing.etag && if_match != "*" {
+                return (
+                    StatusCode::PRECONDITION_FAILED,
+                    axum::Json(serde_json::json!({
+                        "error": "precondition_failed",
+                        "message": "ETag does not match",
+                        "current_etag": existing.etag,
+                    })),
+                )
+                    .into_response();
+            }
+        }
+    }
+
+    let owner = "anonymous".to_string();
+    match state.storage.put(&path, body, &owner).await {
+        Ok(meta) => (
+            StatusCode::CREATED,
+            [
+                (axum::http::header::ETAG, meta.etag.clone()),
+                (axum::http::header::LOCATION, path.clone()),
+            ],
+            axum::Json(serde_json::json!({
+                "path": meta.path,
+                "size": meta.size,
+                "etag": meta.etag,
+                "content_hash": meta.content_hash.as_str(),
+                "created_at": meta.created_at.to_rfc3339(),
+                "modified_at": meta.modified_at.to_rfc3339(),
+            })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({
+                "error": "upload_failed",
+                "message": e.to_string(),
+            })),
+        )
+            .into_response(),
+    }
+}
+
+/// DELETE /api/v1/files/{path} — delete a file or collection.
+pub async fn delete_file(
+    State(state): State<AppState>,
+    axum::extract::Path(path): axum::extract::Path<String>,
+) -> Response {
+    let path = normalize_api_path(&path);
+    match state.storage.delete(&path).await {
+        Ok(()) => (StatusCode::NO_CONTENT, "").into_response(),
+        Err(e) => (
+            StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({
+                "error": "delete_failed",
+                "message": e.to_string(),
+            })),
+        )
+            .into_response(),
+    }
+}
+
+/// POST /api/v1/files/mkdir — create a directory/collection.
+pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::Value>) -> Response {
+    let path = body.get("path").and_then(|v| v.as_str()).unwrap_or("/");
+
+    let path = normalize_api_path(path);
+    let owner = "anonymous".to_string();
+
+    match state.storage.create_collection(&path, &owner).await {
+        Ok(meta) => {
+            let location = meta.path.clone();
+            (
+                StatusCode::CREATED,
+                [(axum::http::header::LOCATION, location)],
+                axum::Json(serde_json::json!({
+                    "path": meta.path,
+                    "created_at": meta.created_at.to_rfc3339(),
+                })),
+            )
+                .into_response()
+        }
+        Err(e) => {
+            let status = if e.to_string().contains("exists") {
+                StatusCode::CONFLICT
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            };
+            (
+                status,
+                axum::Json(serde_json::json!({
+                    "error": "mkdir_failed",
+                    "message": e.to_string(),
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
+/// POST /api/v1/files/copy — copy a file or directory.
+pub async fn copy_file(
+    State(state): State<AppState>,
+    body: axum::Json<serde_json::Value>,
+) -> Response {
+    let from = body.get("from").and_then(|v| v.as_str()).unwrap_or("");
+    let to = body.get("to").and_then(|v| v.as_str()).unwrap_or("");
+
+    if from.is_empty() || to.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "missing_params",
+                "message": "Both 'from' and 'to' are required",
+            })),
+        )
+            .into_response();
+    }
+
+    let from = normalize_api_path(from);
+    let to = normalize_api_path(to);
+
+    match state.storage.copy(&from, &to).await {
+        Ok(()) => (
+            StatusCode::CREATED,
+            axum::Json(serde_json::json!({
+                "from": from,
+                "to": to,
+            })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({
+                "error": "copy_failed",
+                "message": e.to_string(),
+            })),
+        )
+            .into_response(),
+    }
+}
+
+/// POST /api/v1/files/move — move/rename a file or directory.
+pub async fn move_file_rest(
+    State(state): State<AppState>,
+    body: axum::Json<serde_json::Value>,
+) -> Response {
+    let from = body.get("from").and_then(|v| v.as_str()).unwrap_or("");
+    let to = body.get("to").and_then(|v| v.as_str()).unwrap_or("");
+
+    if from.is_empty() || to.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "missing_params",
+                "message": "Both 'from' and 'to' are required",
+            })),
+        )
+            .into_response();
+    }
+
+    let from = normalize_api_path(from);
+    let to = normalize_api_path(to);
+
+    match state.storage.move_path(&from, &to).await {
+        Ok(()) => (
+            StatusCode::CREATED,
+            axum::Json(serde_json::json!({
+                "from": from,
+                "to": to,
+            })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({
+                "error": "move_failed",
+                "message": e.to_string(),
+            })),
+        )
+            .into_response(),
+    }
+}
+
+/// Normalize a user-supplied path for the REST API.
+fn normalize_api_path(path: &str) -> String {
+    let trimmed = path.trim_matches('/');
+    if trimmed.is_empty() {
+        "/".to_string()
+    } else {
+        format!("/{}", trimmed)
+    }
 }
 
 #[cfg(test)]
