@@ -895,13 +895,9 @@ pub fn build_router_with_static(
                 .put(dav::carddav_put_contact)
                 .delete(dav::carddav_delete_contact),
         )
-        // REST file content endpoints (must be before the WebDAV catch-all)
-        .route(
-            "/api/v1/files/{*path}",
-            axum::routing::get(api::get_file)
-                .put(api::put_file)
-                .delete(api::delete_file),
-        )
+        // REST file content endpoints — top-level route with catch-all
+        // Registered before the generic WebDAV catch-all for priority
+        .route("/api/v1/files/{*path}", any(api::files_content_handler))
         // WebDAV catch-all
         .route("/*path", any(webdav::handle_any))
         .layer(rate_limit_layer)

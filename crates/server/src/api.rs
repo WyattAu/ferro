@@ -1,5 +1,5 @@
-use axum::extract::{Query, State};
-use axum::http::StatusCode;
+use axum::extract::{Path as AxumPath, Query, State};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use base64::Engine;
 use common::auth::Claims;
@@ -389,7 +389,7 @@ pub async fn list_files(
 /// Supports If-None-Match / If-Match for conditional requests (304 Not Modified).
 pub async fn get_file(
     State(state): State<AppState>,
-    axum::extract::Path(path): axum::extract::Path<String>,
+    AxumPath(path): AxumPath<String>,
     headers: axum::http::HeaderMap,
 ) -> Response {
     let path = normalize_api_path(&path);
@@ -498,7 +498,7 @@ pub async fn get_file(
 /// Returns JSON with metadata including ETag and content hash.
 pub async fn put_file(
     State(state): State<AppState>,
-    axum::extract::Path(path): axum::extract::Path<String>,
+    AxumPath(path): AxumPath<String>,
     headers: axum::http::HeaderMap,
     body: axum::body::Bytes,
 ) -> Response {
@@ -556,7 +556,7 @@ pub async fn put_file(
 /// DELETE /api/v1/files/{path} — delete a file or collection.
 pub async fn delete_file(
     State(state): State<AppState>,
-    axum::extract::Path(path): axum::extract::Path<String>,
+    AxumPath(path): AxumPath<String>,
 ) -> Response {
     let path = normalize_api_path(&path);
     // Invalidate read cache for this path
@@ -579,6 +579,7 @@ pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::V
     let path = body.get("path").and_then(|v| v.as_str()).unwrap_or("/");
 
     let path = normalize_api_path(path);
+
     let owner = "anonymous".to_string();
 
     match state.storage.create_collection(&path, &owner).await {
@@ -609,6 +610,58 @@ pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::V
             )
                 .into_response()
         }
+    }
+}
+
+/// Handler for `/api/v1/files/{*path}` — dispatches GET/PUT/DELETE.
+///
+/// Axum doesn't allow `{*path}` catch-all in a nested router, so we register
+/// this at the top-level router and manually strip the prefix.
+pub async fn files_content_handler(
+    method: axum::http::Method,
+    uri: axum::http::Uri,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    path: Option<AxumPath<String>>,
+    body: axum::body::Bytes,
+) -> Response {
+    // Use the path from URL parsing (extracted by axum's {*path})
+    let file_path = match path {
+        Some(AxumPath(p)) => p,
+        None => {
+            // Fallback: try to extract from URI
+            let path_str = uri.path();
+            match path_str
+                .strip_prefix("/api/v1/files/")
+                .or_else(|| path_str.strip_prefix("/api/files/"))
+            {
+                Some(p) if !p.is_empty() => p.to_string(),
+                _ => {
+                    return (
+                        StatusCode::NOT_FOUND,
+                        axum::Json(serde_json::json!({
+                            "error": "not_found",
+                            "message": "Unknown API endpoint",
+                        })),
+                    )
+                        .into_response();
+                }
+            }
+        }
+    };
+
+    match method {
+        axum::http::Method::GET => get_file(State(state), AxumPath(file_path), headers).await,
+        axum::http::Method::PUT => put_file(State(state), AxumPath(file_path), headers, body).await,
+        axum::http::Method::DELETE => delete_file(State(state), AxumPath(file_path)).await,
+        _ => (
+            StatusCode::METHOD_NOT_ALLOWED,
+            axum::Json(serde_json::json!({
+                "error": "method_not_allowed",
+                "message": "Only GET, PUT, and DELETE are supported for file operations",
+            })),
+        )
+            .into_response(),
     }
 }
 
