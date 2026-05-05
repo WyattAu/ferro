@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use base64::Engine;
 use common::auth::Claims;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 use crate::api_error::ApiError;
@@ -268,6 +268,114 @@ mod tests {
         let challenge = generate_code_challenge("test");
         assert_eq!(challenge, "n4bQgYhMfWWaL-qgxVrQFaO_TxsrC4Is0V1sFbDwCgg");
     }
+}
+
+// ── File listing (REST) ─────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct ListFilesParams {
+    pub path: Option<String>,
+    pub depth: Option<u32>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FileEntryJson {
+    pub name: String,
+    pub path: String,
+    pub size: u64,
+    pub is_collection: bool,
+    pub mime_type: String,
+    pub etag: String,
+    pub content_hash: String,
+    pub modified_at: String,
+    pub created_at: String,
+}
+
+/// GET /api/v1/files — JSON file listing (alternative to WebDAV PROPFIND).
+///
+/// Query parameters:
+/// - `path`: directory to list (default: `/`)
+/// - `depth`: nesting depth 0 or 1 (default: 1)
+pub async fn list_files(
+    State(state): State<AppState>,
+    Query(params): Query<ListFilesParams>,
+) -> Response {
+    let path = params.path.as_deref().unwrap_or("/").trim_matches('/');
+    let normalized = if path.is_empty() { "/" } else { &format!("/{path}") };
+    let depth = params.depth.unwrap_or(1);
+
+    // Verify the target is a collection. For "/", synthesize a root collection
+    // if the store doesn't auto-create it (mirrors WebDAV PROPFIND behavior).
+    if normalized != "/" {
+        match state.storage.head(normalized).await {
+            Ok(meta) if meta.is_collection => {}
+            Ok(_) => {
+                return (
+                    StatusCode::CONFLICT,
+                    axum::Json(serde_json::json!({
+                        "error": "not_a_collection",
+                        "message": format!("{} is not a directory", normalized),
+                    })),
+                )
+                    .into_response();
+            }
+            Err(e) => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    axum::Json(serde_json::json!({
+                        "error": "not_found",
+                        "message": e.to_string(),
+                    })),
+                )
+                    .into_response();
+            }
+        }
+    } else {
+        // Root may not exist in in-memory store; that's OK — list() will return empty.
+        let _ = state.storage.head("/").await;
+    }
+
+    let entries = if depth == 0 {
+        vec![]
+    } else {
+        match state.storage.list(normalized).await {
+            Ok(items) => items,
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    axum::Json(serde_json::json!({
+                        "error": "list_failed",
+                        "message": e.to_string(),
+                    })),
+                )
+                    .into_response();
+            }
+        }
+    };
+
+    let json_entries: Vec<FileEntryJson> = entries
+        .into_iter()
+        .map(|m| {
+            let name = m.path.rsplit('/').next().unwrap_or(&m.path).to_string();
+            FileEntryJson {
+                name,
+                path: m.path,
+                size: m.size,
+                is_collection: m.is_collection,
+                mime_type: m.mime_type,
+                etag: m.etag,
+                content_hash: m.content_hash.as_str().to_string(),
+                modified_at: m.modified_at.to_rfc3339(),
+                created_at: m.created_at.to_rfc3339(),
+            }
+        })
+        .collect();
+
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "entries": json_entries })),
+    )
+        .into_response()
 }
 
 #[cfg(test)]

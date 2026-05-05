@@ -209,3 +209,19 @@ jobs:
         with:
           name: playwright-results
           path: e2e/test-results/
+
+  benchmark:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run benchmarks
+        run: cargo bench --package ferro-benchmarks -- --output-format bencher | tee benchmark-results.txt
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-results
+          path: benchmark-results.txt
+        retention-days: 90

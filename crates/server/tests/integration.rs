@@ -1879,3 +1879,177 @@ async fn test_wopi_file_not_found() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 }
+
+// ── REST file listing ─────────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_rest_list_files_root() {
+    let app = make_app();
+    // Seed some files
+    for name in ["hello.txt", "subdir/"] {
+        if name.ends_with('/') {
+            let _ = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("MKCOL")
+                        .uri(format!("/{}", name.trim_end_matches('/')))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await;
+        } else {
+            let _ = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("PUT")
+                        .uri(format!("/{}", name))
+                        .body(Body::from("hello world"))
+                        .unwrap(),
+                )
+                .await;
+        }
+    }
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/files")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_string(resp).await;
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let entries = json["entries"].as_array().unwrap();
+    assert!(entries.len() >= 1, "Expected at least 1 entry, got {}", entries.len());
+
+    let hello = entries
+        .iter()
+        .find(|e| e["name"] == "hello.txt")
+        .expect("hello.txt should be listed");
+    assert_eq!(hello["size"], 11);
+    assert_eq!(hello["is_collection"], false);
+    assert!(!hello["content_hash"].as_str().unwrap().is_empty());
+    assert!(!hello["etag"].as_str().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn test_rest_list_files_nested_path() {
+    let app = make_app();
+    // Create nested structure
+    let _ = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("MKCOL")
+                .uri("/docs")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+    let _ = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/docs/readme.md")
+                .body(Body::from("# docs"))
+                .unwrap(),
+        )
+        .await;
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/files?path=/docs")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_string(resp).await;
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let entries = json["entries"].as_array().unwrap();
+    let readme = entries
+        .iter()
+        .find(|e| e["name"] == "readme.md")
+        .expect("readme.md should be listed");
+    assert_eq!(readme["size"], 6);
+    assert_eq!(readme["path"], "/docs/readme.md");
+}
+
+#[tokio::test]
+async fn test_rest_list_files_depth_zero() {
+    let app = make_app();
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/files?depth=0")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = body_string(resp).await;
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let entries = json["entries"].as_array().unwrap();
+    assert_eq!(entries.len(), 0, "depth=0 should return empty entries");
+}
+
+#[tokio::test]
+async fn test_rest_list_files_not_found() {
+    let app = make_app();
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/files?path=/nonexistent")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn test_rest_list_files_on_file_returns_conflict() {
+    let app = make_app();
+    // Create a file at /list-me.txt
+    let _ = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/list-me.txt")
+                .body(Body::from("data"))
+                .unwrap(),
+        )
+        .await;
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/files?path=/list-me.txt")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::CONFLICT);
+}

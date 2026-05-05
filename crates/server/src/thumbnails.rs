@@ -56,9 +56,18 @@ impl ThumbnailService {
         let key = Self::cache_key(path);
         let cache_file = self.cache_path(&key);
 
+        // Determine content type for this mime category (used for cache hits too)
+        let content_type = if mime_type == "application/pdf" {
+            "image/svg+xml"
+        } else if Self::is_supported(mime_type) {
+            "image/jpeg"
+        } else {
+            "image/svg+xml"
+        };
+
         if let Ok(data) = tokio::fs::read(&cache_file).await {
             debug!("Thumbnail cache hit: {}", path);
-            return ("image/jpeg", Bytes::from(data));
+            return (content_type, Bytes::from(data));
         }
 
         let result = if mime_type == "application/pdf" {
@@ -67,14 +76,6 @@ impl ThumbnailService {
             self.generate_image_thumbnail(&content).await
         } else {
             Ok(Bytes::from_static(FILE_ICON_SVG))
-        };
-
-        let content_type = if mime_type == "application/pdf" {
-            "image/svg+xml"
-        } else if Self::is_supported(mime_type) {
-            "image/jpeg"
-        } else {
-            "image/svg+xml"
         };
 
         match result {
@@ -274,6 +275,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_non_image_returns_icon() {
+        let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test2").await;
         let service = ThumbnailService::new("/tmp/ferro-thumb-test2", 128);
         let content = Bytes::from("not an image");
 

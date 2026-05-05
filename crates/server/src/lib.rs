@@ -452,6 +452,7 @@ fn api_routes() -> Router<AppState> {
                 .delete(policies::delete_policy),
         )
         .route("/config", axum::routing::get(config::get_server_config))
+        .route("/files", axum::routing::get(api::list_files))
         .route("/upload-url", axum::routing::get(presigned::get_upload_url))
         .route(
             "/download-url",

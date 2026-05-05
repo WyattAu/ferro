@@ -57,6 +57,13 @@ pub fn build_multistatus_xml(items: &[(String, FileMetadata)]) -> Bytes {
         }
         let _ = writer.write_event(Event::End(BytesEnd::new("D:resourcetype")));
 
+        // RFC 3230: Content-MD5 for integrity verification (rclone, cadaver, etc.)
+        if !meta.is_collection {
+            let _ = writer.write_event(Event::Start(BytesStart::new("D:getcontentmd5")));
+            let _ = writer.write_event(Event::Text(BytesText::new(meta.content_hash.as_str())));
+            let _ = writer.write_event(Event::End(BytesEnd::new("D:getcontentmd5")));
+        }
+
         let _ = writer.write_event(Event::End(BytesEnd::new("D:prop")));
 
         let _ = writer.write_event(Event::Start(BytesStart::new("D:status")));
@@ -401,13 +408,31 @@ mod tests {
     #[test]
     fn test_build_multistatus_xml() {
         let hash = common::metadata::ContentHash::new("a".repeat(64));
-        let meta = FileMetadata::new("/test.txt".to_string(), hash, 42, "user1".to_string());
+        let meta = FileMetadata::new(
+            "/test.txt".to_string(),
+            hash.clone(),
+            42,
+            "user1".to_string(),
+        );
         let xml = build_multistatus_xml(&[("/test.txt".to_string(), meta)]);
         let xml_str = String::from_utf8(xml.to_vec()).unwrap();
         assert!(xml_str.contains("<D:multistatus"));
         assert!(xml_str.contains("<D:href>/test.txt</D:href>"));
         assert!(xml_str.contains("<D:getcontentlength>42</D:getcontentlength>"));
         assert!(xml_str.contains("</D:multistatus>"));
+        // File entries include getcontentmd5 (RFC 3230)
+        assert!(xml_str.contains("<D:getcontentmd5>"));
+        assert!(xml_str.contains(&hash.as_str()));
+    }
+
+    #[test]
+    fn test_multistatus_xml_collection_no_md5() {
+        let meta = FileMetadata::new_collection("/folder".to_string(), "user1".to_string());
+        let xml = build_multistatus_xml(&[("/folder".to_string(), meta)]);
+        let xml_str = String::from_utf8(xml.to_vec()).unwrap();
+        assert!(xml_str.contains("<D:collection/>"));
+        // Collections do NOT include getcontentmd5
+        assert!(!xml_str.contains("<D:getcontentmd5>"));
     }
 
     #[test]
