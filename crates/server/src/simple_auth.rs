@@ -93,7 +93,8 @@ pub async fn simple_auth_middleware(
 }
 
 fn is_public_path(path: &str) -> bool {
-    path == "/.well-known/ferro"
+    path == "/healthz"
+        || path == "/.well-known/ferro"
         || path == "/.well-known/openid-configuration"
         || path.starts_with("/api/auth/login")
         || path.starts_with("/api/auth/callback")
@@ -116,6 +117,7 @@ mod tests {
             std::sync::Arc::new(crate::users::InMemoryUserStore::new());
         axum::Router::new()
             .route("/api/test", axum::routing::get(|| async { "ok" }))
+            .route("/healthz", axum::routing::get(|| async { "ok" }))
             .route("/.well-known/ferro", axum::routing::get(|| async { "ok" }))
             .route("/api/config", axum::routing::get(|| async { "ok" }))
             .route("/api/auth/info", axum::routing::get(|| async { "ok" }))
@@ -165,6 +167,7 @@ mod tests {
                 path
             );
         }
+        check("/healthz").await;
         check("/.well-known/ferro").await;
         check("/api/config").await;
         check("/api/auth/info").await;
