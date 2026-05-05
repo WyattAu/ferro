@@ -187,6 +187,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
         for obj_meta in result.objects {
             let vpath = self.to_virtual_path(&obj_meta.location);
             let etag = obj_meta.e_tag.clone().unwrap_or_default();
+
             items.push(FileMetadata {
                 path: vpath,
                 content_hash: ContentHash::from_etag(&etag),
@@ -238,9 +239,15 @@ impl StorageEngine for ObjectStoreStorageEngine {
                 let etag = meta.e_tag.clone().unwrap_or_default();
                 let is_collection = path.ends_with('/') || (meta.size == 0 && path.contains('/'));
 
+                // Normalize the object store's native ETag to a 64-char SHA-256 hash.
+                // For uploads done via our put(), the ETag is already SHA-256 hex (64 chars).
+                // For object stores (S3 etc.), the native ETag may be MD5 (32 chars) or
+                // multipart hash — we SHA-256 hash it to produce a consistent 64-char value.
+                let content_hash = ContentHash::from_etag(&etag);
+
                 Ok(FileMetadata {
                     path: path.to_string(),
-                    content_hash: ContentHash::from_etag(&etag),
+                    content_hash,
                     size: meta.size as u64,
                     mime_type: if is_collection {
                         "httpd/unix-directory".to_string()
@@ -375,9 +382,12 @@ impl StorageEngine for ObjectStoreStorageEngine {
             }
 
             let etag = obj_meta.e_tag.clone().unwrap_or_default();
+            // Normalize native ETag to consistent 64-char SHA-256 hash (see head() comment).
+            let content_hash = ContentHash::from_etag(&etag);
+
             items.push(FileMetadata {
                 path: vpath,
-                content_hash: ContentHash::from_etag(&etag),
+                content_hash,
                 size: obj_meta.size as u64,
                 mime_type: "application/octet-stream".to_string(),
                 is_collection: obj_meta.location.as_ref().ends_with('/'),
