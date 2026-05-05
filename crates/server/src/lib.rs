@@ -33,6 +33,7 @@ pub mod presigned;
 pub mod prometheus_metrics;
 pub mod quota;
 pub mod rate_limit;
+pub mod read_cache;
 #[cfg(feature = "redis")]
 pub mod redis_lock;
 #[cfg(feature = "redis")]
@@ -126,6 +127,7 @@ pub struct AppState {
     pub used_bytes: Arc<std::sync::atomic::AtomicU64>,
     pub file_count: Arc<std::sync::atomic::AtomicU64>,
     pub preferences: Arc<dyn PreferenceStore>,
+    pub read_cache: Arc<read_cache::ReadCache>,
     pub request_count: Arc<std::sync::atomic::AtomicU64>,
     pub sync_clock: Arc<std::sync::atomic::AtomicU64>,
     pub webhooks: Arc<tokio::sync::RwLock<Vec<webhooks::WebhookConfig>>>,
@@ -178,6 +180,7 @@ impl AppState {
             used_bytes: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             file_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             preferences: Arc::new(search::InMemoryPreferenceStore::new()),
+            read_cache: Arc::new(read_cache::ReadCache::default()),
             request_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             sync_clock: Arc::new(std::sync::atomic::AtomicU64::new(1)),
             webhooks: Arc::new(tokio::sync::RwLock::new(Vec::new())),

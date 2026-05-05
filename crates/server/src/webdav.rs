@@ -598,6 +598,8 @@ async fn handle_put(
 
     let body_for_index = body.clone();
     let use_multipart = body.len() > 10 * 1024 * 1024 && state.storage.supports_multipart();
+    // Invalidate read cache for this path
+    state.read_cache.invalidate_path(&path);
     let mut meta = if use_multipart {
         state.storage.put_multipart(&path, body, &owner).await?
     } else {
@@ -739,6 +741,7 @@ fn delete_recursive<'a>(
             }
         }
         state.storage.delete(path).await?;
+        state.read_cache.invalidate_path(path);
         crate::indexer::remove_file(state, path).await;
         Ok(())
     })

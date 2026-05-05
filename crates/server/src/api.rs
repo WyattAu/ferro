@@ -434,24 +434,52 @@ pub async fn get_file(
         };
         (StatusCode::OK, axum::Json(serde_json::json!(entry))).into_response()
     } else {
-        // Stream file content
+        // Stream file content (with read cache)
         let content_type = meta.mime_type.clone();
         let content_length = meta.size.to_string();
         let filename = path.rsplit('/').next().unwrap_or("file").to_string();
-        match state.storage.get(&path).await {
-            Ok(content) => (
+        let etag_for_cache = meta.etag.clone();
+        let path_for_cache = path.clone();
+
+        // Check read cache first
+        if let Some(cached) = state.read_cache.get(&path_for_cache, &etag_for_cache) {
+            return (
                 [
                     (axum::http::header::CONTENT_TYPE, content_type),
-                    (axum::http::header::ETAG, meta.etag),
+                    (axum::http::header::ETAG, etag_for_cache),
                     (axum::http::header::CONTENT_LENGTH, content_length),
                     (
                         axum::http::header::CONTENT_DISPOSITION,
                         format!("inline; filename=\"{filename}\""),
                     ),
                 ],
-                content,
+                cached,
             )
-                .into_response(),
+                .into_response();
+        }
+
+        match state.storage.get(&path).await {
+            Ok(content) => {
+                // Populate cache for small files
+                if content.len() <= 10 * 1024 * 1024 {
+                    state
+                        .read_cache
+                        .put(&path_for_cache, &etag_for_cache, content.clone());
+                }
+                (
+                    [
+                        (axum::http::header::CONTENT_TYPE, content_type),
+                        (axum::http::header::ETAG, etag_for_cache),
+                        (axum::http::header::CONTENT_LENGTH, content_length),
+                        (
+                            axum::http::header::CONTENT_DISPOSITION,
+                            format!("inline; filename=\"{filename}\""),
+                        ),
+                    ],
+                    content,
+                )
+                    .into_response()
+            }
             Err(e) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 axum::Json(serde_json::json!({
@@ -495,6 +523,8 @@ pub async fn put_file(
     }
 
     let owner = "anonymous".to_string();
+    // Invalidate read cache for this path (any ETag version)
+    state.read_cache.invalidate_path(&path);
     match state.storage.put(&path, body, &owner).await {
         Ok(meta) => (
             StatusCode::CREATED,
@@ -529,6 +559,8 @@ pub async fn delete_file(
     axum::extract::Path(path): axum::extract::Path<String>,
 ) -> Response {
     let path = normalize_api_path(&path);
+    // Invalidate read cache for this path
+    state.read_cache.invalidate_path(&path);
     match state.storage.delete(&path).await {
         Ok(()) => (StatusCode::NO_CONTENT, "").into_response(),
         Err(e) => (
