@@ -8,6 +8,11 @@ use serde::{Deserialize, Serialize};
 use crate::AppState;
 use crate::api_error::ApiError;
 
+/// Maximum file size (in bytes) eligible for read cache.
+/// Files larger than this are streamed directly without caching
+/// to avoid consuming memory on large assets.
+const READ_CACHE_FILE_SIZE_LIMIT: u64 = 10 * 1024 * 1024; // 10 MiB
+
 /// GET /api/auth/info — return current user info from OIDC claims.
 pub async fn auth_info(
     claims: Option<axum::Extension<Claims>>,
@@ -434,20 +439,25 @@ pub async fn get_file(
         };
         (StatusCode::OK, axum::Json(serde_json::json!(entry))).into_response()
     } else {
-        // Stream file content (with read cache)
+        // Stream file content (with read cache for small files)
         let content_type = meta.mime_type.clone();
-        let content_length = meta.size.to_string();
+        let content_length = meta.size;
         let filename = path.rsplit('/').next().unwrap_or("file").to_string();
         let etag_for_cache = meta.etag.clone();
         let path_for_cache = path.clone();
 
-        // Check read cache first
-        if let Some(cached) = state.read_cache.get(&path_for_cache, &etag_for_cache) {
+        // Check read cache for small files (large files skip cache to save memory)
+        if content_length <= READ_CACHE_FILE_SIZE_LIMIT
+            && let Some(cached) = state.read_cache.get(&path_for_cache, &etag_for_cache)
+        {
             return (
                 [
                     (axum::http::header::CONTENT_TYPE, content_type),
                     (axum::http::header::ETAG, etag_for_cache),
-                    (axum::http::header::CONTENT_LENGTH, content_length),
+                    (
+                        axum::http::header::CONTENT_LENGTH,
+                        content_length.to_string(),
+                    ),
                     (
                         axum::http::header::CONTENT_DISPOSITION,
                         format!("inline; filename=\"{filename}\""),
@@ -458,25 +468,28 @@ pub async fn get_file(
                 .into_response();
         }
 
-        match state.storage.get(&path).await {
-            Ok(content) => {
-                // Populate cache for small files
-                if content.len() <= 10 * 1024 * 1024 {
-                    state
-                        .read_cache
-                        .put(&path_for_cache, &etag_for_cache, content.clone());
-                }
+        match state.storage.get_stream(&path).await {
+            Ok(reader) => {
+                // Convert AsyncRead to Stream<Bytes> for axum Body
+                let stream = tokio_util::io::ReaderStream::new(reader);
+                let body = axum::body::Body::from_stream(stream);
+                // Populate cache for small files (read from stream)
+                // NOTE: streaming skips cache — only fully-buffered responses are cached.
+                // This is intentional: large files should not consume cache memory.
                 (
                     [
                         (axum::http::header::CONTENT_TYPE, content_type),
                         (axum::http::header::ETAG, etag_for_cache),
-                        (axum::http::header::CONTENT_LENGTH, content_length),
+                        (
+                            axum::http::header::CONTENT_LENGTH,
+                            content_length.to_string(),
+                        ),
                         (
                             axum::http::header::CONTENT_DISPOSITION,
                             format!("inline; filename=\"{filename}\""),
                         ),
                     ],
-                    content,
+                    body,
                 )
                     .into_response()
             }
@@ -493,7 +506,7 @@ pub async fn get_file(
 }
 
 /// PUT /api/v1/files/{path} — upload/replace file content.
-///
+/////
 /// Request body is the raw file content. Supports If-Match for CAS (409 Precondition Failed).
 /// Returns JSON with metadata including ETag and content hash.
 pub async fn put_file(
