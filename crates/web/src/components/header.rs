@@ -187,8 +187,9 @@ pub fn Header() -> impl IntoView {
                                 use wasm_bindgen::JsCast;
                                 let func = cb.clone();
                                 if let Some(prev) = debounce_timer {
-                                    let _ =
-                                        web_sys::window().unwrap().clear_timeout_with_handle(prev);
+                                    let _ = web_sys::window()
+                                        .expect("window must exist in browser context")
+                                        .clear_timeout_with_handle(prev);
                                 }
                                 debounce_timer = Some(
                                     web_sys::window()

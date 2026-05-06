@@ -85,23 +85,18 @@ impl StorageEngine for InMemoryStorageEngine {
     }
 
     async fn copy(&self, src: &str, dst: &str) -> Result<()> {
-        {
-            let store = self.store.read().await;
-            let meta_map = self.metadata.read().await;
-
-            if !store.contains_key(src) {
-                return Err(FerroError::NotFound(src.to_string()));
-            }
-            if !meta_map.contains_key(src) {
-                return Err(FerroError::NotFound(src.to_string()));
-            }
-        }
-
+        // TOCTOU-safe: perform existence check AND extraction under a single write lock
         let mut store = self.store.write().await;
         let mut meta_map = self.metadata.write().await;
 
-        let content = store.get(src).cloned().unwrap();
-        let mut meta = meta_map.get(src).cloned().unwrap();
+        let content = match store.get(src).cloned() {
+            Some(c) => c,
+            None => return Err(FerroError::NotFound(src.to_string())),
+        };
+        let mut meta = match meta_map.get(src).cloned() {
+            Some(m) => m,
+            None => return Err(FerroError::NotFound(src.to_string())),
+        };
 
         meta.path = dst.to_string();
         meta.modified_at = Utc::now();
