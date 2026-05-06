@@ -5,6 +5,7 @@ edition.workspace = true
 description = "Observability endpoints for Ferro (Prometheus, VictoriaMetrics, Loki, VictoriaLogs)"
 license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
+publish = false
 rust-version = "1.85"
 
 [dependencies]

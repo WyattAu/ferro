@@ -2822,7 +2822,6 @@ dependencies = [
  "axum",
  "chrono",
  "dashmap 6.1.0",
- "ferro-common",
  "quick-xml 0.37.5",
  "rusqlite",
  "serde",

@@ -6,6 +6,7 @@ description = "FUSE filesystem mount for Ferro servers"
 readme = "README.md"
 license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
+publish = false
 keywords = ["fuse", "filesystem", "webdav", "mount", "linux"]
 categories = ["asynchronous", "filesystem", "os::unix-apis"]
 rust-version = "1.85"

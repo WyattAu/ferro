@@ -21,7 +21,6 @@ handlers = ["dep:axum"]
 persistence = ["dep:rusqlite"]
 
 [dependencies]
-ferro-common = { path = "../common" }
 async-trait = "0.1"
 axum = { version = "0.7", features = ["macros"], optional = true }
 serde = { workspace = true }
