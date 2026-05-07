@@ -627,24 +627,31 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::from_std(std_listener)?;
     info!("Ferro server listening on {}", addr);
 
-    let graceful_timeout = cli.graceful_shutdown_timeout;
-
+    // Graceful shutdown: when SIGTERM/SIGINT is received, stop accepting
+    // new connections and wait for in-flight connections to complete.
+    //
+    // IMPORTANT: We do NOT wrap the entire server future in tokio::time::timeout.
+    // The previous implementation did this, causing the server to force-exit
+    // N seconds after startup even without receiving any signal. Instead,
+    // we rely on axum's built-in graceful shutdown which:
+    //   1. Awaits the signal future
+    //   2. Stops accepting new connections
+    //   3. Waits for all in-flight connections to finish
+    //   4. Returns Ok(())
+    //
+    // axum has no built-in drain timeout — if connections hang, the server
+    // waits. Docker's stop_grace_period handles the force-exit timeout.
     let server = axum::serve(listener, app)
         .tcp_nodelay(true)
         .with_graceful_shutdown(shutdown_signal());
 
-    match tokio::time::timeout(std::time::Duration::from_secs(graceful_timeout), server).await {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => return Err(e.into()),
-        Err(_) => {
-            tracing::warn!(
-                "Graceful shutdown timed out after {}s, forcing exit",
-                graceful_timeout
-            );
+    match server.await {
+        Ok(()) => {
+            info!("Server shutdown complete");
         }
+        Err(e) => return Err(e.into()),
     }
 
-    info!("Server shutdown complete");
     Ok(())
 }
 

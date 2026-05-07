@@ -949,4 +949,61 @@ mod auth_tests {
             "Missing Referrer-Policy header"
         );
     }
+
+    #[tokio::test]
+    async fn test_rest_put_returns_201_not_204() {
+        // Regression test: PUT to /api/v1/files/{*path} was caught by
+        // WebDAV fallback (returns 204) instead of REST handler (returns 201).
+        let app = test_app_no_oidc();
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/files/test-dir/test-file.txt")
+                    .header("content-type", "text/plain")
+                    .body(axum::body::Body::from("test content"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+        // Verify the response is JSON (REST handler) not empty (WebDAV)
+        let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+        assert_eq!(json["path"], "/test-dir/test-file.txt");
+        assert_eq!(json["size"], 12); // "test content" = 12 bytes
+    }
+
+    #[tokio::test]
+    async fn test_rest_get_returns_streaming_response() {
+        // First PUT a file
+        let app = test_app_no_oidc();
+        app.clone().oneshot(
+            axum::http::Request::builder()
+                .method("PUT")
+                .uri("/api/v1/files/stream-test/file.bin")
+                .body(axum::body::Body::from("streaming data"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+        // Then GET it — should return 200 with content-type octet-stream
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/v1/files/stream-test/file.bin")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "application/octet-stream"
+        );
+        let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!(&body_bytes[..], b"streaming data");
+    }
 }

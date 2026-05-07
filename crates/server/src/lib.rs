@@ -70,6 +70,7 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::State;
 use axum::http::{Request, StatusCode};
+use axum::http::HeaderMap;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use axum::routing::any;
@@ -895,11 +896,14 @@ pub fn build_router_with_static(
                 .put(dav::carddav_put_contact)
                 .delete(dav::carddav_delete_contact),
         )
-        // REST file content endpoints — top-level route with catch-all
-        // Registered before the generic WebDAV catch-all for priority
-        .route("/api/v1/files/{*path}", any(api::files_content_handler))
-        // WebDAV catch-all
-        .route("/*path", any(webdav::handle_any))
+        // Combined fallback: dispatches REST file content requests vs WebDAV.
+        //
+        // matchit 0.7.3 does not allow catch-all parameters ({*path}) inside
+        // nested routes, and .nest("/api/v1", ...) prevents a top-level
+        // /api/v1/files/{*path} from matching (the nested router claims the
+        // /api/v1 prefix). Using fallback() ensures we run after all route
+        // matching, and we dispatch based on path prefix.
+        .fallback(api_and_webdav_fallback)
         .layer(rate_limit_layer)
         .layer(cedar_layer)
         .layer(auth_layer)
@@ -977,6 +981,44 @@ pub async fn readiness(State(state): State<AppState>) -> Response {
         "subsystems": subsystems,
     });
     (code, axum::Json(body)).into_response()
+}
+
+/// Combined fallback that dispatches REST API file content requests to the
+/// REST handler and everything else to the WebDAV handler.
+///
+/// This is necessary because matchit 0.7.3 does not support catch-all
+/// parameters (`{*path}`) inside nested routes, and `.nest("/api/v1", ...)`
+/// prevents a top-level `/api/v1/files/{*path}` from matching paths that
+/// start with `/api/v1/`. Using `fallback()` ensures we run after all
+/// matchit route matching is complete.
+pub async fn api_and_webdav_fallback(
+    method: axum::http::Method,
+    uri: axum::http::Uri,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Response {
+    let path_str = uri.path().to_string();
+    // Check for both /api/v1/files/ and /api/files/ (deprecated) prefixes
+    if path_str.starts_with("/api/v1/files/") || path_str.starts_with("/api/files/") {
+        let file_path = path_str
+            .strip_prefix("/api/v1/files/")
+            .or_else(|| path_str.strip_prefix("/api/files/"))
+            .unwrap_or("");
+        if !file_path.is_empty() {
+            return api::files_content_handler(
+                method,
+                uri,
+                State(state),
+                headers,
+                Some(axum::extract::Path(file_path.to_string())),
+                body,
+            )
+            .await;
+        }
+    }
+    // Fall through to WebDAV handler
+    webdav::handle_any(method, uri, State(state), None, headers, body).await
 }
 
 pub async fn health_check(State(state): State<AppState>) -> Response {
