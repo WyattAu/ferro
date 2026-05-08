@@ -1,9 +1,10 @@
 use common::metadata::{ContentHash, FileMetadata};
 use common::storage::StorageEngine;
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use ferro_core::metadata::InMemoryMetadataStore;
 use ferro_core::metadata::MetadataStore;
 use ferro_server::storage::InMemoryStorageEngine;
+use std::hint::black_box;
 use tokio::runtime::Runtime;
 
 mod helpers;

@@ -128,11 +128,11 @@ END:VCALENDAR\r\n";
         .collect();
     assert_eq!(standard.len(), 1);
     assert_eq!(
-        get_first_prop(&standard[0], "TZOFFSETFROM").unwrap().value,
+        get_first_prop(standard[0], "TZOFFSETFROM").unwrap().value,
         "-0400"
     );
     assert_eq!(
-        get_first_prop(&standard[0], "TZOFFSETTO").unwrap().value,
+        get_first_prop(standard[0], "TZOFFSETTO").unwrap().value,
         "-0500"
     );
 
@@ -143,7 +143,7 @@ END:VCALENDAR\r\n";
         .collect();
     assert_eq!(daylight.len(), 1);
     assert_eq!(
-        get_first_prop(&daylight[0], "TZOFFSETTO").unwrap().value,
+        get_first_prop(daylight[0], "TZOFFSETTO").unwrap().value,
         "-0400"
     );
 }
@@ -238,8 +238,8 @@ END:VCALENDAR\r\n";
         .filter(|c| c.name == "VEVENT")
         .collect();
     assert_eq!(events.len(), 2);
-    assert_eq!(get_first_prop(&events[0], "UID").unwrap().value, "event-1");
-    assert_eq!(get_first_prop(&events[1], "UID").unwrap().value, "event-2");
+    assert_eq!(get_first_prop(events[0], "UID").unwrap().value, "event-1");
+    assert_eq!(get_first_prop(events[1], "UID").unwrap().value, "event-2");
 }
 
 #[test]

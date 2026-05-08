@@ -1684,7 +1684,7 @@ mod tests {
                     .oneshot(
                         Request::builder()
                             .method("PUT")
-                            .uri(&format!("/file{}.txt", i))
+                            .uri(format!("/file{}.txt", i))
                             .body(Body::from(format!("content {}", i)))
                             .unwrap(),
                     )
@@ -1862,18 +1862,19 @@ mod tests {
         ];
 
         for name in &filenames {
-            let encoded = urlencoding(*name);
+            let encoded = urlencoding(name);
             let put_resp = app
                 .clone()
                 .oneshot(
                     Request::builder()
                         .method("PUT")
-                        .uri(&format!("/{}", encoded))
+                        .uri(format!("/{}", encoded))
                         .body(Body::from("content"))
                         .unwrap(),
                 )
                 .await
                 .unwrap();
+
             assert_eq!(
                 put_resp.status(),
                 StatusCode::CREATED,
@@ -1886,7 +1887,7 @@ mod tests {
                 .oneshot(
                     Request::builder()
                         .method("GET")
-                        .uri(&format!("/{}", encoded))
+                        .uri(format!("/{}", encoded))
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -1903,13 +1904,13 @@ mod tests {
         let filenames = ["файл.txt", "文件.txt", "αρχείο.txt", "téléchargement.txt"];
 
         for name in &filenames {
-            let encoded = urlencoding(*name);
+            let encoded = urlencoding(name);
             let put_resp = app
                 .clone()
                 .oneshot(
                     Request::builder()
                         .method("PUT")
-                        .uri(&format!("/{}", encoded))
+                        .uri(format!("/{}", encoded))
                         .body(Body::from("unicode content"))
                         .unwrap(),
                 )
@@ -1927,7 +1928,7 @@ mod tests {
                 .oneshot(
                     Request::builder()
                         .method("GET")
-                        .uri(&format!("/{}", encoded))
+                        .uri(format!("/{}", encoded))
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -1967,7 +1968,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PUT")
-                    .uri(&format!("/{}", encoded))
+                    .uri(format!("/{}", encoded))
                     .body(Body::from("data"))
                     .unwrap(),
             )
@@ -1980,7 +1981,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri(&format!("/{}", encoded))
+                    .uri(format!("/{}", encoded))
                     .body(Body::empty())
                     .unwrap(),
             )

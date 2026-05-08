@@ -187,7 +187,7 @@ mod tests {
                 .oneshot(
                     Request::builder()
                         .method("PUT")
-                        .uri(&format!("/test{}.txt", i))
+                        .uri(format!("/test{}.txt", i))
                         .header("Authorization", format!("Basic {}", creds))
                         .body(Body::from(format!("content {}", i)))
                         .unwrap(),

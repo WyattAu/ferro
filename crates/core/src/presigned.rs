@@ -269,7 +269,6 @@ mod tests {
 
     #[cfg(feature = "gcs")]
     #[test]
-    #[test]
     #[ignore = "GCS requires valid service account credentials to construct builder"]
     fn test_gcs_generator_new() {
         let builder = object_store::gcp::GoogleCloudStorageBuilder::new()

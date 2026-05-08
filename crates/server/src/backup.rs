@@ -502,7 +502,7 @@ mod tests {
             .oneshot(
                 axum::http::Request::builder()
                     .method("DELETE")
-                    .uri(&format!("/api/admin/backup/{}", backup_id))
+                    .uri(format!("/api/admin/backup/{}", backup_id))
                     .body(axum::body::Body::empty())
                     .unwrap(),
             )

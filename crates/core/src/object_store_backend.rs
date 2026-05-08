@@ -561,7 +561,7 @@ mod tests {
         // object_store may return common_prefixes as "sub/" which has 0 slashes
         // relative to "root", so depth=1 includes them
         assert!(
-            items.len() >= 1,
+            !items.is_empty(),
             "Expected at least 1 item at depth 1, got {}",
             items.len()
         );

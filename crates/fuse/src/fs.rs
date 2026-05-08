@@ -1162,6 +1162,6 @@ mod tests {
             modified: SystemTime::UNIX_EPOCH,
         };
         let attr = entry.to_file_attr(1000, 1000);
-        assert_eq!(attr.blocks, (10000 + 511) / 512);
+        assert_eq!(attr.blocks, 10000_u64.div_ceil(512));
     }
 }

@@ -268,7 +268,7 @@ mod tests {
             .get_or_generate("/test.jpg", "image/jpeg", content)
             .await;
         assert_eq!(mime, "image/jpeg");
-        assert!(thumb.len() > 0);
+        assert!(!thumb.is_empty());
 
         let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test").await;
     }
@@ -283,7 +283,7 @@ mod tests {
             .get_or_generate("/test.txt", "text/plain", content)
             .await;
         assert_eq!(mime, "image/svg+xml");
-        assert!(thumb.len() > 0);
+        assert!(!thumb.is_empty());
 
         let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test2").await;
     }

@@ -6,8 +6,6 @@ use ferro_server::make_app;
 use std::collections::HashSet;
 use tower::ServiceExt;
 
-use serde_json;
-
 async fn body_bytes(response: axum::response::Response) -> Bytes {
     use http_body_util::BodyExt;
     response.into_body().collect().await.unwrap().to_bytes()
@@ -1364,7 +1362,7 @@ async fn test_storage_stats_endpoint() {
             .oneshot(
                 Request::builder()
                     .method("PUT")
-                    .uri(&format!("/stat{}.txt", i))
+                    .uri(format!("/stat{}.txt", i))
                     .body(Body::from(format!("data {}", i)))
                     .unwrap(),
             )
@@ -1403,7 +1401,7 @@ async fn test_storage_stats_endpoint() {
     assert_eq!(json["files"].as_u64().unwrap(), 3);
     assert_eq!(json["collections"].as_u64().unwrap(), 1);
     assert!(json["total_bytes"].as_u64().unwrap() > 0);
-    assert_eq!(json["metadata_store"].as_bool().unwrap(), false);
+    assert!(!json["metadata_store"].as_bool().unwrap());
 }
 
 #[tokio::test]
@@ -1928,7 +1926,7 @@ async fn test_rest_list_files_root() {
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     let entries = json["entries"].as_array().unwrap();
     assert!(
-        entries.len() >= 1,
+        !entries.is_empty(),
         "Expected at least 1 entry, got {}",
         entries.len()
     );

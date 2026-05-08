@@ -422,7 +422,7 @@ mod tests {
         assert!(xml_str.contains("</D:multistatus>"));
         // File entries include getcontentmd5 (RFC 3230)
         assert!(xml_str.contains("<D:getcontentmd5>"));
-        assert!(xml_str.contains(&hash.as_str()));
+        assert!(xml_str.contains(hash.as_str()));
     }
 
     #[test]

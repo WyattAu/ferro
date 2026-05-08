@@ -251,7 +251,7 @@ mod tests {
         assert_eq!(&content[..], b"hello");
 
         engine.delete("/hello.txt").await.unwrap();
-        assert!(engine.exists("/hello.txt").await.unwrap() == false);
+        assert!(!engine.exists("/hello.txt").await.unwrap());
     }
 
     #[tokio::test]
@@ -298,7 +298,7 @@ mod tests {
             .unwrap();
         engine.move_path("/source.txt", "/dest.txt").await.unwrap();
 
-        assert!(engine.exists("/source.txt").await.unwrap() == false);
+        assert!(!engine.exists("/source.txt").await.unwrap());
         let content = engine.get("/dest.txt").await.unwrap();
         assert_eq!(&content[..], b"data");
     }

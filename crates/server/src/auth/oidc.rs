@@ -429,8 +429,6 @@ mod tests {
         };
 
         let _validator = OidcValidator::new(config);
-        // Just verify it doesn't panic on creation
-        assert!(true);
     }
 
     #[test]
@@ -443,6 +441,5 @@ mod tests {
         };
 
         let _validator = OidcValidator::new(config);
-        assert!(true);
     }
 }

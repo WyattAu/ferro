@@ -978,15 +978,16 @@ mod auth_tests {
     async fn test_rest_get_returns_streaming_response() {
         // First PUT a file
         let app = test_app_no_oidc();
-        app.clone().oneshot(
-            axum::http::Request::builder()
-                .method("PUT")
-                .uri("/api/v1/files/stream-test/file.bin")
-                .body(axum::body::Body::from("streaming data"))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+        app.clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("PUT")
+                    .uri("/api/v1/files/stream-test/file.bin")
+                    .body(axum::body::Body::from("streaming data"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
         // Then GET it — should return 200 with content-type octet-stream
         let response = app

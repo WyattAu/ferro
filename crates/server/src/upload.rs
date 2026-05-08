@@ -216,7 +216,7 @@ mod tests {
     fn test_total_chunks_calculation() {
         let total_size = 15_000_000u64;
         let chunk_size = 5_000_000usize;
-        let total_chunks = (total_size as usize + chunk_size - 1) / chunk_size;
+        let total_chunks = (total_size as usize).div_ceil(chunk_size);
         assert_eq!(total_chunks, 3);
     }
 
@@ -224,7 +224,7 @@ mod tests {
     fn test_exact_chunk_boundary() {
         let total_size = 10_000_000u64;
         let chunk_size = 5_000_000usize;
-        let total_chunks = (total_size as usize + chunk_size - 1) / chunk_size;
+        let total_chunks = (total_size as usize).div_ceil(chunk_size);
         assert_eq!(total_chunks, 2);
     }
 
@@ -232,7 +232,7 @@ mod tests {
     fn test_small_file_single_chunk() {
         let total_size = 1000u64;
         let chunk_size = 5_000_000usize;
-        let total_chunks = (total_size as usize + chunk_size - 1) / chunk_size;
+        let total_chunks = (total_size as usize).div_ceil(chunk_size);
         assert_eq!(total_chunks, 1);
     }
 }

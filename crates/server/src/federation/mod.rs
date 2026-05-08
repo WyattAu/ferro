@@ -303,7 +303,7 @@ mod tests {
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(signing_string.as_bytes());
         let sig_bytes = mac.finalize().into_bytes();
-        let sig_b64 = STANDARD.encode(&sig_bytes);
+        let sig_b64 = STANDARD.encode(sig_bytes);
         format!(
             r#"keyId="{}",algorithm="hs2019",headers="(request-target)",signature="{}""#,
             key_id, sig_b64
@@ -346,7 +346,7 @@ mod tests {
     fn test_signature_verification_tampered_signature() {
         let sig_header = r#"keyId="k",algorithm="hs2019",headers="(request-target)",signature="AAAAAAAAAAAAAAAAAAAAAA==""#;
 
-        let sig = HttpSignature::parse(&sig_header).unwrap();
+        let sig = HttpSignature::parse(sig_header).unwrap();
         let result = sig.verify_hmac(
             &axum::http::Method::POST,
             "/fed/inbox",

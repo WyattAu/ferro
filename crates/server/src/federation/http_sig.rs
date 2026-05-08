@@ -166,7 +166,7 @@ mod tests {
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(signing_string.as_bytes());
         let sig_bytes = mac.finalize().into_bytes();
-        let sig_b64 = STANDARD.encode(&sig_bytes);
+        let sig_b64 = STANDARD.encode(sig_bytes);
 
         let sig = HttpSignature::parse(&format!(
             r#"keyId="k#main",headers="(request-target)",signature="{}""#,

@@ -1,5 +1,6 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use ferro_core::wasm::{WasmWorkerRuntime, WorkerConfig, WorkerEvent};
+use std::hint::black_box;
 use tokio::runtime::Runtime;
 
 fn bench_wasm_dispatch(c: &mut Criterion) {
@@ -17,8 +18,7 @@ fn bench_wasm_dispatch(c: &mut Criterion) {
     // Benchmark: worker registration
     group.bench_function("register_worker", |b| {
         let runtime = rt.block_on(async {
-            let r = WasmWorkerRuntime::new().unwrap();
-            r
+            WasmWorkerRuntime::new().unwrap()
         });
 
         b.iter(|| {

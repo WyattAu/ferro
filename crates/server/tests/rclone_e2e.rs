@@ -73,7 +73,7 @@ async fn webdav_operations(port: u16) {
     let resp = client
         .request(
             reqwest::Method::from_bytes(b"MKCOL").unwrap(),
-            &format!("{}/e2e-test", base),
+            format!("{}/e2e-test", base),
         )
         .send()
         .await
@@ -82,7 +82,7 @@ async fn webdav_operations(port: u16) {
 
     // 3. PUT
     let resp = client
-        .put(&format!("{}/e2e-test/hello.txt", base))
+        .put(format!("{}/e2e-test/hello.txt", base))
         .header("Content-Type", "text/plain")
         .body("Hello from rclone E2E test!")
         .send()
@@ -92,7 +92,7 @@ async fn webdav_operations(port: u16) {
 
     // 4. GET
     let resp = client
-        .get(&format!("{}/e2e-test/hello.txt", base))
+        .get(format!("{}/e2e-test/hello.txt", base))
         .send()
         .await
         .unwrap();
@@ -102,7 +102,7 @@ async fn webdav_operations(port: u16) {
 
     // 5. HEAD
     let resp = client
-        .head(&format!("{}/e2e-test/hello.txt", base))
+        .head(format!("{}/e2e-test/hello.txt", base))
         .send()
         .await
         .unwrap();
@@ -114,7 +114,7 @@ async fn webdav_operations(port: u16) {
     let resp = client
         .request(
             reqwest::Method::from_bytes(b"PROPFIND").unwrap(),
-            &format!("{}/e2e-test", base),
+            format!("{}/e2e-test", base),
         )
         .header("Depth", "0")
         .header("Content-Type", "application/xml")
@@ -136,7 +136,7 @@ async fn webdav_operations(port: u16) {
     let resp = client
         .request(
             reqwest::Method::from_bytes(b"PROPFIND").unwrap(),
-            &format!("{}/e2e-test", base),
+            format!("{}/e2e-test", base),
         )
         .header("Depth", "1")
         .send()
@@ -153,16 +153,16 @@ async fn webdav_operations(port: u16) {
     let resp = client
         .request(
             reqwest::Method::from_bytes(b"COPY").unwrap(),
-            &format!("{}/e2e-test/hello.txt", base),
+            format!("{}/e2e-test/hello.txt", base),
         )
-        .header("Destination", &format!("{}/e2e-test/hello-copy.txt", base))
+        .header("Destination", format!("{}/e2e-test/hello-copy.txt", base))
         .send()
         .await
         .unwrap();
     assert_eq!(resp.status().as_u16(), 201);
 
     let resp = client
-        .get(&format!("{}/e2e-test/hello-copy.txt", base))
+        .get(format!("{}/e2e-test/hello-copy.txt", base))
         .send()
         .await
         .unwrap();
@@ -172,9 +172,9 @@ async fn webdav_operations(port: u16) {
     let resp = client
         .request(
             reqwest::Method::from_bytes(b"MOVE").unwrap(),
-            &format!("{}/e2e-test/hello-copy.txt", base),
+            format!("{}/e2e-test/hello-copy.txt", base),
         )
-        .header("Destination", &format!("{}/e2e-test/hello-moved.txt", base))
+        .header("Destination", format!("{}/e2e-test/hello-moved.txt", base))
         .send()
         .await
         .unwrap();
@@ -182,7 +182,7 @@ async fn webdav_operations(port: u16) {
 
     // Original should be gone
     let resp = client
-        .get(&format!("{}/e2e-test/hello-copy.txt", base))
+        .get(format!("{}/e2e-test/hello-copy.txt", base))
         .send()
         .await
         .unwrap();
@@ -190,7 +190,7 @@ async fn webdav_operations(port: u16) {
 
     // Moved file should exist
     let resp = client
-        .get(&format!("{}/e2e-test/hello-moved.txt", base))
+        .get(format!("{}/e2e-test/hello-moved.txt", base))
         .send()
         .await
         .unwrap();
@@ -198,7 +198,7 @@ async fn webdav_operations(port: u16) {
 
     // 10. DELETE
     let resp = client
-        .delete(&format!("{}/e2e-test/hello-moved.txt", base))
+        .delete(format!("{}/e2e-test/hello-moved.txt", base))
         .send()
         .await
         .unwrap();
@@ -206,7 +206,7 @@ async fn webdav_operations(port: u16) {
 
     // 11. Conditional GET (If-None-Match → 304)
     let resp = client
-        .put(&format!("{}/e2e-test/cached.txt", base))
+        .put(format!("{}/e2e-test/cached.txt", base))
         .body("cache test")
         .send()
         .await
@@ -220,7 +220,7 @@ async fn webdav_operations(port: u16) {
         .to_string();
 
     let resp = client
-        .get(&format!("{}/e2e-test/cached.txt", base))
+        .get(format!("{}/e2e-test/cached.txt", base))
         .header("If-None-Match", &etag)
         .send()
         .await
@@ -240,7 +240,7 @@ async fn webdav_operations(port: u16) {
     let resp = client
         .request(
             reqwest::Method::from_bytes(b"PROPPATCH").unwrap(),
-            &format!("{}/e2e-test", base),
+            format!("{}/e2e-test", base),
         )
         .header("Content-Type", "application/xml")
         .body(proppatch_body)
@@ -253,7 +253,7 @@ async fn webdav_operations(port: u16) {
     let resp = client
         .request(
             reqwest::Method::from_bytes(b"LOCK").unwrap(),
-            &format!("{}/e2e-test/cached.txt", base),
+            format!("{}/e2e-test/cached.txt", base),
         )
         .header("Depth", "0")
         .header("Content-Type", "application/xml")
@@ -272,7 +272,7 @@ async fn webdav_operations(port: u16) {
 
     // DELETE should fail without lock token
     let resp = client
-        .delete(&format!("{}/e2e-test/cached.txt", base))
+        .delete(format!("{}/e2e-test/cached.txt", base))
         .send()
         .await
         .unwrap();
@@ -282,7 +282,7 @@ async fn webdav_operations(port: u16) {
     let resp = client
         .request(
             reqwest::Method::from_bytes(b"UNLOCK").unwrap(),
-            &format!("{}/e2e-test/cached.txt", base),
+            format!("{}/e2e-test/cached.txt", base),
         )
         .header("Lock-Token", &lock_token)
         .send()
@@ -292,7 +292,7 @@ async fn webdav_operations(port: u16) {
 
     // Now DELETE should succeed
     let resp = client
-        .delete(&format!("{}/e2e-test/cached.txt", base))
+        .delete(format!("{}/e2e-test/cached.txt", base))
         .send()
         .await
         .unwrap();
