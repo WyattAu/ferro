@@ -25,6 +25,7 @@ pub mod lock;
 pub mod metrics;
 pub mod move_copy;
 pub mod object_store_backend;
+pub mod openapi;
 #[cfg(feature = "pg")]
 pub mod pg_state;
 pub mod policies;
@@ -651,6 +652,7 @@ fn api_routes() -> Router<AppState> {
             axum::routing::delete(upload::cancel_upload),
         )
         .route("/uploads", axum::routing::get(upload::list_uploads))
+        .merge(Router::from(openapi::swagger_ui()))
 }
 
 pub fn build_router_with_static(

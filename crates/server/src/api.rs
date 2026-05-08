@@ -8,12 +8,60 @@ use serde::{Deserialize, Serialize};
 use crate::AppState;
 use crate::api_error::ApiError;
 
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct AuthInfoResponse {
+    pub sub: String,
+    pub iss: String,
+    pub aud: String,
+    pub email: Option<String>,
+    pub name: Option<String>,
+    pub groups: Vec<String>,
+    pub auth_type: String,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct ListFilesResponse {
+    pub entries: Vec<FileEntryJson>,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct PutFileResponse {
+    pub path: String,
+    pub size: u64,
+    pub etag: String,
+    pub content_hash: String,
+    pub created_at: String,
+    pub modified_at: String,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct MkdirResponse {
+    pub path: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct CopyMoveResponse {
+    #[serde(rename = "from")]
+    pub from_path: String,
+    #[serde(rename = "to")]
+    pub to_path: String,
+}
+
 /// Maximum file size (in bytes) eligible for read cache.
 /// Files larger than this are streamed directly without caching
 /// to avoid consuming memory on large assets.
 const READ_CACHE_FILE_SIZE_LIMIT: u64 = 10 * 1024 * 1024; // 10 MiB
 
 /// GET /api/auth/info — return current user info from OIDC claims.
+#[utoipa::path(
+    get,
+    path = "/api/auth/info",
+    responses(
+        (status = 200, description = "Auth info", body = AuthInfoResponse),
+    ),
+    tags = ["auth"],
+)]
 pub async fn auth_info(
     claims: Option<axum::Extension<Claims>>,
     State(state): State<AppState>,
@@ -26,29 +74,27 @@ pub async fn auth_info(
         "none"
     };
 
-    match claims {
-        Some(c) => {
-            let body = serde_json::json!({
-                "sub": c.sub,
-                "iss": c.iss,
-                "aud": c.aud,
-                "email": c.email,
-                "name": c.name,
-                "groups": c.groups,
-                "auth_type": auth_type,
-            });
-            (StatusCode::OK, axum::Json(body)).into_response()
-        }
-        None => {
-            let body = serde_json::json!({
-                "sub": "anonymous",
-                "iss": "ferro",
-                "aud": "ferro",
-                "auth_type": auth_type,
-            });
-            (StatusCode::OK, axum::Json(body)).into_response()
-        }
-    }
+    let body = match &claims {
+        Some(c) => AuthInfoResponse {
+            sub: c.sub.clone(),
+            iss: c.iss.clone(),
+            aud: c.aud.clone(),
+            email: c.email.clone(),
+            name: c.name.clone(),
+            groups: c.groups.clone().unwrap_or_default(),
+            auth_type: auth_type.to_string(),
+        },
+        None => AuthInfoResponse {
+            sub: "anonymous".to_string(),
+            iss: "ferro".to_string(),
+            aud: "ferro".to_string(),
+            email: None,
+            name: None,
+            groups: Vec::new(),
+            auth_type: auth_type.to_string(),
+        },
+    };
+    (StatusCode::OK, axum::Json(body)).into_response()
 }
 
 /// GET /api/auth/login — redirect to OIDC provider with PKCE.
@@ -60,6 +106,16 @@ pub async fn auth_info(
 ///
 /// The code_verifier is stored server-side in a short-lived cache
 /// and verified during callback.
+#[utoipa::path(
+    get,
+    path = "/api/auth/login",
+    params(LoginParams),
+    responses(
+        (status = 200, description = "Authorization URL for OIDC redirect"),
+        (status = 503, description = "OIDC not configured", body = ApiError),
+    ),
+    tags = ["auth"],
+)]
 pub async fn auth_login(
     State(state): State<AppState>,
     Query(params): Query<LoginParams>,
@@ -115,6 +171,16 @@ pub async fn auth_login(
 /// Exchanges the authorization code for tokens, validates the ID token,
 /// and returns the user info. The frontend can then store the access token
 /// for subsequent API calls.
+#[utoipa::path(
+    get,
+    path = "/api/auth/callback",
+    params(CallbackParams),
+    responses(
+        (status = 200, description = "Token exchange result"),
+        (status = 503, description = "OIDC not configured", body = ApiError),
+    ),
+    tags = ["auth"],
+)]
 pub async fn auth_callback(
     State(state): State<AppState>,
     Query(params): Query<CallbackParams>,
@@ -200,12 +266,12 @@ pub async fn auth_callback(
         .into_response()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct LoginParams {
     pub redirect: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct CallbackParams {
     pub code: String,
     pub state: String,
@@ -277,13 +343,13 @@ mod tests {
 
 // ── File listing (REST) ─────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct ListFilesParams {
     pub path: Option<String>,
     pub depth: Option<u32>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct FileEntryJson {
     pub name: String,
     pub path: String,
@@ -301,6 +367,18 @@ pub struct FileEntryJson {
 /// Query parameters:
 /// - `path`: directory to list (default: `/`)
 /// - `depth`: nesting depth 0 or 1 (default: 1)
+#[utoipa::path(
+    get,
+    path = "/api/v1/files",
+    params(ListFilesParams),
+    responses(
+        (status = 200, description = "File listing", body = ListFilesResponse),
+        (status = 409, description = "Not a collection", body = ApiError),
+        (status = 404, description = "Path not found", body = ApiError),
+        (status = 500, description = "List failed", body = ApiError),
+    ),
+    tags = ["files"],
+)]
 pub async fn list_files(
     State(state): State<AppState>,
     Query(params): Query<ListFilesParams>,
@@ -382,7 +460,9 @@ pub async fn list_files(
 
     (
         StatusCode::OK,
-        axum::Json(serde_json::json!({ "entries": json_entries })),
+        axum::Json(ListFilesResponse {
+            entries: json_entries,
+        }),
     )
         .into_response()
 }
@@ -392,6 +472,16 @@ pub async fn list_files(
 /// For files: returns the raw content with Content-Type, ETag, and Content-Length headers.
 /// For collections: returns JSON metadata (same as FileEntryJson).
 /// Supports If-None-Match / If-Match for conditional requests (304 Not Modified).
+#[utoipa::path(
+    get,
+    path = "/api/v1/files/{path}",
+    responses(
+        (status = 200, description = "File content or collection metadata", body = FileEntryJson),
+        (status = 304, description = "Not modified"),
+        (status = 404, description = "Not found", body = ApiError),
+    ),
+    tags = ["files"],
+)]
 pub async fn get_file(
     State(state): State<AppState>,
     AxumPath(path): AxumPath<String>,
@@ -509,6 +599,17 @@ pub async fn get_file(
 /////
 /// Request body is the raw file content. Supports If-Match for CAS (409 Precondition Failed).
 /// Returns JSON with metadata including ETag and content hash.
+#[utoipa::path(
+    put,
+    path = "/api/v1/files/{path}",
+    request_body(content = [u8], description = "Raw file content (binary)"),
+    responses(
+        (status = 201, description = "File created/updated", body = PutFileResponse),
+        (status = 409, description = "Precondition failed", body = ApiError),
+        (status = 500, description = "Upload failed", body = ApiError),
+    ),
+    tags = ["files"],
+)]
 pub async fn put_file(
     State(state): State<AppState>,
     AxumPath(path): AxumPath<String>,
@@ -545,14 +646,14 @@ pub async fn put_file(
                 (axum::http::header::ETAG, meta.etag.clone()),
                 (axum::http::header::LOCATION, path.clone()),
             ],
-            axum::Json(serde_json::json!({
-                "path": meta.path,
-                "size": meta.size,
-                "etag": meta.etag,
-                "content_hash": meta.content_hash.as_str(),
-                "created_at": meta.created_at.to_rfc3339(),
-                "modified_at": meta.modified_at.to_rfc3339(),
-            })),
+            axum::Json(PutFileResponse {
+                path: meta.path,
+                size: meta.size,
+                etag: meta.etag,
+                content_hash: meta.content_hash.as_str().to_string(),
+                created_at: meta.created_at.to_rfc3339(),
+                modified_at: meta.modified_at.to_rfc3339(),
+            }),
         )
             .into_response(),
         Err(e) => (
@@ -567,6 +668,15 @@ pub async fn put_file(
 }
 
 /// DELETE /api/v1/files/{path} — delete a file or collection.
+#[utoipa::path(
+    delete,
+    path = "/api/v1/files/{path}",
+    responses(
+        (status = 204, description = "File deleted"),
+        (status = 404, description = "Not found", body = ApiError),
+    ),
+    tags = ["files"],
+)]
 pub async fn delete_file(
     State(state): State<AppState>,
     AxumPath(path): AxumPath<String>,
@@ -588,6 +698,17 @@ pub async fn delete_file(
 }
 
 /// POST /api/v1/files/mkdir — create a directory/collection.
+#[utoipa::path(
+    post,
+    path = "/api/v1/files/mkdir",
+    request_body(content = serde_json::Value, description = "JSON with 'path' field"),
+    responses(
+        (status = 201, description = "Directory created", body = MkdirResponse),
+        (status = 409, description = "Already exists", body = ApiError),
+        (status = 500, description = "Mkdir failed", body = ApiError),
+    ),
+    tags = ["files"],
+)]
 pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::Value>) -> Response {
     let path = body.get("path").and_then(|v| v.as_str()).unwrap_or("/");
 
@@ -601,10 +722,10 @@ pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::V
             (
                 StatusCode::CREATED,
                 [(axum::http::header::LOCATION, location)],
-                axum::Json(serde_json::json!({
-                    "path": meta.path,
-                    "created_at": meta.created_at.to_rfc3339(),
-                })),
+                axum::Json(MkdirResponse {
+                    path: meta.path,
+                    created_at: meta.created_at.to_rfc3339(),
+                }),
             )
                 .into_response()
         }
@@ -679,6 +800,17 @@ pub async fn files_content_handler(
 }
 
 /// POST /api/v1/files/copy — copy a file or directory.
+#[utoipa::path(
+    post,
+    path = "/api/v1/files/copy",
+    request_body(content = serde_json::Value, description = "JSON with 'from' and 'to' fields"),
+    responses(
+        (status = 201, description = "File copied", body = CopyMoveResponse),
+        (status = 400, description = "Missing parameters", body = ApiError),
+        (status = 404, description = "Copy failed", body = ApiError),
+    ),
+    tags = ["files"],
+)]
 pub async fn copy_file(
     State(state): State<AppState>,
     body: axum::Json<serde_json::Value>,
@@ -703,10 +835,10 @@ pub async fn copy_file(
     match state.storage.copy(&from, &to).await {
         Ok(()) => (
             StatusCode::CREATED,
-            axum::Json(serde_json::json!({
-                "from": from,
-                "to": to,
-            })),
+            axum::Json(CopyMoveResponse {
+                from_path: from,
+                to_path: to,
+            }),
         )
             .into_response(),
         Err(e) => (
@@ -721,6 +853,17 @@ pub async fn copy_file(
 }
 
 /// POST /api/v1/files/move — move/rename a file or directory.
+#[utoipa::path(
+    post,
+    path = "/api/v1/files/move",
+    request_body(content = serde_json::Value, description = "JSON with 'from' and 'to' fields"),
+    responses(
+        (status = 201, description = "File moved", body = CopyMoveResponse),
+        (status = 400, description = "Missing parameters", body = ApiError),
+        (status = 404, description = "Move failed", body = ApiError),
+    ),
+    tags = ["files"],
+)]
 pub async fn move_file_rest(
     State(state): State<AppState>,
     body: axum::Json<serde_json::Value>,
@@ -745,10 +888,10 @@ pub async fn move_file_rest(
     match state.storage.move_path(&from, &to).await {
         Ok(()) => (
             StatusCode::CREATED,
-            axum::Json(serde_json::json!({
-                "from": from,
-                "to": to,
-            })),
+            axum::Json(CopyMoveResponse {
+                from_path: from,
+                to_path: to,
+            }),
         )
             .into_response(),
         Err(e) => (

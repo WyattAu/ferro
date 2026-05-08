@@ -1,11 +1,60 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct AdminStatsResponse {
+    pub version: String,
+    pub uptime_seconds: u64,
+    pub total_files: u64,
+    pub total_directories: u64,
+    pub total_bytes: u64,
+    pub storage_backend: String,
+    pub auth_type: String,
+    pub wasm_workers_loaded: u32,
+    pub search_enabled: bool,
+    pub features: AdminFeatures,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct AdminFeatures {
+    pub s3: bool,
+    pub gcs: bool,
+    pub azure: bool,
+    pub oidc: bool,
+    pub cedar: bool,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct AdminStorageResponse {
+    pub backend: String,
+    pub total_bytes: u64,
+    pub file_count: u64,
+    pub directory_count: u64,
+    pub largest_file: serde_json::Value,
+    pub recent_files: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct AdminAuditResponse {
+    pub entries: Vec<serde_json::Value>,
+    pub total: usize,
+    pub limit: usize,
+    pub offset: usize,
+}
+
 /// Return server statistics (version, uptime, file counts).
+#[utoipa::path(
+    get,
+    path = "/api/admin/stats",
+    responses(
+        (status = 200, description = "Server statistics", body = AdminStatsResponse),
+    ),
+    tags = ["admin"],
+)]
 pub async fn admin_stats(State(state): State<AppState>) -> Response {
     let version = env!("CARGO_PKG_VERSION");
     let uptime = state.started_at.elapsed().as_secs();
@@ -35,35 +84,44 @@ pub async fn admin_stats(State(state): State<AppState>) -> Response {
 
     let wasm_workers_loaded = 0u32;
 
-    let body = serde_json::json!({
-        "version": version,
-        "uptime_seconds": uptime,
-        "total_files": file_count,
-        "total_directories": collection_count,
-        "total_bytes": total_bytes,
-        "storage_backend": "memory",
-        "auth_type": auth_type,
-        "wasm_workers_loaded": wasm_workers_loaded,
-        "search_enabled": state.search.is_some(),
-        "features": {
-            "s3": cfg!(feature = "s3"),
-            "gcs": cfg!(feature = "gcs"),
-            "azure": cfg!(feature = "azure"),
-            "oidc": state.oidc.is_some(),
-            "cedar": state.cedar.is_some(),
-        }
-    });
+    let body = AdminStatsResponse {
+        version: version.to_string(),
+        uptime_seconds: uptime,
+        total_files: file_count,
+        total_directories: collection_count,
+        total_bytes,
+        storage_backend: "memory".to_string(),
+        auth_type: auth_type.to_string(),
+        wasm_workers_loaded,
+        search_enabled: state.search.is_some(),
+        features: AdminFeatures {
+            s3: cfg!(feature = "s3"),
+            gcs: cfg!(feature = "gcs"),
+            azure: cfg!(feature = "azure"),
+            oidc: state.oidc.is_some(),
+            cedar: state.cedar.is_some(),
+        },
+    };
 
     (StatusCode::OK, axum::Json(body)).into_response()
 }
 
 /// Query parameters for the admin storage endpoint.
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, utoipa::IntoParams)]
 pub struct StorageQueryParams {
     pub limit: Option<usize>,
 }
 
 /// Return detailed storage statistics.
+#[utoipa::path(
+    get,
+    path = "/api/admin/storage",
+    params(StorageQueryParams),
+    responses(
+        (status = 200, description = "Storage statistics", body = AdminStorageResponse),
+    ),
+    tags = ["admin"],
+)]
 pub async fn admin_storage(
     State(state): State<AppState>,
     Query(_params): Query<StorageQueryParams>,
@@ -113,26 +171,35 @@ pub async fn admin_storage(
         })
     };
 
-    let body = serde_json::json!({
-        "backend": "memory",
-        "total_bytes": total_bytes,
-        "file_count": file_count,
-        "directory_count": collection_count,
-        "largest_file": largest_file,
-        "recent_files": recent_files,
-    });
+    let body = AdminStorageResponse {
+        backend: "memory".to_string(),
+        total_bytes,
+        file_count,
+        directory_count: collection_count,
+        largest_file,
+        recent_files,
+    };
 
     (StatusCode::OK, axum::Json(body)).into_response()
 }
 
 /// Query parameters for the admin audit endpoint.
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, utoipa::IntoParams)]
 pub struct AuditQueryParams {
     pub limit: Option<usize>,
     pub offset: Option<usize>,
 }
 
 /// Return paginated audit log entries.
+#[utoipa::path(
+    get,
+    path = "/api/admin/audit",
+    params(AuditQueryParams),
+    responses(
+        (status = 200, description = "Audit log entries", body = AdminAuditResponse),
+    ),
+    tags = ["admin"],
+)]
 pub async fn admin_audit(
     State(state): State<AppState>,
     Query(params): Query<AuditQueryParams>,
@@ -141,15 +208,19 @@ pub async fn admin_audit(
     let offset: usize = params.offset.unwrap_or(0);
     let total = state.audit_log.len().await;
     let entries = state.audit_log.recent_with_offset(limit, offset).await;
+    let entries_json: Vec<serde_json::Value> = entries
+        .into_iter()
+        .map(|e| serde_json::to_value(&e).unwrap_or_default())
+        .collect();
 
     (
         StatusCode::OK,
-        axum::Json(serde_json::json!({
-            "entries": entries,
-            "total": total,
-            "limit": limit,
-            "offset": offset,
-        })),
+        axum::Json(AdminAuditResponse {
+            entries: entries_json,
+            total,
+            limit,
+            offset,
+        }),
     )
         .into_response()
 }

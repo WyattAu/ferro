@@ -188,13 +188,11 @@ fn http_method_to_action(method: &axum::http::Method) -> &'static str {
         axum::http::Method::GET | axum::http::Method::HEAD => "read",
         axum::http::Method::DELETE => "delete",
         axum::http::Method::PUT | axum::http::Method::POST | axum::http::Method::PATCH => "write",
-        _ => {
-            match method.as_str() {
-                "PROPFIND" => "list",
-                "LOCK" | "UNLOCK" => "admin",
-                _ => "write",
-            }
-        }
+        _ => match method.as_str() {
+            "PROPFIND" => "list",
+            "LOCK" | "UNLOCK" => "admin",
+            _ => "write",
+        },
     }
 }
 

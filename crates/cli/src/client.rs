@@ -10,6 +10,14 @@ pub struct FerroClient {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdminUser {
+    pub username: String,
+    pub email: Option<String>,
+    pub role: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerCapabilities {
     pub webdav: String,
     pub auth: String,
@@ -262,6 +270,32 @@ impl FerroClient {
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
         })
+    }
+
+    // ── Admin user operations ──────────────────────────────────────────
+
+    pub async fn list_users(&self) -> Result<Vec<AdminUser>> {
+        let url = format!("{}/api/admin/users", self.server_url);
+        let resp = self.http.get(&url).send().await?;
+        if resp.status().is_success() {
+            let body: serde_json::Value = resp.json().await?;
+            let users = body
+                .get("users")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                        .collect()
+                })
+                .unwrap_or_default();
+            return Ok(users);
+        }
+        if resp.status().as_u16() == 404 {
+            anyhow::bail!(
+                "Admin users endpoint not available (404). The server may not support user management."
+            );
+        }
+        anyhow::bail!("List users failed: {}", resp.status())
     }
 
     // ── Share link operations ──────────────────────────────────────────

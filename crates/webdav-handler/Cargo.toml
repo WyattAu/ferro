@@ -1,0 +1,13 @@
+[package]
+name = "ferro-webdav-handler"
+version = "0.1.0"
+edition.workspace = true
+description = "WebDAV XML response builders for Ferro"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = true
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+bytes = "1"
+quick-xml = { version = "0.37", features = ["serialize"] }

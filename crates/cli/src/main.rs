@@ -290,8 +290,21 @@ async fn handle_file(cmd: FileCommands, client: &client::FerroClient) -> anyhow:
 async fn handle_user(cmd: UserCommands, client: &client::FerroClient) -> anyhow::Result<()> {
     match cmd {
         UserCommands::List => {
-            println!("User listing requires admin privileges");
-            println!("(Not yet implemented -- requires Phase 2 PostgreSQL backend)");
+            let resp = client.list_users().await?;
+            println!(
+                "{:<20} {:<30} {:<10} {:<10}",
+                "USERNAME", "EMAIL", "ROLE", "STATUS"
+            );
+            println!("{}", "-".repeat(70));
+            for user in &resp {
+                println!(
+                    "{:<20} {:<30} {:<10} {:<10}",
+                    user.username,
+                    user.email.as_deref().unwrap_or("-"),
+                    user.role,
+                    user.status
+                );
+            }
         }
         UserCommands::Whoami => {
             let info = client.whoami().await?;

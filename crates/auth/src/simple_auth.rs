@@ -41,10 +41,7 @@ pub async fn simple_auth_middleware(
     let encoded = match auth_header {
         Some(h) if h.starts_with("Basic ") => &h[6..],
         _ => {
-            return unauthorized_with_www_authenticate(
-                "AUTH_REQUIRED",
-                "authentication required",
-            );
+            return unauthorized_with_www_authenticate("AUTH_REQUIRED", "authentication required");
         }
     };
 
