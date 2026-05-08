@@ -1,2 +1,2 @@
-pub mod cedar;
-pub mod oidc;
+pub use ferro_auth::cedar;
+pub use ferro_auth::oidc;

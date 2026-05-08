@@ -1,0 +1,33 @@
+[package]
+name = "ferro-auth"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = true
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+jsonwebtoken = "9"
+cedar-policy = "4"
+base64 = "0.22"
+axum = { version = "0.7", features = ["macros"], optional = true }
+dashmap = "6"
+bcrypt = "0.17"
+rusqlite = { version = "0.32", features = ["bundled"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+subtle = "2"
+
+[features]
+default = ["handlers"]
+handlers = ["axum"]
+
+[dev-dependencies]
+tower = "0.5"
+http-body-util = "0.1"

@@ -18,6 +18,7 @@ ldap = ["dep:ldap3"]
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
+ferro-auth = { path = "../auth" }
 ferro-core = { path = "../core", features = ["sqlite", "search", "wasm", "object_store"] }
 ferro-dav = { path = "../dav", features = ["handlers"] }
 tokio = { workspace = true }
