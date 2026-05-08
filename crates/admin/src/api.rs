@@ -250,3 +250,85 @@ impl ApiState {
         self.server_health().await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_api_state_new() {
+        let state = ApiState::new();
+        assert!(!state.is_connected());
+        assert!(state.config.is_none());
+    }
+
+    #[test]
+    fn test_api_state_connect() {
+        let mut state = ApiState::new();
+        state.connect("http://localhost:8080".to_string(), "secret".to_string());
+        assert!(state.is_connected());
+        let config = state.config.as_ref().unwrap();
+        assert_eq!(config.url, "http://localhost:8080");
+        assert_eq!(config.token, "secret");
+    }
+
+    #[test]
+    fn test_api_state_disconnect() {
+        let mut state = ApiState::new();
+        state.connect("http://localhost:8080".to_string(), "token".to_string());
+        assert!(state.is_connected());
+        state.disconnect();
+        assert!(!state.is_connected());
+    }
+
+    #[test]
+    fn test_api_state_base_url_not_connected() {
+        let state = ApiState::new();
+        assert!(state.base_url().is_err());
+    }
+
+    #[test]
+    fn test_api_state_base_url_trims_slash() {
+        let mut state = ApiState::new();
+        state.connect("http://localhost:8080/".to_string(), "t".to_string());
+        assert_eq!(state.base_url().unwrap(), "http://localhost:8080");
+    }
+
+    #[test]
+    fn test_api_state_base_url_no_trailing_slash() {
+        let mut state = ApiState::new();
+        state.connect("http://localhost:8080".to_string(), "t".to_string());
+        assert_eq!(state.base_url().unwrap(), "http://localhost:8080");
+    }
+
+    #[test]
+    fn test_api_state_auth_header_not_connected() {
+        let state = ApiState::new();
+        assert!(state.auth_header().is_err());
+    }
+
+    #[test]
+    fn test_api_state_auth_header_connected() {
+        let mut state = ApiState::new();
+        state.connect("http://localhost:8080".to_string(), "mytoken".to_string());
+        assert_eq!(state.auth_header().unwrap(), "Bearer mytoken");
+    }
+
+    #[test]
+    fn test_api_state_default() {
+        let state = ApiState::default();
+        assert!(!state.is_connected());
+    }
+
+    #[test]
+    fn test_server_config_serde() {
+        let config = ServerConfig {
+            url: "http://localhost:8080".to_string(),
+            token: "secret123".to_string(),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: ServerConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.url, "http://localhost:8080");
+        assert_eq!(parsed.token, "secret123");
+    }
+}

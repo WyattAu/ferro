@@ -1194,3 +1194,172 @@ pub fn show_notification(title: &str, body: &str) {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn show_notification(_title: &str, _body: &str) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_urlencoding_safe_chars() {
+        assert_eq!(urlencoding("abcABC123-_.~"), "abcABC123-_.~");
+    }
+
+    #[test]
+    fn test_urlencoding_special_chars() {
+        let encoded = urlencoding("hello world");
+        assert_eq!(encoded, "hello%20world");
+
+        let encoded = urlencoding("/");
+        assert_eq!(encoded, "%2F");
+
+        let encoded = urlencoding("a+b=c");
+        assert!(encoded.contains("%2B"));
+        assert!(encoded.contains("%3D"));
+    }
+
+    #[test]
+    fn test_urlencoding_empty() {
+        assert_eq!(urlencoding(""), "");
+    }
+
+    #[test]
+    fn test_parse_propfind_xml_empty() {
+        let entries = parse_propfind_xml("");
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn test_parse_propfind_xml_extracts_href_only() {
+        let xml = "<D:multistatus xmlns:D=\"DAV:\">\n\
+  <D:response>\n\
+    <D:href>/files/test.txt</D:href>\n\
+    <D:propstat>\n\
+      <D:prop>\n\
+      </D:prop>\n\
+    </D:propstat>\n\
+  </D:response>\n\
+</D:multistatus>\n";
+        let entries = parse_propfind_xml(xml);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "test.txt");
+        assert_eq!(entries[0].path, "/files/test.txt");
+        assert_eq!(entries[0].size, 0);
+    }
+
+    #[test]
+    fn test_parse_propfind_xml_empty_multistatus() {
+        let xml = "<D:multistatus xmlns:D=\"DAV:\">\n\
+</D:multistatus>\n";
+        let entries = parse_propfind_xml(xml);
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn test_parse_propfind_xml_missing_props() {
+        let xml = r#"
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/files/test.txt</D:href>
+    <D:propstat>
+      <D:prop>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+</D:multistatus>
+"#;
+        let entries = parse_propfind_xml(xml);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].size, 0);
+        assert_eq!(entries[0].mime_type, "");
+        assert_eq!(entries[0].etag, "");
+    }
+
+    #[test]
+    fn test_search_filters_default() {
+        let filters = SearchFilters::default();
+        assert!(filters.r#type.is_none());
+        assert!(filters.sort.is_none());
+        assert!(filters.mime_type.is_none());
+    }
+
+    #[test]
+    fn test_file_entry_serde_roundtrip() {
+        let entry = FileEntry {
+            path: "/files/test.txt".to_string(),
+            name: "test.txt".to_string(),
+            size: 2048,
+            is_collection: false,
+            mime_type: "text/plain".to_string(),
+            modified_at: "2025-01-01T00:00:00Z".to_string(),
+            etag: "\"etag\"".to_string(),
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        let parsed: FileEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.path, entry.path);
+        assert_eq!(parsed.size, entry.size);
+    }
+
+    #[test]
+    fn test_listing_response_serde() {
+        let resp = ListingResponse {
+            entries: vec![],
+            current_path: "/".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let parsed: ListingResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.current_path, "/");
+    }
+
+    #[test]
+    fn test_user_preferences_serde() {
+        let prefs = UserPreferences {
+            theme: "dark".to_string(),
+            view_mode: "grid".to_string(),
+            sort_by: "name".to_string(),
+            sort_order: "asc".to_string(),
+            items_per_page: 100,
+            show_hidden_files: true,
+            language: "en".to_string(),
+        };
+        let json = serde_json::to_string(&prefs).unwrap();
+        let parsed: UserPreferences = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.theme, "dark");
+        assert_eq!(parsed.items_per_page, 100);
+        assert!(parsed.show_hidden_files);
+    }
+
+    #[test]
+    fn test_quota_info_serde() {
+        let quota = QuotaInfo {
+            used_bytes: 1024,
+            quota_bytes: 4096,
+            used_percent: 25.0,
+            file_count: 10,
+            unlimited: false,
+        };
+        let json = serde_json::to_string(&quota).unwrap();
+        let parsed: QuotaInfo = serde_json::from_str(&json).unwrap();
+        assert!(!parsed.unlimited);
+        assert_eq!(parsed.used_bytes, 1024);
+    }
+
+    #[test]
+    fn test_search_response_serde() {
+        let resp = SearchResponse {
+            query: "test".to_string(),
+            results: vec![SearchResultEntry {
+                path: "/files/test.txt".to_string(),
+                name: "test.txt".to_string(),
+                score: 1.0,
+                snippet: Some("...test...".to_string()),
+            }],
+            total: 1,
+            limit: 50,
+            offset: 0,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let parsed: SearchResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.total, 1);
+        assert_eq!(parsed.results[0].score, 1.0);
+    }
+}
