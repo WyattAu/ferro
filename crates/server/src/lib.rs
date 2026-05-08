@@ -168,7 +168,7 @@ impl AppState {
             snapshot_store: Arc::new(SnapshotStore::new(50)),
             max_body_size: 1024 * 1024 * 1024,
             external_url: "http://localhost:8080".to_string(),
-            wopi_token_secret: "ferro-wopi-token-secret-change-me".to_string(),
+            wopi_token_secret: String::new(),
             recently_processed: Arc::new(DashSet::new()),
             wopi_office_url: String::new(),
             admin_user: None,
@@ -419,7 +419,8 @@ impl AppState {
 }
 
 pub fn make_app() -> Router {
-    let state = AppState::in_memory();
+    let state = AppState::in_memory()
+        .with_wopi_token_secret("test-wopi-secret-for-integration".to_string());
     build_router(state)
 }
 

@@ -31,7 +31,7 @@ jobs:
           components: clippy
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
-      - run: cargo clippy --all-targets --features "s3,gcs,azure" -- -D warnings
+      - run: cargo clippy --all-targets --features "s3,gcs,azure,pg,redis,ldap" -- -D warnings
 
   test:
     name: Test
@@ -177,6 +177,22 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-pg-
       - name: Test with pg feature
         run: cargo test --all --features pg
+
+  rclone-e2e:
+    name: rclone E2E
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          name: ferro-server-linux
+      - name: Install rclone
+        run: curl https://rclone.org/install.sh | sudo bash
+      - name: Run rclone E2E tests
+        run: |
+          chmod +x ferro-server
+          cargo test --package ferro-server --test rclone_e2e -- --ignored --nocapture
 
   e2e:
     name: Playwright E2E

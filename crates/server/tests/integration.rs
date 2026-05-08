@@ -30,7 +30,7 @@ fn extract_etags(xml: &str) -> HashSet<String> {
 }
 
 fn make_wopi_token(path: &str) -> String {
-    let secret = "ferro-wopi-token-secret-change-me";
+    let secret = "test-wopi-secret-for-integration";
     let exp = chrono::Utc::now().timestamp() + 3600;
     let payload = serde_json::json!({ "path": path, "user": "test", "exp": exp });
     let payload_str = serde_json::to_string(&payload).unwrap();

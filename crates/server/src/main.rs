@@ -433,17 +433,16 @@ async fn main() -> anyhow::Result<()> {
         state
     };
 
-    // Configure WOPI token secret
-    let state = if cli.wopi_token_secret == "ferro-wopi-token-secret-change-me" {
-        tracing::warn!("═══════════════════════════════════════════════════════════════");
-        tracing::warn!("  WARNING: Using default WOPI token secret");
-        tracing::warn!(
-            "  Set --wopi-token-secret or FERRO_WOPI_TOKEN_SECRET to a strong random value for production"
+    // Configure WOPI token secret (required when WOPI office URL is set)
+    let state = if !state.wopi_office_url.is_empty() && cli.wopi_token_secret.is_none() {
+        anyhow::bail!(
+            "WOPI is enabled (--wopi-office-url is set) but --wopi-token-secret is not configured. \
+             Set --wopi-token-secret or FERRO_WOPI_TOKEN_SECRET to a strong random value."
         );
-        tracing::warn!("═══════════════════════════════════════════════════════════════");
-        state
+    } else if let Some(secret) = cli.wopi_token_secret {
+        state.with_wopi_token_secret(secret)
     } else {
-        state.with_wopi_token_secret(cli.wopi_token_secret.clone())
+        state
     };
 
     // Configure simple auth (HTTP Basic Auth) if admin credentials are set

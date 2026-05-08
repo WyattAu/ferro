@@ -143,13 +143,9 @@ pub struct ServerConfig {
     pub static_dir: Option<String>,
 
     /// Secret used for signing WOPI access tokens (HMAC-SHA256).
-    /// If not set, a default value is used (not safe for production).
-    #[arg(
-        long,
-        env = "FERRO_WOPI_TOKEN_SECRET",
-        default_value = "ferro-wopi-token-secret-change-me"
-    )]
-    pub wopi_token_secret: String,
+    /// Required when WOPI is enabled (--wopi-office-url).
+    #[arg(long, env = "FERRO_WOPI_TOKEN_SECRET")]
+    pub wopi_token_secret: Option<String>,
 
     /// External base URL the server is accessible from (used for OIDC redirects).
     /// Default: http://localhost:8080
@@ -395,7 +391,7 @@ where
     if !was_set("wopi_token_secret")
         && let Some(ref secret) = file.wopi_token_secret
     {
-        cli.wopi_token_secret = secret.clone();
+        cli.wopi_token_secret = Some(secret.clone());
     }
     if !was_set("wopi_office_url")
         && let Some(ref url) = file.wopi_office_url

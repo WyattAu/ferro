@@ -3,7 +3,7 @@
 100% Rust storage orchestrator — a self-hosted alternative to Nextcloud.
 
 [![CI](https://github.com/WyattAu/ferro/actions/workflows/ci.yml/badge.svg)](https://github.com/WyattAu/ferro/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 
 ## Overview
 

@@ -17,9 +17,7 @@ fn bench_wasm_dispatch(c: &mut Criterion) {
 
     // Benchmark: worker registration
     group.bench_function("register_worker", |b| {
-        let runtime = rt.block_on(async {
-            WasmWorkerRuntime::new().unwrap()
-        });
+        let runtime = rt.block_on(async { WasmWorkerRuntime::new().unwrap() });
 
         b.iter(|| {
             rt.block_on(async {

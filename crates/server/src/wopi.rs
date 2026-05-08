@@ -383,9 +383,7 @@ pub async fn wopi_issue_token(
     axum::Extension(claims): axum::Extension<common::auth::Claims>,
     Path(path): Path<String>,
 ) -> Response {
-    const DEFAULT_WOPI_SECRET: &str = "ferro-wopi-token-secret-change-me";
-
-    if state.wopi_token_secret == DEFAULT_WOPI_SECRET {
+    if state.wopi_token_secret.is_empty() {
         tracing::error!(
             "WOPI token secret is not configured. Set --wopi-token-secret to a strong random value."
         );

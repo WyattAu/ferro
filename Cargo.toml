@@ -27,3 +27,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 axum = "0.7"
 leptos = { version = "0.6", features = ["csr"] } # Update version as needed
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
