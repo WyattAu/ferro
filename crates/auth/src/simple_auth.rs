@@ -13,6 +13,7 @@ fn is_public_path(path: &str) -> bool {
         || path == "/metrics"
 }
 
+/// Axum middleware implementing HTTP Basic authentication.
 #[cfg(feature = "handlers")]
 pub async fn simple_auth_middleware(
     req: axum::extract::Request,

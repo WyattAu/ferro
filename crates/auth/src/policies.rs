@@ -6,10 +6,12 @@ use std::sync::Arc;
 
 use crate::cedar::CedarAuthorizer;
 
+/// Shared state for the policy API handlers.
 pub struct PolicyState {
     pub cedar: Option<Arc<CedarAuthorizer>>,
 }
 
+/// List currently configured policies.
 pub async fn list_policies(State(state): State<PolicyState>) -> Response {
     match &state.cedar {
         None => {
@@ -29,11 +31,13 @@ pub async fn list_policies(State(state): State<PolicyState>) -> Response {
     }
 }
 
+/// Request body for adding a new Cedar policy.
 #[derive(Debug, Deserialize)]
 pub struct AddPolicyRequest {
     pub policy: String,
 }
 
+/// Add a new Cedar policy to the authorizer.
 pub async fn add_policy(
     State(state): State<PolicyState>,
     axum::Json(req): axum::Json<AddPolicyRequest>,
@@ -62,11 +66,13 @@ pub async fn add_policy(
     }
 }
 
+/// Request body for deleting a policy by ID.
 #[derive(Debug, Deserialize)]
 pub struct DeletePolicyRequest {
     pub policy_id: String,
 }
 
+/// Delete a policy by ID (not yet implemented).
 pub async fn delete_policy(
     State(state): State<PolicyState>,
     axum::Json(_req): axum::Json<DeletePolicyRequest>,
