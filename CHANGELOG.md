@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-05-08
+
+### Fixed
+- Version alignment: all 15 crates now inherit `version.workspace = true` (was 0.1.0 / 1.0.0 / 2.2.0 mix)
+- Import formatting: removed unnecessary braces in `ferro-server::policies`
+
+### Added
+- `rustfmt.toml` — codified formatting rules (imports granularity, comment width, etc.)
+- `.clippy.toml` — cognitive complexity, struct size, argument thresholds
+- `deny.toml` — cargo-deny config with documented ignores for desktop-only transitive advisories
+
+### Changed
+- CI audit job: hardened with `deny.toml` baseline for future cargo-deny integration
+- Workspace `Cargo.toml`: added `version`, `rust-version` to `[workspace.package]`
+
 ## [2.5.0] - 2026-05-01
 
 ### Added

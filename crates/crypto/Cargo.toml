@@ -1,6 +1,6 @@
 [package]
 name = "ferro-crypto"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 description = "Cryptographic primitives for the Ferro storage ecosystem"
 readme = "README.md"
@@ -8,7 +8,7 @@ license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
 keywords = ["crypto", "bcrypt", "hmac", "sha256", "encryption", "age"]
 categories = ["cryptography"]
-rust-version = "1.85"
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true

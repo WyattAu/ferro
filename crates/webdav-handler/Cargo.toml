@@ -1,7 +1,8 @@
 [package]
 name = "ferro-webdav-handler"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 description = "WebDAV XML response builders for Ferro"
 license.workspace = true
 repository = "https://github.com/WyattAu/ferro"

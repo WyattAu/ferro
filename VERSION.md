@@ -2,9 +2,9 @@
 
 ## Current Status
 - **Phase:** Sprint AT (Mobile Responsive)
-- **Version:** 1.0.0-beta.1
-- **Status:** Feature-complete: 303 tests, 0 clippy warnings, dark mode, file preview, favorites, trash, bulk ops, toasts, move/copy, quota, activity feed, command palette, clipboard, mobile responsive
-- **Last Updated:** 2026-04-26
+- **Version:** 2.5.1
+- **Status:** 692+ tests, 0 clippy warnings, version-aligned workspace, lint configs, cargo-deny, dark mode, file preview, favorites, trash, bulk ops, toasts, move/copy, quota, activity feed, command palette, clipboard, mobile responsive
+- **Last Updated:** 2026-05-08
 
 ## Phase Progress
 | Phase | Status | Completion |
@@ -142,8 +142,8 @@
 | ferro-cli | 5 passing | Implemented |
 | ferro-desktop | 7 passing | Implemented |
 
-## Total Tests: 303 passing, 0 ignored (1 rclone E2E ignored - needs rclone)
+## Total Tests: 692+ passing, 1 ignored (1 rclone E2E ignored - needs rclone, 1 doctest ignored)
 ## Clippy: 0 warnings
-## Security: 0 own-code vulnerabilities, security headers, path traversal protection, OWASP/STRIDE documented
+## Security: cargo-deny configured, cargo-audit CI-gated, deny.toml with documented ignores for desktop-only transitive deps
 ## Error Level: None
-## Rollback Checkpoint: N/A (no stable release yet)
+## Rollback Checkpoint: main@5f0a70d (pre-hardening)

@@ -1,12 +1,12 @@
 [package]
 name = "ferro-observability"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 description = "Observability endpoints for Ferro (Prometheus, VictoriaMetrics, Loki, VictoriaLogs)"
 license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
 publish = false
-rust-version = "1.85"
 
 [dependencies]
 axum = { workspace = true, optional = true }

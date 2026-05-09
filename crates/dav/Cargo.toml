@@ -1,6 +1,6 @@
 [package]
 name = "ferro-dav"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 description = "CalDAV, CardDAV, and WebDAV protocol implementations for Ferro"
 readme = "README.md"
@@ -8,7 +8,7 @@ license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
 keywords = ["caldav", "carddav", "webdav", "icalendar", "vcard", "rfc4791"]
 categories = ["asynchronous", "network-programming", "web-programming"]
-rust-version = "1.85"
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true

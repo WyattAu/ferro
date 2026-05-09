@@ -1,6 +1,6 @@
 [package]
 name = "ferro-core"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 description = "Storage backends, search, and WASM runtime for Ferro"
 readme = "README.md"
@@ -8,7 +8,7 @@ license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
 keywords = ["storage", "sqlite", "tantivy", "wasmtime", "object-store", "s3"]
 categories = ["asynchronous", "database", "filesystem", "wasm"]
-rust-version = "1.85"
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
@@ -27,7 +27,7 @@ gcs = ["object_store", "object_store/gcp"]
 azure = ["object_store", "object_store/azure"]
 
 [dependencies]
-ferro-common = { package = "ferro-common", version = "0.1", path = "../common" }
+ferro-common = { package = "ferro-common", path = "../common" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

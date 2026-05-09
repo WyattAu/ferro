@@ -1,7 +1,9 @@
 [package]
 name = "ferro-admin"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
 publish = false
 description = "Ferro server administration panel"
 

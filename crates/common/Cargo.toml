@@ -1,6 +1,6 @@
 [package]
 name = "ferro-common"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 description = "Core types and traits for the Ferro storage ecosystem"
 readme = "README.md"
@@ -8,7 +8,7 @@ license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
 keywords = ["storage", "webdav", "filesystem", "trait", "async"]
 categories = ["asynchronous", "filesystem", "data-structures"]
-rust-version = "1.85"
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true

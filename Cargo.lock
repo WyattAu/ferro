@@ -2707,7 +2707,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-admin"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -2726,7 +2726,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-auth"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -2751,7 +2751,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-benchmarks"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "bytes",
  "criterion",
@@ -2765,7 +2765,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-cli"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2784,7 +2784,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-client"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2800,7 +2800,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-common"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2817,7 +2817,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-core"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2844,7 +2844,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-crypto"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2856,7 +2856,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-dav"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -2876,7 +2876,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-desktop"
-version = "1.0.0"
+version = "2.5.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2900,7 +2900,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-fuse"
-version = "2.2.0"
+version = "2.5.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2928,7 +2928,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-observability"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "axum",
  "chrono",
@@ -2940,7 +2940,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-server"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "age",
  "anyhow",
@@ -2998,7 +2998,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-webdav-handler"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "bytes",
  "ferro-common",
@@ -11108,7 +11108,7 @@ dependencies = [
 
 [[package]]
 name = "web"
-version = "0.1.0"
+version = "2.5.1"
 dependencies = [
  "chrono",
  "console_error_panic_hook",

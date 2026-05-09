@@ -1,14 +1,14 @@
 [package]
 name = "ferro-client"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 description = "Async WebDAV client SDK for Ferro, with C-FFI for mobile"
 readme = "README.md"
-license = "AGPL-3.0-or-later"
+license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
 keywords = ["webdav", "caldav", "carddav", "client", "mobile", "ffi"]
 categories = ["asynchronous", "network-programming", "api-bindings"]
-rust-version = "1.85"
+rust-version.workspace = true
 
 [dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
