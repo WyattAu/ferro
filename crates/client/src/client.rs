@@ -3,6 +3,7 @@ use crate::types::{DirectoryInfo, FileEntry, ServerInfo};
 use reqwest::header::CONTENT_TYPE;
 use roxmltree::Document;
 
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct FerroClient {
     base_url: String,
@@ -174,7 +175,10 @@ impl FerroClient {
         let url = self.build_url(path);
         let response = self
             .http
-            .request(reqwest::Method::from_bytes(b"MKCOL").unwrap(), &url)
+            .request(
+                reqwest::Method::from_bytes(b"MKCOL").expect("valid HTTP method"),
+                &url,
+            )
             .bearer_auth(&self.token)
             .send()
             .await?;
@@ -198,7 +202,10 @@ impl FerroClient {
         let destination = self.build_url(to);
         let response = self
             .http
-            .request(reqwest::Method::from_bytes(b"MOVE").unwrap(), &url)
+            .request(
+                reqwest::Method::from_bytes(b"MOVE").expect("valid HTTP method"),
+                &url,
+            )
             .bearer_auth(&self.token)
             .header("Destination", &destination)
             .send()
@@ -220,7 +227,10 @@ impl FerroClient {
         let destination = self.build_url(to);
         let response = self
             .http
-            .request(reqwest::Method::from_bytes(b"COPY").unwrap(), &url)
+            .request(
+                reqwest::Method::from_bytes(b"COPY").expect("valid HTTP method"),
+                &url,
+            )
             .bearer_auth(&self.token)
             .header("Destination", &destination)
             .send()
@@ -264,7 +274,10 @@ impl FerroClient {
 
         let response = self
             .http
-            .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), url)
+            .request(
+                reqwest::Method::from_bytes(b"PROPFIND").expect("valid HTTP method"),
+                url,
+            )
             .bearer_auth(&self.token)
             .header("Depth", depth)
             .header(CONTENT_TYPE, "application/xml")

@@ -28,17 +28,23 @@ fn fallback_resource() -> EntityUid {
         .expect("hardcoded fallback EntityUid must parse")
 }
 
+#[non_exhaustive]
+/// Configuration for the Cedar policy engine.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CedarConfig {
+    /// Default Cedar policy text (Cedar policy language).
     pub default_policy: String,
 }
 
+#[non_exhaustive]
+/// Cedar-based authorization engine that evaluates policy decisions.
 #[derive(Clone)]
 pub struct CedarAuthorizer {
     policy_set: Arc<RwLock<PolicySet>>,
 }
 
 impl CedarAuthorizer {
+    /// Create a new authorizer with a permissive default policy.
     pub fn new() -> Result<Self> {
         let default_policy = r#"
             @id("all_access")
@@ -58,6 +64,7 @@ impl CedarAuthorizer {
         })
     }
 
+    /// Replace all policies with the given set.
     pub async fn load_policies(&self, policies: &[String]) -> Result<()> {
         let mut policy_set = PolicySet::new();
         for (i, policy_text) in policies.iter().enumerate() {
@@ -78,6 +85,7 @@ impl CedarAuthorizer {
         Ok(())
     }
 
+    /// Append a single policy to the current policy set.
     pub async fn add_policy(&self, policy_text: &str) -> Result<()> {
         let ps: PolicySet = policy_text
             .parse()
@@ -94,6 +102,7 @@ impl CedarAuthorizer {
         Ok(())
     }
 
+    /// Evaluate an authorization request and return a full decision.
     pub async fn is_authorized(&self, request: &AuthRequest) -> Result<AuthDecision> {
         let guard = self.policy_set.read().await;
 
@@ -162,6 +171,7 @@ impl CedarAuthorizer {
         Ok(decision)
     }
 
+    /// Evaluate authorization and return a simple boolean (allow/deny).
     pub async fn is_authorized_simple(
         &self,
         principal: &str,
@@ -178,6 +188,9 @@ impl CedarAuthorizer {
         match self.is_authorized(&request).await? {
             AuthDecision::Allow { .. } => Ok(true),
             AuthDecision::Deny { .. } => Ok(false),
+            _ => Err(FerroError::Internal(
+                "Unknown authorization decision".to_string(),
+            )),
         }
     }
 }
@@ -206,6 +219,7 @@ fn is_cedar_exempt_path(path: &str) -> bool {
         || path.starts_with("/s/")
 }
 
+/// Axum middleware that enforces Cedar authorization policies.
 #[cfg(feature = "handlers")]
 pub async fn cedar_middleware(
     cedar: Option<Arc<CedarAuthorizer>>,
@@ -410,6 +424,7 @@ mod tests {
             AuthDecision::Deny { reason } => {
                 panic!("Should not be denied: {}", reason);
             }
+            _ => panic!("Unexpected decision"),
         }
     }
 }

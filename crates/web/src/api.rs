@@ -202,7 +202,7 @@ fn with_auth_headers(headers: &web_sys::Headers) {
 
 #[cfg(target_arch = "wasm32")]
 fn make_opts_with_auth(method: &str) -> web_sys::RequestInit {
-    let headers = web_sys::Headers::new().unwrap();
+    let headers = web_sys::Headers::new().expect("Headers::new must succeed in browser context");
     with_auth_headers(&headers);
     let opts = web_sys::RequestInit::new();
     opts.set_method(method);

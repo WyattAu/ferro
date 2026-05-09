@@ -17,6 +17,7 @@ pub trait MetadataStore: Send + Sync {
 }
 
 /// In-memory metadata store backed by a hash map.
+#[non_exhaustive]
 pub struct InMemoryMetadataStore {
     data: Arc<RwLock<HashMap<String, FileMetadata>>>,
 }

@@ -11,6 +11,7 @@ pub struct RingProvider {
 }
 
 impl RingProvider {
+    /// Create a new Ring-based crypto provider.
     pub fn new() -> Self {
         Self { _private: () }
     }

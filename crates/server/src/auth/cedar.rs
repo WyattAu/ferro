@@ -184,6 +184,7 @@ impl CedarAuthorizer {
         match self.is_authorized(&request).await? {
             AuthDecision::Allow { .. } => Ok(true),
             AuthDecision::Deny { .. } => Ok(false),
+            _ => Err(common::error::FerroError::Internal("Unknown authorization decision".to_string())),
         }
     }
 }
@@ -437,6 +438,7 @@ mod tests {
             AuthDecision::Deny { reason } => {
                 panic!("Should not be denied: {}", reason);
             }
+            _ => panic!("Unexpected decision"),
         }
     }
 }

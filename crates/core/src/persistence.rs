@@ -42,6 +42,7 @@ pub trait AuditLogStore: Send + Sync {
 // ── Data types ─────────────────────────────────────────────────────────
 
 /// A persisted filesystem snapshot with its file entries serialized as JSON.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedSnapshot {
     pub id: String,
@@ -52,6 +53,7 @@ pub struct PersistedSnapshot {
 }
 
 /// Summary of a persisted snapshot without its entries.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedSnapshotSummary {
     pub id: String,
@@ -77,6 +79,7 @@ pub struct PersistedAuditEntry {
 // ── Unified SQLite Persistence ──────────────────────────────────────────
 
 /// Unified SQLite persistence backend implementing CAS, snapshot, and audit log storage.
+#[non_exhaustive]
 pub struct SqlitePersistence {
     pool: SqlitePool,
 }

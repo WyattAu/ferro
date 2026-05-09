@@ -10,9 +10,13 @@ use tracing::{debug, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OidcConfig {
+    /// OIDC issuer URL (e.g. `https://auth.example.com`).
     pub issuer: String,
+    /// OAuth client ID registered with the OIDC provider.
     pub client_id: String,
+    /// Expected audience claim in validated tokens.
     pub audience: String,
+    /// Optional JWKS URI; if omitted, discovered via `.well-known/openid-configuration`.
     pub jwks_uri: Option<String>,
 }
 
@@ -22,6 +26,8 @@ struct JwksCache {
     ttl: Duration,
 }
 
+#[non_exhaustive]
+/// Validates OIDC tokens and manages PKCE sessions.
 #[derive(Clone)]
 pub struct OidcValidator {
     config: Arc<OidcConfig>,
@@ -30,6 +36,8 @@ pub struct OidcValidator {
     http_client: reqwest::Client,
 }
 
+#[non_exhaustive]
+/// A PKCE OAuth session stored between the login redirect and callback.
 pub struct PkceSession {
     pub code_verifier: String,
     pub redirect_uri: String,
@@ -38,6 +46,7 @@ pub struct PkceSession {
 }
 
 impl OidcValidator {
+    /// Create a new validator with the given OIDC configuration.
     pub fn new(config: OidcConfig) -> Self {
         Self {
             config: Arc::new(config),
@@ -51,10 +60,12 @@ impl OidcValidator {
         }
     }
 
+    /// Return a reference to the OIDC configuration.
     pub fn config(&self) -> &OidcConfig {
         &self.config
     }
 
+    /// Store a PKCE session for later retrieval during the OAuth callback.
     pub async fn store_pkce_session(
         &self,
         state: &str,
@@ -76,6 +87,7 @@ impl OidcValidator {
         sessions.retain(|_, s| s.created_at > cutoff);
     }
 
+    /// Consume and return a PKCE session by state token (one-time use).
     pub async fn consume_pkce_session(&self, state: &str) -> Option<PkceSession> {
         let mut sessions = self.pkce_sessions.write().await;
         let cutoff = Instant::now() - Duration::from_secs(600);
@@ -83,6 +95,7 @@ impl OidcValidator {
         sessions.remove(state)
     }
 
+    /// Exchange an authorization code for tokens using the OIDC token endpoint.
     pub async fn exchange_code(
         &self,
         code: &str,
@@ -132,6 +145,7 @@ impl OidcValidator {
         Ok(response)
     }
 
+    /// Validate a JWT access token and extract its claims.
     pub async fn validate_token(&self, token: &str) -> Result<Claims> {
         let cache = self.jwks.read().await;
         if !cache.keys.is_empty()
@@ -261,6 +275,7 @@ fn decode_claims_unsafe(token: &str) -> Result<Claims> {
     Ok(claims)
 }
 
+/// Check whether a request path is publicly accessible (no auth required).
 pub fn is_public_path(path: &str) -> bool {
     path == "/.well-known/ferro"
         || path == "/.well-known/openid-configuration"
@@ -268,6 +283,7 @@ pub fn is_public_path(path: &str) -> bool {
         || path.starts_with("/api/auth/callback")
 }
 
+/// Axum middleware that validates Bearer tokens via OIDC.
 #[cfg(feature = "handlers")]
 pub async fn auth_middleware(
     oidc: Option<Arc<OidcValidator>>,

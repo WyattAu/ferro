@@ -215,9 +215,10 @@ impl FerroFs {
 
     async fn webdav_propfind(&self, path: &str) -> Result<Vec<FileEntry>> {
         let url = self.make_url(path);
-        let mut req = self
-            .client
-            .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url);
+        let mut req = self.client.request(
+            reqwest::Method::from_bytes(b"PROPFIND").expect("valid HTTP method"),
+            &url,
+        );
         req = req.header("Depth", "1");
         req = req.header("Content-Type", "application/xml");
         if let Some(ref auth) = self.auth_header {
@@ -353,9 +354,10 @@ impl FerroFs {
 
     async fn webdav_mkcol(&self, path: &str) -> Result<()> {
         let url = self.make_url(path);
-        let mut req = self
-            .client
-            .request(reqwest::Method::from_bytes(b"MKCOL").unwrap(), &url);
+        let mut req = self.client.request(
+            reqwest::Method::from_bytes(b"MKCOL").expect("valid HTTP method"),
+            &url,
+        );
         if let Some(ref auth) = self.auth_header {
             req = req.header("Authorization", auth);
         }
@@ -470,7 +472,7 @@ impl Filesystem for FerroFs {
 
     async fn init(&self, _req: Request) -> FuseResult<ReplyInit> {
         Ok(ReplyInit {
-            max_write: std::num::NonZeroU32::new(4 * 1024 * 1024).unwrap(),
+            max_write: std::num::NonZeroU32::new(4 * 1024 * 1024).expect("non-zero constant"),
         })
     }
 
@@ -683,9 +685,10 @@ impl Filesystem for FerroFs {
         let url = self.make_url(&old_path);
         let destination = self.make_url(&new_path);
 
-        let mut req = self
-            .client
-            .request(reqwest::Method::from_bytes(b"MOVE").unwrap(), &url);
+        let mut req = self.client.request(
+            reqwest::Method::from_bytes(b"MOVE").expect("valid HTTP method"),
+            &url,
+        );
         req = req.header("Destination", &destination);
         if let Some(ref auth) = self.auth_header {
             req = req.header("Authorization", auth);

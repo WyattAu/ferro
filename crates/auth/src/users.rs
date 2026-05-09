@@ -5,8 +5,11 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
+/// Thread-safe handle to a SQLite connection.
 pub type DbHandle = std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>;
 
+/// Role assigned to a user, controlling their access level.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum UserRole {
     #[default]
@@ -15,6 +18,8 @@ pub enum UserRole {
     ReadOnly,
 }
 
+/// Account status of a user.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum UserStatus {
     Active,
@@ -22,6 +27,7 @@ pub enum UserStatus {
     Locked,
 }
 
+/// A registered user in the system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
@@ -40,19 +46,23 @@ pub struct User {
 }
 
 impl User {
+    /// Check whether the user account is active.
     pub fn is_active(&self) -> bool {
         self.status == UserStatus::Active
     }
 
+    /// Check whether the user has admin privileges.
     pub fn is_admin(&self) -> bool {
         self.role == UserRole::Admin
     }
 
+    /// Check whether the user can read and write (admin or user role).
     pub fn has_read_write(&self) -> bool {
         self.role == UserRole::Admin || self.role == UserRole::User
     }
 }
 
+/// Lightweight user identity attached to authenticated requests.
 #[derive(Debug, Clone)]
 pub struct UserInfo {
     pub user_id: String,
@@ -70,6 +80,7 @@ impl From<&User> for UserInfo {
     }
 }
 
+/// Request body for creating a new user.
 #[derive(Debug, Deserialize)]
 pub struct CreateUserRequest {
     pub username: String,
@@ -81,6 +92,7 @@ pub struct CreateUserRequest {
     pub storage_quota_bytes: Option<u64>,
 }
 
+/// Request body for updating an existing user (admin-only fields).
 #[derive(Debug, Deserialize, Default)]
 pub struct UpdateUserRequest {
     pub display_name: Option<String>,
@@ -90,23 +102,27 @@ pub struct UpdateUserRequest {
     pub storage_quota_bytes: Option<Option<u64>>,
 }
 
+/// Request body for a user updating their own profile.
 #[derive(Debug, Deserialize)]
 pub struct UpdateSelfRequest {
     pub display_name: Option<String>,
     pub password: Option<String>,
 }
 
+/// Request body for resetting a user's password.
 #[derive(Debug, Deserialize)]
 pub struct ResetPasswordRequest {
     pub new_password: String,
 }
 
+/// Error returned by user store operations.
 #[derive(Debug)]
 pub struct UserError {
     pub kind: UserErrorKind,
     pub message: String,
 }
 
+/// Kind of user store error.
 #[derive(Debug, PartialEq)]
 pub enum UserErrorKind {
     NotFound,
@@ -116,24 +132,28 @@ pub enum UserErrorKind {
 }
 
 impl UserError {
+    /// Create a "not found" error.
     pub fn not_found(msg: impl Into<String>) -> Self {
         Self {
             kind: UserErrorKind::NotFound,
             message: msg.into(),
         }
     }
+    /// Create a "conflict" (duplicate) error.
     pub fn conflict(msg: impl Into<String>) -> Self {
         Self {
             kind: UserErrorKind::Conflict,
             message: msg.into(),
         }
     }
+    /// Create a "forbidden" error.
     pub fn forbidden(msg: impl Into<String>) -> Self {
         Self {
             kind: UserErrorKind::Forbidden,
             message: msg.into(),
         }
     }
+    /// Create a "bad request" error.
     pub fn bad_request(msg: impl Into<String>) -> Self {
         Self {
             kind: UserErrorKind::BadRequest,
@@ -142,25 +162,38 @@ impl UserError {
     }
 }
 
+/// Async interface for persisting and retrieving user accounts.
 #[async_trait]
 pub trait UserStoreTrait: Send + Sync {
+    /// Register a new user.
     async fn create_user(&self, user: User) -> Result<User, UserError>;
+    /// Look up a user by their unique ID.
     async fn get_user(&self, id: &str) -> Result<User, UserError>;
+    /// Look up a user by their username.
     async fn get_user_by_username(&self, username: &str) -> Result<User, UserError>;
+    /// Look up a user by their email address.
     async fn get_user_by_email(&self, email: &str) -> Result<User, UserError>;
+    /// List all registered users.
     async fn list_users(&self) -> Vec<User>;
+    /// Update mutable fields of an existing user.
     async fn update_user(&self, id: &str, updates: UpdateUserRequest) -> Result<User, UserError>;
+    /// Remove a user by ID.
     async fn delete_user(&self, id: &str) -> Result<(), UserError>;
+    /// Record the current time as the user's last login.
     async fn update_last_login(&self, id: &str);
+    /// Set a user's password hash directly.
     async fn set_password(&self, id: &str, password_hash: &str) -> Result<(), UserError>;
+    /// Authenticate a username and password, returning the user on success.
     async fn authenticate(&self, username: &str, password: &str) -> Result<User, UserError>;
 
+    /// Blocking wrapper around [`Self::get_user_by_username`].
     fn get_user_by_username_blocking(&self, username: &str) -> Result<User, UserError> {
         let rt = tokio::runtime::Handle::current();
         rt.block_on(self.get_user_by_username(username))
     }
 }
 
+/// Hash a password using bcrypt with the default cost factor.
 pub fn hash_password(password: &str) -> String {
     bcrypt::hash(password, bcrypt::DEFAULT_COST).expect("bcrypt hashing failed")
 }
@@ -171,6 +204,7 @@ fn verify_password(password: &str, hash: &str) -> bool {
 
 const MAX_USERS: usize = 10_000;
 
+/// In-memory user store backed by concurrent hash maps, with optional SQLite persistence.
 pub struct InMemoryUserStore {
     users: DashMap<String, User>,
     username_index: DashMap<String, String>,
@@ -179,6 +213,7 @@ pub struct InMemoryUserStore {
 }
 
 impl InMemoryUserStore {
+    /// Create a new empty in-memory user store.
     pub fn new() -> Self {
         Self {
             users: DashMap::new(),
@@ -188,11 +223,13 @@ impl InMemoryUserStore {
         }
     }
 
+    /// Attach a SQLite database handle for persistent storage.
     pub fn with_db(mut self, db: DbHandle) -> Self {
         self.db = Some(db);
         self
     }
 
+    /// Create a pre-configured admin user with the given credentials.
     pub fn create_admin(username: &str, password: &str) -> User {
         User {
             id: uuid::Uuid::new_v4().to_string(),
@@ -210,6 +247,7 @@ impl InMemoryUserStore {
         }
     }
 
+    /// Load a user into the in-memory store (used during DB restore).
     pub fn load_from_db(&self, user: User) {
         let username = user.username.clone();
         let email = user.email.clone();
@@ -257,6 +295,7 @@ impl InMemoryUserStore {
         }
     }
 
+    /// Load all users from a SQLite connection into a vector.
     pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<User>, rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash FROM users",

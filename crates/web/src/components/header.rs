@@ -191,15 +191,15 @@ pub fn Header() -> impl IntoView {
                                         .expect("window must exist in browser context")
                                         .clear_timeout_with_handle(prev);
                                 }
-                                debounce_timer = Some(
-                                    web_sys::window()
-                                        .unwrap()
-                                        .set_timeout_with_callback_and_timeout_and_arguments_0(
-                                            func.unchecked_ref(),
-                                            300,
-                                        )
-                                        .unwrap(),
-                                );
+                                if let Ok(handle) = web_sys::window()
+                                    .expect("window must exist in browser context")
+                                    .set_timeout_with_callback_and_timeout_and_arguments_0(
+                                        func.unchecked_ref(),
+                                        300,
+                                    )
+                                {
+                                    debounce_timer = Some(handle);
+                                }
                             }
                         },
                     );

@@ -16,6 +16,7 @@ pub const MULTIPART_THRESHOLD: usize = 10 * 1024 * 1024; // 10 MB
 pub const MULTIPART_CHUNK_SIZE: usize = 5 * 1024 * 1024;
 
 /// Storage engine backed by an `object_store` implementation (S3, GCS, Azure, local).
+#[non_exhaustive]
 pub struct ObjectStoreStorageEngine {
     store: Arc<dyn ObjectStore>,
     prefix: String,
@@ -264,7 +265,11 @@ impl StorageEngine for ObjectStoreStorageEngine {
             Err(_) if self.local_base.is_some() => {
                 // Fallback: check if it's a real directory on local filesystem
                 let clean = path.trim_start_matches('/');
-                let fs_path = self.local_base.as_ref().unwrap().join(clean);
+                let fs_path = self
+                    .local_base
+                    .as_ref()
+                    .expect("invariant: local_base is Some when this branch is reached")
+                    .join(clean);
                 let metadata = tokio::fs::metadata(&fs_path)
                     .await
                     .map_err(|e| FerroError::NotFound(format!("{}: {}", path, e)))?;

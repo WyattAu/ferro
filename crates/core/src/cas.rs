@@ -18,6 +18,7 @@ pub trait CasStore: Send + Sync {
 }
 
 /// In-memory CAS store backed by a hash map.
+#[non_exhaustive]
 pub struct InMemoryCasStore {
     content: Arc<RwLock<HashMap<String, Bytes>>>,
 }

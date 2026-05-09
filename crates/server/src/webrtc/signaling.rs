@@ -121,7 +121,7 @@ pub async fn poll_answer(
         .ice_candidates
         .iter()
         .find(|c| c.starts_with("__ANSWER__"))
-        .map(|c| c.strip_prefix("__ANSWER__").unwrap().to_string());
+        .map(|c| c.strip_prefix("__ANSWER__").unwrap_or_default().to_string());
 
     match answer {
         Some(sdp) => {

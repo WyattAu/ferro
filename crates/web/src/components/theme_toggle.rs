@@ -58,10 +58,9 @@ pub fn provide_theme_state() -> ThemeState {
             let window = web_sys::window();
             let document = window.as_ref().and_then(|w| w.document());
 
-            if document.is_none() {
+            let Some(document) = document else {
                 return;
-            }
-            let document = document.unwrap();
+            };
             let html = document.document_element();
 
             if let Some(html) = html {

@@ -11,6 +11,7 @@ use tokio::sync::RwLock;
 use tracing::debug;
 
 /// In-memory storage engine that combines content and metadata storage.
+#[non_exhaustive]
 pub struct InMemoryStorageEngine {
     store: Arc<RwLock<HashMap<String, Bytes>>>,
     metadata: Arc<RwLock<HashMap<String, FileMetadata>>>,

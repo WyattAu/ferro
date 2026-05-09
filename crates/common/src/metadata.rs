@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// SHA-256 content hash stored as 64 hex characters.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ContentHash(String);
 
@@ -58,14 +59,23 @@ impl ContentHash {
 /// Metadata for a file or collection (directory) in the virtual filesystem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileMetadata {
+    /// Virtual filesystem path of the file or collection.
     pub path: String,
+    /// SHA-256 content hash.
     pub content_hash: ContentHash,
+    /// Size in bytes.
     pub size: u64,
+    /// MIME type of the file.
     pub mime_type: String,
+    /// Whether this entry is a collection (directory).
     pub is_collection: bool,
+    /// Creation timestamp.
     pub created_at: DateTime<Utc>,
+    /// Last modification timestamp.
     pub modified_at: DateTime<Utc>,
+    /// Owner of the file or collection.
     pub owner: String,
+    /// ETag string for conditional requests.
     pub etag: String,
 }
 

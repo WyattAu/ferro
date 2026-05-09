@@ -17,6 +17,7 @@ pub trait PresignedUrlGenerator: Send + Sync {
 /// Generates direct server URLs for PUT/GET operations.
 /// For cloud backends (S3, GCS, Azure), presigned URLs can be generated
 /// by the cloud-specific ObjectStore implementations at a later date.
+#[non_exhaustive]
 pub struct ServerPresignedUrlGenerator {
     base_url: Url,
 }
@@ -56,6 +57,7 @@ impl PresignedUrlGenerator for ServerPresignedUrlGenerator {
 // ── No-op generator (testing) ──────────────────────────────────────────────
 
 /// No-op presigned URL generator (returns localhost URLs, for testing).
+#[non_exhaustive]
 pub struct NoOpPresignedUrlGenerator;
 
 #[async_trait]

@@ -28,6 +28,7 @@ impl Default for WorkerConfig {
 }
 
 /// Result of a WASM worker execution.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct WorkerResult {
     pub success: bool,
@@ -47,6 +48,7 @@ pub struct WorkerEvent {
 }
 
 /// WASM worker runtime using Wasmtime with WASI support.
+#[non_exhaustive]
 pub struct WasmWorkerRuntime {
     engine: Engine,
     workers: Arc<RwLock<Vec<WorkerEvent>>>,

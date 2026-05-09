@@ -1,3 +1,5 @@
+//! Cryptographic primitives with pluggable provider backends.
+
 #[cfg(feature = "ring")]
 pub mod ring_provider;
 pub mod traits;

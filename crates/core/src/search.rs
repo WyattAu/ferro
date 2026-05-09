@@ -8,6 +8,7 @@ use tantivy::{DocAddress, Index, IndexReader, IndexWriter, ReloadPolicy, Score};
 use tracing::{debug, info};
 
 /// Full-text search engine backed by Tantivy.
+#[non_exhaustive]
 pub struct SearchEngine {
     index: Index,
     writer: IndexWriter,
@@ -22,6 +23,7 @@ pub struct SearchEngine {
 }
 
 /// A single search result with relevance score and optional snippet.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct SearchResult {
     pub path: String,

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileEntry {
     pub name: String,
@@ -11,6 +12,7 @@ pub struct FileEntry {
     pub content_type: Option<String>,
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirectoryInfo {
     pub path: String,
@@ -21,6 +23,7 @@ pub struct DirectoryInfo {
 #[allow(dead_code)]
 pub type ProgressCallback = Box<dyn Fn(u64, u64) + Send + Sync>;
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UploadProgress {
     pub bytes_uploaded: u64,
@@ -42,6 +45,7 @@ impl UploadProgress {
     }
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerInfo {
     pub server_url: String,

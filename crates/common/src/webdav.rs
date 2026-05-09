@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// WebDAV resource type: collection (directory) or individual resource.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ResourceType {
     Collection,
@@ -10,6 +11,7 @@ pub enum ResourceType {
 }
 
 /// Scope of a WebDAV lock: exclusive or shared.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LockScope {
     Exclusive,
@@ -17,12 +19,14 @@ pub enum LockScope {
 }
 
 /// Type of a WebDAV lock (currently only write locks are supported).
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LockType {
     Write,
 }
 
 /// Depth of a WebDAV lock or operation.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LockDepth {
     Zero,
@@ -80,14 +84,23 @@ impl LockToken {
 /// Full information about an active WebDAV lock.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LockInfo {
+    /// Unique lock token.
     pub token: LockToken,
+    /// Path of the locked resource.
     pub path: String,
+    /// Principal (user) who holds the lock.
     pub principal: String,
+    /// Whether the lock is exclusive or shared.
     pub scope: LockScope,
+    /// Type of the lock (currently only write).
     pub lock_type: LockType,
+    /// Depth of the lock (0, 1, or infinity).
     pub depth: LockDepth,
+    /// Lock timeout in seconds.
     pub timeout_seconds: u32,
+    /// When the lock was created.
     pub created_at: DateTime<Utc>,
+    /// Number of times the lock has been refreshed.
     pub refresh_count: u32,
 }
 
@@ -107,24 +120,34 @@ impl LockInfo {
 }
 
 /// An arbitrary WebDAV property with an optional XML namespace.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebDavProperty {
+    /// XML namespace of the property, if any.
     pub namespace: Option<String>,
+    /// Local name of the property.
     pub name: String,
+    /// Serialized value of the property.
     pub value: String,
 }
 
 /// A WebDAV multistatus response containing per-resource status items.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultiStatusResponse {
     pub responses: Vec<MultiStatusItem>,
 }
 
 /// A single resource's status within a multistatus response.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultiStatusItem {
+    /// URI of the resource this status applies to.
     pub href: String,
+    /// HTTP status code for this resource.
     pub status: u16,
+    /// WebDAV properties included in the response.
     pub properties: Vec<WebDavProperty>,
+    /// Optional error description.
     pub error_description: Option<String>,
 }

@@ -7,11 +7,13 @@ use std::pin::Pin;
 use tokio::io::{AsyncRead, ReadBuf};
 
 #[doc = "An async reader wrapping Bytes for streaming file content."]
+#[non_exhaustive]
 pub struct StorageReader {
     inner: Pin<Box<dyn AsyncRead + Send>>,
 }
 
 impl StorageReader {
+    /// Create a new storage reader wrapping an async read stream.
     pub fn new(inner: Pin<Box<dyn AsyncRead + Send>>) -> Self {
         Self { inner }
     }

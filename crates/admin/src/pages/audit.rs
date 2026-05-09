@@ -81,12 +81,16 @@ pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
                 && let Ok(blob_url) = web_sys::Url::create_object_url_with_blob(&blob)
                 && let Some(doc) = window.document()
             {
-                let el = doc.create_element("a").unwrap();
-                let el2 = el.dyn_into::<web_sys::HtmlAnchorElement>().unwrap();
-                el2.set_href(&blob_url);
-                el2.set_download("audit_log.csv");
-                el2.click();
-                let _ = web_sys::Url::revoke_object_url(&blob_url);
+                let el = doc.create_element("a");
+                let el2 = el
+                    .ok()
+                    .and_then(|e| e.dyn_into::<web_sys::HtmlAnchorElement>().ok());
+                if let Some(el2) = el2 {
+                    el2.set_href(&blob_url);
+                    el2.set_download("audit_log.csv");
+                    el2.click();
+                    let _ = web_sys::Url::revoke_object_url(&blob_url);
+                }
             }
         }
     };

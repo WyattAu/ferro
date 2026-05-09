@@ -353,7 +353,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let path = current_path.get();
         let count = file_list.length();
         for i in 0..count {
-            let file = file_list.get(i).unwrap();
+            let Some(file) = file_list.get(i) else {
+                continue;
+            };
             let file_name = file.name();
             let file_path = if path == "/" {
                 format!("/{}", file_name)
