@@ -1,0 +1,19 @@
+# Clippy configuration for Ferro
+# https://doc.rust-lang.org/clippy/configuration.html
+
+# Cognitive complexity threshold (default 25)
+cognitive-complexity-threshold = 30
+
+# Warn on items with too many arguments
+too-many-arguments-threshold = 8
+
+# Large error threshold for error-chain diagnostics
+# large-error-threshold = 20
+
+# Allowed types that can appear in type parameters
+# allowed-wildcard-imports = ["axum", "tower"]
+
+# Useful lints to consider enabling in future phases:
+# - clippy::unwrap_used (after P1.1 unwrap elimination)
+# - clippy::expect_used (after P1.1)
+# - clippy::missing_docs_in_private_items (after P3.4 doc pass)

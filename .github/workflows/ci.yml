@@ -102,12 +102,6 @@ jobs:
         run: cargo install cargo-audit --locked
       - name: Run audit
         run: cargo audit --deny unmaintained --deny unsound --deny rustsec
-        continue-on-error: true
-      - name: Check for critical vulnerabilities
-        run: |
-          if cargo audit 2>&1 | grep -q "RUSTSEC-.*vulnerability"; then
-            echo "::warning::Vulnerabilities found. Review: cargo audit"
-          fi
 
   build:
     name: Build Release
