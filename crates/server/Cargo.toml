@@ -62,7 +62,7 @@ sqlx = { version = "0.8.1", features = ["runtime-tokio", "chrono"], optional = t
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"], optional = true }
 ldap3 = { version = "0.12", optional = true }
 pdf = "0.9"
-age = { version = "0.11", features = ["ssh", "armor"] }
+age = { version = "0.11", features = ["armor"] }
 rcgen = { version = "0.13", features = ["x509-parser"] }
 async-graphql = "7"
 rusqlite = { version = "0.32", features = ["bundled"] }

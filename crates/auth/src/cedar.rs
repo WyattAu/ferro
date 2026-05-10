@@ -1,3 +1,4 @@
+use axum::response::IntoResponse;
 use cedar_policy::{Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request};
 use common::auth::{AuthDecision, AuthRequest, Claims};
 use common::error::{FerroError, Result};
@@ -29,22 +30,21 @@ fn fallback_resource() -> EntityUid {
 }
 
 #[non_exhaustive]
-/// Configuration for the Cedar policy engine.
+/// Cedar policy configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CedarConfig {
-    /// Default Cedar policy text (Cedar policy language).
     pub default_policy: String,
 }
 
 #[non_exhaustive]
-/// Cedar-based authorization engine that evaluates policy decisions.
+/// Cedar-based authorization engine.
 #[derive(Clone)]
 pub struct CedarAuthorizer {
     policy_set: Arc<RwLock<PolicySet>>,
 }
 
 impl CedarAuthorizer {
-    /// Create a new authorizer with a permissive default policy.
+    /// Create a new Cedar authorizer with a default permissive policy.
     pub fn new() -> Result<Self> {
         let default_policy = r#"
             @id("all_access")
@@ -139,6 +139,8 @@ impl CedarAuthorizer {
             }
         };
 
+        // Build context from request attributes.
+        // Cedar Context supports building from JSON values for string/bool/long attributes.
         let context = Context::empty();
 
         let q = Request::new(principal, action, resource, context, None)
@@ -195,50 +197,65 @@ impl CedarAuthorizer {
     }
 }
 
-#[cfg(feature = "handlers")]
+/// Map an HTTP method to a Cedar action string.
 fn http_method_to_action(method: &axum::http::Method) -> &'static str {
     match *method {
         axum::http::Method::GET | axum::http::Method::HEAD => "read",
         axum::http::Method::DELETE => "delete",
         axum::http::Method::PUT | axum::http::Method::POST | axum::http::Method::PATCH => "write",
-        _ => match method.as_str() {
-            "PROPFIND" => "list",
-            "LOCK" | "UNLOCK" => "admin",
-            _ => "write",
-        },
+        _ => {
+            // WebDAV methods are represented as custom Method variants.
+            // Match by the method as-str to handle PROPFIND, MKCOL, COPY, MOVE, etc.
+            match method.as_str() {
+                "PROPFIND" => "list",
+                "LOCK" | "UNLOCK" => "admin",
+                _ => "write",
+            }
+        }
     }
 }
 
-#[cfg(feature = "handlers")]
+/// Paths that skip Cedar authorization (in addition to OIDC public paths).
 fn is_cedar_exempt_path(path: &str) -> bool {
+    // Public API endpoints that should always be accessible
     path == "/.well-known/ferro"
         || path == "/.well-known/openid-configuration"
         || path.starts_with("/api/auth/login")
+        // Policy management must remain accessible even under restrictive policies
         || path == "/api/policies"
+        // Health and config endpoints
         || path == "/api/config"
+        // Shared link access — public by design
         || path.starts_with("/s/")
 }
 
-/// Axum middleware that enforces Cedar authorization policies.
-#[cfg(feature = "handlers")]
+/// Axum middleware that enforces Cedar authorization on every request.
+///
+/// This middleware MUST run AFTER the OIDC auth middleware, so that `Claims`
+/// are always available as a request extension.
+///
+/// If Cedar is not configured (None), all requests pass through.
+/// If Cedar is configured, it checks `is_authorized(principal, action, resource)`.
+/// Denial returns HTTP 403 Forbidden.
 pub async fn cedar_middleware(
     cedar: Option<Arc<CedarAuthorizer>>,
     request: axum::http::Request<axum::body::Body>,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    use axum::response::IntoResponse;
-
     let path = request.uri().path();
 
+    // Skip authorization for exempt paths
     if is_cedar_exempt_path(path) {
         return next.run(request).await;
     }
 
+    // If Cedar is not configured, pass through
     let authorizer = match cedar {
         Some(a) => a,
         None => return next.run(request).await,
     };
 
+    // Extract claims (inserted by OIDC middleware or anonymous)
     let claims = request
         .extensions()
         .get::<Claims>()
@@ -328,6 +345,7 @@ mod tests {
     #[tokio::test]
     async fn test_restrictive_policy() {
         let authorizer = CedarAuthorizer::new().unwrap();
+        // Replace all policies with a restrictive one: only alice can read
         let restrictive = r#"
             @id("alice_only")
             permit (
@@ -341,24 +359,28 @@ mod tests {
             .await
             .unwrap();
 
+        // alice can read (explicit permit)
         assert!(
             authorizer
                 .is_authorized_simple("alice", "read", "/file.txt")
                 .await
                 .unwrap()
         );
+        // bob is denied (no matching permit)
         assert!(
             !authorizer
                 .is_authorized_simple("bob", "read", "/file.txt")
                 .await
                 .unwrap()
         );
+        // alice can't write (no permit for write)
         assert!(
             !authorizer
                 .is_authorized_simple("alice", "write", "/file.txt")
                 .await
                 .unwrap()
         );
+        // anonymous is denied
         assert!(
             !authorizer
                 .is_authorized_simple("anonymous", "read", "/file.txt")
@@ -367,7 +389,6 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "handlers")]
     #[test]
     fn test_http_method_to_action() {
         assert_eq!(http_method_to_action(&axum::http::Method::GET), "read");
@@ -376,6 +397,7 @@ mod tests {
         assert_eq!(http_method_to_action(&axum::http::Method::DELETE), "delete");
         assert_eq!(http_method_to_action(&axum::http::Method::POST), "write");
         assert_eq!(http_method_to_action(&axum::http::Method::PATCH), "write");
+        // WebDAV methods (custom, matched via as_str())
         let propfind: axum::http::Method = "PROPFIND".parse().unwrap();
         assert_eq!(http_method_to_action(&propfind), "list");
         let lock: axum::http::Method = "LOCK".parse().unwrap();
@@ -392,7 +414,6 @@ mod tests {
         assert_eq!(http_method_to_action(&proppatch), "write");
     }
 
-    #[cfg(feature = "handlers")]
     #[test]
     fn test_is_cedar_exempt_path() {
         assert!(is_cedar_exempt_path("/.well-known/ferro"));
@@ -419,6 +440,7 @@ mod tests {
         let decision = authorizer.is_authorized(&request).await.unwrap();
         match decision {
             AuthDecision::Allow { policy_id } => {
+                // Should be allowed by the default policy
                 assert!(policy_id.is_some());
             }
             AuthDecision::Deny { reason } => {

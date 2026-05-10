@@ -16,7 +16,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["sqlite", "search", "wasm", "object_store"]
+default = ["sqlite", "search", "object_store"]
 sqlite = ["sqlx", "sqlx/sqlite"]
 postgres = ["sqlx", "sqlx/postgres"]
 search = ["tantivy"]

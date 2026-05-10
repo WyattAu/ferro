@@ -7,7 +7,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-ferro-core = { path = "../core" }
+ferro-core = { path = "../core", default-features = false }
 ferro-common = { path = "../common" }
 ferro-dav = { path = "../dav" }
 ferro-crypto = { path = "../crypto" }
