@@ -136,8 +136,6 @@ pub mod versioning;
 pub mod wasm_upload;
 pub mod webdav;
 pub mod webhooks;
-pub mod wopi;
-
 pub mod worker_runner;
 pub mod workers;
 pub mod ws;
@@ -916,23 +914,25 @@ pub fn build_router_with_static(
         .route("/s/:token", axum::routing::get(shares::serve_share))
         .nest(
             "/wopi",
-            ferro_server_wopi::routes::<AppState>()
-                .layer(axum::Extension(ferro_server_wopi::WopiState {
+            ferro_server_wopi::routes::<AppState>().layer(axum::Extension(
+                ferro_server_wopi::WopiState {
                     storage: state.storage.clone(),
                     lock_manager: state.lock_manager.clone(),
                     wopi_token_secret: state.wopi_token_secret.clone(),
                     wopi_office_url: state.wopi_office_url.clone(),
-                })),
+                },
+            )),
         )
         .nest(
             "/hosting",
-            ferro_server_wopi::discovery_route::<AppState>()
-                .layer(axum::Extension(ferro_server_wopi::WopiState {
+            ferro_server_wopi::discovery_route::<AppState>().layer(axum::Extension(
+                ferro_server_wopi::WopiState {
                     storage: state.storage.clone(),
                     lock_manager: state.lock_manager.clone(),
                     wopi_token_secret: state.wopi_token_secret.clone(),
                     wopi_office_url: state.wopi_office_url.clone(),
-                })),
+                },
+            )),
         )
         .route("/metrics", axum::routing::get(metrics::metrics_handler))
         .route(

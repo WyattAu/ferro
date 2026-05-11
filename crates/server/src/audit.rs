@@ -204,12 +204,7 @@ pub async fn audit_middleware(
     state
         .audit_log
         .log(build_audit_entry(
-            &method,
-            &path,
-            &user,
-            status,
-            client_ip,
-            user_agent,
+            &method, &path, &user, status, client_ip, user_agent,
         ))
         .await;
 
