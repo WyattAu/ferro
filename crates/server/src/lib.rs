@@ -13,6 +13,7 @@ pub mod dav;
 pub mod db;
 pub mod encryption;
 pub mod error;
+pub mod events;
 pub mod favorites;
 pub mod federation {
     pub use ferro_server_activitypub::FederationState;
@@ -477,6 +478,39 @@ impl AppState {
         self
     }
 
+    pub fn record_sync_op(
+        &self,
+        op_type: sync::ops::OpType,
+        path: &str,
+        new_path: Option<&str>,
+        size: u64,
+        mime_type: Option<&str>,
+        owner: &str,
+        checksum: &str,
+    ) {
+        self.sync_clock
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let (op_id, clock) = self.sync_store.next_op_id();
+        self.sync_store.record_op(sync::ops::SyncOp {
+            id: op_id,
+            site_id: "local".to_string(),
+            clock: sync::clock::VectorClock::new("local").with_counter(clock),
+            r#type: op_type,
+            path: path.to_string(),
+            new_path: new_path.map(|s| s.to_string()),
+            size,
+            mime_type: mime_type.map(|s| s.to_string()),
+            owner: owner.to_string(),
+            checksum: checksum.to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        });
+    }
+
+    pub fn bump_sync_clock(&self) {
+        self.sync_clock
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+
     pub fn user_info(&self, username: &str) -> Option<users::UserInfo> {
         match self.user_store.get_user_by_username_blocking(username) {
             Ok(u) if u.is_active() => Some(users::UserInfo::from(&u)),
@@ -880,17 +914,25 @@ pub fn build_router_with_static(
         .route("/healthz", axum::routing::get(liveness))
         .route("/readyz", axum::routing::get(readiness))
         .route("/s/:token", axum::routing::get(shares::serve_share))
-        .route(
-            "/wopi/files/*path",
-            axum::routing::get(wopi::wopi_get).post(wopi::wopi_post),
+        .nest(
+            "/wopi",
+            ferro_server_wopi::routes::<AppState>()
+                .layer(axum::Extension(ferro_server_wopi::WopiState {
+                    storage: state.storage.clone(),
+                    lock_manager: state.lock_manager.clone(),
+                    wopi_token_secret: state.wopi_token_secret.clone(),
+                    wopi_office_url: state.wopi_office_url.clone(),
+                })),
         )
-        .route(
-            "/wopi/files/{path}/token",
-            axum::routing::post(wopi::wopi_issue_token),
-        )
-        .route(
-            "/hosting/discovery",
-            axum::routing::get(wopi::wopi_discovery),
+        .nest(
+            "/hosting",
+            ferro_server_wopi::discovery_route::<AppState>()
+                .layer(axum::Extension(ferro_server_wopi::WopiState {
+                    storage: state.storage.clone(),
+                    lock_manager: state.lock_manager.clone(),
+                    wopi_token_secret: state.wopi_token_secret.clone(),
+                    wopi_office_url: state.wopi_office_url.clone(),
+                })),
         )
         .route("/metrics", axum::routing::get(metrics::metrics_handler))
         .route(
@@ -991,7 +1033,11 @@ pub fn build_router_with_static(
         // storage backend from being overwhelmed. Excess connections queue in
         // the kernel listen backlog instead of competing for resources.
         .layer(ConcurrencyLimitLayer::new(128))
-        .with_state(state.clone());
+        .with_state(state.clone())
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            audit::audit_middleware,
+        ));
 
     let schema = graphql::build_schema(state);
     let mut router = router.layer(axum::Extension(schema));

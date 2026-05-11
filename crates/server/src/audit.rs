@@ -6,6 +6,14 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
+use axum::body::Body;
+use axum::extract::State;
+use axum::http::Request;
+use axum::middleware::Next;
+use axum::response::Response;
+
+use crate::AppState;
+
 const MAX_AUDIT_ENTRIES: usize = 10_000;
 
 /// A single audit log entry.
@@ -163,4 +171,47 @@ pub fn build_audit_entry(
         user_agent,
         content_length: None,
     }
+}
+
+pub async fn audit_middleware(
+    State(state): State<AppState>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    let method = req.method().to_string();
+    let path = req.uri().path().to_string();
+    let user = req
+        .headers()
+        .get("X-Ferro-User")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("anonymous")
+        .to_string();
+    let client_ip = req
+        .headers()
+        .get("X-Forwarded-For")
+        .or_else(|| req.headers().get("X-Real-Ip"))
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+    let user_agent = req
+        .headers()
+        .get("User-Agent")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let response = next.run(req).await;
+    let status = response.status().as_u16();
+
+    state
+        .audit_log
+        .log(build_audit_entry(
+            &method,
+            &path,
+            &user,
+            status,
+            client_ip,
+            user_agent,
+        ))
+        .await;
+
+    response
 }

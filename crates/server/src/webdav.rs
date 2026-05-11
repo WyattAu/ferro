@@ -1,7 +1,5 @@
 use crate::AppState;
-use crate::audit;
-use crate::sync::clock::VectorClock;
-use crate::sync::ops::{OpType, SyncOp};
+use crate::sync::ops::OpType;
 use crate::xml::escape_xml;
 use axum::body::Body;
 use axum::extract::{Path as AxumPath, State};
@@ -110,7 +108,6 @@ pub async fn handle_any(
     }
 
     let user_sub = headers.get("X-Ferro-User").and_then(|v| v.to_str().ok());
-    let audit_log = state.audit_log.clone();
     let resolved_path = match user_sub {
         Some(sub) if sub != "anonymous" => {
             let user_root = format!("/users/{}", sub);
@@ -163,33 +160,6 @@ pub async fn handle_any(
         }
     }
     .await;
-
-    let status_code = match &result {
-        Ok(resp) => resp.status().as_u16(),
-        Err(e) => e.status_code(),
-    };
-
-    let client_ip = headers
-        .get("X-Forwarded-For")
-        .or_else(|| headers.get("X-Real-Ip"))
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string());
-    let user_agent = headers
-        .get("User-Agent")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string());
-    let user = user_sub.unwrap_or("anonymous").to_string();
-
-    audit_log
-        .log(audit::build_audit_entry(
-            method.as_str(),
-            &path_str,
-            &user,
-            status_code,
-            client_ip,
-            user_agent,
-        ))
-        .await;
 
     match result {
         Ok(response) => response,
@@ -598,8 +568,6 @@ async fn handle_put(
 
     let body_for_index = body.clone();
     let use_multipart = body.len() > 10 * 1024 * 1024 && state.storage.supports_multipart();
-    // Invalidate read cache for this path
-    state.read_cache.invalidate_path(&path);
     let mut meta = if use_multipart {
         state.storage.put_multipart(&path, body, &owner).await?
     } else {
@@ -665,61 +633,30 @@ async fn handle_put(
         });
     }
 
-    crate::webhooks::fire_webhooks(
-        state.webhooks.clone(),
-        crate::webhooks::WebhookEvent {
-            event: if already_existed {
-                "file.modify".to_string()
-            } else {
-                "file.upload".to_string()
-            },
-            timestamp: chrono::Utc::now().to_rfc3339(),
+    crate::events::dispatch_post_op(
+        &state,
+        crate::events::FileEvent {
+            op_type: "put",
             path: path.clone(),
+            new_path: None,
             size: Some(meta.size),
-            user: Some(owner.clone()),
-            etag: Some(meta.etag),
+            mime_type: Some(meta.mime_type.clone()),
+            owner: owner.clone(),
+            etag: Some(meta.etag.clone()),
+            already_existed,
         },
     )
     .await;
 
-    state
-        .sync_clock
-        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-
-    {
-        let (op_id, clock) = state.sync_store.next_op_id();
-        state.sync_store.record_op(SyncOp {
-            id: op_id,
-            site_id: "local".to_string(),
-            clock: VectorClock::new("local").with_counter(clock),
-            r#type: OpType::Update,
-            path: path.to_string(),
-            new_path: None,
-            size: meta.size,
-            mime_type: Some(meta.mime_type.clone()),
-            owner: owner.clone(),
-            checksum: meta.content_hash.as_str().to_string(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-        });
-    }
-
-    if already_existed {
-        state
-            .ws_manager
-            .broadcast(&crate::ws::WsEvent::FileUpdated {
-                path: path.clone(),
-                size: meta.size,
-                owner,
-            });
-    } else {
-        state
-            .ws_manager
-            .broadcast(&crate::ws::WsEvent::FileCreated {
-                path: path.clone(),
-                size: meta.size,
-                owner,
-            });
-    }
+    state.record_sync_op(
+        OpType::Update,
+        &path,
+        None,
+        meta.size,
+        Some(&meta.mime_type),
+        &owner,
+        meta.content_hash.as_str(),
+    );
 
     Ok((status, resp_headers, "").into_response())
 }
@@ -741,7 +678,6 @@ fn delete_recursive<'a>(
             }
         }
         state.storage.delete(path).await?;
-        state.read_cache.invalidate_path(path);
         crate::indexer::remove_file(state, path).await;
         Ok(())
     })
@@ -768,47 +704,32 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
     // its members recursively.
     delete_recursive(&state, &path).await?;
 
-    crate::webhooks::fire_webhooks(
-        state.webhooks.clone(),
-        crate::webhooks::WebhookEvent {
-            event: "file.delete".to_string(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
+    let owner = extract_owner(headers, None);
+
+    crate::events::dispatch_post_op(
+        &state,
+        crate::events::FileEvent {
+            op_type: "delete",
             path: path.clone(),
+            new_path: None,
             size: None,
-            user: None,
+            mime_type: None,
+            owner: owner.clone(),
             etag: None,
+            already_existed: true,
         },
     )
     .await;
 
-    state
-        .sync_clock
-        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-
-    let owner = extract_owner(headers, None);
-    {
-        let (op_id, clock) = state.sync_store.next_op_id();
-        state.sync_store.record_op(SyncOp {
-            id: op_id,
-            site_id: "local".to_string(),
-            clock: VectorClock::new("local").with_counter(clock),
-            r#type: OpType::Delete,
-            path: path.to_string(),
-            new_path: None,
-            size: 0,
-            mime_type: None,
-            owner: owner.clone(),
-            checksum: String::new(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-        });
-    }
-
-    state
-        .ws_manager
-        .broadcast(&crate::ws::WsEvent::FileDeleted {
-            path: path.clone(),
-            owner,
-        });
+    state.record_sync_op(
+        OpType::Delete,
+        &path,
+        None,
+        0,
+        None,
+        &owner,
+        "",
+    );
 
     Ok(StatusCode::NO_CONTENT.into_response())
 }
@@ -829,39 +750,30 @@ async fn handle_mkcol(state: AppState, path: &str) -> Result<Response> {
 
     state.storage.create_collection(&path, "anonymous").await?;
 
-    state
-        .sync_clock
-        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-
-    {
-        let (op_id, clock) = state.sync_store.next_op_id();
-        state.sync_store.record_op(SyncOp {
-            id: op_id,
-            site_id: "local".to_string(),
-            clock: VectorClock::new("local").with_counter(clock),
-            r#type: OpType::Create,
-            path: path.to_string(),
+    crate::events::dispatch_post_op(
+        &state,
+        crate::events::FileEvent {
+            op_type: "mkcol",
+            path: path.clone(),
             new_path: None,
-            size: 0,
+            size: None,
             mime_type: None,
             owner: "anonymous".to_string(),
-            checksum: String::new(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-        });
-    }
-
-    crate::webhooks::fire_webhooks(
-        state.webhooks.clone(),
-        crate::webhooks::WebhookEvent {
-            event: "file.upload".to_string(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            path: path.clone(),
-            size: None,
-            user: Some("anonymous".to_string()),
             etag: None,
+            already_existed: false,
         },
     )
     .await;
+
+    state.record_sync_op(
+        OpType::Create,
+        &path,
+        None,
+        0,
+        None,
+        "anonymous",
+        "",
+    );
 
     Ok(StatusCode::CREATED.into_response())
 }
@@ -898,9 +810,22 @@ async fn handle_copy(state: AppState, path: &str, headers: &HeaderMap) -> Result
 
     state.storage.copy(&path, &dest).await?;
 
-    state
-        .sync_clock
-        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    crate::events::dispatch_post_op(
+        &state,
+        crate::events::FileEvent {
+            op_type: "copy",
+            path: path.clone(),
+            new_path: Some(dest.clone()),
+            size: None,
+            mime_type: None,
+            owner: extract_owner(headers, None),
+            etag: None,
+            already_existed: false,
+        },
+    )
+    .await;
+
+    state.bump_sync_clock();
 
     let mut resp_headers = HeaderMap::new();
     resp_headers.insert(
@@ -942,33 +867,32 @@ async fn handle_move(state: AppState, path: &str, headers: &HeaderMap) -> Result
 
     state.storage.move_path(&path, &dest).await?;
 
-    state
-        .sync_clock
-        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-
     let owner = extract_owner(headers, None);
-    {
-        let (op_id, clock) = state.sync_store.next_op_id();
-        state.sync_store.record_op(SyncOp {
-            id: op_id,
-            site_id: "local".to_string(),
-            clock: VectorClock::new("local").with_counter(clock),
-            r#type: OpType::Rename,
-            path: path.to_string(),
+
+    crate::events::dispatch_post_op(
+        &state,
+        crate::events::FileEvent {
+            op_type: "move",
+            path: path.clone(),
             new_path: Some(dest.clone()),
-            size: 0,
+            size: None,
             mime_type: None,
             owner: owner.clone(),
-            checksum: String::new(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-        });
-    }
+            etag: None,
+            already_existed: true,
+        },
+    )
+    .await;
 
-    state.ws_manager.broadcast(&crate::ws::WsEvent::FileMoved {
-        from: path.to_string(),
-        to: dest.clone(),
-        owner,
-    });
+    state.record_sync_op(
+        OpType::Rename,
+        &path,
+        Some(&dest),
+        0,
+        None,
+        &owner,
+        "",
+    );
 
     let mut resp_headers = HeaderMap::new();
     resp_headers.insert(
