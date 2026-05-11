@@ -17,6 +17,7 @@ members = [
     "crates/webdav-handler",
     "crates/server-activitypub",
     "crates/server-webrtc",
+    "crates/server-wopi",
 ]
 resolver = "2"
 

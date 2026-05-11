@@ -2917,6 +2917,7 @@ dependencies = [
  "ferro-dav",
  "ferro-server-activitypub",
  "ferro-server-webrtc",
+ "ferro-server-wopi",
  "ferro-webdav-handler",
  "futures",
  "hex",
@@ -2986,6 +2987,27 @@ dependencies = [
  "serde_json",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "ferro-server-wopi"
+version = "2.5.1"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "ferro-common",
+ "hex",
+ "hmac 0.13.0",
+ "http-body-util",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tokio",
+ "tower",
+ "tracing",
 ]
 
 [[package]]

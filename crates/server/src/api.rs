@@ -637,25 +637,42 @@ pub async fn put_file(
     }
 
     let owner = "anonymous".to_string();
-    // Invalidate read cache for this path (any ETag version)
-    state.read_cache.invalidate_path(&path);
-    match state.storage.put(&path, body, &owner).await {
-        Ok(meta) => (
-            StatusCode::CREATED,
-            [
-                (axum::http::header::ETAG, meta.etag.clone()),
-                (axum::http::header::LOCATION, path.clone()),
-            ],
-            axum::Json(PutFileResponse {
-                path: meta.path,
-                size: meta.size,
-                etag: meta.etag,
-                content_hash: meta.content_hash.as_str().to_string(),
-                created_at: meta.created_at.to_rfc3339(),
-                modified_at: meta.modified_at.to_rfc3339(),
-            }),
-        )
-            .into_response(),
+    match state.storage.put(&path, body.clone(), &owner).await {
+        Ok(meta) => {
+            let etag = meta.etag.clone();
+            let size = meta.size;
+            let mime_type = meta.mime_type.clone();
+            crate::events::dispatch_post_op(
+                &state,
+                crate::events::FileEvent {
+                    op_type: "put",
+                    path: path.clone(),
+                    new_path: None,
+                    size: Some(size),
+                    mime_type: Some(mime_type),
+                    owner: owner.clone(),
+                    etag: Some(etag.clone()),
+                    already_existed: false,
+                },
+            )
+            .await;
+            (
+                StatusCode::CREATED,
+                [
+                    (axum::http::header::ETAG, etag.clone()),
+                    (axum::http::header::LOCATION, path.clone()),
+                ],
+                axum::Json(PutFileResponse {
+                    path: meta.path,
+                    size,
+                    etag,
+                    content_hash: meta.content_hash.as_str().to_string(),
+                    created_at: meta.created_at.to_rfc3339(),
+                    modified_at: meta.modified_at.to_rfc3339(),
+                }),
+            )
+                .into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({
@@ -682,10 +699,24 @@ pub async fn delete_file(
     AxumPath(path): AxumPath<String>,
 ) -> Response {
     let path = normalize_api_path(&path);
-    // Invalidate read cache for this path
-    state.read_cache.invalidate_path(&path);
     match state.storage.delete(&path).await {
-        Ok(()) => (StatusCode::NO_CONTENT, "").into_response(),
+        Ok(()) => {
+            crate::events::dispatch_post_op(
+                &state,
+                crate::events::FileEvent {
+                    op_type: "delete",
+                    path: path.clone(),
+                    new_path: None,
+                    size: None,
+                    mime_type: None,
+                    owner: "anonymous".to_string(),
+                    etag: None,
+                    already_existed: true,
+                },
+            )
+            .await;
+            (StatusCode::NO_CONTENT, "").into_response()
+        }
         Err(e) => (
             StatusCode::NOT_FOUND,
             axum::Json(serde_json::json!({
