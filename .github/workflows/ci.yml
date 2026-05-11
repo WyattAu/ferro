@@ -273,13 +273,25 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+          components: rust-src
       - name: Install trunk and wasm-bindgen-cli
-        run: |
-          cargo install trunk wasm-bindgen-cli --locked
+        run: cargo install trunk wasm-bindgen-cli --locked
       - name: Build web frontend
         run: cd crates/web && trunk build --release
       - name: Build admin frontend
         run: cd crates/admin && trunk build --release
+      - name: Install chromedriver
+        run: |
+          sudo apt-get update && sudo apt-get install -y chromium-browser
+          echo "CHROMIUM_BIN=$(which chromium-browser)" >> $GITHUB_ENV
+      - name: Run wasm-bindgen tests (web)
+        run: |
+          cd crates/web
+          wasm-bindgen test --headless --chromedriver $CHROMIUM_BIN --features test
+      - name: Run wasm-bindgen tests (admin)
+        run: |
+          cd crates/admin
+          wasm-bindgen test --headless --chromedriver $CHROMIUM_BIN --features test
 
   benchmark:
     name: Benchmarks

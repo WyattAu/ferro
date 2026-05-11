@@ -2915,6 +2915,8 @@ dependencies = [
  "ferro-common",
  "ferro-core",
  "ferro-dav",
+ "ferro-server-activitypub",
+ "ferro-server-webrtc",
  "ferro-webdav-handler",
  "futures",
  "hex",
@@ -2949,6 +2951,40 @@ dependencies = [
  "url",
  "utoipa",
  "utoipa-swagger-ui",
+ "uuid",
+]
+
+[[package]]
+name = "ferro-server-activitypub"
+version = "2.5.1"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "dashmap 6.1.0",
+ "ferro-common",
+ "hmac 0.13.0",
+ "http-body-util",
+ "rcgen",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ferro-server-webrtc"
+version = "2.5.1"
+dependencies = [
+ "axum",
+ "dashmap 6.1.0",
+ "serde",
+ "serde_json",
+ "tokio",
  "uuid",
 ]
 

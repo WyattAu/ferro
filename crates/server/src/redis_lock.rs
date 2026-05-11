@@ -6,7 +6,8 @@ use redis::aio::ConnectionManager;
 use std::time::Duration;
 use tracing::debug;
 
-use crate::lock::{LockManagerTrait, parent_path};
+use crate::lock::parent_path;
+use common::storage::LockManagerTrait;
 
 const DEFAULT_TIMEOUT_SECS: u32 = 86400;
 const REDIS_OP_TIMEOUT: Duration = Duration::from_secs(5);

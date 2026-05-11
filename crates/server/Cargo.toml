@@ -20,7 +20,9 @@ ldap = ["dep:ldap3"]
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
 ferro-webdav-handler = { path = "../webdav-handler" }
+ferro-server-webrtc = { path = "../server-webrtc" }
 ferro-auth = { path = "../auth" }
+ferro-server-activitypub = { path = "../server-activitypub" }
 ferro-core = { path = "../core", features = ["sqlite", "search", "wasm", "object_store"] }
 ferro-dav = { path = "../dav", features = ["handlers"] }
 tokio = { workspace = true }

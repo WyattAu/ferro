@@ -1,6 +1,6 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use ferro_server::{build_router, AppState};
+use ferro_server::{AppState, build_router};
 use tower::ServiceExt;
 
 async fn body_bytes(response: axum::response::Response) -> bytes::Bytes {
@@ -221,7 +221,13 @@ async fn test_mkdir_creates_directory() {
         .unwrap();
 
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let location = resp.headers().get("location").unwrap().to_str().unwrap().to_string();
+    let location = resp
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
     let json = body_json(resp).await;
     assert_eq!(json["path"], "/newfolder");
     assert!(json.get("created_at").is_some());
@@ -381,7 +387,12 @@ async fn test_download_file_returns_content_disposition() {
         .unwrap();
 
     assert_eq!(resp.status(), StatusCode::OK);
-    let disposition = resp.headers().get("content-disposition").unwrap().to_str().unwrap();
+    let disposition = resp
+        .headers()
+        .get("content-disposition")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(disposition.contains("my-report.pdf"));
 }
 
@@ -691,7 +702,7 @@ async fn test_full_rest_crud_lifecycle() {
         .unwrap();
     assert_eq!(list_resp.status(), StatusCode::OK);
     let list_json = body_json(list_resp).await;
-    assert!(list_json["entries"].as_array().unwrap().len() >= 1);
+    assert!(!list_json["entries"].as_array().unwrap().is_empty());
 
     // Delete file
     let del_resp = app

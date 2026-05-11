@@ -14,7 +14,82 @@ pub mod db;
 pub mod encryption;
 pub mod error;
 pub mod favorites;
-pub mod federation;
+pub mod federation {
+    pub use ferro_server_activitypub::FederationState;
+    pub use ferro_server_activitypub::store::ActivityStore;
+    pub use ferro_server_activitypub::*;
+
+    use axum::extract::State;
+    use axum::response::Response;
+
+    fn fed_state(s: &crate::AppState) -> FederationState {
+        FederationState {
+            activity_store: s.activity_store.clone(),
+            external_url: s.external_url.clone(),
+            federation_secret: s.federation_secret.clone(),
+        }
+    }
+
+    pub async fn get_actor(
+        State(s): State<crate::AppState>,
+        path: axum::extract::Path<String>,
+    ) -> Response {
+        ferro_server_activitypub::get_actor(State(fed_state(&s)), path).await
+    }
+
+    pub async fn nodeinfo(State(s): State<crate::AppState>) -> Response {
+        ferro_server_activitypub::nodeinfo(State(fed_state(&s))).await
+    }
+
+    pub async fn inbox(
+        State(s): State<crate::AppState>,
+        req: axum::http::Request<axum::body::Body>,
+    ) -> Response {
+        ferro_server_activitypub::inbox(State(fed_state(&s)), req).await
+    }
+
+    pub async fn list_inbox(
+        State(s): State<crate::AppState>,
+        q: axum::extract::Query<std::collections::HashMap<String, String>>,
+    ) -> Response {
+        ferro_server_activitypub::list_inbox(State(fed_state(&s)), q).await
+    }
+
+    pub async fn list_outbox(
+        State(s): State<crate::AppState>,
+        q: axum::extract::Query<std::collections::HashMap<String, String>>,
+    ) -> Response {
+        ferro_server_activitypub::list_outbox(State(fed_state(&s)), q).await
+    }
+
+    pub async fn list_followers(
+        State(s): State<crate::AppState>,
+        path: axum::extract::Path<String>,
+    ) -> Response {
+        ferro_server_activitypub::list_followers(State(fed_state(&s)), path).await
+    }
+
+    pub async fn list_following(
+        State(s): State<crate::AppState>,
+        path: axum::extract::Path<String>,
+    ) -> Response {
+        ferro_server_activitypub::list_following(State(fed_state(&s)), path).await
+    }
+
+    pub async fn webfinger(
+        State(s): State<crate::AppState>,
+        q: axum::extract::Query<ferro_server_activitypub::webfinger::WebFingerQuery>,
+    ) -> Response {
+        ferro_server_activitypub::webfinger::webfinger(State(fed_state(&s)), q).await
+    }
+
+    pub async fn federated_share(
+        State(s): State<crate::AppState>,
+        body: axum::Json<ferro_server_activitypub::ShareRequest>,
+    ) -> Response {
+        ferro_server_activitypub::federated_share(State(fed_state(&s)), body).await
+    }
+}
 pub mod graphql;
 pub mod idempotency;
 pub mod indexer;
@@ -60,8 +135,8 @@ pub mod versioning;
 pub mod wasm_upload;
 pub mod webdav;
 pub mod webhooks;
-pub mod webrtc;
 pub mod wopi;
+
 pub mod worker_runner;
 pub mod workers;
 pub mod ws;
@@ -75,9 +150,10 @@ use axum::http::{Request, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use axum::routing::any;
+use common::storage::LockManagerTrait;
 use common::storage::StorageEngine;
 use dashmap::{DashMap, DashSet};
-use lock::{LockManager, LockManagerTrait};
+use lock::LockManager;
 use std::sync::Arc;
 use tower::limit::ConcurrencyLimitLayer;
 use tower_http::compression::CompressionLayer;
@@ -139,7 +215,7 @@ pub struct AppState {
     pub max_file_versions: u64,
     pub calendar_store: Arc<dyn ferro_dav::store::CalendarStore>,
     pub address_book_store: Arc<dyn ferro_dav::store::AddressBookStore>,
-    pub webrtc_offers: Arc<webrtc::offers::OfferStore>,
+    pub webrtc_offers: Arc<ferro_server_webrtc::offers::OfferStore>,
     pub activity_store: Arc<federation::store::ActivityStore>,
     pub federation_secret: String,
     pub sync_store: Arc<SyncStore>,
@@ -192,7 +268,7 @@ impl AppState {
             max_file_versions: 10,
             calendar_store: Arc::new(ferro_dav::store::InMemoryCalendarStore::new()),
             address_book_store: Arc::new(ferro_dav::store::InMemoryAddressBookStore::new()),
-            webrtc_offers: Arc::new(webrtc::offers::OfferStore::new()),
+            webrtc_offers: Arc::new(ferro_server_webrtc::offers::OfferStore::new()),
             activity_store: Arc::new(federation::store::ActivityStore::new()),
             federation_secret: String::new(),
             sync_store: Arc::new(SyncStore::new()),
@@ -429,7 +505,7 @@ pub fn build_router(state: AppState) -> Router {
     build_router_with_static(state, None, "*", "v1")
 }
 
-fn api_routes() -> Router<AppState> {
+fn api_routes(webrtc_offers: Arc<ferro_server_webrtc::offers::OfferStore>) -> Router<AppState> {
     Router::new()
         .route("/auth/info", axum::routing::get(api::auth_info))
         .route("/auth/login", axum::routing::get(api::auth_login))
@@ -505,8 +581,8 @@ fn api_routes() -> Router<AppState> {
         .route("/batch/copy", axum::routing::post(batch::batch_copy))
         .route("/batch/move", axum::routing::post(batch::batch_move))
         .route(
-            "/files/encrypt",
-            axum::routing::post(encryption::encrypt_file),
+            "/fed/share",
+            axum::routing::post(federation::federated_share),
         )
         .route(
             "/files/decrypt",
@@ -600,29 +676,11 @@ fn api_routes() -> Router<AppState> {
             "/files/{path}/diff",
             axum::routing::get(versioning::diff_versions),
         )
-        .route(
-            "/fed/share",
-            axum::routing::post(federation::federated_share),
-        )
-        .route(
-            "/webrtc/offer",
-            axum::routing::post(webrtc::signaling::create_offer),
-        )
-        .route(
-            "/webrtc/offer/:session_id",
-            axum::routing::get(webrtc::signaling::get_offer),
-        )
-        .route(
-            "/webrtc/offer/:session_id/answer",
-            axum::routing::post(webrtc::signaling::submit_answer),
-        )
-        .route(
-            "/webrtc/offer/:session_id/ice",
-            axum::routing::post(webrtc::signaling::add_ice_candidate),
-        )
-        .route(
-            "/webrtc/offer/:session_id/poll",
-            axum::routing::get(webrtc::signaling::poll_answer),
+        .nest(
+            "/webrtc",
+            ferro_server_webrtc::routes(ferro_server_webrtc::WebRtcState {
+                offers: webrtc_offers,
+            }),
         )
         .route(
             "/graphql",
@@ -841,18 +899,18 @@ pub fn build_router_with_static(
         )
         .route(
             "/.well-known/webfinger",
-            axum::routing::get(federation::webfinger::webfinger),
+            axum::routing::get(federation::webfinger),
         )
         .route(
-            "/fed/actor/:username",
+            "/fed/actor/{username}",
             axum::routing::get(federation::get_actor),
         )
         .route(
-            "/fed/actor/:username/followers",
+            "/fed/actor/{username}/followers",
             axum::routing::get(federation::list_followers),
         )
         .route(
-            "/fed/actor/:username/following",
+            "/fed/actor/{username}/following",
             axum::routing::get(federation::list_following),
         )
         .route(
@@ -861,8 +919,11 @@ pub fn build_router_with_static(
         )
         .route("/fed/outbox", axum::routing::get(federation::list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
-        .nest(&versioned_api_path, api_routes())
-        .nest("/api", api_routes().layer(deprecation_layer))
+        .nest(&versioned_api_path, api_routes(state.webrtc_offers.clone()))
+        .nest(
+            "/api",
+            api_routes(state.webrtc_offers.clone()).layer(deprecation_layer),
+        )
         // CalDAV and CardDAV routes (registered before /*path catch-all)
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route(

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use common::error::FerroError;
 use common::error::Result;
+use common::storage::LockManagerTrait;
 use common::webdav::{LockDepth, LockInfo, LockScope, LockToken, LockType};
 use dashmap::DashMap;
 use rusqlite::params;
@@ -10,24 +11,7 @@ use tracing::{debug, warn};
 
 use crate::db::DbHandle;
 
-/// Trait for managing WebDAV locks across the server.
-#[async_trait]
-pub trait LockManagerTrait: Send + Sync {
-    async fn check_lock(&self, path: &str) -> Option<LockInfo>;
-    async fn check_lock_for_write(&self, path: &str) -> Result<()>;
-    async fn acquire_lock(
-        &self,
-        path: &str,
-        principal: &str,
-        scope: LockScope,
-        depth: LockDepth,
-        timeout_secs: Option<u32>,
-    ) -> Result<LockInfo>;
-    async fn release_lock(&self, token: &str) -> Result<()>;
-    async fn refresh_lock(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo>;
-    async fn all_locks(&self) -> Vec<LockInfo>;
-    async fn cleanup_all_expired(&self) {}
-}
+pub use common::storage::LockManagerTrait as _;
 
 /// In-memory lock manager backed by a [`DashMap`].
 pub struct LockManager {

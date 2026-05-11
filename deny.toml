@@ -70,3 +70,16 @@ workspace-dependencies = "deny"
 unknown-registry = "deny"
 unknown-git = "deny"
 required-git-spec = "tag"
+
+# === UPSTREAM BLOCKERS ===
+# Tauri/wry GTK3 chain (18 unmaintained + 2 unsound advisories):
+#   Blocked on https://github.com/nickel-org/nickel/issues/675
+#   (Tauri 2.x migration from GTK3 to GTK4 / nickel)
+#   All advisories are desktop-only — server/core/cli/web unaffected.
+#   Action: Monitor upstream, remove ignores once GTK4 migration lands.
+#
+# rsa RUSTSEC-2023-0071 (Marvin timing attack):
+#   Eliminated from default build path. Only reachable via:
+#   - sqlx MySQL feature (not used in default config)
+#   - age crate SSH encryption (optional feature)
+#   Action: Consider replacing age with ring-based alternative.

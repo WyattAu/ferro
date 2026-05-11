@@ -59,6 +59,7 @@
           cargo-watch
           cargo-edit
           cargo-audit
+          cargo-deny
           rclone
           sqlite
           sqlx-cli

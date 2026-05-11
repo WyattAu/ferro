@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::metadata::FileMetadata;
+use crate::webdav::{LockDepth, LockInfo, LockScope};
 use async_trait::async_trait;
 use bytes::Bytes;
 use std::io::Cursor;
@@ -76,6 +77,25 @@ mod tests {
         assert_eq!(n2, 1);
         assert_eq!(&buf[..n2], b"c");
     }
+}
+
+/// Trait for managing WebDAV locks across the server.
+#[async_trait]
+pub trait LockManagerTrait: Send + Sync {
+    async fn check_lock(&self, path: &str) -> Option<LockInfo>;
+    async fn check_lock_for_write(&self, path: &str) -> Result<()>;
+    async fn acquire_lock(
+        &self,
+        path: &str,
+        principal: &str,
+        scope: LockScope,
+        depth: LockDepth,
+        timeout_secs: Option<u32>,
+    ) -> Result<LockInfo>;
+    async fn release_lock(&self, token: &str) -> Result<()>;
+    async fn refresh_lock(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo>;
+    async fn all_locks(&self) -> Vec<LockInfo>;
+    async fn cleanup_all_expired(&self) {}
 }
 
 /// Core storage engine trait — all backends must implement this.
