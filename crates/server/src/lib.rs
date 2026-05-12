@@ -132,7 +132,6 @@ pub mod upload;
 pub mod user_api;
 pub mod user_paths;
 pub mod users;
-pub mod versioning;
 pub mod wasm_upload;
 pub mod webdav;
 pub mod webhooks;
@@ -537,7 +536,10 @@ pub fn build_router(state: AppState) -> Router {
     build_router_with_static(state, None, "*", "v1")
 }
 
-fn api_routes(webrtc_offers: Arc<ferro_server_webrtc::offers::OfferStore>) -> Router<AppState> {
+fn api_routes(
+    state: &AppState,
+    webrtc_offers: Arc<ferro_server_webrtc::offers::OfferStore>,
+) -> Router<AppState> {
     Router::new()
         .route("/auth/info", axum::routing::get(api::auth_info))
         .route("/auth/login", axum::routing::get(api::auth_login))
@@ -696,17 +698,16 @@ fn api_routes(webrtc_offers: Arc<ferro_server_webrtc::offers::OfferStore>) -> Ro
             "/users/me",
             axum::routing::get(user_api::get_current_user).put(user_api::update_current_user),
         )
-        .route(
-            "/files/{path}/versions",
-            axum::routing::get(versioning::list_versions).post(versioning::create_version),
-        )
-        .route(
-            "/files/{path}/versions/{version_id}",
-            axum::routing::get(versioning::get_version).delete(versioning::delete_version),
-        )
-        .route(
-            "/files/{path}/diff",
-            axum::routing::get(versioning::diff_versions),
+        .nest(
+            "",
+            ferro_server_versioning::routes().layer(axum::Extension(
+                ferro_server_versioning::VersioningState {
+                    data_dir: state.data_dir.clone(),
+                    admin_user: state.admin_user.clone(),
+                    storage: state.storage.clone(),
+                    max_file_versions: state.max_file_versions,
+                },
+            )),
         )
         .nest(
             "/webrtc",
@@ -961,10 +962,13 @@ pub fn build_router_with_static(
         )
         .route("/fed/outbox", axum::routing::get(federation::list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
-        .nest(&versioned_api_path, api_routes(state.webrtc_offers.clone()))
+        .nest(
+            &versioned_api_path,
+            api_routes(&state, state.webrtc_offers.clone()),
+        )
         .nest(
             "/api",
-            api_routes(state.webrtc_offers.clone()).layer(deprecation_layer),
+            api_routes(&state, state.webrtc_offers.clone()).layer(deprecation_layer),
         )
         // CalDAV and CardDAV routes (registered before /*path catch-all)
         .route("/dav/cal", axum::routing::options(dav::caldav_options))

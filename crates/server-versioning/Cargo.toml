@@ -1,0 +1,27 @@
+[package]
+name = "ferro-server-versioning"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "File versioning, diff, and LCS for Ferro server"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+ferro-core = { path = "../core" }
+axum = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = "1"
+tracing = "0.1"
+chrono = "0.4"
+sha2 = "0.11"
+hex = "0.4"
+bytes = "1"
+mime_guess = "2"
+
+[dev-dependencies]
+http-body-util = "0.1"
+tempfile = "3"
