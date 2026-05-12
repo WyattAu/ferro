@@ -559,6 +559,22 @@ async fn handle_put(
 
     let already_existed = state.storage.exists(&path).await?;
 
+    // Auto-version: snapshot previous content before overwrite
+    if already_existed && state.max_file_versions > 0 {
+        if let Ok(prev) = state.storage.get(&path).await {
+            let ver_state = ferro_server_versioning::VersioningState {
+                data_dir: state.data_dir.clone(),
+                admin_user: state.admin_user.clone(),
+                storage: state.storage.clone(),
+                max_file_versions: state.max_file_versions,
+            };
+            let ver_path = path.clone();
+            tokio::spawn(async move {
+                ferro_server_versioning::auto_version(&ver_state, &ver_path, prev).await;
+            });
+        }
+    }
+
     // Determine Content-Type before storing — sniff from extension/content if not provided
     let content_type = headers
         .get("Content-Type")
@@ -1119,6 +1135,7 @@ mod tests {
     use axum::http::{Request, StatusCode};
     use axum::routing::any;
     use common::storage::StorageEngine;
+    use http_body_util::BodyExt;
     use std::sync::Arc;
     use tower::ServiceExt;
 
@@ -2413,6 +2430,75 @@ mod tests {
             counter >= 2,
             "Sync-Token should increment after write, got {}",
             counter
+        );
+    }
+
+    #[tokio::test]
+    async fn test_put_overwrite_creates_version() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let data_dir = tmp.path().to_string_lossy().to_string();
+        let state = AppState::in_memory()
+            .with_data_dir(data_dir.clone())
+            .with_max_file_versions(5);
+        let app = Router::new()
+            .route("/", any(handle_any))
+            .route("/*path", any(handle_any))
+            .with_state(state.clone());
+
+        // PUT v1
+        let put1 = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/versioned.txt")
+                    .body(Body::from("hello world"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(put1.status(), StatusCode::CREATED);
+
+        // Allow async versioning task to complete
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // PUT v2 (overwrite)
+        let put2 = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/versioned.txt")
+                    .body(Body::from("updated content"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(put2.status(), StatusCode::NO_CONTENT);
+
+        // Allow async versioning task to complete
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Verify version was created via the versioning API
+        let ver_state = ferro_server_versioning::VersioningState {
+            data_dir: Some(data_dir),
+            admin_user: None,
+            storage: state.storage.clone(),
+            max_file_versions: 5,
+        };
+        let resp = ferro_server_versioning::list_versions(
+            axum::Extension(ver_state),
+            axum::extract::Path("versioned.txt".to_string()),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = resp.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(
+            json["versions"].as_array().unwrap().len(),
+            1,
+            "Overwrite should create one version snapshot"
         );
     }
 }
