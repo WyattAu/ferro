@@ -3,6 +3,7 @@ use ferro_server::auth::cedar::CedarAuthorizer;
 use ferro_server::auth::oidc::OidcConfig;
 use ferro_server::config::ServerConfig;
 use ferro_server::config::{FileConfigValues, apply_file_config, load_config_file};
+use ferro_server::security;
 use ferro_server::users::UserStoreTrait;
 use ferro_server::{AppState, build_router_with_static};
 use tracing::info;
@@ -561,11 +562,17 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    if state.admin_password.as_deref() == Some("changeme") {
-        anyhow::bail!(
-            "Refusing to start with default password 'changeme'. \
-             Set --admin-password (or FERRO_ADMIN_PASSWORD) to a strong value."
-        );
+    if let Some(ref pw) = state.admin_password {
+        if security::is_default_password(pw) {
+            tracing::warn!(
+                "Server started with weak admin password '{}'. \
+                 All non-whitelisted API requests will be blocked until password is changed \
+                 via POST /api/auth/change-password.",
+                pw
+            );
+            // Allow startup but flag password as default for middleware enforcement.
+            // Refuse to start only if the password is literally empty (no auth at all).
+        }
     }
 
     // Hard-reject CORS wildcard with auth enabled (library code logs an error

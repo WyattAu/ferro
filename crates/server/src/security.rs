@@ -1,8 +1,11 @@
 //! Production security hardening: CSRF protection, file name sanitization,
-//! content-type verification, account lockout, and login rate limiting.
+//! content-type verification, account lockout, login rate limiting,
+//! and default password enforcement.
 
 use std::time::{Duration, Instant};
 
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use dashmap::DashMap;
 use rand::Rng;
 
@@ -518,6 +521,34 @@ pub fn verify_csrf_token(expected: &str, provided: &str) -> bool {
 /// Check if a password is the default/insecure "changeme" password.
 pub fn is_default_password(password: &str) -> bool {
     matches!(password, "changeme" | "admin" | "password" | "ferro" | "")
+}
+
+/// Paths allowed even when using a default password.
+/// Public paths bypass auth entirely, so they are always allowed.
+/// This function covers non-public paths that must work during password change flow.
+pub fn is_password_change_allowed_path(path: &str) -> bool {
+    path == "/api/auth/change-password"
+        || path == "/.well-known/ferro"
+        || path == "/healthz"
+        || path == "/readyz"
+        || path == "/metrics"
+        || path == "/api/auth/info"
+        || path == "/api/config"
+}
+
+/// Build a 403 response requiring password change.
+pub fn response_require_password_change() -> axum::response::Response {
+    let body = axum::Json(serde_json::json!({
+        "error": "Default password in use. Password change required before accessing this resource.",
+        "error_code": "PASSWORD_CHANGE_REQUIRED",
+        "action": "POST /api/auth/change-password with {\"password\":\"<new-password>\"}"
+    }));
+    let mut response = (StatusCode::FORBIDDEN, body).into_response();
+    response.headers_mut().insert(
+        "X-Ferro-Action",
+        axum::http::HeaderValue::from_static("change-password"),
+    );
+    response
 }
 
 // ---------------------------------------------------------------------------

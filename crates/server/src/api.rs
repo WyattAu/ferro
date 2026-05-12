@@ -166,6 +166,114 @@ pub async fn auth_login(
         .into_response()
 }
 
+/// POST /api/auth/change-password — change admin password.
+///
+/// Requires HTTP Basic authentication (verified by middleware).
+/// Accepts JSON body `{"password": "<new-password>"}`.
+/// Returns 400 if the new password is weak or matches a known default.
+pub async fn auth_change_password(
+    State(state): State<AppState>,
+    req: axum::extract::Request,
+) -> Response {
+    // Parse password from JSON body manually
+    let (parts, body) = req.into_parts();
+    let body_bytes = match axum::body::to_bytes(body, usize::MAX).await {
+        Ok(b) => b,
+        Err(_) => {
+            return ApiError::bad_request("INVALID_BODY", "Failed to read request body");
+        }
+    };
+
+    // Extract authenticated user info from request extensions
+    let user_info = parts
+        .extensions
+        .get::<ferro_auth::users::UserInfo>()
+        .cloned();
+
+    let password = match serde_json::from_slice::<serde_json::Value>(&body_bytes) {
+        Ok(v) => match v.get("password").and_then(|s| s.as_str()) {
+            Some(p) => p.to_string(),
+            None => {
+                return ApiError::bad_request(
+                    "MISSING_FIELD",
+                    "Request body must contain 'password' field",
+                );
+            }
+        },
+        Err(_) => {
+            return ApiError::bad_request("INVALID_JSON", "Request body must be valid JSON");
+        }
+    };
+
+    use crate::security;
+
+    // Reject weak passwords
+    if password.len() < 8 {
+        return ApiError::bad_request("WEAK_PASSWORD", "Password must be at least 8 characters");
+    }
+    if security::is_default_password(&password) {
+        return ApiError::bad_request(
+            "WEAK_PASSWORD",
+            "New password matches a known weak/default password. Choose a stronger value.",
+        );
+    }
+
+    // Authentication is already verified by simple_auth_middleware.
+    // Extract the authenticated user info from request extensions.
+    let username = match user_info {
+        Some(ref info) => info.username.clone(),
+        None => {
+            // Fallback: use admin_user from config
+            state
+                .admin_user
+                .clone()
+                .unwrap_or_else(|| "admin".to_string())
+        }
+    };
+
+    // Update password in user store and lift default-password restrictions
+    let new_hash = ferro_auth::users::hash_password(&password);
+    state
+        .admin_password_rotated
+        .store(true, std::sync::atomic::Ordering::Release);
+
+    match state.user_store.get_user_by_username(&username).await {
+        Ok(u) => {
+            if let Err(e) = state.user_store.set_password(&u.id, &new_hash).await {
+                tracing::error!("Failed to update password in user store: {:?}", e);
+            }
+        }
+        Err(_) => {
+            let admin_user = ferro_auth::users::User {
+                id: uuid::Uuid::new_v4().to_string(),
+                username: username.clone(),
+                display_name: "Administrator".to_string(),
+                email: String::new(),
+                role: ferro_auth::users::UserRole::Admin,
+                created_at: chrono::Utc::now(),
+                last_login: None,
+                status: ferro_auth::users::UserStatus::Active,
+                storage_quota_bytes: None,
+                storage_used_bytes: 0,
+                is_ldap: false,
+                password_hash: Some(new_hash),
+            };
+            let _ = state.user_store.create_user(admin_user).await;
+        }
+    }
+
+    tracing::info!("Admin password changed for user '{}'", username);
+
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "status": "ok",
+            "message": "Password changed successfully. Default password restrictions lifted."
+        })),
+    )
+        .into_response()
+}
+
 /// GET /api/auth/callback — handle OIDC callback.
 ///
 /// Exchanges the authorization code for tokens, validates the ID token,

@@ -195,6 +195,9 @@ pub struct AppState {
     pub wopi_office_url: String,
     pub admin_user: Option<String>,
     pub admin_password: Option<String>,
+    /// Set to true when the admin password is changed at runtime via
+    /// POST /api/auth/change-password, lifting default-password restrictions.
+    pub admin_password_rotated: Arc<std::sync::atomic::AtomicBool>,
     pub started_at: std::time::Instant,
     pub favorites: Arc<dyn FavoriteStore>,
     pub trash: Arc<DashMap<String, TrashedEntry>>,
@@ -250,6 +253,7 @@ impl AppState {
             wopi_office_url: String::new(),
             admin_user: None,
             admin_password: None,
+            admin_password_rotated: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             started_at: std::time::Instant::now(),
             favorites: Arc::new(favorites::InMemoryFavoriteStore::new()),
             trash: Arc::new(DashMap::new()),
@@ -628,6 +632,10 @@ fn api_routes(
         .route("/auth/info", axum::routing::get(api::auth_info))
         .route("/auth/login", axum::routing::get(api::auth_login))
         .route("/auth/callback", axum::routing::get(api::auth_callback))
+        .route(
+            "/auth/change-password",
+            axum::routing::post(api::auth_change_password),
+        )
         .route("/search", axum::routing::get(search::handle_search))
         .route(
             "/workers",
@@ -861,6 +869,8 @@ pub fn build_router_with_static(
 
     let admin_user = state.admin_user.clone();
     let admin_password = state.admin_password.clone();
+    let admin_password_for_default_check = admin_password.clone();
+    let admin_password_rotated = state.admin_password_rotated.clone();
     let user_store = state.user_store.clone();
     let simple_auth_layer =
         axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
@@ -871,6 +881,29 @@ pub fn build_router_with_static(
                 user_store.clone(),
                 next,
             )
+        });
+
+    // Enforce password change when default password is in use.
+    // This runs AFTER simple_auth, so we know the request passed authentication.
+    let default_password_layer =
+        axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
+            let pw = admin_password_for_default_check.clone();
+            let rotated = admin_password_rotated.clone();
+            async move {
+                if !rotated.load(std::sync::atomic::Ordering::Relaxed) {
+                    if let Some(ref pw_val) = pw {
+                        if security::is_default_password(pw_val) {
+                            let path = req.uri().path();
+                            if !security::is_password_change_allowed_path(path) {
+                                return Ok::<_, std::convert::Infallible>(
+                                    security::response_require_password_change(),
+                                );
+                            }
+                        }
+                    }
+                }
+                Ok(next.run(req).await)
+            }
         });
 
     let cors_origins = cors_allowed_origins.to_string();
@@ -1104,6 +1137,7 @@ pub fn build_router_with_static(
         .layer(cedar_layer)
         .layer(auth_layer)
         .layer(simple_auth_layer)
+        .layer(default_password_layer)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             security::auth_guard_middleware,
