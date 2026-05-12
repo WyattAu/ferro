@@ -562,17 +562,26 @@ async fn main() -> anyhow::Result<()> {
     }
 
     if state.admin_password.as_deref() == Some("changeme") {
-        tracing::warn!("═══════════════════════════════════════════════════════════════");
-        tracing::warn!("  WARNING: Using default admin password 'changeme'");
-        tracing::warn!("  Set FERRO_ADMIN_PASSWORD to a strong value for production");
-        tracing::warn!("═══════════════════════════════════════════════════════════════");
+        anyhow::bail!(
+            "Refusing to start with default password 'changeme'. \
+             Set --admin-password (or FERRO_ADMIN_PASSWORD) to a strong value."
+        );
     }
 
+    // Hard-reject CORS wildcard with auth enabled (library code logs an error
+    // but does not panic for test compatibility; here in production we halt).
     let cors_value = if cli.cors_origins != "*" {
         &cli.cors_origins
     } else {
         &cli.cors_allowed_origins
     };
+
+    if cors_value == "*" && state.auth_enabled() {
+        anyhow::bail!(
+            "CORS origins are '*' while authentication is enabled. \
+             Set a specific origin to prevent credential theft in production."
+        );
+    }
 
     let lock_manager = state.lock_manager.clone();
     let app = build_router_with_static(

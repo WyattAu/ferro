@@ -117,6 +117,7 @@ pub mod redis_rate_limiter;
 pub mod request_id;
 pub mod request_logging;
 pub mod search;
+pub mod security;
 pub mod security_headers;
 pub mod shares;
 pub mod simple_auth;
@@ -222,6 +223,8 @@ pub struct AppState {
     pub ws_manager: Arc<ws::WsManager>,
     pub db: Option<DbHandle>,
     pub upload_store: upload::UploadStore,
+    pub auth_attempt_tracker: Arc<security::AuthAttemptTracker>,
+    pub login_rate_limiter: Arc<security::LoginRateLimiter>,
 }
 
 impl AppState {
@@ -275,6 +278,8 @@ impl AppState {
             ws_manager: Arc::new(ws::WsManager::new()),
             db: None,
             upload_store: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            auth_attempt_tracker: Arc::new(security::AuthAttemptTracker::default()),
+            login_rate_limiter: Arc::new(security::LoginRateLimiter::default()),
         }
     }
 
@@ -871,8 +876,9 @@ pub fn build_router_with_static(
     let cors_origins = cors_allowed_origins.to_string();
     let cors_auth_enabled = state.auth_enabled();
     if cors_origins == "*" && cors_auth_enabled {
-        tracing::warn!(
-            "CORS allowed origins is '*' while auth is enabled — restrict in production"
+        tracing::error!(
+            "CORS allowed origins is '*' while auth is enabled -- \
+             set a specific origin in production to prevent credential theft"
         );
     }
     let cors_layer = axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
@@ -1098,6 +1104,10 @@ pub fn build_router_with_static(
         .layer(cedar_layer)
         .layer(auth_layer)
         .layer(simple_auth_layer)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            security::auth_guard_middleware,
+        ))
         .layer(cors_layer)
         .layer(axum::middleware::from_fn(request_id::request_id_middleware))
         .layer(axum::middleware::from_fn(
@@ -1108,6 +1118,9 @@ pub fn build_router_with_static(
         ))
         .layer(axum::middleware::from_fn(
             security_headers::security_headers_middleware,
+        ))
+        .layer(axum::middleware::from_fn(
+            security_headers::panic_handler_middleware,
         ))
         .layer(CompressionLayer::new())
         .layer(axum::extract::DefaultBodyLimit::max(

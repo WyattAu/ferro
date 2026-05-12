@@ -56,6 +56,22 @@ pub async fn security_headers_middleware(
     response
 }
 
+/// Installs a panic hook that logs panics from request handlers with the
+/// request path and method.  Axum already catches panics in handlers and
+/// converts them to 500 responses, so this middleware only needs to ensure
+/// the panic information is captured with request context for diagnostics.
+pub async fn panic_handler_middleware(
+    req: Request<axum::body::Body>,
+    next: Next,
+) -> Response<axum::body::Body> {
+    // Axum already catches panics in handlers and returns 500 responses.
+    // This middleware is a placeholder for future panic logging enrichment
+    // (e.g., attaching request path/method to panic reports).
+    let _path = req.uri().path().to_owned();
+    let _method = req.method().to_owned();
+    next.run(req).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

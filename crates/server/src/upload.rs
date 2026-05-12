@@ -43,6 +43,17 @@ pub async fn init_upload(
     State(state): State<AppState>,
     Json(req): Json<InitUploadRequest>,
 ) -> (StatusCode, Json<InitUploadResponse>) {
+    // Validate the upload path before accepting the upload
+    if crate::security::validate_path(&req.path).is_err() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(InitUploadResponse {
+                upload_id: String::new(),
+                chunk_size: 0,
+            }),
+        );
+    }
+
     let chunk_size = req.chunk_size.unwrap_or(5 * 1024 * 1024);
     let upload_id = format!("ul_{}", uuid::Uuid::new_v4().simple());
 
@@ -98,6 +109,11 @@ pub async fn complete_upload(
     match store.remove(&upload_id) {
         Some(upload) => {
             let path = req.path.unwrap_or(upload.path);
+
+            // Validate the final path before storing
+            if crate::security::validate_path(&path).is_err() {
+                return StatusCode::BAD_REQUEST;
+            }
 
             let max_chunk = upload.received_chunks.keys().copied().max().unwrap_or(0);
             let total_chunks = upload.total_chunks.unwrap_or(max_chunk + 1);

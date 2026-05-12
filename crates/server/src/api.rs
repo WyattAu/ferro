@@ -623,6 +623,35 @@ pub async fn put_file(
 ) -> Response {
     let path = normalize_api_path(&path);
 
+    // Validate each path component for safety (reserved names, control chars, etc.)
+    if let Err(reason) = crate::security::validate_path(&path) {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "invalid_path",
+                "message": reason,
+            })),
+        )
+            .into_response();
+    }
+
+    // Verify declared Content-Type matches actual file magic bytes
+    if let Some(declared) = headers.get("content-type").and_then(|v| v.to_str().ok()) {
+        if let Some(detected) = crate::security::verify_content_type(declared, &body) {
+            return (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({
+                    "error": "content_type_mismatch",
+                    "message": format!(
+                        "Declared Content-Type '{}' does not match detected type '{}'",
+                        declared, detected
+                    ),
+                })),
+            )
+                .into_response();
+        }
+    }
+
     // If-Match: CAS — verify existing ETag matches
     #[allow(clippy::collapsible_if)]
     if let Some(if_match) = headers.get("if-match").and_then(|v| v.to_str().ok()) {
