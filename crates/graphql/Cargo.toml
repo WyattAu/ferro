@@ -14,3 +14,7 @@ async-graphql = "7"
 axum = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+chrono = "0.4"

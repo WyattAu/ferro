@@ -6,13 +6,31 @@ All API endpoints return JSON unless otherwise noted. The server listens on port
 
 ### GET `/.well-known/ferro`
 
-Returns a plain text health check response.
+Returns a JSON health check response with subsystem status.
 
 **Response** `200 OK`
 
+```json
+{
+  "status": "ok",
+  "version": "2.5.1",
+  "uptime_seconds": 3600,
+  "subsystems": {
+    "database": "ok",
+    "cache": "ok",
+    "storage": "ok",
+    "auth": "disabled"
+  }
+}
 ```
-Ferro OK
-```
+
+### GET `/healthz`
+
+Simple liveness check. Returns `200 OK` with empty body.
+
+### GET `/readyz`
+
+Readiness check. Returns `200 OK` when all subsystems are ready.
 
 ## Server Configuration
 
@@ -31,7 +49,9 @@ Returns server configuration and enabled capabilities.
   "cedar_enabled": false,
   "metadata_persistent": false,
   "cas_enabled": false,
-  "storage": "configured"
+  "storage": "configured",
+  "external_url": "https://ferro.example.com",
+  "wopi_configured": false
 }
 ```
 
@@ -45,6 +65,7 @@ Returns current user info from OIDC claims, or anonymous info when auth is disab
 
 ```json
 {
+  "auth_type": "oidc",
   "sub": "user-123",
   "iss": "https://keycloak.example.com/realms/ferro",
   "aud": "ferro",

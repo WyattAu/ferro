@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Ferro is a self-hosted file sync and sharing platform written in Rust, positioned as an open-source Nextcloud/ownCloud alternative. The codebase comprises 20 crates, 692+ tests, 0 clippy warnings, and a comprehensive CI/CD pipeline. This roadmap covers the path from the current state to a production-ready v1.0 release, followed by growth initiatives.
+Ferro is a self-hosted file sync and sharing platform written in Rust, positioned as an open-source Nextcloud/ownCloud alternative. The codebase comprises 20 crates, 790 tests, 0 clippy warnings, and a comprehensive CI/CD pipeline. This roadmap covers the path from the current state (v2.5.1) to a production-hardened v3.0 release, followed by growth initiatives.
 
 The current codebase has strong fundamentals: correct WebDAV (RFC 4918), multiple storage backends, Cedar authorization, OIDC authentication, WASM worker extensibility, and a Leptos web frontend. The primary gaps are in production hardening, test coverage for advanced features, observability depth, and operational tooling.
 
@@ -181,9 +181,9 @@ The current codebase has strong fundamentals: correct WebDAV (RFC 4918), multipl
 
 ---
 
-## Phase 5: v1.0 Release (Sprint AY)
+## Phase 5: Production Release v3.0 (Sprint AY)
 
-**Goal:** Ship a production-ready v1.0.0.
+**Goal:** Ship a production-hardened v3.0.0.
 
 ### 5.1 Release Criteria
 
@@ -213,19 +213,19 @@ All of the following must be satisfied:
 
 ### 5.3 Versioning Strategy
 
-- Pre-release: `v1.0.0-beta.1`, `v1.0.0-beta.2`, ..., `v1.0.0-rc.1`
-- Stable: `v1.0.0`
-- Maintenance: `v1.0.1`, `v1.0.2` (bug fixes only)
-- Minor: `v1.1.0` (new features, backward compatible)
-- Major: `v2.0.0` (breaking changes)
+Current version: v2.5.1. The next major release will be v3.0.0.
+- Pre-release: `v3.0.0-beta.1`, `v3.0.0-rc.1`
+- Stable: `v3.0.0`
+- Maintenance: `v3.0.1`, `v3.0.2` (bug fixes only)
+- Minor: `v3.1.0` (new features, backward compatible)
 
 ---
 
-## Phase 6: Post-v1.0 Growth (v1.1 - v1.5)
+## Phase 6: Post-v3.0 Growth (v3.1 - v3.5)
 
 **Goal:** Expand user-facing features and platform support.
 
-### 6.1 Desktop Client (v1.1)
+### 6.1 Desktop Client (v3.1)
 
 | Item | Description | Priority |
 |------|-------------|----------|
@@ -235,7 +235,7 @@ All of the following must be satisfied:
 | macOS universal binary | Support both Intel and Apple Silicon | P1 |
 | Windows MSI installer | Proper Windows installer with shell integration | P1 |
 
-### 6.2 Mobile (v1.2)
+### 6.2 Mobile (v3.2)
 
 | Item | Description | Priority |
 |------|-------------|----------|
@@ -244,7 +244,7 @@ All of the following must be satisfied:
 | Offline mode | Local cache with conflict resolution | P2 |
 | Push notifications | Notify on share received, quota warning | P2 |
 
-### 6.3 Collaboration (v1.3)
+### 6.3 Collaboration (v3.3)
 
 | Item | Description | Priority |
 |------|-------------|----------|
@@ -253,7 +253,7 @@ All of the following must be satisfied:
 | File locking UI | Visual indicator in web UI when file is locked | P2 |
 | Activity notifications | Email/webhook on share, comment, mention | P2 |
 
-### 6.4 Admin and Compliance (v1.4)
+### 6.4 Admin and Compliance (v3.4)
 
 | Item | Description | Priority |
 |------|-------------|----------|
@@ -263,7 +263,7 @@ All of the following must be satisfied:
 | Data retention policies | Automatic deletion of files past retention period | P2 |
 | Export compliance | GDPR data export (all user data in machine-readable format) | P2 |
 
-### 6.5 Performance (v1.5)
+### 6.5 Performance (v3.5)
 
 | Item | Description | Priority |
 |------|-------------|----------|
@@ -275,11 +275,11 @@ All of the following must be satisfied:
 
 ---
 
-## Phase 7: Platform Evolution (v2.0+)
+## Phase 7: Platform Evolution (v4.0+)
 
 **Goal:** Position Ferro as a platform, not just a file server.
 
-### 7.1 Plugin System (v2.0)
+### 7.1 Plugin System (v4.0)
 
 | Item | Description |
 |------|-------------|
@@ -288,7 +288,7 @@ All of the following must be satisfied:
 | Plugin permissions | Capability-based security model for WASM sandbox |
 | Hot-reload | Load/unload plugins without server restart |
 
-### 7.2 Multi-Tenant (v2.1)
+### 7.2 Multi-Tenant (v4.1)
 
 | Item | Description |
 |------|-------------|
@@ -296,7 +296,7 @@ All of the following must be satisfied:
 | Resource isolation | Per-tenant rate limits, connection pools, and storage backends |
 | Cross-org sharing | Controlled sharing between organizations |
 
-### 7.3 Distributed Storage (v2.2)
+### 7.3 Distributed Storage (v4.2)
 
 | Item | Description |
 |------|-------------|
@@ -304,7 +304,7 @@ All of the following must be satisfied:
 | Geo-replication | Async replication between data centers |
 | Consensus | Raft-based metadata consensus for distributed deployments |
 
-### 7.4 AI Integration (v2.3)
+### 7.4 AI Integration (v4.3)
 
 | Item | Description |
 |------|-------------|
@@ -350,7 +350,7 @@ Items that should be addressed during normal development:
 | Phase 6.5 | BD | 2 weeks | Phase 5 |
 | Phase 7+ | BE+ | Ongoing | Phase 5 |
 
-**Estimated time to v1.0:** 11 weeks (assuming full-time development)
+**Estimated time to v3.0:** 11 weeks (assuming full-time development)
 
 ---
 
@@ -366,7 +366,7 @@ Items that should be addressed during normal development:
 
 ---
 
-## Success Metrics for v1.0
+## Success Metrics for v3.0
 
 | Metric | Target |
 |--------|--------|

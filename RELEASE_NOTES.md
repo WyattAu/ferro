@@ -1,4 +1,7 @@
-# Ferro v2.0.0 — Federation, Encryption, Real-Time Sync
+# Ferro v2.0.0 -- Federation, Encryption, Real-Time Sync
+
+> **Historical document.** This release note covers v2.0.0 (2026-04-26).
+> Current version: **v2.5.1** (2026-05-08). See [CHANGELOG.md](./CHANGELOG.md) for v2.1.0+ changes.
 
 ## What is Ferro?
 

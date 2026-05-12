@@ -875,7 +875,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_wopi_check_file_not_found() {
-        use http_body_util::BodyExt;
         use tower::ServiceExt;
 
         let secret = "test-secret";

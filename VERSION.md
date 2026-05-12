@@ -1,10 +1,11 @@
 # Ferro Version Tracking
 
 ## Current Status
-- **Phase:** Sprint AT (Mobile Responsive)
+- **Phase:** Production Hardening (Sprint AU per ROADMAP.md)
 - **Version:** 2.5.1
-- **Status:** 692+ tests, 0 clippy warnings, version-aligned workspace, lint configs, cargo-deny, dark mode, file preview, favorites, trash, bulk ops, toasts, move/copy, quota, activity feed, command palette, clipboard, mobile responsive
-- **Last Updated:** 2026-05-08
+- **Tests:** 790 passed, 0 failed, 1 ignored (rclone E2E), 0 clippy warnings
+- **Status:** Active Development. All 25 sprints (A-AT) completed. Pre-commit hooks configured, cargo-deny active, fmt/clippy clean.
+- **Last Updated:** 2026-05-12
 
 ## Phase Progress
 | Phase | Status | Completion |
@@ -146,4 +147,4 @@
 ## Clippy: 0 warnings
 ## Security: cargo-deny configured, cargo-audit CI-gated, deny.toml with documented ignores for desktop-only transitive deps
 ## Error Level: None
-## Rollback Checkpoint: main@5f0a70d (pre-hardening)
+## Rollback Checkpoint: main@b25fc13 (production security hardening, 2026-05-12)

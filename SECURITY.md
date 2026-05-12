@@ -13,7 +13,7 @@ We take security seriously. If you discover a security vulnerability, please rep
 
 ### How to Report
 
-1. **Email**: security@wyatt.au (PGP key: [fingerprint])
+1. **Email**: security@wyatt.au (PGP key available upon request)
 2. **GitHub Security**: Use [GitHub Security Advisories](https://github.com/WyattAu/ferro/security/advisories/new)
 3. **Encryption**: Please encrypt your report using the PGP key below
 
@@ -47,12 +47,11 @@ We follow responsible disclosure practices:
 
 ### Transitive Dependencies (Documented, Accepted Risk)
 
-| Package | Version | CVE | Risk | Mitigation |
-|---------|---------|-----|------|------------|
-| rsa | 0.9 | CVE-2023-... | Timing side-channel | Pending upstream fix |
-| rustls-pemfile | 1.0 | N/A | Parse error handling | Input validation in callers |
-| lru | 0.12 | N/A | Memory pressure | LRU eviction limits size |
-| rand | 0.8 | N/A | Deprecation notice | Migrating to rand 0.9 |
+| Package | Version | Advisory | Risk | Mitigation |
+|---------|---------|----------|------|------------|
+| bincode | 1.3 | RUSTSEC-2025-0141 | Unmaintained transitive dep (FUSE-only) | Pending fuse3 upstream update |
+| paste | 1.0 | RUSTSEC-2024-0436 | Unmaintained transitive dep (web-only) | Pending leptos upstream migration |
+| proc-macro-error | 1.0 | RUSTSEC-2024-0370 | Unmaintained transitive dep (web-only) | Pending leptos upstream migration |
 
 ### Security Decisions
 
@@ -67,7 +66,7 @@ We follow responsible disclosure practices:
 ## Security Architecture
 
 ### Authentication
-- **Simple auth**: Bearer token, bcrypt-hashed passwords (cost 12)
+- **Simple auth**: HTTP Basic authentication, bcrypt-hashed passwords (cost 12)
 - **OIDC**: Enterprise SSO via OpenID Connect
 - **Authorization**: Cedar policy engine
 - **Rate limiting**: Token bucket, per-IP (not per-route)
