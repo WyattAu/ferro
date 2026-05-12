@@ -19,6 +19,7 @@ members = [
     "crates/server-webrtc",
     "crates/server-wopi",
     "crates/server-versioning",
+    "crates/graphql",
 ]
 resolver = "2"
 

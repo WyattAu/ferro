@@ -25,6 +25,7 @@ ferro-auth = { path = "../auth" }
 ferro-server-activitypub = { path = "../server-activitypub" }
 ferro-server-wopi = { path = "../server-wopi" }
 ferro-server-versioning = { path = "../server-versioning" }
+ferro-graphql = { path = "../graphql" }
 ferro-core = { path = "../core", features = ["sqlite", "search", "wasm", "object_store"] }
 ferro-dav = { path = "../dav", features = ["handlers"] }
 tokio = { workspace = true }

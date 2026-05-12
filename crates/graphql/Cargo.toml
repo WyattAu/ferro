@@ -1,0 +1,16 @@
+[package]
+name = "ferro-graphql"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "GraphQL API schema and handlers for Ferro server"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+async-graphql = "7"
+axum = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }

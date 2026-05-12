@@ -2883,6 +2883,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-graphql"
+version = "2.5.1"
+dependencies = [
+ "async-graphql",
+ "axum",
+ "ferro-common",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "ferro-observability"
 version = "2.5.1"
 dependencies = [
@@ -2915,6 +2926,7 @@ dependencies = [
  "ferro-common",
  "ferro-core",
  "ferro-dav",
+ "ferro-graphql",
  "ferro-server-activitypub",
  "ferro-server-versioning",
  "ferro-server-webrtc",
