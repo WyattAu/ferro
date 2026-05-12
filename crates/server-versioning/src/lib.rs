@@ -244,7 +244,9 @@ pub async fn list_versions(
     let normalized = common::path::normalize_path(&path);
     let data_dir = match require_data_dir(&state) {
         Ok(d) => d,
-        Err(status) => return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir"),
+        Err(status) => {
+            return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir");
+        }
     };
 
     let metas = tokio::task::spawn_blocking(move || read_meta(&data_dir, &normalized))
@@ -267,7 +269,9 @@ pub async fn get_version(
     let normalized = common::path::normalize_path(&path);
     let data_dir = match require_data_dir(&state) {
         Ok(d) => d,
-        Err(status) => return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir"),
+        Err(status) => {
+            return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir");
+        }
     };
 
     let result = tokio::task::spawn_blocking(move || {
@@ -317,7 +321,9 @@ pub async fn create_version(
     let normalized = common::path::normalize_path(&path);
     let data_dir = match require_data_dir(&state) {
         Ok(d) => d,
-        Err(status) => return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir"),
+        Err(status) => {
+            return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir");
+        }
     };
 
     let author = author_or_anon(&state);
@@ -399,7 +405,9 @@ pub async fn delete_version(
     let normalized = common::path::normalize_path(&path);
     let data_dir = match require_data_dir(&state) {
         Ok(d) => d,
-        Err(status) => return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir"),
+        Err(status) => {
+            return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir");
+        }
     };
 
     let result = tokio::task::spawn_blocking(move || {
@@ -521,7 +529,9 @@ pub async fn diff_versions(
     let normalized = common::path::normalize_path(&path);
     let data_dir = match require_data_dir(&state) {
         Ok(d) => d,
-        Err(status) => return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir"),
+        Err(status) => {
+            return error_response(status, "NO_DATA_DIR", "Versioning requires --data-dir");
+        }
     };
 
     let from_id: u64 = match params.from.parse() {

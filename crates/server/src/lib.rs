@@ -542,16 +542,12 @@ impl AppState {
             list_files: Box::new(move |prefix: &str| {
                 let storage = storage.clone();
                 let prefix = prefix.to_string();
-                Box::pin(async move {
-                    storage.list(&prefix).await.map_err(|e| e.to_string())
-                })
+                Box::pin(async move { storage.list(&prefix).await.map_err(|e| e.to_string()) })
             }),
             head_file: Box::new(move |path: &str| {
                 let storage = storage2.clone();
                 let path = path.to_string();
-                Box::pin(async move {
-                    storage.head(&path).await.map_err(|e| e.to_string())
-                })
+                Box::pin(async move { storage.head(&path).await.map_err(|e| e.to_string()) })
             }),
             create_collection: Box::new(move |path: &str, owner: &str| {
                 let storage = storage3.clone();
@@ -567,9 +563,7 @@ impl AppState {
             delete_file: Box::new(move |path: &str| {
                 let storage = storage4.clone();
                 let path = path.to_string();
-                Box::pin(async move {
-                    storage.delete(&path).await.map_err(|e| e.to_string())
-                })
+                Box::pin(async move { storage.delete(&path).await.map_err(|e| e.to_string()) })
             }),
             list_shares: Box::new(move || {
                 let share_store = share_store.clone();
@@ -802,7 +796,8 @@ fn api_routes(
         )
         .route(
             "/graphql",
-            axum::routing::get(ferro_graphql::graphql_playground).post(ferro_graphql::graphql_handler),
+            axum::routing::get(ferro_graphql::graphql_playground)
+                .post(ferro_graphql::graphql_handler),
         )
         .route(
             "/sync/events",

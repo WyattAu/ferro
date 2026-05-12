@@ -721,15 +721,7 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
     )
     .await;
 
-    state.record_sync_op(
-        OpType::Delete,
-        &path,
-        None,
-        0,
-        None,
-        &owner,
-        "",
-    );
+    state.record_sync_op(OpType::Delete, &path, None, 0, None, &owner, "");
 
     Ok(StatusCode::NO_CONTENT.into_response())
 }
@@ -765,15 +757,7 @@ async fn handle_mkcol(state: AppState, path: &str) -> Result<Response> {
     )
     .await;
 
-    state.record_sync_op(
-        OpType::Create,
-        &path,
-        None,
-        0,
-        None,
-        "anonymous",
-        "",
-    );
+    state.record_sync_op(OpType::Create, &path, None, 0, None, "anonymous", "");
 
     Ok(StatusCode::CREATED.into_response())
 }
@@ -884,15 +868,7 @@ async fn handle_move(state: AppState, path: &str, headers: &HeaderMap) -> Result
     )
     .await;
 
-    state.record_sync_op(
-        OpType::Rename,
-        &path,
-        Some(&dest),
-        0,
-        None,
-        &owner,
-        "",
-    );
+    state.record_sync_op(OpType::Rename, &path, Some(&dest), 0, None, &owner, "");
 
     let mut resp_headers = HeaderMap::new();
     resp_headers.insert(

@@ -17,11 +17,21 @@ type BoxFuture<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send
 #[allow(clippy::type_complexity)]
 pub struct GraphQLContext {
     /// List files under a prefix.
-    pub list_files: Box<dyn Fn(&str) -> BoxFuture<Result<Vec<common::metadata::FileMetadata>, String>> + Send + Sync>,
+    pub list_files: Box<
+        dyn Fn(&str) -> BoxFuture<Result<Vec<common::metadata::FileMetadata>, String>>
+            + Send
+            + Sync,
+    >,
     /// Get metadata for a single file.
-    pub head_file: Box<dyn Fn(&str) -> BoxFuture<Result<common::metadata::FileMetadata, String>> + Send + Sync>,
+    pub head_file: Box<
+        dyn Fn(&str) -> BoxFuture<Result<common::metadata::FileMetadata, String>> + Send + Sync,
+    >,
     /// Create a directory collection.
-    pub create_collection: Box<dyn Fn(&str, &str) -> BoxFuture<Result<common::metadata::FileMetadata, String>> + Send + Sync>,
+    pub create_collection: Box<
+        dyn Fn(&str, &str) -> BoxFuture<Result<common::metadata::FileMetadata, String>>
+            + Send
+            + Sync,
+    >,
     /// Delete a file or collection.
     pub delete_file: Box<dyn Fn(&str) -> BoxFuture<Result<(), String>> + Send + Sync>,
     /// List all share links.
