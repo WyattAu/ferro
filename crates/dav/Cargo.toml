@@ -9,6 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 keywords = ["caldav", "carddav", "webdav", "icalendar", "vcard", "rfc4791"]
 categories = ["asynchronous", "network-programming", "web-programming"]
 rust-version.workspace = true
+publish = false
 
 [package.metadata.docs.rs]
 all-features = true

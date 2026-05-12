@@ -24,7 +24,7 @@ Returns server configuration and enabled capabilities.
 
 ```json
 {
-  "version": "0.1.0",
+  "version": "2.5.1",
   "auth_enabled": false,
   "search_enabled": true,
   "wasm_workers_enabled": false,

@@ -9,6 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 keywords = ["crypto", "bcrypt", "hmac", "sha256", "encryption", "age"]
 categories = ["cryptography"]
 rust-version.workspace = true
+publish = false
 
 [package.metadata.docs.rs]
 all-features = true

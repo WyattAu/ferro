@@ -237,14 +237,27 @@ impl StorageEngine for ObjectStoreStorageEngine {
         let obj_path = self.to_obj_path(path);
         match self.store.head(&obj_path).await {
             Ok(meta) => {
-                let etag = meta.e_tag.clone().unwrap_or_default();
+                let native_etag = meta.e_tag.clone().unwrap_or_default();
                 let is_collection = path.ends_with('/') || (meta.size == 0 && path.contains('/'));
 
                 // Normalize the object store's native ETag to a 64-char SHA-256 hash.
                 // For uploads done via our put(), the ETag is already SHA-256 hex (64 chars).
                 // For object stores (S3 etc.), the native ETag may be MD5 (32 chars) or
                 // multipart hash — we SHA-256 hash it to produce a consistent 64-char value.
-                let content_hash = ContentHash::from_etag(&etag);
+                let content_hash = ContentHash::from_etag(&native_etag);
+
+                // Ensure ETag is never empty. If the object store provides no native
+                // ETag (common for LocalFileSystem), derive a deterministic value from
+                // size + modified time so conditional requests remain usable.
+                let etag = if native_etag.is_empty() {
+                    format!(
+                        "\"size-{}-mtime-{}\"",
+                        meta.size,
+                        meta.last_modified.timestamp_millis()
+                    )
+                } else {
+                    format!("\"{}\"", native_etag)
+                };
 
                 Ok(FileMetadata {
                     path: path.to_string(),
@@ -303,7 +316,14 @@ impl StorageEngine for ObjectStoreStorageEngine {
                         created_at: chrono_modified,
                         modified_at: chrono_modified,
                         owner: "unknown".to_string(),
-                        etag: String::new(),
+                        // Derive a deterministic ETag from size + mtime so that
+                        // HeaderValue::from_str never fails and conditional
+                        // requests are at least usable for cache validation.
+                        etag: format!(
+                            "\"size-{}-mtime-{}\"",
+                            metadata.len(),
+                            chrono_modified.timestamp_millis()
+                        ),
                     })
                 }
             }

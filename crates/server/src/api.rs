@@ -530,7 +530,12 @@ pub async fn get_file(
         (StatusCode::OK, axum::Json(serde_json::json!(entry))).into_response()
     } else {
         // Stream file content (with read cache for small files)
-        let content_type = meta.mime_type.clone();
+        // Re-detect MIME from extension if stored value is the generic default.
+        let content_type = if meta.mime_type == "application/octet-stream" {
+            crate::webdav::sniff_content_type(&[], &path)
+        } else {
+            meta.mime_type.clone()
+        };
         let content_length = meta.size;
         let filename = path.rsplit('/').next().unwrap_or("file").to_string();
         let etag_for_cache = meta.etag.clone();

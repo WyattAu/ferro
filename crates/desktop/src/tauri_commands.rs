@@ -39,8 +39,10 @@ pub async fn cmd_unmount(state: &DesktopState) -> Result<String, String> {
 /// Get current mount status.
 #[cfg(feature = "tauri")]
 #[tauri::command]
-pub async fn cmd_get_mount_status(state: State<'_, DesktopState>) -> MountStatusResponse {
-    state.get_mount_status().await
+pub async fn cmd_get_mount_status(
+    state: State<'_, DesktopState>,
+) -> Result<MountStatusResponse, String> {
+    Ok(state.get_mount_status().await)
 }
 
 #[cfg(not(feature = "tauri"))]
@@ -51,8 +53,8 @@ pub async fn cmd_get_mount_status(state: &DesktopState) -> MountStatusResponse {
 /// Get current configuration.
 #[cfg(feature = "tauri")]
 #[tauri::command]
-pub async fn cmd_get_config(state: State<'_, DesktopState>) -> ConfigResponse {
-    state.get_config().await
+pub async fn cmd_get_config(state: State<'_, DesktopState>) -> Result<ConfigResponse, String> {
+    Ok(state.get_config().await)
 }
 
 #[cfg(not(feature = "tauri"))]
@@ -81,8 +83,8 @@ pub async fn cmd_save_config(
 /// Get current mount progress (bytes transferred, speed, errors).
 #[cfg(feature = "tauri")]
 #[tauri::command]
-pub async fn cmd_get_mount_progress(state: State<'_, DesktopState>) -> MountProgress {
-    MountProgress::default()
+pub async fn cmd_get_mount_progress() -> Result<MountProgress, String> {
+    Ok(MountProgress::default())
 }
 
 #[cfg(not(feature = "tauri"))]

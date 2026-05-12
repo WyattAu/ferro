@@ -25,7 +25,7 @@ support for online document editing.
 - **Share Links** — Public file sharing with optional passwords and expiration
 - **Audit Logging** — Track all file operations
 - **Metadata Snapshots** — Point-in-time recovery for ransomware protection
-- **Rate Limiting** — Per-IP sliding window rate limiter
+- **Rate Limiting** — Per-IP token-bucket rate limiter
 - **Web UI** — Modern Leptos-based file browser with drag-and-drop upload
 - **Admin CLI** — Full command-line management tool
 - **Docker Support** — Multi-stage Dockerfile with docker-compose
@@ -339,16 +339,30 @@ See [deploy/README-ecosystem.md](deploy/README-ecosystem.md) for all deployment 
 
 ## Architecture
 
-Ferro is built as a Rust workspace with 6 crates:
+Ferro is built as a Rust workspace with 20 crates:
 
 | Crate | Description |
 |-------|-------------|
 | `ferro-common` | Shared types, StorageEngine trait, error handling |
-| `ferro-core` | Storage backends, search engine, WASM runtime |
-| `ferro-server` | Axum web server, WebDAV, API endpoints |
+| `ferro-core` | Storage backends, search engine, WASM runtime, CAS dedup |
+| `ferro-server` | Axum web server, WebDAV, REST API, admin endpoints |
+| `ferro-dav` | WebDAV protocol implementation (RFC 4918) |
+| `ferro-webdav-handler` | WebDAV XML request/response parsing |
+| `ferro-auth` | Authentication (OIDC, simple auth) and Cedar authorization |
+| `ferro-crypto` | Cryptographic primitives (SHA, HMAC, password hashing) |
+| `ferro-observability` | Metrics, health checks, Prometheus export |
 | `ferro-web` | Leptos WASM web frontend |
 | `ferro-cli` | Admin CLI tool |
 | `ferro-desktop` | Tauri desktop application |
+| `ferro-fuse` | FUSE filesystem mount |
+| `ferro-client` | Rust client SDK with C-FFI |
+| `ferro-admin` | Admin dashboard (Leptos) |
+| `ferro-graphql` | GraphQL API layer |
+| `ferro-server-versioning` | File versioning and auto-versioning |
+| `ferro-server-activitypub` | ActivityPub federation |
+| `ferro-server-webrtc` | WebRTC signaling |
+| `ferro-server-wopi` | WOPI protocol (Office Online) |
+| `ferro-benchmarks` | Criterion benchmark suite |
 
 ## Documentation
 
@@ -359,4 +373,4 @@ Ferro is built as a Rust workspace with 6 crates:
 
 ## License
 
-MIT
+AGPL-3.0-or-later

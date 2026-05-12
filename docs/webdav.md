@@ -244,7 +244,7 @@ curl -X LOCK http://localhost:8080/document.docx \
   -H "Content-Type: application/xml" \
   -d '<?xml version="1.0" encoding="utf-8"?>
 <D:lockinfo xmlns:D="DAV:">
-  <D:locktype><D:exclusive/></D:locktype>
+  <D:locktype><D:write/></D:locktype>
   <D:lockscope><D:exclusive/></D:lockscope>
   <D:owner><D:href>user@example.com</D:href></D:owner>
 </D:lockinfo>'
@@ -252,15 +252,11 @@ curl -X LOCK http://localhost:8080/document.docx \
 
 ### Refresh a lock (LOCK with If header)
 
+Per RFC 4918 Section 9.10.2, a lock refresh is a LOCK request with no body and the `If` header containing the lock token.
+
 ```bash
 curl -X LOCK http://localhost:8080/document.docx \
-  -H "Content-Type: application/xml" \
-  -H "If: (<urn:uuid:lock-token>)" \
-  -d '<?xml version="1.0" encoding="utf-8"?>
-<D:lockinfo xmlns:D="DAV:">
-  <D:locktype><D:exclusive/></D:locktype>
-  <D:lockscope><D:exclusive/></D:lockscope>
-</D:lockinfo>'
+  -H "If: (<urn:uuid:lock-token>)"
 ```
 
 ### Unlock a file (UNLOCK)

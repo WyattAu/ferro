@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.5.1] - 2026-05-08
 
 ### Fixed
-- Version alignment: all 15 crates now inherit `version.workspace = true` (was 0.1.0 / 1.0.0 / 2.2.0 mix)
+- Version alignment: all 20 crates now inherit `version.workspace = true` (was 0.1.0 / 1.0.0 / 2.2.0 mix)
 - Import formatting: removed unnecessary braces in `ferro-server::policies`
 
 ### Added

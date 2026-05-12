@@ -9,6 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 keywords = ["webdav", "caldav", "carddav", "client", "mobile", "ffi"]
 categories = ["asynchronous", "network-programming", "api-bindings"]
 rust-version.workspace = true
+publish = false
 
 [dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

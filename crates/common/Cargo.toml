@@ -9,6 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 keywords = ["storage", "webdav", "filesystem", "trait", "async"]
 categories = ["asynchronous", "filesystem", "data-structures"]
 rust-version.workspace = true
+publish = false
 
 [package.metadata.docs.rs]
 all-features = true

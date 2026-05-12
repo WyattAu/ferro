@@ -70,7 +70,7 @@ We follow responsible disclosure practices:
 - **Simple auth**: Bearer token, bcrypt-hashed passwords (cost 12)
 - **OIDC**: Enterprise SSO via OpenID Connect
 - **Authorization**: Cedar policy engine
-- **Rate limiting**: Token bucket, configurable per-route
+- **Rate limiting**: Token bucket, per-IP (not per-route)
 
 ### Federation Security
 - HTTP Signatures (draft-cavage-http-signatures-12)
@@ -115,16 +115,16 @@ We follow responsible disclosure practices:
 
 ### Test Accounts
 ```bash
-# Start test server
-ferro-server --auth simple --token test-token-123
+# Start test server with simple auth
+ferro-server --admin-user admin --admin-password TestPass123!
 
-# Admin account
-FERRO_TOKEN=test-token-123
+# Admin credentials (HTTP Basic auth)
 BASE_URL=http://localhost:8080
+AUTH=admin:TestPass123!
 
-# Create test user
-curl -X POST $BASE_URL/api/users \
-  -H "Authorization: Bearer $FERRO_TOKEN" \
+# Create test user via admin API
+curl -X POST $BASE_URL/admin/users \
+  -u "$AUTH" \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser","password":"TestPass123!","role":"user"}'
 ```
@@ -133,31 +133,31 @@ curl -X POST $BASE_URL/api/users \
 
 #### 1. Authentication Bypass
 ```bash
-# No auth header — should return 401
+# No auth header -- should return 401
 curl -v $BASE_URL/api/files/
 
-# Invalid token — should return 401
-curl -H "Authorization: Bearer invalid" $BASE_URL/api/files/
+# Invalid credentials -- should return 401
+curl -u "admin:wrongpassword" $BASE_URL/api/files/
 
-# SQL injection in token
-curl -H "Authorization: Bearer ' OR 1=1 --" $BASE_URL/api/files/
+# SQL injection in credentials
+curl -u "' OR 1=1 --:password" $BASE_URL/api/files/
 ```
 
 #### 2. Path Traversal
 ```bash
 # Try to escape root directory
 curl -X PUT $BASE_URL/../../../etc/passwd \
-  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -u "$AUTH" \
   -d "test"
 
 # URL-encoded traversal
 curl -X PUT '%2e%2e/%2e%2e/etc/passwd' \
-  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -u "$AUTH" \
   -d "test"
 
 # Double encoding
 curl -X PUT '%252e%252e/%252e%252e/etc/passwd' \
-  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -u "$AUTH" \
   -d "test"
 ```
 
@@ -165,7 +165,7 @@ curl -X PUT '%252e%252e/%252e%252e/etc/passwd' \
 ```bash
 # Entity expansion (billion laughs)
 curl -X PROPFIND $BASE_URL/ \
-  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -u "$AUTH" \
   -H "Depth: 1" \
   -H "Content-Type: application/xml" \
   -d '<?xml version="1.0"?>
@@ -194,7 +194,7 @@ curl -X POST $BASE_URL/federation/inbox \
 ```bash
 # Calendar query with malicious filter
 curl -X REPORT $BASE_URL/dav/calendars/default/ \
-  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -u "$AUTH" \
   -H "Content-Type: application/xml" \
   -d '<?xml version="1.0"?>
 <C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav">
@@ -210,13 +210,13 @@ curl -X REPORT $BASE_URL/dav/calendars/default/ \
 ```bash
 # Introspection (should be limited)
 curl -X POST $BASE_URL/graphql \
-  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -u "$AUTH" \
   -H "Content-Type: application/json" \
   -d '{"query":"{ __schema { types { name } } }"}'
 
 # Deep nesting (DoS attempt)
 curl -X POST $BASE_URL/graphql \
-  -H "Authorization: Bearer $FERRO_TOKEN" \
+  -u "$AUTH" \
   -H "Content-Type: application/json" \
   -d '{"query":"{ files { files { files { files { files { name } } } } } }"}'
 ```

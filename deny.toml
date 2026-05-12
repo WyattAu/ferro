@@ -1,5 +1,6 @@
 # Cargo-deny configuration for Ferro
 # https://embarkstudios.github.io/cargo-deny/
+# Uses version = 2 for both advisories and licenses.
 
 [graph]
 targets = [
@@ -11,43 +12,40 @@ targets = [
 ]
 
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
-unsound = "deny"
+version = 2
 yanked = "deny"
-notice = "warn"
 ignore = [
-    # Tauri/wry GTK3 chain — desktop-only, blocked on upstream GTK4 migration
-    # These are NOT in the server/core/cli build path
-    { id = "RUSTSEC-2024-0413", reason = "atk unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0416", reason = "atk-sys unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0412", reason = "gdk unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0418", reason = "gdk-sys unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0411", reason = "gdkwayland-sys unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0417", reason = "gdkx11 unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0414", reason = "gdkx11-sys unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0415", reason = "gtk unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0420", reason = "gtk-sys unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0419", reason = "gtk3-macros unmaintained — transitive via tauri/wry (desktop-only)" },
-    { id = "RUSTSEC-2024-0429", reason = "glib unsound — transitive via tauri/wry (desktop-only, no server impact)" },
-    { id = "RUSTSEC-2026-0097", reason = "rand 0.7 unsound — transitive via tauri/kuchikuki (desktop-only)" },
-    { id = "RUSTSEC-2025-0057", reason = "fxhash unmaintained — transitive via tauri/kuchikuki (desktop-only)" },
-    { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained — transitive via fuse3 (FUSE-only)" },
-    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained — transitive via leptos (web frontend)" },
-    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error unmaintained — transitive via leptos (web frontend)" },
-    { id = "RUSTSEC-2025-0081", reason = "unic-char-property unmaintained — transitive via tauri (desktop-only)" },
-    { id = "RUSTSEC-2025-0075", reason = "unic-char-range unmaintained — transitive via tauri (desktop-only)" },
-    { id = "RUSTSEC-2025-0080", reason = "unic-common unmaintained — transitive via tauri (desktop-only)" },
-    { id = "RUSTSEC-2025-0100", reason = "unic-ucd-ident unmaintained — transitive via tauri (desktop-only)" },
-    { id = "RUSTSEC-2025-0098", reason = "unic-ucd-version unmaintained — transitive via tauri (desktop-only)" },
-    { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained — transitive via object_store, awaiting upstream update" },
-    # rsa Marvin attack — no fix available upstream, transitive via sqlx-mysql + age
-    # TODO: Remove when sqlx drops rsa dep or we eliminate MySQL/age dependency
-    { id = "RUSTSEC-2023-0071", reason = "rsa timing attack — transitive via sqlx-mysql + age, no upstream fix, MySQL not used in default config" },
+    # Tauri/wry GTK3 chain -- desktop-only, blocked on upstream GTK4 migration.
+    # These are NOT in the server/core/cli build path.
+    { id = "RUSTSEC-2024-0413", reason = "atk unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0416", reason = "atk-sys unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0412", reason = "gdk unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0418", reason = "gdk-sys unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0411", reason = "gdkwayland-sys unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0417", reason = "gdkx11 unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0414", reason = "gdkx11-sys unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0415", reason = "gtk unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0420", reason = "gtk-sys unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0419", reason = "gtk3-macros unmaintained -- transitive via tauri/wry (desktop-only)" },
+    { id = "RUSTSEC-2024-0429", reason = "glib unsound -- transitive via tauri/wry (desktop-only, no server impact)" },
+    { id = "RUSTSEC-2026-0097", reason = "rand 0.7 unsound -- transitive via tauri/kuchikuki (desktop-only)" },
+    { id = "RUSTSEC-2025-0057", reason = "fxhash unmaintained -- transitive via tauri/kuchikuki (desktop-only)" },
+    { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained -- transitive via fuse3 (FUSE-only)" },
+    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained -- transitive via leptos (web frontend)" },
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error unmaintained -- transitive via leptos (web frontend)" },
+    { id = "RUSTSEC-2025-0081", reason = "unic-char-property unmaintained -- transitive via tauri (desktop-only)" },
+    { id = "RUSTSEC-2025-0075", reason = "unic-char-range unmaintained -- transitive via tauri (desktop-only)" },
+    { id = "RUSTSEC-2025-0080", reason = "unic-common unmaintained -- transitive via tauri (desktop-only)" },
+    { id = "RUSTSEC-2025-0100", reason = "unic-ucd-ident unmaintained -- transitive via tauri (desktop-only)" },
+    { id = "RUSTSEC-2025-0098", reason = "unic-ucd-version unmaintained -- transitive via tauri (desktop-only)" },
+    { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained -- transitive via object_store, awaiting upstream update" },
+    # rsa Marvin attack -- no fix available upstream, transitive via sqlx-mysql + age.
+    # TODO: Remove when sqlx drops rsa dep or we eliminate MySQL/age dependency.
+    { id = "RUSTSEC-2023-0071", reason = "rsa timing attack -- transitive via sqlx-mysql + age, no upstream fix, MySQL not used in default config" },
 ]
 
 [licenses]
-unlicensed = "deny"
+version = 2
 allow = [
     "MIT",
     "Apache-2.0",
@@ -56,15 +54,19 @@ allow = [
     "BSD-3-Clause",
     "ISC",
     "Unicode-DFS-2016",
+    "Unicode-3.0",
     "Zlib",
     "OpenSSL",
+    "AGPL-3.0-or-later",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+    "BSL-1.0",
 ]
-copyleft = "allow"
 
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
-workspace-dependencies = "deny"
+allow-wildcard-paths = true
 
 [sources]
 unknown-registry = "deny"
@@ -73,9 +75,8 @@ required-git-spec = "tag"
 
 # === UPSTREAM BLOCKERS ===
 # Tauri/wry GTK3 chain (18 unmaintained + 2 unsound advisories):
-#   Blocked on https://github.com/nickel-org/nickel/issues/675
-#   (Tauri 2.x migration from GTK3 to GTK4 / nickel)
-#   All advisories are desktop-only — server/core/cli/web unaffected.
+#   Blocked on Tauri 2.x migration from GTK3 to GTK4 / nickel.
+#   All advisories are desktop-only -- server/core/cli/web unaffected.
 #   Action: Monitor upstream, remove ignores once GTK4 migration lands.
 #
 # rsa RUSTSEC-2023-0071 (Marvin timing attack):

@@ -6,7 +6,7 @@ rust-version.workspace = true
 description = "WebDAV XML response builders for Ferro"
 license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
-publish = true
+publish = false
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }

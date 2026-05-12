@@ -9,6 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 keywords = ["storage", "sqlite", "tantivy", "wasmtime", "object-store", "s3"]
 categories = ["asynchronous", "database", "filesystem", "wasm"]
 rust-version.workspace = true
+publish = false
 
 [package.metadata.docs.rs]
 all-features = true

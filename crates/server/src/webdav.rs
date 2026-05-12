@@ -355,9 +355,17 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
     let body = Body::from_stream(stream);
 
     let mut resp_headers = HeaderMap::new();
+    // If the storage engine persisted the generic default (e.g. because the
+    // MIME was sniffed but never written back), re-detect from the file
+    // extension so that .json files return "application/json", etc.
+    let content_type = if meta.mime_type == "application/octet-stream" {
+        sniff_content_type(&[], &path)
+    } else {
+        meta.mime_type.clone()
+    };
     resp_headers.insert(
         "Content-Type",
-        HeaderValue::from_str(&meta.mime_type).map_err(|e| FerroError::Internal(e.to_string()))?,
+        HeaderValue::from_str(&content_type).map_err(|e| FerroError::Internal(e.to_string()))?,
     );
     resp_headers.insert(
         "Content-Length",
@@ -407,9 +415,15 @@ async fn handle_head(state: AppState, path: &str, headers: &HeaderMap) -> Result
     }
 
     let mut resp_headers = HeaderMap::new();
+    // Re-detect MIME from extension if stored value is the generic default.
+    let content_type = if meta.mime_type == "application/octet-stream" {
+        sniff_content_type(&[], &path)
+    } else {
+        meta.mime_type.clone()
+    };
     resp_headers.insert(
         "Content-Type",
-        HeaderValue::from_str(&meta.mime_type).map_err(|e| FerroError::Internal(e.to_string()))?,
+        HeaderValue::from_str(&content_type).map_err(|e| FerroError::Internal(e.to_string()))?,
     );
     resp_headers.insert(
         "Content-Length",
@@ -435,7 +449,7 @@ async fn handle_head(state: AppState, path: &str, headers: &HeaderMap) -> Result
 }
 
 /// Detect MIME type from the first bytes of content using magic bytes.
-fn sniff_content_type(data: &[u8], path: &str) -> String {
+pub(crate) fn sniff_content_type(data: &[u8], path: &str) -> String {
     // First try the file extension
     if let Some(mime) = mime_guess::from_path(path).first() {
         let mime_str = mime.essence_str();
