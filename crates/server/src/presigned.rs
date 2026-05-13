@@ -47,7 +47,10 @@ pub async fn get_upload_url(
                 ),
             }
         }
-        None => ApiError::service_unavailable("NOT_CONFIGURED", "Pre-signed URLs not configured"),
+        None => ApiError::service_unavailable(
+            ApiError::NOT_CONFIGURED,
+            "Pre-signed URLs not configured",
+        ),
     }
 }
 
@@ -80,6 +83,9 @@ pub async fn get_download_url(
                 ),
             }
         }
-        None => ApiError::service_unavailable("NOT_CONFIGURED", "Pre-signed URLs not configured"),
+        None => ApiError::service_unavailable(
+            ApiError::NOT_CONFIGURED,
+            "Pre-signed URLs not configured",
+        ),
     }
 }

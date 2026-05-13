@@ -945,16 +945,10 @@ pub fn build_router_with_static(
                     let is_maintenance_toggle = path == "/api/admin/maintenance";
                     if !is_read && !is_maintenance_toggle {
                         return Ok::<_, std::convert::Infallible>(
-                            axum::response::Response::builder()
-                                .status(503)
-                                .header("Content-Type", "application/json")
-                                .body(axum::body::Body::from(
-                                    serde_json::json!({
-                                        "error": "service_unavailable",
-                                        "message": "Server is in maintenance mode. Write operations are temporarily disabled."
-                                    }).to_string(),
-                                ))
-                                .unwrap(),
+                            crate::api_error::ApiError::service_unavailable(
+                                crate::api_error::ApiError::MAINTENANCE_MODE,
+                                "Server is in maintenance mode. Write operations are temporarily disabled.",
+                            ),
                         );
                     }
                 }

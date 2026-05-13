@@ -123,7 +123,7 @@ pub async fn auth_login(
     let oidc = match &state.oidc {
         Some(v) => v,
         None => {
-            return ApiError::service_unavailable("NOT_CONFIGURED", "OIDC not configured");
+            return ApiError::service_unavailable(ApiError::NOT_CONFIGURED, "OIDC not configured");
         }
     };
 
@@ -180,7 +180,7 @@ pub async fn auth_change_password(
     let body_bytes = match axum::body::to_bytes(body, usize::MAX).await {
         Ok(b) => b,
         Err(_) => {
-            return ApiError::bad_request("INVALID_BODY", "Failed to read request body");
+            return ApiError::bad_request(ApiError::INVALID_BODY, "Failed to read request body");
         }
     };
 
@@ -195,13 +195,16 @@ pub async fn auth_change_password(
             Some(p) => p.to_string(),
             None => {
                 return ApiError::bad_request(
-                    "MISSING_FIELD",
+                    ApiError::MISSING_FIELD,
                     "Request body must contain 'password' field",
                 );
             }
         },
         Err(_) => {
-            return ApiError::bad_request("INVALID_JSON", "Request body must be valid JSON");
+            return ApiError::bad_request(
+                ApiError::INVALID_JSON,
+                "Request body must be valid JSON",
+            );
         }
     };
 
@@ -209,11 +212,14 @@ pub async fn auth_change_password(
 
     // Reject weak passwords
     if password.len() < 8 {
-        return ApiError::bad_request("WEAK_PASSWORD", "Password must be at least 8 characters");
+        return ApiError::bad_request(
+            ApiError::WEAK_PASSWORD,
+            "Password must be at least 8 characters",
+        );
     }
     if security::is_default_password(&password) {
         return ApiError::bad_request(
-            "WEAK_PASSWORD",
+            ApiError::WEAK_PASSWORD,
             "New password matches a known weak/default password. Choose a stronger value.",
         );
     }
@@ -296,7 +302,7 @@ pub async fn auth_callback(
     let oidc = match &state.oidc {
         Some(v) => v,
         None => {
-            return ApiError::service_unavailable("NOT_CONFIGURED", "OIDC not configured");
+            return ApiError::service_unavailable(ApiError::NOT_CONFIGURED, "OIDC not configured");
         }
     };
 

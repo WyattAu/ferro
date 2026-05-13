@@ -250,7 +250,7 @@ pub async fn restore_trash(
 
     let entry = match state.trash.remove(&normalized) {
         Some((_, entry)) => entry,
-        None => return ApiError::not_found("TRASH_NOT_FOUND", "File not found in trash"),
+        None => return ApiError::not_found(ApiError::TRASH_NOT_FOUND, "File not found in trash"),
     };
 
     if let Some(ref db) = state.db {
@@ -295,7 +295,7 @@ pub async fn purge_trash(
             persist_trash_remove(db, &normalized);
         }
     } else {
-        return ApiError::not_found("TRASH_NOT_FOUND", "File not found in trash");
+        return ApiError::not_found(ApiError::TRASH_NOT_FOUND, "File not found in trash");
     }
 
     (

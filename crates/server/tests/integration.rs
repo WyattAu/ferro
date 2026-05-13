@@ -1698,8 +1698,29 @@ async fn test_cedar_no_cedar_configured_passes_through() {
 // ── WOPI integration tests ────────────────────────────────────────────
 
 #[tokio::test]
-async fn test_wopi_discovery_returns_xml() {
+async fn test_wopi_discovery_returns_503_when_not_configured() {
     let app = make_app();
+
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/hosting/discovery")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+}
+
+#[tokio::test]
+async fn test_wopi_discovery_returns_xml() {
+    let state = ferro_server::AppState::in_memory()
+        .with_wopi_token_secret("test-wopi-secret".to_string())
+        .with_wopi_office_url("http://localhost:9980".to_string());
+    let app = ferro_server::build_router(state);
 
     let resp = app
         .clone()
@@ -1724,6 +1745,7 @@ async fn test_wopi_discovery_returns_xml() {
     assert!(body.contains("<wopi-discovery>"));
     assert!(body.contains("action name=\"edit\""));
     assert!(body.contains("action name=\"view\""));
+    assert!(body.contains("urlsrc=\"http://localhost:9980\""));
 }
 
 #[tokio::test]

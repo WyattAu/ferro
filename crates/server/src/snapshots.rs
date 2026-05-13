@@ -223,7 +223,7 @@ pub async fn delete_snapshot_by_id(
     if state.snapshot_store.delete(&id).await {
         (StatusCode::NO_CONTENT, "").into_response()
     } else {
-        ApiError::not_found("SNAPSHOT_NOT_FOUND", "Snapshot not found")
+        ApiError::not_found(ApiError::SNAPSHOT_NOT_FOUND, "Snapshot not found")
     }
 }
 
@@ -235,7 +235,7 @@ pub async fn restore_snapshot(
     let snapshot = match state.snapshot_store.get(&id).await {
         Some(s) => s,
         None => {
-            return ApiError::not_found("SNAPSHOT_NOT_FOUND", "Snapshot not found");
+            return ApiError::not_found(ApiError::SNAPSHOT_NOT_FOUND, "Snapshot not found");
         }
     };
 

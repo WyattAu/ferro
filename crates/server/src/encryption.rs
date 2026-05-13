@@ -91,8 +91,11 @@ pub async fn encrypt_file(
     let content = match state.storage.get(&req.path).await {
         Ok(c) => c,
         Err(_) => {
-            return crate::api_error::ApiError::not_found("FILE_NOT_FOUND", "File not found")
-                .into_response();
+            return crate::api_error::ApiError::not_found(
+                crate::api_error::ApiError::FILE_NOT_FOUND,
+                "File not found",
+            )
+            .into_response();
         }
     };
 
@@ -112,13 +115,13 @@ pub async fn encrypt_file(
             )
                 .into_response(),
             Err(e) => crate::api_error::ApiError::internal(
-                "ENCRYPT_FAILED",
+                crate::api_error::ApiError::INTERNAL_ERROR,
                 format!("Failed to write encrypted file: {e}"),
             )
             .into_response(),
         },
         Err(e) => crate::api_error::ApiError::internal(
-            "ENCRYPT_FAILED",
+            crate::api_error::ApiError::INTERNAL_ERROR,
             format!("Encryption failed: {e}"),
         )
         .into_response(),
@@ -138,14 +141,20 @@ pub async fn decrypt_file(
     let content = match state.storage.get(&req.path).await {
         Ok(c) => c,
         Err(_) => {
-            return crate::api_error::ApiError::not_found("FILE_NOT_FOUND", "File not found")
-                .into_response();
+            return crate::api_error::ApiError::not_found(
+                crate::api_error::ApiError::FILE_NOT_FOUND,
+                "File not found",
+            )
+            .into_response();
         }
     };
 
     if !is_age_encrypted(&content) {
-        return crate::api_error::ApiError::bad_request("NOT_ENCRYPTED", "File is not encrypted")
-            .into_response();
+        return crate::api_error::ApiError::bad_request(
+            crate::api_error::ApiError::NOT_ENCRYPTED,
+            "File is not encrypted",
+        )
+        .into_response();
     }
 
     match decrypt_content(&content, &req.passphrase).await {
@@ -164,13 +173,13 @@ pub async fn decrypt_file(
             )
                 .into_response(),
             Err(e) => crate::api_error::ApiError::internal(
-                "DECRYPT_FAILED",
+                crate::api_error::ApiError::DECRYPT_FAILED,
                 format!("Failed to write decrypted file: {e}"),
             )
             .into_response(),
         },
         Err(e) => crate::api_error::ApiError::bad_request(
-            "DECRYPT_FAILED",
+            crate::api_error::ApiError::DECRYPT_FAILED,
             format!("Decryption failed: wrong passphrase? {e}"),
         )
         .into_response(),

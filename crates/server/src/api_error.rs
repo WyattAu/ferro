@@ -132,7 +132,7 @@ impl ApiError {
     pub fn quota_exceeded(current: u64, limit: u64, requested: u64) -> Response {
         Self::with_details(
             StatusCode::PAYLOAD_TOO_LARGE,
-            "QUOTA_EXCEEDED",
+            Self::QUOTA_EXCEEDED,
             "Storage quota exceeded",
             format!(
                 "Current usage: {} bytes ({} MB), quota: {} bytes ({} MB), requested: {} bytes ({} MB)",
@@ -175,6 +175,41 @@ impl ApiError {
     pub const NOT_FOUND: &'static str = "NOT_FOUND";
     pub const BAD_REQUEST: &'static str = "BAD_REQUEST";
     pub const CONFLICT: &'static str = "CONFLICT";
+
+    // User management
+    pub const USER_NOT_FOUND: &'static str = "USER_NOT_FOUND";
+    pub const USER_EXISTS: &'static str = "USER_EXISTS";
+    pub const USER_CONFLICT: &'static str = "USER_CONFLICT";
+    pub const USER_CREATE_ERROR: &'static str = "USER_CREATE_ERROR";
+    pub const USER_ERROR: &'static str = "USER_ERROR";
+    pub const ADMIN_REQUIRED: &'static str = "ADMIN_REQUIRED";
+    pub const INVALID_INPUT: &'static str = "INVALID_INPUT";
+    pub const INVALID_BODY: &'static str = "INVALID_BODY";
+    pub const INVALID_JSON: &'static str = "INVALID_JSON";
+    pub const MISSING_FIELD: &'static str = "MISSING_FIELD";
+    pub const WEAK_PASSWORD: &'static str = "WEAK_PASSWORD";
+    pub const PASSWORD_CHANGE_REQUIRED: &'static str = "PASSWORD_CHANGE_REQUIRED";
+    pub const PASSWORD_ERROR: &'static str = "PASSWORD_ERROR";
+
+    // Configuration / feature flags
+    pub const NOT_CONFIGURED: &'static str = "NOT_CONFIGURED";
+    pub const MAINTENANCE_MODE: &'static str = "MAINTENANCE_MODE";
+
+    // Trash & snapshots
+    pub const TRASH_NOT_FOUND: &'static str = "TRASH_NOT_FOUND";
+    pub const SNAPSHOT_NOT_FOUND: &'static str = "SNAPSHOT_NOT_FOUND";
+
+    // Encryption
+    pub const NOT_ENCRYPTED: &'static str = "NOT_ENCRYPTED";
+    pub const ENCRYPT_FAILED: &'static str = "ENCRYPT_FAILED";
+    pub const DECRYPT_FAILED: &'static str = "DECRYPT_FAILED";
+
+    // Generic HTTP helpers
+    pub const QUOTA_EXCEEDED: &'static str = "QUOTA_EXCEEDED";
+    pub const SERVICE_UNAVAILABLE: &'static str = "SERVICE_UNAVAILABLE";
+    pub const NOT_IMPLEMENTED: &'static str = "NOT_IMPLEMENTED";
+    pub const PAYLOAD_TOO_LARGE: &'static str = "PAYLOAD_TOO_LARGE";
+    pub const BAD_GATEWAY: &'static str = "BAD_GATEWAY";
 }
 
 #[cfg(test)]

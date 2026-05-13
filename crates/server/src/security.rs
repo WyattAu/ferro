@@ -538,9 +538,10 @@ pub fn is_password_change_allowed_path(path: &str) -> bool {
 
 /// Build a 403 response requiring password change.
 pub fn response_require_password_change() -> axum::response::Response {
+    use crate::api_error::ApiError;
     let body = axum::Json(serde_json::json!({
         "error": "Default password in use. Password change required before accessing this resource.",
-        "error_code": "PASSWORD_CHANGE_REQUIRED",
+        "error_code": ApiError::PASSWORD_CHANGE_REQUIRED,
         "action": "POST /api/auth/change-password with {\"password\":\"<new-password>\"}"
     }));
     let mut response = (StatusCode::FORBIDDEN, body).into_response();

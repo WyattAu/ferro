@@ -191,6 +191,18 @@ pub fn discovery_route<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
 pub async fn wopi_discovery(Extension(state): Extension<WopiState>) -> Response {
     let urlsrc = state.wopi_office_url.as_str();
 
+    if urlsrc.is_empty() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            axum::Json(serde_json::json!({
+                "error": "WOPI not configured",
+                "error_code": "NOT_CONFIGURED",
+                "message": "Set --wopi-office-url to enable WOPI discovery."
+            })),
+        )
+            .into_response();
+    }
+
     let discovery_xml = format!(
         r#"<?xml version="1.0" encoding="utf-8"?>
 <wopi-discovery>
