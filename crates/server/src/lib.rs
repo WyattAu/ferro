@@ -211,6 +211,11 @@ pub struct AppState {
     pub preferences: Arc<dyn PreferenceStore>,
     pub read_cache: Arc<read_cache::ReadCache>,
     pub request_count: Arc<std::sync::atomic::AtomicU64>,
+    /// Request duration histogram: buckets for <1ms, <5ms, <10ms, <25ms, <50ms,
+    /// <100ms, <250ms, <500ms, <1s, <5s, >=5s. Each bucket is an AtomicU64.
+    pub request_duration_buckets: Arc<[std::sync::atomic::AtomicU64; 11]>,
+    /// Per-status-code request counters: index 0 = 2xx, 1 = 3xx, 2 = 4xx, 3 = 5xx.
+    pub request_status_counts: Arc<[std::sync::atomic::AtomicU64; 4]>,
     pub sync_clock: Arc<std::sync::atomic::AtomicU64>,
     pub webhooks: Arc<tokio::sync::RwLock<Vec<webhooks::WebhookConfig>>>,
     pub thumbnail_size: u32,
@@ -268,6 +273,12 @@ impl AppState {
             preferences: Arc::new(search::InMemoryPreferenceStore::new()),
             read_cache: Arc::new(read_cache::ReadCache::default()),
             request_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            request_duration_buckets: Arc::new(std::array::from_fn(|_| {
+                std::sync::atomic::AtomicU64::new(0)
+            })),
+            request_status_counts: Arc::new(std::array::from_fn(|_| {
+                std::sync::atomic::AtomicU64::new(0)
+            })),
             sync_clock: Arc::new(std::sync::atomic::AtomicU64::new(1)),
             webhooks: Arc::new(tokio::sync::RwLock::new(Vec::new())),
             data_dir: None,
@@ -858,6 +869,8 @@ pub fn build_router_with_static(
     api_version: &str,
 ) -> Router {
     let request_counter = state.request_count.clone();
+    let duration_buckets = state.request_duration_buckets.clone();
+    let status_counts = state.request_status_counts.clone();
     let auth_enabled = state.auth_enabled();
     let oidc = state.oidc.clone();
     let cedar = state.cedar.clone();
@@ -1192,7 +1205,9 @@ pub fn build_router_with_static(
         .layer(axum::middleware::from_fn(
             move |req: Request<Body>, next: Next| {
                 let counter = request_counter.clone();
-                request_logging::request_logging_middleware(counter, req, next)
+                let buckets = duration_buckets.clone();
+                let statuses = status_counts.clone();
+                request_logging::request_logging_middleware(counter, buckets, statuses, req, next)
             },
         ))
         .layer(axum::middleware::from_fn(

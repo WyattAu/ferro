@@ -5,6 +5,8 @@ use axum::response::{IntoResponse, Response};
 
 /// GET /metrics/prometheus — return server metrics in Prometheus format.
 pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Response {
+    use std::sync::atomic::Ordering;
+
     let uptime = state.started_at.elapsed().as_secs_f64();
 
     let mut file_count = 0u64;
@@ -18,9 +20,28 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
         }
     }
 
-    let request_count = state
-        .request_count
-        .load(std::sync::atomic::Ordering::Relaxed);
+    let request_count = state.request_count.load(Ordering::Relaxed);
+
+    // Read histogram buckets.
+    let buckets = &state.request_duration_buckets;
+    let le_001ms = buckets[0].load(Ordering::Relaxed);
+    let le_005ms = buckets[1].load(Ordering::Relaxed);
+    let le_010ms = buckets[2].load(Ordering::Relaxed);
+    let le_025ms = buckets[3].load(Ordering::Relaxed);
+    let le_050ms = buckets[4].load(Ordering::Relaxed);
+    let le_100ms = buckets[5].load(Ordering::Relaxed);
+    let le_250ms = buckets[6].load(Ordering::Relaxed);
+    let le_500ms = buckets[7].load(Ordering::Relaxed);
+    let le_1s = buckets[8].load(Ordering::Relaxed);
+    let le_5s = buckets[9].load(Ordering::Relaxed);
+    let le_inf = buckets[10].load(Ordering::Relaxed);
+
+    // Read per-status-class counters.
+    let statuses = &state.request_status_counts;
+    let status_2xx = statuses[0].load(Ordering::Relaxed);
+    let status_3xx = statuses[1].load(Ordering::Relaxed);
+    let status_4xx = statuses[2].load(Ordering::Relaxed);
+    let status_5xx = statuses[3].load(Ordering::Relaxed);
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -46,6 +67,27 @@ ferro_wasm_workers_loaded 0
 # HELP ferro_http_requests_total Total HTTP requests
 # TYPE ferro_http_requests_total counter
 ferro_http_requests_total {request_count}
+# HELP ferro_http_request_duration_seconds Request duration histogram
+# TYPE ferro_http_request_duration_seconds histogram
+ferro_http_request_duration_seconds_bucket{{le="0.001"}} {le_001ms}
+ferro_http_request_duration_seconds_bucket{{le="0.005"}} {le_005ms}
+ferro_http_request_duration_seconds_bucket{{le="0.010"}} {le_010ms}
+ferro_http_request_duration_seconds_bucket{{le="0.025"}} {le_025ms}
+ferro_http_request_duration_seconds_bucket{{le="0.050"}} {le_050ms}
+ferro_http_request_duration_seconds_bucket{{le="0.100"}} {le_100ms}
+ferro_http_request_duration_seconds_bucket{{le="0.250"}} {le_250ms}
+ferro_http_request_duration_seconds_bucket{{le="0.500"}} {le_500ms}
+ferro_http_request_duration_seconds_bucket{{le="1.0"}} {le_1s}
+ferro_http_request_duration_seconds_bucket{{le="5.0"}} {le_5s}
+ferro_http_request_duration_seconds_bucket{{le="+Inf"}} {le_inf}
+ferro_http_request_duration_seconds_sum 0
+ferro_http_request_duration_seconds_count {request_count}
+# HELP ferro_http_responses_total HTTP responses by status class
+# TYPE ferro_http_responses_total counter
+ferro_http_responses_total{{status_class="2xx"}} {status_2xx}
+ferro_http_responses_total{{status_class="3xx"}} {status_3xx}
+ferro_http_responses_total{{status_class="4xx"}} {status_4xx}
+ferro_http_responses_total{{status_class="5xx"}} {status_5xx}
 "#,
         uptime = uptime,
         file_count = file_count,
