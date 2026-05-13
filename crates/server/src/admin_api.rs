@@ -225,6 +225,78 @@ pub async fn admin_audit(
         .into_response()
 }
 
+/// GET /api/admin/maintenance — check current maintenance mode status.
+/// POST /api/admin/maintenance — toggle maintenance mode on/off.
+/// The body should be `{ "enabled": true }` or `{ "enabled": false }`.
+pub async fn admin_maintenance(
+    State(state): State<AppState>,
+    req: axum::extract::Request,
+) -> Response {
+    let method = req.method().clone();
+
+    if method == axum::http::Method::GET {
+        let enabled = state
+            .maintenance_mode
+            .load(std::sync::atomic::Ordering::Relaxed);
+        return (
+            StatusCode::OK,
+            axum::Json(serde_json::json!({
+                "maintenance_mode": enabled,
+            })),
+        )
+            .into_response();
+    }
+
+    // POST: toggle maintenance mode
+    let (_, body) = req.into_parts();
+    let bytes = match axum::body::to_bytes(body, 1024).await {
+        Ok(b) => b,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({
+                    "error": "bad_request",
+                    "message": "Failed to read request body",
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let input: serde_json::Value = match serde_json::from_slice(&bytes) {
+        Ok(v) => v,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({
+                    "error": "bad_request",
+                    "message": "Request body must be JSON with 'enabled' boolean field",
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let enabled = input["enabled"].as_bool().unwrap_or(false);
+    state
+        .maintenance_mode
+        .store(enabled, std::sync::atomic::Ordering::Relaxed);
+
+    if enabled {
+        tracing::warn!("Maintenance mode ENABLED — write operations are blocked");
+    } else {
+        tracing::info!("Maintenance mode DISABLED — normal operations resumed");
+    }
+
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "maintenance_mode": enabled,
+        })),
+    )
+        .into_response()
+}
+
 #[cfg(test)]
 mod tests {
 

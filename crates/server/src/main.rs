@@ -603,6 +603,13 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
+    if cli.maintenance_mode {
+        state
+            .maintenance_mode
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        tracing::warn!("Server started in MAINTENANCE MODE — all write operations are blocked");
+    }
+
     let lock_manager = state.lock_manager.clone();
     let app = build_router_with_static(
         state.clone(),

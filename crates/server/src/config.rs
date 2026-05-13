@@ -187,6 +187,10 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_GRACEFUL_SHUTDOWN_TIMEOUT", default_value = "30")]
     pub graceful_shutdown_timeout: u64,
 
+    /// Start in maintenance mode (all write operations return 503).
+    #[arg(long, env = "FERRO_MAINTENANCE_MODE")]
+    pub maintenance_mode: bool,
+
     /// Comma-separated list of allowed CORS origins (default "*" allows all).
     #[arg(long, env = "FERRO_CORS_ALLOWED_ORIGINS", default_value = "*")]
     pub cors_allowed_origins: String,

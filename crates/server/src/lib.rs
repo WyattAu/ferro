@@ -198,6 +198,9 @@ pub struct AppState {
     /// Set to true when the admin password is changed at runtime via
     /// POST /api/auth/change-password, lifting default-password restrictions.
     pub admin_password_rotated: Arc<std::sync::atomic::AtomicBool>,
+    /// When true, all write operations (PUT, DELETE, POST, PATCH, MKCOL, etc.)
+    /// return 503 Service Unavailable. GET, HEAD, OPTIONS pass through.
+    pub maintenance_mode: Arc<std::sync::atomic::AtomicBool>,
     pub started_at: std::time::Instant,
     pub favorites: Arc<dyn FavoriteStore>,
     pub trash: Arc<DashMap<String, TrashedEntry>>,
@@ -254,6 +257,7 @@ impl AppState {
             admin_user: None,
             admin_password: None,
             admin_password_rotated: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            maintenance_mode: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             started_at: std::time::Instant::now(),
             favorites: Arc::new(favorites::InMemoryFavoriteStore::new()),
             trash: Arc::new(DashMap::new()),
@@ -755,6 +759,10 @@ fn api_routes(
         )
         .route("/admin/audit", axum::routing::get(admin_api::admin_audit))
         .route(
+            "/admin/maintenance",
+            axum::routing::get(admin_api::admin_maintenance).post(admin_api::admin_maintenance),
+        )
+        .route(
             "/admin/backup/:id",
             axum::routing::delete(backup::delete_backup),
         )
@@ -909,6 +917,38 @@ pub fn build_router_with_static(
                 Ok(next.run(req).await)
             }
         });
+
+    let maintenance_mode = state.maintenance_mode.clone();
+    let maintenance_layer = axum::middleware::from_fn(
+        move |req: axum::http::Request<Body>, next: Next| {
+            let flag = maintenance_mode.clone();
+            async move {
+                if flag.load(std::sync::atomic::Ordering::Relaxed) {
+                    let method = req.method();
+                    let path = req.uri().path();
+                    // Allow read operations and the maintenance toggle endpoint.
+                    let is_read = matches!(method.as_str(), "GET" | "HEAD" | "OPTIONS");
+                    // Allow the admin maintenance toggle even during maintenance.
+                    let is_maintenance_toggle = path == "/api/admin/maintenance";
+                    if !is_read && !is_maintenance_toggle {
+                        return Ok::<_, std::convert::Infallible>(
+                            axum::response::Response::builder()
+                                .status(503)
+                                .header("Content-Type", "application/json")
+                                .body(axum::body::Body::from(
+                                    serde_json::json!({
+                                        "error": "service_unavailable",
+                                        "message": "Server is in maintenance mode. Write operations are temporarily disabled."
+                                    }).to_string(),
+                                ))
+                                .unwrap(),
+                        );
+                    }
+                }
+                Ok(next.run(req).await)
+            }
+        },
+    );
 
     let cors_origins = cors_allowed_origins.to_string();
     let cors_auth_enabled = state.auth_enabled();
@@ -1142,6 +1182,7 @@ pub fn build_router_with_static(
         .layer(auth_layer)
         .layer(simple_auth_layer)
         .layer(default_password_layer)
+        .layer(maintenance_layer)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             security::auth_guard_middleware,
