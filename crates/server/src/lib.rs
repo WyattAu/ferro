@@ -761,6 +761,10 @@ fn api_routes(
         .route("/admin/backup", axum::routing::post(backup::create_backup))
         .route("/admin/backups", axum::routing::get(backup::list_backups))
         .route(
+            "/admin/integrity",
+            axum::routing::get(backup::audit_integrity),
+        )
+        .route(
             "/admin/restore",
             axum::routing::post(backup::restore_backup),
         )

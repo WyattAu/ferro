@@ -252,6 +252,120 @@ pub async fn restore_backup(
         .into_response()
 }
 
+/// Result of checking a single file's integrity.
+#[derive(Debug, Serialize)]
+pub struct IntegrityCheckResult {
+    pub path: String,
+    pub status: IntegrityStatus,
+    pub stored_hash: String,
+    pub computed_hash: String,
+}
+
+/// Integrity status for a single file.
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum IntegrityStatus {
+    /// Computed hash matches stored hash.
+    Ok,
+    /// Computed hash differs from stored hash (data corruption).
+    Mismatch,
+    /// File could not be read for verification.
+    Unreadable,
+    /// Stored hash is missing or invalid.
+    InvalidHash,
+}
+
+/// Summary of an integrity audit run.
+#[derive(Debug, Serialize)]
+pub struct IntegrityAuditReport {
+    pub scanned_at: String,
+    pub total_files: usize,
+    pub ok: usize,
+    pub mismatches: usize,
+    pub unreadable: usize,
+    pub invalid_hashes: usize,
+    pub findings: Vec<IntegrityCheckResult>,
+}
+
+/// GET /api/admin/integrity — audit all stored files for hash integrity.
+///
+/// Reads every file from storage, recomputes its SHA-256 digest, and compares
+/// it against the stored `content_hash`. Returns a report of all mismatches,
+/// unreadable files, and invalid stored hashes.
+pub async fn audit_integrity(State(state): State<AppState>) -> Response {
+    let entries = match state.storage.list_all("/", 10000).await {
+        Ok(e) => e,
+        Err(e) => {
+            return ApiError::internal(
+                ApiError::INTERNAL_ERROR,
+                format!("Failed to list files for integrity audit: {}", e),
+            );
+        }
+    };
+
+    let mut report = IntegrityAuditReport {
+        scanned_at: chrono::Utc::now().to_rfc3339(),
+        total_files: 0,
+        ok: 0,
+        mismatches: 0,
+        unreadable: 0,
+        invalid_hashes: 0,
+        findings: Vec::new(),
+    };
+
+    for meta in &entries {
+        if meta.is_collection {
+            continue;
+        }
+
+        report.total_files += 1;
+        let stored_hash = meta.content_hash.as_str().to_string();
+
+        // Validate stored hash is proper 64-char hex
+        if stored_hash.len() != 64 || stored_hash.chars().any(|c| !c.is_ascii_hexdigit()) {
+            report.invalid_hashes += 1;
+            report.findings.push(IntegrityCheckResult {
+                path: meta.path.clone(),
+                status: IntegrityStatus::InvalidHash,
+                stored_hash,
+                computed_hash: String::new(),
+            });
+            continue;
+        }
+
+        // Read file and recompute hash
+        match state.storage.get(&meta.path).await {
+            Ok(content) => {
+                use sha2::{Digest, Sha256};
+                let computed = hex::encode(Sha256::digest(&content));
+
+                if computed == stored_hash {
+                    report.ok += 1;
+                } else {
+                    report.mismatches += 1;
+                    report.findings.push(IntegrityCheckResult {
+                        path: meta.path.clone(),
+                        status: IntegrityStatus::Mismatch,
+                        stored_hash,
+                        computed_hash: computed,
+                    });
+                }
+            }
+            Err(_) => {
+                report.unreadable += 1;
+                report.findings.push(IntegrityCheckResult {
+                    path: meta.path.clone(),
+                    status: IntegrityStatus::Unreadable,
+                    stored_hash,
+                    computed_hash: String::new(),
+                });
+            }
+        }
+    }
+
+    (StatusCode::OK, axum::Json(report)).into_response()
+}
+
 /// DELETE /api/admin/backup/:id — delete a backup.
 pub async fn delete_backup(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let data_dir = match &state.data_dir {
@@ -524,5 +638,100 @@ mod tests {
 
         let list_json = body_json(list_resp).await;
         assert_eq!(list_json.as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_integrity_audit_all_ok() {
+        let (app, _dir) = backup_test_app();
+
+        // Store two files
+        let files_to_store: Vec<(&str, &[u8])> = vec![
+            ("/integrity-ok/a.txt", b"hello integrity"),
+            ("/integrity-ok/b.bin", &[0xDE_u8, 0xAD, 0xBE, 0xEF]),
+        ];
+        for (path, content) in &files_to_store {
+            app.clone()
+                .oneshot(
+                    axum::http::Request::builder()
+                        .method("PUT")
+                        .uri(*path)
+                        .body(axum::body::Body::from(content.to_vec()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+        }
+
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/admin/integrity")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = body_json(resp).await;
+        assert_eq!(json["total_files"], 2);
+        assert_eq!(json["ok"], 2);
+        assert_eq!(json["mismatches"], 0);
+        assert_eq!(json["unreadable"], 0);
+        assert!(json["findings"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_integrity_audit_empty_storage() {
+        let (app, _dir) = backup_test_app();
+
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/admin/integrity")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = body_json(resp).await;
+        assert_eq!(json["total_files"], 0);
+        assert_eq!(json["ok"], 0);
+    }
+
+    #[tokio::test]
+    async fn test_integrity_report_has_scanned_at() {
+        let (app, _dir) = backup_test_app();
+
+        app.clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("PUT")
+                    .uri("/integrity-ts/file.txt")
+                    .body(axum::body::Body::from("data"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/admin/integrity")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let json = body_json(resp).await;
+        // scanned_at should be a valid ISO 8601 timestamp
+        let scanned_at = json["scanned_at"].as_str().unwrap();
+        assert!(scanned_at.parse::<chrono::DateTime<chrono::Utc>>().is_ok());
     }
 }
