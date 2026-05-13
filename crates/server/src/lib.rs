@@ -1270,6 +1270,36 @@ pub async fn readiness(State(state): State<AppState>) -> Response {
         }),
     );
 
+    // Check SQLite database reachability if configured.
+    let db_ok = match &state.db {
+        Some(db) => db
+            .lock()
+            .ok()
+            .and_then(|conn| conn.execute_batch("SELECT 1;").ok())
+            .is_some(),
+        None => true, // No DB configured, not a failure.
+    };
+    subsystems.insert(
+        "database".to_string(),
+        serde_json::json!(if db_ok { "ok" } else { "error" }),
+    );
+    if !db_ok {
+        healthy = false;
+    }
+
+    // Check search index readiness if configured.
+    let search_ok = match &state.search {
+        Some(search) => search.try_read().is_ok(),
+        None => true, // No search configured, not a failure.
+    };
+    subsystems.insert(
+        "search".to_string(),
+        serde_json::json!(if search_ok { "ok" } else { "error" }),
+    );
+    if !search_ok {
+        healthy = false;
+    }
+
     let status = if healthy { "ok" } else { "degraded" };
     let code = if healthy {
         StatusCode::OK
