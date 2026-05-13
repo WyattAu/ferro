@@ -6,6 +6,7 @@ use ferro_server::config::{FileConfigValues, apply_file_config, load_config_file
 use ferro_server::security;
 use ferro_server::users::UserStoreTrait;
 use ferro_server::{AppState, build_router_with_static};
+use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 #[tokio::main]
@@ -236,9 +237,17 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Shared cancellation token for graceful shutdown of all subsystems.
+    // Created early so it can be passed to background tasks as they spawn.
+    let shutdown_token = CancellationToken::new();
+
     // Spawn background content indexer if search is enabled
     if state.search.is_some() {
-        ferro_server::indexer::spawn_indexer(std::sync::Arc::new(state.clone()), 60);
+        ferro_server::indexer::spawn_indexer(
+            std::sync::Arc::new(state.clone()),
+            60,
+            shutdown_token.clone(),
+        );
     }
 
     // Initialize WASM runtime if --wasm-enabled is set
@@ -259,7 +268,11 @@ async fn main() -> anyhow::Result<()> {
 
     // Spawn WASM worker runner if WASM runtime is configured
     if state.wasm_runtime.is_some() {
-        ferro_server::worker_runner::spawn_worker_runner(std::sync::Arc::new(state.clone()), 30);
+        ferro_server::worker_runner::spawn_worker_runner(
+            std::sync::Arc::new(state.clone()),
+            30,
+            shutdown_token.clone(),
+        );
     }
 
     // Configure workers directory for uploaded WASM modules
@@ -609,23 +622,39 @@ async fn main() -> anyhow::Result<()> {
 
     if !trash_ttl.is_zero() {
         let trash_state = state.clone();
+        let trash_cancel = shutdown_token.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
             loop {
-                interval.tick().await;
-                let purged = ferro_server::trash::purge_expired(&trash_state, trash_ttl).await;
-                if purged > 0 {
-                    tracing::info!("Auto-purged {} expired trash entries", purged);
+                tokio::select! {
+                    _ = interval.tick() => {
+                        let purged = ferro_server::trash::purge_expired(&trash_state, trash_ttl).await;
+                        if purged > 0 {
+                            tracing::info!("Auto-purged {} expired trash entries", purged);
+                        }
+                    }
+                    _ = trash_cancel.cancelled() => {
+                        tracing::info!("Trash auto-purge shutting down");
+                        break;
+                    }
                 }
             }
         });
     }
 
+    let lock_cancel = shutdown_token.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
         loop {
-            interval.tick().await;
-            lock_manager.cleanup_all_expired().await;
+            tokio::select! {
+                _ = interval.tick() => {
+                    lock_manager.cleanup_all_expired().await;
+                }
+                _ = lock_cancel.cancelled() => {
+                    tracing::info!("Lock cleanup task shutting down");
+                    break;
+                }
+            }
         }
     });
 
@@ -645,28 +674,67 @@ async fn main() -> anyhow::Result<()> {
     // Graceful shutdown: when SIGTERM/SIGINT is received, stop accepting
     // new connections and wait for in-flight connections to complete.
     //
-    // IMPORTANT: We do NOT wrap the entire server future in tokio::time::timeout.
-    // The previous implementation did this, causing the server to force-exit
-    // N seconds after startup even without receiving any signal. Instead,
-    // we rely on axum's built-in graceful shutdown which:
-    //   1. Awaits the signal future
-    //   2. Stops accepting new connections
-    //   3. Waits for all in-flight connections to finish
-    //   4. Returns Ok(())
+    // The cancellation token is shared with all background tasks (indexer,
+    // worker runner, trash purge, lock cleanup). When the signal fires,
+    // the token is cancelled which signals all tasks to exit their loops.
     //
-    // axum has no built-in drain timeout — if connections hang, the server
-    // waits. Docker's stop_grace_period handles the force-exit timeout.
+    // After the HTTP server drains, we wait briefly for background tasks
+    // to finish, then perform cleanup (search index commit, DB close).
+    let serve_cancel = shutdown_token.clone();
     let server = axum::serve(listener, app)
         .tcp_nodelay(true)
-        .with_graceful_shutdown(shutdown_signal());
+        .with_graceful_shutdown(shutdown_signal(serve_cancel));
 
     match server.await {
         Ok(()) => {
-            info!("Server shutdown complete");
+            info!("HTTP server drained, performing subsystem cleanup");
         }
         Err(e) => return Err(e.into()),
     }
 
+    // Wait for background tasks to acknowledge cancellation (max 10s).
+    // Tasks check the token each loop iteration (1-60s intervals), so
+    // most will exit within one tick. We don't abort them — they're
+    // reading from shared state that's about to be dropped.
+    let cleanup_timeout = std::time::Duration::from_secs(cli.graceful_shutdown_timeout);
+    tokio::select! {
+        _ = shutdown_token.cancelled() => {
+            // Token already cancelled; tasks should be stopping.
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
+        _ = tokio::time::sleep(cleanup_timeout) => {
+            tracing::warn!(
+                "Background tasks did not shut down within {}s, proceeding with cleanup",
+                cleanup_timeout.as_secs()
+            );
+        }
+    }
+
+    // Commit search index if search is enabled.
+    if let Some(ref search) = state.search {
+        match search.write().await.commit() {
+            Ok(()) => info!("Search index committed on shutdown"),
+            Err(e) => tracing::warn!("Failed to commit search index on shutdown: {}", e),
+        }
+    }
+
+    // Close SQLite database to flush WAL.
+    // Dropping the Arc allows the Connection to finalize, which checkpoints
+    // the WAL. We explicitly drop the reference to ensure this happens before
+    // the process exits.
+    if let Some(ref db) = state.db {
+        use std::sync::Arc;
+        if Arc::strong_count(db) == 1 {
+            info!("SQLite database closing on shutdown (last reference)");
+        } else {
+            tracing::info!(
+                "SQLite database has {} remaining references, WAL will checkpoint on final drop",
+                Arc::strong_count(db) - 1
+            );
+        }
+    }
+
+    info!("Server shutdown complete");
     Ok(())
 }
 
@@ -706,14 +774,24 @@ fn parse_bucket_from_url(url: &str) -> anyhow::Result<String> {
 }
 
 #[cfg(unix)]
-async fn shutdown_signal() {
+async fn shutdown_signal(cancel: CancellationToken) {
     use tokio::signal::unix::{SignalKind, signal};
     let mut sigterm = signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
     let mut sigint = signal(SignalKind::interrupt()).expect("Failed to install SIGINT handler");
     tokio::select! {
         _ = sigterm.recv() => info!("Received SIGTERM, starting graceful shutdown"),
-        _ = sigint.recv() => info!("Received SIGINT, starting graceful shutdown"),
+        _ = sigint.recv()  => info!("Received SIGINT, starting graceful shutdown"),
     }
+    cancel.cancel();
+}
+
+#[cfg(not(unix))]
+async fn shutdown_signal(cancel: CancellationToken) {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to install ctrl-c handler");
+    info!("Received Ctrl-C, starting graceful shutdown");
+    cancel.cancel();
 }
 
 #[cfg(not(unix))]

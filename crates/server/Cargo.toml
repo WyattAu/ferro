@@ -61,7 +61,7 @@ subtle = "2"
 hex = "0.4"
 object_store = "0.11"
 futures = "0.3"
-tokio-util = { version = "0.7", features = ["io"] }
+tokio-util = { version = "0.7", features = ["io", "rt"] }
 url = "2"
 sqlx = { version = "0.8.1", features = ["runtime-tokio", "chrono"], optional = true }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"], optional = true }

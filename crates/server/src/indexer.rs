@@ -113,16 +113,31 @@ pub async fn remove_file(state: &AppState, path: &str) {
     debug!("Auto-removed from index: {}", path);
 }
 
-pub fn spawn_indexer(state: Arc<AppState>, interval_secs: u64) {
+pub fn spawn_indexer(
+    state: Arc<AppState>,
+    interval_secs: u64,
+    cancel: tokio_util::sync::CancellationToken,
+) {
     tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(interval_secs));
 
         tokio::time::sleep(Duration::from_secs(5)).await;
-        index_storage(&state).await;
+        if !cancel.is_cancelled() {
+            index_storage(&state).await;
+        }
 
         loop {
-            interval.tick().await;
-            index_storage(&state).await;
+            tokio::select! {
+                _ = interval.tick() => {
+                    if !cancel.is_cancelled() {
+                        index_storage(&state).await;
+                    }
+                }
+                _ = cancel.cancelled() => {
+                    tracing::info!("Background indexer shutting down");
+                    break;
+                }
+            }
         }
     });
 
