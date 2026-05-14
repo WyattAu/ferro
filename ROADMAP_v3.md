@@ -11,7 +11,7 @@
 | Metric | Value |
 |--------|-------|
 | Workspace crates | 20 |
-| Total tests | 790 passed, 2 ignored |
+| Total tests | 814 passed, 1 ignored |
 | Clippy warnings | 0 |
 | cargo-deny | PASS (advisories, bans, licenses, sources) |
 | cargo-audit | 1 unsound (glib, desktop-only), 20 unmaintained (desktop GTK3 chain) |
@@ -57,7 +57,7 @@ Ferro is a self-hosted file sync and sharing platform written in Rust (edition 2
 | TD-011 | `bincode` 1.3.3 unmaintained (fuse3 transitive) | Low | Monitored |
 | TD-012 | `rustls-pemfile` 2.2.0 unmaintained (object_store transitive) | Low | Monitored |
 | TD-013 | Benchmark regression threshold too lenient (150%) | Low | Open |
-| TD-014 | Docs: rate limiter described as "token bucket" but implemented as fixed-window counter | Low | Open |
+| TD-014 | ~~Docs: rate limiter described as "token bucket" but implemented as fixed-window counter~~ CLOSED: implementation IS token bucket; docs are correct | Low | Closed |
 | TD-015 | `e2e/package-lock.json` missing (npm install fallback used) | Low | Open |
 
 ---
@@ -235,7 +235,6 @@ The `ci.yml` workflow has never successfully executed on GitHub Actions (0 jobs 
 | Item | Description | Priority |
 |------|-------------|----------|
 | Document 10 undocumented crates | Add mdBook pages for auth, webdav-handler, graphql, observability, admin, server-activitypub, server-webrtc, server-wopi, server-versioning, benchmarks | P1 |
-| Fix rate limiter description | Correct "token bucket" to "fixed-window counter" | P2 |
 
 ### 6.3 Deployment
 

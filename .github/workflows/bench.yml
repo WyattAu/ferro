@@ -8,6 +8,9 @@ on:
       - '.github/workflows/bench.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'crates/**'
+      - '.github/workflows/bench.yml'
 
 permissions:
   contents: write

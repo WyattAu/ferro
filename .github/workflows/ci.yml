@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -187,6 +188,7 @@ jobs:
     needs: [build]
     steps:
       - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/download-artifact@v8
         with:
           name: ferro-server-linux
