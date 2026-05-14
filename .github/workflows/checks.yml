@@ -89,7 +89,7 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
       - name: Run audit
-        run: cargo audit --deny unmaintained --deny unsound --deny rustsec
+        run: cargo audit --deny unmaintained --deny unsound --deny yanked
 
   build:
     name: Build Release

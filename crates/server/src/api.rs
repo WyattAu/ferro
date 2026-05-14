@@ -750,20 +750,20 @@ pub async fn put_file(
     }
 
     // Verify declared Content-Type matches actual file magic bytes
-    if let Some(declared) = headers.get("content-type").and_then(|v| v.to_str().ok()) {
-        if let Some(detected) = crate::security::verify_content_type(declared, &body) {
-            return (
-                StatusCode::BAD_REQUEST,
-                axum::Json(serde_json::json!({
-                    "error": "content_type_mismatch",
-                    "message": format!(
-                        "Declared Content-Type '{}' does not match detected type '{}'",
-                        declared, detected
-                    ),
-                })),
-            )
-                .into_response();
-        }
+    if let Some(declared) = headers.get("content-type").and_then(|v| v.to_str().ok())
+        && let Some(detected) = crate::security::verify_content_type(declared, &body)
+    {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "content_type_mismatch",
+                "message": format!(
+                    "Declared Content-Type '{}' does not match detected type '{}'",
+                    declared, detected
+                ),
+            })),
+        )
+            .into_response();
     }
 
     // If-Match: CAS — verify existing ETag matches

@@ -82,12 +82,11 @@ impl AuthAttemptTracker {
     /// Check whether the given IP + username is currently locked out.
     pub fn is_locked_out(&self, client_ip: &str, username: &str) -> bool {
         let key = format!("{}:{}", client_ip, username);
-        if let Some(entry) = self.attempts.get(&key) {
-            if let Some(locked_until) = entry.locked_until {
-                if Instant::now() < locked_until {
-                    return true;
-                }
-            }
+        if let Some(entry) = self.attempts.get(&key)
+            && let Some(locked_until) = entry.locked_until
+            && Instant::now() < locked_until
+        {
+            return true;
         }
         false
     }

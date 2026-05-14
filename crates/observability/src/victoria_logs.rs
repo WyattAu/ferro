@@ -73,25 +73,24 @@ pub async fn vl_promtail_handler(
 
             if let Some(values) = stream.get("values").and_then(|v| v.as_array()) {
                 for value_pair in values {
-                    if let Some(arr) = value_pair.as_array() {
-                        if arr.len() >= 2 {
-                            if let Some(ts) = arr[0].as_str() {
-                                let line = arr[1].as_str().unwrap_or("");
-                                let timestamp = ts.parse::<i64>().unwrap_or_else(|_| {
-                                    chrono::Utc::now().timestamp_millis() * 1_000_000
-                                });
-                                buffer.push(LogEntry {
-                                    timestamp,
-                                    line: line.to_string(),
-                                    labels: stream_labels.clone(),
-                                    level: stream_labels
-                                        .get("level")
-                                        .cloned()
-                                        .unwrap_or_else(|| "info".to_string()),
-                                    source: "promtail".to_string(),
-                                });
-                            }
-                        }
+                    if let Some(arr) = value_pair.as_array()
+                        && arr.len() >= 2
+                        && let Some(ts) = arr[0].as_str()
+                    {
+                        let line = arr[1].as_str().unwrap_or("");
+                        let timestamp = ts
+                            .parse::<i64>()
+                            .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis() * 1_000_000);
+                        buffer.push(LogEntry {
+                            timestamp,
+                            line: line.to_string(),
+                            labels: stream_labels.clone(),
+                            level: stream_labels
+                                .get("level")
+                                .cloned()
+                                .unwrap_or_else(|| "info".to_string()),
+                            source: "promtail".to_string(),
+                        });
                     }
                 }
             }

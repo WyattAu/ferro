@@ -574,19 +574,20 @@ async fn handle_put(
     let already_existed = state.storage.exists(&path).await?;
 
     // Auto-version: snapshot previous content before overwrite
-    if already_existed && state.max_file_versions > 0 {
-        if let Ok(prev) = state.storage.get(&path).await {
-            let ver_state = ferro_server_versioning::VersioningState {
-                data_dir: state.data_dir.clone(),
-                admin_user: state.admin_user.clone(),
-                storage: state.storage.clone(),
-                max_file_versions: state.max_file_versions,
-            };
-            let ver_path = path.clone();
-            tokio::spawn(async move {
-                ferro_server_versioning::auto_version(&ver_state, &ver_path, prev).await;
-            });
-        }
+    if already_existed
+        && state.max_file_versions > 0
+        && let Ok(prev) = state.storage.get(&path).await
+    {
+        let ver_state = ferro_server_versioning::VersioningState {
+            data_dir: state.data_dir.clone(),
+            admin_user: state.admin_user.clone(),
+            storage: state.storage.clone(),
+            max_file_versions: state.max_file_versions,
+        };
+        let ver_path = path.clone();
+        tokio::spawn(async move {
+            ferro_server_versioning::auto_version(&ver_state, &ver_path, prev).await;
+        });
     }
 
     // Determine Content-Type before storing — sniff from extension/content if not provided

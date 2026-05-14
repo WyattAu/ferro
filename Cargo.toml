@@ -27,7 +27,7 @@ resolver = "2"
 version = "2.5.1"
 license = "AGPL-3.0-or-later"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.89"
 
 [workspace.dependencies]
 # Shared dependency versions across all crates

@@ -575,17 +575,17 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    if let Some(ref pw) = state.admin_password {
-        if security::is_default_password(pw) {
-            tracing::warn!(
-                "Server started with weak admin password '{}'. \
-                 All non-whitelisted API requests will be blocked until password is changed \
-                 via POST /api/auth/change-password.",
-                pw
-            );
-            // Allow startup but flag password as default for middleware enforcement.
-            // Refuse to start only if the password is literally empty (no auth at all).
-        }
+    if let Some(ref pw) = state.admin_password
+        && security::is_default_password(pw)
+    {
+        tracing::warn!(
+            "Server started with weak admin password '{}'. \
+             All non-whitelisted API requests will be blocked until password is changed \
+             via POST /api/auth/change-password.",
+            pw
+        );
+        // Allow startup but flag password as default for middleware enforcement.
+        // Refuse to start only if the password is literally empty (no auth at all).
     }
 
     // Hard-reject CORS wildcard with auth enabled (library code logs an error

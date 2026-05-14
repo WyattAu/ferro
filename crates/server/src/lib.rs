@@ -915,16 +915,15 @@ pub fn build_router_with_static(
             let pw = admin_password_for_default_check.clone();
             let rotated = admin_password_rotated.clone();
             async move {
-                if !rotated.load(std::sync::atomic::Ordering::Relaxed) {
-                    if let Some(ref pw_val) = pw {
-                        if security::is_default_password(pw_val) {
-                            let path = req.uri().path();
-                            if !security::is_password_change_allowed_path(path) {
-                                return Ok::<_, std::convert::Infallible>(
-                                    security::response_require_password_change(),
-                                );
-                            }
-                        }
+                if !rotated.load(std::sync::atomic::Ordering::Relaxed)
+                    && let Some(ref pw_val) = pw
+                    && security::is_default_password(pw_val)
+                {
+                    let path = req.uri().path();
+                    if !security::is_password_change_allowed_path(path) {
+                        return Ok::<_, std::convert::Infallible>(
+                            security::response_require_password_change(),
+                        );
                     }
                 }
                 Ok(next.run(req).await)
@@ -1329,129 +1328,129 @@ pub async fn api_and_webdav_fallback(
         .strip_prefix("/api/v1/files/")
         .or_else(|| path_str.strip_prefix("/api/files/"));
 
-    if let Some(file_path) = rest {
-        if !file_path.is_empty() {
-            // ----------------------------------------------------------------
-            // Versioning API: intercept before the generic file-content handler.
-            //
-            // matchit `{path}` only captures a single segment, so nested paths
-            // like /api/v1/files/docs/test.txt/versions never match the
-            // versioning routes registered via .nest(""). They fall through to
-            // this fallback, which previously treated them as file content
-            // requests. We check for the /versions and /diff suffixes here.
-            // ----------------------------------------------------------------
+    if let Some(file_path) = rest
+        && !file_path.is_empty()
+    {
+        // ----------------------------------------------------------------
+        // Versioning API: intercept before the generic file-content handler.
+        //
+        // matchit `{path}` only captures a single segment, so nested paths
+        // like /api/v1/files/docs/test.txt/versions never match the
+        // versioning routes registered via .nest(""). They fall through to
+        // this fallback, which previously treated them as file content
+        // requests. We check for the /versions and /diff suffixes here.
+        // ----------------------------------------------------------------
 
-            // GET|DELETE /files/{*path}/versions/{version_id}
-            if let Some(idx) = file_path.rfind("/versions/") {
-                let filepath = &file_path[..idx];
-                let after = &file_path[idx + "/versions/".len()..];
-                if !filepath.is_empty() {
-                    if let Ok(vid) = after.parse::<u64>() {
-                        let ver_state = ferro_server_versioning::VersioningState {
-                            data_dir: state.data_dir.clone(),
-                            admin_user: state.admin_user.clone(),
-                            storage: state.storage.clone(),
-                            max_file_versions: state.max_file_versions,
-                        };
-                        return match method {
-                            axum::http::Method::GET => {
-                                ferro_server_versioning::get_version(
-                                    axum::Extension(ver_state),
-                                    axum::extract::Path((filepath.to_string(), vid)),
-                                )
-                                .await
-                            }
-                            axum::http::Method::DELETE => {
-                                ferro_server_versioning::delete_version(
-                                    axum::Extension(ver_state),
-                                    axum::extract::Path((filepath.to_string(), vid)),
-                                )
-                                .await
-                            }
-                            _ => (
-                                axum::http::StatusCode::METHOD_NOT_ALLOWED,
-                                "Method not allowed",
-                            )
-                                .into_response(),
-                        };
+        // GET|DELETE /files/{*path}/versions/{version_id}
+        if let Some(idx) = file_path.rfind("/versions/") {
+            let filepath = &file_path[..idx];
+            let after = &file_path[idx + "/versions/".len()..];
+            if !filepath.is_empty()
+                && let Ok(vid) = after.parse::<u64>()
+            {
+                let ver_state = ferro_server_versioning::VersioningState {
+                    data_dir: state.data_dir.clone(),
+                    admin_user: state.admin_user.clone(),
+                    storage: state.storage.clone(),
+                    max_file_versions: state.max_file_versions,
+                };
+                return match method {
+                    axum::http::Method::GET => {
+                        ferro_server_versioning::get_version(
+                            axum::Extension(ver_state),
+                            axum::extract::Path((filepath.to_string(), vid)),
+                        )
+                        .await
                     }
-                }
+                    axum::http::Method::DELETE => {
+                        ferro_server_versioning::delete_version(
+                            axum::Extension(ver_state),
+                            axum::extract::Path((filepath.to_string(), vid)),
+                        )
+                        .await
+                    }
+                    _ => (
+                        axum::http::StatusCode::METHOD_NOT_ALLOWED,
+                        "Method not allowed",
+                    )
+                        .into_response(),
+                };
             }
+        }
 
-            // GET|POST /files/{*path}/versions
-            if let Some(filepath) = file_path.strip_suffix("/versions") {
-                if !filepath.is_empty()
-                    && matches!(method, axum::http::Method::GET | axum::http::Method::POST)
-                {
-                    let ver_state = ferro_server_versioning::VersioningState {
-                        data_dir: state.data_dir.clone(),
-                        admin_user: state.admin_user.clone(),
-                        storage: state.storage.clone(),
-                        max_file_versions: state.max_file_versions,
-                    };
-                    return match method {
-                        axum::http::Method::GET => {
-                            ferro_server_versioning::list_versions(
-                                axum::Extension(ver_state),
-                                axum::extract::Path(filepath.to_string()),
-                            )
-                            .await
-                        }
-                        axum::http::Method::POST => {
-                            ferro_server_versioning::create_version(
-                                axum::Extension(ver_state),
-                                axum::extract::Path(filepath.to_string()),
-                            )
-                            .await
-                        }
-                        _ => unreachable!(),
-                    };
-                }
-            }
-
-            // GET /files/{*path}/diff
-            if let Some(filepath) = file_path.strip_suffix("/diff") {
-                if !filepath.is_empty() && method == axum::http::Method::GET {
-                    let ver_state = ferro_server_versioning::VersioningState {
-                        data_dir: state.data_dir.clone(),
-                        admin_user: state.admin_user.clone(),
-                        storage: state.storage.clone(),
-                        max_file_versions: state.max_file_versions,
-                    };
-                    let params: std::collections::HashMap<String, String> = uri
-                        .query()
-                        .map(|q| {
-                            q.split('&')
-                                .filter_map(|p| {
-                                    let mut parts = p.splitn(2, '=');
-                                    Some((parts.next()?.to_string(), parts.next()?.to_string()))
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    return ferro_server_versioning::diff_versions(
+        // GET|POST /files/{*path}/versions
+        if let Some(filepath) = file_path.strip_suffix("/versions")
+            && !filepath.is_empty()
+            && matches!(method, axum::http::Method::GET | axum::http::Method::POST)
+        {
+            let ver_state = ferro_server_versioning::VersioningState {
+                data_dir: state.data_dir.clone(),
+                admin_user: state.admin_user.clone(),
+                storage: state.storage.clone(),
+                max_file_versions: state.max_file_versions,
+            };
+            return match method {
+                axum::http::Method::GET => {
+                    ferro_server_versioning::list_versions(
                         axum::Extension(ver_state),
                         axum::extract::Path(filepath.to_string()),
-                        axum::extract::Query(ferro_server_versioning::DiffParams {
-                            from: params.get("from").cloned().unwrap_or_default(),
-                            to: params.get("to").cloned().unwrap_or_default(),
-                        }),
                     )
-                    .await;
+                    .await
                 }
-            }
+                axum::http::Method::POST => {
+                    ferro_server_versioning::create_version(
+                        axum::Extension(ver_state),
+                        axum::extract::Path(filepath.to_string()),
+                    )
+                    .await
+                }
+                _ => unreachable!(),
+            };
+        }
 
-            // File content handler (original behavior)
-            return api::files_content_handler(
-                method,
-                uri,
-                State(state),
-                headers,
-                Some(axum::extract::Path(file_path.to_string())),
-                body,
+        // GET /files/{*path}/diff
+        if let Some(filepath) = file_path.strip_suffix("/diff")
+            && !filepath.is_empty()
+            && method == axum::http::Method::GET
+        {
+            let ver_state = ferro_server_versioning::VersioningState {
+                data_dir: state.data_dir.clone(),
+                admin_user: state.admin_user.clone(),
+                storage: state.storage.clone(),
+                max_file_versions: state.max_file_versions,
+            };
+            let params: std::collections::HashMap<String, String> = uri
+                .query()
+                .map(|q| {
+                    q.split('&')
+                        .filter_map(|p| {
+                            let mut parts = p.splitn(2, '=');
+                            Some((parts.next()?.to_string(), parts.next()?.to_string()))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            return ferro_server_versioning::diff_versions(
+                axum::Extension(ver_state),
+                axum::extract::Path(filepath.to_string()),
+                axum::extract::Query(ferro_server_versioning::DiffParams {
+                    from: params.get("from").cloned().unwrap_or_default(),
+                    to: params.get("to").cloned().unwrap_or_default(),
+                }),
             )
             .await;
         }
+
+        // File content handler (original behavior)
+        return api::files_content_handler(
+            method,
+            uri,
+            State(state),
+            headers,
+            Some(axum::extract::Path(file_path.to_string())),
+            body,
+        )
+        .await;
     }
     // Fall through to WebDAV handler
     webdav::handle_any(method, uri, State(state), None, headers, body).await
