@@ -1,11 +1,10 @@
 # ── Stage 1: Build Web UI ──────────────────────────────────────────────────
 FROM node:20-slim AS ui-builder
 
-RUN npm install -g trunk
-
-RUN apt-get update && apt-get install -y curl && \
+RUN apt-get update && apt-get install -y curl pkg-config libssl-dev && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
     rustup target add wasm32-unknown-unknown && \
+    cargo install trunk && \
     rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/root/.cargo/bin:${PATH}"
