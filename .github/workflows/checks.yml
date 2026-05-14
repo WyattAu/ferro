@@ -61,14 +61,217 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+      - uses: Swatinem/rust-cache@v2
       - name: Run tests
         run: cargo test --all
+
+  test-cloud-features:
+    name: Test Cloud Features
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        feature: [s3, gcs, azure]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - uses: Swatinem/rust-cache@v2
+      - name: Test with ${{ matrix.feature }}
+        run: cargo test --all --features ${{ matrix.feature }}
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Run audit
+        run: cargo audit --deny unmaintained --deny unsound --deny rustsec
+
+  build:
+    name: Build Release
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - uses: Swatinem/rust-cache@v2
+      - name: Build release
+        run: cargo build --release --bin ferro-server --bin ferro-cli
+      - name: Upload server binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferro-server-linux
+          path: target/release/ferro-server
+      - name: Upload CLI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferro-cli-linux
+          path: target/release/ferro-cli
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: ferro:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  test-pg:
+    name: Test PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ferro
+          POSTGRES_PASSWORD: ferro
+          POSTGRES_DB: ferro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://ferro:ferro@localhost:5432/ferro_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - uses: Swatinem/rust-cache@v2
+      - name: Test with pg feature
+        run: cargo test --all --features pg
+
+  rclone-e2e:
+    name: rclone E2E
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/download-artifact@v4
+        with:
+          name: ferro-server-linux
+      - name: Install rclone
+        run: curl https://rclone.org/install.sh | sudo bash
+      - name: Run rclone E2E tests
+        run: |
+          chmod +x ferro-server
+          cargo test --package ferro-server --test rclone_e2e -- --ignored --nocapture
+
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ferro-server-linux
+      - name: Start server
+        run: |
+          chmod +x ferro-server
+          ./ferro-server --data-dir /tmp/ferro-test --admin-user admin --admin-password test --port 8888 &
+      - name: Wait for server
+        run: for i in $(seq 1 30); do curl -sf http://localhost:8888/healthz && break; sleep 1; done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npx playwright test
+        working-directory: e2e
+        env:
+          BASE_URL: http://localhost:8888
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: e2e/test-results/
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: [test]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ferro
+          POSTGRES_PASSWORD: ferro
+          POSTGRES_DB: ferro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://ferro:ferro@localhost:5432/ferro_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Generate coverage report
+        run: cargo llvm-cov --workspace --features "s3,gcs,azure,pg,redis,ldap" --lcov --output-path lcov.info
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
+
+  wasm-test:
+    name: WASM Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rust-src
+      - name: Install trunk
+        run: cargo install trunk --locked
+      - name: Build web frontend
+        run: cd crates/web && trunk build --release
+      - name: Verify WASM compilation (admin)
+        run: cargo build --package ferro-admin --target wasm32-unknown-unknown
+
+  benchmark:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run benchmarks
+        run: cargo bench --package ferro-benchmarks -- --output-format bencher | tee benchmark-results.txt
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.txt
+        retention-days: 90

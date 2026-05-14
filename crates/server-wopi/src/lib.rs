@@ -832,7 +832,7 @@ mod tests {
         let response = app
             .oneshot(
                 axum::http::Request::builder()
-                    .uri(&format!("/files/hello.txt?access_token={token}"))
+                    .uri(format!("/files/hello.txt?access_token={token}"))
                     .body(axum::body::Body::empty())
                     .unwrap(),
             )
@@ -873,7 +873,7 @@ mod tests {
         let response = app
             .oneshot(
                 axum::http::Request::builder()
-                    .uri(&format!("/files/doc.txt/contents?access_token={token}"))
+                    .uri(format!("/files/doc.txt/contents?access_token={token}"))
                     .body(axum::body::Body::empty())
                     .unwrap(),
             )
@@ -900,7 +900,7 @@ mod tests {
         let response = app
             .oneshot(
                 axum::http::Request::builder()
-                    .uri(&format!("/files/nonexistent.txt?access_token={token}"))
+                    .uri(format!("/files/nonexistent.txt?access_token={token}"))
                     .body(axum::body::Body::empty())
                     .unwrap(),
             )

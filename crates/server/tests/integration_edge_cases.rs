@@ -444,8 +444,7 @@ async fn test_concurrent_puts() {
         let app = app.clone();
         let handle = tokio::spawn(async move {
             let path = format!("/concurrent/{}.txt", i);
-            let status = put_file(&app, &path, format!("content-{}", i).as_bytes()).await;
-            status
+            put_file(&app, &path, format!("content-{}", i).as_bytes()).await
         });
         handles.push(handle);
     }
