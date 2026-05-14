@@ -6,6 +6,7 @@ ENV PATH="/root/.cargo/bin:${PATH}" \
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl pkg-config libssl-dev && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
+    . /root/.cargo/env && \
     rustup target add wasm32-unknown-unknown && \
     cargo install trunk && \
     rm -rf /var/lib/apt/lists/*
