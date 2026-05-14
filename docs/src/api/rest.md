@@ -14,7 +14,7 @@ curl http://localhost:8080/.well-known/ferro
 
 ```json
 {
-  "version": "2.5.0",
+  "version": "2.5.1",
   "storage": "ok"
 }
 ```
@@ -51,7 +51,7 @@ curl http://localhost:8080/api/config
 
 ```json
 {
-  "version": "2.5.0",
+  "version": "2.5.1",
   "auth_enabled": true,
   "search_enabled": true,
   "wasm_workers_enabled": false,

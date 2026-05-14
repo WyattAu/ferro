@@ -1,6 +1,6 @@
-# Penetration Test Plan — Ferro v1.0.0-beta.1
+# Penetration Test Plan — Ferro v2.5.1
 
-**Last updated**: 2026-04-23
+**Last updated**: 2026-05-14
 **Target**: Ferro storage server
 **Scope**: All API endpoints, WebDAV, WOPI, WASM upload, shares
 

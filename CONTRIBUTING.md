@@ -31,10 +31,19 @@ ferro/
 │   ├── web/       # Leptos web UI
 │   ├── desktop/   # Tauri desktop app
 │   ├── fuse/      # FUSE filesystem mount
-│   └── cli/       # Admin CLI
+│   ├── cli/       # Admin CLI
+│   ├── admin/     # Leptos admin dashboard
+│   ├── auth/      # Authentication and authorization
+│   ├── webdav-handler/ # WebDAV XML builders
+│   ├── server-activitypub/ # ActivityPub federation
+│   ├── server-webrtc/     # WebRTC signaling
+│   ├── server-wopi/       # WOPI protocol
+│   ├── server-versioning/ # File versioning
+│   ├── graphql/   # GraphQL API
+│   ├── observability/ # Metrics and health
+│   └── benchmarks/ # Criterion benchmarks
 ├── deploy/        # Deployment configs
 ├── docs/          # mdBook documentation
-├── tests/         # Integration tests
 └── web-e2e/       # Playwright E2E tests
 ```
 

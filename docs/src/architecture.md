@@ -2,7 +2,7 @@
 
 ## Crate Structure
 
-Ferro is built as a Rust workspace with 10 crates:
+Ferro is built as a Rust workspace with 20 crates:
 
 ```
 ferro/
@@ -17,6 +17,16 @@ ferro/
 |   +-- web/          # Leptos WASM web frontend
 |   +-- cli/          # Admin CLI tool
 |   +-- desktop/      # Tauri desktop application
+|   +-- admin/        # Leptos WASM admin dashboard
+|   +-- auth/         # Authentication (simple, OIDC), authorization (Cedar)
+|   +-- webdav-handler/ # WebDAV XML request/response builders
+|   +-- server-activitypub/ # ActivityPub federation
+|   +-- server-webrtc/     # WebRTC signaling
+|   +-- server-wopi/       # WOPI protocol for office documents
+|   +-- server-versioning/ # File versioning and diff
+|   +-- graphql/       # GraphQL API (async-graphql)
+|   +-- observability/ # Metrics, logging, health checks
+|   +-- benchmarks/    # Criterion benchmark suite
 +-- deploy/           # Deployment configurations (Docker, K8s, Terraform, etc.)
 ```
 

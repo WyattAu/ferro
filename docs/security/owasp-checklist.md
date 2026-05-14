@@ -1,7 +1,7 @@
 # OWASP Top 10 (2021) Compliance Checklist
 
-**Last updated**: 2026-04-23
-**Ferro version**: v1.0.0-beta.1
+**Last updated**: 2026-05-14
+**Ferro version**: v2.5.1
 
 ---
 

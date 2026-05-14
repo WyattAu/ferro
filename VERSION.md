@@ -143,7 +143,7 @@
 | ferro-cli | 5 passing | Implemented |
 | ferro-desktop | 7 passing | Implemented |
 
-## Total Tests: 692+ passing, 2 ignored (1 rclone E2E ignored - needs rclone, 1 doctest ignored)
+## Total Tests: 790 passed, 2 ignored (1 rclone E2E ignored - needs rclone, 1 doctest ignored)
 ## Clippy: 0 warnings
 ## Security: cargo-deny configured, cargo-audit CI-gated, deny.toml with documented ignores for desktop-only transitive deps
 ## Error Level: None
