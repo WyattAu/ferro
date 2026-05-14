@@ -133,9 +133,9 @@ This allows swapping backends without changing any server code. The `ObjectStore
 | `azure` | server, core | Azure Blob Storage backend |
 | `sqlite` | core | SQLite metadata store (default) |
 | `search` | core | Tantivy full-text search (default) |
-| `wasm` | core | Wasmtime WASM worker runtime (default) |
+| `wasm` | core | Wasmtime WASM worker runtime |
 | `object_store` | core | object_store backend (default) |
-| `postgres` | core, server | PostgreSQL metadata and state |
+| `pg` | server | PostgreSQL metadata and state (maps to `ferro-core/postgres`) |
 | `redis` | server | Redis distributed locking and rate limiting |
 | `ldap` | server | LDAP authentication |
 | `handlers` | dav | Axum handlers for CalDAV/CardDAV (default) |
@@ -149,7 +149,7 @@ This allows swapping backends without changing any server code. The `ObjectStore
 cargo build --features s3,gcs,azure
 
 # Build with PostgreSQL and Redis
-cargo build --features pg,redis
+cargo build --features pg,redis  # Note: server feature is "pg", core feature is "postgres"
 ```
 
 ## AppState

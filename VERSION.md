@@ -3,7 +3,7 @@
 ## Current Status
 - **Phase:** Production Hardening (Sprint AU per ROADMAP.md)
 - **Version:** 2.5.1
-- **Tests:** 814 passed, 0 failed, 1 ignored (persistence doctest), 0 clippy warnings
+- **Tests:** 813 passed, 0 failed, 1 ignored (persistence doctest), 0 clippy warnings
 - **Status:** Active Development. All 46 sprints (A-AT) completed. Pre-commit hooks configured, cargo-deny active, fmt/clippy clean.
 - **Last Updated:** 2026-05-14
 
@@ -143,7 +143,7 @@
 | ferro-cli | 5 passing | Implemented |
 | ferro-desktop | 7 passing | Implemented |
 
-## Total Tests: 814 passed, 1 ignored (1 persistence doctest)
+## Total Tests: 813 passed, 1 ignored (1 persistence doctest)
 ## Clippy: 0 warnings
 ## Security: cargo-deny configured, cargo-audit CI-gated, deny.toml with documented ignores for desktop-only transitive deps
 ## Error Level: None

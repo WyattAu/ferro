@@ -137,7 +137,7 @@ pub async fn cmd_show_notification(
     body: String,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
-    use tauri::notification::NotificationExt;
+    use tauri_plugin_notification::NotificationExt;
     app_handle
         .notification()
         .title(&title)

@@ -34,9 +34,9 @@ if ! cargo fmt --all -- --check 2>&1; then
     exit 1
 fi
 
-# 2. Clippy lint
-info "Running clippy (cargo clippy $TARGET -- -D warnings)..."
-if ! cargo clippy $TARGET -- -D warnings 2>&1; then
+# 2. Clippy lint (match CI: --all-targets -- -D warnings)
+info "Running clippy (cargo clippy $TARGET --all-targets -- -D warnings)..."
+if ! cargo clippy $TARGET --all-targets -- -D warnings 2>&1; then
     fail "Clippy lint errors detected. Fix before committing."
     exit 1
 fi
