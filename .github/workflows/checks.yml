@@ -214,7 +214,7 @@ jobs:
           ./ferro-server --data-dir /tmp/ferro-test --admin-user admin --admin-password test --port 8888 &
       - name: Wait for server
         run: for i in $(seq 1 30); do curl -sf http://localhost:8888/healthz && break; sleep 1; done
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - run: npm install
