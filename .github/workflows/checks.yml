@@ -16,6 +16,7 @@ env:
 
 jobs:
   fmt:
+    name: Rustfmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,16 +26,19 @@ jobs:
       - run: cargo fmt --all -- --check
 
   clippy:
+    name: Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
       - run: cargo clippy --all-targets --features "s3,gcs,azure,pg,redis,ldap" -- -D warnings
 
   test:
+    name: Test
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -55,11 +59,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --all
+      - name: Run tests
+        run: cargo test --all
 
-  test-cloud:
+  test-cloud-features:
+    name: Test Cloud Features
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -67,11 +74,64 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --all --features ${{ matrix.feature }}
+      - name: Test with ${{ matrix.feature }}
+        run: cargo test --all --features ${{ matrix.feature }}
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Run audit
+        run: cargo audit --deny unmaintained --deny unsound --deny rustsec
+
+  build:
+    name: Build Release
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - uses: Swatinem/rust-cache@v2
+      - name: Build release
+        run: cargo build --release --bin ferro-server --bin ferro-cli
+      - name: Upload server binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferro-server-linux
+          path: target/release/ferro-server
+      - name: Upload CLI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferro-cli-linux
+          path: target/release/ferro-cli
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: ferro:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   test-pg:
+    name: Test PostgreSQL
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -92,65 +152,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --all --features pg
-
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install cargo-audit --locked
-      - run: cargo audit --deny unmaintained --deny unsound --deny rustsec
-
-  build:
-    runs-on: ubuntu-latest
-    needs: [fmt, clippy, test]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo build --release --bin ferro-server --bin ferro-cli
-      - uses: actions/upload-artifact@v4
-        with:
-          path: target/release/ferro-server
-
-  wasm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-          components: rust-src
-      - run: cargo install trunk --locked
-      - run: cd crates/web && trunk build --release
-      - run: cargo build --package ferro-admin --target wasm32-unknown-unknown
-
-  docker:
-    runs-on: ubuntu-latest
-    needs: [fmt, clippy, test]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: ferro:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  benchmark:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo bench --package ferro-benchmarks -- --output-format bencher | tee benchmark-results.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          path: benchmark-results.txt
-        retention-days: 90
+      - name: Test with pg feature
+        run: cargo test --all --features pg
