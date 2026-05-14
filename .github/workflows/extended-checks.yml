@@ -1,0 +1,64 @@
+name: Extended Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - run: cargo build --release --bin ferro-server
+      - name: Start server
+        run: ./target/release/ferro-server --data-dir /tmp/ferro-test --admin-user admin --admin-password test --port 8888 &
+      - name: Wait for server
+        run: for i in $(seq 1 30); do curl -sf http://localhost:8888/healthz && break; sleep 1; done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install && npx playwright install --with-deps chromium && npx playwright test
+        working-directory: e2e
+        env:
+          BASE_URL: http://localhost:8888
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ferro
+          POSTGRES_PASSWORD: ferro
+          POSTGRES_DB: ferro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://ferro:ferro@localhost:5432/ferro_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - run: cargo install cargo-llvm-cov --locked
+      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - run: cargo llvm-cov --workspace --features "s3,gcs,azure,pg,redis,ldap" --lcov --output-path lcov.info
+      - uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
