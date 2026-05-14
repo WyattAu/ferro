@@ -32,7 +32,7 @@ WORKDIR /app/crates/web
 RUN trunk build --release --public-url "/ui/"
 
 # ── Stage 2: Build Rust server ────────────────────────────────────────────
-FROM rust:1.89-bookworm AS builder
+FROM rust:1.92-bookworm AS builder
 
 RUN apt-get update && apt-get install -y \
     pkg-config \

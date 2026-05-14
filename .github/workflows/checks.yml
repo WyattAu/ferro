@@ -86,10 +86,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
-      - name: Run audit
-        run: cargo audit --deny unmaintained --deny unsound --deny yanked
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: Run cargo-deny (advisories, bans, licenses, sources)
+        run: cargo deny check advisories bans licenses sources
 
   build:
     name: Build Release
