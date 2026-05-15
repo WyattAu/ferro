@@ -30,7 +30,7 @@ jobs:
       - name: Run E2E tests (server + playwright in same shell)
         run: |
           # Start server in background
-          ./target/debug/ferro-server --data-dir /tmp/ferro-test --admin-user test --admin-password test --port 8080 > /tmp/ferro-server.log 2>&1 &
+          ./target/debug/ferro-server --data-dir /tmp/ferro-test --admin-user test --admin-password test --port 8080 --cors-allowed-origins "http://localhost:8080" > /tmp/ferro-server.log 2>&1 &
           SERVER_PID=$!
 
           # Cleanup function
