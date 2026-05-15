@@ -42,6 +42,11 @@ RUN for crate in common core dav server web desktop cli crypto fuse client bench
     mkdir -p crates/$crate/src; \
     [ -f crates/$crate/src/lib.rs ] || echo '' > crates/$crate/src/lib.rs; \
     done
+# Stubs for benchmark targets (required by Cargo.toml [[bench]] entries)
+RUN mkdir -p crates/benchmarks/benches && \
+    for bench in storage dav_parsing crypto_ops webdav_ops; do \
+    [ -f crates/benchmarks/benches/$bench.rs ] || echo 'fn main() {}' > crates/benchmarks/benches/$bench.rs; \
+    done
 
 # Now copy actual sources for crates needed by the web frontend build
 COPY crates/web/index.html crates/web/
@@ -90,6 +95,10 @@ COPY crates/graphql/Cargo.toml crates/graphql/
 RUN for crate in common core dav server web desktop cli crypto fuse client benchmarks admin observability auth webdav-handler server-activitypub server-webrtc server-wopi server-versioning graphql; do \
     mkdir -p crates/$crate/src; \
     echo '' > crates/$crate/src/lib.rs; \
+    done
+RUN mkdir -p crates/benchmarks/benches && \
+    for bench in storage dav_parsing crypto_ops webdav_ops; do \
+    echo 'fn main() {}' > crates/benchmarks/benches/$bench.rs; \
     done
 RUN echo 'fn main() {}' > crates/server/src/main.rs
 RUN echo 'fn main() {}' > crates/cli/src/main.rs
