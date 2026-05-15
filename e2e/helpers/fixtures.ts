@@ -125,6 +125,8 @@ export async function waitForFileBrowser(page: Page): Promise<void> {
     );
   });
   console.log(`[DEBUG] body children after 2s: ${JSON.stringify(bodyChildren)}`);
+  const bodyHTML: string = await page.evaluate(() => document.body.innerHTML.substring(0, 2000));
+  console.log(`[DEBUG] body innerHTML (first 2000 chars): ${bodyHTML}`);
 
   // Wait for the WASM app to initialize and render. Leptos uses
   // starts empty and Leptos populates it once the WASM module loads.
