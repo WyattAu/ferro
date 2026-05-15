@@ -15,18 +15,38 @@ WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 
+# Copy all workspace member Cargo.toml files (required by cargo metadata)
 COPY crates/common/Cargo.toml crates/common/
 COPY crates/core/Cargo.toml crates/core/
+COPY crates/dav/Cargo.toml crates/dav/
 COPY crates/server/Cargo.toml crates/server/
 COPY crates/web/Cargo.toml crates/web/
+COPY crates/desktop/Cargo.toml crates/desktop/
+COPY crates/cli/Cargo.toml crates/cli/
+COPY crates/crypto/Cargo.toml crates/crypto/
+COPY crates/fuse/Cargo.toml crates/fuse/
+COPY crates/client/Cargo.toml crates/client/
+COPY crates/benchmarks/Cargo.toml crates/benchmarks/
+COPY crates/admin/Cargo.toml crates/admin/
+COPY crates/observability/Cargo.toml crates/observability/
+COPY crates/auth/Cargo.toml crates/auth/
+COPY crates/webdav-handler/Cargo.toml crates/webdav-handler/
+COPY crates/server-activitypub/Cargo.toml crates/server-activitypub/
+COPY crates/server-webrtc/Cargo.toml crates/server-webrtc/
+COPY crates/server-wopi/Cargo.toml crates/server-wopi/
+COPY crates/server-versioning/Cargo.toml crates/server-versioning/
+COPY crates/graphql/Cargo.toml crates/graphql/
 
+# Create stub source files for all workspace members
+RUN for crate in common core dav server web desktop cli crypto fuse client benchmarks admin observability auth webdav-handler server-activitypub server-webrtc server-wopi server-versioning graphql; do \
+    mkdir -p crates/$crate/src; \
+    [ -f crates/$crate/src/lib.rs ] || echo '' > crates/$crate/src/lib.rs; \
+    done
+
+# Now copy actual sources for crates needed by the web frontend build
 COPY crates/web/index.html crates/web/
 COPY crates/web/src/ crates/web/src/
 COPY crates/common/src/ crates/common/src/
-COPY crates/core/src/ crates/core/src/
-
-RUN mkdir -p crates/common/src && echo '' > crates/common/src/lib.rs 2>/dev/null || true
-RUN mkdir -p crates/core/src && echo '' > crates/core/src/lib.rs 2>/dev/null || true
 
 WORKDIR /app/crates/web
 
@@ -44,29 +64,44 @@ WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 
+# Copy all workspace member Cargo.toml files (required by cargo metadata)
 COPY crates/common/Cargo.toml crates/common/
 COPY crates/core/Cargo.toml crates/core/
+COPY crates/dav/Cargo.toml crates/dav/
 COPY crates/server/Cargo.toml crates/server/
-COPY crates/cli/Cargo.toml crates/cli/
 COPY crates/web/Cargo.toml crates/web/
 COPY crates/desktop/Cargo.toml crates/desktop/
+COPY crates/cli/Cargo.toml crates/cli/
+COPY crates/crypto/Cargo.toml crates/crypto/
+COPY crates/fuse/Cargo.toml crates/fuse/
+COPY crates/client/Cargo.toml crates/client/
+COPY crates/benchmarks/Cargo.toml crates/benchmarks/
+COPY crates/admin/Cargo.toml crates/admin/
+COPY crates/observability/Cargo.toml crates/observability/
+COPY crates/auth/Cargo.toml crates/auth/
+COPY crates/webdav-handler/Cargo.toml crates/webdav-handler/
+COPY crates/server-activitypub/Cargo.toml crates/server-activitypub/
+COPY crates/server-webrtc/Cargo.toml crates/server-webrtc/
+COPY crates/server-wopi/Cargo.toml crates/server-wopi/
+COPY crates/server-versioning/Cargo.toml crates/server-versioning/
+COPY crates/graphql/Cargo.toml crates/graphql/
 
-RUN mkdir -p crates/common/src && echo '' > crates/common/src/lib.rs
-RUN mkdir -p crates/core/src && echo '' > crates/core/src/lib.rs
-RUN mkdir -p crates/server/src && echo 'fn main() {}' > crates/server/src/main.rs && echo '' > crates/server/src/lib.rs
-RUN mkdir -p crates/cli/src && echo 'fn main() {}' > crates/cli/src/main.rs
-RUN mkdir -p crates/web/src && echo '' > crates/web/src/lib.rs
-RUN mkdir -p crates/desktop/src && echo 'fn main() {}' > crates/desktop/src/main.rs && echo '' > crates/desktop/src/lib.rs
+# Create stub source files for all workspace members (dependency caching layer)
+RUN for crate in common core dav server web desktop cli crypto fuse client benchmarks admin observability auth webdav-handler server-activitypub server-webrtc server-wopi server-versioning graphql; do \
+    mkdir -p crates/$crate/src; \
+    echo '' > crates/$crate/src/lib.rs; \
+    done
+RUN echo 'fn main() {}' > crates/server/src/main.rs
+RUN echo 'fn main() {}' > crates/cli/src/main.rs
+RUN echo 'fn main() {}' > crates/desktop/src/main.rs
 
 RUN cargo build --release --package ferro-server --package ferro-cli 2>/dev/null || true
 
 COPY . .
-RUN touch crates/common/src/lib.rs \
-      crates/core/src/lib.rs \
-      crates/server/src/main.rs crates/server/src/lib.rs \
-      crates/cli/src/main.rs \
-      crates/web/src/lib.rs \
-      crates/desktop/src/main.rs crates/desktop/src/lib.rs
+RUN for crate in common core dav server web desktop cli crypto fuse client benchmarks admin observability auth webdav-handler server-activitypub server-webrtc server-wopi server-versioning graphql; do \
+    touch crates/$crate/src/lib.rs 2>/dev/null || true; \
+    done
+RUN touch crates/server/src/main.rs crates/cli/src/main.rs crates/desktop/src/main.rs
 
 RUN cargo build --release --package ferro-server --package ferro-cli
 
