@@ -4,8 +4,8 @@
 - **Phase:** Production Hardening (Sprint AU per ROADMAP.md)
 - **Version:** 2.5.1
 - **Tests:** 813 passed, 0 failed, 1 ignored (persistence doctest), 0 clippy warnings
-- **Status:** Active Development. All 46 sprints (A-AT) completed. Pre-commit hooks configured, cargo-deny active, fmt/clippy clean.
-- **Last Updated:** 2026-05-14
+- **Status:** Active Development. All 46 sprints (A-AT) completed. Pre-commit hooks configured, cargo-deny active, fmt/clippy clean. CI/CD fully green (10/10 checks). Docker multi-stage build passing. Docs deployed to GitHub Pages.
+- **Last Updated:** 2026-05-15
 
 ## Phase Progress
 | Phase | Status | Completion |
@@ -139,7 +139,7 @@
 | ferro-common | 8 passing | Implemented |
 | ferro-core | 57 passing | Implemented |
 | ferro-server | 94 lib + 37 integration + 1 E2E | Implemented |
-| ferro-web | 0 (WASM-only, trunk-built) | Implemented |
+| ferro-web | 35 passing (non-WASM stubs + API tests) | Implemented + Docker WASM build passing |
 | ferro-cli | 5 passing | Implemented |
 | ferro-desktop | 7 passing | Implemented |
 
@@ -147,4 +147,4 @@
 ## Clippy: 0 warnings
 ## Security: cargo-deny configured, cargo-audit CI-gated, deny.toml with documented ignores for desktop-only transitive deps
 ## Error Level: None
-## Rollback Checkpoint: main@b25fc13 (production security hardening, 2026-05-12)
+## Rollback Checkpoint: main@8a59e41 (web leptos fixes + Docker build green, 2026-05-15)

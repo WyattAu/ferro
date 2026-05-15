@@ -23,11 +23,11 @@ All CI issues resolved. The pipeline was split to work around GitHub Actions' ~1
 
 | Workflow | File | Jobs | Status |
 |----------|------|------|--------|
-| Core checks | `.github/workflows/checks.yml` | 9 (fmt, clippy, test, cloud x3, pg, deny, build, docker) | Green |
+| Core checks | `.github/workflows/checks.yml` | 10 (fmt, clippy, test, cloud x3, pg, deny, build, docker) | Green |
 | Extended checks | `.github/workflows/extended-checks.yml` | 2 (e2e, coverage) | Green |
 | Benchmarks | `.github/workflows/bench.yml` | 1 | Green |
 | Release | `.github/workflows/release.yml` | 3 (build, release, docker) | Fixed |
-| Docs | `.github/workflows/docs.yml` | 2 | Green (Pages enabled) |
+| Docs | `.github/workflows/docs.yml` | 2 (build, deploy) | Green (deployed to Pages) |
 
 ### 1.3 Issues Fixed in This Audit Session
 
@@ -48,6 +48,16 @@ All CI issues resolved. The pipeline was split to work around GitHub Actions' ~1
 | DOC-002 | `architecture.md`: `postgres` feature name (should be `pg` on server) | Medium | Fixed |
 | VER-001 | VERSION.md test count wrong (814 vs 813) | Low | Corrected |
 | VER-002 | Workspace `rust-version` too old | High | Bumped to 1.92 |
+| DOCKER-001 | `node:20-slim` missing `ca-certificates` (curl SSL failure) | Critical | Added to apt-get |
+| DOCKER-002 | `node:20-slim` missing `build-essential` (no C linker) | Critical | Added to apt-get |
+| DOCKER-003 | PATH not updated mid-RUN in dash (rustup not found) | Critical | Added `. /root/.cargo/env` |
+| DOCKER-004 | Only 4/21 workspace Cargo.toml files copied | Critical | Copy all 21 members |
+| DOCKER-005 | Missing bench stub files for `[[bench]]` targets | High | Create stubs for benchmarks + server |
+| WEB-001 | Systematic ReadSignal/WriteSignal confusion (6 files) | Critical | Fixed signal aliases |
+| WEB-002 | `unchecked_ref` on `&JsValue` without JsCast import | High | Added `use wasm_bindgen::JsCast` |
+| WEB-003 | `set_onunhandledrejection` not on Window (web_sys API) | High | Replaced with `add_event_listener_with_callback` |
+| WEB-004 | `get_item`/`set_item` on `Option<Storage>` without unwrap | High | Added proper Option unwrapping |
+| WEB-005 | `window.location()` returns `Result` not `Location` | Medium | Fixed to handle Result type |
 
 ---
 
