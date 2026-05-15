@@ -8,11 +8,15 @@ test.describe("Authentication", () => {
     const uiBody = await uiResponse.text();
     console.log("UI STATUS:", uiStatus, "BODY LEN:", uiBody.length, "HAS #app:", uiBody.includes("id=\"app\""));
 
-    await page.goto("/ui/", { waitUntil: "domcontentloaded" });
+    await page.goto("/ui/", { waitUntil: "load" });
+    // Wait extra time for WASM to initialize
+    await page.waitForTimeout(3000);
     const content = await page.content();
     console.log("PAGE CONTENT LEN:", content?.length, "HAS #app:", content?.includes("id=\"app\""));
     const title = await page.title();
     console.log("PAGE TITLE:", title);
+    const url = page.url();
+    console.log("PAGE URL:", url);
 
     // When auth is disabled, the header should NOT show "Sign in"
     await expect(page.locator("header")).toBeVisible({ timeout: 10_000 });
