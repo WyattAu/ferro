@@ -78,6 +78,13 @@ export async function enableDebugLogging(page: Page): Promise<void> {
     window.addEventListener("unhandledrejection", (e) => {
       console.error(`[UNHANDLED REJECTION] ${String(e.reason)}`);
     });
+    // Listen for the Trunk application started event
+    window.addEventListener("TrunkApplicationStarted", () => {
+      console.log("[TRUNK] Application started event fired!");
+    });
+  });
+  page.on("requestfailed", (req) => {
+    console.log(`[REQ FAILED] ${req.failure()?.errorText} ${req.url()}`);
   });
   page.on("request", (req) => {
     const url = req.url();
@@ -114,6 +121,11 @@ export async function waitForFileBrowser(page: Page): Promise<void> {
   await page.waitForTimeout(5000);
   console.log(`[DEBUG] #app children after 5s: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
   console.log(`[DEBUG] page title after 5s: ${await page.title()}`);
+
+  // Wait 30s more for WASM compilation (CPU-bound, no network activity)
+  console.log(`[DEBUG] Waiting 30s for WASM compilation...`);
+  await page.waitForTimeout(30000);
+  console.log(`[DEBUG] #app children after 35s: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
 
   // Wait for the WASM app to initialize and render. The #app div
   // starts empty and Leptos populates it once the WASM module loads.
