@@ -47,6 +47,10 @@ RUN mkdir -p crates/benchmarks/benches && \
     for bench in storage dav_parsing crypto_ops webdav_ops; do \
     [ -f crates/benchmarks/benches/$bench.rs ] || echo 'fn main() {}' > crates/benchmarks/benches/$bench.rs; \
     done
+RUN mkdir -p crates/server/benches && \
+    for bench in throughput latency webdav_ops wasm_dispatch storage_ops; do \
+    [ -f crates/server/benches/$bench.rs ] || echo 'fn main() {}' > crates/server/benches/$bench.rs; \
+    done
 
 # Now copy actual sources for crates needed by the web frontend build
 COPY crates/web/index.html crates/web/
@@ -99,6 +103,10 @@ RUN for crate in common core dav server web desktop cli crypto fuse client bench
 RUN mkdir -p crates/benchmarks/benches && \
     for bench in storage dav_parsing crypto_ops webdav_ops; do \
     echo 'fn main() {}' > crates/benchmarks/benches/$bench.rs; \
+    done
+RUN mkdir -p crates/server/benches && \
+    for bench in throughput latency webdav_ops wasm_dispatch storage_ops; do \
+    echo 'fn main() {}' > crates/server/benches/$bench.rs; \
     done
 RUN echo 'fn main() {}' > crates/server/src/main.rs
 RUN echo 'fn main() {}' > crates/cli/src/main.rs
