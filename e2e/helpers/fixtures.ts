@@ -117,24 +117,27 @@ export async function waitForFileBrowser(page: Page): Promise<void> {
   console.log(`[DEBUG] page content length: ${(await page.content()).length}`);
   console.log(`[DEBUG] #app children: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
 
-  // Wait a few seconds for WASM to compile, then check state
-  await page.waitForTimeout(5000);
-  console.log(`[DEBUG] #app children after 5s: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
-  console.log(`[DEBUG] page title after 5s: ${await page.title()}`);
-
-  // Wait 30s more for WASM compilation (CPU-bound, no network activity)
-  console.log(`[DEBUG] Waiting 30s for WASM compilation...`);
-  await page.waitForTimeout(30000);
-  console.log(`[DEBUG] #app children after 35s: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
-
-  // Wait for the WASM app to initialize and render. The #app div
+  // Wait for the WASM app to initialize and render. Leptos uses
   // starts empty and Leptos populates it once the WASM module loads.
   // We poll because WASM compilation can take 30-60s on slow CI runners.
+  // Wait for the WASM app to initialize and render. Leptos uses
+  // mount_to_body which adds elements as siblings of #app (not children).
+  // Wait for the Leptos router to render any content into the body.
   console.log(`[DEBUG] Waiting for WASM to render (max 120s)...`);
   await page.waitForFunction(
     () => {
-      const app = document.getElementById("app");
-      return app && app.children.length > 0;
+      // Leptos mounts to body, so check for any rendered content
+      // beyond the original HTML (#app, noscript, script tags)
+      const body = document.body;
+      for (const child of body.children) {
+        const tag = child.tagName.toLowerCase();
+        if (tag === "div" && child.id === "app") continue;
+        if (tag === "noscript") continue;
+        if (tag === "script") continue;
+        // Any other element means Leptos has rendered
+        return true;
+      }
+      return false;
     },
     { timeout: 120_000, polling: 1_000 },
   );
