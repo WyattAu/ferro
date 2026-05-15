@@ -16,58 +16,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
-      - uses: Swatinem/rust-cache@v2
-      - name: Build server
-        run: cargo build --bin ferro-server
+      - name: Build Docker image
+        run: docker build -t ferro:e2e .
+      - name: Start server from Docker image
+        run: |
+          docker run -d --name ferro-e2e \
+            -p 8080:8080 \
+            ferro:e2e \
+            --admin-user test --admin-password test \
+            --cors-allowed-origins "http://localhost:8080"
+          # Wait for server to be ready
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/.well-known/ferro > /dev/null 2>&1; then
+              echo "Server ready"
+              break
+            fi
+            sleep 2
+          done
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Install Playwright
         run: npm install && npx playwright install --with-deps chromium
         working-directory: e2e
-      - name: Run E2E tests (server + playwright in same shell)
-        run: |
-          # Start server in background
-          ./target/debug/ferro-server --data-dir /tmp/ferro-test --admin-user test --admin-password test --port 8080 --cors-allowed-origins "http://localhost:8080" > /tmp/ferro-server.log 2>&1 &
-          SERVER_PID=$!
-
-          # Cleanup function
-          cleanup() {
-            kill "$SERVER_PID" 2>/dev/null || true
-          }
-          trap cleanup EXIT
-
-          # Wait for server
-          for i in $(seq 1 60); do
-            if curl -sf http://localhost:8080/.well-known/ferro > /dev/null 2>&1; then
-              echo "Server ready (PID $SERVER_PID)"
-              break
-            fi
-            sleep 2
-          done
-
-          # Verify server is alive
-          if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-            echo "Server crashed on startup:"
-            cat /tmp/ferro-server.log
-            exit 1
-          fi
-
-          # Run tests
-          cd e2e && npx playwright test
-          TEST_EXIT=$?
-
-          # Show server logs on failure
-          if [ $TEST_EXIT -ne 0 ]; then
-            echo "=== Server logs ==="
-            cat /tmp/ferro-server.log
-          fi
-
-          exit $TEST_EXIT
+      - name: Run E2E tests
+        run: npx playwright test
+        working-directory: e2e
         env:
           BASE_URL: http://localhost:8080
+      - name: Server logs
+        if: always()
+        run: docker logs ferro-e2e || true
+      - name: Cleanup
+        if: always()
+        run: docker rm -f ferro-e2e || true
 
   coverage:
     name: Code Coverage
