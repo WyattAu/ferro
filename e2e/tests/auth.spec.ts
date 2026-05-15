@@ -8,7 +8,6 @@ test.describe("Authentication", () => {
     const uiBody = await uiResponse.text();
     console.log("UI STATUS:", uiStatus);
     console.log("UI BODY (first 500):", uiBody.substring(0, 500));
-    console.log("UI HEADERS:", Object.fromEntries(uiResponse.headers()));
 
     await page.goto("/ui/");
     await page.waitForLoadState("networkidle");
