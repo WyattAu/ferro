@@ -6,7 +6,7 @@ pub mod pages;
 
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
+#[wasm_bindgen(start)]
 pub fn run() {
     console_error_panic_hook::set_once();
     leptos::mount_to_body(app::App);
