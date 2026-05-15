@@ -70,15 +70,23 @@ export async function cleanupTestData(
 }
 
 export async function waitForFileBrowser(page: Page): Promise<void> {
-  // Navigate to the UI and wait for the file browser to render.
-  // The WASM app needs time to download (~3.8MB), compile, and
-  // initialize. "networkidle" waits until there are no more than 0
-  // network connections for at least 500ms, which covers the
-  // WASM fetch, API calls, and Google Fonts stylesheet.
-  await page.goto("/ui/", { waitUntil: "networkidle" });
+  // Navigate to the UI. Use "commit" to wait for the initial HTML
+  // response, then wait for the WASM app to render by polling
+  // for the file browser container.
+  await page.goto("/ui/", { waitUntil: "commit" });
+
+  // Wait for the WASM app to initialize and render. The #app div
+  // starts empty and Leptos populates it once the WASM module loads.
+  // We poll because WASM compilation can take 30-60s on slow CI runners.
+  await page.waitForFunction(
+    () => {
+      const app = document.getElementById("app");
+      return app && app.children.length > 0;
+    },
+    { timeout: 120_000, polling: 1_000 },
+  );
 
   // Wait for either the file table or the empty state to appear.
-  // Use a longer timeout to account for slow CI runners.
   await Promise.race([
     page.waitForSelector("table", { timeout: 30_000 }),
     page.waitForSelector("text=This folder is empty", { timeout: 30_000 }),

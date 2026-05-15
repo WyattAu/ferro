@@ -1,14 +1,10 @@
-import { test, expect, setupAuth, waitForFileBrowser, apiRequest, BASE_URL } from "../helpers/fixtures";
+import { test, expect, waitForFileBrowser, BASE_URL } from "../helpers/fixtures";
 
 test.describe("Authentication", () => {
-  test("should not show sign-in when auth is disabled", async ({ page, request }) => {
-    await page.goto("/ui/", { waitUntil: "networkidle" });
-    await page.waitForTimeout(3000);
-    const title = await page.title();
-    console.log("PAGE TITLE:", title, "URL:", page.url());
+  test("should not show sign-in when auth is disabled", async ({ page }) => {
+    await waitForFileBrowser(page);
 
     // When auth is disabled, the header should NOT show "Sign in"
-    await expect(page.locator("header")).toBeVisible({ timeout: 30_000 });
     const signInVisible = await page
       .getByText("Sign in")
       .isVisible()
