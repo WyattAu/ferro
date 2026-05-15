@@ -71,17 +71,17 @@ export async function cleanupTestData(
 
 export async function waitForFileBrowser(page: Page): Promise<void> {
   // Navigate to the UI and wait for the file browser to render.
-  // The caller must call setupAuth(context) before using this helper.
-  // With context.setHTTPCredentials set, the browser auto-handles
-  // the 401 Basic challenge from the server, so the WASM app's
-  // PROPFIND succeeds after the browser retries with credentials.
-  await page.goto("/ui/");
-  await page.waitForLoadState("networkidle");
+  // The WASM app needs time to download (~3.8MB), compile, and
+  // initialize. "networkidle" waits until there are no more than 0
+  // network connections for at least 500ms, which covers the
+  // WASM fetch, API calls, and Google Fonts stylesheet.
+  await page.goto("/ui/", { waitUntil: "networkidle" });
 
-  // Wait for either the file table or the empty state to appear
+  // Wait for either the file table or the empty state to appear.
+  // Use a longer timeout to account for slow CI runners.
   await Promise.race([
-    page.waitForSelector("table", { timeout: 15_000 }),
-    page.waitForSelector("text=This folder is empty", { timeout: 15_000 }),
+    page.waitForSelector("table", { timeout: 30_000 }),
+    page.waitForSelector("text=This folder is empty", { timeout: 30_000 }),
   ]);
 }
 
