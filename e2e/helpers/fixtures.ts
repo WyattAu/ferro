@@ -117,6 +117,15 @@ export async function waitForFileBrowser(page: Page): Promise<void> {
   console.log(`[DEBUG] page content length: ${(await page.content()).length}`);
   console.log(`[DEBUG] #app children: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
 
+  // Log what's actually in the body after Trunk starts
+  await page.waitForTimeout(2000);
+  const bodyChildren: string[] = await page.evaluate(() => {
+    return Array.from(document.body.children).map(
+      (el) => `${el.tagName.toLowerCase()}#${el.id || ""}.${Array.from(el.classList).join(".")}`,
+    );
+  });
+  console.log(`[DEBUG] body children after 2s: ${JSON.stringify(bodyChildren)}`);
+
   // Wait for the WASM app to initialize and render. Leptos uses
   // starts empty and Leptos populates it once the WASM module loads.
   // We poll because WASM compilation can take 30-60s on slow CI runners.
