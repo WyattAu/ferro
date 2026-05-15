@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci && npx playwright install --with-deps chromium
+      - run: npm install && npx playwright install --with-deps chromium
         working-directory: e2e
       - run: npx playwright test
         working-directory: e2e
