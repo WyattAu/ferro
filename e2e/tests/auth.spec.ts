@@ -5,6 +5,12 @@ test.describe("Authentication", () => {
     await page.goto("/ui/");
     await page.waitForLoadState("networkidle");
 
+    // Debug: capture page content for CI diagnosis
+    const bodyText = await page.evaluate(() => document.body?.innerText?.substring(0, 500) || "EMPTY");
+    const appHtml = await page.evaluate(() => document.getElementById("app")?.innerHTML?.substring(0, 500) || "NO #app");
+    console.log("PAGE BODY:", bodyText);
+    console.log("APP DIV:", appHtml);
+
     // When auth is disabled, the header should NOT show "Sign in"
     await expect(page.locator("header")).toBeVisible({ timeout: 10_000 });
     const signInVisible = await page
