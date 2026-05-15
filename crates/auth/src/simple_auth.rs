@@ -11,6 +11,8 @@ fn is_public_path(path: &str) -> bool {
         || path.starts_with("/api/config")
         || path.starts_with("/api/auth/info")
         || path == "/metrics"
+        || path.starts_with("/ui/")
+        || path == "/ui"
 }
 
 /// Axum middleware implementing HTTP Basic authentication.

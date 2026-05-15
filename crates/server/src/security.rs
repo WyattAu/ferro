@@ -533,6 +533,8 @@ pub fn is_password_change_allowed_path(path: &str) -> bool {
         || path == "/metrics"
         || path == "/api/auth/info"
         || path == "/api/config"
+        || path.starts_with("/ui/")
+        || path == "/ui"
 }
 
 /// Build a 403 response requiring password change.
@@ -608,6 +610,8 @@ pub async fn auth_guard_middleware(
         || path.starts_with("/api/config")
         || path.starts_with("/api/auth/info")
         || path == "/metrics"
+        || path.starts_with("/ui/")
+        || path == "/ui"
     {
         return next.run(req).await;
     }

@@ -281,6 +281,8 @@ pub fn is_public_path(path: &str) -> bool {
         || path == "/.well-known/openid-configuration"
         || path.starts_with("/api/auth/login")
         || path.starts_with("/api/auth/callback")
+        || path.starts_with("/ui/")
+        || path == "/ui"
 }
 
 /// Optional auth middleware: if OIDC is configured, validates the Bearer token.
