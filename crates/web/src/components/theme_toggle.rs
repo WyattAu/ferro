@@ -67,6 +67,7 @@ pub fn provide_theme_state() -> ThemeState {
                 let stored = window
                     .as_ref()
                     .and_then(|w| w.local_storage().ok())
+                    .flatten()
                     .and_then(|s| s.get_item("ferro_theme").ok())
                     .flatten();
 
@@ -97,10 +98,13 @@ pub fn provide_theme_state() -> ThemeState {
         let listen_state = state.clone();
         spawn_local(async move {
             if let Some(window) = web_sys::window() {
-                if let Ok(mql) = window.match_media("(prefers-color-scheme: dark)") {
+                use wasm_bindgen::JsCast;
+                if let Ok(Some(mql)) = window.match_media("(prefers-color-scheme: dark)") {
+                    let mql = std::rc::Rc::new(mql);
+                    let mql_ref = mql.clone();
                     let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
                         move |_e: web_sys::MediaQueryListEvent| {
-                            let prefers_dark = mql.matches();
+                            let prefers_dark = mql_ref.matches();
                             let theme = if prefers_dark {
                                 Theme::Dark
                             } else {
@@ -133,7 +137,7 @@ pub fn provide_theme_state() -> ThemeState {
                         }
                     }
                 }
-                if let Ok(storage) = window.local_storage() {
+                if let Ok(Some(storage)) = window.local_storage() {
                     let _ = storage.set_item("ferro_theme", current.as_str());
                 }
             }

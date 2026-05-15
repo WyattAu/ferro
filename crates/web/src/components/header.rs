@@ -144,7 +144,7 @@ pub fn Header() -> impl IntoView {
         let ft_sig = filter_type;
         let fs_sig = filter_sort;
         spawn_local(async move {
-            let mut debounce_timer: Option<js_sys::Number> = None;
+            let debounce_timer = std::cell::RefCell::new(None::<i32>);
             let closure = wasm_bindgen::closure::Closure::<dyn Fn()>::new(move || {
                 let query = sq.get();
                 if query.is_empty() {
@@ -176,17 +176,15 @@ pub fn Header() -> impl IntoView {
             let cb = closure.into_js_value();
             if let Some(window) = web_sys::window() {
                 if let Some(document) = window.document() {
+                    use wasm_bindgen::JsCast;
                     let handler = wasm_bindgen::closure::Closure::<dyn Fn(ev::KeyboardEvent)>::new(
                         move |ev: web_sys::KeyboardEvent| {
-                            let input: Option<web_sys::HtmlInputElement> =
-                                ev.target().and_then(|t| {
-                                    use wasm_bindgen::JsCast;
-                                    t.dyn_into::<web_sys::HtmlInputElement>().ok()
-                                });
+                            let input: Option<web_sys::HtmlInputElement> = ev
+                                .target()
+                                .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
                             if let Some(input) = input {
-                                use wasm_bindgen::JsCast;
                                 let func = cb.clone();
-                                if let Some(prev) = debounce_timer {
+                                if let Some(prev) = *debounce_timer.borrow() {
                                     let _ = web_sys::window()
                                         .expect("window must exist in browser context")
                                         .clear_timeout_with_handle(prev);
@@ -198,7 +196,7 @@ pub fn Header() -> impl IntoView {
                                         300,
                                     )
                                 {
-                                    debounce_timer = Some(handle);
+                                    *debounce_timer.borrow_mut() = Some(handle);
                                 }
                             }
                         },

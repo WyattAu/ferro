@@ -688,9 +688,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     #[cfg(target_arch = "wasm32")]
                     {
                         if let Some(window) = web_sys::window() {
-                            if let Ok(loc) = window.location() {
-                                let _ = loc.set_href("/ui/trash");
-                            }
+                            let loc = window.location();
+                            let _ = loc.set_href("/ui/trash");
                         }
                     }
                 }),
@@ -812,10 +811,17 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let snfolder = show_new_folder;
         let supload = show_upload;
         let hs = header_state;
+        let sel_paths = selected_paths;
+        let prev_file = preview_file;
+        let show_dc = show_delete_confirm;
+        let set_sm = set_show_move_dialog;
+        let set_scd = set_show_copy_dialog;
+        let set_sshd = set_show_share_dialog;
 
         spawn_local(async move {
             if let Some(window) = web_sys::window() {
                 if let Some(document) = window.document() {
+                    use wasm_bindgen::JsCast;
                     let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
                         move |ev: web_sys::KeyboardEvent| {
                             let tag = ev
@@ -844,7 +850,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                 su.set(true);
                             } else if ev.key() == "Delete" || ev.key() == "Backspace" {
                                 ev.prevent_default();
-                                if !ssp.with(|s| s.is_empty()) {
+                                if !sel_paths.with(|s| s.is_empty()) {
                                     sdc.set(true);
                                 }
                             } else if ctrl && ev.key() == "a" {
@@ -855,7 +861,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                     ps.close();
                                     return;
                                 }
-                                if spf.get().is_some() {
+                                if prev_file.get().is_some() {
                                     spf.set(None);
                                     return;
                                 }
@@ -864,17 +870,17 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                     || sshd.get()
                                     || sm.get()
                                     || scd.get()
-                                    || sdc.get()
+                                    || show_dc.get()
                                 {
-                                    snfolder.set(false);
-                                    supload.set(false);
-                                    sshd.set(false);
-                                    sm.set(false);
-                                    scd.set(false);
+                                    snf.set(false);
+                                    su.set(false);
+                                    set_sshd.set(false);
+                                    set_sm.set(false);
+                                    set_scd.set(false);
                                     sdc.set(false);
                                     return;
                                 }
-                                if !ssp.with(|s| s.is_empty()) {
+                                if !sel_paths.with(|s| s.is_empty()) {
                                     ssp.set(std::collections::HashSet::new());
                                     return;
                                 }

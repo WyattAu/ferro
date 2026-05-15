@@ -2,10 +2,12 @@ use leptos::*;
 
 #[component]
 pub fn ErrorBoundary(children: Children) -> impl IntoView {
-    let (error_msg, _set_error_msg) = create_signal(None::<String>);
+    #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]
+    let (error_msg, set_error_msg) = create_signal(None::<String>);
 
     #[cfg(target_arch = "wasm32")]
     {
+        use wasm_bindgen::JsCast;
         let set_err = set_error_msg;
         spawn_local(async move {
             if let Some(window) = web_sys::window() {
@@ -32,7 +34,10 @@ pub fn ErrorBoundary(children: Children) -> impl IntoView {
                     },
                 )
                     as Box<dyn Fn(wasm_bindgen::JsValue)>);
-                let _ = window.set_onunhandledrejection(Some(cb2.as_ref().unchecked_ref()));
+                let _ = window.add_event_listener_with_callback(
+                    "unhandledrejection",
+                    cb2.as_ref().unchecked_ref(),
+                );
                 cb2.forget();
             }
         });

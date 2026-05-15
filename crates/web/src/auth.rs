@@ -140,6 +140,7 @@ pub fn init_auth(state: &AuthState) {
         state.set_access_token.set(token);
     }
 
+    let state = state.clone();
     spawn_local(async move {
         let token = state.access_token.get();
 
@@ -201,9 +202,8 @@ pub fn start_login() {
         match crate::api::auth_login().await {
             Ok(resp) => {
                 if let Some(window) = web_sys::window() {
-                    if let Ok(location) = window.location() {
-                        let _ = location.set_href(&resp.authorization_url);
-                    }
+                    let location = window.location();
+                    let _ = location.set_href(&resp.authorization_url);
                 }
             }
             Err(e) => {
@@ -220,6 +220,7 @@ pub fn start_login() {}
 pub fn handle_callback(state: &AuthState, code: &str, query_state: &str) {
     let code = code.to_string();
     let query_state = query_state.to_string();
+    let state = state.clone();
     spawn_local(async move {
         match crate::api::auth_callback(&code, &query_state).await {
             Ok(resp) => {
@@ -232,9 +233,8 @@ pub fn handle_callback(state: &AuthState, code: &str, query_state: &str) {
                     resp.redirect
                 };
                 if let Some(window) = web_sys::window() {
-                    if let Ok(location) = window.location() {
-                        let _ = location.set_href(&redirect);
-                    }
+                    let location = window.location();
+                    let _ = location.set_href(&redirect);
                 }
             }
             Err(e) => {
@@ -253,9 +253,8 @@ pub fn logout(state: &AuthState) {
     state.set_access_token.set(None);
     state.set_user.set(None);
     if let Some(window) = web_sys::window() {
-        if let Ok(location) = window.location() {
-            let _ = location.set_href("/ui/");
-        }
+        let location = window.location();
+        let _ = location.set_href("/ui/");
     }
 }
 

@@ -68,7 +68,7 @@ pub fn is_onboarding_completed() -> bool {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
-            if let Ok(storage) = window.local_storage() {
+            if let Ok(Some(storage)) = window.local_storage() {
                 if let Ok(Some(val)) = storage.get_item(ONBOARDING_KEY) {
                     return val == "true";
                 }
@@ -82,7 +82,7 @@ pub fn reset_onboarding() {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
-            if let Ok(storage) = window.local_storage() {
+            if let Ok(Some(storage)) = window.local_storage() {
                 let _ = storage.set_item(ONBOARDING_KEY, "false");
             }
         }
@@ -93,7 +93,7 @@ pub fn complete_onboarding() {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
-            if let Ok(storage) = window.local_storage() {
+            if let Ok(Some(storage)) = window.local_storage() {
                 let _ = storage.set_item(ONBOARDING_KEY, "true");
             }
         }
