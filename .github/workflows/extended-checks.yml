@@ -24,7 +24,8 @@ jobs:
             -p 8080:8080 \
             ferro:e2e \
             --admin-user test --admin-password test \
-            --cors-allowed-origins "http://localhost:8080"
+            --cors-allowed-origins "http://localhost:8080" \
+            --static-dir /app/ui
           # Wait for server to be ready
           for i in $(seq 1 60); do
             if curl -sf http://localhost:8080/.well-known/ferro > /dev/null 2>&1; then
