@@ -11,7 +11,7 @@
 | Metric | Value |
 |--------|-------|
 | Workspace crates | 20 |
-| Total tests | 814 passed, 1 ignored |
+| Total tests | 813 passed, 1 ignored |
 | Clippy warnings | 0 |
 | cargo-deny | PASS (advisories, bans, licenses, sources) |
 | cargo-audit | 1 unsound (glib, desktop-only), 20 unmaintained (desktop GTK3 chain) |
