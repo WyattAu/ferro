@@ -281,7 +281,7 @@ See [docs/api.md](docs/api.md) for detailed request/response documentation.
 ## Development
 
 ### Prerequisites
-- Rust 1.85+ (edition 2024)
+- Rust 1.92+ (edition 2024)
 - OpenSSL (for PostgreSQL support)
 
 ### Build

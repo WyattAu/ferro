@@ -48,8 +48,8 @@ Ferro isn't just a place to store files; it's a place to process them.
 ### IV. The Web Frontend (Leptos)
 A zero-JavaScript (TS-free) web experience.
 
-*   **Technology:** `Leptos` (Full-stack Rust web framework).
-*   **Rendering:** Server-Side Rendering (SSR) for the initial file tree (instant perceived performance) with WASM hydration for a smooth, "App-like" feel.
+*   **Technology:** `Leptos` (Rust web framework compiled to WASM).
+*   **Rendering:** Client-Side Rendering (CSR) via WASM with a lightweight HTML shell. The frontend communicates with the server via REST/WebDAV APIs.
 *   **Shared Logic:** All file structures and API responses are defined in a `ferro-common` crate, shared between the server and the frontend. **Compile-time guarantees** that the frontend and backend never drift.
 *   **Functionality:**
     *   High-speed file navigation (handling 10,000+ files in a single view via virtualized scrolling).
@@ -62,10 +62,10 @@ A zero-JavaScript (TS-free) web experience.
 The bridge between the remote cloud and the local OS.
 
 *   **The Shell (Tauri):** A lightweight Rust-based desktop wrapper for Windows, macOS, and Linux.
-*   **The VFS Engine (rclone Sidecar):**
-    *   Tauri manages the lifecycle of an embedded `rclone` binary.
-    *   **Zero-Config Mount:** Upon login, Tauri injects credentials into rclone and mounts the Ferro drive (e.g., `Z:` on Windows).
-    *   **Status Monitoring:** Tauri monitors rclone's stdout/stderr to provide real-time feedback (Upload progress, sync errors, "Offline Mode" status).
+*   **The VFS Engine (FUSE mount):**
+    *   Tauri integrates with `ferro-fuse` (FUSE3 filesystem) for native OS mounting.
+    *   **Zero-Config Mount:** Upon login, Tauri mounts the Ferro drive via FUSE (e.g., `/mnt/ferro` on Linux, network drive on Windows/macOS).
+    *   **Status Monitoring:** Tauri monitors mount status to provide real-time feedback (sync errors, connection status).
 *   **Native Integration:**
     *   System tray icons for sync status.
     *   Native OS notifications when a file is shared with the user.

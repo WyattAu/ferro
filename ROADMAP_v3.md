@@ -20,7 +20,7 @@
 
 ### 1.2 Architecture Summary
 
-Ferro is a self-hosted file sync and sharing platform written in Rust (edition 2024, MSRV 1.85). The 20-crate workspace implements:
+Ferro is a self-hosted file sync and sharing platform written in Rust (edition 2024, MSRV 1.92). The 21-crate workspace implements:
 
 - **WebDAV** (RFC 4918 Class 1/2/3) with full PROPFIND/GET/PUT/DELETE/MKCOL/COPY/MOVE/LOCK/UNLOCK
 - **CalDAV** (RFC 4791) and **CardDAV** (RFC 6352)

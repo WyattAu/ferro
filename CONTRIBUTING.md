@@ -12,7 +12,7 @@ Thank you for your interest in contributing! This guide covers everything you ne
 
 ## Development Prerequisites
 
-- Rust 1.85+ (edition 2024)
+- Rust 1.92+ (edition 2024)
 - Just (optional, for common tasks)
 - Node.js 18+ (for web UI development)
 - Playwright (for E2E tests, optional)

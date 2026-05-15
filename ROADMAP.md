@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Ferro is a self-hosted file sync and sharing platform written in Rust, positioned as an open-source Nextcloud/ownCloud alternative. The codebase comprises 20 crates, 814 tests, 0 clippy warnings, and a comprehensive CI/CD pipeline. This roadmap covers the path from the current state (v2.5.1) to a production-hardened v3.0 release, followed by growth initiatives.
+Ferro is a self-hosted file sync and sharing platform written in Rust, positioned as an open-source Nextcloud/ownCloud alternative. The codebase comprises 21 crates, 813 tests, 0 clippy warnings, and a comprehensive CI/CD pipeline. This roadmap covers the path from the current state (v2.5.1) to a production-hardened v3.0 release, followed by growth initiatives.
 
 The current codebase has strong fundamentals: correct WebDAV (RFC 4918), multiple storage backends, Cedar authorization, OIDC authentication, WASM worker extensibility, and a Leptos web frontend. The primary gaps are in production hardening, test coverage for advanced features, observability depth, and operational tooling.
 

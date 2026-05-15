@@ -37,7 +37,7 @@ POSTGRES_PASSWORD=your-password docker compose -f docker-compose.yml -f docker-c
 
 ### Prerequisites
 
-- Rust 1.85+ (edition 2024)
+- Rust 1.92+ (edition 2024)
 - OpenSSL (for PostgreSQL support)
 
 ### Build

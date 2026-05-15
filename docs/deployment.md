@@ -105,7 +105,7 @@ docker build --build-arg BUILD_FEATURES=s3 -t ferro-s3 .
 Or create a `Dockerfile.features`:
 
 ```dockerfile
-FROM rust:1.85-bookworm AS builder
+FROM rust:1.92-bookworm AS builder
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY crates/common/Cargo.toml crates/common/

@@ -37,3 +37,5 @@ jobs:
           comment-on-alert: true
           fail-on-alert: true
           alert-comment-cc-users: '@WyattAu'
+          gh-pages-branch: 'bench-data'
+          benchmark-data-dir-path: 'dev/bench'
