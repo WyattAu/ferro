@@ -1,7 +1,8 @@
-import { test, expect, waitForFileBrowser, BASE_URL } from "../helpers/fixtures";
+import { test, expect, waitForFileBrowser, BASE_URL, enableDebugLogging } from "../helpers/fixtures";
 
 test.describe("Authentication", () => {
   test("should not show sign-in when auth is disabled", async ({ page }) => {
+    await enableDebugLogging(page);
     await waitForFileBrowser(page);
 
     // When auth is disabled, the header should NOT show "Sign in"

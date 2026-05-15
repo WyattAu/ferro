@@ -69,15 +69,46 @@ export async function cleanupTestData(
   }
 }
 
+export async function enableDebugLogging(page: Page): Promise<void> {
+  page.on("request", (req) => {
+    const url = req.url();
+    // Only log app-related requests (skip favicons, etc.)
+    if (url.includes("/ui") || url.includes("/api") || url.includes("/.well-known")) {
+      console.log(`[REQ] ${req.method()} ${url}`);
+    }
+  });
+  page.on("response", (resp) => {
+    const url = resp.url();
+    if (url.includes("/ui") || url.includes("/api") || url.includes("/.well-known")) {
+      console.log(`[RESP] ${resp.status()} ${url}`);
+    }
+  });
+  page.on("pageerror", (err) => {
+    console.log(`[PAGE ERROR] ${err.message}`);
+  });
+  page.on("console", (msg) => {
+    const text = msg.text();
+    // Only log errors and warnings to reduce noise
+    if (msg.type() === "error" || msg.type() === "warning") {
+      console.log(`[BROWSER ${msg.type().toUpperCase()}] ${text}`);
+    }
+  });
+}
+
 export async function waitForFileBrowser(page: Page): Promise<void> {
   // Navigate to the UI. Use "commit" to wait for the initial HTML
   // response, then wait for the WASM app to render by polling
   // for the file browser container.
-  await page.goto("/ui/", { waitUntil: "commit" });
+  console.log(`[DEBUG] Navigating to /ui/ with baseURL: ${page.context().browser().browserType().name()}`);
+  const response = await page.goto("/ui/", { waitUntil: "commit" });
+  console.log(`[DEBUG] goto response status: ${response?.status()}, url: ${page.url()}`);
+  console.log(`[DEBUG] page content length: ${(await page.content()).length}`);
+  console.log(`[DEBUG] #app children: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
 
   // Wait for the WASM app to initialize and render. The #app div
   // starts empty and Leptos populates it once the WASM module loads.
   // We poll because WASM compilation can take 30-60s on slow CI runners.
+  console.log(`[DEBUG] Waiting for WASM to render (max 120s)...`);
   await page.waitForFunction(
     () => {
       const app = document.getElementById("app");
@@ -85,6 +116,7 @@ export async function waitForFileBrowser(page: Page): Promise<void> {
     },
     { timeout: 120_000, polling: 1_000 },
   );
+  console.log(`[DEBUG] WASM rendered!`);
 
   // Wait for either the file table or the empty state to appear.
   await Promise.race([
