@@ -70,6 +70,15 @@ export async function cleanupTestData(
 }
 
 export async function enableDebugLogging(page: Page): Promise<void> {
+  // Inject error handlers BEFORE navigation to catch WASM init errors
+  await page.addInitScript(() => {
+    window.addEventListener("error", (e) => {
+      console.error(`[UNCAUGHT ERROR] ${e.message} at ${e.filename}:${e.lineno}:${e.colno}`);
+    });
+    window.addEventListener("unhandledrejection", (e) => {
+      console.error(`[UNHANDLED REJECTION] ${String(e.reason)}`);
+    });
+  });
   page.on("request", (req) => {
     const url = req.url();
     // Only log app-related requests (skip favicons, etc.)
@@ -87,11 +96,7 @@ export async function enableDebugLogging(page: Page): Promise<void> {
     console.log(`[PAGE ERROR] ${err.message}`);
   });
   page.on("console", (msg) => {
-    const text = msg.text();
-    // Only log errors and warnings to reduce noise
-    if (msg.type() === "error" || msg.type() === "warning") {
-      console.log(`[BROWSER ${msg.type().toUpperCase()}] ${text}`);
-    }
+    console.log(`[BROWSER ${msg.type().toUpperCase()}] ${msg.text()}`);
   });
 }
 
@@ -104,6 +109,11 @@ export async function waitForFileBrowser(page: Page): Promise<void> {
   console.log(`[DEBUG] goto response status: ${response?.status()}, url: ${page.url()}`);
   console.log(`[DEBUG] page content length: ${(await page.content()).length}`);
   console.log(`[DEBUG] #app children: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
+
+  // Wait a few seconds for WASM to compile, then check state
+  await page.waitForTimeout(5000);
+  console.log(`[DEBUG] #app children after 5s: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
+  console.log(`[DEBUG] page title after 5s: ${await page.title()}`);
 
   // Wait for the WASM app to initialize and render. The #app div
   // starts empty and Leptos populates it once the WASM module loads.
