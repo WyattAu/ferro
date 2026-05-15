@@ -2,6 +2,7 @@ import { test, expect, setupAuth, waitForFileBrowser, createTestFile, createTest
 
 test.describe("Navigation", () => {
   test.beforeEach(async ({ page, context }) => {
+    setupAuth(context);
     await waitForFileBrowser(page);
   });
 

@@ -2,13 +2,14 @@ import { test, expect, setupAuth, waitForFileBrowser, createTestFile, createTest
 
 test.describe("File Browser", () => {
   test.beforeEach(async ({ page, context }) => {
+    setupAuth(context);
     await waitForFileBrowser(page);
   });
 
   test("should display empty state when no files exist", async ({ page }) => {
     await expect(page.getByText("This folder is empty")).toBeVisible();
     await expect(
-      page.getByText("Upload files or create a new folder to get started"),
+      page.getByText("Drop files here or upload your first file"),
     ).toBeVisible();
   });
 

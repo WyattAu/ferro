@@ -2,6 +2,7 @@ import { test, expect, setupAuth, waitForFileBrowser, createTestFile, cleanupTes
 
 test.describe("Upload and Download", () => {
   test.beforeEach(async ({ page, context }) => {
+    setupAuth(context);
     await waitForFileBrowser(page);
   });
 
