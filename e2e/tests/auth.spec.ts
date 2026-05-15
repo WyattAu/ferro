@@ -6,19 +6,13 @@ test.describe("Authentication", () => {
     const uiResponse = await request.get(`${BASE_URL}/ui/`);
     const uiStatus = uiResponse.status();
     const uiBody = await uiResponse.text();
-    console.log("UI STATUS:", uiStatus);
-    console.log("UI BODY (first 500):", uiBody.substring(0, 500));
+    console.log("UI STATUS:", uiStatus, "BODY LEN:", uiBody.length, "HAS #app:", uiBody.includes("id=\"app\""));
 
-    await page.goto("/ui/");
-    await page.waitForLoadState("networkidle");
-
-    // Debug: capture page content for CI diagnosis
-    const bodyText = await page.evaluate(() => document.body?.innerText?.substring(0, 500) || "EMPTY");
-    const appHtml = await page.evaluate(() => document.getElementById("app")?.innerHTML?.substring(0, 500) || "NO #app");
-    const fullHtml = await page.evaluate(() => document.documentElement?.outerHTML?.substring(0, 1000) || "NO HTML");
-    console.log("PAGE BODY:", bodyText);
-    console.log("APP DIV:", appHtml);
-    console.log("FULL HTML (first 1000):", fullHtml);
+    await page.goto("/ui/", { waitUntil: "domcontentloaded" });
+    const content = await page.content();
+    console.log("PAGE CONTENT LEN:", content?.length, "HAS #app:", content?.includes("id=\"app\""));
+    const title = await page.title();
+    console.log("PAGE TITLE:", title);
 
     // When auth is disabled, the header should NOT show "Sign in"
     await expect(page.locator("header")).toBeVisible({ timeout: 10_000 });
