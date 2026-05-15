@@ -64,18 +64,20 @@ test.describe("Authentication", () => {
 
   test("should return 401 for API calls without auth", async ({ page }) => {
     // Make a request to a protected endpoint without auth
-    const result = await page.evaluate(async () => {
-      const resp = await fetch(`${process.env.BASE_URL || "http://localhost:8080"}/`, {
+    const baseUrl = process.env.BASE_URL || "http://localhost:8080";
+    const result = await page.evaluate(async (url) => {
+      const resp = await fetch(`${url}/`, {
         method: "PROPFIND",
         headers: { Depth: "1" },
       });
       return { status: resp.status };
-    });
+    }, baseUrl);
 
     expect(result.status).toBe(401);
   });
 
   test("should return 200 for public endpoints without auth", async ({ page }) => {
+    const baseUrl = process.env.BASE_URL || "http://localhost:8080";
     const endpoints = [
       "/.well-known/ferro",
       "/api/config",
@@ -84,9 +86,9 @@ test.describe("Authentication", () => {
 
     for (const endpoint of endpoints) {
       const result = await page.evaluate(async (url) => {
-        const resp = await fetch(`${process.env.BASE_URL || "http://localhost:8080"}${url}`);
+        const resp = await fetch(url);
         return { status: resp.status };
-      }, endpoint);
+      }, `${baseUrl}${endpoint}`);
 
       expect(result.status).toBe(200);
     }
