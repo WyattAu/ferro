@@ -19,16 +19,18 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
       - uses: Swatinem/rust-cache@v2
-      - name: Build server (dev profile for CI speed)
+      - name: Build server
         run: cargo build --bin ferro-server
-      - name: Start server
+      - name: Start server in background
         run: ./target/debug/ferro-server --data-dir /tmp/ferro-test --admin-user test --admin-password test --port 8080 &
-      - name: Wait for server
+      - name: Wait for server readiness
         run: for i in $(seq 1 60); do curl -sf http://localhost:8080/.well-known/ferro && break; sleep 2; done
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install && npx playwright install --with-deps chromium && npx playwright test
+      - run: npm ci && npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npx playwright test
         working-directory: e2e
         env:
           BASE_URL: http://localhost:8080

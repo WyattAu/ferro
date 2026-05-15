@@ -65,7 +65,7 @@ test.describe("Authentication", () => {
   test("should return 401 for API calls without auth", async ({ page }) => {
     // Make a request to a protected endpoint without auth
     const result = await page.evaluate(async () => {
-      const resp = await fetch("http://localhost:8080/", {
+      const resp = await fetch(`${process.env.BASE_URL || "http://localhost:8080"}/`, {
         method: "PROPFIND",
         headers: { Depth: "1" },
       });
@@ -84,7 +84,7 @@ test.describe("Authentication", () => {
 
     for (const endpoint of endpoints) {
       const result = await page.evaluate(async (url) => {
-        const resp = await fetch(`http://localhost:8080${url}`);
+        const resp = await fetch(`${process.env.BASE_URL || "http://localhost:8080"}${url}`);
         return { status: resp.status };
       }, endpoint);
 
