@@ -1,8 +1,7 @@
-import { test, expect, setupAuth, waitForFileBrowser, createTestFile, createTestFolder, cleanupTestData } from "../helpers/fixtures";
+import { test, expect, waitForFileBrowser, createTestFile, createTestFolder, cleanupTestData } from "../helpers/fixtures";
 
 test.describe("Navigation", () => {
-  test.beforeEach(async ({ page, context }) => {
-    setupAuth(context);
+  test.beforeEach(async ({ page }) => {
     await waitForFileBrowser(page);
   });
 

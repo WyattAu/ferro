@@ -1,8 +1,7 @@
-import { test, expect, setupAuth, waitForFileBrowser, createTestFile, cleanupTestData } from "../helpers/fixtures";
+import { test, expect, waitForFileBrowser, createTestFile, cleanupTestData } from "../helpers/fixtures";
 
 test.describe("Upload and Download", () => {
-  test.beforeEach(async ({ page, context }) => {
-    setupAuth(context);
+  test.beforeEach(async ({ page }) => {
     await waitForFileBrowser(page);
   });
 

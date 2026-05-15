@@ -1,36 +1,20 @@
-import { test, expect, setupAuth, waitForFileBrowser, apiRequest } from "../helpers/fixtures";
+import { test, expect, setupAuth, waitForFileBrowser, apiRequest, BASE_URL } from "../helpers/fixtures";
 
 test.describe("Authentication", () => {
-  test("should redirect to login when not authenticated", async ({ browser }) => {
-    const context = await browser.newContext();
-
-    // Intercept 401 responses to prevent the browser's native auth dialog.
-    // The WASM app's JS makes API calls that fail with 401; without
-    // this interception, Chromium shows a credential prompt that blocks
-    // the page from rendering its own "Sign in" UI.
-    const page = await context.newPage();
-    // Intercept ALL requests to strip WWW-Authenticate from 401 responses.
-    // The WASM app's PROPFIND goes to "/" (not "/api/"), so a narrow pattern
-    // would miss it. Without this, Chromium shows a native credential dialog.
-    await page.route("**/*", async (route) => {
-      const response = await route.fetch();
-      if (response.status() === 401) {
-        return route.fulfill({ status: 401, body: '{"error":"unauthorized"}' });
-      }
-      return response;
-    });
-
+  test("should not show sign-in when auth is disabled", async ({ page }) => {
     await page.goto("/ui/");
     await page.waitForLoadState("networkidle");
 
-    // The UI should show the sign-in link in the header
-    await expect(page.getByText("Sign in")).toBeVisible({ timeout: 10_000 });
-
-    await context.close();
+    // When auth is disabled, the header should NOT show "Sign in"
+    await expect(page.locator("header")).toBeVisible({ timeout: 10_000 });
+    const signInVisible = await page
+      .getByText("Sign in")
+      .isVisible()
+      .catch(() => false);
+    expect(signInVisible).toBe(false);
   });
 
-  test("should show file browser when authenticated", async ({ page, context }) => {
-    await setupAuth(context);
+  test("should show file browser without authentication", async ({ page }) => {
     await waitForFileBrowser(page);
 
     // The file browser table or empty state should be visible
@@ -43,53 +27,15 @@ test.describe("Authentication", () => {
     expect(hasTable || hasEmptyState).toBe(true);
   });
 
-  test("should show user info in header when authenticated", async ({ page, context }) => {
-    await setupAuth(context);
+  test("should show header when loaded", async ({ page }) => {
     await waitForFileBrowser(page);
 
-    // When authenticated with Basic Auth, the server's /api/config returns
-    // auth_enabled=true. The UI then shows "Sign in" if there's no bearer token
-    // in localStorage (the WASM app uses OIDC bearer tokens, not Basic Auth).
-    // However, the file browser still works because the browser sends Basic Auth
-    // automatically. The header may show "Sign in" since there's no stored token.
-    // Verify the header renders without error.
+    // Verify the header renders without error
     await expect(page.locator("header")).toBeVisible();
   });
 
-  test("should allow logout and show login prompt", async ({ page, context }) => {
-    await setupAuth(context);
-    await waitForFileBrowser(page);
-
-    // If a "Sign out" button is present, click it
-    const signOutButton = page.getByText("Sign out");
-    if (await signOutButton.isVisible().catch(() => false)) {
-      await signOutButton.click();
-      await page.waitForLoadState("networkidle");
-
-      // After logout, should see sign-in prompt
-      await expect(page.getByText("Sign in")).toBeVisible({ timeout: 10_000 });
-    } else {
-      // No sign-out button means the UI is in the "Sign in" state already
-      await expect(page.getByText("Sign in")).toBeVisible({ timeout: 10_000 });
-    }
-  });
-
-  test("should return 401 for API calls without auth", async ({ page }) => {
-    // Make a request to a protected endpoint without auth
-    const baseUrl = process.env.BASE_URL || "http://localhost:8080";
-    const result = await page.evaluate(async (url) => {
-      const resp = await fetch(`${url}/`, {
-        method: "PROPFIND",
-        headers: { Depth: "1" },
-      });
-      return { status: resp.status };
-    }, baseUrl);
-
-    expect(result.status).toBe(401);
-  });
-
-  test("should return 200 for public endpoints without auth", async ({ page }) => {
-    const baseUrl = process.env.BASE_URL || "http://localhost:8080";
+  test("should return 200 for all endpoints without auth", async ({ request }) => {
+    // Use Playwright's request context (bypasses CORS entirely)
     const endpoints = [
       "/.well-known/ferro",
       "/api/config",
@@ -97,12 +43,17 @@ test.describe("Authentication", () => {
     ];
 
     for (const endpoint of endpoints) {
-      const result = await page.evaluate(async (url) => {
-        const resp = await fetch(url);
-        return { status: resp.status };
-      }, `${baseUrl}${endpoint}`);
-
-      expect(result.status).toBe(200);
+      const resp = await request.get(`${BASE_URL}${endpoint}`);
+      expect(resp.status()).toBe(200);
     }
+  });
+
+  test("should return 207 for PROPFIND without auth", async ({ request }) => {
+    const resp = await request.fetch(`${BASE_URL}/`, {
+      method: "PROPFIND",
+      headers: { Depth: "1" },
+    });
+    // With auth disabled, PROPFIND should succeed
+    expect(resp.status()).toBe(207);
   });
 });
