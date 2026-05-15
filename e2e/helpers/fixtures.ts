@@ -70,6 +70,11 @@ export async function cleanupTestData(
 }
 
 export async function waitForFileBrowser(page: Page): Promise<void> {
+  // Navigate to the UI and wait for the file browser to render.
+  // The caller must call setupAuth(context) before using this helper.
+  // With context.setHTTPCredentials set, the browser auto-handles
+  // the 401 Basic challenge from the server, so the WASM app's
+  // PROPFIND succeeds after the browser retries with credentials.
   await page.goto("/ui/");
   await page.waitForLoadState("networkidle");
 

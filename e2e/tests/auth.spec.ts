@@ -3,15 +3,27 @@ import { test, expect, setupAuth, waitForFileBrowser, apiRequest } from "../help
 test.describe("Authentication", () => {
   test("should redirect to login when not authenticated", async ({ browser }) => {
     const context = await browser.newContext();
-    const page = await context.newPage();
 
-    // Do NOT set auth — the browser will receive 401 for PROPFIND
+    // Intercept 401 responses to prevent the browser's native auth dialog.
+    // The WASM app's JS makes API calls that fail with 401; without
+    // this interception, Chromium shows a credential prompt that blocks
+    // the page from rendering its own "Sign in" UI.
+    const page = await context.newPage();
+    // Intercept ALL requests to strip WWW-Authenticate from 401 responses.
+    // The WASM app's PROPFIND goes to "/" (not "/api/"), so a narrow pattern
+    // would miss it. Without this, Chromium shows a native credential dialog.
+    await page.route("**/*", async (route) => {
+      const response = await route.fetch();
+      if (response.status() === 401) {
+        return route.fulfill({ status: 401, body: '{"error":"unauthorized"}' });
+      }
+      return response;
+    });
+
     await page.goto("/ui/");
     await page.waitForLoadState("networkidle");
 
-    // With auth enabled, the PROPFIND call fails with 401.
     // The UI should show the sign-in link in the header
-    // (since no token is stored, and auth_enabled=true from /api/config).
     await expect(page.getByText("Sign in")).toBeVisible({ timeout: 10_000 });
 
     await context.close();
