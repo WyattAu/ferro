@@ -121,12 +121,20 @@ export async function waitForFileBrowser(page: Page): Promise<void> {
   await page.waitForTimeout(2000);
   const bodyChildren: string[] = await page.evaluate(() => {
     return Array.from(document.body.children).map(
-      (el) => `${el.tagName.toLowerCase()}#${el.id || ""}.${Array.from(el.classList).join(".")}`,
+      (el) => `${el.tagName.toLowerCase()}#${el.id || ""}.${Array.from(el.classList).join(".")}[${el.innerHTML.length}]`,
     );
   });
   console.log(`[DEBUG] body children after 2s: ${JSON.stringify(bodyChildren)}`);
-  const bodyHTML: string = await page.evaluate(() => document.body.innerHTML.substring(0, 2000));
-  console.log(`[DEBUG] body innerHTML (first 2000 chars): ${bodyHTML}`);
+  // Check for specific elements
+  const debugInfo = await page.evaluate(() => ({
+    hasHeader: !!document.querySelector("header"),
+    hasTable: !!document.querySelector("table"),
+    hasMain: !!document.querySelector("main"),
+    hasRouterOutlet: !!document.querySelector("[data-leptos-portal]"),
+    bodyChildCount: document.body.children.length,
+    allBodyTags: Array.from(document.body.children).map(el => el.tagName),
+  }));
+  console.log(`[DEBUG] element check: ${JSON.stringify(debugInfo)}`);
 
   // Wait for the WASM app to initialize and render. Leptos uses
   // starts empty and Leptos populates it once the WASM module loads.
