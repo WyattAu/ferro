@@ -24,15 +24,15 @@ pub fn App() -> impl IntoView {
         <ErrorBoundary>
             <ProvideToastContext>
                 <Router base="/ui">
-                    <Routes base="/ui".to_string()>
-                        <Route path="/" view=RootView />
-                        <Route path="/files" view=RootView />
-                        <Route path="/files/*path" view=FileViewRoute />
-                        <Route path="/trash" view=TrashPage />
-                        <Route path="/settings" view=SettingsPage />
-                        <Route path="/admin" view=AdminPage />
-                        <Route path="/auth/callback" view=AuthCallbackPage />
-                        <Route path="/auth/login" view=LoginPage />
+                    <Routes>
+                        <Route path="/ui/" view=RootView />
+                        <Route path="/ui/files/" view=RootView />
+                        <Route path="/ui/files/*path" view=FileViewRoute />
+                        <Route path="/ui/trash/" view=TrashPage />
+                        <Route path="/ui/settings/" view=SettingsPage />
+                        <Route path="/ui/admin/" view=AdminPage />
+                        <Route path="/ui/auth/callback/" view=AuthCallbackPage />
+                        <Route path="/ui/auth/login/" view=LoginPage />
                     </Routes>
                 </Router>
             </ProvideToastContext>
