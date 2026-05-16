@@ -24,7 +24,7 @@ pub fn App() -> impl IntoView {
         <ErrorBoundary>
             <ProvideToastContext>
                 <Router base="/ui">
-                    <Routes base="/ui">
+                    <Routes base="/ui".to_string()>
                         <Route path="/" view=RootView />
                         <Route path="/files" view=RootView />
                         <Route path="/files/*path" view=FileViewRoute />
