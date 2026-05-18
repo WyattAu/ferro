@@ -64,89 +64,24 @@ export async function cleanupTestData(
     try {
       await apiRequest(page, "DELETE", path);
     } catch {
-      // Ignore errors — file may already be deleted
+      // Ignore errors -- file may already be deleted
     }
   }
 }
 
-export async function enableDebugLogging(page: Page): Promise<void> {
-  // Inject error handlers BEFORE navigation to catch WASM init errors
-  await page.addInitScript(() => {
-    window.addEventListener("error", (e) => {
-      console.error(`[UNCAUGHT ERROR] ${e.message} at ${e.filename}:${e.lineno}:${e.colno}`);
-    });
-    window.addEventListener("unhandledrejection", (e) => {
-      console.error(`[UNHANDLED REJECTION] ${String(e.reason)}`);
-    });
-    // Listen for the Trunk application started event
-    window.addEventListener("TrunkApplicationStarted", () => {
-      console.log("[TRUNK] Application started event fired!");
-    });
-  });
-  page.on("requestfailed", (req) => {
-    console.log(`[REQ FAILED] ${req.failure()?.errorText} ${req.url()}`);
-  });
-  page.on("request", (req) => {
-    const url = req.url();
-    // Only log app-related requests (skip favicons, etc.)
-    if (url.includes("/ui") || url.includes("/api") || url.includes("/.well-known")) {
-      console.log(`[REQ] ${req.method()} ${url}`);
-    }
-  });
-  page.on("response", (resp) => {
-    const url = resp.url();
-    if (url.includes("/ui") || url.includes("/api") || url.includes("/.well-known")) {
-      console.log(`[RESP] ${resp.status()} ${url}`);
-    }
-  });
-  page.on("pageerror", (err) => {
-    console.log(`[PAGE ERROR] ${err.message}`);
-  });
-  page.on("console", (msg) => {
-    console.log(`[BROWSER ${msg.type().toUpperCase()}] ${msg.text()}`);
-  });
-}
-
 export async function waitForFileBrowser(page: Page): Promise<void> {
-  // Navigate to the UI. Use "commit" to wait for the initial HTML
-  // response, then wait for the WASM app to render by polling
-  // for the file browser container.
-  console.log(`[DEBUG] Navigating to /ui/ with baseURL: ${page.context().browser().browserType().name()}`);
-  const response = await page.goto("/ui/", { waitUntil: "commit" });
-  console.log(`[DEBUG] goto response status: ${response?.status()}, url: ${page.url()}`);
-  console.log(`[DEBUG] page content length: ${(await page.content()).length}`);
-  console.log(`[DEBUG] #app children: ${await page.evaluate(() => document.getElementById("app")?.children.length ?? "NOT FOUND")}`);
+  // Navigate to /ui (no trailing slash).
+  // Leptos Router's join_paths() strips trailing slashes from route
+  // patterns, so patterns like "/ui" only match "/ui", not "/ui/".
+  // The server serves index.html for both, but client-side routing
+  // requires the exact match.
+  await page.goto("/ui", { waitUntil: "commit" });
 
-  // Log what's actually in the body after Trunk starts
-  await page.waitForTimeout(2000);
-  const bodyChildren: string[] = await page.evaluate(() => {
-    return Array.from(document.body.children).map(
-      (el) => `${el.tagName.toLowerCase()}#${el.id || ""}.${Array.from(el.classList).join(".")}[${el.innerHTML.length}]`,
-    );
-  });
-  console.log(`[DEBUG] body children after 2s: ${JSON.stringify(bodyChildren)}`);
-  // Check for specific elements
-  const debugInfo = await page.evaluate(() => ({
-    hasHeader: !!document.querySelector("header"),
-    hasTable: !!document.querySelector("table"),
-    hasMain: !!document.querySelector("main"),
-    hasRouterOutlet: !!document.querySelector("[data-leptos-portal]"),
-    bodyChildCount: document.body.children.length,
-    allBodyTags: Array.from(document.body.children).map(el => el.tagName),
-  }));
-  console.log(`[DEBUG] element check: ${JSON.stringify(debugInfo)}`);
-
-  // Wait for the WASM app to initialize and render. Leptos uses
-  // starts empty and Leptos populates it once the WASM module loads.
-  // We poll because WASM compilation can take 30-60s on slow CI runners.
   // Wait for the WASM app to initialize and render. Leptos uses
   // mount_to_body which adds elements as siblings of #app (not children).
-  // Wait for the Leptos router to render any content into the body.
-  console.log(`[DEBUG] Waiting for WASM to render (max 120s)...`);
+  // We poll because WASM compilation can take 30-60s on slow CI runners.
   await page.waitForFunction(
     () => {
-      // Leptos mounts to body, so check for any rendered content
-      // beyond the original HTML (#app, noscript, script tags)
       const body = document.body;
       for (const child of body.children) {
         const tag = child.tagName.toLowerCase();
@@ -160,7 +95,6 @@ export async function waitForFileBrowser(page: Page): Promise<void> {
     },
     { timeout: 120_000, polling: 1_000 },
   );
-  console.log(`[DEBUG] WASM rendered!`);
 
   // Wait for either the file table or the empty state to appear.
   await Promise.race([

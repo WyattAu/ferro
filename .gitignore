@@ -61,5 +61,9 @@ tarpaulin-report.html
 # Local PostgreSQL
 .pgdata/
 
+# Playwright
+e2e/test-results/
+playwright-report/
+
 # Specs (local R&D artifacts)
 .specs/
