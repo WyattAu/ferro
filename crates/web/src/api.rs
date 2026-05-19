@@ -92,6 +92,13 @@ fn urlencoding(s: &str) -> String {
 fn parse_propfind_xml(xml: &str) -> Vec<FileEntry> {
     let mut entries = Vec::new();
 
+    // Process XML tag by tag rather than line by line.
+    // The server emits single-line XML (no newlines between tags), so
+    // line-based parsing fails. We extract all tags and text content in
+    // document order by splitting on '<' (each fragment then starts
+    // with either a tag name or text content).
+    let fragments: Vec<&str> = xml.split('<').collect();
+
     let mut in_response = false;
     let mut current_href = String::new();
     let mut current_props: std::collections::HashMap<String, String> =
@@ -100,79 +107,115 @@ fn parse_propfind_xml(xml: &str) -> Vec<FileEntry> {
     let mut in_prop = false;
     let mut current_prop_name = String::new();
     let mut in_propstat = false;
-    let _in_prop_content = false;
     let mut current_text = String::new();
 
-    for line in xml.lines() {
-        let trimmed = line.trim();
+    for fragment in &fragments {
+        let trimmed = fragment.trim();
 
-        if trimmed.contains("<D:response>") || trimmed.contains("<d:response>") {
-            in_response = true;
-            current_href.clear();
-            current_props.clear();
-        } else if trimmed.contains("</D:response>") || trimmed.contains("</d:response>") {
-            if in_response && !current_href.is_empty() {
-                let name = current_href.rsplit('/').next().unwrap_or("").to_string();
-                let is_collection = current_props
-                    .get("resourcetype")
-                    .map(|v| v.contains("collection"))
-                    .unwrap_or(false);
+        if trimmed.is_empty() {
+            continue;
+        }
 
-                entries.push(FileEntry {
-                    path: current_href.clone(),
-                    name,
-                    size: current_props
-                        .get("getcontentlength")
-                        .and_then(|v| v.parse().ok())
-                        .unwrap_or(0),
-                    is_collection,
-                    mime_type: current_props
-                        .get("getcontenttype")
-                        .cloned()
-                        .unwrap_or_default(),
-                    modified_at: current_props
-                        .get("getlastmodified")
-                        .cloned()
-                        .unwrap_or_default(),
-                    etag: current_props.get("getetag").cloned().unwrap_or_default(),
-                });
-            }
-            in_response = false;
-        } else if trimmed.contains("<D:href>") {
-            if let Some(start) = trimmed.find('>') {
-                let rest = &trimmed[start + 1..];
-                if let Some(end) = rest.find("</") {
-                    current_href = rest[..end].trim().to_string();
+        // Closing tags first (they start with '/')
+        if let Some(rest) = trimmed.strip_prefix("/D:") {
+            let tag_name = rest.split('>').next().unwrap_or(rest).trim();
+            match tag_name {
+                "response" => {
+                    if in_response && !current_href.is_empty() {
+                        let name = current_href.rsplit('/').next().unwrap_or("").to_string();
+                        let is_collection = current_props
+                            .get("resourcetype")
+                            .map(|v| v.contains("collection"))
+                            .unwrap_or(false);
+
+                        entries.push(FileEntry {
+                            path: current_href.clone(),
+                            name,
+                            size: current_props
+                                .get("getcontentlength")
+                                .and_then(|v| v.parse().ok())
+                                .unwrap_or(0),
+                            is_collection,
+                            mime_type: current_props
+                                .get("getcontenttype")
+                                .cloned()
+                                .unwrap_or_default(),
+                            modified_at: current_props
+                                .get("getlastmodified")
+                                .cloned()
+                                .unwrap_or_default(),
+                            etag: current_props.get("getetag").cloned().unwrap_or_default(),
+                        });
+                    }
+                    in_response = false;
+                }
+                "propstat" => {
+                    in_propstat = false;
+                }
+                "prop" => {
+                    in_prop = false;
+                }
+                _ => {
+                    // Closing tag for a property -- save it
+                    if in_prop && !current_prop_name.is_empty() {
+                        current_props.insert(current_prop_name.clone(), current_text.clone());
+                    }
+                    current_prop_name.clear();
+                    current_text.clear();
                 }
             }
-        } else if trimmed.contains("<D:propstat>") {
-            in_propstat = true;
-            in_prop = false;
-        } else if trimmed.contains("</D:propstat>") {
-            in_propstat = false;
-        } else if in_propstat && trimmed.contains("<D:prop>") {
-            in_prop = true;
-        } else if in_prop && trimmed.contains("</D:prop>") {
-            in_prop = false;
-        } else if in_prop && trimmed.contains("</") {
-            if !current_prop_name.is_empty() {
-                current_props.insert(current_prop_name.clone(), current_text.clone());
-            }
-            current_prop_name.clear();
-            current_text.clear();
-        } else if in_prop
-            && let Some(tag_start) = trimmed.find("<D:")
-            && let Some(end) = (trimmed[tag_start + 3..]).find('>')
-        {
-            let rest = &trimmed[tag_start + 3..];
-            let tag_name = rest[..end].trim();
-            current_prop_name = tag_name.to_string();
-            if rest.len() > end + 1 {
-                let rest_after = &rest[end + 1..];
-                if !rest_after.starts_with("</")
-                    && let Some(end2) = rest_after.find("</")
-                {
-                    current_text = rest_after[..end2].trim().to_string();
+        } else if let Some(rest) = trimmed.strip_prefix("D:") {
+            let tag_end = rest.find('>').unwrap_or(rest.len());
+            let tag_name = rest[..tag_end].trim();
+            // Strip trailing '/' for self-closing tags like "collection/"
+            let tag_name = tag_name.trim_end_matches('/');
+            match tag_name {
+                "response" => {
+                    in_response = true;
+                    current_href.clear();
+                    current_props.clear();
+                }
+                "href" => {
+                    // Content is between '>' and next '<'
+                    if let Some(after_gt) = rest.find('>') {
+                        let content = &rest[after_gt + 1..];
+                        current_href = content.trim().to_string();
+                    }
+                }
+                "propstat" => {
+                    in_propstat = true;
+                    in_prop = false;
+                }
+                "prop" => {
+                    if in_propstat {
+                        in_prop = true;
+                    }
+                }
+                _ => {
+                    // Property opening tag within <D:prop>
+                    if in_prop {
+                        // Check if this is a self-closing tag (trailing '/' before '>')
+                        let is_self_closing = fragment.trim().ends_with("/>");
+                        let after_gt = rest.find('>').map(|i| &rest[i + 1..]).unwrap_or("");
+                        let content = if let Some(end) = after_gt.find("</") {
+                            after_gt[..end].trim()
+                        } else {
+                            after_gt.trim()
+                        };
+
+                        if is_self_closing {
+                            // Self-closing tag (e.g. <D:collection/>) -- append its name
+                            // as a marker to the current property value
+                            if current_text.is_empty() {
+                                current_text = tag_name.to_string();
+                            } else {
+                                current_text.push_str(&format!(" {}", tag_name));
+                            }
+                        } else {
+                            current_prop_name = tag_name.to_string();
+                            current_text = content.to_string();
+                        }
+                    }
                 }
             }
         }
@@ -1272,6 +1315,20 @@ mod tests {
         assert_eq!(entries[0].size, 0);
         assert_eq!(entries[0].mime_type, "");
         assert_eq!(entries[0].etag, "");
+    }
+
+    #[test]
+    fn test_parse_propfind_xml_single_line() {
+        // The server emits single-line XML; the parser must handle it.
+        let xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?><D:multistatus xmlns:D=\"DAV:\"><D:response><D:href>/</D:href><D:propstat><D:prop><D:getlastmodified>Tue, 19 May 2026 04:47:47 GMT</D:getlastmodified><D:getcontentlength>0</D:getcontentlength><D:getetag>\"col-1\"</D:getetag><D:getcontenttype>httpd/unix-directory</D:getcontenttype><D:resourcetype><D:collection/></D:resourcetype></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response><D:response><D:href>/test.txt</D:href><D:propstat><D:prop><D:getlastmodified>Tue, 19 May 2026 04:47:47 GMT</D:getlastmodified><D:getcontentlength>5</D:getcontentlength><D:getetag>\"abc\"</D:getetag><D:getcontenttype>application/octet-stream</D:getcontenttype><D:resourcetype></D:resourcetype></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response></D:multistatus>";
+        let entries = parse_propfind_xml(xml);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].path, "/");
+        assert!(entries[0].is_collection);
+        assert_eq!(entries[1].path, "/test.txt");
+        assert_eq!(entries[1].name, "test.txt");
+        assert_eq!(entries[1].size, 5);
+        assert!(!entries[1].is_collection);
     }
 
     #[test]
