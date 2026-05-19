@@ -42,7 +42,7 @@ test.describe("Upload and Download", () => {
 
       // Wait for the file to appear in the list.
       // The upload handler calls reload() after success, so the table refreshes.
-      await expect(page.getByText("upload-button-test.txt")).toBeVisible({
+      await expect(page.getByText("upload-button-test.txt", { exact: true })).toBeVisible({
         timeout: 10_000,
       });
     } finally {
@@ -89,7 +89,7 @@ test.describe("Upload and Download", () => {
       await reloadAndWait(page);
 
       // Hover over the row to reveal download button
-      await page.getByText("download-test.txt").hover();
+      await page.getByText("download-test.txt", { exact: true }).hover();
       const downloadButton = page.getByTitle("Download").first();
       await expect(downloadButton).toBeVisible();
 
