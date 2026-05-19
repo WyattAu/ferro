@@ -97,10 +97,32 @@ export async function waitForFileBrowser(page: Page): Promise<void> {
   );
 
   // Wait for either the file table or the empty state to appear.
+  await waitForPageReady(page);
+}
+
+/**
+ * Wait for the file browser to finish loading after a reload or navigation.
+ * Cannot use waitForLoadState("networkidle") because the WASM SPA makes
+ * continuous background requests that prevent the network from ever being idle.
+ * Instead we wait for the table or empty-state indicator to appear.
+ */
+export async function waitForPageReady(page: Page, timeout = 15_000): Promise<void> {
   await Promise.race([
-    page.waitForSelector("table", { timeout: 30_000 }),
-    page.waitForSelector("text=This folder is empty", { timeout: 30_000 }),
+    page.waitForSelector("table", { timeout }),
+    page.waitForSelector("text=This folder is empty", { timeout }),
   ]);
+}
+
+/**
+ * Reload the page and wait for the file browser to be ready.
+ * This replaces the fragile pattern of:
+ *   await page.reload();
+ *   await page.waitForLoadState("networkidle");
+ *   await page.waitForSelector("table", { timeout: 10_000 });
+ */
+export async function reloadAndWait(page: Page): Promise<void> {
+  await page.reload({ waitUntil: "commit" });
+  await waitForPageReady(page);
 }
 
 export function setupAuth(context: BrowserContext): void {
