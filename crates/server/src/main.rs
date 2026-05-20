@@ -470,9 +470,17 @@ async fn main() -> anyhow::Result<()> {
             cli.admin_password.as_deref().unwrap_or(""),
         );
         let store = ferro_server::users::InMemoryUserStore::new();
-        store.create_user(admin).await.expect(
-            "Failed to create initial admin user — this should never fail with in-memory store",
-        );
+        match admin {
+            Some(user) => {
+                store.create_user(user).await.expect(
+                    "Failed to create initial admin user -- this should never fail with in-memory store",
+                );
+            }
+            None => {
+                tracing::error!("Failed to hash admin password. Check system resources.");
+                std::process::exit(1);
+            }
+        }
         state
             .with_admin_user(cli.admin_user.clone())
             .with_admin_password(cli.admin_password.clone())

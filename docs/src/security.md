@@ -65,7 +65,7 @@ Ferro is designed with security as a priority. This page summarizes the security
 
 ### Rate Limiting
 
-- Per-IP sliding window rate limiter
+- Per-IP token-bucket rate limiter
 - Default: 10,000 requests per 60-second window
 - Returns 429 Too Many Requests when exceeded
 

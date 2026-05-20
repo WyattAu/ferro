@@ -55,7 +55,12 @@ pub async fn create_user(
         storage_quota_bytes: body.storage_quota_bytes,
         storage_used_bytes: 0,
         is_ldap: false,
-        password_hash: Some(crate::users::hash_password(&body.password)),
+        password_hash: match crate::users::hash_password(&body.password) {
+            Ok(h) => Some(h),
+            Err(e) => {
+                return ApiError::internal(ApiError::INTERNAL_ERROR, e.message).into_response();
+            }
+        },
     };
 
     match state.user_store.create_user(user).await {
@@ -224,7 +229,12 @@ pub async fn reset_password(
         return ApiError::bad_request(ApiError::INVALID_INPUT, "Password cannot be empty");
     }
 
-    let hash = crate::users::hash_password(&body.new_password);
+    let hash = match crate::users::hash_password(&body.new_password) {
+        Ok(h) => h,
+        Err(e) => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, e.message).into_response();
+        }
+    };
     match state.user_store.set_password(&id, &hash).await {
         Ok(()) => (
             StatusCode::OK,
@@ -312,7 +322,13 @@ pub async fn update_current_user(
                         "Password cannot be empty",
                     );
                 }
-                let hash = crate::users::hash_password(new_pass);
+                let hash = match crate::users::hash_password(new_pass) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        return ApiError::internal(ApiError::INTERNAL_ERROR, e.message)
+                            .into_response();
+                    }
+                };
                 if let Err(e) = state.user_store.set_password(&user.id, &hash).await {
                     return ApiError::internal(ApiError::PASSWORD_ERROR, e.message);
                 }

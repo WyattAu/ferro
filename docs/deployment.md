@@ -23,19 +23,6 @@ Access the web UI at `http://localhost/ui/` (or `https://your-domain/ui/` with C
 
 The fastest way to run Ferro in production:
 
-```bash
-git clone https://github.com/WyattAu/ferro.git
-cd ferro
-docker compose up -d
-```
-
-This starts Ferro with:
-- SQLite persistence via `/data` volume
-- Bundled Leptos web UI served at `/ui/`
-- Caddy reverse proxy with automatic HTTPS
-- Health check on `/.well-known/ferro`
-- Automatic restart on failure
-
 ### Custom docker-compose
 
 ```yaml
@@ -339,7 +326,7 @@ RUST_LOG=ferro_server=debug,ferro_core=info ferro-server
 
 ### Health Check
 
-The `/.well-known/ferro` endpoint returns `200 OK` with body `Ferro OK` when the server is healthy.
+The `/.well-known/ferro` endpoint returns `200 OK` with a JSON body containing version, uptime, and subsystem status when the server is healthy.
 
 ```bash
 curl -sf http://localhost:8080/.well-known/ferro

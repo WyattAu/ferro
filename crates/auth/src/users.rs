@@ -194,8 +194,13 @@ pub trait UserStoreTrait: Send + Sync {
 }
 
 /// Hash a password using bcrypt with the default cost factor.
-pub fn hash_password(password: &str) -> String {
-    bcrypt::hash(password, bcrypt::DEFAULT_COST).expect("bcrypt hashing failed")
+///
+/// Returns the bcrypt hash string on success, or a `UserError` if bcrypt
+/// fails (e.g., memory exhaustion). This avoids panicking on external
+/// library failures.
+pub fn hash_password(password: &str) -> Result<String, UserError> {
+    bcrypt::hash(password, bcrypt::DEFAULT_COST)
+        .map_err(|e| UserError::bad_request(format!("Password hashing failed: {e}")))
 }
 
 fn verify_password(password: &str, hash: &str) -> bool {
@@ -230,8 +235,11 @@ impl InMemoryUserStore {
     }
 
     /// Create a pre-configured admin user with the given credentials.
-    pub fn create_admin(username: &str, password: &str) -> User {
-        User {
+    ///
+    /// Returns `None` if password hashing fails.
+    pub fn create_admin(username: &str, password: &str) -> Option<User> {
+        let password_hash = hash_password(password).ok()?;
+        Some(User {
             id: uuid::Uuid::new_v4().to_string(),
             username: username.to_string(),
             display_name: username.to_string(),
@@ -243,8 +251,8 @@ impl InMemoryUserStore {
             storage_quota_bytes: None,
             storage_used_bytes: 0,
             is_ldap: false,
-            password_hash: Some(hash_password(password)),
-        }
+            password_hash: Some(password_hash),
+        })
     }
 
     /// Load a user into the in-memory store (used during DB restore).
@@ -524,7 +532,7 @@ mod tests {
             storage_quota_bytes: None,
             storage_used_bytes: 0,
             is_ldap: false,
-            password_hash: Some(hash_password("testpass")),
+            password_hash: Some(hash_password("testpass").unwrap()),
         }
     }
 
@@ -710,7 +718,7 @@ mod tests {
         let id = user.id.clone();
         s.create_user(user).await.unwrap();
 
-        s.set_password(&id, &hash_password("newpass"))
+        s.set_password(&id, &hash_password("newpass").unwrap())
             .await
             .unwrap();
         assert!(s.authenticate("kate", "newpass").await.is_ok());
@@ -731,7 +739,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_admin_user() {
-        let admin = InMemoryUserStore::create_admin("admin", "secret");
+        let admin = InMemoryUserStore::create_admin("admin", "secret").unwrap();
         assert_eq!(admin.username, "admin");
         assert_eq!(admin.role, UserRole::Admin);
         assert!(admin.is_active());

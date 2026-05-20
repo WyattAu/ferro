@@ -22,7 +22,7 @@ Ferro is a storage orchestrator -- it sits between your files and the storage ba
 - **Audit Logging** -- Track all file operations
 - **Metadata Snapshots** -- Point-in-time recovery for ransomware protection
 - **File Versioning** -- Keep multiple versions per file with diff support
-- **Rate Limiting** -- Per-IP sliding window rate limiter (10,000 req/min)
+- **Rate Limiting** -- Per-IP token-bucket rate limiter (10,000 req/min)
 - **Web UI** -- Modern Leptos-based file browser with drag-and-drop upload
 - **Admin CLI** -- Full command-line management tool
 - **FUSE Mount** -- Access remote files as a local directory on Linux

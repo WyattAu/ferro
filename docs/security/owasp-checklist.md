@@ -70,7 +70,7 @@
 | 7 | Threat modeling performed | [x] | Medium | `docs/security/threat-model.md` |
 
 **Remediation notes**:
-- [A04-3] Implement failed auth counter per IP/user. Lock after 10 failures for 15 minutes. Planned for v1.1.
+- [A04-3] Implement failed auth counter per IP/user. Lock after 10 failures for 15 minutes.
 
 ---
 
@@ -104,7 +104,7 @@
 
 **Remediation notes**:
 - [A06-3] Verify Dependabot is active and PRs are being merged.
-- [A06-5] Add `cargo sbom` or `syft` to CI for SBOM generation. Planned for v1.1.
+- [A06-5] Add `cargo sbom` or `syft` to CI for SBOM generation.
 
 ---
 
@@ -139,7 +139,7 @@
 | 7 | Dependencies pinned in Cargo.lock | [x] | Medium | `Cargo.lock` in repo |
 
 **Remediation notes**:
-- [A08-4] Planned for v1.1 — integrate `cargo sbom` in release pipeline.
+- [A08-4] Integrate `cargo sbom` in release pipeline.
 - [A08-5] Consider `sigstore` or GPG signatures for release binaries.
 
 ---
@@ -156,7 +156,7 @@
 | 6 | Rate limit events logged | [x] | Low | `rate_limit.rs:74` |
 
 **Remediation notes**:
-- [A09-4] Add metric counter for auth failures. Expose via `/metrics`. Planned for v1.1.
+- [A09-4] Add metric counter for auth failures. Expose via `/metrics`.
 
 ---
 

@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Ferro is a self-hosted file sync and sharing platform written in Rust, positioned as an open-source Nextcloud/ownCloud alternative. The codebase comprises 21 crates, 813 tests, 0 clippy warnings, and a comprehensive CI/CD pipeline. This roadmap covers the path from the current state (v2.5.1) to a production-hardened v3.0 release, followed by growth initiatives.
+Ferro is a self-hosted file sync and sharing platform written in Rust, positioned as an open-source Nextcloud/ownCloud alternative. The codebase comprises 20 crates, 814 tests, 0 clippy warnings, and a comprehensive CI/CD pipeline. This roadmap covers the path from the current state (v2.5.1) to a production-hardened v3.0 release, followed by growth initiatives.
 
 The current codebase has strong fundamentals: correct WebDAV (RFC 4918), multiple storage backends, Cedar authorization, OIDC authentication, WASM worker extensibility, and a Leptos web frontend. The primary gaps are in production hardening, test coverage for advanced features, observability depth, and operational tooling.
 
@@ -91,7 +91,7 @@ The current codebase has strong fundamentals: correct WebDAV (RFC 4918), multipl
 
 | Item | Description | Priority |
 |------|-------------|----------|
-| Reduce production `unwrap()` count | Target: zero unwraps on external input paths (currently ~500 across server) | P0 |
+| Reduce production `expect()` count | Target: zero expects on external input paths; 1 remaining in `hash_password()` | P0 |
 | Global error handler | Consistent JSON error format across all 90+ endpoints | P0 |
 | Panic handler | Catch panics in request handlers; return 500 instead of killing connection | P1 |
 | Graceful degradation | If search index fails to load, serve files without search (not 500) | P1 |
@@ -321,7 +321,7 @@ Items that should be addressed during normal development:
 
 | ID | Description | Severity | Planned Fix |
 |----|-------------|----------|-------------|
-| TD-001 | ~500 `unwrap()` calls in production server code | Medium | Phase 2.4 |
+| TD-001 | 1 `expect()` in `hash_password()` (bcrypt) | Medium | Sprint AU |
 | TD-002 | DashMap in-memory storage loses data on restart | Medium | Document; not a bug (use `--data-dir`) |
 | TD-003 | `rsa` crate in dependency tree (RUSTSEC-2023-0071) | High | Phase 4.3 |
 | TD-004 | 22 Tauri/GTK3 unmaintained advisory ignores | Low | Monitor upstream |

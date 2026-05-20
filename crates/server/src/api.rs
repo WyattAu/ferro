@@ -238,7 +238,14 @@ pub async fn auth_change_password(
     };
 
     // Update password in user store and lift default-password restrictions
-    let new_hash = ferro_auth::users::hash_password(&password);
+    let new_hash = match ferro_auth::users::hash_password(&password) {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::error!("Failed to hash password: {:?}", e);
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Password hashing failed")
+                .into_response();
+        }
+    };
     state
         .admin_password_rotated
         .store(true, std::sync::atomic::Ordering::Release);
