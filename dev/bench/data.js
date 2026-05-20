@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779240206102,
+  "lastUpdate": 1779289492343,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -155,6 +155,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 800,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "5149f88496f1a28a55ca0e9cf9e1be6ff656496b",
+          "message": "feat: implement Phase 1-2 roadmap items (production hardening, observability)\n\nPhase 1 - Production Hardening:\n- AU-005: Warn when external_url uses HTTP in non-localhost config\n- AU-006: Remove plaintext password from startup warning log\n- AU-011: Add schema_version field to config file format\n- AX-007: Add XML body size limits (10 MiB) in all parsers\n- TD-010: Pin third-party image tags in all docker-compose files\n  (grafana:11.5.2, loki:3.3.2, prometheus:v3.1.0,\n   victoriametrics:v1.108.0, victorialogs:v0.8.0, vmagent:v1.108.0)\n\nPhase 2 - Reliability and Observability:\n- AV-006: Implement panic handler middleware (logs 500 context)\n- AV-007: Graceful degradation on search runtime errors\n- AV-011: Dynamic WASM worker count in prometheus metrics\n- AV-014: Reduce benchmark regression threshold 150% -> 120%\n- AX-003: Add base-uri and form-action to CSP header\n\nPhase 1+ - Backup:\n- AU-004: Add SQLite VACUUM INTO to admin backup API\n\n814 tests passing, 0 clippy warnings",
+          "timestamp": "2026-05-20T15:56:34+01:00",
+          "tree_id": "130e1946c82a0451ab9bf0628805577d7c68c282",
+          "url": "https://github.com/WyattAu/ferro/commit/5149f88496f1a28a55ca0e9cf9e1be6ff656496b"
+        },
+        "date": 1779289491610,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300769978,
+            "range": "± 1354405",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300768196,
+            "range": "± 913691",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24346,
+            "range": "± 5746",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24023,
+            "range": "± 5441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8495,
+            "range": "± 153",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5210,
+            "range": "± 75",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1277,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 938,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2655,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1384,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8155,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74886,
+            "range": "± 400",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19248,
+            "range": "± 69",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 888,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 150,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 180,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 912,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 755,
+            "range": "± 5",
             "unit": "ns/iter"
           },
           {
