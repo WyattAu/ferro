@@ -1,14 +1,31 @@
-# Ferro Roadmap: v2.5 to Production and Beyond
+# Ferro Roadmap: v2.5.1 to Production and Beyond
 
-**Version:** 2.5.1 | **Date:** 2026-05-12 | **Status:** Active Development
+**Version:** 2.5.1 | **Date:** 2026-05-20 | **Status:** Active Development
 
 ---
 
-## Executive Summary
+## Current State (2026-05-20)
 
-Ferro is a self-hosted file sync and sharing platform written in Rust, positioned as an open-source Nextcloud/ownCloud alternative. The codebase comprises 20 crates, 814 tests, 0 clippy warnings, and a comprehensive CI/CD pipeline. This roadmap covers the path from the current state (v2.5.1) to a production-hardened v3.0 release, followed by growth initiatives.
+| Metric | Value |
+|--------|-------|
+| Crates | 20 |
+| Tests | 814 passed, 1 ignored |
+| Clippy warnings | 0 |
+| Production `expect()` calls | 0 |
+| Production `unwrap()` calls | 0 |
+| CI/CD | 10/10 checks green (fmt, clippy, test, test-pg, test-cloud x3, audit, build, docker) |
+| E2E | 24 Playwright tests passing |
+| Code coverage | LLVM-cov active in CI |
+| Security | cargo-deny clean, OWASP checklist complete, STRIDE threat model |
+| Documentation | mdBook deployed to GitHub Pages, README comprehensive |
+| Pre-commit hooks | fmt + clippy + tests + cargo-deny |
 
-The current codebase has strong fundamentals: correct WebDAV (RFC 4918), multiple storage backends, Cedar authorization, OIDC authentication, WASM worker extensibility, and a Leptos web frontend. The primary gaps are in production hardening, test coverage for advanced features, observability depth, and operational tooling.
+## What Was Just Completed
+
+- Eliminated last production `expect()` in `hash_password()` -- now returns `Result`
+- Corrected documentation inaccuracies (rate limiter terminology, crate count, stale version refs)
+- Verified all CI/CD pipelines green
+- Verified GitHub Pages docs site and repo landing page
 
 ---
 
@@ -321,7 +338,7 @@ Items that should be addressed during normal development:
 
 | ID | Description | Severity | Planned Fix |
 |----|-------------|----------|-------------|
-| TD-001 | 1 `expect()` in `hash_password()` (bcrypt) | Medium | Sprint AU |
+| TD-001 | ~~1 `expect()` in `hash_password()` (bcrypt)~~ RESOLVED | ~~Medium~~ Done | 2026-05-20 |
 | TD-002 | DashMap in-memory storage loses data on restart | Medium | Document; not a bug (use `--data-dir`) |
 | TD-003 | `rsa` crate in dependency tree (RUSTSEC-2023-0071) | High | Phase 4.3 |
 | TD-004 | 22 Tauri/GTK3 unmaintained advisory ignores | Low | Monitor upstream |
