@@ -394,7 +394,21 @@ async fn main() -> anyhow::Result<()> {
 
     let state = state
         .with_max_body_size(cli.max_body_size)
-        .with_external_url(cli.external_url)
+        .with_external_url({
+            // Warn when external_url uses http in a non-localhost configuration
+            if cli.external_url.starts_with("http://")
+                && !cli.external_url.contains("localhost")
+                && !cli.external_url.contains("127.0.0.1")
+            {
+                tracing::warn!(
+                    "external_url '{}' uses HTTP (not HTTPS). OIDC callbacks, CORS, \
+                     and generated URLs may be insecure in production. Set FERRO_EXTERNAL_URL \
+                     to an HTTPS URL if behind a TLS-terminating reverse proxy.",
+                    cli.external_url
+                );
+            }
+            cli.external_url
+        })
         .with_federation_secret(cli.federation_secret)
         .with_max_file_versions(cli.max_file_versions);
 
@@ -587,10 +601,9 @@ async fn main() -> anyhow::Result<()> {
         && security::is_default_password(pw)
     {
         tracing::warn!(
-            "Server started with weak admin password '{}'. \
+            "Server started with a default admin password. \
              All non-whitelisted API requests will be blocked until password is changed \
-             via POST /api/auth/change-password.",
-            pw
+             via POST /api/auth/change-password."
         );
         // Allow startup but flag password as default for middleware enforcement.
         // Refuse to start only if the password is literally empty (no auth at all).

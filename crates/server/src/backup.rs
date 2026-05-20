@@ -128,6 +128,24 @@ pub async fn create_backup(State(state): State<AppState>) -> Response {
         }
     }
 
+    // Also back up the SQLite database if persistence is configured
+    if let Some(ref db) = state.db {
+        let db_backup_path = backup_dir.join("ferro.db");
+        if let Ok(conn) = db.lock() {
+            match conn.execute_batch(&format!(
+                "VACUUM INTO '{}';",
+                db_backup_path.to_string_lossy()
+            )) {
+                Ok(()) => {
+                    tracing::info!("SQLite database backed up to {}", db_backup_path.display());
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to back up SQLite database: {}", e);
+                }
+            }
+        }
+    }
+
     let info = BackupInfo {
         id: backup_id,
         created_at: now.to_rfc3339(),

@@ -105,12 +105,20 @@ pub async fn handle_search(
                     });
                     (StatusCode::OK, axum::Json(body)).into_response()
                 }
-                Err(e) => ApiError::with_details(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    ApiError::INTERNAL_ERROR,
-                    "Search failed",
-                    e.to_string(),
-                ),
+                Err(e) => {
+                    tracing::warn!("Search engine error, gracefully degrading: {}", e);
+                    let body = serde_json::json!({
+                        "query": params.q,
+                        "results": [],
+                        "total": 0,
+                        "limit": limit,
+                        "offset": offset,
+                        "configured": true,
+                        "degraded": true,
+                        "error": e.to_string(),
+                    });
+                    (StatusCode::OK, axum::Json(body)).into_response()
+                }
             }
         }
         None => {

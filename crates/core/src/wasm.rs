@@ -84,6 +84,11 @@ impl WasmWorkerRuntime {
         workers.push(event);
     }
 
+    /// Return the number of registered worker modules.
+    pub async fn worker_count(&self) -> usize {
+        self.workers.read().await.len()
+    }
+
     /// Execute a WASM module on a blocking thread pool.
     ///
     /// This uses `tokio::task::spawn_blocking` to avoid blocking the async

@@ -43,6 +43,12 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     let status_4xx = statuses[2].load(Ordering::Relaxed);
     let status_5xx = statuses[3].load(Ordering::Relaxed);
 
+    // Read actual WASM worker count (0 if not configured)
+    let wasm_workers = match &state.wasm_runtime {
+        Some(rt) => rt.worker_count().await,
+        None => 0,
+    };
+
     let mut headers = HeaderMap::new();
     headers.insert(
         "Content-Type",
@@ -63,7 +69,7 @@ ferro_files_total {file_count}
 ferro_storage_bytes_total {total_bytes}
 # HELP ferro_wasm_workers_loaded Number of loaded WASM workers
 # TYPE ferro_wasm_workers_loaded gauge
-ferro_wasm_workers_loaded 0
+ferro_wasm_workers_loaded {wasm_workers}
 # HELP ferro_http_requests_total Total HTTP requests
 # TYPE ferro_http_requests_total counter
 ferro_http_requests_total {request_count}

@@ -28,6 +28,9 @@ use serde::Deserialize;
 /// Configuration values loaded from a TOML file.
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct FileConfigValues {
+    /// Schema version of this config file. Used to detect incompatible configs.
+    #[serde(default)]
+    pub schema_version: Option<u32>,
     pub host: Option<String>,
     pub port: Option<u16>,
     pub log_level: Option<String>,
@@ -301,6 +304,7 @@ fn load_config_file_inner(
 
 fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileConfigValues {
     FileConfigValues {
+        schema_version: override_.schema_version.or(base.schema_version),
         host: override_.host.or(base.host),
         port: override_.port.or(base.port),
         log_level: override_.log_level.or(base.log_level),

@@ -10,14 +10,14 @@ services:
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.3.2
     ports: ["3100:3100"]
     volumes: ["loki-data:/loki"]
     command: -config.file=/etc/loki/local-config.yaml
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.1.0
     ports: ["9090:9090"]
     volumes:
       - ./prometheus-loki.yml:/etc/prometheus/prometheus.yml
@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.5.2
     ports: ["3000:3000"]
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin

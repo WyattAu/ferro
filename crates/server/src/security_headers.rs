@@ -1,4 +1,4 @@
-use axum::http::{Request, Response};
+use axum::http::{Request, Response, StatusCode};
 use axum::middleware::Next;
 
 /// Middleware that adds security headers (CSP, HSTS, X-Frame-Options, etc.) to responses.
@@ -32,7 +32,9 @@ pub async fn security_headers_middleware(
     headers.insert(
         axum::http::header::CONTENT_SECURITY_POLICY,
         axum::http::HeaderValue::from_static(
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; frame-ancestors 'none'",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
+             img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; \
+             frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
         ),
     );
     headers.insert(
@@ -58,18 +60,28 @@ pub async fn security_headers_middleware(
 
 /// Installs a panic hook that logs panics from request handlers with the
 /// request path and method.  Axum already catches panics in handlers and
-/// converts them to 500 responses, so this middleware only needs to ensure
-/// the panic information is captured with request context for diagnostics.
+/// converts them to 500 responses, so this middleware enriches panic logs
+/// with request context for diagnostics.
 pub async fn panic_handler_middleware(
     req: Request<axum::body::Body>,
     next: Next,
 ) -> Response<axum::body::Body> {
-    // Axum already catches panics in handlers and returns 500 responses.
-    // This middleware is a placeholder for future panic logging enrichment
-    // (e.g., attaching request path/method to panic reports).
-    let _path = req.uri().path().to_owned();
-    let _method = req.method().to_owned();
-    next.run(req).await
+    let path = req.uri().path().to_owned();
+    let method = req.method().clone();
+    let response = next.run(req).await;
+
+    // If the handler returned 500 without a structured error body, it may have
+    // been a panic. Log the request context for correlation with panic logs.
+    if response.status() == StatusCode::INTERNAL_SERVER_ERROR {
+        tracing::error!(
+            method = %method,
+            path = %path,
+            status = 500,
+            "Internal server error (possible panic in handler)"
+        );
+    }
+
+    response
 }
 
 #[cfg(test)]

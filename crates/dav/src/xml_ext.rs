@@ -107,10 +107,15 @@ pub struct DavProp {
 
 /// Parse a CalDAV calendar-query time-range filter from an XML request body.
 pub fn parse_calendar_query_time_range(body: &[u8]) -> Option<(String, String)> {
+    if body.len() > 10 * 1024 * 1024 {
+        return None;
+    }
+
     let mut start = None;
     let mut end = None;
 
     let mut reader = quick_xml::Reader::from_reader(body);
+    // quick-xml 0.37 does NOT expand entities by default (safe).
     reader.config_mut().trim_text(true);
     let mut buf = Vec::new();
 
@@ -147,9 +152,14 @@ pub fn parse_calendar_query_time_range(body: &[u8]) -> Option<(String, String)> 
 /// Parse a CardDAV addressbook-query text-match filter from an XML request body.
 /// Returns the text to match against if a `<text-match>` element is found.
 pub fn parse_addressbook_query_filter(body: &[u8]) -> Option<String> {
+    if body.len() > 10 * 1024 * 1024 {
+        return None;
+    }
+
     let mut filter_text = None;
 
     let mut reader = quick_xml::Reader::from_reader(body);
+    // quick-xml 0.37 does NOT expand entities by default (safe).
     reader.config_mut().trim_text(true);
     let mut buf = Vec::new();
     let mut in_text_match = false;

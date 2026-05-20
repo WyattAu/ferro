@@ -48,7 +48,7 @@ services:
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.3.2
     container_name: ferro-loki
     ports: ["3100:3100"]
     volumes: ["loki-data:/loki"]
@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.1.0
     container_name: ferro-prometheus
     ports: ["9090:9090"]
     volumes:
@@ -65,7 +65,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.5.2
     container_name: ferro-grafana
     ports: ["3000:3000"]
     environment:

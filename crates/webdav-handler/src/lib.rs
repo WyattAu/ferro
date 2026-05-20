@@ -5,6 +5,10 @@ use common::metadata::FileMetadata;
 use quick_xml::Writer;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 
+/// Maximum allowed XML request body size (10 MiB).
+/// Prevents XML bomb / entity expansion memory exhaustion.
+const MAX_XML_BODY_SIZE: usize = 10 * 1024 * 1024;
+
 pub fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -102,9 +106,14 @@ impl LockRequest {
         if body.is_empty() {
             return Self::default();
         }
+        if body.len() > MAX_XML_BODY_SIZE {
+            return Self::default();
+        }
 
         let mut request = Self::default();
         let mut reader = quick_xml::Reader::from_reader(body);
+        // quick-xml 0.37 does NOT expand entities by default (safe).
+        // The body size limit above prevents XML bomb memory exhaustion.
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
@@ -231,12 +240,13 @@ pub enum PropPatchOperation {
 }
 
 pub fn parse_proppatch(body: &[u8]) -> Vec<PropPatchOp> {
-    if body.is_empty() {
+    if body.is_empty() || body.len() > MAX_XML_BODY_SIZE {
         return vec![];
     }
 
     let mut ops = Vec::new();
     let mut reader = quick_xml::Reader::from_reader(body);
+    // quick-xml 0.37 does NOT expand entities by default (safe).
     reader.config_mut().trim_text(true);
 
     let mut buf = Vec::new();

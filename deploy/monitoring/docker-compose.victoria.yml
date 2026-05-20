@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
 
   victoria-metrics:
-    image: victoriametrics/victoriametrics:latest
+    image: victoriametrics/victoriametrics:v1.108.0
     ports: ["8428:8428"]
     volumes: ["vm-data:/victoria-metrics-data"]
     command:
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   victoria-logs:
-    image: victoriametrics/victorialogs:latest
+    image: victoriametrics/victorialogs:v0.8.0
     ports: ["9428:9428"]
     volumes:
       - vl-data:/victoria-logs-data
@@ -29,7 +29,7 @@ services:
     restart: unless-stopped
 
   vmagent:
-    image: victoriametrics/vmagent:latest
+    image: victoriametrics/vmagent:v1.108.0
     volumes:
       - ./prometheus-vm.yml:/etc/prometheus/prometheus.yml
     command:
@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.5.2
     ports: ["3000:3000"]
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
