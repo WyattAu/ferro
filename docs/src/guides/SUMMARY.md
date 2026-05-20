@@ -5,3 +5,4 @@
 - [CalDAV Clients](./caldav-clients.md)
 - [Encryption](./encryption.md)
 - [Federation Setup](./federation.md)
+- [Upgrade Guide](./upgrade.md)
