@@ -87,6 +87,39 @@ curl http://localhost:8080/api/audit?limit=50 \
   -H "Authorization: Bearer TOKEN"
 ```
 
+### Tamper Evidence
+
+Persisted audit entries are protected by a SHA-256 hash chain: each entry's `chain_hash` field contains `SHA-256(previous_chain_hash || entry_data)`. This makes retroactive modification or deletion detectable. The chain is verified by recomputing each hash from the previous entry's stored `chain_hash`.
+
+## Threat Model
+
+### Attack Surface: Federation
+
+| Threat | Mitigation | Confidence |
+|--------|------------|------------|
+| Activity spoofing | HTTP Signatures (HMAC-SHA256) + actor keyId validation | High |
+| Replay attacks | Timestamp window validation on incoming activities | High |
+| Unauthorized federation | Empty `federation_secret` = federation disabled (503) | High |
+| Payload tampering | SHA-256 content hash verification on received activities | High |
+| DoS via inbox flooding | Per-IP rate limiting (token-bucket, 10k/60s) | Medium |
+
+### Attack Surface: WASM Plugins
+
+| Threat | Mitigation | Confidence |
+|--------|------------|------------|
+| Arbitrary system access | WASI capability sandboxing (wasmtime) | High |
+| Resource exhaustion | Configurable worker count + memory limits | Medium |
+| Supply chain (malicious WASM) | Admin-only upload, hash-based dedup | Medium |
+| Data exfiltration | No outbound network access in WASM sandbox | High |
+
+### Attack Surface: Web UI
+
+| Threat | Mitigation | Confidence |
+|--------|------------|------------|
+| XSS | CSP with strict directives | High |
+| Supply chain (CDN compromise) | SRI hashes on static assets (post-build injection) | Medium |
+| Clickjacking | X-Frame-Options: DENY | High |
+
 ## Supported Versions
 
 | Version | Supported |

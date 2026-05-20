@@ -216,6 +216,8 @@ pub struct AppState {
     pub request_duration_buckets: Arc<[std::sync::atomic::AtomicU64; 11]>,
     /// Per-status-code request counters: index 0 = 2xx, 1 = 3xx, 2 = 4xx, 3 = 5xx.
     pub request_status_counts: Arc<[std::sync::atomic::AtomicU64; 4]>,
+    /// Storage operation counters: index 0 = PUT, 1 = GET, 2 = DELETE, 3 = LIST, 4 = COPY, 5 = MOVE.
+    pub storage_op_counts: Arc<[std::sync::atomic::AtomicU64; 6]>,
     pub sync_clock: Arc<std::sync::atomic::AtomicU64>,
     pub webhooks: Arc<tokio::sync::RwLock<Vec<webhooks::WebhookConfig>>>,
     pub thumbnail_size: u32,
@@ -277,6 +279,9 @@ impl AppState {
                 std::sync::atomic::AtomicU64::new(0)
             })),
             request_status_counts: Arc::new(std::array::from_fn(|_| {
+                std::sync::atomic::AtomicU64::new(0)
+            })),
+            storage_op_counts: Arc::new(std::array::from_fn(|_| {
                 std::sync::atomic::AtomicU64::new(0)
             })),
             sync_clock: Arc::new(std::sync::atomic::AtomicU64::new(1)),
@@ -871,6 +876,7 @@ pub fn build_router_with_static(
     let request_counter = state.request_count.clone();
     let duration_buckets = state.request_duration_buckets.clone();
     let status_counts = state.request_status_counts.clone();
+    let storage_op_counts = state.storage_op_counts.clone();
     let auth_enabled = state.auth_enabled();
     let oidc = state.oidc.clone();
     let cedar = state.cedar.clone();
@@ -1200,7 +1206,15 @@ pub fn build_router_with_static(
                 let counter = request_counter.clone();
                 let buckets = duration_buckets.clone();
                 let statuses = status_counts.clone();
-                request_logging::request_logging_middleware(counter, buckets, statuses, req, next)
+                let storage_ops = storage_op_counts.clone();
+                request_logging::request_logging_middleware(
+                    counter,
+                    buckets,
+                    statuses,
+                    Some(storage_ops),
+                    req,
+                    next,
+                )
             },
         ))
         .layer(axum::middleware::from_fn(

@@ -597,6 +597,53 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
+    // AU-013: Verify CAS content integrity on startup (if persistence enabled)
+    if state.cas_store.is_some() && state.data_dir.is_some() {
+        match state.storage.list_all("/", 10000).await {
+            Ok(entries) => {
+                let mut verified = 0u32;
+                let mut mismatches = 0u32;
+                for meta in &entries {
+                    if meta.is_collection {
+                        continue;
+                    }
+                    let stored_hash = meta.content_hash.as_str();
+                    if stored_hash.is_empty() || stored_hash.len() != 64 {
+                        continue;
+                    }
+                    if let Ok(content) = state.storage.get(&meta.path).await {
+                        use sha2::{Digest, Sha256};
+                        let computed = hex::encode(Sha256::digest(&content));
+                        if computed == stored_hash {
+                            verified += 1;
+                        } else {
+                            mismatches += 1;
+                            tracing::warn!(
+                                "CAS integrity mismatch: {} (stored={}, computed={})",
+                                meta.path,
+                                &stored_hash[..8],
+                                &computed[..8]
+                            );
+                        }
+                    }
+                }
+                if mismatches > 0 {
+                    tracing::warn!(
+                        "CAS startup verification: {} verified, {} mismatches. \
+                         Run GET /api/admin/integrity for full report.",
+                        verified,
+                        mismatches
+                    );
+                } else if verified > 0 {
+                    tracing::info!("CAS startup verification: {} files verified OK", verified);
+                }
+            }
+            Err(e) => {
+                tracing::warn!("CAS startup verification skipped: {}", e);
+            }
+        }
+    }
+
     if let Some(ref pw) = state.admin_password
         && security::is_default_password(pw)
     {

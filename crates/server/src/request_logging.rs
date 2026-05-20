@@ -6,11 +6,13 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 /// Middleware that logs each request with method, path, status, duration, and request ID.
-/// Also records Prometheus-compatible histogram buckets and status-code counters.
+/// Also records Prometheus-compatible histogram buckets and status-code counters,
+/// and tracks storage operation counts by HTTP method.
 pub async fn request_logging_middleware(
     request_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
     duration_buckets: std::sync::Arc<[std::sync::atomic::AtomicU64; 11]>,
     status_counts: std::sync::Arc<[std::sync::atomic::AtomicU64; 4]>,
+    storage_op_counts: Option<std::sync::Arc<[std::sync::atomic::AtomicU64; 6]>>,
     req: Request<Body>,
     next: Next,
 ) -> Response {
@@ -57,6 +59,22 @@ pub async fn request_logging_middleware(
         _ => 3,
     };
     status_counts[status_idx].fetch_add(1, Ordering::Relaxed);
+
+    // Track storage operations: PUT=0, GET=1, DELETE=2, LIST(PROPFIND)=3, COPY=4, MOVE=5
+    if let Some(ref ops) = storage_op_counts {
+        let op_idx: Option<usize> = match method.as_str() {
+            "PUT" => Some(0),
+            "GET" | "HEAD" => Some(1),
+            "DELETE" => Some(2),
+            "PROPFIND" => Some(3),
+            "COPY" => Some(4),
+            "MOVE" => Some(5),
+            _ => None,
+        };
+        if let Some(idx) = op_idx {
+            ops[idx].fetch_add(1, Ordering::Relaxed);
+        }
+    }
 
     let request_id = response
         .headers()

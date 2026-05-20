@@ -83,6 +83,7 @@ impl AuditLog {
                     client_ip: entry.client_ip.clone(),
                     user_agent: entry.user_agent.clone(),
                     content_length: entry.content_length,
+                    chain_hash: None, // Computed by persistence layer
                 })
                 .await;
         }

@@ -74,6 +74,9 @@ pub struct PersistedAuditEntry {
     pub client_ip: Option<String>,
     pub user_agent: Option<String>,
     pub content_length: Option<u64>,
+    /// SHA-256 chain hash for tamper evidence: SHA-256(previous_hash || this_entry_data).
+    /// Empty string for entries created before chain hashing was enabled.
+    pub chain_hash: Option<String>,
 }
 
 // ── Unified SQLite Persistence ──────────────────────────────────────────
@@ -133,6 +136,9 @@ impl SqlitePersistence {
                 content_length INTEGER
             )"#,
             "CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)",
+            // AV-009: Add chain_hash column for tamper-evident audit log
+            "ALTER TABLE audit_log ADD COLUMN chain_hash TEXT",
+            r#"CREATE INDEX IF NOT EXISTS idx_audit_chain_hash ON audit_log(chain_hash)"#,
             r#"
             CREATE TABLE IF NOT EXISTS file_metadata (
                 path TEXT PRIMARY KEY,
@@ -326,10 +332,35 @@ impl SnapshotStore for SqlitePersistence {
 #[async_trait]
 impl AuditLogStore for SqlitePersistence {
     async fn log(&self, entry: PersistedAuditEntry) -> Result<()> {
+        // Compute chain hash for tamper evidence: SHA-256(previous_hash || entry_data)
+        let prev_hash: Option<String> = sqlx::query_scalar::<_, String>(
+            "SELECT chain_hash FROM audit_log ORDER BY id DESC LIMIT 1",
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| FerroError::Internal(format!("Audit chain hash lookup failed: {}", e)))?;
+
+        let chain_hash = {
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            if let Some(ref ph) = prev_hash {
+                hasher.update(ph.as_bytes());
+            }
+            hasher.update(entry.timestamp.as_bytes());
+            hasher.update(entry.method.as_bytes());
+            hasher.update(entry.path.as_bytes());
+            hasher.update(entry.user.as_bytes());
+            hasher.update(entry.status.to_le_bytes());
+            if let Some(ref ip) = entry.client_ip {
+                hasher.update(ip.as_bytes());
+            }
+            hex::encode(hasher.finalize())
+        };
+
         sqlx::query(
             r#"INSERT INTO audit_log
-                (timestamp, method, path, user, status, client_ip, user_agent, content_length)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#,
+                (timestamp, method, path, user, status, client_ip, user_agent, content_length, chain_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
         )
         .bind(&entry.timestamp)
         .bind(&entry.method)
@@ -339,6 +370,7 @@ impl AuditLogStore for SqlitePersistence {
         .bind(&entry.client_ip)
         .bind(&entry.user_agent)
         .bind(entry.content_length.map(|c| c as i64))
+        .bind(&chain_hash)
         .execute(&self.pool)
         .await
         .map_err(|e| FerroError::Internal(format!("Audit log insert failed: {}", e)))?;
@@ -349,7 +381,7 @@ impl AuditLogStore for SqlitePersistence {
     async fn recent(&self, limit: usize) -> Result<Vec<PersistedAuditEntry>> {
         let limit = limit.min(10000) as i64; // Cap at 10k
         let rows: Vec<PersistedAuditEntry> = sqlx::query_as(
-            "SELECT id, timestamp, method, path, user, status, client_ip, user_agent, content_length
+            "SELECT id, timestamp, method, path, user, status, client_ip, user_agent, content_length, chain_hash
              FROM audit_log ORDER BY id DESC LIMIT ?"
         )
         .bind(limit)
@@ -467,6 +499,7 @@ mod tests {
             client_ip: Some("10.0.0.1".to_string()),
             user_agent: None,
             content_length: Some(42),
+            chain_hash: None,
         };
         store.log(entry).await.unwrap();
 
@@ -493,6 +526,7 @@ mod tests {
                     client_ip: None,
                     user_agent: None,
                     content_length: None,
+                    chain_hash: None,
                 })
                 .await
                 .unwrap();
@@ -526,6 +560,7 @@ mod tests {
                 client_ip: None,
                 user_agent: None,
                 content_length: None,
+                chain_hash: None,
             })
             .await
             .unwrap();

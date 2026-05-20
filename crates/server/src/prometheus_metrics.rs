@@ -49,6 +49,15 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
         None => 0,
     };
 
+    // Read storage operation counters
+    let storage_ops = &state.storage_op_counts;
+    let storage_puts = storage_ops[0].load(Ordering::Relaxed);
+    let storage_gets = storage_ops[1].load(Ordering::Relaxed);
+    let storage_deletes = storage_ops[2].load(Ordering::Relaxed);
+    let storage_lists = storage_ops[3].load(Ordering::Relaxed);
+    let storage_copies = storage_ops[4].load(Ordering::Relaxed);
+    let storage_moves = storage_ops[5].load(Ordering::Relaxed);
+
     let mut headers = HeaderMap::new();
     headers.insert(
         "Content-Type",
@@ -94,6 +103,14 @@ ferro_http_responses_total{{status_class="2xx"}} {status_2xx}
 ferro_http_responses_total{{status_class="3xx"}} {status_3xx}
 ferro_http_responses_total{{status_class="4xx"}} {status_4xx}
 ferro_http_responses_total{{status_class="5xx"}} {status_5xx}
+# HELP ferro_storage_operations_total Storage operations by type
+# TYPE ferro_storage_operations_total counter
+ferro_storage_operations_total{{operation="put"}} {storage_puts}
+ferro_storage_operations_total{{operation="get"}} {storage_gets}
+ferro_storage_operations_total{{operation="delete"}} {storage_deletes}
+ferro_storage_operations_total{{operation="list"}} {storage_lists}
+ferro_storage_operations_total{{operation="copy"}} {storage_copies}
+ferro_storage_operations_total{{operation="move"}} {storage_moves}
 "#,
         uptime = uptime,
         file_count = file_count,
