@@ -47,11 +47,19 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 
 pub fn open_db(data_dir: &str) -> Result<Connection, rusqlite::Error> {
     let db_path = std::path::Path::new(data_dir).join("ferro.db");
-    let conn = Connection::open(&db_path)?;
+    let mut conn = Connection::open(&db_path)?;
 
     conn.execute_batch(
         "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;",
     )?;
+
+    // Slow query logging: warn on queries taking longer than 100ms.
+    conn.profile(Some(|sql: &str, duration: std::time::Duration| {
+        let ms = duration.as_millis();
+        if ms > 100 {
+            tracing::warn!("Slow SQLite query ({}ms): {}", ms, sql.trim());
+        }
+    }));
 
     run_migrations(&conn)?;
 

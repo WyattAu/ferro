@@ -3,6 +3,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use chrono::{Duration, Utc};
+use dashmap::DashMap;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -15,6 +16,10 @@ use crate::api_error::ApiError;
 use crate::db::DbHandle;
 
 const MAX_SHARE_LINKS: usize = 10_000;
+/// Maximum failed password attempts per share token before temporary lockout.
+const MAX_SHARE_PASSWORD_ATTEMPTS: u32 = 10;
+/// Lockout duration after exceeding max attempts (in seconds).
+const SHARE_LOCKOUT_SECS: i64 = 300;
 
 /// A share link allowing temporary access to a file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,12 +50,27 @@ pub trait ShareStoreTrait: Send + Sync {
     async fn delete(&self, token: &str) -> bool;
     async fn list(&self) -> Vec<ShareLink>;
     async fn increment_download(&self, token: &str) -> bool;
+    /// Check if a share token is temporarily locked due to too many failed password attempts.
+    fn is_share_locked(&self, token: &str) -> bool {
+        let _ = token;
+        false
+    }
+    /// Record a failed password attempt for a share token.
+    fn record_failed_attempt(&self, token: &str) {
+        let _ = token;
+    }
+    /// Clear failed attempts for a share token (on success).
+    fn clear_failed_attempts(&self, token: &str) {
+        let _ = token;
+    }
 }
 
 /// In-memory share link store.
 pub struct ShareStore {
     links: Arc<RwLock<Vec<ShareLink>>>,
     db: Option<DbHandle>,
+    /// Tracks failed password attempts per share token: (count, first_failure_time).
+    failed_attempts: Arc<DashMap<String, (u32, chrono::DateTime<Utc>)>>,
 }
 
 impl ShareStore {
@@ -59,12 +79,46 @@ impl ShareStore {
         Self {
             links: Arc::new(RwLock::new(Vec::new())),
             db: None,
+            failed_attempts: Arc::new(DashMap::new()),
         }
     }
 
     pub fn with_db(mut self, db: DbHandle) -> Self {
         self.db = Some(db);
         self
+    }
+
+    /// Check if a share token is temporarily locked due to too many failed password attempts.
+    pub fn is_share_locked(&self, token: &str) -> bool {
+        if let Some(entry) = self.failed_attempts.get(token) {
+            let (count, first_failure) = entry.value();
+            if *count >= MAX_SHARE_PASSWORD_ATTEMPTS {
+                let elapsed = Utc::now().signed_duration_since(*first_failure);
+                if elapsed.num_seconds() < SHARE_LOCKOUT_SECS {
+                    return true;
+                }
+                // Lockout expired, clean up
+                drop(entry);
+                self.failed_attempts.remove(token);
+            }
+        }
+        false
+    }
+
+    /// Record a failed password attempt for a share token.
+    pub fn record_failed_attempt(&self, token: &str) {
+        self.failed_attempts
+            .entry(token.to_string())
+            .and_modify(|(count, first)| {
+                *count += 1;
+                let _ = first; // keep original timestamp
+            })
+            .or_insert((1, Utc::now()));
+    }
+
+    /// Clear failed attempts for a share token (on successful password or download).
+    pub fn clear_failed_attempts(&self, token: &str) {
+        self.failed_attempts.remove(token);
     }
 
     fn persist_create(&self, link: &ShareLink) {
@@ -284,6 +338,16 @@ pub async fn serve_share(
     Path(token): Path<String>,
     axum::extract::Query(params): axum::extract::Query<HashMap<String, String>>,
 ) -> Response {
+    // Check if this token is temporarily locked due to too many failed attempts
+    if state.share_store.is_share_locked(&token) {
+        return ApiError::with_details(
+            StatusCode::TOO_MANY_REQUESTS,
+            ApiError::RATE_LIMITED,
+            "Too many failed password attempts. Try again later.",
+            format!("{} seconds remaining", SHARE_LOCKOUT_SECS),
+        );
+    }
+
     let link = match state.share_store.get(&token).await {
         Some(l) => l,
         None => return ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found"),
@@ -303,8 +367,11 @@ pub async fn serve_share(
     if let Some(ref required_password) = link.password {
         let provided_password = params.get("password").map(|s| s.as_str());
         match provided_password {
-            Some(pw) if constant_time_eq(pw, required_password) => {}
+            Some(pw) if constant_time_eq(pw, required_password) => {
+                state.share_store.clear_failed_attempts(&token);
+            }
             Some(_) => {
+                state.share_store.record_failed_attempt(&token);
                 return ApiError::unauthorized(
                     ApiError::SHARE_PASSWORD_INVALID,
                     "Invalid password",
