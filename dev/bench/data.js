@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779289492343,
+  "lastUpdate": 1779290445165,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -317,6 +317,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 755,
             "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "2b63673f57c56f8dd07db5200407df00415f237e",
+          "message": "feat: implement Phase 2-4 roadmap items (slow query, share brute-force)\n\nPhase 2 - Reliability:\n- AV-008: Add SQLite slow query logging (>100ms threshold) via rusqlite\n  profile callback with 'trace' feature\n\nPhase 4 - Security:\n- AX-008: Share link brute-force protection for password-protected shares\n  - 10 max failed attempts per token\n  - 5-minute lockout after exceeding limit\n  - Tracks failures in DashMap with automatic expiry\n  - Returns 429 with remaining time on lockout\n\n814 tests passing, 0 clippy warnings",
+          "timestamp": "2026-05-20T16:12:06+01:00",
+          "tree_id": "598ffd098c980e6211ce0b8a5d2615a379ea88a3",
+          "url": "https://github.com/WyattAu/ferro/commit/2b63673f57c56f8dd07db5200407df00415f237e"
+        },
+        "date": 1779290444531,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300708153,
+            "range": "± 534499",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300736590,
+            "range": "± 1264081",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24749,
+            "range": "± 4983",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24165,
+            "range": "± 690",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8769,
+            "range": "± 116",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5229,
+            "range": "± 138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1204,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 971,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2693,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1384,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8159,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74872,
+            "range": "± 2080",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19403,
+            "range": "± 96",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 874,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 151,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 889,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 755,
+            "range": "± 3",
             "unit": "ns/iter"
           },
           {
