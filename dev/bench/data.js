@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779290445165,
+  "lastUpdate": 1779290653609,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -478,6 +478,164 @@ window.BENCHMARK_DATA = {
           {
             "name": "metadata_deserialize",
             "value": 755,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "id": "ad7a213eb4cad8a3fbb2e53f34c93d5898eef44b",
+          "message": "chore(deps): bump utoipa-swagger-ui from 8.1.0 to 9.0.2",
+          "timestamp": "2026-05-20T15:07:49Z",
+          "url": "https://github.com/WyattAu/ferro/pull/18/commits/ad7a213eb4cad8a3fbb2e53f34c93d5898eef44b"
+        },
+        "date": 1779290653035,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267090176,
+            "range": "± 724460",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266994949,
+            "range": "± 134099",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 27732,
+            "range": "± 2056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 27685,
+            "range": "± 3033",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8631,
+            "range": "± 64",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5268,
+            "range": "± 89",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1224,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 932,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2767,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1323,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7387,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66747,
+            "range": "± 131",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 86,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19374,
+            "range": "± 97",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 886,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 77,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 180,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 189,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 868,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 824,
             "range": "± 3",
             "unit": "ns/iter"
           },
