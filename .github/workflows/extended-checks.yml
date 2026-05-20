@@ -77,6 +77,8 @@ jobs:
           components: llvm-tools-preview
       - run: cargo install cargo-llvm-cov --locked
       - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Fetch dependencies
+        run: cargo fetch --locked
       - run: cargo llvm-cov --workspace --features "s3,gcs,azure,pg,redis,ldap" --lcov --output-path lcov.info
       - uses: codecov/codecov-action@v4
         with:

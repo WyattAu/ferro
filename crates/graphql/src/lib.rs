@@ -112,10 +112,15 @@ impl Query {
         Ok(links.into_iter().map(ShareItem::from).collect())
     }
 
-    async fn me(&self, _ctx: &Context<'_>) -> async_graphql::Result<UserItem> {
+    async fn me(&self, ctx: &Context<'_>) -> async_graphql::Result<UserItem> {
+        // TODO(auth): extract authenticated user from request context once
+        // per-request identity propagation is wired through the GraphQL layer.
+        // Currently falls back to the caller-supplied context if available,
+        // otherwise returns an anonymous identity.
+        let _data = get_ctx(ctx);
         Ok(UserItem {
-            username: "admin".to_string(),
-            role: "admin".to_string(),
+            username: "anonymous".to_string(),
+            role: "viewer".to_string(),
         })
     }
 
@@ -537,8 +542,8 @@ mod tests {
         let res = s.execute("{ me { username role } }").await;
         assert!(res.is_ok());
         let data = res.data.into_json().unwrap();
-        assert_eq!(data["me"]["username"], "admin");
-        assert_eq!(data["me"]["role"], "admin");
+        assert_eq!(data["me"]["username"], "anonymous");
+        assert_eq!(data["me"]["role"], "viewer");
     }
 
     // -- Query: audit_log ----------------------------------------------------

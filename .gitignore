@@ -65,5 +65,8 @@ tarpaulin-report.html
 e2e/test-results/
 playwright-report/
 
+# Proptest
+*.proptest-regressions/
+
 # Specs (local R&D artifacts)
 .specs/

@@ -35,6 +35,8 @@ jobs:
           components: clippy
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+      - name: Fetch dependencies
+        run: cargo fetch --locked
       - run: cargo clippy --all-targets --features "s3,gcs,azure,pg,redis,ldap" -- -D warnings
 
   test:

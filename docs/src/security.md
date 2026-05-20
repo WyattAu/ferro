@@ -89,7 +89,7 @@ curl http://localhost:8080/api/audit?limit=50 \
 
 ### Tamper Evidence
 
-Persisted audit entries are protected by a SHA-256 hash chain: each entry's `chain_hash` field contains `SHA-256(previous_chain_hash || entry_data)`. This makes retroactive modification or deletion detectable. The chain is verified by recomputing each hash from the previous entry's stored `chain_hash`.
+Persisted audit entries are protected by a SHA-256 hash chain: each entry's `chain_hash` field contains `SHA-256(previous_chain_hash || timestamp || method || path || user || status || client_ip)`. This makes retroactive modification or deletion detectable. The chain is verified by recomputing each hash from the previous entry's stored `chain_hash`.
 
 ## Threat Model
 

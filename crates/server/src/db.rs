@@ -29,7 +29,9 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         .unwrap_or(0);
 
     for &(version_str, sql) in MIGRATIONS {
-        let version: i64 = version_str.parse().unwrap();
+        let version: i64 = version_str
+            .parse()
+            .expect("migration version constant must be a valid i64");
         if version > current_version {
             let tx = conn.unchecked_transaction()?;
             tx.execute_batch(sql)?;

@@ -68,18 +68,13 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
                 );
                 return;
             }
-        } else {
-            // Fallback to metadata-only if content isn't valid UTF-8
-            if let Err(e) = engine.index_metadata(metadata) {
-                warn!("Auto-index: failed to index {}: {}", metadata.path, e);
-                return;
-            }
-        }
-    } else {
-        if let Err(e) = engine.index_metadata(metadata) {
+        } else if let Err(e) = engine.index_metadata(metadata) {
             warn!("Auto-index: failed to index {}: {}", metadata.path, e);
             return;
         }
+    } else if let Err(e) = engine.index_metadata(metadata) {
+        warn!("Auto-index: failed to index {}: {}", metadata.path, e);
+        return;
     }
 
     if let Err(e) = engine.commit() {

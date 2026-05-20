@@ -86,7 +86,13 @@ impl SnapshotStore {
             && let Ok(persisted) = p.get(id).await
         {
             let entries: Vec<common::metadata::FileMetadata> =
-                serde_json::from_str(&persisted.entries_json).unwrap_or_default();
+                serde_json::from_str(&persisted.entries_json).unwrap_or_else(|e| {
+                    tracing::warn!(
+                        "snapshot {}: corrupt entries_json, discarding: {e}",
+                        persisted.id
+                    );
+                    Vec::new()
+                });
             return Some(Snapshot {
                 id: persisted.id,
                 created_at: persisted.created_at,
@@ -251,16 +257,14 @@ pub async fn restore_snapshot(
                     .await;
                 collections_created += 1;
             }
+        } else if state.storage.exists(&entry.path).await.unwrap_or(false) {
+            restored += 1;
         } else {
-            if state.storage.exists(&entry.path).await.unwrap_or(false) {
-                restored += 1;
-            } else {
-                missing_content += 1;
-                tracing::warn!(
-                    "Cannot restore {}: file deleted, content not preserved in snapshot",
-                    entry.path
-                );
-            }
+            missing_content += 1;
+            tracing::warn!(
+                "Cannot restore {}: file deleted, content not preserved in snapshot",
+                entry.path
+            );
         }
     }
 

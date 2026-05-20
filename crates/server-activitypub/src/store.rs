@@ -45,11 +45,20 @@ impl ActivityStore {
         let id = activity.id.clone();
         self.inbox.insert(id.clone(), activity.clone());
         if let Some(ref db) = self.db {
-            let raw_json = serde_json::to_string(&activity).unwrap_or_default();
-            let obj_json = serde_json::to_string(&activity.object).unwrap_or_default();
-            let target_json = activity
-                .target
-                .map(|t| serde_json::to_string(&t).unwrap_or_default());
+            let raw_json = serde_json::to_string(&activity).unwrap_or_else(|e| {
+                warn!("inbox: failed to serialize activity: {e}");
+                String::new()
+            });
+            let obj_json = serde_json::to_string(&activity.object).unwrap_or_else(|e| {
+                warn!("inbox: failed to serialize activity object: {e}");
+                String::new()
+            });
+            let target_json = activity.target.as_ref().map(|t| {
+                serde_json::to_string(t).unwrap_or_else(|e| {
+                    warn!("inbox: failed to serialize activity target: {e}");
+                    String::new()
+                })
+            });
             let _ = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'inbox')",
                 params![
@@ -84,11 +93,20 @@ impl ActivityStore {
         let id = activity.id.clone();
         self.outbox.insert(id.clone(), activity.clone());
         if let Some(ref db) = self.db {
-            let raw_json = serde_json::to_string(&activity).unwrap_or_default();
-            let obj_json = serde_json::to_string(&activity.object).unwrap_or_default();
-            let target_json = activity
-                .target
-                .map(|t| serde_json::to_string(&t).unwrap_or_default());
+            let raw_json = serde_json::to_string(&activity).unwrap_or_else(|e| {
+                warn!("outbox: failed to serialize activity: {e}");
+                String::new()
+            });
+            let obj_json = serde_json::to_string(&activity.object).unwrap_or_else(|e| {
+                warn!("outbox: failed to serialize activity object: {e}");
+                String::new()
+            });
+            let target_json = activity.target.as_ref().map(|t| {
+                serde_json::to_string(t).unwrap_or_else(|e| {
+                    warn!("outbox: failed to serialize activity target: {e}");
+                    String::new()
+                })
+            });
             let _ = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'outbox')",
                 params![

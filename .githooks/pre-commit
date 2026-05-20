@@ -34,9 +34,9 @@ if ! cargo fmt --all -- --check 2>&1; then
     exit 1
 fi
 
-# 2. Clippy lint (match CI: --all-targets -- -D warnings)
-info "Running clippy (cargo clippy $TARGET --all-targets -- -D warnings)..."
-if ! cargo clippy $TARGET --all-targets -- -D warnings 2>&1; then
+# 2. Clippy lint (match CI: --all-targets with feature flags -- -D warnings)
+info "Running clippy (cargo clippy $TARGET --all-targets --features 's3,gcs,azure,pg,redis,ldap' -- -D warnings)..."
+if ! cargo clippy $TARGET --all-targets --features "s3,gcs,azure,pg,redis,ldap" -- -D warnings 2>&1; then
     fail "Clippy lint errors detected. Fix before committing."
     exit 1
 fi

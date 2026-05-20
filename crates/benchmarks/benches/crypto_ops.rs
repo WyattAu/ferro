@@ -24,15 +24,11 @@ fn bench_password_verify(c: &mut Criterion) {
     c.bench_function("password_verify", |b| {
         let provider = &provider;
         let hashed = &hashed;
-        b.to_async(&rt).iter(|| {
-            let provider = &*provider;
-            let hashed = &*hashed;
-            async move {
-                provider
-                    .verify_password("test_password", hashed)
-                    .await
-                    .unwrap();
-            }
+        b.to_async(&rt).iter(|| async move {
+            provider
+                .verify_password("test_password", hashed)
+                .await
+                .unwrap();
         })
     });
 }
@@ -45,11 +41,8 @@ fn bench_hmac_sha256(c: &mut Criterion) {
 
     c.bench_function("hmac_sha256_sign", |b| {
         let provider = &provider;
-        b.to_async(&rt).iter(|| {
-            let provider = &*provider;
-            async move {
-                provider.hmac_sha256(key, data).await.unwrap();
-            }
+        b.to_async(&rt).iter(|| async move {
+            provider.hmac_sha256(key, data).await.unwrap();
         })
     });
 }
@@ -61,11 +54,8 @@ fn bench_sha256(c: &mut Criterion) {
 
     c.bench_function("sha256", |b| {
         let provider = &provider;
-        b.to_async(&rt).iter(|| {
-            let provider = &*provider;
-            async move {
-                provider.sha256(data).await.unwrap();
-            }
+        b.to_async(&rt).iter(|| async move {
+            provider.sha256(data).await.unwrap();
         })
     });
 }

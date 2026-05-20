@@ -731,6 +731,10 @@ fn api_routes(
             axum::routing::post(federation::federated_share),
         )
         .route(
+            "/files/encrypt",
+            axum::routing::post(encryption::encrypt_file),
+        )
+        .route(
             "/files/decrypt",
             axum::routing::post(encryption::decrypt_file),
         )
