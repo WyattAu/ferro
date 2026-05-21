@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779302550873,
+  "lastUpdate": 1779328151538,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -953,6 +953,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 796,
             "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "ec2bb0158af2a7787d37a87d50af742aa91b286f",
+          "message": "fix: restore proptest dev-dependency for property-based tests\n\nProptest was accidentally removed during a git checkout revert.\nRequired for property_tests.rs compilation in CI.",
+          "timestamp": "2026-05-21T02:42:14+01:00",
+          "tree_id": "8a573552ba1b437eb3a3b7b0f179fdb3321870c6",
+          "url": "https://github.com/WyattAu/ferro/commit/ec2bb0158af2a7787d37a87d50af742aa91b286f"
+        },
+        "date": 1779328149952,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267547326,
+            "range": "± 375295",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267499569,
+            "range": "± 277441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28849,
+            "range": "± 2427",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28435,
+            "range": "± 2251",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8726,
+            "range": "± 91",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5083,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1298,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 1006,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2791,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1335,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7324,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66511,
+            "range": "± 110",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 85,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19228,
+            "range": "± 243",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 945,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 72,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 146,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 160,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 171,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 876,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 805,
+            "range": "± 5",
             "unit": "ns/iter"
           },
           {
