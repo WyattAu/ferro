@@ -11,16 +11,18 @@
 | Metric | Value | Assessment |
 |--------|-------|------------|
 | Workspace crates | 20 | Correct -- matches Cargo.toml |
-| Unit + integration tests | 833 passed, 1 ignored | All green |
+| Unit + integration tests | 762 passed, 1 ignored | All green |
 | Doc-tests | 2 passed, 1 ignored | Acceptable (persistence doctest) |
-| Clippy warnings | 0 | Clean (`-D warnings`) |
+| Clippy warnings | 0 | Clean (`-D warnings`) with all features |
 | Rustfmt | Clean | Enforced by pre-commit |
 | cargo-deny | Clean (warnings only: transitive dep duplicates) | Acceptable |
-| Production `unwrap()` | 0 | Zero panics on external input |
-| Production `expect()` | 0 | All bcrypt expects eliminated |
+| Production `unwrap()` | 1 (db migration, hardcoded constant) | Residual: `expect()` now |
+| Production `expect()` | ~30 (justified: compile-time constants, WASM context) | Acceptable |
 | Debug artifacts (`dbg!`, `println!`) | 0 in library code | Clean |
 | Hardcoded secrets in production | 0 | Clean |
 | `#[allow(dead_code)]` | 11 in fuse crate (justified) | Low severity |
+| Stub implementations | 0 | Clean |
+| `todo!()` / `unimplemented!()` | 0 | Clean |
 
 ### 1.2 CI/CD Pipeline Health
 
@@ -28,7 +30,7 @@
 |----------|------|--------|
 | checks.yml | 10 (fmt, clippy, test, test-pg, test-cloud x3, audit, build, docker) | All green |
 | extended-checks.yml | 2 (E2E Playwright, Code Coverage) | All green |
-| bench.yml | 1 (Criterion benchmarks) | Green |
+| bench.yml | 1 (Criterion benchmarks) | Green (fixed: auto-push only on push events) |
 | docs.yml | 2 (mdBook build, GitHub Pages deploy) | Green |
 | release.yml | 3 (multi-arch build, release, Docker push) | Configured (on tag) |
 | Dependabot | Weekly cargo + GitHub Actions | Active |
@@ -407,7 +409,20 @@
 | TD-013 | No account lockout | Low | Open | Phase 1 |
 | TD-014 | No OIDC token refresh | Low | Open | Phase 1 |
 | TD-015 | No streaming uploads | Medium | Open | Phase 6.5 |
-| TD-016 | No SRI hashes on static assets | Low | Open | Phase 4 |
+| TD-016 | No SRI hashes on static assets | Low | **RESOLVED** | 2026-05-20 |
+| TD-017 | GraphQL `me()` resolver hardcoded to "admin" | High | **RESOLVED** | 2026-05-20 |
+| TD-018 | Silent data loss in ActivityPub `unwrap_or_default` | High | **RESOLVED** | 2026-05-20 |
+| TD-019 | Silent data loss in snapshot deserialization | High | **RESOLVED** | 2026-05-20 |
+| TD-020 | Missing `/api/files/encrypt` route (handler existed) | Medium | **RESOLVED** | 2026-05-20 |
+| TD-021 | Clippy `borrow_deref_ref` in crypto_ops benchmark | Low | **RESOLVED** | 2026-05-20 |
+| TD-022 | Clippy `collapsible_else_if` in indexer and snapshots | Low | **RESOLVED** | 2026-05-20 |
+| TD-023 | Audit hash chain docs inaccurate ("entry_data") | Low | **RESOLVED** | 2026-05-20 |
+| TD-024 | Upgrade Guide not in docs sidebar | Low | **RESOLVED** | 2026-05-20 |
+| TD-025 | Benchmark CI fails on PRs (Cargo.lock conflict) | Medium | **RESOLVED** | 2026-05-20 |
+| TD-026 | No `rust-toolchain.toml` for CI reproducibility | Medium | **RESOLVED** | 2026-05-20 |
+| TD-027 | README missing 60+ registered API endpoints from table | Low | Open | Phase 5 |
+| TD-028 | README missing 18 CLI flags from table | Low | Open | Phase 5 |
+| TD-029 | GraphQL `me()` needs authenticated user from context | Medium | Open | Phase 2 |
 
 ---
 
@@ -420,3 +435,6 @@
 | ADR-003 | SQLite as default persistence (single-file) | 2026-05-15 | Accepted |
 | ADR-004 | hash_password returns Result instead of panicking | 2026-05-20 | Accepted |
 | ADR-005 | mdBook for documentation over raw markdown | 2026-04-01 | Accepted |
+| ADR-006 | Pre-commit clippy must match CI feature flags | 2026-05-20 | Accepted |
+| ADR-007 | Logged deserialization over silent unwrap_or_default | 2026-05-20 | Accepted |
+| ADR-008 | Pin rust-toolchain.toml for CI reproducibility | 2026-05-20 | Accepted |
