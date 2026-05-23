@@ -27,6 +27,35 @@
 - Verified all CI/CD pipelines green
 - Verified GitHub Pages docs site and repo landing page
 
+## Audit 2026-05-23: Findings and Fixes Applied
+
+### CI/CD Fixes Applied
+- Fixed docker-compose.pg.yml and redis.yml passing `--features` as CLI args (runtime error)
+- Added BUILD_FEATURES ARG to Dockerfile; release binaries now include s3/gcs/azure support
+- Added rust-cache to clippy job (was rebuilding from scratch each run)
+- Added `--locked` to test job for reproducible builds
+- Set aarch64 cross-compile linker env in release.yml
+- Switched docs.yml from hardcoded wget to `cargo install mdbook`
+- Added npm ecosystems to dependabot (e2e/, web-e2e/)
+- Added RUSTSEC-2026-0149 to deny.toml ignore list (WASI truncate bypass, not exploitable in Ferro)
+
+### Documentation Fixes Applied
+- Fixed `/.well-known/ferro` response format in docs/src/api/rest.md
+- Consolidated 4 overlapping ROADMAP files into single ROADMAP.md
+- Updated test counts in VERSION.md to match actual (833 passed)
+- Updated per-crate test counts with accurate numbers
+
+### Code Quality Audit Results
+- 0 `todo!()` or `unimplemented!()` in production code
+- 0 stub implementations
+- 0 hardcoded secrets
+- 0 `unsafe` blocks in production logic (only FFI for C-FFI client)
+- 0 clippy warnings with all features
+- 0 formatting issues
+- cargo-deny: advisories ok, bans ok, licenses ok, sources ok
+- Production `unwrap()` count: ~1274 (known tech debt, gradual improvement target)
+- 1 TODO comment in graphql/src/lib.rs (auth extraction)
+
 ---
 
 ## Phase 1: Production Hardening (Sprint AU)
