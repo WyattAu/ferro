@@ -9,7 +9,7 @@
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 814 passed, 1 ignored |
+| Tests | 833 passed, 1 ignored |
 | Clippy warnings | 0 |
 | Production `expect()` calls | 0 |
 | Production `unwrap()` calls | 0 |

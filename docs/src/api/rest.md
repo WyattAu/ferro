@@ -14,8 +14,17 @@ curl http://localhost:8080/.well-known/ferro
 
 ```json
 {
+  "status": "ok",
   "version": "2.5.1",
-  "storage": "ok"
+  "uptime_seconds": 3600,
+  "subsystems": {
+    "storage": "ok",
+    "metadata": "in-memory",
+    "wasm": "disabled",
+    "search": "disabled",
+    "auth": "disabled",
+    "cas": "disabled"
+  }
 }
 ```
 

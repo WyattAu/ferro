@@ -64,6 +64,8 @@ RUN trunk build --release --public-url "/ui/"
 # ── Stage 2: Build Rust server ────────────────────────────────────────────
 FROM rust:1.92-bookworm AS builder
 
+ARG BUILD_FEATURES=""
+
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
@@ -112,7 +114,7 @@ RUN echo 'fn main() {}' > crates/server/src/main.rs
 RUN echo 'fn main() {}' > crates/cli/src/main.rs
 RUN echo 'fn main() {}' > crates/desktop/src/main.rs
 
-RUN cargo build --release --package ferro-server --package ferro-cli 2>/dev/null || true
+RUN cargo build --release --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}" 2>/dev/null || true
 
 COPY . .
 RUN for crate in common core dav server web desktop cli crypto fuse client benchmarks admin observability auth webdav-handler server-activitypub server-webrtc server-wopi server-versioning graphql; do \
@@ -120,7 +122,7 @@ RUN for crate in common core dav server web desktop cli crypto fuse client bench
     done
 RUN touch crates/server/src/main.rs crates/cli/src/main.rs crates/desktop/src/main.rs
 
-RUN cargo build --release --package ferro-server --package ferro-cli
+RUN cargo build --release --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}"
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
 FROM debian:bookworm-slim

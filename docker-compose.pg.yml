@@ -1,4 +1,6 @@
-# Development overlay — for production, use deploy/docker-compose.pg.yml
+# Development overlay -- for production, use deploy/docker-compose.pg.yml
+# NOTE: This overlay requires a ferro-server binary built with the `pg` feature.
+# Build with: cargo build --features pg
 services:
   ferro:
     depends_on:
@@ -7,8 +9,6 @@ services:
     environment:
       - FERRO_DATABASE_URL=postgres://ferro:ferro@postgres:5432/ferro
     command:
-      - "--features"
-      - "pg"
       - "--database-url"
       - "postgres://ferro:ferro@postgres:5432/ferro"
 

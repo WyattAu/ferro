@@ -53,8 +53,12 @@ jobs:
       - name: Install deps (aarch64 cross-compile)
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev gcc-aarch64-linux-gnu libc6-dev-arm64-cross
         if: matrix.target == 'aarch64-unknown-linux-gnu'
+      - name: Set aarch64 linker
+        run: echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+      - uses: Swatinem/rust-cache@v2
       - name: Build
-        run: cargo build --release -p ferro-server --target ${{ matrix.target }}
+        run: cargo build --release -p ferro-server --target ${{ matrix.target }} --features "s3,gcs,azure"
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
@@ -98,6 +102,7 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: BUILD_FEATURES=s3,gcs,azure
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}

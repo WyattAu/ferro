@@ -1,4 +1,6 @@
-# Development overlay — for production, use deploy/docker-compose.redis.yml
+# Development overlay -- for production, use deploy/docker-compose.redis.yml
+# NOTE: This overlay requires a ferro-server binary built with `redis` and `pg` features.
+# Build with: cargo build --features redis,pg
 services:
   ferro:
     depends_on:
@@ -7,8 +9,6 @@ services:
     environment:
       - FERRO_REDIS_URL=redis://redis:6379
     command:
-      - "--features"
-      - "redis,pg"
       - "--redis-url"
       - "redis://redis:6379"
 

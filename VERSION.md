@@ -3,7 +3,7 @@
 ## Current Status
 - **Phase:** Production Hardening (Sprint AU per ROADMAP.md)
 - **Version:** 2.5.1
-- **Tests:** 814 passed, 0 failed, 1 ignored (persistence doctest), 0 clippy warnings
+- **Tests:** 833 passed, 0 failed, 1 ignored (persistence doctest), 0 clippy warnings
 - **Status:** Active Development. All 46 sprints (A-AT) completed. Pre-commit hooks configured, cargo-deny active, fmt/clippy clean. CI/CD fully green (10/10 checks). Docker multi-stage build passing. Docs deployed to GitHub Pages.
 - **Last Updated:** 2026-05-15
 
@@ -137,14 +137,28 @@
 | Crate | Tests | Status |
 |-------|-------|--------|
 | ferro-common | 8 passing | Implemented |
-| ferro-core | 57 passing | Implemented |
-| ferro-server | 94 lib + 37 integration + 1 E2E | Implemented |
-| ferro-web | 35 passing (non-WASM stubs + API tests) | Implemented + Docker WASM build passing |
-| ferro-cli | 5 passing | Implemented |
+| ferro-core | 64 passing | Implemented |
+| ferro-server | 290 lib + 145 integration + 1 E2E + 19 property | Implemented |
+| ferro-web | 36 passing (non-WASM stubs + API tests) | Implemented + Docker WASM build passing |
+| ferro-cli | 8 passing | Implemented |
 | ferro-desktop | 7 passing | Implemented |
+| ferro-dav | 51 passing | Implemented |
+| ferro-auth | 42 passing | Implemented |
+| ferro-client | 8 passing | Implemented |
+| ferro-crypto | 8 passing | Implemented |
+| ferro-fuse | 22 passing | Implemented |
+| ferro-graphql | 19 passing | Implemented |
+| ferro-observability | 18 passing | Implemented |
+| ferro-admin | 34 passing | Implemented |
+| ferro-server-versioning | 17 passing | Implemented |
+| ferro-server-wopi | 14 passing | Implemented |
+| ferro-server-activitypub | 29 passing | Implemented |
+| ferro-server-webrtc | 2 passing | Implemented |
+| ferro-webdav-handler | 10 passing | Implemented |
+| ferro-benchmarks | 18 benchmark functions | Implemented |
 
-## Total Tests: 814 passed, 1 ignored (1 persistence doctest)
-## Clippy: 0 warnings
+## Total Tests: 833 passed, 0 failed, 1 ignored (persistence doctest)
+## Clippy: 0 warnings (with all features: s3,gcs,azure,pg,redis,ldap)
 ## Security: cargo-deny configured, cargo-audit CI-gated, deny.toml with documented ignores for desktop-only transitive deps
 ## Error Level: None
 ## Rollback Checkpoint: main@8a59e41 (web leptos fixes + Docker build green, 2026-05-15)
