@@ -22,6 +22,9 @@ ignore = [
     { id = "RUSTSEC-2024-0436", reason = "paste unmaintained -- transitive via leptos (web frontend)" },
     # proc-macro-error unmaintained -- transitive via leptos (web frontend only)
     { id = "RUSTSEC-2024-0370", reason = "proc-macro-error unmaintained -- transitive via leptos (web frontend)" },
+    # WASI path_open(TRUNCATE) bypasses FilePerms::WRITE -- transitive via wasmtime (WASM sandbox feature)
+    # Ferro only exposes sandboxed WASM workers with restricted capabilities; TRUNCATE is not user-accessible
+    { id = "RUSTSEC-2026-0149", reason = "WASI truncate bypass in wasmtime -- Ferro WASM workers use restricted capabilities, truncate not exposed" },
 ]
 
 [licenses]
