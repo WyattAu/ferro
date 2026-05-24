@@ -88,6 +88,14 @@ pub async fn encrypt_file(
     State(state): State<crate::AppState>,
     axum::Json(req): axum::Json<EncryptRequest>,
 ) -> Response {
+    if let Err(e) = crate::security::validate_path(&req.path) {
+        return crate::api_error::ApiError::bad_request(
+            crate::api_error::ApiError::PATH_INVALID,
+            format!("Invalid path: {e}"),
+        )
+        .into_response();
+    }
+
     let content = match state.storage.get(&req.path).await {
         Ok(c) => c,
         Err(_) => {
@@ -138,6 +146,14 @@ pub async fn decrypt_file(
     State(state): State<crate::AppState>,
     axum::Json(req): axum::Json<DecryptRequest>,
 ) -> Response {
+    if let Err(e) = crate::security::validate_path(&req.path) {
+        return crate::api_error::ApiError::bad_request(
+            crate::api_error::ApiError::PATH_INVALID,
+            format!("Invalid path: {e}"),
+        )
+        .into_response();
+    }
+
     let content = match state.storage.get(&req.path).await {
         Ok(c) => c,
         Err(_) => {
@@ -217,6 +233,12 @@ mod tests {
         assert!(is_age_encrypted(armored));
         assert!(!is_age_encrypted(b"not encrypted"));
         assert!(!is_age_encrypted(b""));
+    }
+
+    #[test]
+    fn test_validate_path_rejects_traversal() {
+        assert!(crate::security::validate_path("/../../../etc/passwd").is_err());
+        assert!(crate::security::validate_path("/good/path.txt").is_ok());
     }
 
     #[tokio::test]

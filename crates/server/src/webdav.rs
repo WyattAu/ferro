@@ -597,6 +597,18 @@ async fn handle_put(
         .map(|s| s.to_string())
         .unwrap_or_else(|| sniff_content_type(&body, &path));
 
+    // Verify Content-Type matches actual file content (magic bytes check)
+    if let Some(declared) = headers.get("Content-Type").and_then(|v| v.to_str().ok()) {
+        if let Some(detected) = crate::security::verify_content_type(declared, &body) {
+            tracing::warn!(
+                path = %path,
+                declared = %declared,
+                detected = %detected,
+                "Content-Type mismatch in WebDAV PUT"
+            );
+        }
+    }
+
     let body_for_index = body.clone();
     let use_multipart = body.len() > 10 * 1024 * 1024 && state.storage.supports_multipart();
     let mut meta = if use_multipart {
@@ -634,6 +646,9 @@ async fn handle_put(
         let runtime = runtime.clone();
         let storage = state.storage.clone();
         let path = path.clone();
+        let dispatch_count = state.wasm_dispatch_count.clone();
+        let error_count = state.wasm_error_count.clone();
+        let fuel_total = state.wasm_fuel_total.clone();
         state.recently_processed.insert(path.clone());
         if state.recently_processed.len() > MAX_RECENTLY_PROCESSED {
             let to_remove: Vec<String> = state
@@ -651,14 +666,29 @@ async fn handle_put(
             for worker in workers {
                 if let Ok(content) = storage.get(&path).await {
                     tracing::info!("Triggering worker {} for {}", worker.pattern, path);
-                    let _ = runtime
+                    dispatch_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    match runtime
                         .execute(
                             &worker.module_path,
                             &worker.function_name,
                             &content,
                             Some(worker.config.clone()),
                         )
-                        .await;
+                        .await
+                    {
+                        Ok(result) => {
+                            fuel_total.fetch_add(
+                                result.fuel_consumed,
+                                std::sync::atomic::Ordering::Relaxed,
+                            );
+                            if !result.success {
+                                error_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            }
+                        }
+                        Err(_) => {
+                            error_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        }
+                    }
                 }
             }
         });

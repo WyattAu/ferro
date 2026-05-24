@@ -241,6 +241,12 @@ pub struct AppState {
     pub upload_store: upload::UploadStore,
     pub auth_attempt_tracker: Arc<security::AuthAttemptTracker>,
     pub login_rate_limiter: Arc<security::LoginRateLimiter>,
+    /// WASM worker dispatch counter (total executions).
+    pub wasm_dispatch_count: Arc<std::sync::atomic::AtomicU64>,
+    /// WASM worker error counter (failed executions).
+    pub wasm_error_count: Arc<std::sync::atomic::AtomicU64>,
+    /// WASM worker total fuel consumed across all executions.
+    pub wasm_fuel_total: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl AppState {
@@ -308,6 +314,9 @@ impl AppState {
             upload_store: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
             auth_attempt_tracker: Arc::new(security::AuthAttemptTracker::default()),
             login_rate_limiter: Arc::new(security::LoginRateLimiter::default()),
+            wasm_dispatch_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            wasm_error_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            wasm_fuel_total: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         }
     }
 

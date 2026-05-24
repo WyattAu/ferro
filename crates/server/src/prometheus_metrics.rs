@@ -60,6 +60,17 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     let storage_copies = storage_ops[4].load(Ordering::Relaxed);
     let storage_moves = storage_ops[5].load(Ordering::Relaxed);
 
+    // Read cache stats
+    let cache_stats = state.read_cache.stats();
+    let cache_hits = cache_stats.hits;
+    let cache_misses = cache_stats.misses;
+    let cache_evictions = cache_stats.evictions;
+
+    // Read WASM worker metrics
+    let wasm_dispatches = state.wasm_dispatch_count.load(Ordering::Relaxed);
+    let wasm_errors = state.wasm_error_count.load(Ordering::Relaxed);
+    let wasm_fuel = state.wasm_fuel_total.load(Ordering::Relaxed);
+
     let mut headers = HeaderMap::new();
     headers.insert(
         "Content-Type",
@@ -113,6 +124,24 @@ ferro_storage_operations_total{{operation="delete"}} {storage_deletes}
 ferro_storage_operations_total{{operation="list"}} {storage_lists}
 ferro_storage_operations_total{{operation="copy"}} {storage_copies}
 ferro_storage_operations_total{{operation="move"}} {storage_moves}
+# HELP ferro_read_cache_hits_total Read cache hit count
+# TYPE ferro_read_cache_hits_total counter
+ferro_read_cache_hits_total {cache_hits}
+# HELP ferro_read_cache_misses_total Read cache miss count
+# TYPE ferro_read_cache_misses_total counter
+ferro_read_cache_misses_total {cache_misses}
+# HELP ferro_read_cache_evictions_total Read cache eviction count
+# TYPE ferro_read_cache_evictions_total counter
+ferro_read_cache_evictions_total {cache_evictions}
+# HELP ferro_wasm_dispatch_total Total WASM worker dispatches
+# TYPE ferro_wasm_dispatch_total counter
+ferro_wasm_dispatch_total {wasm_dispatches}
+# HELP ferro_wasm_errors_total Total WASM worker execution errors
+# TYPE ferro_wasm_errors_total counter
+ferro_wasm_errors_total {wasm_errors}
+# HELP ferro_wasm_fuel_consumed_total Total fuel consumed by WASM workers
+# TYPE ferro_wasm_fuel_consumed_total counter
+ferro_wasm_fuel_consumed_total {wasm_fuel}
 "#,
         uptime = uptime,
         file_count = file_count,

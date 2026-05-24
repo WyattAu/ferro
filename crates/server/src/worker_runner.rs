@@ -87,6 +87,15 @@ pub fn spawn_worker_runner(
                                 .await
                             {
                                 Ok(result) => {
+                                    state
+                                        .wasm_dispatch_count
+                                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                    state
+                                        .wasm_fuel_total
+                                        .fetch_add(
+                                            result.fuel_consumed,
+                                            std::sync::atomic::Ordering::Relaxed,
+                                        );
                                     if result.success {
                                         info!(
                                             "Worker {}::{} completed for {} (fuel: {}, time: {}ms)",
@@ -96,14 +105,25 @@ pub fn spawn_worker_runner(
                                             result.fuel_consumed,
                                             result.execution_time_ms,
                                         );
-                                    } else if let Some(err) = &result.error {
-                                        warn!(
-                                            "Worker {}::{} failed for {}: {}",
-                                            worker.module_path, worker.function_name, entry.path, err,
-                                        );
+                                    } else {
+                                        state
+                                            .wasm_error_count
+                                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                        if let Some(err) = &result.error {
+                                            warn!(
+                                                "Worker {}::{} failed for {}: {}",
+                                                worker.module_path, worker.function_name, entry.path, err,
+                                            );
+                                        }
                                     }
                                 }
                                 Err(e) => {
+                                    state
+                                        .wasm_dispatch_count
+                                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                    state
+                                        .wasm_error_count
+                                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                                     warn!("Worker execution error: {}", e);
                                 }
                             }
