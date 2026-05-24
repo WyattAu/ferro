@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779642109956,
+  "lastUpdate": 1779661002424,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -1601,6 +1601,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 844,
             "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "0b3066c5dd350183dcbdb0937ef11138f298835e",
+          "message": "feat(security,metrics): path validation, WASM/cache metrics, Content-Type logging\n\nAdd security::validate_path() to encryption handlers (encrypt_file,\ndecrypt_file) to prevent path traversal via JSON request bodies.\n\nAdd WASM worker metrics to AppState: dispatch count, error count,\nfuel consumed. Update inline trigger and background runner to track\nmetrics. Expose via Prometheus endpoint.\n\nExpose read cache hit/miss/eviction counters in Prometheus output.\n\nLog Content-Type mismatches in WebDAV PUT handler (warn level)\nwithout blocking uploads for compatibility.\n\nROADMAP updated: property tests verified (19 cases), CSP/cookies\ndocumented, 8 more items marked DONE/N/A.",
+          "timestamp": "2026-05-24T23:09:48+01:00",
+          "tree_id": "75e21e237c18b3d999db4144e61c3eff481f3c89",
+          "url": "https://github.com/WyattAu/ferro/commit/0b3066c5dd350183dcbdb0937ef11138f298835e"
+        },
+        "date": 1779661001965,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300782900,
+            "range": "± 1849917",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300748340,
+            "range": "± 1240245",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 23948,
+            "range": "± 874",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23408,
+            "range": "± 2950",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9189,
+            "range": "± 136",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5127,
+            "range": "± 148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1206,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 938,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2688,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1411,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8176,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74828,
+            "range": "± 727",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 94,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18925,
+            "range": "± 85",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 909,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 153,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 175,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 178,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 905,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 785,
+            "range": "± 15",
             "unit": "ns/iter"
           },
           {
