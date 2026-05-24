@@ -142,6 +142,12 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_DATA_DIR")]
     pub data_dir: Option<String>,
 
+    /// Migrate files from a different storage backend before starting the server.
+    /// Source format: same as --storage (e.g., "local:/old/path", "s3://old-bucket").
+    /// Files are copied to the configured --storage backend. Existing files are skipped.
+    #[arg(long, env = "FERRO_MIGRATE_FROM")]
+    pub migrate_from: Option<String>,
+
     /// Maximum request body size in bytes (default: 1 GB).
     #[arg(long, env = "FERRO_MAX_BODY_SIZE", default_value = "1073741824")]
     pub max_body_size: u64,

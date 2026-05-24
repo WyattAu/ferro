@@ -176,6 +176,57 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Run migration if --migrate-from is specified
+    if let Some(ref source_url) = cli.migrate_from {
+        info!("Starting migration from {} to {}", source_url, cli.storage);
+        let source = build_storage_backend(source_url)?;
+        let files = source
+            .list_all("/", 10000)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to list source files: {}", e))?;
+        let mut copied = 0u64;
+        let mut skipped = 0u64;
+        let mut errors = 0u64;
+        for meta in &files {
+            if meta.is_collection {
+                continue;
+            }
+            // Skip if file already exists in destination
+            if state.storage.exists(&meta.path).await.unwrap_or(false) {
+                skipped += 1;
+                continue;
+            }
+            match source.get(&meta.path).await {
+                Ok(content) => match state.storage.put(&meta.path, content, &meta.owner).await {
+                    Ok(_) => {
+                        copied += 1;
+                        if copied % 100 == 0 {
+                            info!("Migration progress: {} files copied", copied);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to write {}: {}", meta.path, e);
+                        errors += 1;
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!("Failed to read {}: {}", meta.path, e);
+                    errors += 1;
+                }
+            }
+        }
+        info!(
+            "Migration complete: {} copied, {} skipped (already exist), {} errors",
+            copied, skipped, errors
+        );
+        if errors > 0 {
+            tracing::warn!(
+                "{} files failed to migrate. Check logs above for details.",
+                errors
+            );
+        }
+    }
+
     // Configure OIDC if issuer is set
     let state = if let Some(issuer) = &cli.oidc_issuer {
         info!("OIDC authentication enabled: {}", issuer);
@@ -857,7 +908,70 @@ fn parse_duration(s: &str) -> Option<std::time::Duration> {
     }
 }
 
-/// Parse bucket/container name from a URL like "s3://my-bucket" → "my-bucket".
+/// Build a storage backend from a URL string.
+/// Used both for the main server storage and for migration source backends.
+fn build_storage_backend(
+    url: &str,
+) -> anyhow::Result<std::sync::Arc<dyn common::storage::StorageEngine>> {
+    match url {
+        "memory" => Ok(std::sync::Arc::new(
+            ferro_server::storage::InMemoryStorageEngine::new(),
+        )),
+        path if path.starts_with("local:") => {
+            let dir = path
+                .strip_prefix("local:")
+                .ok_or_else(|| anyhow::anyhow!("Invalid local storage path: {}", path))?;
+            let store = object_store::local::LocalFileSystem::new_with_prefix(dir)
+                .map_err(|e| anyhow::anyhow!("Failed to open local storage at {}: {}", dir, e))?;
+            Ok(std::sync::Arc::new(
+                ferro_server::object_store_backend::ObjectStoreStorageEngine::with_local_base(
+                    std::sync::Arc::new(store),
+                    std::path::PathBuf::from(dir),
+                ),
+            ))
+        }
+        #[cfg(feature = "s3")]
+        path if path.starts_with("s3://") => {
+            let store = object_store::aws::AmazonS3Builder::from_env()
+                .with_bucket_name(parse_bucket_from_url(path)?)
+                .build()
+                .map_err(|e| anyhow::anyhow!("Failed to create S3 client: {}", e))?;
+            Ok(std::sync::Arc::new(
+                ferro_server::object_store_backend::ObjectStoreStorageEngine::new(
+                    std::sync::Arc::new(store),
+                ),
+            ))
+        }
+        #[cfg(feature = "gcs")]
+        path if path.starts_with("gs://") => {
+            let bucket = parse_bucket_from_url(path)?;
+            let store = object_store::gcp::GoogleCloudStorageBuilder::from_env()
+                .with_bucket_name(&bucket)
+                .build()
+                .map_err(|e| anyhow::anyhow!("Failed to create GCS client: {}", e))?;
+            Ok(std::sync::Arc::new(
+                ferro_server::object_store_backend::ObjectStoreStorageEngine::new(
+                    std::sync::Arc::new(store),
+                ),
+            ))
+        }
+        #[cfg(feature = "azure")]
+        path if path.starts_with("az://") || path.starts_with("azure://") => {
+            let store = object_store::azure::MicrosoftAzureBuilder::from_env()
+                .with_container_name(parse_bucket_from_url(path)?)
+                .build()
+                .map_err(|e| anyhow::anyhow!("Failed to create Azure client: {}", e))?;
+            Ok(std::sync::Arc::new(
+                ferro_server::object_store_backend::ObjectStoreStorageEngine::new(
+                    std::sync::Arc::new(store),
+                ),
+            ))
+        }
+        _ => anyhow::bail!("Unknown storage backend: {}", url),
+    }
+}
+
+/// Parse bucket/container name from a URL like "s3://my-bucket" -> "my-bucket".
 /// Also handles prefix paths like "s3://my-bucket/path" → "my-bucket".
 #[allow(dead_code)] // Feature-gated: only used when s3/gcs/azure features are enabled
 fn parse_bucket_from_url(url: &str) -> anyhow::Result<String> {

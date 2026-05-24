@@ -1,0 +1,190 @@
+{
+  "annotations": { "list": [] },
+  "description": "Ferro Storage Orchestrator - Production Dashboard",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(ferro_http_requests_total[5m])",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      }
+    },
+    {
+      "title": "Request Duration (p50/p95/p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(ferro_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(ferro_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(ferro_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "title": "Response Status Codes",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(ferro_http_responses_total{status_class=\"2xx\"}[5m])",
+          "legendFormat": "2xx"
+        },
+        {
+          "expr": "rate(ferro_http_responses_total{status_class=\"4xx\"}[5m])",
+          "legendFormat": "4xx"
+        },
+        {
+          "expr": "rate(ferro_http_responses_total{status_class=\"5xx\"}[5m])",
+          "legendFormat": "5xx"
+        }
+      ]
+    },
+    {
+      "title": "Storage Operations",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(ferro_storage_operations_total{operation=\"put\"}[5m])",
+          "legendFormat": "PUT"
+        },
+        {
+          "expr": "rate(ferro_storage_operations_total{operation=\"get\"}[5m])",
+          "legendFormat": "GET"
+        },
+        {
+          "expr": "rate(ferro_storage_operations_total{operation=\"delete\"}[5m])",
+          "legendFormat": "DELETE"
+        }
+      ]
+    },
+    {
+      "title": "Read Cache Hit Rate",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "ferro_read_cache_hits_total / (ferro_read_cache_hits_total + ferro_read_cache_misses_total)",
+          "legendFormat": "Hit Rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "green", "value": 0.8 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "File Count",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
+      "targets": [
+        {
+          "expr": "ferro_files_total",
+          "legendFormat": "Files"
+        }
+      ]
+    },
+    {
+      "title": "Storage Used",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "ferro_storage_bytes_total",
+          "legendFormat": "Bytes"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      }
+    },
+    {
+      "title": "Uptime",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+      "targets": [
+        {
+          "expr": "ferro_uptime_seconds",
+          "legendFormat": "Uptime"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "title": "WASM Workers",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "ferro_wasm_workers_loaded",
+          "legendFormat": "Loaded"
+        },
+        {
+          "expr": "rate(ferro_wasm_dispatch_total[5m])",
+          "legendFormat": "Dispatches/s"
+        },
+        {
+          "expr": "rate(ferro_wasm_errors_total[5m])",
+          "legendFormat": "Errors/s"
+        }
+      ]
+    },
+    {
+      "title": "Cache Evictions",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "rate(ferro_read_cache_evictions_total[5m])",
+          "legendFormat": "Evictions/s"
+        },
+        {
+          "expr": "rate(ferro_read_cache_misses_total[5m])",
+          "legendFormat": "Misses/s"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["ferro", "storage"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "Ferro Storage Orchestrator",
+  "uid": "ferro-dashboard",
+  "version": 1
+}

@@ -199,7 +199,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 | Atomic file writes | Write to temp file, then rename (prevent partial uploads on crash) | P0 | DONE |
 | WAL mode for SQLite | Enable `PRAGMA journal_mode=WAL` for concurrent read/write | P0 | DONE |
 | Database backup API | Admin endpoint to trigger and download SQLite backup | P0 | DONE |
-| Data directory migration tool | CLI command to migrate data between storage backends | P1 | Pending |
+| Data directory migration tool | CLI command to migrate data between storage backends | P1 | DONE (--migrate-from flag) |
 | Checksum verification on startup | Verify CAS store integrity on boot (compare stored vs. computed hashes) | P1 | DONE |
 | Trash auto-purge daemon | Background task to purge items past `--trash-ttl` | P2 | DONE |
 
@@ -242,7 +242,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 | Prometheus endpoint completeness | Expose request latency histograms, error rates, active connections | P0 | DONE |
 | Storage backend metrics | PUT/GET latency per backend, cache hit/miss ratio | P1 | DONE (cache stats in Prometheus) |
 | WASM worker metrics | Dispatch count, fuel consumption, error rate per module | P1 | DONE (dispatch/fuel/error counters) |
-| Dashboard templates | Grafana dashboard JSON for common views | P2 | Pending |
+| Dashboard templates | Grafana dashboard JSON for common views | P2 | DONE (docs/src/deployment/grafana-dashboard.json) |
 
 ### 2.3 Health Checks
 
