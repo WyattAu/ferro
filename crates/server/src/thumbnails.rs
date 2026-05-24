@@ -83,7 +83,8 @@ impl ThumbnailService {
                 let cache_path = cache_file.clone();
                 let data_clone = data.clone();
                 tokio::spawn(async move {
-                    let _ = tokio::fs::write(&cache_path, &data_clone).await;
+                    let _ =
+                        crate::fs_util::atomic_write_async(cache_path, data_clone.to_vec()).await;
                 });
                 (content_type, data)
             }

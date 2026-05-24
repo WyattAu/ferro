@@ -123,7 +123,7 @@ pub async fn upload_wasm_module(
         let unique_name = format!("{}-{}", uuid::Uuid::new_v4(), file_name);
         let dest_path = workers_dir.join(&unique_name);
 
-        match tokio::fs::write(&dest_path, &data).await {
+        match crate::fs_util::atomic_write_async(dest_path.clone(), data.to_vec()).await {
             Ok(_) => {
                 let body = UploadResponse {
                     module_path: dest_path.to_string_lossy().to_string(),

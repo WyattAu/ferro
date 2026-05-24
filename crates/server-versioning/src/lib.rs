@@ -351,7 +351,7 @@ pub async fn create_version(
             .parent()
             .ok_or_else(|| "file path has no parent".to_string())?;
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-        std::fs::write(&file_path, &content).map_err(|e| e.to_string())?;
+        ferro_core::fs_util::atomic_write(&file_path, &content).map_err(|e| e.to_string())?;
 
         let meta = VersionMeta {
             id: new_id,
@@ -483,7 +483,7 @@ pub async fn auto_version(state: &VersioningState, path: &str, previous_content:
             warn!("Failed to create version dir: {}", e);
             return;
         }
-        if let Err(e) = std::fs::write(&file_path, &previous_content) {
+        if let Err(e) = ferro_core::fs_util::atomic_write(&file_path, &previous_content) {
             warn!("Failed to write version file: {}", e);
             return;
         }

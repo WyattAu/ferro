@@ -60,7 +60,7 @@ fn write_trash_file(
     let dir = PathBuf::from(trash_dir);
     std::fs::create_dir_all(&dir)?;
     let file_path = dir.join(filename);
-    std::fs::write(&file_path, content)?;
+    crate::fs_util::atomic_write(&file_path, content)?;
     Ok(file_path)
 }
 

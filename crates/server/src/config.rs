@@ -26,7 +26,7 @@ use clap::Parser;
 use serde::Deserialize;
 
 /// Configuration values loaded from a TOML file.
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Clone, Deserialize, Default)]
 pub struct FileConfigValues {
     /// Schema version of this config file. Used to detect incompatible configs.
     #[serde(default)]
@@ -61,7 +61,7 @@ pub struct FileConfigValues {
 }
 
 /// Configuration loaded from a TOML file with include support.
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Clone, Deserialize, Default)]
 pub struct FileConfig {
     /// Include other TOML files (merged in order, later files override earlier)
     #[serde(default)]
@@ -71,7 +71,16 @@ pub struct FileConfig {
     pub values: FileConfigValues,
 }
 
-#[derive(Parser, Debug, Clone)]
+impl std::fmt::Debug for FileConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileConfig")
+            .field("include", &self.include)
+            .field("values", &self.values)
+            .finish()
+    }
+}
+
+#[derive(Parser, Clone)]
 #[command(name = "ferro-server", about = "Ferro Storage Orchestrator", version)]
 pub struct ServerConfig {
     /// Path to configuration file (TOML format)
@@ -249,6 +258,125 @@ pub struct ServerConfig {
     /// LDAP user search base DN
     #[arg(long, env = "FERRO_LDAP_USER_SEARCH_BASE", default_value = "")]
     pub ldap_user_search_base: String,
+}
+
+/// Custom Debug implementation that redacts sensitive fields (passwords, secrets, tokens).
+/// Prevents credential leakage in log output.
+impl std::fmt::Debug for ServerConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ServerConfig")
+            .field("config", &self.config)
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("log_level", &self.log_level)
+            .field("log_format", &self.log_format)
+            .field("storage", &self.storage)
+            .field("oidc_issuer", &self.oidc_issuer)
+            .field("oidc_audience", &self.oidc_audience)
+            .field("oidc_client_id", &self.oidc_client_id)
+            .field("oidc_jwks_uri", &self.oidc_jwks_uri)
+            .field("cedar_policy_file", &self.cedar_policy_file)
+            .field("search_index_path", &self.search_index_path)
+            .field(
+                "metadata_db",
+                &self.metadata_db.as_ref().map(|_| "***REDACTED***"),
+            )
+            .field("cas_enabled", &self.cas_enabled)
+            .field("data_dir", &self.data_dir)
+            .field("max_body_size", &self.max_body_size)
+            .field("wasm_enabled", &self.wasm_enabled)
+            .field("static_dir", &self.static_dir)
+            .field(
+                "wopi_token_secret",
+                &self.wopi_token_secret.as_ref().map(|_| "***REDACTED***"),
+            )
+            .field("external_url", &self.external_url)
+            .field("wopi_office_url", &self.wopi_office_url)
+            .field("federation_secret", &"***REDACTED***")
+            .field("admin_user", &self.admin_user)
+            .field(
+                "admin_password",
+                &self.admin_password.as_ref().map(|_| "***REDACTED***"),
+            )
+            .field("storage_quota", &self.storage_quota)
+            .field("trash_ttl", &self.trash_ttl)
+            .field("graceful_shutdown_timeout", &self.graceful_shutdown_timeout)
+            .field("maintenance_mode", &self.maintenance_mode)
+            .field("cors_allowed_origins", &self.cors_allowed_origins)
+            .field("api_version", &self.api_version)
+            .field("cors_origins", &self.cors_origins)
+            .field("max_file_versions", &self.max_file_versions)
+            .field("thumbnail_size", &self.thumbnail_size)
+            .field("multi_user", &self.multi_user)
+            .finish()
+    }
+}
+
+/// Custom Debug for FileConfigValues that redacts sensitive fields.
+impl std::fmt::Debug for FileConfigValues {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileConfigValues")
+            .field("schema_version", &self.schema_version)
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("log_level", &self.log_level)
+            .field("log_format", &self.log_format)
+            .field("storage", &self.storage)
+            .field("data_dir", &self.data_dir)
+            .field("static_dir", &self.static_dir)
+            .field("max_body_size", &self.max_body_size)
+            .field("admin_user", &self.admin_user)
+            .field(
+                "admin_password",
+                &self.admin_password.as_ref().map(|_| "***REDACTED***"),
+            )
+            .field("external_url", &self.external_url)
+            .field(
+                "wopi_token_secret",
+                &self.wopi_token_secret.as_ref().map(|_| "***REDACTED***"),
+            )
+            .field("wopi_office_url", &self.wopi_office_url)
+            .field(
+                "federation_secret",
+                &self.federation_secret.as_ref().map(|_| "***REDACTED***"),
+            )
+            .field("oidc_issuer", &self.oidc_issuer)
+            .field("oidc_client_id", &self.oidc_client_id)
+            .field("oidc_audience", &self.oidc_audience)
+            .field("oidc_jwks_uri", &self.oidc_jwks_uri)
+            .field("cedar_policy_file", &self.cedar_policy_file)
+            .field("search_index_path", &self.search_index_path)
+            .field(
+                "metadata_db",
+                &self.metadata_db.as_ref().map(|_| "***REDACTED***"),
+            )
+            .field("cas_enabled", &self.cas_enabled)
+            .field("wasm_enabled", &self.wasm_enabled)
+            .field("storage_quota", &self.storage_quota)
+            .field("trash_ttl", &self.trash_ttl)
+            .field("graceful_shutdown_timeout", &self.graceful_shutdown_timeout)
+            .field("cors_allowed_origins", &self.cors_allowed_origins)
+            .finish()
+    }
+}
+
+/// Redact credentials from a URL string (e.g., `postgres://user:pass@host` -> `postgres://user:***@host`).
+/// Returns the original string if parsing fails (fail-open, never fail-closed on display).
+pub fn redact_url_credentials(url: &str) -> String {
+    match url::Url::parse(url) {
+        Ok(mut parsed) => {
+            if parsed.username().is_empty() {
+                return url.to_string();
+            }
+            // Only redact if there's a password or the username itself is sensitive
+            let had_password = parsed.password().is_some();
+            if had_password {
+                let _ = parsed.set_password(Some("***REDACTED***"));
+            }
+            parsed.to_string()
+        }
+        Err(_) => url.to_string(),
+    }
 }
 
 /// Load and parse a TOML configuration file, resolving includes recursively.
@@ -860,5 +988,108 @@ mod tests {
         assert_eq!(config.port, Some(3000));
         assert_eq!(config.log_level.as_deref(), Some("debug"));
         assert_eq!(config.admin_user.as_deref(), Some("admin"));
+    }
+
+    #[test]
+    fn test_server_config_debug_redacts_secrets() {
+        let config = ServerConfig::parse_from([
+            "ferro-server",
+            "--admin-user",
+            "admin",
+            "--admin-password",
+            "super_secret_password",
+            "--federation-secret",
+            "fed_secret_123",
+            "--wopi-token-secret",
+            "wopi_secret_456",
+        ]);
+
+        let debug_output = format!("{:?}", config);
+        // Sensitive fields should be redacted
+        assert!(
+            !debug_output.contains("super_secret_password"),
+            "admin_password leaked in Debug output"
+        );
+        assert!(
+            !debug_output.contains("fed_secret_123"),
+            "federation_secret leaked in Debug output"
+        );
+        assert!(
+            !debug_output.contains("wopi_secret_456"),
+            "wopi_token_secret leaked in Debug output"
+        );
+        // Non-sensitive fields should be visible
+        assert!(
+            debug_output.contains("admin"),
+            "admin_user should be visible in Debug output"
+        );
+        assert!(
+            debug_output.contains("***REDACTED***"),
+            "Redacted fields should show REDACTED marker"
+        );
+    }
+
+    #[test]
+    fn test_file_config_values_debug_redacts_secrets() {
+        let values = FileConfigValues {
+            admin_password: Some("secret123".into()),
+            wopi_token_secret: Some("WXYZ_TEST_TOKEN".into()),
+            federation_secret: Some("XYZZY_FED_SECRET".into()),
+            metadata_db: Some("postgres://user:pass@host/db".into()),
+            host: Some("0.0.0.0".into()),
+            ..Default::default()
+        };
+
+        let debug_output = format!("{:?}", values);
+        assert!(!debug_output.contains("secret123"), "admin_password leaked");
+        assert!(
+            !debug_output.contains("WXYZ_TEST_TOKEN"),
+            "wopi_token_secret leaked"
+        );
+        assert!(
+            !debug_output.contains("XYZZY_FED_SECRET"),
+            "federation_secret leaked"
+        );
+        assert!(
+            !debug_output.contains("postgres://user:pass@host"),
+            "metadata_db URL leaked"
+        );
+        assert!(debug_output.contains("0.0.0.0"), "host should be visible");
+    }
+
+    #[test]
+    fn test_redact_url_credentials_with_password() {
+        let url = "postgres://admin:hunter2@db.example.com:5432/mydb?sslmode=require";
+        let redacted = redact_url_credentials(url);
+        assert!(!redacted.contains("hunter2"), "Password should be redacted");
+        assert!(redacted.contains("admin"), "Username should be preserved");
+        assert!(
+            redacted.contains("***REDACTED***"),
+            "Should show REDACTED marker"
+        );
+    }
+
+    #[test]
+    fn test_redact_url_credentials_no_password() {
+        let url = "redis://localhost:6379";
+        let redacted = redact_url_credentials(url);
+        assert_eq!(redacted, url, "URL without credentials should be unchanged");
+    }
+
+    #[test]
+    fn test_redact_url_credentials_empty_username() {
+        let url = "http://example.com/path";
+        let redacted = redact_url_credentials(url);
+        assert_eq!(redacted, url, "URL without userinfo should be unchanged");
+    }
+
+    #[test]
+    fn test_redact_url_credentials_invalid_url() {
+        let url = "not-a-url-at-all";
+        let redacted = redact_url_credentials(url);
+        assert_eq!(
+            redacted, url,
+            "Invalid URL should be returned as-is (fail-open)"
+        );
     }
 }

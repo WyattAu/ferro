@@ -1,6 +1,7 @@
 //! Core storage, metadata, search, WASM worker, and persistence abstractions.
 
 pub mod cas;
+pub mod fs_util;
 pub mod metadata;
 pub mod presigned;
 pub mod storage;

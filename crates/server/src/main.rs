@@ -2,7 +2,9 @@ use clap::Parser;
 use ferro_server::auth::cedar::CedarAuthorizer;
 use ferro_server::auth::oidc::OidcConfig;
 use ferro_server::config::ServerConfig;
-use ferro_server::config::{FileConfigValues, apply_file_config, load_config_file};
+use ferro_server::config::{
+    FileConfigValues, apply_file_config, load_config_file, redact_url_credentials,
+};
 use ferro_server::security;
 use ferro_server::users::UserStoreTrait;
 use ferro_server::{AppState, build_router_with_static};
@@ -358,7 +360,10 @@ async fn main() -> anyhow::Result<()> {
     } else {
         // Legacy path: --metadata-db for PostgreSQL metadata
         let state = if let Some(db_url) = &cli.metadata_db {
-            info!("PostgreSQL metadata enabled: {}", db_url);
+            info!(
+                "PostgreSQL metadata enabled: {}",
+                redact_url_credentials(db_url)
+            );
             #[cfg(feature = "pg")]
             match ferro_core::sqlx_metadata::PgMetadataStore::new(db_url).await {
                 Ok(store) => {
@@ -513,7 +518,10 @@ async fn main() -> anyhow::Result<()> {
         #[cfg(feature = "redis")]
         {
             if let Some(ref redis_url) = cli.redis_url {
-                info!("Redis distributed lock manager enabled: {}", redis_url);
+                info!(
+                    "Redis distributed lock manager enabled: {}",
+                    redact_url_credentials(redis_url)
+                );
                 match ferro_server::redis_lock::RedisLockManager::new(redis_url).await {
                     Ok(lock_mgr) => state.with_lock_manager(std::sync::Arc::new(lock_mgr)),
                     Err(e) => {
@@ -539,7 +547,10 @@ async fn main() -> anyhow::Result<()> {
         #[cfg(feature = "pg")]
         {
             if let Some(ref database_url) = cli.database_url {
-                info!("PostgreSQL distributed state enabled: {}", database_url);
+                info!(
+                    "PostgreSQL distributed state enabled: {}",
+                    redact_url_credentials(database_url)
+                );
                 match sqlx::PgPool::connect(database_url).await {
                     Ok(pool) => match ferro_server::pg_state::create_pg_stores(pool).await {
                         Ok((share_store, favorite_store, preference_store)) => {

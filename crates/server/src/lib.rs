@@ -15,6 +15,7 @@ pub mod encryption;
 pub mod error;
 pub mod events;
 pub mod favorites;
+pub mod fs_util;
 pub mod federation {
     pub use ferro_server_activitypub::FederationState;
     pub use ferro_server_activitypub::store::ActivityStore;

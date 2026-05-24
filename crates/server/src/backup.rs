@@ -91,7 +91,7 @@ pub async fn create_backup(State(state): State<AppState>) -> Response {
                 let safe_path = meta.path.trim_start_matches('/').replace('/', "_");
                 let file_path = backup_dir.join(&safe_path);
 
-                if let Err(e) = std::fs::write(&file_path, &content) {
+                if let Err(e) = crate::fs_util::atomic_write(&file_path, &content) {
                     tracing::warn!("Failed to backup file {}: {}", meta.path, e);
                     continue;
                 }
@@ -113,7 +113,7 @@ pub async fn create_backup(State(state): State<AppState>) -> Response {
     let manifest_path = backup_dir.join("manifest.json");
     match serde_json::to_string_pretty(&manifest) {
         Ok(json) => {
-            if let Err(e) = std::fs::write(&manifest_path, json) {
+            if let Err(e) = crate::fs_util::atomic_write(&manifest_path, json.as_bytes()) {
                 return ApiError::internal(
                     ApiError::INTERNAL_ERROR,
                     format!("Failed to write manifest: {}", e),
