@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779661002424,
+  "lastUpdate": 1779662658584,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -1763,6 +1763,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 785,
             "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "862b89af8e0a056067d50f0ba5d7b8db659b88ac",
+          "message": "feat(observability,tests): startup probe, XML proptests, SRI assessment\n\nAdd GET /startupz endpoint for Kubernetes-style startup probes.\nReturns 200 after all startup checks (CAS verification, storage\nreachability) pass. Returns 503 during initialization.\n\nAdd 6 XML parsing property tests using proptest: fuzz parse_proppatch\nand LockRequest::parse with random XML-like content to verify no\npanics. Test valid PROPPATCH/LOCK XML parsing. Total: 25 property\ntests (up from 19).\n\nAssess SRI: only external CDN is Google Fonts CSS (dynamic per UA,\nSRI inapplicable). System font fallback covers offline deployments.",
+          "timestamp": "2026-05-24T23:37:30+01:00",
+          "tree_id": "dc636655dce00a605b6566f674befd6fa8b297a3",
+          "url": "https://github.com/WyattAu/ferro/commit/862b89af8e0a056067d50f0ba5d7b8db659b88ac"
+        },
+        "date": 1779662658148,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300660425,
+            "range": "± 742936",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300615455,
+            "range": "± 1077605",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 23690,
+            "range": "± 879",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23632,
+            "range": "± 671",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9122,
+            "range": "± 143",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5042,
+            "range": "± 99",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1184,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 942,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2934,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1407,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8148,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74759,
+            "range": "± 466",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19087,
+            "range": "± 230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 898,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 70,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 151,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 175,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 936,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 771,
+            "range": "± 4",
             "unit": "ns/iter"
           },
           {
