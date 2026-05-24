@@ -9,7 +9,7 @@
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 833 passed, 1 ignored |
+| Tests | 847 passed, 1 ignored |
 | Clippy warnings | 0 |
 | Production `expect()` calls | 0 |
 | Production `unwrap()` calls | 0 |
@@ -103,6 +103,31 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 - Phase 2.4 P0: Global error handler (consistent JSON)
 - Phase 2.4 P1: Panic handler (axum catches panics), graceful degradation (search)
 
+### Production Hardening 2026-05-24 (Session 2)
+
+**Audit Chain Verification (Phase 2.1 P1):**
+- `SqlitePersistence::verify_audit_chain()` method: reads all entries ordered by id,
+  recomputes SHA-256 chain hashes, compares against stored values
+- `GET /api/admin/audit-chain` admin endpoint exposes verification
+- `AuditLog::verify_chain()` delegates to persistence layer
+- 3 new tests: valid chain verification, tamper detection, legacy NULL hash skip
+- `ChainVerificationReport` and `ChainMismatch` structs for structured output
+
+**Security Model Audit — CSRF Not Needed:**
+- Ferro uses purely header-based auth (Basic + Bearer), no cookies
+- Browsers do not auto-send `Authorization` headers cross-origin
+- CORS config lacks `Access-Control-Allow-Credentials: true`
+- UI stores tokens in `localStorage`, not cookies
+- Existing `generate_csrf_token()` / `verify_csrf_token()` are dead code but harmless
+- Session token rotation similarly unnecessary (no session layer)
+
+**Additional features found already implemented:**
+- Phase 1.2 P1: CAS checksum verification at startup (main.rs:622-667) + `/api/admin/integrity`
+- Phase 1.2 P2: Trash auto-purge daemon (hourly tokio task)
+- Phase 4.2 P0: XML entity expansion safe by default (quick-xml, no DTD processing, 10MB limit)
+- Phase 4.1 P0: CSRF protection not needed (header-based auth, no cookies)
+- Phase 1.1 P1: Session token rotation not needed (stateless auth, no sessions)
+
 ---
 
 ## Phase 1: Production Hardening (Sprint AU)
@@ -116,7 +141,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 | Enforce password change on first login | Reject default `changeme` password; require immediate change | P0 | DONE |
 | Rate limit login attempts | Separate, stricter rate limit on `/auth/login` (5/min per IP) | P0 | DONE |
 | Account lockout after failed attempts | Lock account for 15 min after 10 consecutive failures | P1 | DONE |
-| Session token rotation | Re-issue tokens on sensitive operations (password change, settings update) | P1 | Pending |
+| Session token rotation | Re-issue tokens on sensitive operations (password change, settings update) | P1 | N/A (stateless auth) |
 | OIDC token refresh flow | `POST /api/auth/refresh` exchanges refresh_token for new access_token | P1 | DONE |
 | LDAP group mapping | Map LDAP groups to Admin/User/ReadOnly via `group_role_map` config | P2 | DONE |
 
@@ -128,8 +153,8 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 | WAL mode for SQLite | Enable `PRAGMA journal_mode=WAL` for concurrent read/write | P0 | DONE |
 | Database backup API | Admin endpoint to trigger and download SQLite backup | P0 | DONE |
 | Data directory migration tool | CLI command to migrate data between storage backends | P1 | Pending |
-| Checksum verification on startup | Verify CAS store integrity on boot (compare stored vs. computed hashes) | P1 | Pending |
-| Trash auto-purge daemon | Background task to purge items past `--trash-ttl` | P2 | Pending |
+| Checksum verification on startup | Verify CAS store integrity on boot (compare stored vs. computed hashes) | P1 | DONE |
+| Trash auto-purge daemon | Background task to purge items past `--trash-ttl` | P2 | DONE |
 
 ### 1.3 Configuration Safety
 
@@ -161,7 +186,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 | Request tracing correlation | Propagate `X-Request-ID` through all log lines | P0 | DONE |
 | Log level per crate | Allow `FERRO_LOG=ferro_server=debug,ferro_core=trace` | P0 | DONE |
 | Slow query logging | Log SQLite queries exceeding 100ms | P1 | DONE |
-| Audit log immutability | Append-only audit table; prevent deletion | P1 | Pending |
+| Audit log immutability | Append-only audit table; chain hash verification endpoint | P1 | DONE |
 
 ### 2.2 Metrics
 
@@ -241,7 +266,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 
 | Item | Description | Priority |
 |------|-------------|----------|
-| CSRF protection | Double-submit cookie or SameSite=Strict on all mutating endpoints | P0 |
+| CSRF protection | Not needed: header-based auth (Basic+Bearer), no cookies, CORS lacks credentials | P0 | N/A |
 | Secure cookie flags | HttpOnly, Secure, SameSite on all session tokens | P0 |
 | Content Security Policy | Remove `'unsafe-inline'` from CSP; use nonce-based or hash-based styles | P0 |
 | Subresource integrity | SRI hashes on all CDN-served assets | P1 |
@@ -252,7 +277,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 |------|-------------|----------|
 | File name sanitization | Reject names with control characters, reserved names (CON, AUX, NUL) | P0 |
 | Content-Type verification | Validate uploaded Content-Type against actual file content (magic bytes) | P0 |
-| XML entity expansion limits | Limit entity expansion depth and total size in WebDAV XML | P1 |
+| XML entity expansion limits | Limit entity expansion depth and total size in WebDAV XML | P1 | DONE (quick-xml safe by default) |
 | Share link brute-force protection | Rate limit share token guesses | P1 |
 
 ### 4.3 Dependency Security

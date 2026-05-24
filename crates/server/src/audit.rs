@@ -122,6 +122,17 @@ impl AuditLog {
         self.len().await == 0
     }
 
+    /// Verify the chain hash integrity of persisted audit entries.
+    ///
+    /// Returns `None` if persistence is not configured (in-memory-only mode).
+    pub async fn verify_chain(&self) -> Option<ferro_core::persistence::ChainVerificationReport> {
+        if let Some(ref p) = self.persistence {
+            Some(p.verify_audit_chain().await)
+        } else {
+            None
+        }
+    }
+
     /// Return audit entries with pagination offset.
     pub async fn recent_with_offset(&self, limit: usize, offset: usize) -> Vec<AuditEntry> {
         if let Some(ref p) = self.persistence {

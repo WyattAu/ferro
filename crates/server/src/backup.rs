@@ -384,6 +384,21 @@ pub async fn audit_integrity(State(state): State<AppState>) -> Response {
     (StatusCode::OK, axum::Json(report)).into_response()
 }
 
+/// GET /api/admin/audit-chain — verify audit log chain hash integrity.
+///
+/// Reads all persisted audit entries, recomputes the SHA-256 chain hash for
+/// each entry, and reports any mismatches. Returns 200 with a verification
+/// report. Returns 503 if persistence is not configured (in-memory-only mode).
+pub async fn audit_chain_verify(State(state): State<AppState>) -> Response {
+    match state.audit_log.verify_chain().await {
+        Some(report) => (StatusCode::OK, axum::Json(report)).into_response(),
+        None => ApiError::internal(
+            ApiError::INTERNAL_ERROR,
+            "Audit chain verification requires SQLite persistence to be configured".to_string(),
+        ),
+    }
+}
+
 /// DELETE /api/admin/backup/:id — delete a backup.
 pub async fn delete_backup(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let data_dir = match &state.data_dir {

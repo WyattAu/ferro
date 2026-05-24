@@ -402,6 +402,121 @@ impl AuditLogStore for SqlitePersistence {
     }
 }
 
+impl SqlitePersistence {
+    /// Verify the audit log chain hash integrity.
+    ///
+    /// Reads all entries ordered by `id`, recomputes each `chain_hash` as
+    /// `SHA-256(prev_hash || entry_data)`, and compares against the stored
+    /// value. Returns a report with the total entries checked and any
+    /// mismatches found.
+    pub async fn verify_audit_chain(&self) -> ChainVerificationReport {
+        use sha2::{Digest, Sha256};
+
+        let rows: Vec<PersistedAuditEntry> = match sqlx::query_as(
+            "SELECT id, timestamp, method, path, user, status, client_ip, user_agent, content_length, chain_hash
+             FROM audit_log ORDER BY id ASC",
+        )
+        .fetch_all(&self.pool)
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                return ChainVerificationReport {
+                    total_entries: 0,
+                    verified: 0,
+                    mismatches: 1,
+                    skipped_no_hash: 0,
+                    findings: vec![ChainMismatch {
+                        entry_id: 0,
+                        stored_hash: String::new(),
+                        computed_hash: String::new(),
+                        description: format!("Failed to read audit log: {}", e),
+                    }],
+                };
+            }
+        };
+
+        let total = rows.len();
+        let mut verified = 0usize;
+        let mut mismatches = 0usize;
+        let mut skipped_no_hash = 0usize;
+        let mut findings = Vec::new();
+        let mut prev_hash: Option<String> = None;
+
+        for row in &rows {
+            let stored = match &row.chain_hash {
+                Some(h) if !h.is_empty() => h.clone(),
+                _ => {
+                    // Entries created before chain hashing was enabled have no hash.
+                    // Do NOT synthesize a hash — keep prev_hash as-is to match
+                    // the behavior of the log() method which sees NULL prev_hash.
+                    skipped_no_hash += 1;
+                    continue;
+                }
+            };
+
+            // Recompute the expected hash
+            let mut hasher = Sha256::new();
+            if let Some(ref ph) = prev_hash {
+                hasher.update(ph.as_bytes());
+            }
+            hasher.update(row.timestamp.as_bytes());
+            hasher.update(row.method.as_bytes());
+            hasher.update(row.path.as_bytes());
+            hasher.update(row.user.as_bytes());
+            hasher.update(row.status.to_le_bytes());
+            if let Some(ref ip) = row.client_ip {
+                hasher.update(ip.as_bytes());
+            }
+            let computed = hex::encode(hasher.finalize());
+
+            if computed == stored {
+                verified += 1;
+            } else {
+                mismatches += 1;
+                findings.push(ChainMismatch {
+                    entry_id: row.id,
+                    stored_hash: stored.clone(),
+                    computed_hash: computed,
+                    description: format!(
+                        "Chain hash mismatch at entry id={}: stored != computed",
+                        row.id
+                    ),
+                });
+            }
+
+            prev_hash = Some(stored);
+        }
+
+        ChainVerificationReport {
+            total_entries: total,
+            verified,
+            mismatches,
+            skipped_no_hash,
+            findings,
+        }
+    }
+}
+
+/// Report from verifying audit log chain hash integrity.
+#[derive(Debug, Clone, Serialize)]
+pub struct ChainVerificationReport {
+    pub total_entries: usize,
+    pub verified: usize,
+    pub mismatches: usize,
+    pub skipped_no_hash: usize,
+    pub findings: Vec<ChainMismatch>,
+}
+
+/// A single chain hash mismatch found during verification.
+#[derive(Debug, Clone, Serialize)]
+pub struct ChainMismatch {
+    pub entry_id: i64,
+    pub stored_hash: String,
+    pub computed_hash: String,
+    pub description: String,
+}
+
 // ── Metadata Store: reuse existing SqliteMetadataStore ────────────────────
 //
 // The existing `SqliteMetadataStore` in `sqlx_metadata.rs` already has the
@@ -568,5 +683,115 @@ mod tests {
         assert_eq!(store.content_count().await, 1);
         assert_eq!(store.entry_count().await, 1);
         assert_eq!(store.count().await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_audit_chain_verification_valid() {
+        let (_tmp, store) = make_store().await;
+
+        // Insert several entries — chain hashes are computed automatically
+        for i in 0..5 {
+            store
+                .log(PersistedAuditEntry {
+                    id: 0,
+                    timestamp: format!("2026-01-01T00:{:02}:00Z", i),
+                    method: "PUT".to_string(),
+                    path: format!("/file{}.txt", i),
+                    user: "alice".to_string(),
+                    status: 201,
+                    client_ip: Some("10.0.0.1".to_string()),
+                    user_agent: None,
+                    content_length: Some(100 + i as u64),
+                    chain_hash: None,
+                })
+                .await
+                .unwrap();
+        }
+
+        let report = store.verify_audit_chain().await;
+        assert_eq!(report.total_entries, 5);
+        assert_eq!(report.verified, 5);
+        assert_eq!(report.mismatches, 0);
+        assert!(report.findings.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_audit_chain_detection_tamper() {
+        let (_tmp, store) = make_store().await;
+
+        // Insert 3 entries
+        for i in 0..3 {
+            store
+                .log(PersistedAuditEntry {
+                    id: 0,
+                    timestamp: format!("2026-01-01T00:{:02}:00Z", i),
+                    method: "GET".to_string(),
+                    path: format!("/doc{}.txt", i),
+                    user: "bob".to_string(),
+                    status: 200,
+                    client_ip: None,
+                    user_agent: None,
+                    content_length: None,
+                    chain_hash: None,
+                })
+                .await
+                .unwrap();
+        }
+
+        // Tamper with entry 2's chain_hash directly in SQLite
+        sqlx::query("UPDATE audit_log SET chain_hash = 'deadbeef' WHERE id = 2")
+            .execute(&store.pool)
+            .await
+            .unwrap();
+
+        let report = store.verify_audit_chain().await;
+        // Entry 2 should be a mismatch, entry 3 will also mismatch because
+        // the chain is broken (prev_hash for entry 3 came from the tampered entry 2)
+        assert!(report.mismatches >= 1, "Expected at least 1 mismatch");
+        assert!(
+            report.findings.iter().any(|f| f.entry_id == 2),
+            "Expected mismatch at entry id=2"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_audit_chain_verification_skips_no_hash() {
+        let (_tmp, store) = make_store().await;
+
+        // Manually insert an entry without a chain_hash (simulating pre-migration data)
+        sqlx::query(
+            "INSERT INTO audit_log (timestamp, method, path, user, status, chain_hash) VALUES (?, ?, ?, ?, ?, NULL)",
+        )
+        .bind("2025-01-01T00:00:00Z")
+        .bind("GET")
+        .bind("/old.txt")
+        .bind("legacy")
+        .bind(200i64)
+        .execute(&store.pool)
+        .await
+        .unwrap();
+
+        // Insert a modern entry that chains from the legacy one
+        store
+            .log(PersistedAuditEntry {
+                id: 0,
+                timestamp: "2026-01-01T00:00:00Z".to_string(),
+                method: "PUT".to_string(),
+                path: "/new.txt".to_string(),
+                user: "alice".to_string(),
+                status: 201,
+                client_ip: None,
+                user_agent: None,
+                content_length: None,
+                chain_hash: None,
+            })
+            .await
+            .unwrap();
+
+        let report = store.verify_audit_chain().await;
+        assert_eq!(report.total_entries, 2);
+        assert_eq!(report.skipped_no_hash, 1);
+        assert_eq!(report.verified, 1);
+        assert_eq!(report.mismatches, 0);
     }
 }

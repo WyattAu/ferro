@@ -801,6 +801,10 @@ fn api_routes(
             axum::routing::get(backup::audit_integrity),
         )
         .route(
+            "/admin/audit-chain",
+            axum::routing::get(backup::audit_chain_verify),
+        )
+        .route(
             "/admin/restore",
             axum::routing::post(backup::restore_backup),
         )
