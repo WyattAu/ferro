@@ -56,6 +56,53 @@
 - Production `unwrap()` count: ~1274 (known tech debt, gradual improvement target)
 - 1 TODO comment in graphql/src/lib.rs (auth extraction)
 
+### Production Hardening 2026-05-24
+
+Implemented across 2 commits (`d274895`, `52e6851`):
+
+**Secret Redaction (P0):**
+- Custom `Debug` impls for `ServerConfig`, `FileConfigValues`, `FileConfig`
+  that redact `admin_password`, `wopi_token_secret`, `federation_secret`,
+  `metadata_db` credentials
+- `redact_url_credentials()` helper for sanitizing PostgreSQL/Redis URLs
+- Fixed 3 log lines in main.rs that leaked DB/Redis connection URLs
+- 6 new tests
+
+**Atomic File Writes (P0):**
+- `ferro_core::fs_util::atomic_write()` using temp-file-then-rename
+- Converted 7 bare `fs::write` sites to atomic writes across backup,
+  trash, thumbnails, wasm_upload, and server-versioning crates
+- 5 new tests
+
+**OIDC Token Refresh (P1):**
+- `POST /api/auth/refresh` endpoint accepts refresh_token,
+  exchanges via provider token_endpoint for new access_token
+- `OidcValidator::refresh_access_token()` method
+- Returns rotated refresh_token if provider issues new one
+
+**LDAP Group Mapping (P2):**
+- New `LdapConfig` fields: `group_search_base`, `group_filter`, `group_role_map`
+- Queries LDAP groups after user bind, maps to Admin/User/ReadOnly
+- Highest-privilege matching role wins
+
+**Prometheus Histogram Fix (P0):**
+- `ferro_http_request_duration_seconds_sum` was hardcoded to 0
+- Now tracks cumulative request duration via `AtomicU64`
+
+**Config Schema Version Validation (P1):**
+- Rejects `schema_version > 1` at startup with clear error message
+
+**Audit of existing features found already implemented:**
+- Phase 1.1 P0: Password change enforcement, rate limiting, account lockout
+- Phase 1.2 P0: WAL mode SQLite, DB backup API
+- Phase 1.3 P0: Config validation on startup
+- Phase 2.1 P0: Request tracing via X-Request-ID
+- Phase 2.1 P1: Slow query logging (100ms threshold)
+- Phase 2.3 P0: Deep health check (storage, DB, search)
+- Phase 2.3 P1: Readiness gate (503 when unhealthy)
+- Phase 2.4 P0: Global error handler (consistent JSON)
+- Phase 2.4 P1: Panic handler (axum catches panics), graceful degradation (search)
+
 ---
 
 ## Phase 1: Production Hardening (Sprint AU)
@@ -64,42 +111,42 @@
 
 ### 1.1 Authentication and Authorization Hardening
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Enforce password change on first login | Reject default `changeme` password; require immediate change | P0 |
-| Rate limit login attempts | Separate, stricter rate limit on `/auth/login` (5/min per IP) | P0 |
-| Account lockout after failed attempts | Lock account for 15 min after 10 consecutive failures | P1 |
-| Session token rotation | Re-issue tokens on sensitive operations (password change, settings update) | P1 |
-| OIDC token refresh flow | Implement silent token refresh before expiry | P1 |
-| LDAP group mapping | Map LDAP groups to Cedar roles | P2 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Enforce password change on first login | Reject default `changeme` password; require immediate change | P0 | DONE |
+| Rate limit login attempts | Separate, stricter rate limit on `/auth/login` (5/min per IP) | P0 | DONE |
+| Account lockout after failed attempts | Lock account for 15 min after 10 consecutive failures | P1 | DONE |
+| Session token rotation | Re-issue tokens on sensitive operations (password change, settings update) | P1 | Pending |
+| OIDC token refresh flow | `POST /api/auth/refresh` exchanges refresh_token for new access_token | P1 | DONE |
+| LDAP group mapping | Map LDAP groups to Admin/User/ReadOnly via `group_role_map` config | P2 | DONE |
 
 ### 1.2 Data Integrity and Recovery
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Atomic file writes | Write to temp file, then rename (prevent partial uploads on crash) | P0 |
-| WAL mode for SQLite | Enable `PRAGMA journal_mode=WAL` for concurrent read/write | P0 |
-| Database backup API | Admin endpoint to trigger and download SQLite backup | P0 |
-| Data directory migration tool | CLI command to migrate data between storage backends | P1 |
-| Checksum verification on startup | Verify CAS store integrity on boot (compare stored vs. computed hashes) | P1 |
-| Trash auto-purge daemon | Background task to purge items past `--trash-ttl` | P2 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Atomic file writes | Write to temp file, then rename (prevent partial uploads on crash) | P0 | DONE |
+| WAL mode for SQLite | Enable `PRAGMA journal_mode=WAL` for concurrent read/write | P0 | DONE |
+| Database backup API | Admin endpoint to trigger and download SQLite backup | P0 | DONE |
+| Data directory migration tool | CLI command to migrate data between storage backends | P1 | Pending |
+| Checksum verification on startup | Verify CAS store integrity on boot (compare stored vs. computed hashes) | P1 | Pending |
+| Trash auto-purge daemon | Background task to purge items past `--trash-ttl` | P2 | Pending |
 
 ### 1.3 Configuration Safety
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Config validation on startup | Reject invalid combinations (e.g., CORS `*` with auth enabled) | P0 |
-| Secret redaction in logs | Never log passwords, tokens, or API keys | P0 |
-| Config file schema version | Pin `ferro.toml` schema version; migrate on upgrade | P1 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Config validation on startup | Reject invalid combinations (e.g., CORS `*` with auth enabled) | P0 | DONE |
+| Secret redaction in logs | Custom Debug impls redact passwords/tokens/URLs | P0 | DONE |
+| Config file schema version | Reject unsupported schema_version at startup | P1 | DONE |
 
 ### 1.4 Documentation Completion
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Complete API reference | Document all 90+ endpoints in `docs/api.md` | P0 |
-| Complete configuration reference | Document all 37 CLI flags and TOML keys | P0 |
-| Deployment guide for production | Step-by-step for Docker, bare metal, Kubernetes | P1 |
-| Upgrade guide | Document migration path between versions | P1 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Complete API reference | Document all 90+ endpoints in `docs/api.md` | P0 | Pending |
+| Complete configuration reference | Document all 37 CLI flags and TOML keys | P0 | Pending |
+| Deployment guide for production | Step-by-step for Docker, bare metal, Kubernetes | P1 | Pending |
+| Upgrade guide | Document migration path between versions | P1 | Pending |
 
 ---
 
@@ -109,38 +156,38 @@
 
 ### 2.1 Structured Logging
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Request tracing correlation | Propagate `X-Request-ID` through all log lines | P0 |
-| Log level per crate | Allow `FERRO_LOG=ferro_server=debug,ferro_core=trace` | P0 |
-| Slow query logging | Log SQLite queries exceeding 100ms | P1 |
-| Audit log immutability | Append-only audit table; prevent deletion | P1 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Request tracing correlation | Propagate `X-Request-ID` through all log lines | P0 | DONE |
+| Log level per crate | Allow `FERRO_LOG=ferro_server=debug,ferro_core=trace` | P0 | DONE |
+| Slow query logging | Log SQLite queries exceeding 100ms | P1 | DONE |
+| Audit log immutability | Append-only audit table; prevent deletion | P1 | Pending |
 
 ### 2.2 Metrics
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Prometheus endpoint completeness | Expose request latency histograms, error rates, active connections | P0 |
-| Storage backend metrics | PUT/GET latency per backend, cache hit/miss ratio | P1 |
-| WASM worker metrics | Dispatch count, fuel consumption, error rate per module | P1 |
-| Dashboard templates | Grafana dashboard JSON for common views | P2 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Prometheus endpoint completeness | Expose request latency histograms, error rates, active connections | P0 | DONE |
+| Storage backend metrics | PUT/GET latency per backend, cache hit/miss ratio | P1 | Pending |
+| WASM worker metrics | Dispatch count, fuel consumption, error rate per module | P1 | Pending |
+| Dashboard templates | Grafana dashboard JSON for common views | P2 | Pending |
 
 ### 2.3 Health Checks
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Deep health check | Verify storage backend connectivity, not just process liveness | P0 |
-| Readiness gate | `/readyz` returns 503 until search index is loaded | P1 |
-| Startup probe | Separate probe for container orchestration (longer timeout) | P2 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Deep health check | `/readyz` verifies storage backend, SQLite, search index health | P0 | DONE |
+| Readiness gate | `/readyz` returns 503 until all subsystems healthy | P1 | DONE |
+| Startup probe | Separate probe for container orchestration (longer timeout) | P2 | Pending |
 
 ### 2.4 Error Handling
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Reduce production `expect()` count | Target: zero expects on external input paths; 1 remaining in `hash_password()` | P0 |
-| Global error handler | Consistent JSON error format across all 90+ endpoints | P0 |
-| Panic handler | Catch panics in request handlers; return 500 instead of killing connection | P1 |
-| Graceful degradation | If search index fails to load, serve files without search (not 500) | P1 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Reduce production `expect()` count | Target: zero expects on external input paths | P0 | DONE |
+| Global error handler | Consistent JSON error format across all 90+ endpoints | P0 | DONE |
+| Panic handler | Catch panics in request handlers; return 500 instead of killing connection | P1 | DONE |
+| Graceful degradation | If search index fails, return empty results (not 500) | P1 | DONE |
 
 ---
 
