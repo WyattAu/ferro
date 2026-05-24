@@ -247,6 +247,9 @@ pub struct AppState {
     pub wasm_error_count: Arc<std::sync::atomic::AtomicU64>,
     /// WASM worker total fuel consumed across all executions.
     pub wasm_fuel_total: Arc<std::sync::atomic::AtomicU64>,
+    /// Whether the server has completed startup (CAS verification, DB init, etc.).
+    /// Set to true after all startup checks pass in main.rs.
+    pub startup_complete: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl AppState {
@@ -317,6 +320,7 @@ impl AppState {
             wasm_dispatch_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             wasm_error_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             wasm_fuel_total: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            startup_complete: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
@@ -1113,6 +1117,7 @@ pub fn build_router_with_static(
         .route("/.well-known/ferro", axum::routing::get(health_check))
         .route("/healthz", axum::routing::get(liveness))
         .route("/readyz", axum::routing::get(readiness))
+        .route("/startupz", axum::routing::get(startup))
         .route("/s/:token", axum::routing::get(shares::serve_share))
         .nest(
             "/wopi",
@@ -1281,6 +1286,26 @@ pub fn build_router_with_static(
 
 pub async fn liveness() -> impl IntoResponse {
     (StatusCode::OK, "ok")
+}
+
+/// GET /startupz — Kubernetes-style startup probe.
+/// Returns 200 once the server has completed all startup checks
+/// (storage reachability, CAS verification, DB init). Returns 503 until then.
+pub async fn startup(State(state): State<AppState>) -> Response {
+    use std::sync::atomic::Ordering;
+    if state.startup_complete.load(Ordering::Relaxed) {
+        (
+            StatusCode::OK,
+            axum::Json(serde_json::json!({"status": "ok"})),
+        )
+            .into_response()
+    } else {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            axum::Json(serde_json::json!({"status": "starting"})),
+        )
+            .into_response()
+    }
 }
 
 pub async fn readiness(State(state): State<AppState>) -> Response {

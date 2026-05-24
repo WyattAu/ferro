@@ -5,6 +5,7 @@ use common::storage::StorageEngine;
 use common::webdav::{LockDepth, LockScope};
 use ferro_core::storage::InMemoryStorageEngine;
 use ferro_server::lock::LockManager;
+use ferro_webdav_handler::LockRequest;
 use proptest::prelude::*;
 use std::collections::HashSet;
 
@@ -271,5 +272,94 @@ proptest! {
         let child_path = format!("{}/{}", parent_path, child_name);
         let result = mgr.check_lock_for_write_sync(&child_path);
         assert!(result.is_err());
+    }
+}
+
+// ── AW-006: XML parsing property tests ─────────────────────────────────
+
+/// Generate random XML-like content for fuzzing.
+fn arb_xml_content() -> impl Strategy<Value = String> {
+    let xml_char = any::<u8>().prop_map(|b| {
+        // Produce valid UTF-8 characters, biased toward XML-meaningful chars
+        match b % 8 {
+            0 => '<',
+            1 => '>',
+            2 => '/',
+            3 => '=',
+            4 => '"',
+            5 => '&',
+            6 => 'a',
+            _ => b as char,
+        }
+    });
+    proptest::collection::vec(xml_char, 0..512).prop_map(|chars| chars.into_iter().collect())
+}
+
+proptest! {
+    /// parse_proppatch must not panic on arbitrary input.
+    #[test]
+    fn prop_xml_proppatch_no_panic(input in arb_xml_content()) {
+        let result = ferro_server::xml::parse_proppatch(input.as_bytes());
+        // Result should always be a Vec (possibly empty) — never panic
+        let _ = result;
+    }
+
+    /// LockRequest::parse must not panic on arbitrary input.
+    #[test]
+    fn prop_xml_lock_parse_no_panic(input in arb_xml_content()) {
+        let result = LockRequest::parse(input.as_bytes());
+        // Result should always be a valid LockRequest — never panic
+        let _ = result;
+    }
+
+    /// parse_proppatch on empty input returns empty vec.
+    #[test]
+    fn prop_xml_proppatch_empty(input in proptest::string::bytes_regex(".{0,0}").unwrap()) {
+        let result = ferro_server::xml::parse_proppatch(&input);
+        assert!(result.is_empty());
+    }
+
+    /// parse_proppatch on valid PROPPATCH XML returns expected operations.
+    #[test]
+    fn prop_xml_proppatch_valid(
+        prop_name in "[a-zA-Z]{2,16}",
+        prop_value in "[a-zA-Z0-9]{1,32}",
+    ) {
+        let xml = format!(
+            r#"<?xml version="1.0" encoding="utf-8" ?>
+            <D:propertyupdate xmlns:D="DAV:">
+              <D:set>
+                <D:prop>
+                  <{prop_name}>{prop_value}</{prop_name}>
+                </D:prop>
+              </D:set>
+            </D:propertyupdate>"#
+        );
+        let result = ferro_server::xml::parse_proppatch(xml.as_bytes());
+        assert!(!result.is_empty(), "Should parse at least one operation from: {}", xml);
+    }
+
+    /// LockRequest::parse on valid LOCK XML extracts owner.
+    #[test]
+    fn prop_xml_lock_valid_owner(owner in "[a-zA-Z]{1,16}") {
+        let xml = format!(
+            r#"<?xml version="1.0" encoding="utf-8" ?>
+            <D:lockinfo xmlns:D="DAV:">
+              <D:locktype><D:write/></D:locktype>
+              <D:lockscope><D:exclusive/></D:lockscope>
+              <D:owner><D:href>{owner}</D:href></D:owner>
+            </D:lockinfo>"#
+        );
+        let result = LockRequest::parse(xml.as_bytes());
+        assert_eq!(result.owner.as_deref(), Some(owner.as_str()));
+        assert!(matches!(result.scope, LockScope::Exclusive));
+    }
+
+    /// escape_xml must not panic on arbitrary input.
+    #[test]
+    fn prop_xml_escape_never_panics(input in arb_xml_content()) {
+        let escaped = ferro_server::xml::escape_xml(&input);
+        // Just verify it doesn't panic — the exact rules are tested in unit tests
+        let _ = escaped;
     }
 }

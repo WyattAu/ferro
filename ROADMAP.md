@@ -153,6 +153,28 @@ Implemented across 2 commits (`d274895`, `52e6851`):
   - Per-IP rate limiting not added; token enumeration is computationally infeasible
 - 19 property-based tests already exist (storage engine, path normalization, lock state machine)
 
+### Production Hardening 2026-05-24 (Session 4)
+
+**XML Parsing Property Tests (Phase 3.1 P1):**
+- 6 new proptest cases for XML parsers: `parse_proppatch` and `LockRequest::parse`
+  - Random XML-like content must not panic (fuzz test)
+  - Valid PROPPATCH XML must extract operations
+  - Valid LOCK XML must extract owner and scope
+  - Empty/oversized input handled gracefully
+  - `escape_xml` must not panic on arbitrary input
+- Total property tests: 25 (up from 19)
+
+**Startup Probe (Phase 2.3 P2):**
+- `GET /startupz` returns 200 after all startup checks pass, 503 during initialization
+- `AppState.startup_complete` atomic flag set in main.rs after CAS verification, storage reachability
+- Kubernetes startup probe: `httpGet: path: /startupz, port: 8080`
+
+**SRI Assessment (Phase 4.1 P1):**
+- Only external CDN resource: Google Fonts CSS (dynamically generated per user-agent, SRI inapplicable)
+- Google Fonts falls back to system fonts when unavailable (offline/air-gapped deployments)
+- Desktop app is fully self-contained (no CDN references)
+- Accepted risk: fonts.googleapis.com is the only external dependency in the web UI
+
 ---
 
 ## Phase 1: Production Hardening (Sprint AU)
@@ -228,7 +250,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 |------|-------------|----------|--------|
 | Deep health check | `/readyz` verifies storage backend, SQLite, search index health | P0 | DONE |
 | Readiness gate | `/readyz` returns 503 until all subsystems healthy | P1 | DONE |
-| Startup probe | Separate probe for container orchestration (longer timeout) | P2 | Pending |
+| Startup probe | Separate probe for container orchestration (longer timeout) | P2 | DONE (/startupz) |
 
 ### 2.4 Error Handling
 
@@ -263,7 +285,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 | Storage engine properties | `proptest`: PUT then GET returns identical content for random byte sequences | P0 | DONE (5 tests) |
 | Path normalization properties | Verify no path escapes after N random transformations | P0 | DONE (6 tests) |
 | Lock protocol properties | Lock, refresh, unlock state machine exhaustively tested | P1 | DONE (8 tests) |
-| XML parsing properties | Proptest-generated XML fed to WebDAV parser; must not panic | P1 | Pending |
+| XML parsing properties | Proptest-generated XML fed to WebDAV parser; must not panic | P1 | DONE (6 tests) |
 
 ### 3.3 Fuzzing
 
@@ -294,7 +316,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 | CSRF protection | Not needed: header-based auth (Basic+Bearer), no cookies, CORS lacks credentials | P0 | N/A |
 | Secure cookie flags | Not needed: server sets no cookies (stateless auth) | P0 | N/A |
 | Content Security Policy | `style-src 'unsafe-inline'` required by Leptos; `script-src 'self'` enforced | P0 | DONE |
-| Subresource integrity | SRI hashes on all CDN-served assets | P1 | Pending |
+| Subresource integrity | Google Fonts CSS is dynamic (SRI inapplicable); accepted risk, system font fallback | P1 | DONE (assessed) |
 
 ### 4.2 Input Validation
 

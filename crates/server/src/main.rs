@@ -766,6 +766,12 @@ async fn main() -> anyhow::Result<()> {
         .set_nonblocking(true)
         .expect("failed to set non-blocking");
     let listener = tokio::net::TcpListener::from_std(std_listener)?;
+
+    // Mark startup as complete — all verification checks passed.
+    state
+        .startup_complete
+        .store(true, std::sync::atomic::Ordering::Relaxed);
+
     info!("Ferro server listening on {}", addr);
 
     // Graceful shutdown: when SIGTERM/SIGINT is received, stop accepting
