@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779328151538,
+  "lastUpdate": 1779610363670,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -1115,6 +1115,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 805,
             "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "d274895119b1842e046ac823a5227bd1dced6011",
+          "message": "feat(security): secret redaction in logs and atomic file writes\n\n- Add custom Debug impls for ServerConfig, FileConfigValues, FileConfig\n  that redact admin_password, wopi_token_secret, federation_secret,\n  ldap_bind_password, and metadata_db credentials\n- Add redact_url_credentials() helper for sanitizing PostgreSQL/Redis URLs\n  in log output (postgres://user:***REDACTED***@host)\n- Fix 3 log lines in main.rs that leaked DB/Redis connection URLs\n- Add ferro_core::fs_util::atomic_write() using temp-file-then-rename\n  pattern to prevent partial file corruption on crash\n- Convert 7 bare fs::write sites to atomic writes: backup.rs (2),\n  trash.rs (1), thumbnails.rs (1), wasm_upload.rs (1),\n  server-versioning (2)\n- Add 11 new tests (6 redaction + 5 atomic write)",
+          "timestamp": "2026-05-24T08:59:55+01:00",
+          "tree_id": "53e705aa55243736d1cc2410e5be4a0e09339d30",
+          "url": "https://github.com/WyattAu/ferro/commit/d274895119b1842e046ac823a5227bd1dced6011"
+        },
+        "date": 1779610363224,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267154699,
+            "range": "± 718056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267090740,
+            "range": "± 128694",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28289,
+            "range": "± 2039",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 27687,
+            "range": "± 2484",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9392,
+            "range": "± 73",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5121,
+            "range": "± 109",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1172,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 906,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2770,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1324,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7359,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66606,
+            "range": "± 121",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 88,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18811,
+            "range": "± 67",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 874,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 146,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 179,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 187,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 876,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 829,
+            "range": "± 4",
             "unit": "ns/iter"
           },
           {
