@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779635267061,
+  "lastUpdate": 1779642109956,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -1439,6 +1439,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 776,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "160bdf7ac690b6f41397355d6d2855f4587231fc",
+          "message": "feat(audit): chain hash verification endpoint and security model audit\n\nAdd SqlitePersistence::verify_audit_chain() to recompute and validate\nSHA-256 chain hashes across all audit log entries. Expose via\nGET /api/admin/audit-chain for tamper detection.\n\nSecurity audit confirms CSRF protection unnecessary: Ferro uses\nheader-based auth (Basic+Bearer) with no cookies. Session token\nrotation similarly not applicable.\n\n3 new tests: valid chain, tamper detection, legacy NULL skip.\nROADMAP updated: 847 tests, 5 more items marked DONE/N/A.",
+          "timestamp": "2026-05-24T17:55:01+01:00",
+          "tree_id": "1e1d531a47391bfe162c6ee663cbc21b45718eaa",
+          "url": "https://github.com/WyattAu/ferro/commit/160bdf7ac690b6f41397355d6d2855f4587231fc"
+        },
+        "date": 1779642109267,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267154370,
+            "range": "± 1620217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267063685,
+            "range": "± 415973",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 27787,
+            "range": "± 2440",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 27744,
+            "range": "± 2144",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9136,
+            "range": "± 77",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5059,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1159,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 903,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2894,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1320,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7319,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66499,
+            "range": "± 73",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18454,
+            "range": "± 160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 877,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 149,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 177,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 187,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 856,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 844,
+            "range": "± 3",
             "unit": "ns/iter"
           },
           {
