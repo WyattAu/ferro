@@ -215,8 +215,8 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 
 | Item | Description | Priority | Status |
 |------|-------------|----------|--------|
-| Complete API reference | Document all 90+ endpoints in `docs/api.md` | P0 | Pending |
-| Complete configuration reference | Document all 37 CLI flags and TOML keys | P0 | Pending |
+| Complete API reference | Document all 90+ endpoints in `docs/api.md` | P0 | DONE (1466 lines across 9 md files + Swagger UI) |
+| Complete configuration reference | Document all 37 CLI flags and TOML keys | P0 | DONE (docs/src/configuration.md, 178 lines) |
 | Deployment guide for production | Step-by-step for Docker, bare metal, Kubernetes | P1 | Pending |
 | Upgrade guide | Document migration path between versions | P1 | Pending |
 
