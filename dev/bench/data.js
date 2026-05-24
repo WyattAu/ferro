@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779662658584,
+  "lastUpdate": 1779666489024,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -1924,6 +1924,168 @@ window.BENCHMARK_DATA = {
           {
             "name": "metadata_deserialize",
             "value": 771,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "f75c5c00e55f69f0f7c91829623e66278bfbfddc",
+          "message": "feat(tools,migration): storage migration tool, Grafana dashboard\n\nAdd --migrate-from flag to ferro-server for cross-backend data\nmigration. Copies all files from a source storage backend to the\nconfigured destination. Skips existing files. Reports progress\nevery 100 files with final summary (copied/skipped/errors).\n\nExtract build_storage_backend() helper to support creating storage\nbackends independently of AppState (used by migration source).\n\nAdd Grafana dashboard template with 10 panels: request rate,\nduration percentiles, status codes, storage operations, cache\nhit rate, file count, storage used, uptime, WASM workers,\ncache evictions.",
+          "timestamp": "2026-05-25T00:41:19+01:00",
+          "tree_id": "a9359860d13cc2d30658e20ff4711d73173d865c",
+          "url": "https://github.com/WyattAu/ferro/commit/f75c5c00e55f69f0f7c91829623e66278bfbfddc"
+        },
+        "date": 1779666488576,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300689747,
+            "range": "± 779259",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300731423,
+            "range": "± 212852",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24293,
+            "range": "± 690",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23768,
+            "range": "± 703",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9038,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5195,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1185,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 922,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2721,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1400,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8144,
+            "range": "± 170",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74851,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 93,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19257,
+            "range": "± 304",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 888,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 153,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 899,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 754,
             "range": "± 4",
             "unit": "ns/iter"
           },
