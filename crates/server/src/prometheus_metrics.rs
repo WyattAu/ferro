@@ -21,6 +21,8 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     }
 
     let request_count = state.request_count.load(Ordering::Relaxed);
+    let request_duration_sum =
+        state.request_duration_sum_ms.load(Ordering::Relaxed) as f64 / 1000.0;
 
     // Read histogram buckets.
     let buckets = &state.request_duration_buckets;
@@ -95,7 +97,7 @@ ferro_http_request_duration_seconds_bucket{{le="0.500"}} {le_500ms}
 ferro_http_request_duration_seconds_bucket{{le="1.0"}} {le_1s}
 ferro_http_request_duration_seconds_bucket{{le="5.0"}} {le_5s}
 ferro_http_request_duration_seconds_bucket{{le="+Inf"}} {le_inf}
-ferro_http_request_duration_seconds_sum 0
+ferro_http_request_duration_seconds_sum {request_duration_sum}
 ferro_http_request_duration_seconds_count {request_count}
 # HELP ferro_http_responses_total HTTP responses by status class
 # TYPE ferro_http_responses_total counter
@@ -116,6 +118,7 @@ ferro_storage_operations_total{{operation="move"}} {storage_moves}
         file_count = file_count,
         total_bytes = total_bytes,
         request_count = request_count,
+        request_duration_sum = request_duration_sum,
     );
 
     (StatusCode::OK, headers, output).into_response()

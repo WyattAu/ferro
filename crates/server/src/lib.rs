@@ -215,6 +215,8 @@ pub struct AppState {
     /// Request duration histogram: buckets for <1ms, <5ms, <10ms, <25ms, <50ms,
     /// <100ms, <250ms, <500ms, <1s, <5s, >=5s. Each bucket is an AtomicU64.
     pub request_duration_buckets: Arc<[std::sync::atomic::AtomicU64; 11]>,
+    /// Cumulative sum of request durations in milliseconds (for Prometheus histogram _sum).
+    pub request_duration_sum_ms: Arc<std::sync::atomic::AtomicU64>,
     /// Per-status-code request counters: index 0 = 2xx, 1 = 3xx, 2 = 4xx, 3 = 5xx.
     pub request_status_counts: Arc<[std::sync::atomic::AtomicU64; 4]>,
     /// Storage operation counters: index 0 = PUT, 1 = GET, 2 = DELETE, 3 = LIST, 4 = COPY, 5 = MOVE.
@@ -279,6 +281,7 @@ impl AppState {
             request_duration_buckets: Arc::new(std::array::from_fn(|_| {
                 std::sync::atomic::AtomicU64::new(0)
             })),
+            request_duration_sum_ms: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             request_status_counts: Arc::new(std::array::from_fn(|_| {
                 std::sync::atomic::AtomicU64::new(0)
             })),
@@ -654,6 +657,10 @@ fn api_routes(
         .route("/auth/login", axum::routing::get(api::auth_login))
         .route("/auth/callback", axum::routing::get(api::auth_callback))
         .route(
+            "/auth/refresh",
+            axum::routing::post(api::auth_refresh_token),
+        )
+        .route(
             "/auth/change-password",
             axum::routing::post(api::auth_change_password),
         )
@@ -880,6 +887,7 @@ pub fn build_router_with_static(
 ) -> Router {
     let request_counter = state.request_count.clone();
     let duration_buckets = state.request_duration_buckets.clone();
+    let duration_sum_ms = state.request_duration_sum_ms.clone();
     let status_counts = state.request_status_counts.clone();
     let storage_op_counts = state.storage_op_counts.clone();
     let auth_enabled = state.auth_enabled();
@@ -1212,9 +1220,11 @@ pub fn build_router_with_static(
                 let buckets = duration_buckets.clone();
                 let statuses = status_counts.clone();
                 let storage_ops = storage_op_counts.clone();
+                let sum = duration_sum_ms.clone();
                 request_logging::request_logging_middleware(
                     counter,
                     buckets,
+                    sum,
                     statuses,
                     Some(storage_ops),
                     req,

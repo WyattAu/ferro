@@ -28,6 +28,17 @@ async fn main() -> anyhow::Result<()> {
 
     apply_file_config(&original_args, &mut cli, &file_config);
 
+    // Validate config file schema version (currently only version 1 is supported)
+    if let Some(version) = file_config.schema_version
+        && version > 1
+    {
+        anyhow::bail!(
+            "Unsupported config file schema_version: {}. Supported versions: 1. \
+             Please update your ferro.toml or upgrade Ferro.",
+            version
+        );
+    }
+
     match cli.log_format.as_str() {
         "json" => {
             tracing_subscriber::fmt()

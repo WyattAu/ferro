@@ -145,6 +145,55 @@ impl OidcValidator {
         Ok(response)
     }
 
+    /// Refresh an access token using a refresh token via the OIDC token endpoint.
+    ///
+    /// Returns the full token response JSON (containing `access_token`, `expires_in`,
+    /// and optionally a new `refresh_token` if the provider rotates refresh tokens).
+    pub async fn refresh_access_token(&self, refresh_token: &str) -> Result<serde_json::Value> {
+        let discovery_url = format!(
+            "{}/.well-known/openid-configuration",
+            self.config.issuer.trim_end_matches('/')
+        );
+        let discovery: serde_json::Value = self
+            .http_client
+            .get(&discovery_url)
+            .send()
+            .await
+            .map_err(|e| FerroError::Internal(format!("OIDC discovery failed: {}", e)))?
+            .json()
+            .await
+            .map_err(|e| FerroError::Internal(format!("OIDC discovery parse failed: {}", e)))?;
+
+        let token_endpoint = discovery
+            .get("token_endpoint")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| FerroError::Internal("No token_endpoint in discovery".to_string()))?;
+
+        let params = [
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+            ("client_id", &self.config.client_id),
+        ];
+
+        let response = self
+            .http_client
+            .post(token_endpoint)
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| FerroError::Internal(format!("Token refresh request failed: {}", e)))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let _body = response.text().await.unwrap_or_default();
+            return Err(FerroError::Unauthorized);
+        }
+
+        response.json::<serde_json::Value>().await.map_err(|e| {
+            FerroError::Internal(format!("Token refresh response parse failed: {}", e))
+        })
+    }
+
     /// Validate a JWT access token and extract its claims.
     pub async fn validate_token(&self, token: &str) -> Result<Claims> {
         let cache = self.jwks.read().await;

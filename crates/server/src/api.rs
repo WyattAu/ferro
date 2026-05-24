@@ -387,6 +387,78 @@ pub async fn auth_callback(
         .into_response()
 }
 
+/// POST /api/auth/refresh — exchange a refresh token for a new access token.
+///
+/// Accepts `{ "refresh_token": "..." }` and returns a new access token.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct RefreshTokenRequest {
+    pub refresh_token: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/auth/refresh",
+    request_body = RefreshTokenRequest,
+    responses(
+        (status = 200, description = "New access token"),
+        (status = 401, description = "Invalid or expired refresh token"),
+        (status = 503, description = "OIDC not configured"),
+    ),
+    tags = ["auth"],
+)]
+pub async fn auth_refresh_token(
+    State(state): State<AppState>,
+    axum::Json(body): axum::Json<RefreshTokenRequest>,
+) -> Response {
+    let oidc = match &state.oidc {
+        Some(v) => v,
+        None => {
+            return ApiError::service_unavailable(ApiError::NOT_CONFIGURED, "OIDC not configured");
+        }
+    };
+
+    if body.refresh_token.is_empty() {
+        return ApiError::bad_request(ApiError::BAD_REQUEST, "refresh_token is required");
+    }
+
+    match oidc.refresh_access_token(&body.refresh_token).await {
+        Ok(token_response) => {
+            let access_token = token_response
+                .get("access_token")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let token_type = token_response
+                .get("token_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Bearer")
+                .to_string();
+            let expires_in = token_response
+                .get("expires_in")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(3600);
+            let new_refresh_token = token_response
+                .get("refresh_token")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let mut response_body = serde_json::json!({
+                "access_token": access_token,
+                "token_type": token_type,
+                "expires_in": expires_in,
+            });
+            if let Some(rt) = new_refresh_token {
+                response_body["refresh_token"] = serde_json::Value::String(rt);
+            }
+
+            (StatusCode::OK, axum::Json(response_body)).into_response()
+        }
+        Err(_) => {
+            ApiError::unauthorized(ApiError::TOKEN_EXPIRED, "Refresh token expired or invalid")
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct LoginParams {
     pub redirect: Option<String>,

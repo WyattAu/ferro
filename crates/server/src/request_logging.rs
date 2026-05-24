@@ -11,6 +11,7 @@ use std::time::Instant;
 pub async fn request_logging_middleware(
     request_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
     duration_buckets: std::sync::Arc<[std::sync::atomic::AtomicU64; 11]>,
+    duration_sum_ms: std::sync::Arc<std::sync::atomic::AtomicU64>,
     status_counts: std::sync::Arc<[std::sync::atomic::AtomicU64; 4]>,
     storage_op_counts: Option<std::sync::Arc<[std::sync::atomic::AtomicU64; 6]>>,
     req: Request<Body>,
@@ -50,6 +51,7 @@ pub async fn request_logging_middleware(
         _ => 10,          // >=5s
     };
     duration_buckets[bucket_idx].fetch_add(1, Ordering::Relaxed);
+    duration_sum_ms.fetch_add(ms, Ordering::Relaxed);
 
     // Record per-status-class counter.
     let status_idx = match status.as_u16() {
