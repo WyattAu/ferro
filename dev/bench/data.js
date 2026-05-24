@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779610363670,
+  "lastUpdate": 1779635267061,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -1277,6 +1277,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 829,
             "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "52e68516911d9e5dc29ae1302141fd1517c6fc7f",
+          "message": "feat(auth,metrics): OIDC refresh, LDAP group mapping, Prometheus fix\n\n- Add OIDC token refresh: POST /api/auth/refresh endpoint accepts\n  refresh_token, exchanges it for new access_token via provider\n  token_endpoint. Returns new refresh_token if provider rotates.\n- Add OidcValidator::refresh_access_token() method using grant_type=\n  refresh_token against discovered token_endpoint\n- Add LDAP group-to-role mapping: new fields on LdapConfig\n  (group_search_base, group_filter, group_role_map) enable querying\n  user groups and mapping to Admin/User/ReadOnly roles\n- Fix Prometheus histogram _sum: was hardcoded to 0, now tracks\n  cumulative request duration in milliseconds via AtomicU64\n- Add config file schema_version validation: rejects unsupported\n  versions at startup with clear error message\n- Export auth_refresh_token route on /api/auth/refresh",
+          "timestamp": "2026-05-24T15:55:53+01:00",
+          "tree_id": "88c7039065b7115d063a8225d014b0cdcee2f8f4",
+          "url": "https://github.com/WyattAu/ferro/commit/52e68516911d9e5dc29ae1302141fd1517c6fc7f"
+        },
+        "date": 1779635265645,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 254182644,
+            "range": "± 962867",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 254050296,
+            "range": "± 106396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 23009,
+            "range": "± 2143",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 22366,
+            "range": "± 1937",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8801,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5293,
+            "range": "± 93",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1108,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 862,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2589,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1494,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8525,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 78421,
+            "range": "± 101",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 108,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 21232,
+            "range": "± 309",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 966,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 84,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 79,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 142,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 153,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 161,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 721,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 776,
+            "range": "± 2",
             "unit": "ns/iter"
           },
           {
