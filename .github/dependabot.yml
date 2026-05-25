@@ -4,15 +4,28 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Auto-merge patch updates (semver patch only)
+    labels:
+      - "dependencies"
+      - "automated"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    labels:
+      - "dependencies"
+      - "automated"
   - package-ecosystem: "npm"
     directory: "/e2e"
     schedule:
       interval: "weekly"
+    labels:
+      - "dependencies"
+      - "automated"
   - package-ecosystem: "npm"
     directory: "/web-e2e"
     schedule:
       interval: "weekly"
+    labels:
+      - "dependencies"
+      - "automated"

@@ -284,3 +284,35 @@ done | sort | uniq -c
 
 ### Current Dependency Count
 Run `cargo tree --depth 1` for current count.
+
+## STRIDE Threat Model Update (2026-05-24)
+
+### New Attack Surfaces
+
+| Surface | Vector | Threat | Mitigation |
+|---------|--------|--------|------------|
+| WASM Worker Upload | Malicious WASM bytecode | Denial of service (CPU/memory exhaustion) | Fuel limit (1B), memory cap (64MB), timeout (30s), sandboxed wasmtime runtime |
+| WASM Worker Execution | Side-channel via WASM | Information leakage | Linear memory isolation, no shared memory, no network access in sandbox |
+| Federation Inbox | Spoofed activities | Impersonation, spam | HTTP Signatures (HMAC-SHA256), actor keyId validation, federation_secret required |
+| Federation Webfinger | Actor enumeration | Information disclosure | Public endpoint, only exposes actor URL (no private data) |
+| OIDC Token Refresh | Stolen refresh token | Token replay | Token rotation on refresh, short-lived access tokens, provider-side revocation |
+| LDAP Auth | LDAP injection | Auth bypass | Parameterized queries via ldap3 crate, group DN validation |
+| Share Links | Token brute force | Unauthorized file access | UUID v4 tokens (122-bit entropy), per-token lockout (10 fails / 5 min), expiration |
+| Content-Type Spoofing | Malicious file upload | XSS via HTML upload | Magic bytes verification, Content-Type mismatch logging, nosniff header |
+| Audit Log Tampering | SQLite DB modification | Cover tracks | Chain hash verification (`GET /api/admin/audit-chain`), append-only design |
+
+### WASM Worker Security Model
+
+1. **Sandboxing**: Wasmtime runtime with WASI capabilities disabled
+2. **Resource limits**: Fuel-based execution metering (1 billion units), 64MB memory cap, 30s timeout
+3. **Upload validation**: `.wasm` extension required, WASM magic bytes verification, filename sanitization
+4. **Network isolation**: Workers cannot make outbound network requests
+5. **Filesystem isolation**: Workers receive file content as input, cannot access storage directly
+
+### Federation Security Model
+
+1. **Inbound**: HTTP Signatures required on all POST to `/fed/inbox`, actor keyId validated against activity actor
+2. **Outbound**: Activities signed with server's federation_secret via HMAC-SHA256
+3. **Discovery**: Webfinger and NodeInfo are public read-only endpoints
+4. **Rate limiting**: Subject to global rate limiter
+5. **Disable mechanism**: Empty federation_secret = federation endpoints return 503

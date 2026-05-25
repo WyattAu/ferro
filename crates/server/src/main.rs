@@ -200,7 +200,7 @@ async fn main() -> anyhow::Result<()> {
                 Ok(content) => match state.storage.put(&meta.path, content, &meta.owner).await {
                     Ok(_) => {
                         copied += 1;
-                        if copied % 100 == 0 {
+                        if copied.is_multiple_of(100) {
                             info!("Migration progress: {} files copied", copied);
                         }
                     }

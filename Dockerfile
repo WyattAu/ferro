@@ -5,7 +5,7 @@ ENV PATH="/root/.cargo/bin:${PATH}" \
     CARGO_HOME="/root/.cargo"
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates curl pkg-config libssl-dev && \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.95.0 && \
     . /root/.cargo/env && \
     rustup target add wasm32-unknown-unknown && \
     cargo install trunk && \
@@ -62,7 +62,7 @@ WORKDIR /app/crates/web
 RUN trunk build --release --public-url "/ui/"
 
 # ── Stage 2: Build Rust server ────────────────────────────────────────────
-FROM rust:1.92-bookworm AS builder
+FROM rust:1.95-bookworm AS builder
 
 ARG BUILD_FEATURES=""
 

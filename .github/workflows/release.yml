@@ -65,8 +65,28 @@ jobs:
           name: ${{ matrix.artifact }}
           path: target/${{ matrix.target }}/release/${{ matrix.binary }}
 
+  sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx
+      - name: Generate SBOM
+        run: cargo cyclonedx --all --format json --output-pattern crate
+      - name: Collect SBOM files
+        run: |
+          mkdir -p sbom-output
+          find . -name "*.cdx.json" -exec cp {} sbom-output/ \;
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom-output/
+
   release:
-    needs: build
+    needs: [build, sbom]
     runs-on: ubuntu-latest
     permissions:
       contents: write

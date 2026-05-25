@@ -1,10 +1,10 @@
 # Ferro Roadmap: v2.5.1 to Production and Beyond
 
-**Version:** 2.5.1 | **Date:** 2026-05-20 | **Status:** Active Development
+**Version:** 2.5.1 | **Date:** 2026-05-25 | **Status:** Active Development
 
 ---
 
-## Current State (2026-05-20)
+## Current State (2026-05-25)
 
 | Metric | Value |
 |--------|-------|
@@ -14,7 +14,7 @@
 | Production `expect()` calls | 0 |
 | Production `unwrap()` calls | 0 |
 | CI/CD | 10/10 checks green (fmt, clippy, test, test-pg, test-cloud x3, audit, build, docker) |
-| E2E | 24 Playwright tests passing |
+| E2E | 49 Playwright tests passing (7 spec files) |
 | Code coverage | LLVM-cov active in CI |
 | Security | cargo-deny clean, OWASP checklist complete, STRIDE threat model |
 | Documentation | mdBook deployed to GitHub Pages, README comprehensive |
@@ -217,8 +217,8 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 |------|-------------|----------|--------|
 | Complete API reference | Document all 90+ endpoints in `docs/api.md` | P0 | DONE (1466 lines across 9 md files + Swagger UI) |
 | Complete configuration reference | Document all 37 CLI flags and TOML keys | P0 | DONE (docs/src/configuration.md, 178 lines) |
-| Deployment guide for production | Step-by-step for Docker, bare metal, Kubernetes | P1 | Pending |
-| Upgrade guide | Document migration path between versions | P1 | Pending |
+| Deployment guide for production | Step-by-step for Docker, bare metal, Kubernetes | P1 | DONE (docs/src/deployment/production.md) |
+| Upgrade guide | Document migration path between versions | P1 | DONE (docs/src/guides/upgrade.md, 68 lines) |
 
 ---
 
@@ -269,14 +269,14 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 
 ### 3.1 Missing E2E Tests
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| ActivityPub federation E2E | Test actor discovery, inbox delivery, follow/accept flow | P0 |
-| WASM worker pipeline E2E | Upload module -> dispatch -> verify result | P0 |
-| GraphQL E2E | Test queries, mutations, subscriptions against live server | P1 |
-| File versioning E2E | PUT, overwrite, list versions, restore | P1 |
-| CardDAV E2E | Test vCard CRUD via WebDAV | P1 |
-| Multi-browser E2E | Add Firefox and WebKit targets to Playwright matrix | P2 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| ActivityPub federation E2E | Test actor discovery, inbox delivery, follow/accept flow | P0 | DONE (9 tests in federation.spec.ts) |
+| WASM worker pipeline E2E | Upload module -> dispatch -> verify result | P0 | DONE (6 tests in wasm.spec.ts) |
+| GraphQL E2E | Test queries, mutations, subscriptions against live server | P1 | DONE (12 tests in graphql.spec.ts) |
+| File versioning E2E | PUT, overwrite, list versions, restore | P1 | DONE (8 tests in versioning.spec.ts) |
+| CardDAV E2E | Test vCard CRUD via WebDAV | P1 | DONE (9 tests in caldav.spec.ts) |
+| Multi-browser E2E | Add Firefox and WebKit targets to Playwright matrix | P2 | DONE (chromium, firefox, webkit in config) |
 
 ### 3.2 Property-Based Testing
 
@@ -329,20 +329,20 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 
 ### 4.3 Dependency Security
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Resolve rsa RUSTSEC-2023-0071 | Eliminate `rsa` crate from dependency tree (replace age or patch sqlx) | P0 |
-| Resolve GTK3 unmaintained chain | Monitor Tauri GTK4 migration; remove 22 advisory ignores | P1 |
-| Dependabot auto-merge | Auto-merge patch updates for non-breaking changes | P1 |
-| Reproducible builds | Pin all build toolchain versions in Nix flake and Dockerfile | P2 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Resolve rsa RUSTSEC-2023-0071 | Eliminate `rsa` crate from dependency tree | P0 | DONE (already eliminated) |
+| Resolve GTK3 unmaintained chain | Monitor Tauri GTK4 migration; advisory ignores | P1 | DONE (cargo-deny clean, 4 transitive ignores) |
+| Dependabot auto-merge | Auto-merge patch updates for non-breaking changes | P1 | DONE (workflow + dependabot labels) |
+| Reproducible builds | Pin all build toolchain versions in Nix flake and Dockerfile | P2 | DONE (rust-toolchain.toml pinned to 1.95.0, Dockerfile pinned) |
 
 ### 4.4 Audit Preparation
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Threat model update | Revise STRIDE model with new attack surface from federation, WASM | P1 |
-| Penetration test execution | Execute the corrected pen-test guide in SECURITY.md | P1 |
-| SBOM automation | Auto-generate SPDX SBOM on every release | P2 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Threat model update | Revise STRIDE model with new attack surface from federation, WASM | P1 | DONE (SECURITY.md updated) |
+| Penetration test execution | Execute the corrected pen-test guide in SECURITY.md | P1 | Pending (requires external party) |
+| SBOM automation | Auto-generate SPDX SBOM on every release | P2 | DONE (cargo-cyclonedx in release CI) |
 
 ---
 
@@ -488,8 +488,8 @@ Items that should be addressed during normal development:
 |----|-------------|----------|-------------|
 | TD-001 | ~~1 `expect()` in `hash_password()` (bcrypt)~~ RESOLVED | ~~Medium~~ Done | 2026-05-20 |
 | TD-002 | DashMap in-memory storage loses data on restart | Medium | Document; not a bug (use `--data-dir`) |
-| TD-003 | `rsa` crate in dependency tree (RUSTSEC-2023-0071) | High | Phase 4.3 |
-| TD-004 | 22 Tauri/GTK3 unmaintained advisory ignores | Low | Monitor upstream |
+| TD-003 | ~~`rsa` crate in dependency tree (RUSTSEC-2023-0071)~~ RESOLVED | ~~High~~ Done | 2026-05-24 |
+| TD-004 | ~~22 Tauri/GTK3 unmaintained advisory ignores~~ RESOLVED (only 4 transitive ignores, all documented) | ~~Low~~ Done | 2026-05-25 |
 | TD-005 | No fuzzing infrastructure | Medium | Phase 3.3 |
 | TD-006 | CalDAV/CardDAV implementation incomplete | Low | Future sprint |
 | TD-007 | Desktop crate has no CI build | Low | Phase 6.1 |

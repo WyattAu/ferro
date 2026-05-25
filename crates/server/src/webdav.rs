@@ -598,15 +598,15 @@ async fn handle_put(
         .unwrap_or_else(|| sniff_content_type(&body, &path));
 
     // Verify Content-Type matches actual file content (magic bytes check)
-    if let Some(declared) = headers.get("Content-Type").and_then(|v| v.to_str().ok()) {
-        if let Some(detected) = crate::security::verify_content_type(declared, &body) {
-            tracing::warn!(
-                path = %path,
-                declared = %declared,
-                detected = %detected,
-                "Content-Type mismatch in WebDAV PUT"
-            );
-        }
+    if let Some(declared) = headers.get("Content-Type").and_then(|v| v.to_str().ok())
+        && let Some(detected) = crate::security::verify_content_type(declared, &body)
+    {
+        tracing::warn!(
+            path = %path,
+            declared = %declared,
+            detected = %detected,
+            "Content-Type mismatch in WebDAV PUT"
+        );
     }
 
     let body_for_index = body.clone();
