@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779666489024,
+  "lastUpdate": 1779734172280,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -2087,6 +2087,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 754,
             "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "806c866dc6e2175141e96149f19c731c4fa7190e",
+          "message": "Fuzzing harnesses and load testing infrastructure\n\nFuzzing (cargo-fuzz, 4 harnesses):\n- fuzz_proppatch: arbitrary bytes to parse_proppatch, 613K iters/10s, 0 crashes\n- fuzz_lock_request: arbitrary bytes to LockRequest::parse, 663K iters/10s, 0 crashes\n- fuzz_escape_xml: verifies no raw < > \" ' in escaped output, 1.3M iters/10s\n- fuzz_wasm_magic: validates WASM magic byte check correctness\n\nLoad testing (k6, 3 scripts):\n- concurrent-upload.js: ramps to 100 VUs, PUT+GET+DELETE with thresholds\n- large-directory.js: populates N files, benchmarks PROPFIND depth:1 and infinity\n- soak-test.js: 1h continuous random ops (PUT/GET/DELETE/PROPFIND/COPY)\n\nROADMAP: Phases 3.3 and 3.4 complete. Only 1 item remains (external pen test).",
+          "timestamp": "2026-05-25T19:29:13+01:00",
+          "tree_id": "89b801c095b82081e1241de80fc5d30fcac89b17",
+          "url": "https://github.com/WyattAu/ferro/commit/806c866dc6e2175141e96149f19c731c4fa7190e"
+        },
+        "date": 1779734171816,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267119810,
+            "range": "± 686095",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267176269,
+            "range": "± 187096",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 31355,
+            "range": "± 2223",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28239,
+            "range": "± 1924",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9217,
+            "range": "± 57",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5157,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1174,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 909,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2766,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1332,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7349,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66410,
+            "range": "± 60",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 88,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18809,
+            "range": "± 187",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 879,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 180,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 188,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 881,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 852,
+            "range": "± 5",
             "unit": "ns/iter"
           },
           {
