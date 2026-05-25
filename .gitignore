@@ -70,3 +70,5 @@ playwright-report/
 
 # Specs (local R&D artifacts)
 .specs/
+fuzz/corpus/
+fuzz/artifacts/

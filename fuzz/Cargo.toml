@@ -1,0 +1,39 @@
+[package]
+name = "ferro-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+ferro-webdav-handler = { path = "../crates/webdav-handler" }
+ferro-core = { path = "../crates/core" }
+
+[[bin]]
+name = "fuzz_proppatch"
+path = "fuzz_targets/fuzz_proppatch.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_lock_request"
+path = "fuzz_targets/fuzz_lock_request.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_escape_xml"
+path = "fuzz_targets/fuzz_escape_xml.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_wasm_magic"
+path = "fuzz_targets/fuzz_wasm_magic.rs"
+test = false
+doc = false

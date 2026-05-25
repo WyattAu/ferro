@@ -289,19 +289,19 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 
 ### 3.3 Fuzzing
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| WebDAV request fuzzer | AFL++ or cargo-fuzz targeting the WebDAV handler | P1 |
-| XML parser fuzzer | Fuzz PROPFIND/PROPPATCH request bodies | P1 |
-| WASM module fuzzer | Fuzz WASM bytecode input to wasmtime runtime | P2 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| WebDAV request fuzzer | AFL++ or cargo-fuzz targeting the WebDAV handler | P1 | DONE (cargo-fuzz: fuzz_proppatch, 613K iters/10s) |
+| XML parser fuzzer | Fuzz PROPFIND/PROPPATCH request bodies | P1 | DONE (cargo-fuzz: fuzz_proppatch, fuzz_lock_request) |
+| WASM module fuzzer | Fuzz WASM bytecode input to wasmtime runtime | P2 | DONE (cargo-fuzz: fuzz_wasm_magic) |
 
 ### 3.4 Load Testing
 
-| Item | Description | Priority |
-|------|-------------|----------|
-| Concurrent upload benchmark | 100+ simultaneous PUT requests; measure throughput and error rate | P1 |
-| Large directory listing | PROPFIND with 10,000+ entries; verify pagination | P1 |
-| Long-running stability test | 24h soak test with continuous random operations | P2 |
+| Item | Description | Priority | Status |
+|------|-------------|----------|--------|
+| Concurrent upload benchmark | 100+ simultaneous PUT requests; measure throughput and error rate | P1 | DONE (k6: concurrent-upload.js, ramp to 100 VUs) |
+| Large directory listing | PROPFIND with 10,000+ entries; verify pagination | P1 | DONE (k6: large-directory.js, configurable FILE_COUNT) |
+| Long-running stability test | 24h soak test with continuous random operations | P2 | DONE (k6: soak-test.js, random PUT/GET/DELETE/PROPFIND/COPY) |
 
 ---
 
@@ -490,7 +490,7 @@ Items that should be addressed during normal development:
 | TD-002 | DashMap in-memory storage loses data on restart | Medium | Document; not a bug (use `--data-dir`) |
 | TD-003 | ~~`rsa` crate in dependency tree (RUSTSEC-2023-0071)~~ RESOLVED | ~~High~~ Done | 2026-05-24 |
 | TD-004 | ~~22 Tauri/GTK3 unmaintained advisory ignores~~ RESOLVED (only 4 transitive ignores, all documented) | ~~Low~~ Done | 2026-05-25 |
-| TD-005 | No fuzzing infrastructure | Medium | Phase 3.3 |
+| TD-005 | ~~No fuzzing infrastructure~~ RESOLVED | ~~Medium~~ Done | 2026-05-25 (cargo-fuzz, 4 harnesses) |
 | TD-006 | CalDAV/CardDAV implementation incomplete | Low | Future sprint |
 | TD-007 | Desktop crate has no CI build | Low | Phase 6.1 |
 | TD-008 | Benchmark regression threshold too lenient (150%) | Low | Reduce to 120% |
@@ -524,7 +524,7 @@ Items that should be addressed during normal development:
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | Tauri GTK4 migration delayed | Medium | Low (desktop-only) | Server/core unaffected; continue with GTK3 |
-| `rsa` crate cannot be eliminated | Low | Medium | Isolate MySQL/age code paths; document risk |
+| ~~`rsa` crate cannot be eliminated~~ RESOLVED | ~~Low~~ None | ~~Medium~~ Done | Eliminated from dependency tree |
 | Performance regression with SQLite at scale | Medium | High | Recommend PostgreSQL for >100 concurrent users |
 | Leptos 0.7 breaking changes | Medium | Medium | Pin leptos version; plan migration window |
 | WASM plugin ABI instability | High | Low (future feature) | Design with versioned ABI from start |
