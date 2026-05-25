@@ -1,78 +1,167 @@
+# Ferro File Server Helm Values
+
 replicaCount: 1
 
 image:
-  repository: ferro
-  tag: latest
+  repository: ghcr.io/wyattau/ferro
   pullPolicy: IfNotPresent
+  tag: ""  # defaults to .Chart.appVersion
 
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 500m
-    memory: 512Mi
+nameOverride: ""
+fullnameOverride: ""
 
+ferro:
+  # Admin credentials (use secrets in production)
+  adminUser: admin
+  adminPassword: ""  # REQUIRED: set via --set or values override
+
+  # Storage backend
+  storage:
+    backend: "local"  # local, s3, gcs, azure
+    dataDir: "/data"
+    # For S3: s3://bucket-name/prefix
+    # For GCS: gs://bucket-name/prefix
+    # For Azure: az://container-name/prefix
+    url: ""
+
+  # Server settings
+  port: 8080
+  host: "0.0.0.0"
+  logLevel: "info"
+  logFormat: "json"
+
+  # Features
+  wasmEnabled: false
+  maxUploadBytes: 1073741824  # 1GB
+  maxFileVersions: 10
+  rateLimitRpm: 300
+
+  # TLS (if not using ingress TLS)
+  tls:
+    enabled: false
+    cert: ""
+    key: ""
+
+  # CORS
+  corsAllowedOrigins: ""
+
+  # Federation
+  federationSecret: ""
+
+  # OIDC
+  oidc:
+    enabled: false
+    issuerUrl: ""
+    clientId: ""
+    clientSecret: ""
+
+  # PostgreSQL metadata
+  metadataDb: ""  # postgresql://user:pass@host:5432/ferro
+
+# Persistence
 persistence:
   enabled: true
   size: 10Gi
   storageClass: ""
+  accessMode: ReadWriteOnce
+  annotations: {}
 
-auth:
-  adminUser: admin
-  adminPassword: changeme
+# Resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "2"
+    memory: 1Gi
 
-config:
-  logLevel: info
-  corsAllowedOrigins: "*"
-  externalUrl: ""
-  wopiTokenSecret: ""
-  gracefulShutdownTimeout: "30"
+# Service
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
 
-postgresql:
-  enabled: false
-  url: ""
-
-redis:
-  enabled: false
-  url: ""
-
-features:
-  pg: false
-  redis: false
-  ldap: false
-
-ldap:
-  enabled: false
-  url: ""
-  bindDn: ""
-  bindPassword: ""
-  userSearchBase: ""
-
-multiUser:
-  enabled: false
-
-versioning:
-  maxVersions: 10
-
+# Ingress
 ingress:
-  enabled: true
-  className: nginx
+  enabled: false
+  className: ""
+  annotations: {}
   hosts:
     - host: ferro.example.com
       paths:
-        - /
-  tls: []
-  #  - secretName: ferro-tls
-  #    hosts:
-  #      - ferro.example.com
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: ferro-tls
+      hosts:
+        - ferro.example.com
 
-networkPolicy:
-  enabled: true
+# Health probes
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
 
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /startupz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 30
+  timeoutSeconds: 10
+
+# Service monitor for Prometheus
 serviceMonitor:
   enabled: false
+  interval: 30s
+  path: /metrics
+  labels: {}
 
+# Pod settings
+podAnnotations: {}
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+nodeSelector: {}
 tolerations: []
 affinity: {}
-nodeSelector: {}
+
+# Extra environment variables
+extraEnv: []
+#  - name: FERRO_CONFIG
+#    value: /etc/ferro/ferro.toml
+
+# Extra volumes and mounts
+extraVolumes: []
+extraVolumeMounts: []
+
+# Config file as secret
+configSecret:
+  enabled: false
+  data: {}
+  #  ferro.toml: |
+  #    [server]
+  #    bind = "0.0.0.0"

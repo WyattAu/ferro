@@ -4,107 +4,113 @@ metadata:
   name: {{ include "ferro.fullname" . }}
   labels:
     {{- include "ferro.labels" . | nindent 4 }}
-    app.kubernetes.io/component: server
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "ferro.selectorLabels" . | nindent 6 }}
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         {{- include "ferro.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: server
     spec:
       serviceAccountName: {{ include "ferro.fullname" . }}
       securityContext:
-        fsGroup: 1000
-      terminationGracePeriodSeconds: 35
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--host"
+            - {{ .Values.ferro.host | quote }}
+            - "--port"
+            - {{ .Values.ferro.port | quote }}
+            - "--admin-user"
+            - {{ .Values.ferro.adminUser | quote }}
+            - "--log-level"
+            - {{ .Values.ferro.logLevel | quote }}
+            - "--log-format"
+            - {{ .Values.ferro.logFormat | quote }}
+            - "--max-upload-bytes"
+            - {{ .Values.ferro.maxUploadBytes | quote }}
+            - "--max-file-versions"
+            - {{ .Values.ferro.maxFileVersions | quote }}
+            - "--rate-limit-rpm"
+            - {{ .Values.ferro.rateLimitRpm | quote }}
+            {{- if .Values.ferro.wasmEnabled }}
+            - "--wasm-enabled"
+            {{- end }}
+            {{- if .Values.ferro.storage.dataDir }}
+            - "--data-dir"
+            - {{ .Values.ferro.storage.dataDir | quote }}
+            {{- end }}
+            {{- if .Values.ferro.storage.url }}
+            - "--storage-url"
+            - {{ .Values.ferro.storage.url | quote }}
+            {{- end }}
+            {{- if .Values.ferro.corsAllowedOrigins }}
+            - "--cors-allowed-origins"
+            - {{ .Values.ferro.corsAllowedOrigins | quote }}
+            {{- end }}
+            {{- if .Values.ferro.federationSecret }}
+            - "--federation-secret"
+            - {{ .Values.ferro.federationSecret | quote }}
+            {{- end }}
+            {{- if .Values.ferro.metadataDb }}
+            - "--metadata-db"
+            - {{ .Values.ferro.metadataDb | quote }}
+            {{- end }}
+          env:
+            - name: FERRO_ADMIN_PASSWORD
+              value: {{ .Values.ferro.adminPassword | quote }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.ferro.port }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.ferro.storage.dataDir }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: data
+        {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "ferro.fullname" . }}
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      containers:
-        - name: ferro
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: 8080
-              protocol: TCP
-          envFrom:
-            - configMapRef:
-                name: {{ include "ferro.fullname" . }}
-            - secretRef:
-                name: {{ include "ferro.fullname" . }}
-          volumeMounts:
-            - name: data
-              mountPath: /data
-            - name: tmp
-              mountPath: /tmp
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 3
-            successThreshold: 1
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            timeoutSeconds: 3
-            successThreshold: 1
-            failureThreshold: 3
-          startupProbe:
-            httpGet:
-              path: /readyz
-              port: http
-            periodSeconds: 5
-            timeoutSeconds: 3
-            successThreshold: 1
-            failureThreshold: 30
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-      volumes:
-        - name: data
-          {{- if .Values.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ include "ferro.fullname" . }}
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
-        - name: tmp
-          emptyDir: {}
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: topology.kubernetes.io/zone
-          whenUnsatisfiable: DoNotSchedule
-          labelSelector:
-            matchLabels:
-              {{- include "ferro.selectorLabels" . | nindent 14 }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

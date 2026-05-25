@@ -1,14 +1,16 @@
 apiVersion: v2
 name: ferro
-description: Ferro Storage Orchestrator
+description: Self-hosted file server with WebDAV, S3-compatible API, federation, and WASM workers
 type: application
-version: 1.0.0
-appVersion: "1.0.0-beta.1"
+version: 0.1.0
+appVersion: "2.5.1"
+home: https://github.com/WyattAu/ferro
+sources:
+  - https://github.com/WyattAu/ferro
+maintainers:
+  - name: WyattAu
 keywords:
-  - storage
   - webdav
   - file-server
-  - nextcloud-alternative
-maintainers:
-  - name: Ferro Team
-home: https://github.com/WyattAu/ferro
+  - cloud-storage
+  - self-hosted
