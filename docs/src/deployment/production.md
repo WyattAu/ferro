@@ -31,23 +31,15 @@ mkdir -p /opt/ferro && cd /opt/ferro
 
 # Create config file
 cat > ferro.toml << 'EOF'
-[server]
-bind = "0.0.0.0"
+host = "0.0.0.0"
 port = 8080
 admin_user = "admin"
 admin_password = "CHANGE-ME-USE-SECRETS"
-
-[storage]
-backend = "local"
+storage = "local:/data"
 data_dir = "/data"
-
-[security]
-rate_limit_rpm = 300
-max_upload_bytes = 1073741824
-
-[logging]
-level = "info"
-format = "json"
+log_level = "info"
+log_format = "json"
+max_body_size = 1073741824
 EOF
 ```
 
@@ -160,12 +152,11 @@ systemctl enable --now ferro
 ### Security
 
 - [ ] Change default admin password
-- [ ] Enable TLS (Caddy, nginx, or direct via `--tls-cert` / `--tls-key`)
+- [ ] Enable TLS (Caddy or reverse proxy recommended; Ferro handles HTTP, TLS terminates at the proxy)
 - [ ] Set `--admin-password` via environment variable or secrets manager, not CLI
-- [ ] Configure rate limiting (`--rate-limit-rpm`)
-- [ ] Set upload size limits (`--max-upload-bytes`)
+- [ ] Set upload size limits (`--max-body-size`)
 - [ ] Review and customize Content-Security-Policy headers
-- [ ] Configure CORS origins if using web UI
+- [ ] Configure CORS origins if using web UI (`--cors-allowed-origins`)
 - [ ] Enable federation secret if using ActivityPub (`--federation-secret`)
 
 ### Reliability
@@ -190,7 +181,7 @@ systemctl enable --now ferro
 ### Performance
 
 - [ ] Use PostgreSQL for >100 concurrent users
-- [ ] Tune `--max-upload-bytes` for your use case
+- [ ] Tune `--max-body-size` for your use case
 - [ ] Enable read cache (default when using `--data-dir`)
 - [ ] Monitor WASM worker fuel consumption via `/metrics`
 
@@ -254,4 +245,4 @@ curl -X POST https://your-domain.com/api/admin/backup \
 | 100-1000 | Multiple nodes behind load balancer, shared PostgreSQL + S3 |
 | 1000+ | Kubernetes with horizontal pod autoscaling, PostgreSQL HA, S3 |
 
-For multi-node deployments, use a shared storage backend (S3, GCS, or Azure Blob) and external PostgreSQL. Each node runs stateless Ferro with `--storage-url s3://bucket` and `--metadata-db postgresql://...`.
+For multi-node deployments, use a shared storage backend (S3, GCS, or Azure Blob) and external PostgreSQL. Each node runs stateless Ferro with `--storage s3://bucket` and `--metadata-db postgresql://...`.

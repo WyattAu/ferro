@@ -224,16 +224,20 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting. This release has:
 
 ## Quality
 
-- **460 tests** — 0 failures across all feature combinations
-- **0 clippy warnings** — `-D warnings` across all feature configurations
-- **Zero undocumented public items** — `cargo doc` reports 0 warnings
-- **Zero unsafe blocks** — in production code
-- **Zero production panics** — all `.unwrap()` replaced with `expect()` or error handling
-- **9 crates** — common, core, server, web, cli, desktop, dav, crypto
+- **882 tests** -- 0 failures across all feature combinations (counts as of v2.5.1)
+- **0 clippy warnings** -- `-D warnings` across all feature configurations
+- **Zero undocumented public items** -- `cargo doc` reports 0 warnings
+- **Zero unsafe blocks** -- in production code (FFI in client crate only)
+- **0 `todo!()` / `unimplemented!()`** -- no stubs in production code
+- **20 crates** -- common, core, server, web, cli, desktop, dav, crypto, auth, admin, observability, graphql, client, fuse, benchmarks, webdav-handler, server-versioning, server-activitypub, server-webrtc, server-wopi
+- **4 fuzz harnesses** -- cargo-fuzz with 2.6M+ iterations, 0 crashes
+- **25 property tests** -- proptest for storage, path, lock, and XML parsers
+- **49 E2E tests** -- Playwright across 7 spec files (chromium, firefox, webkit)
+- **3 load tests** -- k6 concurrent upload, large directory, soak test
 
 ## Contributing
 
-Bug reports, feature requests, and pull requests welcome. See the existing code style (460 tests, 0 clippy warnings) for contribution guidelines.
+Bug reports, feature requests, and pull requests welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 

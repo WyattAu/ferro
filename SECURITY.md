@@ -122,7 +122,7 @@ BASE_URL=http://localhost:8080
 AUTH=admin:TestPass123!
 
 # Create test user via admin API
-curl -X POST $BASE_URL/admin/users \
+curl -X POST $BASE_URL/api/admin/users \
   -u "$AUTH" \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser","password":"TestPass123!","role":"user"}'
@@ -192,7 +192,7 @@ curl -X POST $BASE_URL/federation/inbox \
 #### 5. CalDAV/CardDAV
 ```bash
 # Calendar query with malicious filter
-curl -X REPORT $BASE_URL/dav/calendars/default/ \
+curl -X REPORT $BASE_URL/dav/cal/default/ \
   -u "$AUTH" \
   -H "Content-Type: application/xml" \
   -d '<?xml version="1.0"?>
@@ -223,10 +223,10 @@ curl -X POST $BASE_URL/graphql \
 #### 7. WebSocket
 ```bash
 # Connect without auth
-wscat -c ws://localhost:8080/ws
+wscat -c ws://localhost:8080/api/ws
 
 # Connect with invalid token
-wscat -c "ws://localhost:8080/ws?token=invalid"
+wscat -c "ws://localhost:8080/api/ws?token=invalid"
 ```
 
 #### 8. Rate Limiting

@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: 20
       - name: Install Playwright
-        run: npm install && npx playwright install --with-deps chromium
+        run: npm install && npx playwright install --with-deps
         working-directory: e2e
       - name: Run E2E tests
         run: npx playwright test

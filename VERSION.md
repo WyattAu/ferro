@@ -3,7 +3,7 @@
 ## Current Status
 - **Phase:** Release Candidate Preparation (Phase 5: 10/11 criteria met)
 - **Version:** 2.5.1
-- **Tests:** 847+ passed, 0 failed, 1 ignored, 0 clippy warnings
+- **Tests:** 882 passed, 0 failed, 1 ignored, 0 clippy warnings
 - **E2E:** 49 Playwright tests across 7 spec files (chromium, firefox, webkit)
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
 - **Load Testing:** 69 req/s with 20 VUs, 0% failure rate (debug build)
@@ -141,8 +141,8 @@
 | Crate | Tests | Status |
 |-------|-------|--------|
 | ferro-common | 8 passing | Implemented |
-| ferro-core | 64 passing | Implemented |
-| ferro-server | 290 lib + 145 integration + 1 E2E + 19 property | Implemented |
+| ferro-core | 72 passing | Implemented |
+| ferro-server | 297 lib + 151 integration + 1 E2E + 25 property | Implemented |
 | ferro-web | 36 passing (non-WASM stubs + API tests) | Implemented + Docker WASM build passing |
 | ferro-cli | 8 passing | Implemented |
 | ferro-desktop | 7 passing | Implemented |
@@ -161,7 +161,7 @@
 | ferro-webdav-handler | 10 passing | Implemented |
 | ferro-benchmarks | 18 benchmark functions | Implemented |
 
-## Total Tests: 847+ passed, 0 failed, 1 ignored
+## Total Tests: 882 passed, 0 failed, 1 ignored
 ## E2E Tests: 49 Playwright (7 spec files, 3 browsers)
 ## Property Tests: 25 (storage:5, path:6, locks:8, XML:6)
 ## Fuzzing: 4 harnesses, 2.6M+ iterations, 0 crashes

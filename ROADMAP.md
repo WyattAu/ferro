@@ -9,7 +9,7 @@
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 847 passed, 1 ignored |
+| Tests | 882 passed, 1 ignored |
 | Clippy warnings | 0 |
 | Production `expect()` calls | 0 |
 | Production `unwrap()` calls | 0 |
@@ -45,7 +45,7 @@
 ### Documentation Fixes Applied
 - Fixed `/.well-known/ferro` response format in docs/src/api/rest.md
 - Consolidated 4 overlapping ROADMAP files into single ROADMAP.md
-- Updated test counts in VERSION.md to match actual (833 passed)
+- Updated test counts in VERSION.md to match actual (882 passed)
 - Updated per-crate test counts with accurate numbers
 
 ### Code Quality Audit Results

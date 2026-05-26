@@ -5,9 +5,9 @@ Ferro supports resumable chunked uploads for large files. Files are split into c
 ## Flow Overview
 
 ```
-1. Init   -> POST /api/upload/init       -> returns upload_id, chunk_size
-2. Chunk  -> PUT  /api/upload/:id/:index  -> upload each chunk (0, 1, 2, ...)
-3. Done   -> POST /api/upload/:id/complete -> reassemble and store the file
+1. Init   -> POST /api/upload/init                  -> returns upload_id, chunk_size
+2. Chunk  -> PUT  /api/upload/:id/chunk/:index      -> upload each chunk (0, 1, 2, ...)
+3. Done   -> POST /api/upload/:id/complete          -> reassemble and store the file
 ```
 
 ## Init
@@ -49,21 +49,21 @@ Upload each chunk by its zero-based index:
 ```bash
 # Chunk 0 (bytes 0 - 5242879)
 dd if=large-file.mp4 bs=1M count=5 | \
-  curl -X PUT http://localhost:8080/api/upload/ul_a1b2c3d4e5f6/0 \
+  curl -X PUT http://localhost:8080/api/upload/ul_a1b2c3d4e5f6/chunk/0 \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/octet-stream" \
   --data-binary @-
 
 # Chunk 1 (bytes 5242880 - 10485759)
 dd if=large-file.mp4 bs=1M skip=5 count=5 | \
-  curl -X PUT http://localhost:8080/api/upload/ul_a1b2c3d4e5f6/1 \
+  curl -X PUT http://localhost:8080/api/upload/ul_a1b2c3d4e5f6/chunk/1 \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/octet-stream" \
   --data-binary @-
 
 # Chunk 2 (remaining bytes)
 dd if=large-file.mp4 bs=1M skip=10 | \
-  curl -X PUT http://localhost:8080/api/upload/ul_a1b2c3d4e5f6/2 \
+  curl -X PUT http://localhost:8080/api/upload/ul_a1b2c3d4e5f6/chunk/2 \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/octet-stream" \
   --data-binary @-

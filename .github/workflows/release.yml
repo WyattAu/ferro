@@ -13,7 +13,25 @@ permissions:
   actions: write
 
 jobs:
+  verify:
+    name: Verify CI Passes on Main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check CI status on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STATUS=$(gh api repos/${{ github.repository }}/commits/main/check-runs --jq '.check_runs | all(.status == "completed" and .conclusion == "success")')
+          if [ "$STATUS" != "true" ]; then
+            echo "ERROR: CI checks on main are not all passing. Aborting release."
+            gh api repos/${{ github.repository }}/commits/main/check-runs --jq '.check_runs[] | "\(.name): \(.status) \(.conclusion)"'
+            exit 1
+          fi
+          echo "All CI checks on main are passing. Proceeding with release."
+
   build:
+    needs: verify
     strategy:
       matrix:
         include:
