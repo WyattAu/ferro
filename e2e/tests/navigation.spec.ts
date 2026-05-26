@@ -34,9 +34,7 @@ test.describe("Navigation", () => {
     }
   });
 
-  // TODO: Leptos Router does not update the browser URL on
-  // client-side navigation. Pre-existing framework issue.
-  test.fixme("should update URL when navigating", async ({ page }) => {
+  test("should update URL when navigating", async ({ page }) => {
     const testPath = "/url-nav-folder";
 
     try {
@@ -100,9 +98,7 @@ test.describe("Navigation", () => {
     }
   });
 
-  // TODO: Folders with '&' in the name are not displayed in the file
-  // list. Likely an HTML entity encoding issue in the WASM rendering.
-  test.fixme("should handle special characters in folder names", async ({ page }) => {
+  test("should handle special characters in folder names", async ({ page }) => {
     const specialName = "e2e special & chars_123";
     const testPaths = [`/${specialName}`, `/${specialName}/file.txt`];
 

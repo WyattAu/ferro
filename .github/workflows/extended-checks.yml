@@ -15,7 +15,7 @@ jobs:
     name: Playwright E2E
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Build Docker image
         run: docker build -t ferro:e2e .
       - name: Start server from Docker image
@@ -33,7 +33,7 @@ jobs:
             fi
             sleep 2
           done
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: 20
       - name: Install Playwright
@@ -71,17 +71,17 @@ jobs:
     env:
       DATABASE_URL: postgres://ferro:ferro@localhost:5432/ferro_test
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           components: llvm-tools-preview
       - run: cargo install cargo-llvm-cov --locked
       - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
       - name: Fetch dependencies
         run: cargo fetch --locked
       - run: cargo llvm-cov --workspace --features "s3,gcs,azure,pg,redis,ldap" --lcov --output-path lcov.info
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@b9fd7d16f6d7d1b5802bb19752a1a7808cd7c152 # v4.6.0
         with:
           files: lcov.info
           fail_ci_if_error: false

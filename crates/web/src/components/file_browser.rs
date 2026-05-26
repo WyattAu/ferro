@@ -171,23 +171,50 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         }
     };
 
-    let on_scroll = move |ev: ev::Event| {
-        if let Some(target) = ev.target() {
+    // Infinite scroll via IntersectionObserver on the sentinel div.
+    // We cannot use on:scroll because Leptos 0.6 uses event delegation
+    // and scroll events do not bubble, so the delegated listener never fires.
+    let scroll_sentinel_ref = create_node_ref::<html::Div>();
+    {
+        let set_display_count = set_display_count.clone();
+        let all_entries = all_entries.clone();
+        let display_count = display_count.clone();
+        create_effect(move |_| {
+            let sentinel = scroll_sentinel_ref.get()?;
             use wasm_bindgen::JsCast;
-            if let Ok(element) = target.dyn_into::<web_sys::HtmlElement>() {
-                let scroll_top = element.scroll_top();
-                let client_height = element.client_height();
-                let scroll_height = element.scroll_height();
-                if scroll_height > 0 && scroll_top + client_height >= scroll_height - 200 {
-                    let total = all_entries.with(Vec::len);
-                    let displayed = display_count.get();
-                    if displayed < total {
-                        set_display_count.set(displayed + 50);
-                    }
-                }
-            }
-        }
-    };
+            let callback = {
+                let all_entries = all_entries.clone();
+                let display_count = display_count.clone();
+                let set_display_count = set_display_count.clone();
+                wasm_bindgen::closure::Closure::wrap(Box::new(
+                    move |entries: js_sys::Array, _: web_sys::IntersectionObserver| {
+                        for i in 0..entries.length() {
+                            if let Some(entry) = entries
+                                .get(i)
+                                .dyn_into::<web_sys::IntersectionObserverEntry>()
+                                .ok()
+                            {
+                                if entry.is_intersecting() {
+                                    let total = all_entries.with(Vec::len);
+                                    let displayed = display_count.get();
+                                    if displayed < total {
+                                        set_display_count.set(displayed + 50);
+                                    }
+                                }
+                            }
+                        }
+                    },
+                )
+                    as Box<dyn Fn(js_sys::Array, web_sys::IntersectionObserver)>)
+            };
+            let callback_fn: &js_sys::Function = callback.as_ref().unchecked_ref();
+            let observer = web_sys::IntersectionObserver::new(callback_fn).unwrap();
+            observer.observe(&sentinel);
+            // Keep the closure alive for the lifetime of the effect
+            callback.forget();
+            Some(())
+        });
+    }
 
     let reload = move || {
         let p = current_path.get();
@@ -225,7 +252,22 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     });
 
     let navigate = move |path: String| {
-        load_directory(path);
+        load_directory(path.clone());
+        // Update browser URL to reflect current path
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(window) = web_sys::window() {
+                let url = if path == "/" {
+                    "/ui/".to_string()
+                } else {
+                    format!("/ui/files{}", path)
+                };
+                if let Ok(history) = window.history() {
+                    let _ =
+                        history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&url));
+                }
+            }
+        }
     };
 
     let go_up = move |_: ev::MouseEvent| {
@@ -988,7 +1030,6 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             on:dragover=handle_drag_over
             on:dragleave=handle_drag_leave
             on:drop=handle_drop
-            on:scroll=on_scroll
         >
             // Toolbar
             <div class="brutal-border border-b px-3 sm:px-6 py-3 surface shadow-concrete">
@@ -1650,12 +1691,12 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 </div>
             })}
 
-            // Scroll sentinel
+            // Scroll sentinel -- IntersectionObserver watches this element
             {move || {
                 let total = all_entries.with(Vec::len);
                 let displayed = display_count.get();
                 (total > displayed && !loading.get() && show_files_view()).then(|| view! {
-                    <div class="py-4 text-center text-sm text-muted font-mono" role="status" aria-live="polite">
+                    <div _ref=scroll_sentinel_ref class="py-4 text-center text-sm text-muted font-mono" role="status" aria-live="polite">
                         <div class="animate-spin w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-accent rounded-full mx-auto mb-2"></div>
                         "Loading more..."
                     </div>

@@ -15,18 +15,24 @@ test.describe("File Browser", () => {
   });
 
   test("should display empty state when no files exist", async ({ page }) => {
-    // Clean up any files from other tests that may have leaked
-    // (parallel execution means the root may not be empty)
-    const existing = await page.locator("tbody tr").count();
-    if (existing > 0) {
-      // Root is not empty -- skip this test since we can't guarantee isolation
-      test.skip();
-      return;
+    // Create a unique empty folder for test isolation
+    const uniqueFolder = `/empty-state-test-${Date.now()}`;
+    try {
+      await createTestFolder(page, uniqueFolder);
+      await reloadAndWait(page);
+
+      // Navigate into the empty folder
+      const folderName = uniqueFolder.slice(1);
+      await page.getByText(folderName, { exact: true }).click();
+      await waitForPageReady(page);
+
+      await expect(page.getByText("This folder is empty")).toBeVisible();
+      await expect(
+        page.getByText("Drop files here or upload your first file"),
+      ).toBeVisible();
+    } finally {
+      await cleanupTestData(page, [uniqueFolder]);
     }
-    await expect(page.getByText("This folder is empty")).toBeVisible();
-    await expect(
-      page.getByText("Drop files here or upload your first file"),
-    ).toBeVisible();
   });
 
   test("should list files and folders", async ({ page }) => {
@@ -63,10 +69,7 @@ test.describe("File Browser", () => {
     }
   });
 
-  // TODO: The delete confirmation dialog or the reload() after delete
-  // does not reliably remove the file from the UI within 10s.
-  // This appears to be a pre-existing app-level issue.
-  test.fixme("should delete a file", async ({ page }) => {
+  test("should delete a file", async ({ page }) => {
     const testPath = "/to-delete-file.txt";
 
     try {
@@ -227,9 +230,7 @@ test.describe("File Browser", () => {
     }
   });
 
-  // TODO: Infinite scroll pagination does not trigger after scrolling
-  // to the bottom of the file list. Pre-existing app-level issue.
-  test.fixme("should load more entries on scroll", async ({ page }) => {
+  test("should load more entries on scroll", async ({ page }) => {
     const testPaths: string[] = [];
 
     try {

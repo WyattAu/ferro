@@ -88,6 +88,32 @@ fn urlencoding(s: &str) -> String {
         .collect()
 }
 
+fn decode_xml_entities(s: &str) -> String {
+    s.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+}
+
+fn percent_decode(s: &str) -> String {
+    let mut result = Vec::new();
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(byte) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
+                result.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        result.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8(result).unwrap_or_default()
+}
+
 #[allow(dead_code)] // Used by WASM runtime
 fn parse_propfind_xml(xml: &str) -> Vec<FileEntry> {
     let mut entries = Vec::new();
@@ -179,7 +205,10 @@ fn parse_propfind_xml(xml: &str) -> Vec<FileEntry> {
                     // Content is between '>' and next '<'
                     if let Some(after_gt) = rest.find('>') {
                         let content = &rest[after_gt + 1..];
-                        current_href = content.trim().to_string();
+                        let raw = content.trim();
+                        // Decode XML entities first (e.g. &amp; -> &),
+                        // then percent-decode URL encoding (e.g. %26 -> &).
+                        current_href = percent_decode(&decode_xml_entities(raw));
                     }
                 }
                 "propstat" => {
@@ -289,7 +318,11 @@ pub async fn list_files(path: &str) -> Result<ListingResponse, String> {
     opts.set_headers(&headers);
 
     let text = fetch_text(path, &opts).await?;
-    let entries = parse_propfind_xml(&text);
+    let mut entries = parse_propfind_xml(&text);
+    // Filter out the self-referential directory entry (PROPFIND Depth:1
+    // always includes the requested directory itself as the first response).
+    let normalized = path.trim_end_matches('/');
+    entries.retain(|e| e.path.trim_end_matches('/') != normalized);
 
     Ok(ListingResponse {
         entries,
@@ -339,9 +372,15 @@ pub async fn delete_file(path: &str) -> Result<(), String> {
     let request = web_sys::Request::new_with_str_and_init(path, &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
 
-    let _ = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-        .await
-        .map_err(|e| js_err("Fetch failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+
+    if !resp.ok() {
+        return Err(format!("Delete failed: HTTP {}", resp.status()));
+    }
 
     Ok(())
 }
