@@ -31,7 +31,7 @@ jobs:
         run: cargo bench -p ferro-benchmarks -- --output-format bencher | tee benchmark-results.txt
       
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f10828998a508d7 # v1.20.4
+        uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f108f9e02a381c7 # v1.20.4
         with:
           tool: 'cargo'
           output-file-path: benchmark-results.txt
