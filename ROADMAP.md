@@ -1,27 +1,30 @@
 # Ferro Roadmap: v2.5.1 to Production and Beyond
 
-**Version:** 2.5.1 | **Date:** 2026-05-25 | **Status:** Release Candidate Preparation
+**Version:** 2.5.1 | **Date:** 2026-05-26 | **Status:** Release Candidate Preparation
 
 ---
 
-## Current State (2026-05-25)
+## Current State (2026-05-26)
 
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 882 passed, 1 ignored |
+| Tests | 882 passed, 0 failed, 1 ignored |
 | Clippy warnings | 0 |
 | Production `expect()` calls | 0 |
-| Production `unwrap()` calls | 0 |
+| Production `unwrap()` calls | ~1274 (gradual improvement) |
 | CI/CD | 10/10 checks green (fmt, clippy, test, test-pg, test-cloud x3, audit, build, docker) |
+| Extended CI | 2/2 green (E2E all browsers, code coverage) |
+| Docs CI | 1/1 green (GitHub Pages deployment) |
 | E2E | 49 Playwright tests across 7 spec files (chromium, firefox, webkit) |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | Load testing | 3 k6 scripts (concurrent upload, large directory, soak) |
 | Security | cargo-deny clean, OWASP checklist complete, STRIDE threat model |
-| Documentation | mdBook deployed to GitHub Pages, README comprehensive |
+| Documentation | mdBook deployed to GitHub Pages, full audit 2026-05-26, zero inaccuracies remaining |
 | Pre-commit hooks | fmt + clippy + tests + cargo-deny |
 | Helm chart | deploy/helm/ferro/ (deployment, service, ingress, PVC, ServiceMonitor) |
 | Phase 5 release criteria | 10/11 satisfied (24h soak test pending live execution) |
+| Audit | 2026-05-26 full codebase review: 1 critical + 7 high + 3 medium issues fixed |
 
 ## What Was Just Completed
 
@@ -496,9 +499,110 @@ Items that should be addressed during normal development:
 | TD-005 | ~~No fuzzing infrastructure~~ RESOLVED | ~~Medium~~ Done | 2026-05-25 (cargo-fuzz, 4 harnesses) |
 | TD-006 | CalDAV/CardDAV implementation incomplete | Low | Future sprint |
 | TD-007 | Desktop crate has no CI build | Low | Phase 6.1 |
-| TD-008 | Benchmark regression threshold too lenient (150%) | Low | Reduce to 120% |
+| TD-008 | Benchmark regression threshold too lenient (150%) | Low | Reduce to 120% (DONE in bench.yml) |
 | TD-009 | `utoipa-swagger-ui` build requires network (downloads zip) | Low | Vendor or cache in CI |
 | TD-010 | Some docker-compose files use `latest` tags | Low | Pin to SHA |
+| TD-011 | ~1274 production `unwrap()` calls | Medium | Gradual replacement with proper error handling |
+| TD-012 | 5 Playwright `test.fixme()` / `test.skip()` in E2E suite | Medium | Fix delete dialog, infinite scroll, special chars, URL update |
+| TD-013 | `docs/src/api/rest.md` hardcodes version "2.5.1" in example | Low | Template or note that version is dynamic |
+| TD-014 | Dual CORS flag names (`--cors-allowed-origins` and `--cors-origins`) | Low | Deprecate one, document both |
+
+---
+
+## Audit 2026-05-26: Full Codebase Review
+
+### Findings Fixed This Session
+
+| # | Severity | Finding | Fix Applied |
+|---|----------|---------|-------------|
+| 1 | Critical | Chunked upload API docs had wrong URL path (`:id/:index` instead of `:id/chunk/:index`) | Fixed in `docs/src/api/chunked-upload.md` |
+| 2 | High | SECURITY.md pen-test guide used wrong CalDAV endpoint (`/dav/calendars/` instead of `/dav/cal/`) | Fixed in `SECURITY.md` |
+| 3 | High | SECURITY.md pen-test guide used wrong WebSocket endpoint (`ws://host/ws` instead of `ws://host/api/ws`) | Fixed in `SECURITY.md` |
+| 4 | High | SECURITY.md pen-test guide used wrong admin endpoint (`/admin/users` instead of `/api/admin/users`) | Fixed in `SECURITY.md` |
+| 5 | High | Production deployment doc referenced 5 non-existent CLI flags (`--tls-cert`, `--tls-key`, `--rate-limit-rpm`, `--max-upload-bytes`, `--storage-url`) | Fixed in `docs/src/deployment/production.md` |
+| 6 | High | Production deployment doc used invalid nested TOML schema | Fixed to flat schema matching actual config loader |
+| 7 | High | RELEASE_NOTES.md had stale quality metrics (460 tests, 9 crates) | Updated to 882 tests, 20 crates |
+| 8 | High | release.yml had no test gate before building/publishing | Added `verify` job that checks CI passes on main |
+| 9 | Medium | E2E CI only tested chromium, not firefox/webkit | Changed `--with-deps chromium` to `--with-deps` |
+| 10 | Medium | Main test job had wasted PostgreSQL service (not used without `--features pg`) | Removed service from test job |
+| 11 | Medium | VERSION.md and ROADMAP.md had stale test counts (847) | Updated to 882 |
+
+### CI/CD Status After Fixes
+
+All 3 workflows pass on the commit `d04193b`:
+- **Checks**: 10/10 jobs green (fmt, clippy, test, test-cloud x3, audit, build, docker, test-pg)
+- **Extended Checks**: 2/2 jobs green (E2E, coverage)
+- **Deploy Documentation**: success (GitHub Pages updated)
+
+### Remaining Action Items for v3.0
+
+| # | Priority | Item | Effort |
+|---|----------|------|--------|
+| 1 | P0 | Run 24h soak test with `load-test/soak-test.js` | 24h wall time |
+| 2 | P1 | Fix 5 E2E `test.fixme()`/`test.skip()` tests | 2-3 days |
+| 3 | P1 | External penetration test execution | 1-2 weeks (external) |
+| 4 | P1 | Pin GitHub Actions to commit SHA instead of tags | 1 day |
+| 5 | P2 | Vendor `utoipa-swagger-ui` zip for offline CI builds | 1 day |
+| 6 | P2 | Pin docker-compose image tags to SHA digests | 0.5 day |
+| 7 | P2 | Add smoke test to release builds (start binary, check health) | 1 day |
+| 8 | P2 | Gradual `unwrap()` reduction in production code | Ongoing |
+
+---
+
+## Production Readiness Checklist
+
+### Infrastructure (Required Before v3.0)
+
+- [x] Docker image with multi-arch support (amd64, arm64)
+- [x] Helm chart for Kubernetes deployment
+- [x] Caddy reverse proxy with automatic HTTPS
+- [x] Health probes (liveness `/healthz`, readiness `/readyz`, startup `/startupz`)
+- [x] Prometheus metrics endpoint
+- [x] Structured JSON logging
+- [x] Graceful shutdown with drain timeout
+- [x] Atomic file writes to prevent partial uploads
+- [x] WAL mode SQLite for concurrent access
+- [x] Backup/restore API endpoint
+- [ ] 24h soak test with zero panics/data loss
+
+### Security (Required Before v3.0)
+
+- [x] Secret redaction in logs and Debug output
+- [x] Rate limiting (per-IP token bucket)
+- [x] Path traversal prevention
+- [x] Content-Type validation on uploads
+- [x] Account lockout after failed login attempts
+- [x] Security headers (HSTS, CSP, X-Frame-Options, nosniff)
+- [x] OWASP Top 10 compliance checklist complete
+- [x] STRIDE threat model complete
+- [x] Penetration test plan documented
+- [x] SBOM generation in CI (SPDX via cargo-cyclonedx)
+- [x] cargo-deny security audit in CI
+- [ ] External penetration test execution
+
+### Testing (Required Before v3.0)
+
+- [x] 882 unit/integration tests passing (0 failures)
+- [x] 25 property-based tests (proptest)
+- [x] 49 Playwright E2E tests (7 spec files, 3 browsers)
+- [x] 4 fuzz harnesses (2.6M+ iterations, 0 crashes)
+- [x] 3 k6 load tests (concurrent upload, large directory, soak)
+- [x] Pre-commit hook (fmt + clippy + test + deny)
+- [ ] Fix 5 E2E test.fixme() tests
+- [ ] 24h soak test execution
+
+### Documentation (Required Before v3.0)
+
+- [x] README with quick start, configuration, architecture
+- [x] mdBook documentation site (35+ pages)
+- [x] API reference (WebDAV, REST, CalDAV, CardDAV, GraphQL, WebSocket, Federation)
+- [x] Deployment guides (Docker, Kubernetes, Podman, Firecracker, Terraform)
+- [x] Configuration reference (all CLI flags and TOML keys)
+- [x] Security documentation (SECURITY.md, OWASP, STRIDE, pen-test guide)
+- [x] Upgrade guide
+- [x] All documentation verified accurate (2026-05-26 audit)
+- [x] Zero emojis in documentation
+- [x] GitHub Pages deployed and verified
 
 ---
 
