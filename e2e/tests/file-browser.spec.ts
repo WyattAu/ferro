@@ -252,20 +252,21 @@ test.describe("File Browser", () => {
       const initialRows = await page.locator("tbody tr").count();
       expect(initialRows).toBeGreaterThanOrEqual(1);
 
-      // Scroll to the bottom of the file list to trigger lazy load
+      // Scroll to the bottom of the file list to trigger IntersectionObserver.
+      // The observer watches a sentinel div at the bottom of the list.
+      // We use scrollTo with { behavior: 'instant' } to avoid animation delays,
+      // then wait for the observer callback to fire and render more rows.
       const scrollContainer = page.locator(".flex-1.overflow-auto");
       await scrollContainer.evaluate((el) => {
-        el.scrollTop = el.scrollHeight;
+        el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
       });
 
-      // Wait for more entries to load (the app lazy-loads on scroll)
-      await page.waitForTimeout(2_000);
-
-      // Scroll again in case the first scroll wasn't enough
-      await scrollContainer.evaluate((el) => {
-        el.scrollTop = el.scrollHeight;
-      });
-      await page.waitForTimeout(1_000);
+      // Wait for IntersectionObserver to detect sentinel and render more entries
+      await page.waitForFunction(
+        (expectedCount: number) => document.querySelectorAll("tbody tr").length > expectedCount,
+        initialRows,
+        { timeout: 10_000 }
+      );
 
       const afterScrollRows = await page.locator("tbody tr").count();
       expect(afterScrollRows).toBeGreaterThan(initialRows);

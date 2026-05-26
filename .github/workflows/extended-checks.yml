@@ -82,7 +82,7 @@ jobs:
       - name: Fetch dependencies
         run: cargo fetch --locked
       - run: cargo llvm-cov --workspace --features "s3,gcs,azure,pg,redis,ldap" --lcov --output-path lcov.info
-      - uses: codecov/codecov-action@b9fd7d16f6d7d1b5802bb19752a1a7808cd7c152 # v4.6.0
+      - uses: codecov/codecov-action@0f8570b1a125f4937846a11fcfa3bcd548bd8c97 # v4.6.0
         with:
           files: lcov.info
           fail_ci_if_error: false
