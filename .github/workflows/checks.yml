@@ -103,12 +103,12 @@ jobs:
       - name: Build release
         run: cargo build --locked --release --bin ferro-server --bin ferro-cli --features "s3,gcs,azure"
       - name: Upload server binary
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ferro-server-linux
           path: target/release/ferro-server
       - name: Upload CLI binary
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ferro-cli-linux
           path: target/release/ferro-cli
