@@ -176,30 +176,25 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     // and scroll events do not bubble, so the delegated listener never fires.
     let scroll_sentinel_ref = create_node_ref::<html::Div>();
     {
-        let set_display_count = set_display_count.clone();
-        let all_entries = all_entries.clone();
-        let display_count = display_count.clone();
         create_effect(move |_| {
             let sentinel = scroll_sentinel_ref.get()?;
             use wasm_bindgen::JsCast;
             let callback = {
-                let all_entries = all_entries.clone();
-                let display_count = display_count.clone();
-                let set_display_count = set_display_count.clone();
+                let all_entries = all_entries;
+                let display_count = display_count;
+                let set_display_count = set_display_count;
                 wasm_bindgen::closure::Closure::wrap(Box::new(
                     move |entries: js_sys::Array, _: web_sys::IntersectionObserver| {
                         for i in 0..entries.length() {
-                            if let Some(entry) = entries
+                            if let Ok(entry) = entries
                                 .get(i)
                                 .dyn_into::<web_sys::IntersectionObserverEntry>()
-                                .ok()
+                                && entry.is_intersecting()
                             {
-                                if entry.is_intersecting() {
-                                    let total = all_entries.with(Vec::len);
-                                    let displayed = display_count.get();
-                                    if displayed < total {
-                                        set_display_count.set(displayed + 50);
-                                    }
+                                let total = all_entries.with(Vec::len);
+                                let displayed = display_count.get();
+                                if displayed < total {
+                                    set_display_count.set(displayed + 50);
                                 }
                             }
                         }
