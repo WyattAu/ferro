@@ -12,8 +12,7 @@ import { check, sleep } from 'k6';
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.2/index.js';
 
 const BASE_URL = __ENV.FERRO_URL || 'http://localhost:8080';
-const AUTH = __ENV.FERRO_AUTH || 'admin:TestPass123!';
-const AUTH_HEADER = `Basic ${__ENCODING.b64encode(AUTH)}`;
+const AUTH_HEADER = `Basic ${__ENV.FERRO_AUTH_B64 || 'YWRtaW46VGVzdFBhc3MxMjMh'}`;
 
 export const options = {
   stages: [

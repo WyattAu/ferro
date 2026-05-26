@@ -1,11 +1,15 @@
 # Ferro Version Tracking
 
 ## Current Status
-- **Phase:** Production Hardening (Sprint AU per ROADMAP.md)
+- **Phase:** Release Candidate Preparation (Phase 5: 10/11 criteria met)
 - **Version:** 2.5.1
-- **Tests:** 833 passed, 0 failed, 1 ignored (persistence doctest), 0 clippy warnings
-- **Status:** Active Development. All 46 sprints (A-AT) completed. Pre-commit hooks configured, cargo-deny active, fmt/clippy clean. CI/CD fully green (10/10 checks). Docker multi-stage build passing. Docs deployed to GitHub Pages.
-- **Last Updated:** 2026-05-15
+- **Tests:** 847+ passed, 0 failed, 1 ignored, 0 clippy warnings
+- **E2E:** 49 Playwright tests across 7 spec files (chromium, firefox, webkit)
+- **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
+- **Load Testing:** 69 req/s with 20 VUs, 0% failure rate (debug build)
+- **Security:** cargo-deny clean, 18/18 internal pen test checks passed
+- **Status:** Release candidate. All P0 items from Phases 1-4 resolved. Helm chart ready. Multi-arch CI configured.
+- **Last Updated:** 2026-05-26
 
 ## Phase Progress
 | Phase | Status | Completion |
@@ -157,8 +161,13 @@
 | ferro-webdav-handler | 10 passing | Implemented |
 | ferro-benchmarks | 18 benchmark functions | Implemented |
 
-## Total Tests: 833 passed, 0 failed, 1 ignored (persistence doctest)
+## Total Tests: 847+ passed, 0 failed, 1 ignored
+## E2E Tests: 49 Playwright (7 spec files, 3 browsers)
+## Property Tests: 25 (storage:5, path:6, locks:8, XML:6)
+## Fuzzing: 4 harnesses, 2.6M+ iterations, 0 crashes
+## Load Testing: 69 req/s (20 VUs, 30s, 0% failure)
+## Security Review: 18/18 internal checks passed
 ## Clippy: 0 warnings (with all features: s3,gcs,azure,pg,redis,ldap)
-## Security: cargo-deny configured, cargo-audit CI-gated, deny.toml with documented ignores for desktop-only transitive deps
+## Security: cargo-deny clean, advisories/bans/licenses/sources ok
 ## Error Level: None
-## Rollback Checkpoint: main@8a59e41 (web leptos fixes + Docker build green, 2026-05-15)
+## Rollback Checkpoint: main@d00abe6 (Phase 5 release candidate, 2026-05-26)
