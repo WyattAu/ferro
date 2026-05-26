@@ -64,6 +64,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
       - name: Install deps (x86_64 linux)
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev musl-tools
@@ -77,6 +78,21 @@ jobs:
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
       - name: Build
         run: cargo build --release -p ferro-server --target ${{ matrix.target }} --features "s3,gcs,azure"
+      - name: Smoke test (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          BINARY="target/${{ matrix.target }}/release/${{ matrix.binary }}"
+          timeout 10 "$BINARY" --host 127.0.0.1 --port 9876 --data-dir /tmp/ferro-smoke 2>/dev/null &
+          SERVER_PID=$!
+          sleep 3
+          if curl -sf http://127.0.0.1:9876/healthz > /dev/null 2>&1; then
+            echo "Smoke test PASSED: /healthz returned 200"
+          else
+            echo "Smoke test FAILED: /healthz did not return 200"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          kill $SERVER_PID 2>/dev/null || true
       - name: Upload binary
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
@@ -90,6 +106,8 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: stable
       - name: Install cargo-cyclonedx
         run: cargo install cargo-cyclonedx
       - name: Generate SBOM

@@ -41,7 +41,7 @@ services:
         max-file: "3"
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2-alpine@sha256:3739ea4f0c877259a693d932693cf8f3408e9a9497c004f031b0e830e93e1546
     ports:
       - "80:80"
       - "443:443"
