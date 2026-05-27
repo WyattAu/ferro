@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779872783359,
+  "lastUpdate": 1779884693650,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -2897,6 +2897,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 787,
             "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "26c02331321d9a5f3473e469be7f1aa8cf60df84",
+          "message": "fix(quality): resolve TD-015 through TD-022 technical debt items\n\nTD-015: Replace swallowed DB errors with tracing::warn/error logging\n- pg_state.rs: share, favorite, preferences operations (5 sites)\n- lib.rs: tags, sync, activity, lock store loading (4 sites)\n- snapshots.rs: persist and restore operations (2 sites)\n\nTD-017: Fix poisoned lock recovery in server-activitypub/store.rs\n- Log mutex poison warning before recovering lock\n- Log DB write failures instead of silently swallowing\n\nTD-018: Add SAFETY doc comments to 15 unsafe blocks\n- client/src/ffi.rs: 13 comments on FFI boundary operations\n- fuse/src/main.rs: 2 comments on libc syscalls\n\nTD-019: Document 70+ undocumented API endpoints\n- New docs/src/api/admin.md (admin stats, backups, users, webhooks)\n- Updated docs/src/api/rest.md (files, trash, tags, auth, sync, locks, etc.)\n- Updated docs/src/SUMMARY.md with admin page\n\nTD-021: Fix benchmark auto-push flakiness (fail-on-alert: false)\nTD-022: Opt into Node.js 24 (FORCE_JAVASCRIPT_ACTIONS_TO_NODE24)",
+          "timestamp": "2026-05-27T13:16:07+01:00",
+          "tree_id": "7e76135ea91bf84ab5b4e763686aea89c798e6e7",
+          "url": "https://github.com/WyattAu/ferro/commit/26c02331321d9a5f3473e469be7f1aa8cf60df84"
+        },
+        "date": 1779884692632,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 254260184,
+            "range": "± 974285",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 254260441,
+            "range": "± 670202",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 23617,
+            "range": "± 1391",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 22759,
+            "range": "± 1303",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8888,
+            "range": "± 112",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5152,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1106,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 862,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2579,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1516,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8565,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 78514,
+            "range": "± 231",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 104,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 21293,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 991,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 88,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 80,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 144,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 151,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 159,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 771,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 765,
+            "range": "± 11",
             "unit": "ns/iter"
           },
           {
