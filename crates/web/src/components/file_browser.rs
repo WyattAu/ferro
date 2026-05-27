@@ -174,7 +174,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     // Infinite scroll via IntersectionObserver on the sentinel div.
     // We cannot use on:scroll because Leptos 0.6 uses event delegation
     // and scroll events do not bubble, so the delegated listener never fires.
+    // We set root to the scroll container so intersection is computed
+    // relative to the scrollable area, not the viewport.
     let scroll_sentinel_ref = create_node_ref::<html::Div>();
+    let scroll_container_ref = create_node_ref::<html::Div>();
     {
         create_effect(move |_| {
             let sentinel = scroll_sentinel_ref.get()?;
@@ -203,7 +206,20 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     as Box<dyn Fn(js_sys::Array, web_sys::IntersectionObserver)>)
             };
             let callback_fn: &js_sys::Function = callback.as_ref().unchecked_ref();
-            let observer = web_sys::IntersectionObserver::new(callback_fn).unwrap();
+
+            // Build options with root set to the scroll container.
+            // Falls back to viewport (null root) if container not found.
+            let options = scroll_container_ref
+                .get()
+                .map(|el| {
+                    let opts = web_sys::IntersectionObserverInit::new();
+                    opts.set_root(Some(&el));
+                    opts
+                })
+                .unwrap_or_default();
+
+            let observer =
+                web_sys::IntersectionObserver::new_with_options(callback_fn, &options).unwrap();
             observer.observe(&sentinel);
             // Keep the closure alive for the lifetime of the effect
             callback.forget();
@@ -1020,6 +1036,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     view! {
         <div class="flex flex-1 overflow-hidden">
         <div class="flex-1 overflow-auto"
+            _ref=scroll_container_ref
             role="region"
             aria-label="File list"
             on:dragover=handle_drag_over

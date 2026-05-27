@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
   victoria-logs:
-    image: victoriametrics/victorialogs:v0.8.0
+    image: victoriametrics/victoria-logs:v1.50.0@sha256:ae9bea8d8a3b0fc47c7f0058bcca410e79c84b4a0acd12d4dac71b9302526590
     ports: ["9428:9428"]
     volumes:
       - vl-data:/victoria-logs-data
