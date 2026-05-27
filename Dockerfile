@@ -1,5 +1,5 @@
 # ── Stage 1: Build Web UI ──────────────────────────────────────────────────
-FROM node:20-slim AS ui-builder
+FROM node:26-slim AS ui-builder
 
 LABEL org.opencontainers.image.title="Ferro"
 LABEL org.opencontainers.image.description="Self-hosted file server with WebDAV, S3-compatible API, federation, and WASM workers"
