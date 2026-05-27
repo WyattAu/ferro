@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   e2e:
@@ -33,11 +32,16 @@ jobs:
             fi
             sleep 2
           done
+          if ! curl -sf http://localhost:8080/.well-known/ferro > /dev/null 2>&1; then
+            echo "ERROR: Server did not become ready after 120s"
+            docker logs ferro-e2e || true
+            exit 1
+          fi
       - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: 20
       - name: Install Playwright
-        run: npm install && npx playwright install --with-deps
+        run: npm ci && npx playwright install --with-deps
         working-directory: e2e
       - name: Run E2E tests
         run: npx playwright test

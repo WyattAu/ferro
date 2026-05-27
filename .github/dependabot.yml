@@ -29,3 +29,10 @@ updates:
     labels:
       - "dependencies"
       - "automated"
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "automated"

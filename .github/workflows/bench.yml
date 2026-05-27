@@ -29,6 +29,9 @@ jobs:
 
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
 
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
+
       - name: Run benchmarks
         run: cargo bench -p ferro-benchmarks -- --output-format bencher | tee benchmark-results.txt
       

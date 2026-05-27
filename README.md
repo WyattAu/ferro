@@ -70,13 +70,14 @@ cargo build --release --bin ferro-server
 | `--host` | — | `0.0.0.0` | Bind address |
 | `-p, --port` | — | `8080` | Server port |
 | `--log-level` | — | `info` | Log level (trace, debug, info, warn, error) |
+| `--log-format` | — | `text` | Log format (`text`, `json`) |
 | `--storage` | — | `memory` | Storage backend (`memory`, `local:/path`, `s3://bucket`, `gs://bucket`, `az://container`) |
 | `--data-dir` | `FERRO_DATA_DIR` | (none) | Persistent data directory (enables SQLite metadata, CAS, snapshots, audit) |
 | `--static-dir` | `FERRO_STATIC_DIR` | (none) | Web UI static files directory |
 | `--max-body-size` | `FERRO_MAX_BODY_SIZE` | `1073741824` | Max request body size in bytes (default: 1 GB) |
 | `--wasm-enabled` | `FERRO_WASM_ENABLED` | `false` | Enable WASM worker runtime |
 | `--cas-enabled` | — | `false` | Enable in-memory content-addressable deduplication |
-| `--search-index-path` | — | `/tmp/ferro-search` | Search index directory |
+| `--search-index-path` | — | (auto) | Search index directory (defaults to `{data-dir}/search-index`) |
 | `--metadata-db` | `FERRO_METADATA_DB` | (none) | PostgreSQL metadata database URL |
 | `--oidc-issuer` | `FERRO_OIDC_ISSUER` | (none) | OIDC issuer URL (enables authentication) |
 | `--oidc-client-id` | `FERRO_OIDC_CLIENT_ID` | (none) | OIDC client ID |
@@ -87,8 +88,19 @@ cargo build --release --bin ferro-server
 | `--admin-password` | `FERRO_ADMIN_PASSWORD` | (none) | Admin password for simple HTTP Basic Auth |
 | `--config` | `FERRO_CONFIG` | (none) | Path to configuration file (TOML format) |
 | `--external-url` | `FERRO_EXTERNAL_URL` | `http://localhost:8080` | External base URL for OIDC callbacks |
-| `--wopi-token-secret` | `FERRO_WOPI_TOKEN_SECRET` | `ferro-wopi-token-secret-change-me` | HMAC secret for WOPI tokens |
+| `--wopi-token-secret` | `FERRO_WOPI_TOKEN_SECRET` | (none) | HMAC secret for WOPI tokens |
 | `--wopi-office-url` | `FERRO_WOPI_OFFICE_URL` | (none) | Collabora/OnlyOffice server URL for WOPI |
+| `--storage-quota` | — | (none) | Per-user storage quota in bytes |
+| `--trash-ttl` | — | `604800` | Trash auto-purge TTL in seconds (default: 7 days) |
+| `--graceful-shutdown-timeout` | — | `30` | Graceful shutdown timeout in seconds |
+| `--maintenance-mode` | — | `false` | Enable maintenance mode (503 for all requests) |
+| `--cors-allowed-origins` | — | (none) | CORS allowed origins (comma-separated, `*` for all) |
+| `--api-version` | — | `1` | API version prefix (`1` = `/api/v1/`) |
+| `--max-file-versions` | — | `0` | Maximum file versions to keep (0 = unlimited) |
+| `--thumbnail-size` | — | `256` | Thumbnail size in pixels |
+| `--multi-user` | — | `false` | Enable multi-user mode |
+| `--migrate-from` | — | (none) | Migrate data from another storage backend |
+| `--federation-secret` | `FERRO_FEDERATION_SECRET` | (none) | Secret for ActivityPub federation HTTP signatures |
 
 ### Storage Backends
 
@@ -366,10 +378,14 @@ Ferro is built as a Rust workspace with 20 crates:
 
 ## Documentation
 
-- [Deployment Guide](docs/deployment.md)
-- [Configuration Reference](docs/configuration.md)
-- [API Reference](docs/api.md)
-- [WebDAV Client Guide](docs/webdav.md)
+Full documentation is deployed at [wyattau.github.io/ferro](https://wyattau.github.io/ferro):
+
+- [Introduction](https://wyattau.github.io/ferro/introduction.html)
+- [Quick Start](https://wyattau.github.io/ferro/quickstart.html)
+- [Configuration Reference](https://wyattau.github.io/ferro/configuration.html)
+- [Deployment Guide](https://wyattau.github.io/ferro/deployment/docker.html)
+- [API Reference](https://wyattau.github.io/ferro/api/rest.html)
+- [Security](https://wyattau.github.io/ferro/security.html)
 
 ## License
 
