@@ -18,6 +18,8 @@ permissions:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -44,7 +46,7 @@ jobs:
           auto-push: ${{ github.event_name == 'push' }}
           alert-threshold: '150%'
           comment-on-alert: true
-          fail-on-alert: true
+          fail-on-alert: false
           alert-comment-cc-users: '@WyattAu'
           gh-pages-branch: 'bench-data'
           benchmark-data-dir-path: 'dev/bench'

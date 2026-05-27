@@ -67,7 +67,10 @@ impl SnapshotStore {
         );
 
         if let Some(ref p) = self.persistence {
-            let _ = p.create(description, entries).await;
+            let _ = p
+                .create(description, entries)
+                .await
+                .map_err(|e| tracing::error!(error = %e, "failed to persist snapshot to database"));
         }
 
         let mut snapshots = self.snapshots.write().await;
@@ -251,10 +254,13 @@ pub async fn restore_snapshot(
     for entry in &snapshot.entries {
         if entry.is_collection {
             if !state.storage.exists(&entry.path).await.unwrap_or(false) {
-                let _ = state
+                if let Err(e) = state
                     .storage
                     .create_collection(&entry.path, &entry.owner)
-                    .await;
+                    .await
+                {
+                    tracing::warn!(error = %e, path = %entry.path, "failed to recreate collection during snapshot restore");
+                }
                 collections_created += 1;
             }
         } else if state.storage.exists(&entry.path).await.unwrap_or(false) {

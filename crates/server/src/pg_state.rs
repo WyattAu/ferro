@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use sqlx::PgPool;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::search::UserPreferences;
 use crate::shares::{CreateShareRequest, ShareLink};
@@ -45,7 +45,7 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
 
         let max_downloads = req.max_downloads.map(|d| d as i32);
 
-        let _ = sqlx::query(
+        if let Err(e) = sqlx::query(
             r#"
             INSERT INTO shares (token, path, password, expires_at, max_downloads, created_by)
             VALUES ($1, $2, $3, $4, $5, $6)
@@ -58,7 +58,10 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
         .bind(max_downloads)
         .bind(&created_by)
         .execute(&self.pool)
-        .await;
+        .await
+        {
+            warn!(error = %e, "failed to persist share to database");
+        }
 
         ShareLink {
             token: token.clone(),
@@ -180,12 +183,15 @@ impl crate::favorites::FavoriteStore for PgFavoriteStore {
     }
 
     async fn add(&self, path: String) {
-        let _ = sqlx::query(
+        if let Err(e) = sqlx::query(
             "INSERT INTO favorites (user_id, path) VALUES ('default', $1) ON CONFLICT DO NOTHING",
         )
         .bind(&path)
         .execute(&self.pool)
-        .await;
+        .await
+        {
+            warn!(error = %e, "failed to add favorite to database");
+        }
     }
 
     async fn contains(&self, path: &str) -> bool {
@@ -199,10 +205,13 @@ impl crate::favorites::FavoriteStore for PgFavoriteStore {
     }
 
     async fn remove(&self, path: &str) {
-        let _ = sqlx::query("DELETE FROM favorites WHERE user_id = 'default' AND path = $1")
+        if let Err(e) = sqlx::query("DELETE FROM favorites WHERE user_id = 'default' AND path = $1")
             .bind(path)
             .execute(&self.pool)
-            .await;
+            .await
+        {
+            warn!(error = %e, "failed to remove favorite from database");
+        }
     }
 }
 
@@ -230,11 +239,14 @@ impl PgPreferenceStore {
         .execute(&pool)
         .await?;
 
-        let _ = sqlx::query(
+        if let Err(e) = sqlx::query(
             "INSERT INTO preferences (user_id) VALUES ('default') ON CONFLICT DO NOTHING",
         )
         .execute(&pool)
-        .await;
+        .await
+        {
+            warn!(error = %e, "failed to insert default preferences row");
+        }
 
         debug!("PgPreferenceStore initialized");
         Ok(Self { pool })
@@ -301,7 +313,9 @@ impl crate::search::PreferenceStore for PgPreferenceStore {
                 "UPDATE preferences SET {} WHERE user_id = 'default'",
                 set_parts.join(", ")
             );
-            let _ = sqlx::query(&query_str).execute(&self.pool).await;
+            if let Err(e) = sqlx::query(&query_str).execute(&self.pool).await {
+                warn!(error = %e, "failed to update preferences in database");
+            }
         }
 
         self.get().await

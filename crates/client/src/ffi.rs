@@ -74,11 +74,13 @@ pub unsafe extern "C" fn ferro_client_new(
         return ptr::null_mut();
     }
 
+    // SAFETY: caller guarantees server_url is a valid, null-terminated C string for the borrow lifetime
     let url = match unsafe { CStr::from_ptr(server_url) }.to_str() {
         Ok(s) => s,
         Err(_) => return ptr::null_mut(),
     };
 
+    // SAFETY: caller guarantees token is a valid, null-terminated C string for the borrow lifetime
     let token = match unsafe { CStr::from_ptr(token) }.to_str() {
         Ok(s) => s,
         Err(_) => return ptr::null_mut(),
@@ -91,6 +93,7 @@ pub unsafe extern "C" fn ferro_client_new(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ferro_client_free(handle: *mut FerroClientHandle) {
     if !handle.is_null() {
+        // SAFETY: pointer was created by Box::into_raw in ferro_client_new and has not been freed
         unsafe { drop(Box::from_raw(handle)) };
     }
 }
@@ -101,6 +104,7 @@ pub unsafe extern "C" fn ferro_test_connection(handle: *mut FerroClientHandle) -
         return FerroResult::ErrorInvalidArg;
     }
 
+    // SAFETY: caller guarantees handle is non-null (checked above) and points to a valid FerroClientHandle created by ferro_client_new
     let client = &unsafe { &*handle }.client;
     let rt = match tokio::runtime::Runtime::new() {
         Ok(rt) => rt,
@@ -119,23 +123,30 @@ pub unsafe extern "C" fn ferro_file_list_free(list: *mut FerroFileList) {
         return;
     }
 
+    // SAFETY: pointer was created by Box::into_raw in the list-returning FFI function and has not been freed
     let list = unsafe { Box::from_raw(list) };
     for i in 0..list.count {
+        // SAFETY: i is in bounds 0..list.count, so entries.add(i) points to a valid FerroFileEntry
         let entry = unsafe { &*list.entries.add(i) };
         if !entry.name.is_null() {
+            // SAFETY: name was created by CString::into_raw in entry_to_ffi and has not been freed
             unsafe { drop(CString::from_raw(entry.name)) };
         }
         if !entry.path.is_null() {
+            // SAFETY: path was created by CString::into_raw in entry_to_ffi and has not been freed
             unsafe { drop(CString::from_raw(entry.path)) };
         }
         if !entry.modified.is_null() {
+            // SAFETY: modified was created by CString::into_raw in entry_to_ffi and has not been freed
             unsafe { drop(CString::from_raw(entry.modified)) };
         }
         if !entry.etag.is_null() {
+            // SAFETY: etag was created by CString::into_raw in entry_to_ffi and has not been freed
             unsafe { drop(CString::from_raw(entry.etag)) };
         }
     }
     if !list.entries.is_null() && list.count > 0 {
+        // SAFETY: pointer/count/capacity were obtained from Vec::into_raw_parts in the list-returning FFI function
         unsafe { drop(Vec::from_raw_parts(list.entries, list.count, list.count)) };
     }
 }
@@ -146,8 +157,10 @@ pub unsafe extern "C" fn ferro_bytes_free(bytes: *mut FerroBytes) {
         return;
     }
 
+    // SAFETY: pointer was created by Box::into_raw in the bytes-returning FFI function and has not been freed
     let bytes = unsafe { Box::from_raw(bytes) };
     if !bytes.data.is_null() && bytes.len > 0 {
+        // SAFETY: pointer/len/capacity were obtained from Vec::into_raw_parts in the bytes-returning FFI function
         unsafe { drop(Vec::from_raw_parts(bytes.data, bytes.len, bytes.len)) };
     }
 }
@@ -155,6 +168,7 @@ pub unsafe extern "C" fn ferro_bytes_free(bytes: *mut FerroBytes) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ferro_string_free(s: *mut c_char) {
     if !s.is_null() {
+        // SAFETY: pointer was created by CString::into_raw and has not been freed
         unsafe { drop(CString::from_raw(s)) };
     }
 }

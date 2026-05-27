@@ -59,7 +59,11 @@ impl ActivityStore {
                     String::new()
                 })
             });
-            let _ = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
+            let conn = db.lock().unwrap_or_else(|e| {
+                warn!("inbox: mutex poisoned, recovering lock");
+                e.into_inner()
+            });
+            if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'inbox')",
                 params![
                     id,
@@ -70,7 +74,9 @@ impl ActivityStore {
                     activity.published,
                     raw_json,
                 ],
-            );
+            ) {
+                warn!("inbox: failed to persist activity to SQLite: {e}");
+            }
         }
         let len = self.inbox.len();
         if len > self.max_entries {
@@ -107,7 +113,11 @@ impl ActivityStore {
                     String::new()
                 })
             });
-            let _ = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
+            let conn = db.lock().unwrap_or_else(|e| {
+                warn!("outbox: mutex poisoned, recovering lock");
+                e.into_inner()
+            });
+            if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'outbox')",
                 params![
                     id,
@@ -118,7 +128,9 @@ impl ActivityStore {
                     activity.published,
                     raw_json,
                 ],
-            );
+            ) {
+                warn!("outbox: failed to persist activity to SQLite: {e}");
+            }
         }
         let len = self.outbox.len();
         if len > self.max_entries {

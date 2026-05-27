@@ -11,6 +11,7 @@
 - [API Reference](./api/SUMMARY.md)
   - [WebDAV](./api/webdav.md)
   - [REST API](./api/rest.md)
+  - [Admin API](./api/admin.md)
   - [CalDAV](./api/caldav.md)
   - [CardDAV](./api/carddav.md)
   - [GraphQL](./api/graphql.md)

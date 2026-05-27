@@ -59,7 +59,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let mount_path = PathBuf::from(&cli.mount);
+    // SAFETY: getuid() is always safe and has no preconditions
     let uid = unsafe { libc::getuid() };
+    // SAFETY: getgid() is always safe and has no preconditions
     let gid = unsafe { libc::getgid() };
 
     #[cfg(feature = "offline-cache")]

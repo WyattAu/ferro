@@ -486,15 +486,21 @@ impl AppState {
         self.favorites = Arc::new(fav_store);
 
         let tags_store = tags::TagStore::new().with_db(db.clone());
-        let _ = tags_store.load_all_from_db(&conn);
+        if let Err(e) = tags_store.load_all_from_db(&conn) {
+            tracing::warn!(error = %e, "failed to load tags from database");
+        }
         self.tags = Arc::new(tags_store);
 
         let sync_store = sync::ops::SyncStore::new().with_db(db.clone());
-        let _ = sync_store.load_all_from_db(&conn);
+        if let Err(e) = sync_store.load_all_from_db(&conn) {
+            tracing::warn!(error = %e, "failed to load sync ops from database");
+        }
         self.sync_store = Arc::new(sync_store);
 
         let activity_store = federation::store::ActivityStore::new().with_db(db.clone());
-        let _ = activity_store.load_all_from_db(&conn);
+        if let Err(e) = activity_store.load_all_from_db(&conn) {
+            tracing::warn!(error = %e, "failed to load activity store from database");
+        }
         self.activity_store = Arc::new(activity_store);
 
         if let Ok(entries) = trash::load_trash_from_db(&conn) {
@@ -504,7 +510,9 @@ impl AppState {
         }
 
         let lock_mgr = lock::LockManager::new().with_db(db.clone());
-        let _ = lock_mgr.load_all_from_db(&conn);
+        if let Err(e) = lock_mgr.load_all_from_db(&conn) {
+            tracing::warn!(error = %e, "failed to load locks from database");
+        }
         self.lock_manager = Arc::new(lock_mgr);
 
         self
