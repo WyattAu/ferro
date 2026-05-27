@@ -1,6 +1,14 @@
 # ── Stage 1: Build Web UI ──────────────────────────────────────────────────
 FROM node:20-slim AS ui-builder
 
+LABEL org.opencontainers.image.title="Ferro"
+LABEL org.opencontainers.image.description="Self-hosted file server with WebDAV, S3-compatible API, federation, and WASM workers"
+LABEL org.opencontainers.image.url="https://github.com/WyattAu/ferro"
+LABEL org.opencontainers.image.documentation="https://wyattau.github.io/ferro/"
+LABEL org.opencontainers.image.source="https://github.com/WyattAu/ferro"
+LABEL org.opencontainers.image.vendor="WyattAu"
+LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later"
+
 ENV PATH="/root/.cargo/bin:${PATH}" \
     CARGO_HOME="/root/.cargo"
 

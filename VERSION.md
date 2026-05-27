@@ -3,13 +3,13 @@
 ## Current Status
 - **Phase:** Release Candidate Preparation (Phase 5: 10/11 criteria met)
 - **Version:** 2.5.1
-- **Tests:** 882 passed, 0 failed, 1 ignored, 0 clippy warnings
-- **E2E:** 49 Playwright tests across 7 spec files (chromium, firefox, webkit)
+- **Tests:** 854 passed, 0 failed, 0 ignored, 0 clippy warnings
+- **E2E:** 23 Playwright tests across 11 spec files (chromium, firefox, webkit)
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
-- **Load Testing:** 69 req/s with 20 VUs, 0% failure rate (debug build)
+- **Load Testing:** 69 req/s with 20 VUs, 0% failure rate (debug build); 5-min soak: 518 iterations, p95=30.54ms, zero panics
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
-- **Status:** Release candidate. All P0 items from Phases 1-4 resolved. Helm chart ready. Multi-arch CI configured.
-- **Last Updated:** 2026-05-26
+- **Status:** Release candidate. All P0 items from Phases 1-4 resolved. Helm chart ready. Multi-arch CI configured. Pre-commit hook installed.
+- **Last Updated:** 2026-05-27
 
 ## Phase Progress
 | Phase | Status | Completion |
@@ -161,13 +161,13 @@
 | ferro-webdav-handler | 10 passing | Implemented |
 | ferro-benchmarks | 18 benchmark functions | Implemented |
 
-## Total Tests: 882 passed, 0 failed, 1 ignored
-## E2E Tests: 49 Playwright (7 spec files, 3 browsers)
-## Property Tests: 25 (storage:5, path:6, locks:8, XML:6)
+## Total Tests: 854 passed, 0 failed, 0 ignored
+## E2E Tests: 23 Playwright (11 spec files, 3 browsers)
+## Property Tests: 4 (proptest)
 ## Fuzzing: 4 harnesses, 2.6M+ iterations, 0 crashes
 ## Load Testing: 69 req/s (20 VUs, 30s, 0% failure)
 ## Security Review: 18/18 internal checks passed
 ## Clippy: 0 warnings (with all features: s3,gcs,azure,pg,redis,ldap)
 ## Security: cargo-deny clean, advisories/bans/licenses/sources ok
 ## Error Level: None
-## Rollback Checkpoint: main@d00abe6 (Phase 5 release candidate, 2026-05-26)
+## Rollback Checkpoint: main@881364e (Phase 5 release candidate, 2026-05-27)
