@@ -41,6 +41,10 @@ Ferro supports three layers of configuration, applied in order of priority:
 | `--max-file-versions` | `FERRO_MAX_FILE_VERSIONS` | `10` | Max file versions to retain (0 = disabled) |
 | `--thumbnail-size` | `FERRO_THUMBNAIL_SIZE` | `256` | Max thumbnail dimension in pixels (64-1024) |
 | `--multi-user` | `FERRO_MULTI_USER` | `false` | Enable multi-user mode with per-user home directories |
+| `--maintenance-mode` | `FERRO_MAINTENANCE_MODE` | `false` | Enable maintenance mode (503 for all non-admin requests) |
+| `--api-version` | `FERRO_API_VERSION` | `v1` | API version prefix (`/api/v1/`) |
+| `--cors-origins` | `FERRO_CORS_ORIGINS` | (none) | Alias for `--cors-allowed-origins` |
+| `--migrate-from` | `FERRO_MIGRATE_FROM` | (none) | Migrate data from another Ferro instance |
 
 ## TOML Config File
 

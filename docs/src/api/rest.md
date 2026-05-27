@@ -2,7 +2,9 @@
 
 The REST API provides JSON endpoints for file operations, user management, sharing, and server administration.
 
-All endpoints are prefixed with `/api/`. Authentication is required when `--admin-user` or `--oidc-issuer` is configured.
+All endpoints are available under `/api/v1/` (canonical). The unversioned `/api/` prefix is deprecated and will be removed in a future release. Authentication is required when `--admin-user` or `--oidcissuer` is configured.
+
+The examples below use `/api/` for brevity; replace with `/api/v1/` for forward-compatible code.
 
 ## Health Endpoints
 

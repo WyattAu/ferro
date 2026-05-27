@@ -122,11 +122,10 @@ Emitted when the storage backend health status changes.
 
 | Parameter | Value |
 |-----------|-------|
-| Max connections | 1,000 |
 | Broadcast channel size | 1,024 messages |
 | Protocol | WebSocket (RFC 6455) |
 
-When the maximum connection limit is reached, new connections are rejected.
+Note: The WebSocket endpoint currently uses an unbounded broadcast channel. Connection limits should be enforced via reverse proxy (e.g., nginx `worker_connections`).
 
 ## Message Flow
 

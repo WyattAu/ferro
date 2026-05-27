@@ -33,7 +33,7 @@ Ferro is a storage orchestrator -- it sits between your files and the storage ba
 
 | Feature | Ferro | Nextcloud | OCIS |
 |---------|-------|-----------|------|
-| Language | Rust (100%) | PHP / Go | Go |
+| Language | Rust (application code; depends on SQLite, OpenSSL for PG) | PHP / Go | Go |
 | WebDAV | Class 1/2/3 | Class 1/2/3 | Class 1/2/3 |
 | CalDAV/CardDAV | Yes | Yes | Yes |
 | Federation | ActivityPub | Nextcloud Federation | No |
@@ -44,7 +44,7 @@ Ferro is a storage orchestrator -- it sits between your files and the storage ba
 | Cedar AuthZ | Yes | RBAC | RBAC |
 | FUSE Mount | Native | External | No |
 | Desktop App | Tauri | GTK/Qt | No |
-| Binary Size | ~15 MB | ~200+ MB | ~80 MB |
+| Binary Size | ~15 MB (stripped release, default features) | ~200+ MB | ~80 MB |
 
 ## Architecture Overview
 

@@ -1,65 +1,19 @@
-#!/usr/bin/env bash
-#
-# Ferro pre-commit hook.
-# Enforces: format, lint, tests, and security audit before allowing a commit.
-#
-# Install: git config core.hooksPath .githooks
-# Skip (emergency only): git commit --no-verify
+#!/bin/sh
+# Ferro pre-commit hook: fast quality gates before commit.
+# Full test suite + deny run in CI. This hook catches fmt/clippy regressions early.
+# Override: SKIP_PRECOMMIT=1 git commit ...
 
 set -euo pipefail
 
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly NC='\033[0m'
-
-info()  { echo -e "${GREEN}[pre-commit]${NC} $1"; }
-warn()  { echo -e "${YELLOW}[pre-commit]${NC} $1"; }
-fail()  { echo -e "${RED}[pre-commit]${NC} $1"; }
-
-# Detect if Rust files changed (staged only)
-if ! git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(rs|toml)$'; then
-    info "No Rust files staged. Skipping Rust checks."
-    exit 0
+if [ "${SKIP_PRECOMMIT:-0}" = "1" ]; then
+  echo "[pre-commit] Skipped (SKIP_PRECOMMIT=1)"
+  exit 0
 fi
 
-# Always test the full workspace to catch transitive breakage.
-# Crate-level granularity is unsafe (directory names != package names).
-TARGET="--workspace"
+echo "[pre-commit] Checking formatting..."
+cargo fmt --all -- --check
 
-# 1. Format check
-info "Checking formatting (cargo fmt)..."
-if ! cargo fmt --all -- --check 2>&1; then
-    fail "Formatting issues detected. Run 'cargo fmt --all' to fix."
-    exit 1
-fi
+echo "[pre-commit] Running clippy..."
+cargo clippy --workspace --all-targets --features "s3,gcs,azure,pg,redis,ldap" -- -D warnings
 
-# 2. Clippy lint (match CI: --all-targets with feature flags -- -D warnings)
-info "Running clippy (cargo clippy $TARGET --all-targets --features 's3,gcs,azure,pg,redis,ldap' -- -D warnings)..."
-if ! cargo clippy $TARGET --all-targets --features "s3,gcs,azure,pg,redis,ldap" -- -D warnings 2>&1; then
-    fail "Clippy lint errors detected. Fix before committing."
-    exit 1
-fi
-
-# 3. Tests
-info "Running tests (cargo test $TARGET)..."
-if ! cargo test $TARGET 2>&1; then
-    fail "Tests failed. Fix before committing."
-    exit 1
-fi
-
-# 4. Security audit (cargo-deny) -- only when Cargo.lock, deny.toml, or root Cargo.toml changed
-if git diff --cached --name-only | grep -qE 'Cargo\.lock|deny\.toml|^Cargo\.toml$'; then
-    if command -v cargo-deny &>/dev/null; then
-        info "Running cargo-deny security audit..."
-        if ! cargo deny check advisories bans licenses sources 2>&1; then
-            fail "Security audit failed. Review deny output."
-            exit 1
-        fi
-    else
-        warn "cargo-deny not found. Skipping security audit. Install: cargo install cargo-deny"
-    fi
-fi
-
-info "All pre-commit checks passed."
-exit 0
+echo "[pre-commit] Passed. Full tests + cargo-deny run in CI."
