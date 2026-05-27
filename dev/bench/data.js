@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779845177687,
+  "lastUpdate": 1779872115025,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -2572,6 +2572,168 @@ window.BENCHMARK_DATA = {
           {
             "name": "metadata_deserialize",
             "value": 826,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "77f306b1522e763158092dea18f56a7ed727a59e",
+          "message": "fix(ci,docs): pin actions, fix doc inaccuracies, add pre-commit hook\n\n- docs.yml: add missing toolchain + rust-cache\n- bench.yml: add missing rust-cache\n- release.yml: fix softprops/action-gh-release SHA\n- rest.md: add /api/v1/ deprecation note\n- websocket.md: remove fabricated 1000-connection limit\n- installation.md: fix Rust version 1.92 -> 1.95.0\n- introduction.md: qualify binary size claim\n- configuration.md: add missing CLI flags (maintenance-mode, api-version, cors-origins, migrate-from)\n- .githooks/pre-commit: fast hook (fmt + clippy), full suite in CI",
+          "timestamp": "2026-05-27T09:47:33+01:00",
+          "tree_id": "d6aa4cd58a75fff66f0e1d58fb27dfd112663fc8",
+          "url": "https://github.com/WyattAu/ferro/commit/77f306b1522e763158092dea18f56a7ed727a59e"
+        },
+        "date": 1779872114510,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300634554,
+            "range": "± 911742",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300600418,
+            "range": "± 142482",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 23873,
+            "range": "± 762",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24078,
+            "range": "± 1058",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9025,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5085,
+            "range": "± 53",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1187,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 939,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2681,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1416,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8169,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74855,
+            "range": "± 96",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19220,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 916,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 91,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 71,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 154,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 921,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 760,
             "range": "± 4",
             "unit": "ns/iter"
           },
