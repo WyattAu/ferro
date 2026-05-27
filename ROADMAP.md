@@ -1,35 +1,60 @@
 # Ferro Roadmap: v2.5.1 to Production and Beyond
 
-**Version:** 2.5.1 | **Date:** 2026-05-26 | **Status:** Release Candidate Preparation
+**Version:** 2.5.1 | **Date:** 2026-05-27 | **Status:** Release Candidate Preparation
 
 ---
 
-## Current State (2026-05-26)
+## Current State (2026-05-27)
 
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 882 passed, 0 failed, 1 ignored |
+| Tests | 854 passed, 0 failed, 0 ignored |
 | Clippy warnings | 0 |
 | Production `expect()` calls | 0 |
 | Production `unwrap()` calls | ~1274 (gradual improvement) |
-| CI/CD | 10/10 checks green (fmt, clippy, test, test-pg, test-cloud x3, audit, build, docker) |
-| Extended CI | 2/2 green (E2E all browsers, code coverage) |
-| Docs CI | 1/1 green (GitHub Pages deployment) |
-| E2E | 49 Playwright tests across 7 spec files (chromium, firefox, webkit) |
+| CI/CD | 12/12 checks green (fmt, clippy, test, test-pg, test-cloud x3, audit, build, docker, E2E, coverage, bench) |
+| Extended CI | All green |
+| Docs CI | Green (GitHub Pages deployment) |
+| E2E | 23 Playwright tests across 11 spec files (chromium, firefox, webkit) |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | Load testing | 3 k6 scripts (concurrent upload, large directory, soak) |
+| Soak test | 5 min validated (518 iterations, p95=30.54ms, zero panics) |
 | Security | cargo-deny clean, OWASP checklist complete, STRIDE threat model |
-| Documentation | mdBook deployed to GitHub Pages, full audit 2026-05-26, zero inaccuracies remaining |
-| Pre-commit hooks | fmt + clippy + tests + cargo-deny |
+| Documentation | mdBook deployed to GitHub Pages, audited 2026-05-27 |
+| Pre-commit hook | fmt + clippy (fast); full test + deny in CI |
 | Helm chart | deploy/helm/ferro/ (deployment, service, ingress, PVC, ServiceMonitor) |
 | Phase 5 release criteria | 10/11 satisfied (24h soak test pending live execution) |
-| Audit | 2026-05-26 full codebase review: 1 critical + 7 high + 3 medium issues fixed |
-| Actions SHA pinning | All 6 workflow files: actions pinned to commit SHAs |
-| Docker image pinning | All 10 docker-compose files: third-party images pinned to SHA digests |
-| Release smoke test | healthz endpoint check added to all release matrix builds |
+| Actions SHA pinning | All 6 workflow files: 20 actions pinned to commit SHAs |
+| Docker image pinning | All 10 docker-compose files: 8 images pinned to SHA digests |
+| Release smoke test | healthz endpoint check on all release matrix builds |
 
 ## What Was Just Completed
+
+### 2026-05-27 (Session 3): CI Audit, Documentation Accuracy, Pre-commit Hook
+
+**CI Workflow Fixes:**
+- `docs.yml`: added missing `toolchain: stable` and `Swatinem/rust-cache` step
+- `bench.yml`: added missing `Swatinem/rust-cache` step
+- `release.yml`: fixed `softprops/action-gh-release` SHA (`da05d55` was v2.2.2, fixed to `c95fe14` v2.2.2 commit)
+
+**Documentation Accuracy Fixes:**
+- `rest.md`: added deprecation note for `/api/` vs `/api/v1/` prefix (unversioned returns Deprecation + Sunset headers)
+- `websocket.md`: removed fabricated 1000-connection limit claim (code has no limit; delegate to reverse proxy)
+- `installation.md`: fixed Rust version 1.92 -> 1.95.0 (matches rust-toolchain.toml)
+- `introduction.md`: qualified binary size claim (debug vs release), corrected "100% Rust" language
+- `configuration.md`: added 4 missing CLI flags (maintenance-mode, api-version, cors-origins, migrate-from)
+
+**Pre-commit Hook:**
+- Created `.githooks/pre-commit` with fast local checks (fmt + clippy)
+- Full test suite + cargo-deny deferred to CI (pre-commit would timeout on 854 tests)
+- `SKIP_PRECOMMIT=1` escape hatch for emergency commits
+- Installed to `.git/hooks/pre-commit`
+
+**Verification:**
+- Docs site live: all 6 key pages return HTTP 200
+- CI green: 4/4 workflows triggered on commit `77f306b`
+- Pre-commit hook validated: fmt + clippy pass in ~5s
 
 ### 2026-05-26 (Session 2): Web UI, E2E, CI Hardening
 
@@ -253,7 +278,7 @@ Implemented across 2 commits (`d274895`, `52e6851`):
 | Item | Description | Priority | Status |
 |------|-------------|----------|--------|
 | Complete API reference | Document all 90+ endpoints in `docs/api.md` | P0 | DONE (1466 lines across 9 md files + Swagger UI) |
-| Complete configuration reference | Document all 37 CLI flags and TOML keys | P0 | DONE (docs/src/configuration.md, 178 lines) |
+| Complete configuration reference | Document all CLI flags and TOML keys | P0 | DONE (docs/src/configuration.md) |
 | Deployment guide for production | Step-by-step for Docker, bare metal, Kubernetes | P1 | DONE (docs/src/deployment/production.md) |
 | Upgrade guide | Document migration path between versions | P1 | DONE (docs/src/guides/upgrade.md, 68 lines) |
 
@@ -552,18 +577,19 @@ Items that should be addressed during normal development:
 | 4 | High | SECURITY.md pen-test guide used wrong admin endpoint (`/admin/users` instead of `/api/admin/users`) | Fixed in `SECURITY.md` |
 | 5 | High | Production deployment doc referenced 5 non-existent CLI flags (`--tls-cert`, `--tls-key`, `--rate-limit-rpm`, `--max-upload-bytes`, `--storage-url`) | Fixed in `docs/src/deployment/production.md` |
 | 6 | High | Production deployment doc used invalid nested TOML schema | Fixed to flat schema matching actual config loader |
-| 7 | High | RELEASE_NOTES.md had stale quality metrics (460 tests, 9 crates) | Updated to 882 tests, 20 crates |
+| 7 | High | RELEASE_NOTES.md had stale quality metrics (460 tests, 9 crates) | Updated to 854 tests, 20 crates |
 | 8 | High | release.yml had no test gate before building/publishing | Added `verify` job that checks CI passes on main |
 | 9 | Medium | E2E CI only tested chromium, not firefox/webkit | Changed `--with-deps chromium` to `--with-deps` |
 | 10 | Medium | Main test job had wasted PostgreSQL service (not used without `--features pg`) | Removed service from test job |
-| 11 | Medium | VERSION.md and ROADMAP.md had stale test counts (847) | Updated to 882 |
+| 11 | Medium | VERSION.md and ROADMAP.md had stale test counts (847) | Updated to 854 |
 
 ### CI/CD Status After Fixes
 
-All 3 workflows pass on commit `3e81e4a` (verified 2026-05-27):
-- **Checks**: 11/11 jobs green (fmt, clippy, test, test-cloud x3, audit, build, docker, test-pg, benchmark)
-- **Extended Checks**: 2/2 jobs green (E2E 22/23 passed; 1 infinite scroll test fixed in `271250a`)
-- **Deploy Documentation**: success (GitHub Pages updated)
+All workflows pass on commit `271250a` (verified 2026-05-27):
+- **Checks**: 12/12 jobs green (fmt, clippy, test, test-cloud x3, audit, build, docker, test-pg, E2E, coverage, benchmark)
+- **Extended Checks**: green (E2E 23 tests across 3 browsers; code coverage)
+- **Deploy Documentation**: green (GitHub Pages updated)
+- **Benchmarks**: green
 - **Release**: verify gate + smoke test + build matrix + docker + SBOM
 
 ### Remaining Action Items for v3.0
@@ -571,13 +597,9 @@ All 3 workflows pass on commit `3e81e4a` (verified 2026-05-27):
 | # | Priority | Item | Effort |
 |---|----------|------|--------|
 | 1 | P0 | Run 24h soak test with `load-test/soak-test.js` | 24h wall time |
-| 2 | ~~P1~~ ~~DONE | Fix 5 E2E `test.fixme()`/`test.skip()` tests | ~~2-3 days~~ Done 2026-05-26 |
-| 3 | P1 | External penetration test execution | 1-2 weeks (external) |
-| 4 | ~~P1~~ ~~DONE | Pin GitHub Actions to commit SHA instead of tags | ~~1 day~~ Done 2026-05-26 |
-| 5 | P2 | Vendor `utoipa-swagger-ui` zip for offline CI builds | 1 day |
-| 6 | ~~P2~~ ~~DONE | Pin docker-compose image tags to SHA digests | ~~0.5 day~~ Done 2026-05-26 |
-| 7 | ~~P2~~ ~~DONE | Add smoke test to release builds (start binary, check health) | ~~1 day~~ Done 2026-05-26 |
-| 8 | P2 | Gradual `unwrap()` reduction in production code | Ongoing |
+| 2 | P1 | External penetration test execution | 1-2 weeks (external) |
+| 3 | P2 | Vendor `utoipa-swagger-ui` zip for offline CI builds | 1 day |
+| 4 | P2 | Gradual `unwrap()` reduction in production code | Ongoing |
 
 ---
 
@@ -614,13 +636,13 @@ All 3 workflows pass on commit `3e81e4a` (verified 2026-05-27):
 
 ### Testing (Required Before v3.0)
 
-- [x] 882 unit/integration tests passing (0 failures)
-- [x] 25 property-based tests (proptest)
-- [x] 49 Playwright E2E tests (7 spec files, 3 browsers)
+- [x] 854 unit/integration tests passing (0 failures)
+- [x] 4 property-based tests (proptest)
+- [x] 23 Playwright E2E tests (11 spec files, 3 browsers)
 - [x] 4 fuzz harnesses (2.6M+ iterations, 0 crashes)
 - [x] 3 k6 load tests (concurrent upload, large directory, soak)
-- [x] Pre-commit hook (fmt + clippy + test + deny)
-- [ ] ~~Fix 5 E2E test.fixme() tests~~ DONE 2026-05-26
+- [x] Pre-commit hook (fmt + clippy locally; test + deny in CI)
+- [x] Fix 5 E2E test.fixme() tests (2026-05-26)
 - [ ] 24h soak test execution
 
 ### Documentation (Required Before v3.0)
