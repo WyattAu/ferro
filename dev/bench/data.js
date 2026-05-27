@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779826615615,
+  "lastUpdate": 1779845177687,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -2411,6 +2411,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 843,
             "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "271250afabeb76f1adc82c351ef57b2a4cd5fd10",
+          "message": "fix(web,docker): IntersectionObserver root=scroll container, fix victoria-logs image\n\nIntersectionObserver now uses the scroll container as root element instead\nof the viewport. This ensures intersection is computed relative to the\nscrollable file list area, not the browser viewport. This fixes the\ninfinite scroll E2E test which was failing in CI headless browsers.\n\nDocker fix:\n- victoriametrics/victorialogs:v0.8.0 never existed on Docker Hub\n- Replaced with victoriametrics/victoria-logs:v1.50.0 (pinned to SHA)",
+          "timestamp": "2026-05-27T02:19:23+01:00",
+          "tree_id": "eade92e18eee5c0014c2a684cf1d99cdaff5802e",
+          "url": "https://github.com/WyattAu/ferro/commit/271250afabeb76f1adc82c351ef57b2a4cd5fd10"
+        },
+        "date": 1779845177233,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267151394,
+            "range": "± 1525409",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267095108,
+            "range": "± 136723",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28824,
+            "range": "± 1799",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28538,
+            "range": "± 2410",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9053,
+            "range": "± 238",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5080,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1155,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 903,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2773,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1330,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7402,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66732,
+            "range": "± 138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18646,
+            "range": "± 66",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 876,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 146,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 178,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 185,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 896,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 826,
+            "range": "± 4",
             "unit": "ns/iter"
           },
           {
