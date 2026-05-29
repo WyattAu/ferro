@@ -54,3 +54,16 @@ CREATE TABLE IF NOT EXISTS share_uploads (
     uploaded_by TEXT NOT NULL DEFAULT 'anonymous'
 );
 CREATE INDEX IF NOT EXISTS idx_share_uploads_token ON share_uploads(share_token);
+
+-- Event triggers for workflow automation
+CREATE TABLE IF NOT EXISTS event_triggers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    event TEXT NOT NULL,
+    path_prefix TEXT,
+    path_pattern TEXT,
+    action TEXT NOT NULL,
+    config TEXT NOT NULL DEFAULT '{}',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

@@ -113,6 +113,7 @@ pub mod presigned;
 pub mod prometheus_metrics;
 pub mod quota;
 pub mod range_get;
+pub mod ransomware;
 pub mod rate_limit;
 pub mod read_cache;
 #[cfg(feature = "redis")]
@@ -133,6 +134,7 @@ pub mod storage_health;
 pub mod sync;
 pub mod tags;
 pub mod thumbnails;
+pub mod triggers;
 pub mod totp_api;
 pub mod trash;
 pub mod upload;
@@ -901,14 +903,32 @@ fn api_routes(
             axum::routing::delete(guests::delete_retention_policy),
         )
         // GDPR compliance (G-13)
-        .route("/admin/gdpr", axum::routing::get(gdpr::list_gdpr_requests))
+        .route(
+            "/admin/gdpr",
+            axum::routing::get(gdpr::list_gdpr_requests),
+        )
         .route(
             "/admin/users/{id}/export",
-            axum::routing::post(gdpr::request_data_export).get(gdpr::get_data_export_status),
+            axum::routing::post(gdpr::request_data_export)
+                .get(gdpr::get_data_export_status),
         )
         .route(
             "/admin/users/{id}/data",
             axum::routing::delete(gdpr::request_data_erasure),
+        )
+        // Event triggers (G-16)
+        .route(
+            "/admin/triggers",
+            axum::routing::post(triggers::create_trigger)
+                .get(triggers::list_triggers),
+        )
+        .route(
+            "/admin/triggers/{id}",
+            axum::routing::delete(triggers::delete_trigger),
+        )
+        .route(
+            "/admin/triggers/{id}/toggle",
+            axum::routing::post(triggers::toggle_trigger),
         )
         // Extended shares (G-24, G-25)
         .route(

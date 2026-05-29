@@ -293,8 +293,6 @@ pub async fn serve_view_share(
     Path(token): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Response {
-    use crate::shares::ShareStoreTrait;
-
     if state.share_store.is_share_locked(&token) {
         return ApiError::with_details(
             StatusCode::TOO_MANY_REQUESTS,
