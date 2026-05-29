@@ -56,7 +56,7 @@ rand = "0.9"
 sha2 = "0.11"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
 hmac = "0.13"
-bcrypt = "0.17"
+bcrypt = "0.19"
 subtle = "2"
 hex = "0.4"
 object_store = "0.11"

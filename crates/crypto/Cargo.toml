@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 thiserror = "2"
 async-trait = "0.1"
 ring = { version = "0.17", optional = true }
-bcrypt = { version = "0.17", optional = true }
+bcrypt = { version = "0.19", optional = true }
 base64 = { version = "0.22", optional = true }
 tokio = { workspace = true, features = ["rt"] }
 
