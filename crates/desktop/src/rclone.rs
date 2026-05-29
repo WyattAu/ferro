@@ -134,8 +134,20 @@ impl RcloneManager {
         info!("rclone started with PID {}", pid);
 
         let progress_clone = self.progress.clone();
-        let stderr = child.stderr.take().expect("stderr should be piped");
-        let stdout = child.stdout.take().expect("stdout should be piped");
+        let stderr = match child.stderr.take() {
+            Some(s) => s,
+            None => {
+                error!("rclone stderr not available despite Stdio::piped()");
+                return Err(anyhow::anyhow!("rclone stderr not available"));
+            }
+        };
+        let stdout = match child.stdout.take() {
+            Some(s) => s,
+            None => {
+                error!("rclone stdout not available despite Stdio::piped()");
+                return Err(anyhow::anyhow!("rclone stdout not available"));
+            }
+        };
 
         tokio::spawn(async move {
             let reader = BufReader::new(stderr);

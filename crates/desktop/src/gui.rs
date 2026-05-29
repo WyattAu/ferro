@@ -302,7 +302,7 @@ fn get_server_url() -> String {
     "http://localhost:8080".to_string()
 }
 
-pub fn run() {
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let config = DesktopConfig::default();
     let state = DesktopState::new(config);
 
@@ -364,7 +364,11 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .map_err(|e| {
+            tracing::error!("error while running tauri application: {e}");
+            e
+        })?;
+    Ok(())
 }
 
 #[cfg(test)]

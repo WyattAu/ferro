@@ -27,7 +27,17 @@ pub async fn get_actor(
     axum::extract::Path(username): axum::extract::Path<String>,
 ) -> Response {
     let base_url = &state.external_url;
-    let actor = actor::Actor::new(base_url, &username, &username);
+    let actor = match actor::Actor::new(base_url, &username, &username) {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::error!("failed to generate actor key pair: {e}");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to generate actor",
+            )
+                .into_response();
+        }
+    };
 
     (
         StatusCode::OK,

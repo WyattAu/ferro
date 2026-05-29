@@ -96,6 +96,6 @@ async fn main() -> anyhow::Result<()> {
 }
 
 #[cfg(feature = "tauri")]
-fn main() {
-    gui::run();
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    gui::run()?;
 }

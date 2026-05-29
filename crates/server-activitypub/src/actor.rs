@@ -32,16 +32,15 @@ pub struct Image {
     pub url: String,
 }
 
-fn generate_rsa_key_pem() -> String {
-    let key_pair =
-        rcgen::KeyPair::generate().expect("failed to generate RSA key pair for federation actor");
-    key_pair.serialize_pem()
+fn generate_rsa_key_pem() -> Result<String, rcgen::Error> {
+    let key_pair = rcgen::KeyPair::generate()?;
+    Ok(key_pair.serialize_pem())
 }
 
 impl Actor {
-    pub fn new(base_url: &str, username: &str, display_name: &str) -> Self {
+    pub fn new(base_url: &str, username: &str, display_name: &str) -> Result<Self, rcgen::Error> {
         let actor_id = format!("{}/fed/actor/{}", base_url, username);
-        Self {
+        Ok(Self {
             context: "https://www.w3.org/ns/activitystreams".to_string(),
             id: actor_id.clone(),
             r#type: "Service".to_string(),
@@ -55,10 +54,10 @@ impl Actor {
             public_key: PublicKey {
                 id: format!("{}#main-key", actor_id),
                 owner: actor_id,
-                public_key_pem: generate_rsa_key_pem(),
+                public_key_pem: generate_rsa_key_pem()?,
             },
             icon: None,
-        }
+        })
     }
 }
 
@@ -68,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_actor_serialization() {
-        let actor = Actor::new("https://files.example.com", "admin", "Admin");
+        let actor = Actor::new("https://files.example.com", "admin", "Admin").unwrap();
         let json = serde_json::to_string(&actor).unwrap();
         assert!(json.contains("\"type\":\"Service\""));
         assert!(json.contains("\"inbox\":"));
@@ -88,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_actor_has_real_public_key() {
-        let actor = Actor::new("https://files.example.com", "admin", "Admin");
+        let actor = Actor::new("https://files.example.com", "admin", "Admin").unwrap();
         assert!(
             actor.public_key.public_key_pem.contains("-----BEGIN"),
             "PEM should have BEGIN marker"
