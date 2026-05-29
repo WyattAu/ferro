@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780024618224,
+  "lastUpdate": 1780026237640,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -3382,6 +3382,168 @@ window.BENCHMARK_DATA = {
           {
             "name": "metadata_deserialize",
             "value": 840,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "Wyatt Au",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f71893a778b2778dab54759b7d569b4a44fc0c5b",
+          "message": "Merge pull request #19 from WyattAu/dependabot/cargo/bcrypt-0.19.1\n\nchore(deps): bump bcrypt from 0.17.1 to 0.19.1",
+          "timestamp": "2026-05-29T04:33:24+01:00",
+          "tree_id": "3b644d2bbd29de52f4f7bc7270778029620d090c",
+          "url": "https://github.com/WyattAu/ferro/commit/f71893a778b2778dab54759b7d569b4a44fc0c5b"
+        },
+        "date": 1780026237131,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300752925,
+            "range": "± 1794214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300747727,
+            "range": "± 1138601",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24534,
+            "range": "± 948",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24225,
+            "range": "± 771",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9016,
+            "range": "± 815",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 4961,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1240,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 974,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2740,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1388,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8139,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74847,
+            "range": "± 506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19304,
+            "range": "± 202",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 889,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 151,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 181,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 920,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 732,
             "range": "± 2",
             "unit": "ns/iter"
           },
