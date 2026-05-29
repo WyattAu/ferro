@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779884693650,
+  "lastUpdate": 1780022959677,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -3059,6 +3059,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 765,
             "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "45b500442841adc375d4c9250112a2c579181c40",
+          "message": "fix(docs,quality): resolve TD-013/014, update release criteria to 11/11\n\n- TD-013: Replace hardcoded version '2.5.1' with 'x.y.z' in 8 doc files\n  (JSON examples, security docs) to prevent version drift\n- TD-014: Deprecate --cors-origins flag (hidden from --help),\n  add deprecation notice in configuration.md\n- Update Phase 5 release criteria: 11/11 satisfied (soak test passed)\n- Update ROADMAP.md with session 5 soak test results (21,600+ req, 0 failures)\n- Update VERSION.md to reflect 11/11 release criteria met\n- Add load-test-results.json and root package-lock.json to .gitignore",
+          "timestamp": "2026-05-29T03:28:01+01:00",
+          "tree_id": "f69ddc72c37600f0f0f18ba97c9d7f044e27761e",
+          "url": "https://github.com/WyattAu/ferro/commit/45b500442841adc375d4c9250112a2c579181c40"
+        },
+        "date": 1780022958911,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267537508,
+            "range": "± 1349189",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267128396,
+            "range": "± 138610",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28778,
+            "range": "± 2467",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 29014,
+            "range": "± 2455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9051,
+            "range": "± 58",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 4977,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1162,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 897,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2786,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1331,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7327,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66373,
+            "range": "± 230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 88,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18866,
+            "range": "± 92",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 877,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 188,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 856,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 847,
+            "range": "± 14",
             "unit": "ns/iter"
           },
           {
