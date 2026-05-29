@@ -6,6 +6,7 @@ pub mod audit;
 pub mod auth;
 pub mod backup;
 pub mod batch;
+pub mod branding;
 pub mod bulk;
 pub mod config;
 pub mod conflict;
@@ -16,6 +17,8 @@ pub mod error;
 pub mod events;
 pub mod favorites;
 pub mod fs_util;
+pub mod gdpr;
+pub mod guests;
 pub mod federation {
     pub use ferro_server_activitypub::FederationState;
     pub use ferro_server_activitypub::store::ActivityStore;
@@ -109,6 +112,7 @@ pub mod preferences;
 pub mod presigned;
 pub mod prometheus_metrics;
 pub mod quota;
+pub mod range_get;
 pub mod rate_limit;
 pub mod read_cache;
 #[cfg(feature = "redis")]
@@ -121,6 +125,7 @@ pub mod search;
 pub mod security;
 pub mod security_headers;
 pub mod shares;
+pub mod shares_ext;
 pub mod simple_auth;
 pub mod snapshots;
 pub mod storage;
@@ -869,6 +874,47 @@ fn api_routes(
             "/admin/users/{id}/reset-password",
             axum::routing::post(user_api::reset_password),
         )
+        // Branding (G-09)
+        .route(
+            "/admin/branding",
+            axum::routing::get(branding::get_branding)
+                .put(branding::update_branding)
+                .delete(branding::reset_branding),
+        )
+        // Guest accounts (G-10)
+        .route(
+            "/admin/guests",
+            axum::routing::post(guests::create_guest).get(guests::list_guests),
+        )
+        .route(
+            "/admin/guests/{id}",
+            axum::routing::delete(guests::revoke_guest),
+        )
+        // Data retention policies (G-23)
+        .route(
+            "/admin/retention",
+            axum::routing::post(guests::create_retention_policy)
+                .get(guests::list_retention_policies),
+        )
+        .route(
+            "/admin/retention/{id}",
+            axum::routing::delete(guests::delete_retention_policy),
+        )
+        // GDPR compliance (G-13)
+        .route("/admin/gdpr", axum::routing::get(gdpr::list_gdpr_requests))
+        .route(
+            "/admin/users/{id}/export",
+            axum::routing::post(gdpr::request_data_export).get(gdpr::get_data_export_status),
+        )
+        .route(
+            "/admin/users/{id}/data",
+            axum::routing::delete(gdpr::request_data_erasure),
+        )
+        // Extended shares (G-24, G-25)
+        .route(
+            "/shares/ext",
+            axum::routing::post(shares_ext::create_share_ext),
+        )
         .route(
             "/users/me",
             axum::routing::get(user_api::get_current_user).put(user_api::update_current_user),
@@ -1166,6 +1212,19 @@ pub fn build_router_with_static(
         .route("/readyz", axum::routing::get(readiness))
         .route("/startupz", axum::routing::get(startup))
         .route("/s/:token", axum::routing::get(shares::serve_share))
+        // Extended share endpoints (G-24, G-25)
+        .route(
+            "/s/:token/upload",
+            axum::routing::post(shares_ext::upload_to_share),
+        )
+        .route(
+            "/s/:token/uploads",
+            axum::routing::get(shares_ext::list_share_uploads),
+        )
+        .route(
+            "/s/:token/view",
+            axum::routing::get(shares_ext::serve_view_share),
+        )
         .nest(
             "/wopi",
             ferro_server_wopi::routes::<AppState>().layer(axum::Extension(
