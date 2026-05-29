@@ -20,7 +20,10 @@ static WEBHOOK_CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLoc
         .timeout(std::time::Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(10))
         .build()
-        .expect("Failed to build webhook HTTP client")
+        .unwrap_or_else(|e| {
+            tracing::error!("Failed to build webhook HTTP client: {e}");
+            reqwest::Client::new()
+        })
 });
 
 /// Configuration for a webhook subscription.
@@ -54,8 +57,13 @@ pub fn sign_payload(secret: &str, payload: &[u8]) -> String {
 
     type HmacSha256 = Hmac<Sha256>;
 
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-        .expect("HMAC key initialization failed — this is a ring library invariant");
+    let mut mac = match HmacSha256::new_from_slice(secret.as_bytes()) {
+        Ok(m) => m,
+        Err(_) => {
+            tracing::error!("webhook secret is too long for HMAC key — skipping signature");
+            return String::new();
+        }
+    };
     mac.update(payload);
     let result = mac.finalize();
     hex::encode(result.into_bytes())

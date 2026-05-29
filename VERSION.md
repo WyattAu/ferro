@@ -170,4 +170,4 @@
 ## Clippy: 0 warnings (with all features: s3,gcs,azure,pg,redis,ldap)
 ## Security: cargo-deny clean, advisories/bans/licenses/sources ok
 ## Error Level: None
-## Rollback Checkpoint: main@881364e (Phase 5 release candidate, 2026-05-27)
+## Rollback Checkpoint: main@45b5004 (Phase 5 release candidate, 2026-05-29)

@@ -11,7 +11,10 @@ static FEDERATION_CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::Lazy
         .timeout(std::time::Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(10))
         .build()
-        .expect("Failed to build federation HTTP client")
+        .unwrap_or_else(|e| {
+            tracing::error!("Failed to build federation HTTP client: {e}");
+            reqwest::Client::new()
+        })
 });
 
 pub async fn deliver_to_followers(

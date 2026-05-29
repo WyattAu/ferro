@@ -553,9 +553,10 @@ async fn main() -> anyhow::Result<()> {
         let store = ferro_server::users::InMemoryUserStore::new();
         match admin {
             Some(user) => {
-                store.create_user(user).await.expect(
-                    "Failed to create initial admin user -- this should never fail with in-memory store",
-                );
+                if let Err(e) = store.create_user(user).await {
+                    tracing::error!("Failed to create initial admin user: {:?}", e);
+                    std::process::exit(1);
+                }
             }
             None => {
                 tracing::error!("Failed to hash admin password. Check system resources.");
@@ -815,7 +816,7 @@ async fn main() -> anyhow::Result<()> {
     let std_listener = std::net::TcpListener::bind(&addr)?;
     std_listener
         .set_nonblocking(true)
-        .expect("failed to set non-blocking");
+        .map_err(|e| anyhow::anyhow!("failed to set non-blocking on listener: {e}"))?;
     let listener = tokio::net::TcpListener::from_std(std_listener)?;
 
     // Mark startup as complete — all verification checks passed.
@@ -993,8 +994,20 @@ fn parse_bucket_from_url(url: &str) -> anyhow::Result<String> {
 #[cfg(unix)]
 async fn shutdown_signal(cancel: CancellationToken) {
     use tokio::signal::unix::{SignalKind, signal};
-    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
-    let mut sigint = signal(SignalKind::interrupt()).expect("Failed to install SIGINT handler");
+    let mut sigterm = match signal(SignalKind::terminate()) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("Failed to install SIGTERM handler: {e}");
+            std::process::exit(1);
+        }
+    };
+    let mut sigint = match signal(SignalKind::interrupt()) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("Failed to install SIGINT handler: {e}");
+            std::process::exit(1);
+        }
+    };
     tokio::select! {
         _ = sigterm.recv() => info!("Received SIGTERM, starting graceful shutdown"),
         _ = sigint.recv()  => info!("Received SIGINT, starting graceful shutdown"),
@@ -1004,16 +1017,18 @@ async fn shutdown_signal(cancel: CancellationToken) {
 
 #[cfg(not(unix))]
 async fn shutdown_signal(cancel: CancellationToken) {
-    tokio::signal::ctrl_c()
-        .await
-        .expect("Failed to install ctrl-c handler");
+    if let Err(e) = tokio::signal::ctrl_c().await {
+        tracing::error!("Failed to install ctrl-c handler: {e}");
+        std::process::exit(1);
+    }
     info!("Received Ctrl-C, starting graceful shutdown");
     cancel.cancel();
 }
 
 #[cfg(not(unix))]
 async fn shutdown_signal() {
-    tokio::signal::ctrl_c()
-        .await
-        .expect("Failed to install ctrl-c handler");
+    if let Err(e) = tokio::signal::ctrl_c().await {
+        tracing::error!("Failed to install ctrl-c handler: {e}");
+        std::process::exit(1);
+    }
 }

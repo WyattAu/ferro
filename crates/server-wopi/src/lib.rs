@@ -464,8 +464,16 @@ pub async fn wopi_issue_token(
     });
 
     let payload_str = serde_json::to_string(&token_payload).unwrap_or_default();
-    let mut mac = hmac::Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes())
-        .expect("HMAC key exceeds block size — this should never happen with reasonable secrets");
+    let mut mac = match hmac::Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes()) {
+        Ok(m) => m,
+        Err(_) => {
+            return wopi_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "HMAC_KEY_ERROR",
+                "WOPI token secret is too long for HMAC key",
+            );
+        }
+    };
     mac.update(payload_str.as_bytes());
     let signature = mac.finalize();
     let sig_hex = hex::encode(signature.into_bytes());

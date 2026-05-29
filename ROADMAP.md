@@ -624,9 +624,9 @@ Items that should be addressed during normal development:
 | TD-006 | CalDAV/CardDAV implementation incomplete | Low | Future sprint |
 | TD-007 | Desktop crate has no CI build | Low | Phase 6.1 |
 | TD-008 | Benchmark regression threshold too lenient (150%) | Low | Reduce to 120% (DONE in bench.yml) |
-| TD-009 | `utoipa-swagger-ui` build requires network (downloads zip) | Low | Vendor or cache in CI |
+| TD-009 | ~~`utoipa-swagger-ui` build requires network (downloads zip)~~ RESOLVED | ~~Low~~ Done | 2026-05-29 (enabled `vendored` feature for offline builds) |
 | TD-010 | ~~Some docker-compose files use `latest` tags~~ RESOLVED | Low | Done 2026-05-26 (all pinned to SHA) |
-| TD-011 | ~1274 production `unwrap()` calls | Medium | Gradual replacement with proper error handling |
+| TD-011 | ~1274 production `unwrap()` calls | Medium | Updated: actual count is ~44 panicking calls in prod (rest are in test code). Top 10 replaced with proper error handling 2026-05-29. |
 | TD-012 | ~~5 Playwright `test.fixme()` / `test.skip()` in E2E suite~~ RESOLVED | ~~Medium~~ Done | 2026-05-26 (all 5 converted to active tests) |
 | TD-013 | ~~`docs/src/api/rest.md` hardcodes version "2.5.1" in example~~ RESOLVED | ~~Low~~ Done | 2026-05-29 (replaced with "x.y.z" in 8 files) |
 | TD-014 | ~~Dual CORS flag names (`--cors-allowed-origins` and `--cors-origins`)~~ RESOLVED | ~~Low~~ Done | 2026-05-29 (deprecated --cors-origins, hidden from --help) |
@@ -635,7 +635,7 @@ Items that should be addressed during normal development:
 | TD-017 | `server-activitypub/src/store.rs` poisoned lock recovery (`unwrap_or_else(|e| e.into_inner())`) | Medium | Replace with proper error handling |
 | TD-018 | 60 `unsafe` blocks lack SAFETY doc comments | Low | Add per-Rust-convention SAFETY comments to FFI and libc blocks |
 | TD-019 | 70+ API endpoints undocumented in docs/api.md | High | Add admin, trash, tags, batch, sync, chunked upload endpoints |
-| TD-020 | ~1274 production `unwrap()` calls | Medium | Gradual replacement with proper error handling (ongoing) |
+| TD-020 | ~34 remaining production `expect()` calls | Medium | Top 10 highest-risk replaced 2026-05-29. Remaining are browser/WASM invariants and compile-time constants. |
 | TD-021 | Benchmark auto-push to `bench-data` branch flaky | Low | GitHub infrastructure issue; retry or disable auto-push |
 | TD-022 | `benchmark-action` Node.js 20 deprecation warning | Low | Update to Node.js 24-compatible action version |
 
@@ -675,12 +675,10 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 | 1 | ~~P0~~ | ~~Run 24h soak test with `load-test/soak-test.js`~~ | DONE (2026-05-29: 1h zero-defect) |
 | 2 | P1 | External penetration test execution | Pending (external party) |
 | 3 | ~~P1~~ | ~~Document 70+ undocumented API endpoints in docs/api.md~~ | DONE (TD-019 resolved) |
-| 4 | P2 | Vendor `utoipa-swagger-ui` zip for offline CI builds | TD-009 (deferred) |
+| 4 | ~~P2~~ | ~~Vendor `utoipa-swagger-ui` zip for offline CI builds~~ | DONE (TD-009 resolved 2026-05-29) |
 | 5 | ~~P2~~ | ~~Propagate DB errors in `pg_state.rs` and `lib.rs`~~ | DONE (TD-015 resolved) |
-| 6 | P2 | Gradual `unwrap()` reduction in production code (~1274 calls) | Ongoing (TD-011/020) |
+| 6 | ~~P2~~ | ~~Gradual `unwrap()` reduction in production code~~ | DONE (top 10 replaced 2026-05-29, ~34 low-risk remaining) |
 | 7 | ~~P2~~ | ~~Add SAFETY doc comments to 60 `unsafe` blocks~~ | DONE (TD-018 resolved) |
-| 6 | P2 | Gradual `unwrap()` reduction in production code (~1274 calls) | Ongoing |
-| 7 | P2 | Add SAFETY doc comments to 60 `unsafe` blocks | 1 day |
 
 ---
 

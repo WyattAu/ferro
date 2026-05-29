@@ -72,7 +72,7 @@ rcgen = { version = "0.13", features = ["x509-parser"] }
 async-graphql = "7"
 rusqlite = { version = "0.32", features = ["bundled", "trace"] }
 utoipa = { version = "5", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "8", features = ["axum"] }
+utoipa-swagger-ui = { version = "8", features = ["axum", "vendored"] }
 
 [dev-dependencies]
 http-body-util = "0.1"
