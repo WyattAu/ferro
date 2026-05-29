@@ -217,8 +217,8 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_API_VERSION", default_value = "v1")]
     pub api_version: String,
 
-    /// Comma-separated list of allowed CORS origins (alternative flag, same as --cors-allowed-origins).
-    #[arg(long, env = "FERRO_CORS_ORIGINS", default_value = "*")]
+    /// Deprecated: use --cors-allowed-origins instead.
+    #[arg(long, env = "FERRO_CORS_ORIGINS", default_value = "*", hide = true)]
     pub cors_origins: String,
 
     /// PostgreSQL database URL for distributed state (shares, favorites, preferences).

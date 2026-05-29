@@ -15,7 +15,7 @@ curl http://localhost:8080/api/admin/stats \
 
 ```json
 {
-  "version": "2.5.1",
+  "version": "x.y.z",
   "uptime_seconds": 3600,
   "total_files": 42,
   "total_directories": 7,

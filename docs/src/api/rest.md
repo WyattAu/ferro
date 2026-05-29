@@ -17,7 +17,7 @@ curl http://localhost:8080/.well-known/ferro
 ```json
 {
   "status": "ok",
-  "version": "2.5.1",
+  "version": "x.y.z",
   "uptime_seconds": 3600,
   "subsystems": {
     "storage": "ok",
@@ -62,7 +62,7 @@ curl http://localhost:8080/api/config
 
 ```json
 {
-  "version": "2.5.1",
+  "version": "x.y.z",
   "auth_enabled": true,
   "search_enabled": true,
   "wasm_workers_enabled": false,

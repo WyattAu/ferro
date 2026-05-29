@@ -1,7 +1,7 @@
 # STRIDE Threat Model — Ferro Storage Server
 
 **Last updated**: 2026-05-14
-**Ferro version**: v2.5.1
+**Ferro version**: x.y.z
 **Author**: Security audit preparation
 
 ---

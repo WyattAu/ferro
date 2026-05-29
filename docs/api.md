@@ -13,7 +13,7 @@ Returns a JSON health check response with subsystem status.
 ```json
 {
   "status": "ok",
-  "version": "2.5.1",
+  "version": "x.y.z",
   "uptime_seconds": 3600,
   "subsystems": {
     "database": "ok",
@@ -42,7 +42,7 @@ Returns server configuration and enabled capabilities.
 
 ```json
 {
-  "version": "2.5.1",
+  "version": "x.y.z",
   "auth_enabled": false,
   "search_enabled": true,
   "wasm_workers_enabled": false,

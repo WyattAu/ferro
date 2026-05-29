@@ -46,6 +46,7 @@ result-*
 
 # Node (trunk/WASM dependencies)
 node_modules/
+/package-lock.json
 
 # Docker
 .docker/
@@ -64,6 +65,9 @@ tarpaulin-report.html
 # Playwright
 e2e/test-results/
 playwright-report/
+
+# Load test artifacts
+load-test-results.json
 
 # Proptest
 *.proptest-regressions*

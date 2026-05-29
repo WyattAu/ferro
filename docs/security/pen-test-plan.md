@@ -1,4 +1,4 @@
-# Penetration Test Plan — Ferro v2.5.1
+# Penetration Test Plan — Ferro x.y.z
 
 **Last updated**: 2026-05-14
 **Target**: Ferro storage server

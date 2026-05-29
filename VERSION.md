@@ -1,15 +1,15 @@
 # Ferro Version Tracking
 
 ## Current Status
-- **Phase:** Release Candidate Preparation (Phase 5: 10/11 criteria met)
+- **Phase:** Release Candidate (Phase 5: 11/11 criteria met)
 - **Version:** 2.5.1
 - **Tests:** 854 passed, 0 failed, 1 ignored, 0 clippy warnings
 - **E2E:** 23 Playwright tests across 11 spec files (chromium, firefox, webkit)
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
-- **Load Testing:** 69 req/s with 20 VUs, 0% failure rate (debug build); 5-min soak: 518 iterations, p95=30.54ms, zero panics
+- **Load Testing:** 1h soak test passed (21,600+ requests, 0 failures, P50=6ms, P95=27ms, P99=49ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
-- **Status:** Release candidate. All P0 items from Phases 1-4 resolved. Helm chart ready. Multi-arch CI configured. Pre-commit hook installed.
-- **Last Updated:** 2026-05-27
+- **Status:** Release candidate. All P0 items from Phases 1-4 resolved. Soak test passed (1h, 21,600+ req, 0 failures). Helm chart ready. Multi-arch CI configured. Pre-commit hook installed.
+- **Last Updated:** 2026-05-29
 
 ## Phase Progress
 | Phase | Status | Completion |

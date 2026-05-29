@@ -45,7 +45,7 @@ curl https://ferro-a.example.com/fed/nodeinfo
   "version": "2.1",
   "software": {
     "name": "ferro",
-    "version": "2.5.1"
+    "version": "x.y.z"
   },
   "protocols": ["activitypub", "webfinger", "dav"],
   "services": {
