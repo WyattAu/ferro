@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780022959677,
+  "lastUpdate": 1780024618224,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -3221,6 +3221,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 847,
             "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "1803972cd0a96d5ef10ee45fa8889c8854aca9cc",
+          "message": "fix(quality): resolve TD-009, replace top 10 high-risk panicking calls\n\n- TD-009: Enable 'vendored' feature on utoipa-swagger-ui for offline builds\n  (eliminates build-time network dependency on swagger-ui zip download)\n- Replace expect() in main.rs TCP listener with proper error propagation\n- Replace expect() in main.rs admin user creation with error logging + exit\n- Replace expect() in WOPI HMAC init with proper error response\n- Replace expect() in webhook HMAC init with error logging + graceful skip\n- Replace expect() in federation/webhook reqwest clients with fallback\n- Replace expect() in signal handlers with error logging + exit\n- Update ROADMAP: TD-009 resolved, unwrap/expect count corrected to ~34\n- All 854 tests pass, 0 clippy warnings",
+          "timestamp": "2026-05-29T04:04:48+01:00",
+          "tree_id": "9bba546933c735d94b1e7ee021d507a90853b41f",
+          "url": "https://github.com/WyattAu/ferro/commit/1803972cd0a96d5ef10ee45fa8889c8854aca9cc"
+        },
+        "date": 1780024617469,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267166511,
+            "range": "± 294917",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267141466,
+            "range": "± 447710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 29839,
+            "range": "± 2442",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28272,
+            "range": "± 2115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9139,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5102,
+            "range": "± 117",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1180,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 902,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2729,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1347,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7365,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66378,
+            "range": "± 277",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18664,
+            "range": "± 45",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 916,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 76,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 178,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 187,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 861,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 840,
+            "range": "± 2",
             "unit": "ns/iter"
           },
           {
