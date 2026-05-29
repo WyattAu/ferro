@@ -134,9 +134,9 @@ pub mod storage_health;
 pub mod sync;
 pub mod tags;
 pub mod thumbnails;
-pub mod triggers;
 pub mod totp_api;
 pub mod trash;
+pub mod triggers;
 pub mod upload;
 pub mod user_api;
 pub mod user_paths;
@@ -903,14 +903,10 @@ fn api_routes(
             axum::routing::delete(guests::delete_retention_policy),
         )
         // GDPR compliance (G-13)
-        .route(
-            "/admin/gdpr",
-            axum::routing::get(gdpr::list_gdpr_requests),
-        )
+        .route("/admin/gdpr", axum::routing::get(gdpr::list_gdpr_requests))
         .route(
             "/admin/users/{id}/export",
-            axum::routing::post(gdpr::request_data_export)
-                .get(gdpr::get_data_export_status),
+            axum::routing::post(gdpr::request_data_export).get(gdpr::get_data_export_status),
         )
         .route(
             "/admin/users/{id}/data",
@@ -919,8 +915,7 @@ fn api_routes(
         // Event triggers (G-16)
         .route(
             "/admin/triggers",
-            axum::routing::post(triggers::create_trigger)
-                .get(triggers::list_triggers),
+            axum::routing::post(triggers::create_trigger).get(triggers::list_triggers),
         )
         .route(
             "/admin/triggers/{id}",

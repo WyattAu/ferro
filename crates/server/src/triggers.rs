@@ -3,7 +3,7 @@
 //! Extends the existing event dispatch system to support user-defined
 //! event handlers that trigger on file operations (upload, delete, move, copy).
 
-use axum::extract::{Path, State};
+use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use rusqlite::params;
@@ -114,15 +114,15 @@ impl TriggerStore {
                 if !t.enabled || t.event != event {
                     return false;
                 }
-                if let Some(ref prefix) = t.path_prefix {
-                    if !path.starts_with(prefix.as_str()) {
-                        return false;
-                    }
+                if let Some(ref prefix) = t.path_prefix
+                    && !path.starts_with(prefix.as_str())
+                {
+                    return false;
                 }
-                if let Some(ref pattern) = t.path_pattern {
-                    if !simple_glob_match(pattern, path) {
-                        return false;
-                    }
+                if let Some(ref pattern) = t.path_pattern
+                    && !simple_glob_match(pattern, path)
+                {
+                    return false;
                 }
                 true
             })
@@ -146,10 +146,7 @@ impl TriggerStore {
     fn persist_delete(&self, id: &str) {
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-            if let Err(e) = conn.execute(
-                "DELETE FROM event_triggers WHERE id = ?1",
-                params![id],
-            ) {
+            if let Err(e) = conn.execute("DELETE FROM event_triggers WHERE id = ?1", params![id]) {
                 tracing::warn!(error = %e, "failed to delete event trigger");
             }
         }
@@ -193,9 +190,7 @@ impl Default for TriggerStore {
 // ---------------------------------------------------------------------------
 
 /// `POST /api/admin/triggers`
-pub async fn create_trigger(
-    axum::Json(req): axum::Json<CreateTriggerRequest>,
-) -> Response {
+pub async fn create_trigger(axum::Json(req): axum::Json<CreateTriggerRequest>) -> Response {
     let trigger = EventTrigger {
         id: uuid::Uuid::new_v4().to_string(),
         name: req.name,
@@ -236,9 +231,7 @@ pub async fn list_triggers() -> Response {
 }
 
 /// `DELETE /api/admin/triggers/{id}`
-pub async fn delete_trigger(
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_trigger(Path(id): Path<String>) -> Response {
     if trigger_store().remove(&id).await {
         (StatusCode::NO_CONTENT, "").into_response()
     } else {
@@ -247,9 +240,7 @@ pub async fn delete_trigger(
 }
 
 /// `POST /api/admin/triggers/{id}/toggle`
-pub async fn toggle_trigger(
-    Path(id): Path<String>,
-) -> Response {
+pub async fn toggle_trigger(Path(id): Path<String>) -> Response {
     let store = trigger_store();
     let mut triggers = store.triggers.write().await;
     if let Some(trigger) = triggers.iter_mut().find(|t| t.id == id) {
@@ -282,11 +273,7 @@ pub async fn toggle_trigger(
 // ---------------------------------------------------------------------------
 
 /// Evaluate triggers after a file event.
-pub async fn evaluate_triggers(
-    event_type: &str,
-    path: &str,
-    _size: Option<u64>,
-) {
+pub async fn evaluate_triggers(event_type: &str, path: &str, _size: Option<u64>) {
     let matching = trigger_store().find_matching(event_type, path).await;
     for trigger in matching {
         tracing::info!(
@@ -326,10 +313,8 @@ fn simple_glob_match(pattern: &str, path: &str) -> bool {
     if parts.len() == 2 {
         let (prefix, suffix) = (parts[0], parts[1]);
         path.starts_with(prefix) && path.ends_with(suffix)
-    } else if parts.len() == 1 && parts[0].is_empty() {
-        true
     } else {
-        false
+        parts.len() == 1 && parts[0].is_empty()
     }
 }
 
@@ -374,10 +359,14 @@ mod tests {
             };
             store.add(trigger).await;
 
-            let matching = store.find_matching("file.upload", "/documents/report.pdf").await;
+            let matching = store
+                .find_matching("file.upload", "/documents/report.pdf")
+                .await;
             assert_eq!(matching.len(), 1);
 
-            let no_match = store.find_matching("file.upload", "/images/photo.jpg").await;
+            let no_match = store
+                .find_matching("file.upload", "/images/photo.jpg")
+                .await;
             assert!(no_match.is_empty());
         });
     }

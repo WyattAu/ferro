@@ -146,10 +146,9 @@ pub fn load_branding(state: &AppState) -> BrandingConfig {
             "SELECT value FROM preferences WHERE key = 'branding'",
             [],
             |row| row.get::<_, String>(0),
-        ) {
-            if let Ok(config) = serde_json::from_str::<BrandingConfig>(&value) {
-                return config;
-            }
+        ) && let Ok(config) = serde_json::from_str::<BrandingConfig>(&value)
+        {
+            return config;
         }
     }
     BrandingConfig::default()

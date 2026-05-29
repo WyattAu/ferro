@@ -61,19 +61,18 @@ pub fn parse_range_header(headers: &HeaderMap, _content_length: u64) -> Option<R
         if spec.is_empty() {
             continue;
         }
-        let (start_str, end_str): (Option<&str>, Option<&str>) = if spec.starts_with('-') {
-            // suffix range: -N
-            (None, Some(spec[1..].trim()))
-        } else if spec.ends_with('-') {
-            // range from start: N-
-            (Some(spec[..spec.len() - 1].trim()), None)
-        } else {
-            let parts: Vec<&str> = spec.splitn(2, '-').collect();
-            if parts.len() != 2 {
-                continue;
-            }
-            (Some(parts[0].trim()), Some(parts[1].trim()))
-        };
+        let (start_str, end_str): (Option<&str>, Option<&str>) =
+            if let Some(rest) = spec.strip_prefix('-') {
+                (None, Some(rest.trim()))
+            } else if let Some(rest) = spec.strip_suffix('-') {
+                (Some(rest.trim()), None)
+            } else {
+                let parts: Vec<&str> = spec.splitn(2, '-').collect();
+                if parts.len() != 2 {
+                    continue;
+                }
+                (Some(parts[0].trim()), Some(parts[1].trim()))
+            };
 
         let start = start_str.and_then(|s| u64::from_str(s).ok());
         let end = end_str.and_then(|s| u64::from_str(s).ok());

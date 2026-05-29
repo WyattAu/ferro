@@ -414,7 +414,7 @@ fn get_latest_gdpr_request(
 ) -> Option<(String, String, Option<String>)> {
     if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        match conn.query_row(
+        conn.query_row(
             "SELECT id, status, result_path FROM gdpr_requests WHERE user_id = ?1 AND request_type = ?2 ORDER BY created_at DESC LIMIT 1",
             params![user_id, request_type],
             |row| Ok((
@@ -422,10 +422,8 @@ fn get_latest_gdpr_request(
                 row.get::<_, String>(1)?,
                 row.get::<_, Option<String>>(2)?,
             )),
-        ) {
-            Ok(req) => Some(req),
-            Err(_) => None,
-        }
+        )
+        .ok()
     } else {
         None
     }

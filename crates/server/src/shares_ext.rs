@@ -15,18 +15,13 @@ use crate::api_error::ApiError;
 // ---------------------------------------------------------------------------
 
 /// The type of share link.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ShareType {
+    #[default]
     Download,
     Upload,
     View,
-}
-
-impl Default for ShareType {
-    fn default() -> Self {
-        Self::Download
-    }
 }
 
 impl std::fmt::Display for ShareType {
@@ -86,26 +81,24 @@ pub async fn create_share_ext(
 ) -> Response {
     use crate::shares::CreateShareRequest;
 
-    if req.share_type == ShareType::Upload {
-        if let Ok(meta) = state.storage.head(&req.path).await {
-            if !meta.is_collection {
-                return ApiError::bad_request(
-                    ApiError::INVALID_INPUT,
-                    "Upload share target must be a directory",
-                );
-            }
-        }
+    if req.share_type == ShareType::Upload
+        && let Ok(meta) = state.storage.head(&req.path).await
+        && !meta.is_collection
+    {
+        return ApiError::bad_request(
+            ApiError::INVALID_INPUT,
+            "Upload share target must be a directory",
+        );
     }
 
-    if req.share_type == ShareType::View {
-        if let Ok(meta) = state.storage.head(&req.path).await {
-            if meta.is_collection {
-                return ApiError::bad_request(
-                    ApiError::INVALID_INPUT,
-                    "View share target must be a file, not a directory",
-                );
-            }
-        }
+    if req.share_type == ShareType::View
+        && let Ok(meta) = state.storage.head(&req.path).await
+        && meta.is_collection
+    {
+        return ApiError::bad_request(
+            ApiError::INVALID_INPUT,
+            "View share target must be a file, not a directory",
+        );
     }
 
     let base_req = CreateShareRequest {
@@ -191,24 +184,23 @@ pub async fn upload_to_share(
     let file_name = format!("upload_{}", uuid::Uuid::new_v4());
     let target_path = format!("{}/{}", link.path.trim_end_matches('/'), file_name);
 
-    if let Err(_) = state.storage.head(&link.path).await {
-        if let Err(e) = state
+    if state.storage.head(&link.path).await.is_err()
+        && let Err(e) = state
             .storage
             .create_collection(&link.path, "anonymous")
             .await
-        {
-            tracing::warn!(error = %e, path = %link.path, "failed to create upload target directory");
-            return ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                "Failed to create upload directory",
-            );
-        }
+    {
+        tracing::warn!(error = %e, path = %link.path, "failed to create upload target directory");
+        return ApiError::internal(
+            ApiError::INTERNAL_ERROR,
+            "Failed to create upload directory",
+        );
     }
 
     let content_type = sniff_mime_type(&file_name);
     if let Err(e) = state
         .storage
-        .put(&target_path, bytes.clone().into(), "anonymous")
+        .put(&target_path, bytes.clone(), "anonymous")
         .await
     {
         tracing::warn!(error = %e, path = %target_path, "failed to store uploaded file");
@@ -440,6 +432,7 @@ fn get_allow_download(state: &AppState, token: &str) -> bool {
     true
 }
 
+#[cfg(test)]
 fn sanitize_filename(name: &str) -> String {
     name.chars()
         .map(|c| {

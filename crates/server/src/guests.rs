@@ -49,21 +49,16 @@ pub async fn create_guest(
     let expires_at = Utc::now() + Duration::hours(req.expires_in_hours.unwrap_or(72));
 
     // Check that the username is not already taken
-    let guest_username = format!(
-        "guest_{}",
-        uuid::Uuid::new_v4().to_string()[..8].to_string()
-    );
+    let uuid_str = uuid::Uuid::new_v4().to_string();
+    let guest_username = format!("guest_{}", &uuid_str[..8]);
     let guest_id = uuid::Uuid::new_v4().to_string();
 
     // Generate a random password for the guest
     let password = generate_guest_password();
     let password_hash = match ferro_auth::users::hash_password(&password) {
         Ok(h) => h,
-        Err(e) => {
-            return ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                &format!("Failed to hash password"),
-            );
+        Err(_) => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to hash password");
         }
     };
 
