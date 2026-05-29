@@ -128,6 +128,7 @@ pub mod storage_health;
 pub mod sync;
 pub mod tags;
 pub mod thumbnails;
+pub mod totp_api;
 pub mod trash;
 pub mod upload;
 pub mod user_api;
@@ -685,6 +686,23 @@ fn api_routes(
             "/auth/change-password",
             axum::routing::post(api::auth_change_password),
         )
+        // TOTP two-factor authentication
+        .route(
+            "/auth/totp/setup",
+            axum::routing::post(totp_api::totp_setup),
+        )
+        .route(
+            "/auth/totp/enable",
+            axum::routing::post(totp_api::totp_enable),
+        )
+        .route(
+            "/auth/totp/disable",
+            axum::routing::post(totp_api::totp_disable),
+        )
+        .route(
+            "/auth/totp/status",
+            axum::routing::get(totp_api::totp_status),
+        )
         .route("/search", axum::routing::get(search::handle_search))
         .route(
             "/workers",
@@ -885,6 +903,27 @@ fn api_routes(
         .route(
             "/sync/status",
             axum::routing::get(sync::events::sync_status),
+        )
+        // Block sync protocol
+        .route(
+            "/sync/blocks/manifest",
+            axum::routing::get(sync::blocks::get_manifest),
+        )
+        .route(
+            "/sync/blocks/upload",
+            axum::routing::post(sync::blocks::upload_blocks),
+        )
+        .route(
+            "/sync/blocks/check",
+            axum::routing::get(sync::blocks::check_blocks),
+        )
+        .route(
+            "/sync/blocks/assemble",
+            axum::routing::post(sync::blocks::assemble_file),
+        )
+        .route(
+            "/sync/blocks/{hash}",
+            axum::routing::get(sync::blocks::get_block),
         )
         .route("/ws", axum::routing::get(ws::ws_handler))
         .route("/upload/init", axum::routing::post(upload::init_upload))

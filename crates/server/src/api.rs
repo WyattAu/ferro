@@ -270,6 +270,8 @@ pub async fn auth_change_password(
                 storage_used_bytes: 0,
                 is_ldap: false,
                 password_hash: Some(new_hash),
+                totp_secret: None,
+                totp_enabled: false,
             };
             let _ = state.user_store.create_user(admin_user).await;
         }

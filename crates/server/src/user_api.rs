@@ -61,6 +61,8 @@ pub async fn create_user(
                 return ApiError::internal(ApiError::INTERNAL_ERROR, e.message).into_response();
             }
         },
+        totp_secret: None,
+        totp_enabled: false,
     };
 
     match state.user_store.create_user(user).await {

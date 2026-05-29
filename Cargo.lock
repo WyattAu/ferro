@@ -2707,12 +2707,15 @@ dependencies = [
  "chrono",
  "dashmap 6.1.0",
  "ferro-common",
+ "hmac 0.12.1",
  "http-body-util",
  "jsonwebtoken",
+ "rand 0.9.4",
  "reqwest 0.12.28",
  "rusqlite",
  "serde",
  "serde_json",
+ "sha1",
  "subtle",
  "tokio",
  "tower",
@@ -2852,12 +2855,16 @@ name = "ferro-desktop"
 version = "2.5.1"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
+ "chrono",
  "clap",
  "ferro-common",
+ "hex",
  "reqwest 0.12.28",
  "roxmltree 0.20.0",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -2869,6 +2876,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "walkdir",
 ]
 
 [[package]]

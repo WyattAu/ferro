@@ -34,6 +34,14 @@ mobile = [
     "dep:roxmltree",
     "dep:reqwest",
 ]
+sync = [
+    "dep:reqwest",
+    "dep:walkdir",
+    "dep:sha2",
+    "dep:hex",
+    "dep:base64",
+    "dep:roxmltree",
+]
 
 [dependencies]
 ferro-common = { package = "ferro-common", path = "../common" }
@@ -53,6 +61,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4", features = ["derive"] }
 uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
+chrono = "0.4"
+walkdir = { version = "2", optional = true }
+sha2 = { version = "0.10", optional = true }
+hex = { version = "0.4", optional = true }
+base64 = { version = "0.22", optional = true }
 
 [build-dependencies]
 tauri-build = { version = "2", optional = true }

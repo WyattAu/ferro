@@ -365,6 +365,8 @@ mod tests {
             storage_used_bytes: 0,
             is_ldap: false,
             password_hash: Some(crate::users::hash_password("userpass").unwrap()),
+            totp_secret: None,
+            totp_enabled: false,
         };
         store.create_user(user).await.unwrap();
 
@@ -414,6 +416,8 @@ mod tests {
             storage_used_bytes: 0,
             is_ldap: false,
             password_hash: Some(crate::users::hash_password("correct").unwrap()),
+            totp_secret: None,
+            totp_enabled: false,
         };
         store.create_user(user).await.unwrap();
 

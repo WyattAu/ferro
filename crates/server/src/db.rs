@@ -6,12 +6,15 @@ pub type DbHandle = Arc<std::sync::Mutex<Connection>>;
 use std::sync::Arc;
 
 #[cfg(test)]
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
-const MIGRATIONS: &[(&str, &str)] = &[(
-    "001",
-    include_str!("../../../migrations/001_initial_schema.sql"),
-)];
+const MIGRATIONS: &[(&str, &str)] = &[
+    (
+        "001",
+        include_str!("../../../migrations/001_initial_schema.sql"),
+    ),
+    ("002", include_str!("../../../migrations/002_totp_2fa.sql")),
+];
 
 fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute_batch(

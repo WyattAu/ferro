@@ -43,6 +43,12 @@ pub struct User {
     pub is_ldap: bool,
     #[serde(skip_serializing)]
     pub password_hash: Option<String>,
+    /// Base32-encoded TOTP secret. Present when TOTP is enabled.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub totp_secret: Option<String>,
+    /// Whether TOTP two-factor authentication is enabled.
+    #[serde(default)]
+    pub totp_enabled: bool,
 }
 
 impl User {
@@ -252,6 +258,8 @@ impl InMemoryUserStore {
             storage_used_bytes: 0,
             is_ldap: false,
             password_hash: Some(password_hash),
+            totp_secret: None,
+            totp_enabled: false,
         })
     }
 
@@ -273,7 +281,7 @@ impl InMemoryUserStore {
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(|e| e.into_inner());
             if let Err(e) = conn.execute(
-                "INSERT OR REPLACE INTO users (id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                "INSERT OR REPLACE INTO users (id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash, totp_secret, totp_enabled) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                 params![
                     user.id,
                     user.username,
@@ -287,6 +295,8 @@ impl InMemoryUserStore {
                     user.storage_used_bytes as i64,
                     user.is_ldap as i32,
                     user.password_hash,
+                    user.totp_secret,
+                    user.totp_enabled as i32,
                 ],
             ) {
                 warn!("Failed to persist user to SQLite: {}", e);
@@ -347,6 +357,8 @@ impl InMemoryUserStore {
                 storage_used_bytes: row.get::<_, i64>(9)? as u64,
                 is_ldap: row.get::<_, i32>(10)? != 0,
                 password_hash: row.get(11)?,
+                totp_secret: row.get(12).unwrap_or(None),
+                totp_enabled: row.get::<_, i32>(13).unwrap_or(0) != 0,
             })
         })?;
         let mut users = Vec::new();
@@ -533,6 +545,8 @@ mod tests {
             storage_used_bytes: 0,
             is_ldap: false,
             password_hash: Some(hash_password("testpass").unwrap()),
+            totp_secret: None,
+            totp_enabled: false,
         }
     }
 

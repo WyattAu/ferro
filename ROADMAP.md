@@ -745,23 +745,131 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 
 ---
 
+## Competitive Gap Analysis (2026-05-29)
+
+**Source:** COMPARISON.md — Ferro vs Nextcloud, OCIS, Seafile, Filebrowser, MinIO
+
+### Gap Summary
+
+| # | Gap | Competitors With It | Priority | Phase | Status |
+|---|-----|---------------------|----------|-------|--------|
+| G-01 | Mobile apps (iOS + Android) | Nextcloud, OCIS, Seafile | P0 | 6.2 | Planned |
+| G-02 | Desktop sync client (bidirectional) | Nextcloud, OCIS, Seafile | P0 | 6.1 | Planned |
+| G-03 | Real-time co-editing (CRDT) | Nextcloud, OCIS, Seafile | P0 | 6.3 | Planned |
+| G-04 | 2FA/MFA (TOTP + WebAuthn) | Nextcloud, OCIS, Seafile, MinIO | P0 | 6.4 | Planned |
+| G-05 | Admin dashboard (web UI) | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4 | Planned |
+| G-06 | Block-level delta sync | Seafile only | P1 | 6.1+ | **New** |
+| G-07 | Notification system (email/push) | Nextcloud, OCIS, Seafile | P1 | 6.3 | Planned |
+| G-08 | SAML SSO | Nextcloud, OCIS, Seafile | P1 | 6.4 | Planned |
+| G-09 | Theming/branding | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4+ | **New** |
+| G-10 | Guest accounts (limited external access) | Nextcloud, OCIS | P1 | 6.4+ | **New** |
+| G-11 | Antivirus scanning (ClamAV) | Nextcloud, OCIS, Seafile | P2 | 7.1+ | **New** |
+| G-12 | E2EE (end-to-end encryption) | Nextcloud, OCIS, Seafile | P2 | 7.x | **New** |
+| G-13 | GDPR compliance kit (data export/erasure) | Nextcloud, OCIS, MinIO | P2 | 6.4+ | **New** |
+| G-14 | Ransomware protection / WORM | Nextcloud, OCIS, MinIO | P2 | 7.x | **New** |
+| G-15 | External storage mounting (NFS/SMB/WebDAV) | Nextcloud, OCIS | P3 | 7.x | **New** |
+| G-16 | Workflow automation (event triggers) | Nextcloud, MinIO | P2 | 7.1+ | **New** |
+| G-17 | Comments on files | Nextcloud, OCIS | P2 | 6.3 | Planned |
+| G-18 | AI-powered search (semantic embeddings) | Nextcloud, Seafile | P3 | 7.4 | Planned |
+| G-19 | Multi-tenancy | OCIS, Seafile, MinIO | P2 | 7.2 | Planned |
+| G-20 | Horizontal scaling | Nextcloud, OCIS, Seafile, MinIO | P3 | 7.3 | Planned |
+| G-21 | Plugin marketplace | Nextcloud, OCIS | P3 | 7.1 | Planned |
+| G-22 | Offline mode (mobile) | Nextcloud, OCIS, Seafile | P2 | 6.2 | Planned |
+| G-23 | Data retention policies | Nextcloud, OCIS, Seafile, MinIO | P2 | 6.4 | Planned |
+| G-24 | Secure view (no-download sharing) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | **New** |
+| G-25 | File drop (upload-only links) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | **New** |
+
+### Ferro Competitive Advantages (Maintain)
+
+These are areas where Ferro leads all competitors. Do not sacrifice for parity:
+
+1. **Performance:** <10ms p99, 52MB memory, single static binary
+2. **WebDAV completeness:** Only platform with full Class 1/2/3 + sync-collection
+3. **API richness:** GraphQL + WebSocket + SSE + CalDAV + CardDAV + WOPI + ActivityPub
+4. **Observability:** 3-tier health probes, per-crate log levels, audit chain verification, WASM metrics
+5. **Security foundation:** Cedar policy engine, SHA-256 audit chain, secret redaction, content-type validation
+6. **Deployment:** Static musl binary, Helm chart, SBOM on every release, pre-commit test gate
+7. **Offline builds:** Vendored Swagger UI, no network required for `cargo build`
+
+### New Items Added to Phase Plan
+
+#### Phase 6.1: Desktop Client — Add Block-Level Sync (G-06)
+
+Seafile's block-level delta sync is its single strongest differentiator. Ferro should implement chunked content-addressable sync where only changed blocks are transferred, leveraging the existing CAS backend.
+
+**Approach:**
+- Extend `ferro_core::storage::cas` with block-granular diff computation
+- Desktop client computes rolling hash (Buzhash/Rabin-Karp) on local files
+- Server compares block hashes, returns missing block list
+- Client uploads only missing blocks, server reassembles
+- Falls back to full-file sync for small files (<64KB)
+
+#### Phase 6.3: Collaboration — Add Secure View + File Drop (G-24, G-25)
+
+| Item | Description | Priority |
+|------|-------------|----------|
+| Secure view | Share link with `allow_download=false`; server renders preview only (no raw bytes) | P2 |
+| File drop | Upload-only share link; no directory listing, no read access | P2 |
+
+#### Phase 6.4: Admin — Add Theming, Guest Accounts, GDPR Kit (G-09, G-10, G-13)
+
+| Item | Description | Priority |
+|------|-------------|----------|
+| Web UI theming | Configurable logo, primary color, title via TOML `[branding]` section | P1 |
+| Guest accounts | Time-limited, read-only accounts with automatic expiry | P1 |
+| GDPR data export | `GET /api/admin/users/:id/export` returns all user data as ZIP (files + metadata + audit log) | P2 |
+| GDPR data erasure | `DELETE /api/admin/users/:id/data` purges all user data with verification | P2 |
+
+#### Phase 7.1: Plugin System — Add Antivirus + Workflow Triggers (G-11, G-16)
+
+| Item | Description | Priority |
+|------|-------------|----------|
+| ClamAV WASM worker | Pre-built WASM module that calls ClamAV socket on upload | P2 |
+| Event triggers | WASM workers triggered by file events (upload, delete, share) — extend existing pattern dispatch | P2 |
+
+#### Phase 7.x: Security Extensions — E2EE + Ransomware Protection (G-12, G-14)
+
+| Item | Description | Priority |
+|------|-------------|----------|
+| Client-side encryption | Encrypt files before upload using age/X25519; server stores ciphertext only | P2 |
+| E2EE key management | Per-user key pairs, key rotation, recovery via admin key | P2 |
+| Ransomware detection | Monitor file mutation rate per user; alert on >100 overwrites/minute | P2 |
+| WORM mode | Optional per-storage-backend write-once-read-many enforcement | P3 |
+
+#### Phase 7.x: External Storage Mounting (G-15)
+
+| Item | Description | Priority |
+|------|-------------|----------|
+| NFS mount backend | Read-only mount of NFS shares as Ferro virtual directories | P3 |
+| SMB mount backend | Read-only mount of SMB shares via `libsmbclient` FFI | P3 |
+| Remote WebDAV mount | Proxy remote WebDAV servers through Ferro namespace | P3 |
+
+---
+
 ## Sprint Estimation
 
-| Phase | Sprint | Estimated Duration | Dependencies |
-|-------|--------|--------------------|--------------|
-| Phase 1 | AU | 3 weeks | None |
-| Phase 2 | AV | 2 weeks | Phase 1 |
-| Phase 3 | AW | 3 weeks | Phase 1 |
-| Phase 4 | AX | 2 weeks | Phase 1 |
-| Phase 5 | AY | 1 week | Phases 1-4 |
-| Phase 6.1 | AZ | 4 weeks | Phase 5 |
-| Phase 6.2 | BA | 4 weeks | Phase 6.1 |
-| Phase 6.3 | BB | 3 weeks | Phase 5 |
-| Phase 6.4 | BC | 2 weeks | Phase 5 |
-| Phase 6.5 | BD | 2 weeks | Phase 5 |
-| Phase 7+ | BE+ | Ongoing | Phase 5 |
+| Phase | Sprint | Estimated Duration | Dependencies | New Gap Items |
+|-------|--------|--------------------|--------------|---------------|
+| Phase 1 | AU | 3 weeks | None | — |
+| Phase 2 | AV | 2 weeks | Phase 1 | — |
+| Phase 3 | AW | 3 weeks | Phase 1 | — |
+| Phase 4 | AX | 2 weeks | Phase 1 | — |
+| Phase 5 | AY | 1 week | Phases 1-4 | — |
+| Phase 6.1 | AZ | 5 weeks (+1) | Phase 5 | G-06: Block-level sync |
+| Phase 6.2 | BA | 4 weeks | Phase 6.1 | — |
+| Phase 6.3 | BB | 4 weeks (+1) | Phase 5 | G-24: Secure view, G-25: File drop |
+| Phase 6.4 | BC | 3 weeks (+1) | Phase 5 | G-09: Theming, G-10: Guest accounts, G-13: GDPR kit |
+| Phase 6.5 | BD | 2 weeks | Phase 5 | — |
+| Phase 7.1 | BE | 4 weeks | Phase 5 | G-11: ClamAV worker, G-16: Event triggers |
+| Phase 7.2 | BF | 3 weeks | Phase 7.1 | — |
+| Phase 7.3 | BG | 4 weeks | Phase 7.2 | — |
+| Phase 7.4 | BH | 3 weeks | Phase 7.1 | — |
+| Phase 7.5 | BI | 3 weeks | Phase 7.1 | G-12: E2EE, G-14: Ransomware detection |
+| Phase 7.6 | BJ | 2 weeks | Phase 7.2 | G-15: External storage mounting |
 
 **Estimated time to v3.0:** 11 weeks (assuming full-time development)
+**Estimated time to feature parity (P0/P1):** 20 weeks
+**Estimated time to full parity (all gaps):** 42 weeks
 
 ---
 

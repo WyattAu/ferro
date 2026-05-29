@@ -175,6 +175,8 @@ pub async fn ldap_authenticate(
         storage_used_bytes: 0,
         is_ldap: true,
         password_hash: None,
+        totp_secret: None,
+        totp_enabled: false,
     })
 }
 
