@@ -85,14 +85,17 @@ jobs:
           BINARY="target/${{ matrix.target }}/release/${{ matrix.binary }}"
           timeout 15 "$BINARY" --host 127.0.0.1 --port 9876 --data-dir /tmp/ferro-smoke 2>/dev/null &
           SERVER_PID=$!
-          sleep 5
-          if curl -sf http://127.0.0.1:9876/healthz > /dev/null 2>&1; then
-            echo "Smoke test PASSED: /healthz returned 200"
-          else
-            echo "Smoke test FAILED: /healthz did not return 200"
-            kill $SERVER_PID 2>/dev/null || true
-            exit 1
-          fi
+          for i in $(seq 1 10); do
+            sleep 1
+            if curl -sf http://127.0.0.1:9876/healthz > /dev/null 2>&1; then
+              echo "Smoke test PASSED: /healthz returned 200 after ${i}s"
+              kill $SERVER_PID 2>/dev/null || true
+              exit 0
+            fi
+          done
+          echo "Smoke test FAILED: /healthz did not return 200 within 10s"
+          kill $SERVER_PID 2>/dev/null || true
+          exit 1
       - name: Cleanup smoke test server
         if: always() && runner.os != 'Windows'
         run: kill $(pgrep -f "ferro-server.*9876") 2>/dev/null || true
@@ -112,7 +115,7 @@ jobs:
         with:
           toolchain: stable
       - name: Install cargo-cyclonedx
-        run: cargo install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx --locked --version 0.5.7
       - name: Generate SBOM
         run: cargo cyclonedx --all --format json --output-pattern crate
       - name: Collect SBOM files

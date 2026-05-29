@@ -80,7 +80,7 @@ jobs:
         with:
           toolchain: stable
           components: llvm-tools-preview
-      - run: cargo install cargo-llvm-cov --locked
+      - run: cargo install cargo-llvm-cov --locked --version 0.18.22
       - run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
       - name: Fetch dependencies

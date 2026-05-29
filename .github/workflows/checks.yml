@@ -39,7 +39,7 @@ jobs:
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
       - name: Fetch dependencies
         run: cargo fetch --locked
-      - run: cargo clippy --all-targets --features "s3,gcs,azure,pg,redis,ldap" -- -D warnings
+      - run: cargo clippy --workspace --all-targets --features "s3,gcs,azure,pg,redis,ldap" -- -D warnings
 
   test:
     name: Test
@@ -72,7 +72,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
       - name: Test with ${{ matrix.feature }}
-        run: cargo test --all --features ${{ matrix.feature }}
+        run: cargo test --locked --all --features ${{ matrix.feature }}
 
   audit:
     name: Security Audit
@@ -84,6 +84,9 @@ jobs:
           toolchain: stable
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked --version 0.18.0
       - name: Run cargo-deny (advisories, bans, licenses, sources)
         run: cargo deny check advisories bans licenses sources
 
