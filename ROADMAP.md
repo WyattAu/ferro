@@ -46,7 +46,11 @@
 - TD-013: Replaced hardcoded version "2.5.1" with "x.y.z" in 8 doc files
 - TD-014: Deprecated `--cors-origins` flag (hidden from --help), added deprecation notice to docs
 - TD-015 through TD-022: All resolved in Session 4 (commit 26c0233)
-- Top 10 high-risk `expect()` calls replaced with proper error handling (main.rs, wopi, webhooks, delivery, signal handlers)
+- Top 14 high-risk `expect()` calls replaced with proper error handling (main.rs, wopi, webhooks, delivery, signal handlers, rclone, gui, actor)
+
+**Dependabot PR Triage:**
+- Merged: tauri 2.11.1->2.11.2 (#24), bcrypt 0.17->0.19 (#19), upload-artifact 4->7 (#28), deploy-pages 4->5 (#31), setup-buildx-action 3->4 (#30)
+- Closed (breaking/risky): utoipa-swagger-ui 8->9 (#18), toml 0.8->1.1 (#25), pdf 0.9->0.10 (#20), node 20->26 (#32), typescript 5->6 (#26), login-action 3->4 (#29), upload-pages-artifact 3->5 (#27)
 
 ### 2026-05-27 (Session 4): Full Monorepo Audit, CI Hardening, Code Quality
 
@@ -628,7 +632,7 @@ Items that should be addressed during normal development:
 | TD-008 | Benchmark regression threshold too lenient (150%) | Low | Reduce to 120% (DONE in bench.yml) |
 | TD-009 | ~~`utoipa-swagger-ui` build requires network (downloads zip)~~ RESOLVED | ~~Low~~ Done | 2026-05-29 (enabled `vendored` feature for offline builds) |
 | TD-010 | ~~Some docker-compose files use `latest` tags~~ RESOLVED | Low | Done 2026-05-26 (all pinned to SHA) |
-| TD-011 | ~1274 production `unwrap()` calls | Medium | Updated: actual count is ~44 panicking calls in prod (rest are in test code). Top 10 replaced with proper error handling 2026-05-29. |
+| TD-011 | ~30 remaining production `expect()` calls (down from 44) | Low | Replaced 14 highest-risk calls 2026-05-29. Remaining are browser/WASM invariants and compile-time constants. |
 | TD-012 | ~~5 Playwright `test.fixme()` / `test.skip()` in E2E suite~~ RESOLVED | ~~Medium~~ Done | 2026-05-26 (all 5 converted to active tests) |
 | TD-013 | ~~`docs/src/api/rest.md` hardcodes version "2.5.1" in example~~ RESOLVED | ~~Low~~ Done | 2026-05-29 (replaced with "x.y.z" in 8 files) |
 | TD-014 | ~~Dual CORS flag names (`--cors-allowed-origins` and `--cors-origins`)~~ RESOLVED | ~~Low~~ Done | 2026-05-29 (deprecated --cors-origins, hidden from --help) |
@@ -637,7 +641,7 @@ Items that should be addressed during normal development:
 | TD-017 | `server-activitypub/src/store.rs` poisoned lock recovery (`unwrap_or_else(|e| e.into_inner())`) | Medium | Replace with proper error handling |
 | TD-018 | 60 `unsafe` blocks lack SAFETY doc comments | Low | Add per-Rust-convention SAFETY comments to FFI and libc blocks |
 | TD-019 | 70+ API endpoints undocumented in docs/api.md | High | Add admin, trash, tags, batch, sync, chunked upload endpoints |
-| TD-020 | ~34 remaining production `expect()` calls | Medium | Top 10 highest-risk replaced 2026-05-29. Remaining are browser/WASM invariants and compile-time constants. |
+| TD-020 | ~30 remaining production `expect()` calls | Low | 14 highest-risk replaced 2026-05-29. Remaining are browser/WASM invariants and compile-time constants (acceptable). |
 | TD-021 | Benchmark auto-push to `bench-data` branch flaky | Low | GitHub infrastructure issue; retry or disable auto-push |
 | TD-022 | `benchmark-action` Node.js 20 deprecation warning | Low | Update to Node.js 24-compatible action version |
 
