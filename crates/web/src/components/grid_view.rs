@@ -58,8 +58,6 @@ pub fn GridCard(
         entry.modified_at.clone()
     };
 
-    let path_for_navigate = entry.path.clone();
-    let path_for_preview = entry.path.clone();
     let path_for_favorite = entry.path.clone();
     let path_for_select = entry.path.clone();
     let path_for_download = entry.path.clone();
@@ -75,11 +73,27 @@ pub fn GridCard(
     let entry_index = index;
     let show_thumb = !entry_is_collection && file_type == FileType::Image;
 
+    let path_for_click = entry.path.clone();
+    let path_for_keydown = entry.path.clone();
+    let path_for_preview_click = entry.path.clone();
+    let path_for_preview_keydown = entry.path.clone();
+
     let handle_click = move |_: ev::MouseEvent| {
         if entry_is_collection {
-            on_navigate.call(path_for_navigate.clone());
+            on_navigate.call(path_for_click.clone());
         } else {
-            on_preview.call(path_for_preview.clone());
+            on_preview.call(path_for_preview_click.clone());
+        }
+    };
+
+    let handle_keydown = move |ev: ev::KeyboardEvent| {
+        if ev.key() == "Enter" || ev.key() == " " {
+            ev.prevent_default();
+            if entry_is_collection {
+                on_navigate.call(path_for_keydown.clone());
+            } else {
+                on_preview.call(path_for_preview_keydown.clone());
+            }
         }
     };
 
@@ -143,6 +157,7 @@ pub fn GridCard(
             role="gridcell"
             tabindex="0"
             on:click=handle_click
+            on:keydown=handle_keydown
             on:contextmenu=handle_context_menu
         >
             {show_checkbox.then(|| view! {

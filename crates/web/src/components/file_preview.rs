@@ -110,6 +110,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
             role="dialog"
             aria-modal="true"
             aria-label="File preview"
+            tabindex="-1"
             on:keydown=handle_keydown
         >
             <div class="brutal-block rounded shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">

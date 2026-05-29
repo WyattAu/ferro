@@ -28,6 +28,7 @@
 
 html, body, #app {
     height: 100%;
+    overflow-x: hidden;
     font-family: var(--font-body);
     color: var(--text-primary);
     background: var(--surface);
@@ -228,6 +229,7 @@ html, body, #app {
 .rounded-none { border-radius: 0; }
 
 /* ── Amoebic Shapes ── */
+.blob-shape { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; }
 .rounded-blob { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; }
 .rounded-blob-alt { border-radius: 70% 30% 30% 70% / 60% 40% 60% 40%; }
 
@@ -383,6 +385,8 @@ input[type="text"], input[type="file"], input[type="password"], select {
 }
 input[type="text"]:focus, input[type="password"]:focus, select:focus {
     border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
     box-shadow: 0 0 0 3px var(--accent-glow), inset 0 1px 2px rgba(0,0,0,0.06);
 }
 input[type="file"].hidden { display: none; }
@@ -400,6 +404,7 @@ input[type="checkbox"]:checked {
     background: var(--accent);
     border-color: var(--accent);
 }
+input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ── Animations ── */
 @keyframes spin {
@@ -452,7 +457,7 @@ input[type="checkbox"]:checked {
 .duration-200 { transition-duration: 200ms; }
 
 /* ── Focus ── */
-.focus\:outline-none:focus { outline: none; }
+.focus\:outline-none:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 .focus\:ring-2:focus { box-shadow: 0 0 0 2px var(--accent-glow); }
 .focus\:ring-blue-500:focus { box-shadow: 0 0 0 2px var(--accent-glow); }
 .focus\:ring-green-500:focus { box-shadow: 0 0 0 2px rgba(22,163,74,0.25); }
@@ -562,6 +567,24 @@ svg.w-20 { width: 5rem; height: 5rem; }
 /* ═══════════════════════════════════════════════════════════
    DARK MODE
    ═══════════════════════════════════════════════════════════ */
+@media (prefers-color-scheme: dark) {
+    :root:not(.light) {
+        --surface: #1A1714;
+        --surface-alt: #221F1B;
+        --text-primary: #E8E0D8;
+        --text-secondary: #8B8178;
+        --border: #3D3832;
+        --border-strong: #E8E0D8;
+    }
+    :root:not(.light), :root:not(.light) #app {
+        color: #E8E0D8;
+        background: #1A1714;
+        background-image:
+            radial-gradient(ellipse at 20% 50%, rgba(232,93,4,0.03) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 80%, rgba(55,6,23,0.04) 0%, transparent 50%);
+    }
+}
+
 .dark {
     --surface: #1A1714;
     --surface-alt: #221F1B;
@@ -673,6 +696,8 @@ html.dark, .dark {
 }
 .dark input[type="text"]:focus, .dark input[type="password"]:focus, .dark select:focus {
     border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
     box-shadow: 0 0 0 3px var(--accent-glow), inset 0 1px 2px rgba(0,0,0,0.2);
 }
 .dark input[type="checkbox"] {
