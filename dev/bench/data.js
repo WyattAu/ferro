@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780027319906,
+  "lastUpdate": 1780087654660,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -3707,6 +3707,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 835,
             "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "41b26cf006dd6c7e303f3a1ac51e88dee5ca2372",
+          "message": "fix(docker): unify Rust version across build stages\n\nIntroduce ARG RUST_VERSION=1.95 and reference it in both the\nWASM build stage and the server build stage, eliminating drift\nbetween the two toolchain installations.",
+          "timestamp": "2026-05-29T21:39:25+01:00",
+          "tree_id": "3e9ffee519275ddb8da4b5cb0c698201b0dff2b0",
+          "url": "https://github.com/WyattAu/ferro/commit/41b26cf006dd6c7e303f3a1ac51e88dee5ca2372"
+        },
+        "date": 1780087653920,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267042668,
+            "range": "± 1305653",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267472202,
+            "range": "± 2355585",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 31073,
+            "range": "± 3155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 27050,
+            "range": "± 2177",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8766,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5147,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1209,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 922,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2790,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1321,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7327,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66452,
+            "range": "± 307",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 88,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18845,
+            "range": "± 287",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 909,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 77,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 72,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 150,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 192,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 189,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 868,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 839,
+            "range": "± 4",
             "unit": "ns/iter"
           },
           {
