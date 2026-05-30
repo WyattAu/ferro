@@ -101,5 +101,27 @@ pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
         },
         _ => return,
     };
-    crate::webhooks::fire_webhooks(state.webhooks.clone(), webhook_event).await;
+    crate::webhooks::fire_webhooks(state.webhooks.clone(), webhook_event.clone()).await;
+
+    // Email notifications when enabled
+    if state.email_config.enabled {
+        let subject = format!("Ferro: {}", webhook_event.event);
+        let body = format!(
+            "Event: {}\nPath: {}\nTimestamp: {}",
+            webhook_event.event, webhook_event.path, webhook_event.timestamp
+        );
+        let msg = crate::email::EmailMessage {
+            to: webhook_event.user.clone().unwrap_or_default(),
+            subject,
+            body_text: body,
+            body_html: None,
+        };
+        tokio::spawn(async move {
+            if let Err(e) =
+                crate::email::send_email(&crate::email::EmailConfig::default(), &msg).await
+            {
+                tracing::warn!("Email notification failed: {}", e);
+            }
+        });
+    }
 }

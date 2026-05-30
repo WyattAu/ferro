@@ -2707,6 +2707,7 @@ dependencies = [
  "chrono",
  "dashmap 6.1.0",
  "ferro-common",
+ "hex",
  "hmac 0.12.1",
  "http-body-util",
  "jsonwebtoken",
