@@ -21,6 +21,9 @@ pub mod search;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+#[cfg(feature = "wasm")]
+pub mod wasm_abi;
+
 #[cfg(feature = "object_store")]
 pub mod object_store_backend;
 
