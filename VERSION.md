@@ -3,13 +3,13 @@
 ## Current Status
 - **Phase:** v3.0.0 Feature Complete
 - **Version:** 3.0.0
-- **Tests:** 998 passed, 0 failed, 0 clippy warnings
+- **Tests:** 1002 passed, 0 failed, 0 clippy warnings
 - **E2E:** 14 Playwright spec files across chromium, firefox, webkit
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
 - **Load Testing:** 1h soak test passed (18,828 requests, 0 failures, P50=6ms, P95=28ms, P99=52ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
-- **Status:** v3.0.0 feature complete. All P0/P1 ROADMAP items for Phase 6 implemented. 998 tests, 0 failures. Pre-commit hook installed.
-- **Last Updated:** 2026-05-30 (Audit Cycle 2: formatting fix, test count verified, mdBook docs built)
+- **Status:** v3.0.0 feature complete. All P0/P1 ROADMAP items for Phase 6 implemented. 1002 tests, 0 failures. Pre-commit hook installed.
+- **Last Updated:** 2026-05-30 (Audit Cycle 3: SMTP email via lettre, ClamAV daemon TCP, test count 998->1002)
 
 ## Phase Progress
 | Phase | Status | Completion |
@@ -82,6 +82,23 @@
   - Admin CRUD: `GET/PUT/DELETE /api/admin/branding`
 
 **Test Count:** 967 unit/integration tests (+50 from batch 2), 0 failures, 0 clippy warnings
+
+### 2026-05-30: Audit Cycle 3
+
+**Feature Implementations:**
+- G-11: ClamAV antivirus scanning via TCP socket to clamd daemon
+  - INSTREAM protocol with 4KB chunked streaming (avoids buffering large files in memory)
+  - Unix domain socket connection with configurable timeout
+  - Max file size enforcement (25 MB default)
+  - Response parsing: OK/FOUND/ERROR
+  - 4 new unit tests (disabled, too-large, no-daemon, config defaults)
+- SMTP email delivery via lettre crate (STARTTLS, rustls)
+  - RFC-compliant email builder with plain text + multipart HTML alternative
+  - TLS transport with Required mode (STARTTLS mandatory)
+  - SMTP AUTH credential support (username/password)
+  - Graceful fallback to INFO logging when disabled
+  - Serde roundtrip for configuration persistence
+  - 4 new unit tests (disabled, no-server-error, config-defaults, serde-roundtrip)
 
 ## Sprint Progress
 | Sprint | Description | Status |
@@ -202,6 +219,8 @@
 | **WebSocket notifications** | **Working (file events broadcast)** |
 | **Ranged GET** | **Working (206 Partial Content, 416, Accept-Ranges)** |
 | **Web UI theming** | **Working (logo/color/title/favicon/custom CSS)** |
+| **SMTP email delivery** | **Working (lettre, STARTTLS, rustls, AUTH)** |
+| **ClamAV antivirus scanning** | **Working (clamd TCP INSTREAM, chunked streaming)** |
 
 ## Crates Status
 | Crate | Tests | Status |
@@ -227,7 +246,7 @@
 | ferro-webdav-handler | 10 passing | Implemented |
 | ferro-benchmarks | 18 benchmark functions | Implemented |
 
-## Total Tests: 967 passed, 0 failed
+## Total Tests: 1002 passed, 0 failed
 ## E2E Tests: 23 Playwright (11 spec files, 3 browsers)
 ## Property Tests: 4 (proptest)
 ## Fuzzing: 4 harnesses, 2.6M+ iterations, 0 crashes
