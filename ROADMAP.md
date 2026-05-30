@@ -4,32 +4,49 @@
 
 ---
 
-## Current State (2026-05-27)
+## Current State (2026-05-30)
 
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
 | Tests | 967 passed, 0 failed, 0 ignored |
 | Clippy warnings | 0 |
-| Production `expect()` calls | 0 |
-| Production `unwrap()` calls | ~1274 (gradual improvement) |
-| CI/CD | 12/12 checks green (fmt, clippy, test, test-pg, test-cloud x3, audit, build, docker, E2E, coverage, bench) |
-| Extended CI | All green |
-| Docs CI | Green (GitHub Pages deployment) |
-| E2E | 23 Playwright tests across 11 spec files (chromium, firefox, webkit) |
+| Security audit | 3 critical, 5 high, 11 medium issues found and fixed |
+| CI/CD | Checks, Benchmarks green; Extended Checks CI fixes deployed |
+| Docs | mdBook deployed to GitHub Pages |
+| Pre-commit hook | fmt + clippy + tests (all enforced) |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
-| Load testing | 3 k6 scripts (concurrent upload, large directory, soak) |
-| Soak test | 1h passed (18,828 req, 0 failures, P50=6ms, P95=28ms, P99=52ms) |
-| Security | cargo-deny clean, OWASP checklist complete, STRIDE threat model |
-| Documentation | mdBook deployed to GitHub Pages, audited 2026-05-27 |
-| Pre-commit hook | fmt + clippy (fast); full test + deny in CI |
-| Helm chart | deploy/helm/ferro/ (deployment, service, ingress, PVC, ServiceMonitor) |
-| Phase 5 release criteria | 11/11 satisfied (soak test passed 2026-05-29) |
-| Actions SHA pinning | All 6 workflow files: 20 actions pinned to commit SHAs |
-| Docker image pinning | All 10 docker-compose files: 8 images pinned to SHA digests |
-| Release smoke test | healthz endpoint check on all release matrix builds |
 
 ## What Was Just Completed
+
+### 2026-05-30 (v3.0.1): Security and Quality Audit
+
+**Security Fixes (Critical):**
+- SEC-001: Cedar EntityUid parse failure no longer falls back to anonymous -- denies request instead of bypassing authorization
+- SEC-002: Simple auth middleware now rejects disabled accounts even with valid admin credentials (was granting admin access)
+- SEC-003: AlreadyExists error maps to 409 Conflict (was 405 Method Not Allowed, violating HTTP spec)
+
+**Robustness Fixes (High):**
+- FIX-001: ContentHash::new() returns Option<Self> instead of panicking on invalid input. All 28 callers updated.
+- FIX-002: Audit chain hash now includes user_agent and content_length fields for complete tamper evidence
+- FIX-003: SQLite metadata timestamp parsing logs warnings for malformed dates instead of silently defaulting to Utc::now()
+- FIX-004: MKCOL on existing resource returns 405 per RFC 4918 Section 9.3.1
+
+**Performance Fix:**
+- PERF-001: LogBuffer::push uses VecDeque instead of Vec for O(1) front removal (was O(n))
+
+**CI/CD Fixes:**
+- CI-001: Removed duplicate cargo-deny install step in checks.yml
+- CI-002: Fixed cargo-llvm-cov version pin (0.18.22 does not exist, latest is 0.8.7)
+- CI-003: Fixed deny.toml license syntax (AGPL-3.0-or-later not supported as bare GNU license)
+- CI-004: Fixed Dockerfile missing global ARG declaration for RUST_VERSION
+
+**Remaining Technical Debt (tracked for next sprint):**
+- TD-023: Admin crate has 12+ WCAG 2.1 AA accessibility gaps (missing ARIA, form labels, focus traps)
+- TD-024: Admin UI does not follow Spatial Materialism / Amoebic UI / Brutalism design system
+- TD-025: Cedar request context is always empty (Context::empty) -- policies relying on context attributes cannot function
+- TD-026: Three independent public-path lists across auth middlewares are not synchronized
+- TD-027: TOTP implementation uses HMAC-SHA1 (RFC-mandated for compatibility, but worth documenting)
 
 ### 2026-05-30: v3.0.0 Release Preparation
 
