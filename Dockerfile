@@ -72,6 +72,7 @@ WORKDIR /app/crates/web
 RUN trunk build --release --public-url "/ui/"
 
 # ── Stage 2: Build Rust server ────────────────────────────────────────────
+ARG RUST_VERSION=1.95
 FROM rust:${RUST_VERSION}-bookworm AS builder
 
 ARG BUILD_FEATURES=""
