@@ -4,7 +4,7 @@ use crate::sync::ops::OpType;
 use crate::xml::escape_xml;
 use axum::body::Body;
 use axum::extract::{Path as AxumPath, State};
-use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
 use common::error::FerroError;
@@ -12,6 +12,7 @@ use common::error::Result;
 use common::path::normalize_path;
 use common::webdav::LockDepth;
 use http_body_util::BodyExt;
+use tokio::io::AsyncReadExt;
 use tracing::{debug, warn};
 
 /// Maximum recursion depth for PROPFIND depth:infinity to prevent DoS.
@@ -666,41 +667,81 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
         return Ok((StatusCode::NOT_MODIFIED, resp_headers, "").into_response());
     }
 
-    let reader = state.storage.get_stream(&path).await?;
-    let stream = tokio_util::io::ReaderStream::new(reader);
-    let body = Body::from_stream(stream);
-
-    let mut resp_headers = HeaderMap::new();
-    // If the storage engine persisted the generic default (e.g. because the
-    // MIME was sniffed but never written back), re-detect from the file
-    // extension so that .json files return "application/json", etc.
     let content_type = if meta.mime_type == "application/octet-stream" {
         sniff_content_type(&[], &path)
     } else {
         meta.mime_type.clone()
     };
-    resp_headers.insert(
-        "Content-Type",
-        HeaderValue::from_str(&content_type).map_err(|e| FerroError::Internal(e.to_string()))?,
-    );
+
+    let etag_val =
+        HeaderValue::from_str(&meta.etag).map_err(|e| FerroError::Internal(e.to_string()))?;
+    let last_modified_val = HeaderValue::from_str(
+        &meta
+            .modified_at
+            .format("%a, %d %b %Y %H:%M:%S GMT")
+            .to_string(),
+    )
+    .map_err(|e| FerroError::Internal(e.to_string()))?;
+    let content_type_val =
+        HeaderValue::from_str(&content_type).map_err(|e| FerroError::Internal(e.to_string()))?;
+
+    if let Some(range_req) = crate::range_get::parse_range_header(headers, meta.size)
+        && let Some(spec) = range_req.ranges.first()
+    {
+        if let Some((start, end)) = spec.resolve(meta.size) {
+            let mut reader = state.storage.get_stream(&path).await?;
+            {
+                let mut buf = [0u8; 8192];
+                let mut remaining = start;
+                while remaining > 0 {
+                    let n = std::cmp::min(remaining, buf.len() as u64);
+                    reader
+                        .read_exact(&mut buf[..n as usize])
+                        .await
+                        .map_err(|e| FerroError::Internal(e.to_string()))?;
+                    remaining -= n;
+                }
+            }
+            let take_reader = reader.take(end - start + 1);
+            let stream = tokio_util::io::ReaderStream::new(take_reader);
+            let body = Body::from_stream(stream);
+
+            let mut resp_headers = HeaderMap::new();
+            resp_headers.insert("Content-Type", content_type_val);
+            resp_headers.insert("ETag", etag_val);
+            resp_headers.insert("Last-Modified", last_modified_val);
+            let range_headers = crate::range_get::build_range_headers(start, end, meta.size);
+            for (k, v) in range_headers.iter() {
+                resp_headers.insert(k.clone(), v.clone());
+            }
+            return Ok((StatusCode::PARTIAL_CONTENT, resp_headers, body).into_response());
+        } else {
+            let mut resp_headers = HeaderMap::new();
+            resp_headers.insert(
+                HeaderName::from_static("content-range"),
+                HeaderValue::from_str(&format!("bytes */{}", meta.size))
+                    .unwrap_or_else(|_| HeaderValue::from_static("bytes */0")),
+            );
+            return Ok((StatusCode::RANGE_NOT_SATISFIABLE, resp_headers, "").into_response());
+        }
+    }
+
+    let reader = state.storage.get_stream(&path).await?;
+    let stream = tokio_util::io::ReaderStream::new(reader);
+    let body = Body::from_stream(stream);
+
+    let mut resp_headers = HeaderMap::new();
+    resp_headers.insert("Content-Type", content_type_val);
     resp_headers.insert(
         "Content-Length",
         HeaderValue::from_str(&meta.size.to_string())
             .map_err(|e| FerroError::Internal(e.to_string()))?,
     );
+    resp_headers.insert("ETag", etag_val);
+    resp_headers.insert("Last-Modified", last_modified_val);
     resp_headers.insert(
-        "ETag",
-        HeaderValue::from_str(&meta.etag).map_err(|e| FerroError::Internal(e.to_string()))?,
-    );
-    resp_headers.insert(
-        "Last-Modified",
-        HeaderValue::from_str(
-            &meta
-                .modified_at
-                .format("%a, %d %b %Y %H:%M:%S GMT")
-                .to_string(),
-        )
-        .map_err(|e| FerroError::Internal(e.to_string()))?,
+        HeaderName::from_static("accept-ranges"),
+        crate::range_get::accept_ranges_header(),
     );
 
     Ok((StatusCode::OK, resp_headers, body).into_response())
@@ -759,6 +800,10 @@ async fn handle_head(state: AppState, path: &str, headers: &HeaderMap) -> Result
                 .to_string(),
         )
         .map_err(|e| FerroError::Internal(e.to_string()))?,
+    );
+    resp_headers.insert(
+        HeaderName::from_static("accept-ranges"),
+        crate::range_get::accept_ranges_header(),
     );
 
     Ok((StatusCode::OK, resp_headers, "").into_response())
