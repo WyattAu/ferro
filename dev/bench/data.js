@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780102839812,
+  "lastUpdate": 1780121327276,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -4031,6 +4031,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 728,
             "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "7ed0e0f10460a993cf14f485437834d5a803fb00",
+          "message": "docs: update VERSION.md and ROADMAP.md for batch 2 features\n\n967 tests, 0 failures. Marked branding, ranged GET, notifications,\nevent triggers, WORM, remote mount, GDPR export/erasure,\ncomments, thumbnail cache as DONE.",
+          "timestamp": "2026-05-30T07:01:32+01:00",
+          "tree_id": "f3e3c0819267d907ff79c458c4d11a0991143fe9",
+          "url": "https://github.com/WyattAu/ferro/commit/7ed0e0f10460a993cf14f485437834d5a803fb00"
+        },
+        "date": 1780121326617,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 233248655,
+            "range": "± 833107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 233255103,
+            "range": "± 1446738",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 19472,
+            "range": "± 613",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 19183,
+            "range": "± 573",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 7167,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 4181,
+            "range": "± 107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 978,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 750,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2176,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1111,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 6342,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 57901,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 73,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 14740,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 727,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 57,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 53,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 117,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 137,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 140,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 660,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 568,
+            "range": "± 2",
             "unit": "ns/iter"
           },
           {
