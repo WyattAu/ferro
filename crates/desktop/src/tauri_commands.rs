@@ -172,6 +172,49 @@ pub async fn standalone_unmount(state: &DesktopState) -> Result<String, String> 
     state.unmount_drive().await
 }
 
+// ── Sync Commands ──────────────────────────────────────────────────
+
+#[cfg(all(feature = "tauri", feature = "sync"))]
+#[tauri::command]
+pub async fn cmd_start_sync(state: State<'_, DesktopState>) -> Result<(), String> {
+    state.start_sync().await
+}
+
+#[cfg(all(feature = "tauri", feature = "sync"))]
+#[tauri::command]
+pub async fn cmd_stop_sync(state: State<'_, DesktopState>) -> Result<(), String> {
+    state.stop_sync().await
+}
+
+#[cfg(all(feature = "tauri", feature = "sync"))]
+#[tauri::command]
+pub async fn cmd_pause_sync(state: State<'_, DesktopState>) -> Result<(), String> {
+    state.pause_sync();
+    Ok(())
+}
+
+#[cfg(all(feature = "tauri", feature = "sync"))]
+#[tauri::command]
+pub async fn cmd_resume_sync(state: State<'_, DesktopState>) -> Result<(), String> {
+    state.resume_sync();
+    Ok(())
+}
+
+#[cfg(all(feature = "tauri", feature = "sync"))]
+#[tauri::command]
+pub async fn cmd_sync_now(state: State<'_, DesktopState>) -> Result<String, String> {
+    let summary = state.sync_now().await?;
+    serde_json::to_string(&summary).map_err(|e| e.to_string())
+}
+
+#[cfg(all(feature = "tauri", feature = "sync"))]
+#[tauri::command]
+pub async fn cmd_get_sync_status(
+    state: State<'_, DesktopState>,
+) -> Result<crate::commands::SyncStatusResponse, String> {
+    Ok(state.get_sync_status().await)
+}
+
 #[cfg(test)]
 mod tests {
 

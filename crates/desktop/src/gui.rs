@@ -334,9 +334,25 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
+
+            #[cfg(all(feature = "sync", feature = "tauri"))]
+            let sync_now = MenuItem::with_id(app, "sync_now", "Sync Now", true, None::<&str>)?;
+            #[cfg(all(feature = "sync", feature = "tauri"))]
+            let pause_sync =
+                MenuItem::with_id(app, "pause_sync", "Pause Sync", true, None::<&str>)?;
+            #[cfg(all(feature = "sync", feature = "tauri"))]
+            let resume_sync =
+                MenuItem::with_id(app, "resume_sync", "Resume Sync", true, None::<&str>)?;
+
+            #[cfg(all(feature = "sync", feature = "tauri"))]
+            let menu = Menu::with_items(
+                app,
+                &[&show, &sync_now, &pause_sync, &resume_sync, &quit],
+            )?;
+            #[cfg(not(all(feature = "sync", feature = "tauri")))]
             let menu = Menu::with_items(app, &[&show, &quit])?;
 
-            TrayIconBuilder::new()
+            let tray = TrayIconBuilder::new()
                 .icon(
                     app.default_window_icon()
                         .ok_or("no default window icon configured")?,
@@ -353,6 +369,25 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                             let _ = window.set_focus();
                         }
                     }
+                    #[cfg(all(feature = "sync", feature = "tauri"))]
+                    "sync_now" => {
+                        let state = app.state::<DesktopState>();
+                        tokio::spawn(async move {
+                            if let Err(e) = state.sync_now().await {
+                                tracing::error!("manual sync failed: {}", e);
+                            }
+                        });
+                    }
+                    #[cfg(all(feature = "sync", feature = "tauri"))]
+                    "pause_sync" => {
+                        let state = app.state::<DesktopState>();
+                        state.pause_sync();
+                    }
+                    #[cfg(all(feature = "sync", feature = "tauri"))]
+                    "resume_sync" => {
+                        let state = app.state::<DesktopState>();
+                        state.resume_sync();
+                    }
                     _ => {}
                 })
                 .build(app)?;
@@ -361,6 +396,29 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 window.set_title("Ferro")?;
             }
 
+            // Auto-start sync if configured
+            #[cfg(all(feature = "sync", feature = "tauri"))]
+            {
+                let state = app.state::<DesktopState>();
+                let handle = app.handle().clone();
+                tokio::spawn(async move {
+                    let config = state.config.read().await;
+                    let should_start = config.sync_interval_secs > 0
+                        && !config.username.is_empty()
+                        && !config.password.is_empty();
+                    drop(config);
+                    if should_start {
+                        // Give the app a moment to fully initialize
+                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                        if let Err(e) = state.start_sync().await {
+                            tracing::warn!("auto-start sync failed: {}", e);
+                        }
+                    }
+                    let _ = handle;
+                });
+            }
+
+            let _ = tray;
             Ok(())
         })
         .run(tauri::generate_context!())

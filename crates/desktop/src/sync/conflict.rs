@@ -86,22 +86,22 @@ mod tests {
     #[test]
     fn test_conflict_strategy_parsing() {
         assert_eq!(
-            ConflictStrategy::from_str("local"),
+            ConflictStrategy::parse("local"),
             Some(ConflictStrategy::LocalWins)
         );
         assert_eq!(
-            ConflictStrategy::from_str("remote-wins"),
+            ConflictStrategy::parse("remote-wins"),
             Some(ConflictStrategy::RemoteWins)
         );
         assert_eq!(
-            ConflictStrategy::from_str("both"),
+            ConflictStrategy::parse("both"),
             Some(ConflictStrategy::KeepBoth)
         );
         assert_eq!(
-            ConflictStrategy::from_str("skip"),
+            ConflictStrategy::parse("skip"),
             Some(ConflictStrategy::Skip)
         );
-        assert_eq!(ConflictStrategy::from_str("unknown"), None);
+        assert_eq!(ConflictStrategy::parse("unknown"), None);
     }
 
     #[test]
