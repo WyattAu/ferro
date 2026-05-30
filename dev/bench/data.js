@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780162829189,
+  "lastUpdate": 1780166110901,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -4679,6 +4679,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 746,
             "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "b554273168514bfc55b9495f0ad33827934ce415",
+          "message": "docs: update ROADMAP.md with CalDAV multiget, E2EE API, WASM ABI, ClamAV\n\n1043 tests. TD-006 partial DONE, G-11 DONE (skeleton).\nPhase 7.1 stable WASM plugin API marked DONE.",
+          "timestamp": "2026-05-30T19:27:06+01:00",
+          "tree_id": "2e3bf5e4e8841fbd7355e8c64c3c1b64faed7ed1",
+          "url": "https://github.com/WyattAu/ferro/commit/b554273168514bfc55b9495f0ad33827934ce415"
+        },
+        "date": 1780166110413,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300797628,
+            "range": "± 434409",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300782321,
+            "range": "± 402220",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24061,
+            "range": "± 672",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23931,
+            "range": "± 662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8981,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 4953,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1268,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 953,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2687,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1410,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8180,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74838,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19217,
+            "range": "± 80",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 971,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 159,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 181,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 867,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 754,
+            "range": "± 2",
             "unit": "ns/iter"
           },
           {
