@@ -10,7 +10,7 @@ pub type DbHandle = Arc<std::sync::Mutex<Connection>>;
 use std::sync::Arc;
 
 #[cfg(test)]
-const SCHEMA_VERSION: i64 = 4;
+const SCHEMA_VERSION: i64 = 8;
 
 const MIGRATIONS: &[(&str, &str)] = &[
     (
@@ -25,6 +25,19 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "004",
         include_str!("../../../migrations/004_retention_policies_v2.sql"),
+    ),
+    ("005", include_str!("../../../migrations/005_comments.sql")),
+    (
+        "006",
+        include_str!("../../../migrations/006_event_triggers.sql"),
+    ),
+    (
+        "007",
+        include_str!("../../../migrations/007_worm_policies.sql"),
+    ),
+    (
+        "008",
+        include_str!("../../../migrations/008_remote_mounts.sql"),
     ),
 ];
 
@@ -108,6 +121,9 @@ mod tests {
             "preferences",
             "locks",
             "file_metadata",
+            "comments",
+            "worm_policies",
+            "remote_mounts",
         ];
         for table in &tables {
             let count: i64 = conn

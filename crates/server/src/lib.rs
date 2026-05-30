@@ -8,6 +8,7 @@ pub mod backup;
 pub mod batch;
 pub mod branding;
 pub mod bulk;
+pub mod comments;
 pub mod config;
 pub mod conflict;
 pub mod dav;
@@ -95,6 +96,7 @@ pub mod federation {
         ferro_server_activitypub::federated_share(State(fed_state(&s)), body).await
     }
 }
+pub mod event_triggers;
 pub mod idempotency;
 pub mod indexer;
 pub mod json_logging;
@@ -120,6 +122,7 @@ pub mod read_cache;
 pub mod redis_lock;
 #[cfg(feature = "redis")]
 pub mod redis_rate_limiter;
+pub mod remote_mount;
 pub mod request_id;
 pub mod request_logging;
 pub mod retention;
@@ -135,6 +138,7 @@ pub mod storage_health;
 pub mod streaming_upload;
 pub mod sync;
 pub mod tags;
+pub mod thumbnail_cache;
 pub mod thumbnails;
 pub mod totp_api;
 pub mod trash;
@@ -148,6 +152,7 @@ pub mod webdav;
 pub mod webhooks;
 pub mod worker_runner;
 pub mod workers;
+pub mod worm;
 pub mod ws;
 pub mod xml;
 
@@ -234,6 +239,7 @@ pub struct AppState {
     pub sync_clock: Arc<std::sync::atomic::AtomicU64>,
     pub webhooks: Arc<tokio::sync::RwLock<Vec<webhooks::WebhookConfig>>>,
     pub thumbnail_size: u32,
+    pub thumbnail_cache: Arc<thumbnail_cache::ThumbnailCache>,
     pub data_dir: Option<String>,
     pub user_store: Arc<dyn UserStoreTrait>,
     pub max_file_versions: u64,
@@ -247,6 +253,7 @@ pub struct AppState {
     pub federation_secret: String,
     pub sync_store: Arc<SyncStore>,
     pub tags: Arc<tags::TagStore>,
+    pub comments: Arc<comments::CommentStore>,
     pub idempotency_store: Arc<idempotency::IdempotencyStore>,
     pub storage_health: Arc<storage_health::StorageHealthMonitor>,
     pub ws_manager: Arc<ws::WsManager>,
@@ -264,6 +271,7 @@ pub struct AppState {
     /// Set to true after all startup checks pass in main.rs.
     pub startup_complete: Arc<std::sync::atomic::AtomicBool>,
     pub streaming_upload_threshold: u64,
+    pub remote_mounts: Arc<remote_mount::RemoteMountStore>,
 }
 
 impl AppState {
@@ -315,6 +323,7 @@ impl AppState {
             webhooks: Arc::new(tokio::sync::RwLock::new(Vec::new())),
             data_dir: None,
             thumbnail_size: 256,
+            thumbnail_cache: Arc::new(thumbnail_cache::ThumbnailCache::noop()),
             user_store: Arc::new(InMemoryUserStore::new()),
             max_file_versions: 10,
             calendar_store: Arc::new(ferro_dav::store::InMemoryCalendarStore::new()),
@@ -324,6 +333,7 @@ impl AppState {
             federation_secret: String::new(),
             sync_store: Arc::new(SyncStore::new()),
             tags: Arc::new(tags::TagStore::new()),
+            comments: Arc::new(comments::CommentStore::new()),
             idempotency_store: Arc::new(idempotency::IdempotencyStore::new()),
             storage_health: Arc::new(storage_health::StorageHealthMonitor::new()),
             ws_manager: Arc::new(ws::WsManager::new()),
@@ -336,6 +346,7 @@ impl AppState {
             wasm_fuel_total: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             startup_complete: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             streaming_upload_threshold: streaming_upload::DEFAULT_STREAMING_THRESHOLD,
+            remote_mounts: Arc::new(remote_mount::RemoteMountStore::new()),
         }
     }
 
@@ -506,6 +517,9 @@ impl AppState {
         }
         self.tags = Arc::new(tags_store);
 
+        let comments_store = comments::CommentStore::new().with_db(db.clone());
+        self.comments = Arc::new(comments_store);
+
         let sync_store = sync::ops::SyncStore::new().with_db(db.clone());
         if let Err(e) = sync_store.load_all_from_db(&conn) {
             tracing::warn!(error = %e, "failed to load sync ops from database");
@@ -529,6 +543,9 @@ impl AppState {
             tracing::warn!(error = %e, "failed to load locks from database");
         }
         self.lock_manager = Arc::new(lock_mgr);
+
+        let remote_mounts = remote_mount::RemoteMountStore::new().with_db(db.clone());
+        self.remote_mounts = Arc::new(remote_mounts);
 
         self
     }
@@ -817,6 +834,20 @@ fn api_routes(
         )
         .route("/tags/search", axum::routing::get(tags::search_by_tag))
         .route(
+            "/comments",
+            axum::routing::get(comments::list_comments_handler)
+                .post(comments::create_comment_handler),
+        )
+        .route(
+            "/comments/:id",
+            axum::routing::put(comments::update_comment_handler)
+                .delete(comments::delete_comment_handler),
+        )
+        .route(
+            "/comments/:id/resolve",
+            axum::routing::post(comments::resolve_comment_handler),
+        )
+        .route(
             "/health/storage",
             axum::routing::get(storage_health::storage_health_handler),
         )
@@ -843,7 +874,15 @@ fn api_routes(
             "/admin/storage",
             axum::routing::get(admin_api::admin_storage),
         )
+        .route(
+            "/admin/storage/stats",
+            axum::routing::get(admin_api::admin_storage_stats),
+        )
         .route("/admin/audit", axum::routing::get(admin_api::admin_audit))
+        .route(
+            "/admin/audit/summary",
+            axum::routing::get(admin_api::admin_audit_summary),
+        )
         .route(
             "/admin/maintenance",
             axum::routing::get(admin_api::admin_maintenance).post(admin_api::admin_maintenance),
@@ -876,17 +915,21 @@ fn api_routes(
         )
         .route(
             "/admin/users",
-            axum::routing::post(user_api::create_user).get(user_api::list_users),
+            axum::routing::post(user_api::create_user).get(admin_api::admin_list_users),
         )
         .route(
             "/admin/users/{id}",
-            axum::routing::get(user_api::get_user)
+            axum::routing::get(admin_api::admin_get_user)
                 .put(user_api::update_user)
-                .delete(user_api::delete_user),
+                .delete(admin_api::admin_delete_user),
         )
         .route(
             "/admin/users/{id}/reset-password",
             axum::routing::post(user_api::reset_password),
+        )
+        .route(
+            "/admin/users/{id}/role",
+            axum::routing::put(admin_api::admin_set_user_role),
         )
         // Branding (G-09)
         .route(
@@ -917,28 +960,38 @@ fn api_routes(
             "/admin/retention/execute",
             axum::routing::post(retention::execute_policies),
         )
+        // WORM policies
+        .route(
+            "/admin/worm/policies",
+            axum::routing::get(worm::list_policies).post(worm::create_policy),
+        )
+        .route(
+            "/admin/worm/policies/{id}",
+            axum::routing::delete(worm::delete_policy),
+        )
         // GDPR compliance (G-13)
         .route("/admin/gdpr", axum::routing::get(gdpr::list_gdpr_requests))
         .route(
             "/admin/users/{id}/export",
-            axum::routing::post(gdpr::request_data_export).get(gdpr::get_data_export_status),
+            axum::routing::post(gdpr::request_data_export).get(admin_api::admin_export_user_data),
         )
         .route(
             "/admin/users/{id}/data",
-            axum::routing::delete(gdpr::request_data_erasure),
+            axum::routing::delete(admin_api::admin_erase_user_data),
         )
         // Event triggers (G-16)
         .route(
             "/admin/triggers",
-            axum::routing::post(triggers::create_trigger).get(triggers::list_triggers),
+            axum::routing::post(event_triggers::create_event_trigger)
+                .get(event_triggers::list_event_triggers),
         )
         .route(
             "/admin/triggers/{id}",
-            axum::routing::delete(triggers::delete_trigger),
+            axum::routing::delete(event_triggers::delete_event_trigger),
         )
         .route(
             "/admin/triggers/{id}/toggle",
-            axum::routing::post(triggers::toggle_trigger),
+            axum::routing::post(event_triggers::toggle_event_trigger),
         )
         // Extended shares (G-24, G-25)
         .route(
@@ -1245,6 +1298,19 @@ pub fn build_router_with_static(
             "/s/:token",
             axum::routing::get(shares::serve_share).post(shares::handle_share_upload),
         )
+        // Remote mount management
+        .route(
+            "/admin/mounts",
+            axum::routing::get(remote_mount::list_mounts).post(remote_mount::create_mount),
+        )
+        .route(
+            "/admin/mounts/{id}",
+            axum::routing::delete(remote_mount::delete_mount),
+        )
+        .route(
+            "/admin/mounts/{id}/test",
+            axum::routing::get(remote_mount::test_mount),
+        )
         // Extended share endpoints (G-24, G-25)
         .route(
             "/s/:token/upload",
@@ -1350,6 +1416,10 @@ pub fn build_router_with_static(
             axum::routing::get(dav::carddav_get_contact)
                 .put(dav::carddav_put_contact)
                 .delete(dav::carddav_delete_contact),
+        )
+        .route(
+            "/remote/*path",
+            axum::routing::any(remote_mount::proxy_remote_mount),
         )
         // Combined fallback: dispatches REST file content requests vs WebDAV.
         //
