@@ -74,7 +74,7 @@ rcgen = { version = "0.13", features = ["x509-parser"] }
 async-graphql = "7"
 rusqlite = { version = "0.32", features = ["bundled", "trace"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
-lru = "0.12"
+lru = "0.16"
 utoipa = { version = "5", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "8", features = ["axum", "vendored"] }
 
