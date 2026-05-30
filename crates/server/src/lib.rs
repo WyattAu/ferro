@@ -763,6 +763,10 @@ fn api_routes(
                 .delete(policies::delete_policy),
         )
         .route("/config", axum::routing::get(config::get_server_config))
+        .route(
+            "/branding",
+            axum::routing::get(branding::get_public_branding),
+        )
         .route("/files", axum::routing::get(api::list_files))
         .route("/files/mkdir", axum::routing::post(api::mkdir))
         .route("/files/move", axum::routing::post(move_copy::move_file))

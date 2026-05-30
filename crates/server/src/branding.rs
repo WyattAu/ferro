@@ -74,6 +74,15 @@ pub async fn get_branding(State(state): State<AppState>) -> Response {
     (StatusCode::OK, axum::Json(branding)).into_response()
 }
 
+/// `GET /api/branding`
+///
+/// Public endpoint for the web UI to fetch branding configuration.
+/// No authentication required.
+pub async fn get_public_branding(State(state): State<AppState>) -> Response {
+    let branding = load_branding(&state);
+    (StatusCode::OK, axum::Json(branding)).into_response()
+}
+
 /// `PUT /api/admin/branding`
 ///
 /// Update the branding configuration.

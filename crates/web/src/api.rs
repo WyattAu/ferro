@@ -1278,6 +1278,39 @@ pub fn show_notification(title: &str, body: &str) {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn show_notification(_title: &str, _body: &str) {}
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BrandingConfig {
+    pub logo_url: Option<String>,
+    pub primary_color: String,
+    pub title: String,
+    pub favicon_url: Option<String>,
+    pub custom_css: Option<String>,
+}
+
+impl Default for BrandingConfig {
+    fn default() -> Self {
+        Self {
+            logo_url: None,
+            primary_color: "#3b82f6".to_string(),
+            title: "Ferro".to_string(),
+            favicon_url: None,
+            custom_css: None,
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_branding() -> Result<BrandingConfig, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/branding", &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_branding() -> Result<BrandingConfig, String> {
+    Ok(BrandingConfig::default())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

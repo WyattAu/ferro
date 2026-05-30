@@ -38,6 +38,7 @@ pub fn use_header_state() -> Option<HeaderState> {
 pub fn Header() -> impl IntoView {
     let auth_state = auth::use_auth_state();
     let header_state = use_header_state();
+    let branding: Option<ReadSignal<Option<crate::api::BrandingConfig>>> = use_context();
     let (show_search, set_show_search) = create_signal(false);
     let (search_query, set_search_query) = create_signal(String::new());
     let (search_results, set_search_results) = create_signal::<Vec<SearchResultEntry>>(vec![]);
@@ -230,12 +231,35 @@ pub fn Header() -> impl IntoView {
             <div class="flex items-center justify-between max-w-7xl mx-auto">
                 <div class="flex items-center gap-3">
                     <A href="/" class="flex items-center gap-3 no-underline">
-                        <div class="w-10 h-10 brutal-border flex items-center justify-center bg-white dark:bg-gray-800" style="font-family: var(--font-display);">
-                            <span class="font-bold text-xl" style="color: var(--accent); letter-spacing: -0.03em;">"F"</span>
-                        </div>
+                        {move || {
+                            if let Some(url) = branding
+                                .and_then(|s| s.get())
+                                .and_then(|b| b.logo_url)
+                            {
+                                view! {
+                                    <img src=url alt="Logo" class="w-10 h-10 object-contain" />
+                                }
+                                .into_any()
+                            } else {
+                                view! {
+                                    <div class="w-10 h-10 brutal-border flex items-center justify-center bg-white dark:bg-gray-800" style="font-family: var(--font-display);">
+                                        <span class="font-bold text-xl" style="color: var(--accent); letter-spacing: -0.03em;">"F"</span>
+                                    </div>
+                                }
+                                .into_any()
+                            }
+                        }}
                         <div class="hidden sm:block">
-                            <h1 class="font-mono font-bold text-xl leading-none" style="letter-spacing: -0.02em; color: var(--text-primary);">"Ferro"</h1>
-                            <span class="text-label">"Storage Orchestrator"</span>
+                            {move || {
+                                let title = branding
+                                    .and_then(|s| s.get())
+                                    .map(|b| b.title)
+                                    .unwrap_or_else(|| "Ferro".to_string());
+                                view! {
+                                    <h1 class="font-mono font-bold text-xl leading-none" style="letter-spacing: -0.02em; color: var(--text-primary);">{title}</h1>
+                                    <span class="text-label">"Storage Orchestrator"</span>
+                                }
+                            }}
                         </div>
                     </A>
                 </div>

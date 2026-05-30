@@ -1,6 +1,7 @@
 use leptos::*;
 use leptos_router::*;
 
+use crate::api::BrandingConfig;
 use crate::auth;
 use crate::components::error_boundary::ErrorBoundary;
 use crate::components::onboarding::OnboardingOverlay;
@@ -15,9 +16,75 @@ use crate::pages::trash::TrashPage;
 #[component]
 pub fn App() -> impl IntoView {
     let auth_state = auth::provide_auth_state();
+    let (branding, set_branding) = create_signal(None::<BrandingConfig>);
+    provide_context(branding);
 
     create_effect(move |_| {
         auth::init_auth(&auth_state);
+    });
+
+    create_effect(move |_| {
+        spawn_local(async move {
+            if let Ok(config) = crate::api::fetch_branding().await {
+                set_branding.set(Some(config));
+            }
+        });
+    });
+
+    create_effect(move |_| {
+        let b = branding.get();
+        if let Some(ref config) = b {
+            #[cfg(target_arch = "wasm32")]
+            {
+                use wasm_bindgen::JsCast;
+                if let Some(window) = web_sys::window() {
+                    if let Some(doc) = window.document() {
+                        doc.set_title(&config.title);
+                        if let Ok(Some(el)) = doc.document_element() {
+                            let _ = el.style().set_property("--accent", &config.primary_color);
+                        }
+
+                        if let Some(ref favicon_url) = config.favicon_url {
+                            if let Some(head) = doc.head() {
+                                let existing =
+                                    doc.query_selector("link[rel~='icon']").ok().flatten();
+                                if let Some(link) = existing {
+                                    if let Ok(link) = link.dyn_into::<web_sys::HtmlLinkElement>() {
+                                        link.set_href(favicon_url);
+                                    }
+                                } else if let Ok(link) = doc
+                                    .create_element("link")
+                                    .and_then(|e| e.dyn_into::<web_sys::HtmlLinkElement>())
+                                {
+                                    link.set_rel("icon");
+                                    link.set_href(favicon_url);
+                                    let _ = head.append_child(&link);
+                                }
+                            }
+                        }
+
+                        if let Some(ref css) = config.custom_css {
+                            let existing = doc.query_selector("#ferro-branding-css").ok().flatten();
+                            if let Some(el) = existing {
+                                if let Ok(style) = el.dyn_into::<web_sys::HtmlStyleElement>() {
+                                    let _ = style.set_text_content(Some(css));
+                                }
+                            } else if let Ok(el) = doc.create_element("style") {
+                                if let Ok(style) = el.dyn_into::<web_sys::HtmlStyleElement>() {
+                                    style.set_id("ferro-branding-css");
+                                    let _ = style.set_text_content(Some(css));
+                                    if let Some(head) = doc.head() {
+                                        let _ = head.append_child(&style);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            let _ = config;
+        }
     });
 
     view! {
