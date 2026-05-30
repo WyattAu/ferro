@@ -293,7 +293,16 @@ pub async fn cedar_middleware(
 
 impl Default for CedarAuthorizer {
     fn default() -> Self {
-        Self::new().expect("default CedarAuthorizer creation must succeed")
+        match Self::new() {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::error!("Failed to create default CedarAuthorizer: {}", e);
+                let empty = PolicySet::new();
+                Self {
+                    policy_set: Arc::new(RwLock::new(empty)),
+                }
+            }
+        }
     }
 }
 

@@ -122,6 +122,7 @@ pub mod redis_lock;
 pub mod redis_rate_limiter;
 pub mod request_id;
 pub mod request_logging;
+pub mod retention;
 pub mod search;
 pub mod security;
 pub mod security_headers;
@@ -131,6 +132,7 @@ pub mod simple_auth;
 pub mod snapshots;
 pub mod storage;
 pub mod storage_health;
+pub mod streaming_upload;
 pub mod sync;
 pub mod tags;
 pub mod thumbnails;
@@ -237,6 +239,9 @@ pub struct AppState {
     pub max_file_versions: u64,
     pub calendar_store: Arc<dyn ferro_dav::store::CalendarStore>,
     pub address_book_store: Arc<dyn ferro_dav::store::AddressBookStore>,
+    /// NOTE: The following fields are in-memory only (`DashMap`, `AtomicU64`, etc.).
+    /// Data stored in these fields is lost on restart. Use `--data-dir` to enable
+    /// SQLite-backed persistence so that state survives restarts.
     pub webrtc_offers: Arc<ferro_server_webrtc::offers::OfferStore>,
     pub activity_store: Arc<federation::store::ActivityStore>,
     pub federation_secret: String,
@@ -258,6 +263,7 @@ pub struct AppState {
     /// Whether the server has completed startup (CAS verification, DB init, etc.).
     /// Set to true after all startup checks pass in main.rs.
     pub startup_complete: Arc<std::sync::atomic::AtomicBool>,
+    pub streaming_upload_threshold: u64,
 }
 
 impl AppState {
@@ -329,6 +335,7 @@ impl AppState {
             wasm_error_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             wasm_fuel_total: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             startup_complete: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            streaming_upload_threshold: streaming_upload::DEFAULT_STREAMING_THRESHOLD,
         }
     }
 
@@ -533,6 +540,11 @@ impl AppState {
 
     pub fn with_max_file_versions(mut self, max: u64) -> Self {
         self.max_file_versions = max;
+        self
+    }
+
+    pub fn with_streaming_upload_threshold(mut self, threshold: u64) -> Self {
+        self.streaming_upload_threshold = threshold;
         self
     }
 
@@ -894,13 +906,16 @@ fn api_routes(
         )
         // Data retention policies (G-23)
         .route(
-            "/admin/retention",
-            axum::routing::post(guests::create_retention_policy)
-                .get(guests::list_retention_policies),
+            "/admin/retention/policies",
+            axum::routing::get(retention::list_policies).post(retention::create_policy),
         )
         .route(
-            "/admin/retention/{id}",
-            axum::routing::delete(guests::delete_retention_policy),
+            "/admin/retention/policies/{id}",
+            axum::routing::delete(retention::delete_policy),
+        )
+        .route(
+            "/admin/retention/execute",
+            axum::routing::post(retention::execute_policies),
         )
         // GDPR compliance (G-13)
         .route("/admin/gdpr", axum::routing::get(gdpr::list_gdpr_requests))
@@ -1210,11 +1225,11 @@ pub fn build_router_with_static(
                     axum::http::HeaderValue::from_static("Sat, 01 May 2027 00:00:00 GMT"),
                 );
                 let link = format!("</api/{}>; rel=\"successor-version\"", ver);
-                let link_val = axum::http::HeaderValue::from_str(&link)
-                    .expect("API version must be visible ASCII for HTTP headers");
+                let header_value = axum::http::HeaderValue::from_str(&link)
+                    .unwrap_or_else(|_| axum::http::HeaderValue::from_static("invalid-version"));
                 response
                     .headers_mut()
-                    .insert(axum::http::header::LINK, link_val);
+                    .insert(axum::http::header::LINK, header_value);
                 response
             }
         },
@@ -1226,7 +1241,10 @@ pub fn build_router_with_static(
         .route("/healthz", axum::routing::get(liveness))
         .route("/readyz", axum::routing::get(readiness))
         .route("/startupz", axum::routing::get(startup))
-        .route("/s/:token", axum::routing::get(shares::serve_share))
+        .route(
+            "/s/:token",
+            axum::routing::get(shares::serve_share).post(shares::handle_share_upload),
+        )
         // Extended share endpoints (G-24, G-25)
         .route(
             "/s/:token/upload",
@@ -1345,6 +1363,10 @@ pub fn build_router_with_static(
         .layer(cedar_layer)
         .layer(auth_layer)
         .layer(simple_auth_layer)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            guests::guest_expiry_middleware,
+        ))
         .layer(default_password_layer)
         .layer(maintenance_layer)
         .layer(axum::middleware::from_fn_with_state(
@@ -1508,7 +1530,7 @@ pub async fn api_and_webdav_fallback(
     uri: axum::http::Uri,
     State(state): State<AppState>,
     headers: HeaderMap,
-    body: axum::body::Bytes,
+    body: axum::body::Body,
 ) -> Response {
     let path_str = uri.path().to_string();
     // Check for both /api/v1/files/ and /api/files/ (deprecated) prefixes
@@ -1630,13 +1652,23 @@ pub async fn api_and_webdav_fallback(
         }
 
         // File content handler (original behavior)
+        let body_bytes = match http_body_util::BodyExt::collect(body).await {
+            Ok(collected) => collected.to_bytes(),
+            Err(_) => {
+                return (
+                    axum::http::StatusCode::BAD_REQUEST,
+                    "Failed to read request body",
+                )
+                    .into_response();
+            }
+        };
         return api::files_content_handler(
             method,
             uri,
             State(state),
             headers,
             Some(axum::extract::Path(file_path.to_string())),
-            body,
+            body_bytes,
         )
         .await;
     }

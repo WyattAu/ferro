@@ -86,7 +86,10 @@ pub unsafe extern "C" fn ferro_client_new(
         Err(_) => return ptr::null_mut(),
     };
 
-    let client = FerroClient::new(url, token);
+    let client = match FerroClient::new(url, token) {
+        Ok(c) => c,
+        Err(_) => return ptr::null_mut(),
+    };
     Box::into_raw(Box::new(FerroClientHandle { client }))
 }
 

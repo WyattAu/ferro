@@ -12,20 +12,20 @@ pub struct FerroClient {
 }
 
 impl FerroClient {
-    pub fn new(server_url: &str, token: &str) -> Self {
+    pub fn new(server_url: &str, token: &str) -> Result<Self, ClientError> {
         let base_url = server_url.trim_end_matches('/').to_string();
         let http = reqwest::Client::builder()
             .user_agent("ferro-client/0.1.0")
             .pool_max_idle_per_host(4)
             .timeout(std::time::Duration::from_secs(30))
             .build()
-            .expect("Failed to build HTTP client");
+            .map_err(ClientError::Network)?;
 
-        Self {
+        Ok(Self {
             base_url,
             token: token.to_string(),
             http,
-        }
+        })
     }
 
     pub fn with_client(server_url: &str, token: &str, http: reqwest::Client) -> Self {
@@ -377,13 +377,13 @@ mod tests {
 
     #[test]
     fn test_client_new() {
-        let client = FerroClient::new("https://example.com", "token");
+        let client = FerroClient::new("https://example.com", "token").unwrap();
         assert_eq!(client.server_url(), "https://example.com");
     }
 
     #[test]
     fn test_client_trailing_slash() {
-        let client = FerroClient::new("https://example.com/", "token");
+        let client = FerroClient::new("https://example.com/", "token").unwrap();
         assert_eq!(client.server_url(), "https://example.com");
     }
 

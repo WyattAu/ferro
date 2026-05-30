@@ -160,7 +160,10 @@ struct AddressBookData {
     contacts: DashMap<String, ContactInfo>,
 }
 
-/// Thread-safe database handle for persistence.
+/// # Safety
+/// The wrapped `rusqlite::Connection` is only accessed via short-lived lock guards
+/// that never cross an `.await` point. SQLite operations are synchronous
+/// and complete in microseconds, well below the threshold for async poisoning.
 #[cfg(feature = "persistence")]
 pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
 

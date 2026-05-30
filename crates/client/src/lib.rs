@@ -8,12 +8,13 @@
 //! use ferro_client::FerroClient;
 //!
 //! #[tokio::main]
-//! async fn main() {
-//!     let client = FerroClient::new("https://ferro.example.com", "my-token");
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = FerroClient::new("https://ferro.example.com", "my-token")?;
 //!     let files = client.list("/").await.unwrap();
 //!     for file in &files {
 //!         println!("{} ({} bytes)", file.name, file.size);
 //!     }
+//!     Ok(())
 //! }
 //! ```
 
