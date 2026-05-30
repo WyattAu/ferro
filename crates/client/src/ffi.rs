@@ -235,6 +235,7 @@ mod tests {
         assert_eq!(ffi.size, 42);
         assert!(!ffi.is_dir);
 
+        // SAFETY: all pointer fields were created by entry_to_ffi above via CString::into_raw and are non-null
         unsafe {
             if !ffi.name.is_null() {
                 drop(CString::from_raw(ffi.name));
@@ -253,6 +254,7 @@ mod tests {
 
     #[test]
     fn test_client_new_null() {
+        // SAFETY: ferro_client_new is an extern "C" FFI function; passing null pointers is explicitly tested here
         unsafe {
             let handle = ferro_client_new(ptr::null(), ptr::null());
             assert!(handle.is_null());
