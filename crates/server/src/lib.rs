@@ -14,6 +14,7 @@ pub mod conflict;
 pub mod dav;
 pub mod db;
 pub mod dedup;
+pub mod e2ee;
 pub mod email;
 pub mod encryption;
 pub mod error;
@@ -878,6 +879,14 @@ fn api_routes(
         .route(
             "/files/decrypt",
             axum::routing::post(encryption::decrypt_file),
+        )
+        .route(
+            "/e2ee/encrypt",
+            axum::routing::post(e2ee::e2ee_encrypt),
+        )
+        .route(
+            "/e2ee/key/generate",
+            axum::routing::post(e2ee::e2ee_key_generate),
         )
         .route("/quota", axum::routing::get(quota::get_quota))
         .route("/activity", axum::routing::get(activity::get_activity))
