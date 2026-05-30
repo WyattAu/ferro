@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780137792424,
+  "lastUpdate": 1780140596608,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -4355,6 +4355,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 735,
             "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "5e92db129e77fec535a755db183626748c3311eb",
+          "message": "fix(ci): add desktop build job and fix benchmark Node.js version\n\nAdd GTK/webkit desktop build job to checks workflow for CI coverage\nof ferro-desktop crate (TD-006). Fix FORCE_JAVASCRIPT_ACTIONS_TO_NODE24\ntypo to NODE22 matching ubuntu-latest default (TD-022).",
+          "timestamp": "2026-05-30T12:14:50+01:00",
+          "tree_id": "a8f4bb58fc22354397d72c5e8cefe7e2dee5b1c1",
+          "url": "https://github.com/WyattAu/ferro/commit/5e92db129e77fec535a755db183626748c3311eb"
+        },
+        "date": 1780140596140,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300827524,
+            "range": "± 603846",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300817523,
+            "range": "± 336011",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24461,
+            "range": "± 902",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24069,
+            "range": "± 748",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9114,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5125,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1248,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 932,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2905,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1420,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8171,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74878,
+            "range": "± 205",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 93,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19440,
+            "range": "± 367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 934,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 152,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 181,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 863,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 754,
+            "range": "± 3",
             "unit": "ns/iter"
           },
           {
