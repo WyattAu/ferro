@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780121327276,
+  "lastUpdate": 1780137792424,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -4193,6 +4193,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 568,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "c2eb4840c3ff3c4235021f1750dee80100e509dc",
+          "message": "fix(auth): deny requests on invalid Cedar EntityUid parse\n\nPreviously, when Cedar failed to parse a principal/action/resource\nEntityUid (e.g. from crafted usernames with special characters),\nthe authorizer fell back to anonymous/unknown defaults. Since\nthe default policy permits everything including anonymous users,\nthis allowed authorization bypass.\n\nAlso fixed simple_auth granting admin access to disabled accounts:\ninactive users with matching admin credentials are now rejected\nwith 401 ACCOUNT_DISABLED.",
+          "timestamp": "2026-05-30T11:34:03+01:00",
+          "tree_id": "f4d099485bc3359e57880838f4e4b7a74085397d",
+          "url": "https://github.com/WyattAu/ferro/commit/c2eb4840c3ff3c4235021f1750dee80100e509dc"
+        },
+        "date": 1780137791967,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300739472,
+            "range": "± 1346052",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300736543,
+            "range": "± 346919",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24349,
+            "range": "± 791",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23913,
+            "range": "± 4214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9360,
+            "range": "± 185",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5236,
+            "range": "± 114",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1218,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 952,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2710,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1424,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8188,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74869,
+            "range": "± 436",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19220,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 996,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 154,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 851,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 735,
+            "range": "± 4",
             "unit": "ns/iter"
           },
           {
