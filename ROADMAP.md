@@ -20,6 +20,17 @@
 
 ## What Was Just Completed
 
+### 2026-05-30 (v3.0.3): Audit Cycle 2 — Formatting, Test Count Verification, Metadata Update
+
+- `cargo fmt --all`: fixed indentation in desktop commands/gui, server dav/e2ee/lib
+- Test count verified: 998 passing, 0 failures, 0 clippy warnings
+- VERSION.md: corrected stale test counts (967 -> 998)
+- ROADMAP.md: corrected stale test counts across all sections
+- CHANGELOG.md: added Unreleased section with audit findings
+- mdBook docs build verified successful (35+ pages, all links resolve)
+- Docs site verified live at https://wyattau.github.io/ferro/ (HTTP 200)
+- Pre-commit hook confirmed: fmt + clippy + tests enforced locally
+
 ### 2026-05-30 (v3.0.1): Security and Quality Audit
 
 **Security Fixes (Critical):**
