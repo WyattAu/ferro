@@ -6,7 +6,36 @@ use tracing::warn;
 
 use crate::activity::Activity;
 
+/// # Safety
+/// The wrapped `rusqlite::Connection` is only accessed via short-lived lock guards
+/// that never cross an `.await` point. SQLite operations are synchronous
+/// and complete in microseconds, well below the threshold for async poisoning.
 pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+
+#[derive(Debug)]
+pub enum StoreError {
+    LockPoisoned,
+}
+
+impl std::fmt::Display for StoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LockPoisoned => write!(f, "mutex lock poisoned, possible data corruption"),
+        }
+    }
+}
+
+impl std::error::Error for StoreError {}
+
+fn acquire_lock<'a>(
+    db: &'a DbHandle,
+    context: &str,
+) -> Result<std::sync::MutexGuard<'a, rusqlite::Connection>, StoreError> {
+    db.lock().map_err(|_e| {
+        warn!("{context}: mutex poisoned, refusing to recover lock");
+        StoreError::LockPoisoned
+    })
+}
 
 pub struct ActivityStore {
     pub(crate) inbox: Arc<DashMap<String, Activity>>,
@@ -41,7 +70,7 @@ impl ActivityStore {
         self
     }
 
-    pub fn add_to_inbox(&self, activity: Activity) {
+    pub fn add_to_inbox(&self, activity: Activity) -> Result<(), StoreError> {
         let id = activity.id.clone();
         self.inbox.insert(id.clone(), activity.clone());
         if let Some(ref db) = self.db {
@@ -59,10 +88,7 @@ impl ActivityStore {
                     String::new()
                 })
             });
-            let conn = db.lock().unwrap_or_else(|e| {
-                warn!("inbox: mutex poisoned, recovering lock");
-                e.into_inner()
-            });
+            let conn = acquire_lock(db, "inbox")?;
             if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'inbox')",
                 params![
@@ -87,6 +113,7 @@ impl ActivityStore {
                 removed <= to_remove
             });
         }
+        Ok(())
     }
 
     pub fn get_inbox(&self, offset: usize, limit: usize) -> Vec<Activity> {
@@ -95,7 +122,7 @@ impl ActivityStore {
         activities.into_iter().skip(offset).take(limit).collect()
     }
 
-    pub fn add_to_outbox(&self, activity: Activity) {
+    pub fn add_to_outbox(&self, activity: Activity) -> Result<(), StoreError> {
         let id = activity.id.clone();
         self.outbox.insert(id.clone(), activity.clone());
         if let Some(ref db) = self.db {
@@ -113,10 +140,7 @@ impl ActivityStore {
                     String::new()
                 })
             });
-            let conn = db.lock().unwrap_or_else(|e| {
-                warn!("outbox: mutex poisoned, recovering lock");
-                e.into_inner()
-            });
+            let conn = acquire_lock(db, "outbox")?;
             if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO fed_activities (activity_id, actor, type, object, target, published, raw_json, box_type) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'outbox')",
                 params![
@@ -141,6 +165,7 @@ impl ActivityStore {
                 removed <= to_remove
             });
         }
+        Ok(())
     }
 
     pub fn get_outbox(&self, offset: usize, limit: usize) -> Vec<Activity> {
@@ -149,33 +174,37 @@ impl ActivityStore {
         activities.into_iter().skip(offset).take(limit).collect()
     }
 
-    pub fn add_follower(&self, actor: &str, follower: &str) {
+    pub fn add_follower(&self, actor: &str, follower: &str) -> Result<(), StoreError> {
         self.followers
             .entry(actor.to_string())
             .or_default()
             .push(follower.to_string());
-        if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
+        if let Some(ref db) = self.db {
+            let conn = acquire_lock(db, "add_follower")?;
+            if let Err(e) = conn.execute(
                 "INSERT OR IGNORE INTO fed_followers (actor, follower) VALUES (?1, ?2)",
                 params![actor, follower],
-            )
-        {
-            warn!("Failed to persist follower to SQLite: {}", e);
+            ) {
+                warn!("Failed to persist follower to SQLite: {}", e);
+            }
         }
+        Ok(())
     }
 
-    pub fn remove_follower(&self, actor: &str, follower: &str) {
+    pub fn remove_follower(&self, actor: &str, follower: &str) -> Result<(), StoreError> {
         if let Some(mut followers) = self.followers.get_mut(actor) {
             followers.retain(|f| f != follower);
         }
-        if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
+        if let Some(ref db) = self.db {
+            let conn = acquire_lock(db, "remove_follower")?;
+            if let Err(e) = conn.execute(
                 "DELETE FROM fed_followers WHERE actor = ?1 AND follower = ?2",
                 params![actor, follower],
-            )
-        {
-            warn!("Failed to remove follower from SQLite: {}", e);
+            ) {
+                warn!("Failed to remove follower from SQLite: {}", e);
+            }
         }
+        Ok(())
     }
 
     pub fn get_followers(&self, actor: &str) -> Vec<String> {
@@ -192,19 +221,21 @@ impl ActivityStore {
             .unwrap_or_default()
     }
 
-    pub fn add_following(&self, actor: &str, target: &str) {
+    pub fn add_following(&self, actor: &str, target: &str) -> Result<(), StoreError> {
         self.following
             .entry(actor.to_string())
             .or_default()
             .push(target.to_string());
-        if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
+        if let Some(ref db) = self.db {
+            let conn = acquire_lock(db, "add_following")?;
+            if let Err(e) = conn.execute(
                 "INSERT OR IGNORE INTO fed_following (actor, target) VALUES (?1, ?2)",
                 params![actor, target],
-            )
-        {
-            warn!("Failed to persist following to SQLite: {}", e);
+            ) {
+                warn!("Failed to persist following to SQLite: {}", e);
+            }
         }
+        Ok(())
     }
 
     pub fn inbox_len(&self) -> usize {
@@ -295,9 +326,15 @@ mod tests {
     #[test]
     fn test_inbox_outbox_ordering() {
         let store = ActivityStore::new();
-        store.add_to_inbox(make_activity("a", "2024-01-01T00:00:00+00:00"));
-        store.add_to_inbox(make_activity("b", "2024-01-03T00:00:00+00:00"));
-        store.add_to_inbox(make_activity("c", "2024-01-02T00:00:00+00:00"));
+        store
+            .add_to_inbox(make_activity("a", "2024-01-01T00:00:00+00:00"))
+            .unwrap();
+        store
+            .add_to_inbox(make_activity("b", "2024-01-03T00:00:00+00:00"))
+            .unwrap();
+        store
+            .add_to_inbox(make_activity("c", "2024-01-02T00:00:00+00:00"))
+            .unwrap();
 
         let items = store.get_inbox(0, 10);
         assert_eq!(items.len(), 3);
@@ -309,9 +346,15 @@ mod tests {
     #[test]
     fn test_outbox_ordering() {
         let store = ActivityStore::new();
-        store.add_to_outbox(make_activity("x", "2024-06-01T00:00:00+00:00"));
-        store.add_to_outbox(make_activity("y", "2024-06-03T00:00:00+00:00"));
-        store.add_to_outbox(make_activity("z", "2024-06-02T00:00:00+00:00"));
+        store
+            .add_to_outbox(make_activity("x", "2024-06-01T00:00:00+00:00"))
+            .unwrap();
+        store
+            .add_to_outbox(make_activity("y", "2024-06-03T00:00:00+00:00"))
+            .unwrap();
+        store
+            .add_to_outbox(make_activity("z", "2024-06-02T00:00:00+00:00"))
+            .unwrap();
 
         let items = store.get_outbox(0, 10);
         assert_eq!(items.len(), 3);
@@ -323,16 +366,16 @@ mod tests {
     #[test]
     fn test_followers_following() {
         let store = ActivityStore::new();
-        store.add_follower("alice", "bob");
-        store.add_follower("alice", "carol");
-        store.add_follower("bob", "alice");
+        store.add_follower("alice", "bob").unwrap();
+        store.add_follower("alice", "carol").unwrap();
+        store.add_follower("bob", "alice").unwrap();
 
         let followers = store.get_followers("alice");
         assert_eq!(followers.len(), 2);
         assert!(followers.contains(&"bob".to_string()));
         assert!(followers.contains(&"carol".to_string()));
 
-        store.add_following("alice", "dave");
+        store.add_following("alice", "dave").unwrap();
         let following = store.get_following("alice");
         assert_eq!(following, vec!["dave".to_string()]);
 
@@ -343,9 +386,9 @@ mod tests {
     #[test]
     fn test_remove_follower() {
         let store = ActivityStore::new();
-        store.add_follower("alice", "bob");
-        store.add_follower("alice", "carol");
-        store.remove_follower("alice", "bob");
+        store.add_follower("alice", "bob").unwrap();
+        store.add_follower("alice", "carol").unwrap();
+        store.remove_follower("alice", "bob").unwrap();
         let followers = store.get_followers("alice");
         assert_eq!(followers, vec!["carol".to_string()]);
     }
@@ -354,10 +397,12 @@ mod tests {
     fn test_store_bounded_max_entries() {
         let store = ActivityStore::with_max_entries(3);
         for i in 0..5 {
-            store.add_to_inbox(make_activity(
-                &format!("msg-{}", i),
-                &format!("2024-01-{:02}T00:00:00+00:00", i + 1),
-            ));
+            store
+                .add_to_inbox(make_activity(
+                    &format!("msg-{}", i),
+                    &format!("2024-01-{:02}T00:00:00+00:00", i + 1),
+                ))
+                .unwrap();
         }
         assert!(store.inbox_len() <= 3);
     }
@@ -366,10 +411,12 @@ mod tests {
     fn test_inbox_pagination() {
         let store = ActivityStore::new();
         for i in 0..10 {
-            store.add_to_inbox(make_activity(
-                &format!("msg-{:02}", i),
-                &format!("2024-01-{:02}T00:00:00+00:00", 10 - i),
-            ));
+            store
+                .add_to_inbox(make_activity(
+                    &format!("msg-{:02}", i),
+                    &format!("2024-01-{:02}T00:00:00+00:00", 10 - i),
+                ))
+                .unwrap();
         }
         let page1 = store.get_inbox(0, 3);
         assert_eq!(page1.len(), 3);
