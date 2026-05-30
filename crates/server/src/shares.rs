@@ -342,6 +342,15 @@ pub async fn create_share(
     axum::Json(req): axum::Json<CreateShareRequest>,
 ) -> Response {
     let link = state.share_store.create(req, "anonymous".to_string()).await;
+
+    crate::event_triggers::fire_event_triggers(
+        &state,
+        crate::event_triggers::EventType::ShareCreated,
+        &link.path,
+        &link.created_by,
+    )
+    .await;
+
     (
         StatusCode::CREATED,
         axum::Json(serde_json::json!({

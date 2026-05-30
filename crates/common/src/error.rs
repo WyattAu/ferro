@@ -41,6 +41,9 @@ pub enum FerroError {
 
     #[error("XML processing error: {0}")]
     XmlError(String),
+
+    #[error("WORM-protected resource cannot be modified or deleted: {0}")]
+    WormProtected(String),
 }
 
 impl FerroError {
@@ -60,6 +63,7 @@ impl FerroError {
             Self::StorageBackend(_) => 502,
             Self::Unauthorized => 401,
             Self::XmlError(_) => 400,
+            Self::WormProtected(_) => 403,
         }
     }
 }

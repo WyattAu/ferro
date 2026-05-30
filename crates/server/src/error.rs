@@ -23,6 +23,7 @@ impl IntoResponse for ServerError {
             | FerroError::StorageBackend(_)
             | FerroError::XmlError(_)
             | FerroError::UnsupportedMediaType(_) => crate::api_error::ApiError::INTERNAL_ERROR,
+            FerroError::WormProtected(_) => crate::api_error::ApiError::WORM_PROTECTED,
         };
 
         crate::api_error::ApiError::with_details(

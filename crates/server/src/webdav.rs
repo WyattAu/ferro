@@ -325,6 +325,13 @@ async fn handle_put_streaming(
 
     let already_existed = state.storage.exists(&path).await?;
 
+    if already_existed {
+        let worm_policies = crate::worm::load_policies(&state);
+        if crate::worm::is_worm_protected(&path, &worm_policies) {
+            return Err(FerroError::WormProtected(path.to_string()));
+        }
+    }
+
     if already_existed
         && state.max_file_versions > 0
         && let Ok(prev) = state.storage.get(&path).await
@@ -463,6 +470,24 @@ async fn handle_put_streaming(
         &owner,
         meta.content_hash.as_str(),
     );
+
+    if already_existed {
+        crate::event_triggers::fire_event_triggers(
+            &state,
+            crate::event_triggers::EventType::FileModified,
+            &path,
+            &owner,
+        )
+        .await;
+    } else {
+        crate::event_triggers::fire_event_triggers(
+            &state,
+            crate::event_triggers::EventType::FileUploaded,
+            &path,
+            &owner,
+        )
+        .await;
+    }
 
     Ok((status, resp_headers, "").into_response())
 }
@@ -864,6 +889,13 @@ async fn handle_put(
 
     let already_existed = state.storage.exists(&path).await?;
 
+    if already_existed {
+        let worm_policies = crate::worm::load_policies(&state);
+        if crate::worm::is_worm_protected(&path, &worm_policies) {
+            return Err(FerroError::WormProtected(path.to_string()));
+        }
+    }
+
     // Auto-version: snapshot previous content before overwrite
     if already_existed
         && state.max_file_versions > 0
@@ -1010,6 +1042,24 @@ async fn handle_put(
         meta.content_hash.as_str(),
     );
 
+    if already_existed {
+        crate::event_triggers::fire_event_triggers(
+            &state,
+            crate::event_triggers::EventType::FileModified,
+            &path,
+            &owner,
+        )
+        .await;
+    } else {
+        crate::event_triggers::fire_event_triggers(
+            &state,
+            crate::event_triggers::EventType::FileUploaded,
+            &path,
+            &owner,
+        )
+        .await;
+    }
+
     Ok((status, resp_headers, "").into_response())
 }
 
@@ -1030,6 +1080,7 @@ fn delete_recursive<'a>(
             }
         }
         state.storage.delete(path).await?;
+        state.thumbnail_cache.invalidate(path);
         crate::indexer::remove_file(state, path).await;
         Ok(())
     })
@@ -1050,6 +1101,11 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
             "Resource locked by {}",
             lock.principal
         )));
+    }
+
+    let worm_policies = crate::worm::load_policies(&state);
+    if crate::worm::is_worm_protected(&path, &worm_policies) {
+        return Err(FerroError::WormProtected(path.to_string()));
     }
 
     // RFC 4918 §9.6.1: DELETE on a collection removes the collection and all
@@ -1074,6 +1130,14 @@ async fn handle_delete(state: AppState, path: &str, headers: &HeaderMap) -> Resu
     .await;
 
     state.record_sync_op(OpType::Delete, &path, None, 0, None, &owner, "");
+
+    crate::event_triggers::fire_event_triggers(
+        &state,
+        crate::event_triggers::EventType::FileDeleted,
+        &path,
+        &owner,
+    )
+    .await;
 
     Ok(StatusCode::NO_CONTENT.into_response())
 }
@@ -1134,6 +1198,11 @@ async fn handle_copy(state: AppState, path: &str, headers: &HeaderMap) -> Result
         return Err(FerroError::NotFound(path.to_string()));
     }
 
+    let worm_policies = crate::worm::load_policies(&state);
+    if crate::worm::is_worm_protected(&path, &worm_policies) {
+        return Err(FerroError::WormProtected(path.to_string()));
+    }
+
     if let Err(e) = state.lock_manager.check_lock_for_write(&path).await {
         return Err(FerroError::LockConflict(format!("Source locked: {}", e)));
     }
@@ -1189,6 +1258,11 @@ async fn handle_move(state: AppState, path: &str, headers: &HeaderMap) -> Result
 
     if !state.storage.exists(&path).await? {
         return Err(FerroError::NotFound(path.to_string()));
+    }
+
+    let worm_policies = crate::worm::load_policies(&state);
+    if crate::worm::is_worm_protected(&path, &worm_policies) {
+        return Err(FerroError::WormProtected(path.to_string()));
     }
 
     if let Err(e) = state.lock_manager.check_lock_for_write(&path).await {

@@ -85,6 +85,13 @@ pub async fn move_file(
                     );
                 }
             } else {
+                let worm_policies = crate::worm::load_policies(&state);
+                if crate::worm::is_worm_protected(&source, &worm_policies) {
+                    return ApiError::forbidden(
+                        ApiError::WORM_PROTECTED,
+                        format!("WORM-protected: {}", source),
+                    );
+                }
                 match state.storage.move_path(&source, &destination).await {
                     Ok(()) => {}
                     Err(e) => {
@@ -204,6 +211,13 @@ pub async fn copy_file(
                     );
                 }
             } else {
+                let worm_policies = crate::worm::load_policies(&state);
+                if crate::worm::is_worm_protected(&source, &worm_policies) {
+                    return ApiError::forbidden(
+                        ApiError::WORM_PROTECTED,
+                        format!("WORM-protected: {}", source),
+                    );
+                }
                 match state.storage.copy(&source, &destination).await {
                     Ok(()) => {}
                     Err(e) => {

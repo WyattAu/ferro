@@ -203,20 +203,43 @@ pub async fn get_thumbnail(
         return (StatusCode::BAD_REQUEST, "Cannot thumbnail a collection").into_response();
     }
 
-    let content = match state.storage.get(&path).await {
-        Ok(c) => c,
-        Err(_) => return (StatusCode::NOT_FOUND, "File not found").into_response(),
-    };
-
     let mime = if meta.mime_type.is_empty() {
         "application/octet-stream"
     } else {
         &meta.mime_type
     };
+
+    if let Some((data, cached_mime)) = state.thumbnail_cache.get(&path) {
+        debug!("Thumbnail cache hit (LRU): {}", path);
+        let content_type = if cached_mime == "image/svg+xml" {
+            "image/svg+xml"
+        } else {
+            "image/jpeg"
+        };
+        return (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, content_type),
+                (header::CACHE_CONTROL, "public, max-age=86400"),
+            ],
+            Bytes::from(data),
+        )
+            .into_response();
+    }
+
+    let content = match state.storage.get(&path).await {
+        Ok(c) => c,
+        Err(_) => return (StatusCode::NOT_FOUND, "File not found").into_response(),
+    };
+
     let data_dir = state.data_dir.as_deref().unwrap_or("/tmp/ferro");
     let service = ThumbnailService::new(data_dir, state.thumbnail_size);
 
     let (content_type, data) = service.get_or_generate(&path, mime, content).await;
+
+    state
+        .thumbnail_cache
+        .put(&path, data.to_vec(), content_type);
 
     (
         StatusCode::OK,

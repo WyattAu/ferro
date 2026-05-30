@@ -488,6 +488,15 @@ async fn main() -> anyhow::Result<()> {
 
     state.thumbnail_size = cli.thumbnail_size.clamp(64, 1024);
 
+    state.thumbnail_cache = {
+        let cache_dir = state.data_dir.as_deref().unwrap_or("/tmp/ferro");
+        std::sync::Arc::new(ferro_server::thumbnail_cache::ThumbnailCache::new(
+            cache_dir,
+            cli.thumbnail_cache_size,
+            10_000,
+        ))
+    };
+
     let state = if let Some(ref data_dir) = cli.data_dir {
         let trash_dir = std::path::Path::new(data_dir).join(".trash");
         if let Err(e) = std::fs::create_dir_all(&trash_dir) {
@@ -661,6 +670,9 @@ async fn main() -> anyhow::Result<()> {
             let mut wh = state.webhooks.write().await;
             wh.extend(hooks);
         }
+
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        ferro_server::event_triggers::load_triggers_from_db(&conn);
     }
 
     // Validate storage backend is reachable

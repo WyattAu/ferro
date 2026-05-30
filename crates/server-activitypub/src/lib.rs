@@ -165,7 +165,9 @@ pub async fn inbox(
         }
     }
 
-    state.activity_store.add_to_inbox(activity.clone());
+    if let Err(e) = state.activity_store.add_to_inbox(activity.clone()) {
+        tracing::warn!("inbox: {e}");
+    }
 
     let delivery_state = state.clone();
     let act = serde_json::to_value(activity.clone()).unwrap_or_default();
@@ -190,15 +192,19 @@ pub async fn inbox(
                 published: chrono::Utc::now().to_rfc3339(),
                 target: None,
             };
-            state.activity_store.add_to_outbox(accept);
-            state.activity_store.add_follower("admin", &activity.actor);
+            state.activity_store.add_to_outbox(accept).ok();
+            state
+                .activity_store
+                .add_follower("admin", &activity.actor)
+                .ok();
         }
         ActivityType::Create | ActivityType::Update | ActivityType::Delete => {}
         ActivityType::Announce => {}
         ActivityType::Undo => {
             state
                 .activity_store
-                .remove_follower("admin", &activity.actor);
+                .remove_follower("admin", &activity.actor)
+                .ok();
         }
         _ => {}
     }
@@ -289,7 +295,7 @@ pub async fn federated_share(
     });
 
     let activity = Activity::announce(&actor_id, file_object, &actor_id);
-    state.activity_store.add_to_outbox(activity.clone());
+    state.activity_store.add_to_outbox(activity.clone()).ok();
 
     let followers = state.activity_store.get_followers("admin");
     for follower in &followers {

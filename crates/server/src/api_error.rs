@@ -196,6 +196,7 @@ impl ApiError {
     // Configuration / feature flags
     pub const NOT_CONFIGURED: &'static str = "NOT_CONFIGURED";
     pub const MAINTENANCE_MODE: &'static str = "MAINTENANCE_MODE";
+    pub const WORM_PROTECTED: &'static str = "WORM_PROTECTED";
 
     // Trash & snapshots
     pub const TRASH_NOT_FOUND: &'static str = "TRASH_NOT_FOUND";

@@ -242,6 +242,10 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_THUMBNAIL_SIZE", default_value = "256")]
     pub thumbnail_size: u32,
 
+    /// Maximum thumbnail cache size in bytes (default: 104857600 = 100MB)
+    #[arg(long, env = "FERRO_THUMBNAIL_CACHE_SIZE", default_value = "104857600")]
+    pub thumbnail_cache_size: u64,
+
     /// Retention policy check interval in seconds (default: 3600 = 1 hour).
     /// Set to 0 to disable the background retention daemon.
     #[arg(long, env = "FERRO_RETENTION_CHECK_INTERVAL", default_value = "3600")]
@@ -335,6 +339,7 @@ impl std::fmt::Debug for ServerConfig {
             .field("cors_origins", &self.cors_origins)
             .field("max_file_versions", &self.max_file_versions)
             .field("thumbnail_size", &self.thumbnail_size)
+            .field("thumbnail_cache_size", &self.thumbnail_cache_size)
             .field("multi_user", &self.multi_user)
             .finish()
     }
