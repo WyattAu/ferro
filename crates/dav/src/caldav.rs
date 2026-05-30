@@ -310,3 +310,67 @@ fn parse_ical_timestamp(s: &str) -> Option<chrono::DateTime<Utc>> {
             .map(|dt| dt.and_utc())
     }
 }
+
+/// Handle a CalDAV calendar-multiget REPORT request (RFC 4791 Section 7.9).
+/// Retrieves specific calendar objects by href.
+pub async fn handle_multiget(
+    State(state): State<CalDavState>,
+    Extension(body): Extension<Bytes>,
+) -> Response {
+    let hrefs = xml_ext::parse_multiget_hrefs(&body);
+    let mut responses = Vec::new();
+
+    for href in &hrefs {
+        // Parse href: expect "/dav/cal/{calendar}/{uid}.ics"
+        let path = href.trim_matches('/').trim_start_matches("dav/cal/");
+        let parts: Vec<&str> = path.splitn(2, '/').collect();
+        if parts.len() != 2 {
+            continue;
+        }
+        let calendar = parts[0];
+        let uid = parts[1].strip_suffix(".ics").unwrap_or(parts[1]);
+
+        if let Some(event) = state.store.get_event(calendar, uid).await {
+            responses.push(DavResponse {
+                href: href.clone(),
+                propstats: vec![PropStat {
+                    status: 200,
+                    props: vec![
+                        DavProp {
+                            name: "D:getetag".to_string(),
+                            namespace: None,
+                            value: Some(event.etag.clone()),
+                        },
+                        DavProp {
+                            name: "C:calendar-data".to_string(),
+                            namespace: Some("urn:ietf:params:xml:ns:caldav".to_string()),
+                            value: Some(event.ical_data.clone()),
+                        },
+                    ],
+                }],
+            });
+        } else {
+            responses.push(DavResponse {
+                href: href.clone(),
+                propstats: vec![PropStat {
+                    status: 404,
+                    props: vec![
+                        DavProp {
+                            name: "D:getetag".to_string(),
+                            namespace: None,
+                            value: None,
+                        },
+                        DavProp {
+                            name: "C:calendar-data".to_string(),
+                            namespace: Some("urn:ietf:params:xml:ns:caldav".to_string()),
+                            value: None,
+                        },
+                    ],
+                }],
+            });
+        }
+    }
+
+    let xml_body = xml_ext::build_dav_multistatus(&responses);
+    dav_multistatus(xml_body)
+}

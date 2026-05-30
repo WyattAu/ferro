@@ -286,3 +286,67 @@ pub async fn handle_report(
     let xml_body = xml_ext::build_dav_multistatus(&responses);
     dav_multistatus(xml_body)
 }
+
+/// Handle a CardDAV addressbook-multiget REPORT request (RFC 6352 Section 8.4).
+/// Retrieves specific contacts by href.
+pub async fn handle_multiget(
+    State(state): State<CardDavState>,
+    Extension(body): Extension<Bytes>,
+) -> Response {
+    let hrefs = xml_ext::parse_multiget_hrefs(&body);
+    let mut responses = Vec::new();
+
+    for href in &hrefs {
+        // Parse href: expect "/dav/card/{book}/{uid}.vcf"
+        let path = href.trim_matches('/').trim_start_matches("dav/card/");
+        let parts: Vec<&str> = path.splitn(2, '/').collect();
+        if parts.len() != 2 {
+            continue;
+        }
+        let book = parts[0];
+        let uid = parts[1].strip_suffix(".vcf").unwrap_or(parts[1]);
+
+        if let Some(contact) = state.store.get_contact(book, uid).await {
+            responses.push(DavResponse {
+                href: href.clone(),
+                propstats: vec![PropStat {
+                    status: 200,
+                    props: vec![
+                        DavProp {
+                            name: "D:getetag".to_string(),
+                            namespace: None,
+                            value: Some(contact.etag.clone()),
+                        },
+                        DavProp {
+                            name: "A:address-data".to_string(),
+                            namespace: Some("urn:ietf:params:xml:ns:carddav".to_string()),
+                            value: Some(contact.vcard_data.clone()),
+                        },
+                    ],
+                }],
+            });
+        } else {
+            responses.push(DavResponse {
+                href: href.clone(),
+                propstats: vec![PropStat {
+                    status: 404,
+                    props: vec![
+                        DavProp {
+                            name: "D:getetag".to_string(),
+                            namespace: None,
+                            value: None,
+                        },
+                        DavProp {
+                            name: "A:address-data".to_string(),
+                            namespace: Some("urn:ietf:params:xml:ns:carddav".to_string()),
+                            value: None,
+                        },
+                    ],
+                }],
+            });
+        }
+    }
+
+    let xml_body = xml_ext::build_dav_multistatus(&responses);
+    dav_multistatus(xml_body)
+}

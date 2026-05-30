@@ -90,3 +90,50 @@ fn test_build_dav_multistatus_empty() {
     assert!(s.contains("D:multistatus"));
     assert!(s.contains("xmlns:D=\"DAV:\""));
 }
+
+#[test]
+fn test_parse_multiget_hrefs_calendars() {
+    let xml = br#"<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <D:href>/dav/cal/personal/evt1.ics</D:href>
+  <D:href>/dav/cal/personal/evt2.ics</D:href>
+  <D:href>/dav/cal/work/meeting.ics</D:href>
+</C:calendar-multiget>"#;
+
+    let hrefs = parse_multiget_hrefs(xml);
+    assert_eq!(hrefs.len(), 3);
+    assert_eq!(hrefs[0], "/dav/cal/personal/evt1.ics");
+    assert_eq!(hrefs[1], "/dav/cal/personal/evt2.ics");
+    assert_eq!(hrefs[2], "/dav/cal/work/meeting.ics");
+}
+
+#[test]
+fn test_parse_multiget_hrefs_contacts() {
+    let xml = br#"<A:addressbook-multiget xmlns:D="DAV:" xmlns:A="urn:ietf:params:xml:ns:carddav">
+  <D:prop><D:getetag/><A:address-data/></D:prop>
+  <D:href>/dav/card/contacts/uid1.vcf</D:href>
+  <D:href>/dav/card/contacts/uid2.vcf</D:href>
+</A:addressbook-multiget>"#;
+
+    let hrefs = parse_multiget_hrefs(xml);
+    assert_eq!(hrefs.len(), 2);
+    assert_eq!(hrefs[0], "/dav/card/contacts/uid1.vcf");
+    assert_eq!(hrefs[1], "/dav/card/contacts/uid2.vcf");
+}
+
+#[test]
+fn test_parse_multiget_hrefs_empty() {
+    let xml = br#"<C:calendar-multiget xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+</C:calendar-multiget>"#;
+
+    let hrefs = parse_multiget_hrefs(xml);
+    assert!(hrefs.is_empty());
+}
+
+#[test]
+fn test_parse_multiget_hrefs_oversized() {
+    let mut huge = vec![0u8; 10 * 1024 * 1024 + 1];
+    huge[0] = b'<';
+    assert!(parse_multiget_hrefs(&huge).is_empty());
+}

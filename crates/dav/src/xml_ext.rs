@@ -192,3 +192,47 @@ pub fn parse_addressbook_query_filter(body: &[u8]) -> Option<String> {
 
     filter_text
 }
+
+/// Parse a CalDAV calendar-multiget or CardDAV addressbook-multiget request.
+/// Extracts the list of hrefs from `<D:href>` elements inside the report body.
+pub fn parse_multiget_hrefs(body: &[u8]) -> Vec<String> {
+    let mut hrefs = Vec::new();
+
+    if body.len() > 10 * 1024 * 1024 {
+        return hrefs;
+    }
+
+    let mut reader = quick_xml::Reader::from_reader(body);
+    reader.config_mut().trim_text(true);
+    let mut buf = Vec::new();
+    let mut in_href = false;
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
+                let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
+                let local = name.strip_prefix("D:").unwrap_or(&name);
+                if local == "href" {
+                    in_href = true;
+                }
+            }
+            Ok(Event::Text(ref e)) if in_href => {
+                let text = String::from_utf8_lossy(e.as_ref()).to_string();
+                let trimmed = text.trim().to_string();
+                if !trimmed.is_empty() {
+                    hrefs.push(trimmed);
+                }
+                in_href = false;
+            }
+            Ok(Event::End(_)) => {
+                in_href = false;
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    hrefs
+}

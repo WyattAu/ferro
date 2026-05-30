@@ -35,7 +35,11 @@ pub async fn dispatch_caldav(
             ferro_dav::caldav::create_calendar_handler(axum::extract::State(cal_state)).await
         }
         "REPORT" => {
-            ferro_dav::caldav::handle_report(axum::extract::State(cal_state), Extension(body)).await
+            if is_multiget_report(&body) {
+                ferro_dav::caldav::handle_multiget(axum::extract::State(cal_state), Extension(body)).await
+            } else {
+                ferro_dav::caldav::handle_report(axum::extract::State(cal_state), Extension(body)).await
+            }
         }
         _ => axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response(),
     }
@@ -53,8 +57,13 @@ pub async fn dispatch_carddav(
     let card_state = carddav_state(&state).await;
     match method.as_str() {
         "REPORT" => {
-            ferro_dav::carddav::handle_report(axum::extract::State(card_state), Extension(body))
-                .await
+            if is_multiget_report(&body) {
+                ferro_dav::carddav::handle_multiget(axum::extract::State(card_state), Extension(body))
+                    .await
+            } else {
+                ferro_dav::carddav::handle_report(axum::extract::State(card_state), Extension(body))
+                    .await
+            }
         }
         _ => axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response(),
     }
@@ -191,4 +200,14 @@ pub async fn carddav_delete_contact(
         Path((book, uid)),
     )
     .await
+}
+
+/// Check if a REPORT request body is a multiget request.
+/// Multiget requests have root elements `calendar-multiget` or `addressbook-multiget`.
+fn is_multiget_report(body: &[u8]) -> bool {
+    if body.len() < 20 || body.len() > 10 * 1024 * 1024 {
+        return false;
+    }
+    let body_str = String::from_utf8_lossy(body);
+    body_str.contains("calendar-multiget") || body_str.contains("addressbook-multiget")
 }
