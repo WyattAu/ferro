@@ -245,7 +245,8 @@ mod tests {
         let secret = generate_secret();
         let code = generate_totp(&secret, 1_700_000_000, 8, 30, 0);
         assert!(code < 100_000_000, "8-digit code should be < 100M");
-        assert!(code >= 10_000_000, "8-digit code should be >= 10M");
+        // Code may have leading zeros (e.g., 05123456), so only check the upper bound.
+        // The modulus ensures it fits in 8 digits.
         assert!(verify_totp(&secret, code, 1_700_000_000, 8, 30, 0, 0));
     }
 }
