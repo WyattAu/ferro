@@ -2754,6 +2754,7 @@ dependencies = [
  "chrono",
  "dashmap 6.1.0",
  "ferro-common",
+ "flate2",
  "hex",
  "hmac 0.12.1",
  "http-body-util",
@@ -2770,6 +2771,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "urlencoding",
  "uuid",
 ]
 
