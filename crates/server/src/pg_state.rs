@@ -71,6 +71,8 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
             max_downloads: req.max_downloads,
             download_count: 0,
             created_by,
+            allow_download: req.allow_download,
+            allow_upload: req.allow_upload,
         }
     }
 
@@ -94,6 +96,8 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
             max_downloads: max_downloads.map(|d| d as u32),
             download_count: download_count as u32,
             created_by,
+            allow_download: None,
+            allow_upload: None,
         })
     }
 
@@ -128,6 +132,8 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
                         max_downloads: max_downloads.map(|d| d as u32),
                         download_count: download_count as u32,
                         created_by,
+                        allow_download: None,
+                        allow_upload: None,
                     }
                 },
             )

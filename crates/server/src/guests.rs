@@ -6,6 +6,9 @@ use axum::response::{IntoResponse, Response};
 use chrono::{Duration, Utc};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
+use tracing::info;
 
 use crate::AppState;
 use crate::api_error::ApiError;
@@ -291,8 +294,19 @@ pub async fn delete_retention_policy(
 }
 
 // ---------------------------------------------------------------------------
-// Guest expiry check (called periodically)
+// Guest expiry check (called periodically and during authentication)
 // ---------------------------------------------------------------------------
+
+/// Validate a single guest account's expiry time.
+///
+/// Returns `true` if the guest's `guest_expires_at` is in the past (expired).
+/// Should be called during authentication for guest users.
+pub fn validate_guest_expiry(guest_expires_at: &str) -> bool {
+    match chrono::DateTime::parse_from_rfc3339(guest_expires_at) {
+        Ok(expires_at) => expires_at < Utc::now(),
+        Err(_) => false,
+    }
+}
 
 /// Check and disable expired guest accounts.
 /// Returns the number of expired guests that were disabled.
@@ -318,6 +332,174 @@ pub fn check_guest_expiry(state: &AppState) -> u32 {
     } else {
         0
     }
+}
+
+/// Scan for expired guest accounts, disable them, log audit entries, and
+/// return the count of accounts disabled.
+async fn cleanup_expired_guests(state: &AppState) -> u32 {
+    let disabled_ids = if let Some(ref db) = state.db {
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+
+        let now = Utc::now().to_rfc3339();
+        let expired_guests: Vec<(String, String, String)> = {
+            let mut stmt = match conn.prepare(
+                "SELECT id, username, guest_expires_at FROM users WHERE is_guest = 1 AND status = 'active' AND guest_expires_at IS NOT NULL AND guest_expires_at < ?1",
+            ) {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::warn!(error = %e, "failed to query expired guests");
+                    return 0;
+                }
+            };
+
+            stmt.query_map(params![now], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .and_then(|rows| rows.collect::<Result<Vec<_>, _>>())
+            .unwrap_or_default()
+        };
+
+        let mut disabled = Vec::new();
+        for (id, username, expires_at) in &expired_guests {
+            if let Err(e) = conn.execute(
+                "UPDATE users SET status = 'disabled' WHERE id = ?1 AND is_guest = 1",
+                params![id],
+            ) {
+                tracing::warn!(error = %e, guest_id = %id, "failed to disable expired guest");
+                continue;
+            }
+
+            info!(
+                guest_id = %id,
+                username = %username,
+                expires_at = %expires_at,
+                "expired guest account disabled"
+            );
+            disabled.push(id.clone());
+        }
+
+        disabled
+    } else {
+        Vec::new()
+    };
+
+    for id in &disabled_ids {
+        state
+            .audit_log
+            .log(crate::audit::AuditEntry {
+                timestamp: Utc::now().to_rfc3339(),
+                method: "SYSTEM".to_string(),
+                path: format!("/api/admin/guests/{}", id),
+                user: "system".to_string(),
+                status: 200,
+                client_ip: None,
+                user_agent: None,
+                content_length: None,
+            })
+            .await;
+    }
+
+    let count = disabled_ids.len() as u32;
+    if count > 0 {
+        info!(
+            expired_count = count,
+            "guest cleanup: disabled expired guest accounts"
+        );
+    }
+    count
+}
+
+/// Spawn a background tokio task that periodically scans for and disables
+/// expired guest accounts.
+///
+/// Follows the same pattern as `retention::spawn_retention_daemon`.
+pub fn spawn_guest_cleanup_daemon(
+    state: Arc<AppState>,
+    interval_secs: u64,
+    cancel: CancellationToken,
+) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        if !cancel.is_cancelled() {
+            cleanup_expired_guests(&state).await;
+        }
+
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    if !cancel.is_cancelled() {
+                        cleanup_expired_guests(&state).await;
+                    }
+                }
+                _ = cancel.cancelled() => {
+                    info!("Guest cleanup daemon shutting down");
+                    break;
+                }
+            }
+        }
+    });
+
+    info!(
+        "Guest cleanup daemon started (interval: {}s)",
+        interval_secs
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Guest expiry middleware (axum layer)
+// ---------------------------------------------------------------------------
+
+/// Axum middleware that enforces guest account expiry on every request.
+///
+/// Runs after authentication middleware, so the `UserInfo` extension is
+/// available. If the authenticated user's username starts with `guest_`,
+/// we look up `guest_expires_at` from the database and reject expired
+/// guests with a `GUEST_EXPIRED` error.
+pub async fn guest_expiry_middleware(
+    State(state): State<AppState>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Response {
+    let user_info = req
+        .extensions()
+        .get::<crate::users::UserInfo>()
+        .map(|u| u.username.clone());
+
+    let expired = if let Some(ref username) = user_info {
+        if username.starts_with("guest_") {
+            if let Some(ref db) = state.db {
+                let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+                let result: Result<Option<String>, rusqlite::Error> = conn.query_row(
+                    "SELECT guest_expires_at FROM users WHERE username = ?1 AND is_guest = 1",
+                    params![username],
+                    |row| row.get::<_, Option<String>>(0),
+                );
+                drop(conn);
+                match result {
+                    Ok(Some(expires_at)) => validate_guest_expiry(&expires_at),
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    if expired {
+        return ApiError::unauthorized(ApiError::GUEST_EXPIRED, "Guest account has expired");
+    }
+
+    next.run(req).await
 }
 
 // ---------------------------------------------------------------------------
@@ -370,5 +552,48 @@ mod tests {
         // Should be ~72 hours from now
         let diff = expires_at - Utc::now();
         assert!(diff.num_hours() >= 71 && diff.num_hours() <= 72);
+    }
+
+    #[test]
+    fn test_validate_guest_expiry_not_expired() {
+        let future = (Utc::now() + Duration::hours(24)).to_rfc3339();
+        assert!(!validate_guest_expiry(&future));
+    }
+
+    #[test]
+    fn test_validate_guest_expiry_expired() {
+        let past = (Utc::now() - Duration::hours(1)).to_rfc3339();
+        assert!(validate_guest_expiry(&past));
+    }
+
+    #[test]
+    fn test_validate_guest_expiry_invalid_format() {
+        assert!(!validate_guest_expiry("not-a-date"));
+    }
+
+    #[test]
+    fn test_custom_guest_expiry_hours() {
+        let req = CreateGuestRequest {
+            display_name: "Short Guest".to_string(),
+            email: None,
+            expires_in_hours: Some(2),
+            allowed_paths: vec![],
+        };
+        let expires_at = Utc::now() + Duration::hours(req.expires_in_hours.unwrap_or(72));
+        let diff = expires_at - Utc::now();
+        assert!(diff.num_hours() >= 1 && diff.num_hours() <= 2);
+    }
+
+    #[test]
+    fn test_zero_hours_guest_expiry() {
+        let req = CreateGuestRequest {
+            display_name: "Zero Guest".to_string(),
+            email: None,
+            expires_in_hours: Some(0),
+            allowed_paths: vec![],
+        };
+        let expires_at = Utc::now() + Duration::hours(req.expires_in_hours.unwrap_or(72));
+        let diff = expires_at - Utc::now();
+        assert!(diff.num_seconds().abs() <= 2);
     }
 }

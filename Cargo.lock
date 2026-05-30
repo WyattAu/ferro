@@ -2678,7 +2678,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-admin"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -2697,7 +2697,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-auth"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -2725,7 +2725,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-benchmarks"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "bytes",
  "criterion",
@@ -2739,7 +2739,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-cli"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2758,7 +2758,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-client"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2774,7 +2774,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-common"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2791,7 +2791,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-core"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2820,7 +2820,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-crypto"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2832,7 +2832,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-dav"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -2852,7 +2852,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-desktop"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2881,7 +2881,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-fuse"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2909,7 +2909,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-graphql"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "async-graphql",
  "axum",
@@ -2922,7 +2922,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-observability"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "axum",
  "chrono",
@@ -2934,7 +2934,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-server"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "age",
  "anyhow",
@@ -2998,7 +2998,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-server-activitypub"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -3020,7 +3020,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-server-versioning"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "axum",
  "bytes",
@@ -3040,7 +3040,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-server-webrtc"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "axum",
  "dashmap 6.1.0",
@@ -3052,7 +3052,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-server-wopi"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3073,7 +3073,7 @@ dependencies = [
 
 [[package]]
 name = "ferro-webdav-handler"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "bytes",
  "ferro-common",
@@ -10959,7 +10959,7 @@ dependencies = [
 
 [[package]]
 name = "web"
-version = "2.5.1"
+version = "3.0.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",

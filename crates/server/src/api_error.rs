@@ -191,6 +191,8 @@ impl ApiError {
     pub const PASSWORD_CHANGE_REQUIRED: &'static str = "PASSWORD_CHANGE_REQUIRED";
     pub const PASSWORD_ERROR: &'static str = "PASSWORD_ERROR";
 
+    pub const GUEST_EXPIRED: &'static str = "GUEST_EXPIRED";
+
     // Configuration / feature flags
     pub const NOT_CONFIGURED: &'static str = "NOT_CONFIGURED";
     pub const MAINTENANCE_MODE: &'static str = "MAINTENANCE_MODE";

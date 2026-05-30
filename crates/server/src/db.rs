@@ -1,12 +1,16 @@
 use rusqlite::Connection;
 use tracing::info;
 
+/// # Safety
+/// The wrapped `rusqlite::Connection` is only accessed via short-lived lock guards
+/// that never cross an `.await` point. SQLite operations are synchronous
+/// and complete in microseconds, well below the threshold for async poisoning.
 pub type DbHandle = Arc<std::sync::Mutex<Connection>>;
 
 use std::sync::Arc;
 
 #[cfg(test)]
-const SCHEMA_VERSION: i64 = 3;
+const SCHEMA_VERSION: i64 = 4;
 
 const MIGRATIONS: &[(&str, &str)] = &[
     (
@@ -17,6 +21,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "003",
         include_str!("../../../migrations/003_extended_features.sql"),
+    ),
+    (
+        "004",
+        include_str!("../../../migrations/004_retention_policies_v2.sql"),
     ),
 ];
 

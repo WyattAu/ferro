@@ -477,7 +477,8 @@ async fn main() -> anyhow::Result<()> {
             cli.external_url
         })
         .with_federation_secret(cli.federation_secret)
-        .with_max_file_versions(cli.max_file_versions);
+        .with_max_file_versions(cli.max_file_versions)
+        .with_streaming_upload_threshold(cli.streaming_upload_threshold);
 
     let mut state = if let Some(ref data_dir) = cli.data_dir {
         state.with_data_dir(data_dir.clone())
@@ -789,6 +790,24 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         });
+    }
+
+    // Spawn retention policy daemon
+    if cli.retention_check_interval > 0 {
+        ferro_server::retention::spawn_retention_daemon(
+            std::sync::Arc::new(state.clone()),
+            cli.retention_check_interval,
+            shutdown_token.clone(),
+        );
+    }
+
+    // Spawn guest account cleanup daemon
+    if cli.guest_cleanup_interval > 0 {
+        ferro_server::guests::spawn_guest_cleanup_daemon(
+            std::sync::Arc::new(state.clone()),
+            cli.guest_cleanup_interval,
+            shutdown_token.clone(),
+        );
     }
 
     let lock_cancel = shutdown_token.clone();

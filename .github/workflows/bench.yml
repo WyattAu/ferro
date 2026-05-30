@@ -47,6 +47,7 @@ jobs:
           alert-threshold: '150%'
           comment-on-alert: true
           fail-on-alert: false
+          fail-on-error: false
           alert-comment-cc-users: '@WyattAu'
           gh-pages-branch: 'bench-data'
           benchmark-data-dir-path: 'dev/bench'

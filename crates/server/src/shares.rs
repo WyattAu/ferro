@@ -31,6 +31,10 @@ pub struct ShareLink {
     pub max_downloads: Option<u32>,
     pub download_count: u32,
     pub created_by: String,
+    #[serde(default)]
+    pub allow_download: Option<bool>,
+    #[serde(default)]
+    pub allow_upload: Option<bool>,
 }
 
 /// Request body for creating a new share link.
@@ -40,6 +44,8 @@ pub struct CreateShareRequest {
     pub password: Option<String>,
     pub expires_in_hours: Option<i64>,
     pub max_downloads: Option<u32>,
+    pub allow_download: Option<bool>,
+    pub allow_upload: Option<bool>,
 }
 
 /// Trait for managing share links.
@@ -124,8 +130,16 @@ impl ShareStore {
     fn persist_create(&self, link: &ShareLink) {
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            let allow_download_val = link
+                .allow_download
+                .map(|v| if v { 1i32 } else { 0i32 })
+                .unwrap_or(-1);
+            let _allow_upload_val = link
+                .allow_upload
+                .map(|v| if v { 1i32 } else { 0i32 })
+                .unwrap_or(-1);
             if let Err(e) = conn.execute(
-                "INSERT OR REPLACE INTO shares (token, file_path, password, expires_at, created_at, created_by, download_count, max_downloads, is_public) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                "INSERT OR REPLACE INTO shares (token, file_path, password, expires_at, created_at, created_by, download_count, max_downloads, is_public, share_type, allow_download, upload_target) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 params![
                     link.token,
                     link.path,
@@ -136,6 +150,17 @@ impl ShareStore {
                     link.download_count as i64,
                     link.max_downloads.map(|d| d as i64),
                     link.password.is_none() as i32,
+                    match (link.allow_upload, link.allow_download) {
+                        (Some(true), _) => "upload",
+                        (_, Some(false)) => "view",
+                        _ => "download",
+                    },
+                    allow_download_val,
+                    if link.allow_upload == Some(true) {
+                        Some(link.path.clone())
+                    } else {
+                        None::<String>
+                    },
                 ],
             ) {
                 warn!("Failed to persist share to SQLite: {}", e);
@@ -167,23 +192,52 @@ impl ShareStore {
     pub fn load_all_from_db(
         conn: &rusqlite::Connection,
     ) -> Result<Vec<ShareLink>, rusqlite::Error> {
-        let mut stmt = conn.prepare(
-            "SELECT token, file_path, password, expires_at, created_by, download_count, max_downloads FROM shares",
-        )?;
+        let has_extended = conn
+            .prepare("SELECT share_type FROM shares LIMIT 0")
+            .is_ok();
+        let mut stmt = if has_extended {
+            conn.prepare(
+                "SELECT token, file_path, password, expires_at, created_by, download_count, max_downloads, allow_download, allow_upload FROM shares",
+            )?
+        } else {
+            conn.prepare(
+                "SELECT token, file_path, password, expires_at, created_by, download_count, max_downloads FROM shares",
+            )?
+        };
         let rows = stmt.query_map([], |row| {
             let expires_at_str: String = row.get(3)?;
             let expires_at = chrono::DateTime::parse_from_rfc3339(&expires_at_str)
                 .map(|dt| dt.with_timezone(&chrono::Utc))
                 .unwrap_or_else(|_| Utc::now());
-            Ok(ShareLink {
-                token: row.get(0)?,
-                path: row.get(1)?,
-                password: row.get(2)?,
-                expires_at,
-                max_downloads: row.get::<_, Option<i64>>(6)?.map(|d| d as u32),
-                download_count: row.get::<_, i64>(5)? as u32,
-                created_by: row.get(4)?,
-            })
+            if has_extended {
+                let allow_download_raw: Option<i32> = row.get(7).ok();
+                let allow_upload_raw: Option<i32> = row.get(8).ok();
+                let allow_download = allow_download_raw.map(|v| v != 0);
+                let allow_upload = allow_upload_raw.map(|v| v != 0);
+                Ok(ShareLink {
+                    token: row.get(0)?,
+                    path: row.get(1)?,
+                    password: row.get(2)?,
+                    expires_at,
+                    max_downloads: row.get::<_, Option<i64>>(6)?.map(|d| d as u32),
+                    download_count: row.get::<_, i64>(5)? as u32,
+                    created_by: row.get(4)?,
+                    allow_download,
+                    allow_upload,
+                })
+            } else {
+                Ok(ShareLink {
+                    token: row.get(0)?,
+                    path: row.get(1)?,
+                    password: row.get(2)?,
+                    expires_at,
+                    max_downloads: row.get::<_, Option<i64>>(6)?.map(|d| d as u32),
+                    download_count: row.get::<_, i64>(5)? as u32,
+                    created_by: row.get(4)?,
+                    allow_download: None,
+                    allow_upload: None,
+                })
+            }
         })?;
         let mut links = Vec::new();
         for row in rows {
@@ -222,6 +276,8 @@ impl ShareStoreTrait for ShareStore {
             max_downloads: req.max_downloads,
             download_count: 0,
             created_by,
+            allow_download: req.allow_download,
+            allow_upload: req.allow_upload,
         };
         let mut links = self.links.write().await;
         links.push(link.clone());
@@ -294,6 +350,8 @@ pub async fn create_share(
             "path": link.path,
             "expires_at": link.expires_at.to_rfc3339(),
             "max_downloads": link.max_downloads,
+            "allow_download": link.allow_download,
+            "allow_upload": link.allow_upload,
         })),
     )
         .into_response()
@@ -313,6 +371,8 @@ pub async fn list_shares(State(state): State<AppState>) -> Response {
                 "max_downloads": l.max_downloads,
                 "download_count": l.download_count,
                 "created_by": l.created_by,
+                "allow_download": l.allow_download,
+                "allow_upload": l.allow_upload,
             })
         })
         .collect();
@@ -333,6 +393,7 @@ pub async fn delete_share(State(state): State<AppState>, Path(token): Path<Strin
 }
 
 /// Serve a shared file by token, enforcing expiration and password.
+/// Supports download, secure-view (preview-only), and file-drop (upload) shares.
 pub async fn serve_share(
     State(state): State<AppState>,
     Path(token): Path<String>,
@@ -355,6 +416,11 @@ pub async fn serve_share(
 
     if link.expires_at < Utc::now() {
         return ApiError::gone(ApiError::SHARE_EXPIRED, "Share expired");
+    }
+
+    // Upload-only share: serve drop zone UI
+    if link.allow_upload == Some(true) {
+        return crate::shares_ext::serve_upload_dropzone(&link);
     }
 
     if let Some(max) = link.max_downloads
@@ -393,6 +459,12 @@ pub async fn serve_share(
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
     };
 
+    // Secure view (allow_download=false): serve HTML preview page
+    if link.allow_download == Some(false) {
+        state.share_store.increment_download(&token).await;
+        return crate::shares_ext::serve_preview_html(&link, &meta);
+    }
+
     let reader = match state.storage.get_stream(&link.path).await {
         Ok(r) => r,
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
@@ -414,12 +486,10 @@ pub async fn serve_share(
     headers.insert(
         "Content-Disposition",
         axum::http::HeaderValue::from_str(&format!(
-            "attachment; filename=\"{}\"",
+            "inline; filename=\"{}\"",
             link.path.rsplit('/').next().unwrap_or("download")
         ))
-        .unwrap_or_else(|_| {
-            axum::http::HeaderValue::from_static("attachment; filename=\"download\"")
-        }),
+        .unwrap_or_else(|_| axum::http::HeaderValue::from_static("inline; filename=\"download\"")),
     );
 
     let stream = tokio_util::io::ReaderStream::new(reader);
@@ -431,4 +501,126 @@ pub async fn serve_share(
 fn constant_time_eq(a: &str, b: &str) -> bool {
     use subtle::ConstantTimeEq;
     a.as_bytes().ct_eq(b.as_bytes()).into()
+}
+
+/// `POST /s/:token` -- Upload a file to a file-drop (upload-only) share via multipart form.
+pub async fn handle_share_upload(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+    mut multipart: axum::extract::Multipart,
+) -> Response {
+    let link = match state.share_store.get(&token).await {
+        Some(l) => l,
+        None => return ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found"),
+    };
+
+    if link.expires_at < chrono::Utc::now() {
+        return ApiError::gone(ApiError::SHARE_EXPIRED, "Share expired");
+    }
+
+    if link.allow_upload != Some(true) {
+        return ApiError::bad_request(
+            ApiError::INVALID_INPUT,
+            "This share link does not accept uploads",
+        );
+    }
+
+    let field = match multipart.next_field().await {
+        Ok(Some(f)) => f,
+        Ok(None) => {
+            return ApiError::bad_request(ApiError::INVALID_INPUT, "No file field found in upload");
+        }
+        Err(e) => {
+            return ApiError::with_details(
+                StatusCode::BAD_REQUEST,
+                ApiError::INVALID_INPUT,
+                "Invalid multipart data",
+                e.to_string(),
+            );
+        }
+    };
+
+    let file_name = match field.file_name() {
+        Some(name) if !name.is_empty() => crate::shares_ext::sanitize_filename(name),
+        _ => format!("upload_{}", uuid::Uuid::new_v4()),
+    };
+
+    let bytes = match field.bytes().await {
+        Ok(b) => b,
+        Err(e) => {
+            return ApiError::with_details(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                ApiError::PAYLOAD_TOO_LARGE,
+                "Failed to read upload",
+                e.to_string(),
+            );
+        }
+    };
+
+    if bytes.len() > state.max_body_size as usize {
+        return ApiError::with_details(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            ApiError::PAYLOAD_TOO_LARGE,
+            "Upload exceeds size limit",
+            format!("max {} bytes", state.max_body_size),
+        );
+    }
+
+    let target_path = format!("{}/{}", link.path.trim_end_matches('/'), file_name);
+
+    if state.storage.head(&link.path).await.is_err()
+        && let Err(e) = state
+            .storage
+            .create_collection(&link.path, "anonymous")
+            .await
+    {
+        tracing::warn!(error = %e, path = %link.path, "failed to create upload target directory");
+        return ApiError::internal(
+            ApiError::INTERNAL_ERROR,
+            "Failed to create upload directory",
+        );
+    }
+
+    let content_type = crate::shares_ext::sniff_mime_type(&file_name);
+    if let Err(e) = state
+        .storage
+        .put(&target_path, bytes.clone(), "anonymous")
+        .await
+    {
+        tracing::warn!(error = %e, path = %target_path, "failed to store uploaded file");
+        return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to store uploaded file");
+    }
+
+    state
+        .audit_log
+        .log(crate::audit::build_audit_entry(
+            "POST",
+            &format!("/s/{}", token),
+            "anonymous",
+            201,
+            None,
+            None,
+        ))
+        .await;
+
+    if let Some(ref db) = state.db {
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let upload_id = uuid::Uuid::new_v4().to_string();
+        if let Err(e) = conn.execute(
+            "INSERT INTO share_uploads (id, share_token, file_path, size, mime_type, uploaded_by) VALUES (?1, ?2, ?3, ?4, ?5, 'anonymous')",
+            rusqlite::params![upload_id, token, target_path, bytes.len() as i64, content_type],
+        ) {
+            tracing::warn!(error = %e, "failed to record share upload");
+        }
+    }
+
+    (
+        StatusCode::CREATED,
+        axum::Json(serde_json::json!({
+            "path": target_path,
+            "size": bytes.len(),
+            "content_type": content_type,
+        })),
+    )
+        .into_response()
 }

@@ -56,6 +56,7 @@ pub struct FileConfigValues {
     pub wasm_enabled: Option<bool>,
     pub storage_quota: Option<String>,
     pub trash_ttl: Option<String>,
+    pub streaming_upload_threshold: Option<u64>,
     pub graceful_shutdown_timeout: Option<u64>,
     pub cors_allowed_origins: Option<String>,
 }
@@ -240,6 +241,27 @@ pub struct ServerConfig {
     /// Maximum thumbnail dimension in pixels (64-1024, default: 256)
     #[arg(long, env = "FERRO_THUMBNAIL_SIZE", default_value = "256")]
     pub thumbnail_size: u32,
+
+    /// Retention policy check interval in seconds (default: 3600 = 1 hour).
+    /// Set to 0 to disable the background retention daemon.
+    #[arg(long, env = "FERRO_RETENTION_CHECK_INTERVAL", default_value = "3600")]
+    pub retention_check_interval: u64,
+
+    /// Guest account cleanup interval in seconds (default: 300 = 5 minutes).
+    /// Periodically scans and disables expired guest accounts.
+    /// Set to 0 to disable the background guest cleanup daemon.
+    #[arg(long, env = "FERRO_GUEST_CLEANUP_INTERVAL", default_value = "300")]
+    pub guest_cleanup_interval: u64,
+
+    /// Content-Length threshold (bytes) below which uploads use in-memory buffering.
+    /// Uploads exceeding this threshold stream to a temporary file before storage.
+    /// Default: 65536 (64 KB). Set to 0 to always stream.
+    #[arg(
+        long,
+        env = "FERRO_STREAMING_UPLOAD_THRESHOLD",
+        default_value = "65536"
+    )]
+    pub streaming_upload_threshold: u64,
 
     /// Enable multi-user mode with per-user home directories
     #[arg(long, env = "FERRO_MULTI_USER")]
@@ -468,6 +490,9 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
             .graceful_shutdown_timeout
             .or(base.graceful_shutdown_timeout),
         cors_allowed_origins: override_.cors_allowed_origins.or(base.cors_allowed_origins),
+        streaming_upload_threshold: override_
+            .streaming_upload_threshold
+            .or(base.streaming_upload_threshold),
     }
 }
 
