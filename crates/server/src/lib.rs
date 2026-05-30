@@ -1,5 +1,6 @@
 pub mod activity;
 pub mod admin_api;
+pub mod clamav;
 pub mod api;
 pub mod api_error;
 pub mod audit;
