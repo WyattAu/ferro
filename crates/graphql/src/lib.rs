@@ -38,6 +38,16 @@ pub struct GraphQLContext {
     pub list_shares: Box<dyn Fn() -> BoxFuture<Vec<ShareEntry>> + Send + Sync>,
     /// List recent audit entries.
     pub recent_audit: Box<dyn Fn(usize, usize) -> BoxFuture<Vec<AuditEntry>> + Send + Sync>,
+    /// Authenticated user info extracted from request context.
+    /// `None` when no auth middleware is active (anonymous).
+    pub current_user: Option<CurrentUser>,
+}
+
+/// Authenticated user identity for GraphQL resolvers.
+#[derive(Debug, Clone)]
+pub struct CurrentUser {
+    pub username: String,
+    pub role: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -113,15 +123,17 @@ impl Query {
     }
 
     async fn me(&self, ctx: &Context<'_>) -> async_graphql::Result<UserItem> {
-        // TODO(auth): extract authenticated user from request context once
-        // per-request identity propagation is wired through the GraphQL layer.
-        // Currently falls back to the caller-supplied context if available,
-        // otherwise returns an anonymous identity.
-        let _data = get_ctx(ctx);
-        Ok(UserItem {
-            username: "anonymous".to_string(),
-            role: "viewer".to_string(),
-        })
+        let data = get_ctx(ctx)?;
+        match &data.current_user {
+            Some(user) => Ok(UserItem {
+                username: user.username.clone(),
+                role: user.role.clone(),
+            }),
+            None => Ok(UserItem {
+                username: "anonymous".to_string(),
+                role: "viewer".to_string(),
+            }),
+        }
     }
 
     async fn health(&self, _ctx: &Context<'_>) -> async_graphql::Result<HealthItem> {
@@ -429,6 +441,7 @@ mod tests {
                         .collect()
                 })
             }),
+            current_user: None,
         }
     }
 
@@ -657,5 +670,33 @@ mod tests {
         let req = async_graphql::Request::new("{ health { status } }");
         let res = s.execute(req).await;
         assert!(res.is_ok());
+    }
+
+    // -- Auth: me() -----------------------------------------------------------
+
+    #[tokio::test]
+    async fn query_me_returns_anonymous_when_no_user() {
+        let ctx = test_ctx();
+        let s = build_schema(ctx);
+        let res = s.execute("{ me { username role } }").await;
+        assert!(res.is_ok());
+        let data = res.data.into_json().unwrap();
+        assert_eq!(data["me"]["username"], "anonymous");
+        assert_eq!(data["me"]["role"], "viewer");
+    }
+
+    #[tokio::test]
+    async fn query_me_returns_authenticated_user() {
+        let mut ctx = test_ctx();
+        ctx.current_user = Some(CurrentUser {
+            username: "alice".to_string(),
+            role: "admin".to_string(),
+        });
+        let s = build_schema(ctx);
+        let res = s.execute("{ me { username role } }").await;
+        assert!(res.is_ok());
+        let data = res.data.into_json().unwrap();
+        assert_eq!(data["me"]["username"], "alice");
+        assert_eq!(data["me"]["role"], "admin");
     }
 }

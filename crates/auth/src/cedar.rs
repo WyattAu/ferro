@@ -262,13 +262,32 @@ pub async fn cedar_middleware(
 
     let action = http_method_to_action(request.method());
     let resource = path;
+    let method = request.method().to_string();
+    let client_ip = request
+        .headers()
+        .get("X-Forwarded-For")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
+
+    // Build Cedar context with request metadata for policy evaluation.
+    let context = serde_json::json!({
+        "ip": client_ip,
+        "method": method,
+        "resource": resource,
+    });
 
     match authorizer
-        .is_authorized_simple(&claims.sub, action, resource)
+        .is_authorized(&common::auth::AuthRequest {
+            principal: claims.sub.clone(),
+            action: action.to_string(),
+            resource: resource.to_string(),
+            context,
+        })
         .await
     {
-        Ok(true) => next.run(request).await,
-        Ok(false) => {
+        Ok(common::auth::AuthDecision::Allow { .. }) => next.run(request).await,
+        Ok(common::auth::AuthDecision::Deny { reason }) => {
             warn!(
                 "Cedar denied: {} {} {} by {}",
                 request.method(),
@@ -276,7 +295,11 @@ pub async fn cedar_middleware(
                 action,
                 claims.sub
             );
-            (axum::http::StatusCode::FORBIDDEN, "Forbidden by policy").into_response()
+            (
+                axum::http::StatusCode::FORBIDDEN,
+                format!("Forbidden by policy: {}", reason),
+            )
+                .into_response()
         }
         Err(e) => {
             warn!("Cedar authorization error: {}", e);
@@ -286,6 +309,7 @@ pub async fn cedar_middleware(
             )
                 .into_response()
         }
+        Ok(_) => next.run(request).await,
     }
 }
 
@@ -461,5 +485,41 @@ mod tests {
             }
             _ => panic!("Unexpected decision"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_context_attributes_passed_to_authorizer() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        // Verify that context attributes (ip, method, resource) are accepted
+        // without error. The default permissive policy ignores context,
+        // but the attributes must parse correctly into Cedar expressions.
+        let request = AuthRequest {
+            principal: "alice".to_string(),
+            action: "read".to_string(),
+            resource: "/file.txt".to_string(),
+            context: serde_json::json!({
+                "ip": "192.168.1.1",
+                "method": "GET",
+                "resource": "/file.txt",
+            }),
+        };
+        let decision = authorizer.is_authorized(&request).await.unwrap();
+        assert!(matches!(decision, AuthDecision::Allow { .. }));
+    }
+
+    #[tokio::test]
+    async fn test_context_numeric_attributes() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let request = AuthRequest {
+            principal: "alice".to_string(),
+            action: "write".to_string(),
+            resource: "/file.txt".to_string(),
+            context: serde_json::json!({
+                "file_size": 1024,
+                "is_admin": true,
+            }),
+        };
+        let decision = authorizer.is_authorized(&request).await.unwrap();
+        assert!(matches!(decision, AuthDecision::Allow { .. }));
     }
 }

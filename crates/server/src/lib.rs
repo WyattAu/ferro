@@ -717,6 +717,7 @@ impl AppState {
                         .collect()
                 })
             }),
+            current_user: None,
         }
     }
 }
