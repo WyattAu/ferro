@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780166110901,
+  "lastUpdate": 1780166951333,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -4840,6 +4840,168 @@ window.BENCHMARK_DATA = {
           {
             "name": "metadata_deserialize",
             "value": 754,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "9dc130748ae60792f491ec363a6d798a81fc2310",
+          "message": "chore: audit cycle 2 — formatting, test count verification, metadata update\n\n- cargo fmt --all: fix indentation in desktop commands/gui, server dav/e2ee/lib\n- VERSION.md: correct test count (967→998), update status timestamp\n- ROADMAP.md: correct stale test counts (1043/1030→998)\n- CHANGELOG.md: add Unreleased section documenting audit findings\n- Verify: 998 tests pass, 0 clippy warnings, mdBook docs build OK\n- Pre-commit hook: fmt + clippy + tests all enforced",
+          "timestamp": "2026-05-30T19:40:55+01:00",
+          "tree_id": "3ff98dab3ab4eca0cad91fc082831d3158900b3e",
+          "url": "https://github.com/WyattAu/ferro/commit/9dc130748ae60792f491ec363a6d798a81fc2310"
+        },
+        "date": 1780166950785,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300868540,
+            "range": "± 399965",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300811533,
+            "range": "± 692853",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24091,
+            "range": "± 857",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23520,
+            "range": "± 807",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8897,
+            "range": "± 87",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 4970,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1279,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 967,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2672,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1413,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8196,
+            "range": "± 74",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74856,
+            "range": "± 98",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 93,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19098,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 921,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 157,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 180,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 859,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 720,
             "range": "± 2",
             "unit": "ns/iter"
           },
