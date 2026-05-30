@@ -59,6 +59,7 @@ pub struct FileConfigValues {
     pub streaming_upload_threshold: Option<u64>,
     pub graceful_shutdown_timeout: Option<u64>,
     pub cors_allowed_origins: Option<String>,
+    pub dedup_enabled: Option<bool>,
 }
 
 /// Configuration loaded from a TOML file with include support.
@@ -214,6 +215,34 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_CORS_ALLOWED_ORIGINS", default_value = "*")]
     pub cors_allowed_origins: String,
 
+    /// Enable perceptual deduplication on upload
+    #[arg(long, default_value_t = false)]
+    pub dedup_enabled: bool,
+
+    /// Email notification SMTP host
+    #[arg(long, env = "FERRO_SMTP_HOST")]
+    pub smtp_host: Option<String>,
+
+    /// Email notification SMTP port
+    #[arg(long, env = "FERRO_SMTP_PORT")]
+    pub smtp_port: Option<u16>,
+
+    /// Email notification SMTP username
+    #[arg(long, env = "FERRO_SMTP_USERNAME")]
+    pub smtp_username: Option<String>,
+
+    /// Email notification SMTP password
+    #[arg(long, env = "FERRO_SMTP_PASSWORD")]
+    pub smtp_password: Option<String>,
+
+    /// Email notification from address
+    #[arg(long, env = "FERRO_EMAIL_FROM", default_value = "noreply@ferro.local")]
+    pub email_from: String,
+
+    /// Email notification from name
+    #[arg(long, env = "FERRO_EMAIL_FROM_NAME", default_value = "Ferro")]
+    pub email_from_name: String,
+
     /// API version prefix (default: "v1"). Routes are mounted at /api/{version}.
     #[arg(long, env = "FERRO_API_VERSION", default_value = "v1")]
     pub api_version: String,
@@ -341,6 +370,7 @@ impl std::fmt::Debug for ServerConfig {
             .field("thumbnail_size", &self.thumbnail_size)
             .field("thumbnail_cache_size", &self.thumbnail_cache_size)
             .field("multi_user", &self.multi_user)
+            .field("dedup_enabled", &self.dedup_enabled)
             .finish()
     }
 }
@@ -389,6 +419,7 @@ impl std::fmt::Debug for FileConfigValues {
             .field("trash_ttl", &self.trash_ttl)
             .field("graceful_shutdown_timeout", &self.graceful_shutdown_timeout)
             .field("cors_allowed_origins", &self.cors_allowed_origins)
+            .field("dedup_enabled", &self.dedup_enabled)
             .finish()
     }
 }
@@ -495,6 +526,7 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
             .graceful_shutdown_timeout
             .or(base.graceful_shutdown_timeout),
         cors_allowed_origins: override_.cors_allowed_origins.or(base.cors_allowed_origins),
+        dedup_enabled: override_.dedup_enabled.or(base.dedup_enabled),
         streaming_upload_threshold: override_
             .streaming_upload_threshold
             .or(base.streaming_upload_threshold),
@@ -629,6 +661,11 @@ where
         && let Some(ref origins) = file.cors_allowed_origins
     {
         cli.cors_allowed_origins = origins.clone();
+    }
+    if !was_set("dedup_enabled")
+        && let Some(enabled) = file.dedup_enabled
+    {
+        cli.dedup_enabled = enabled;
     }
 }
 

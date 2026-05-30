@@ -39,6 +39,8 @@ pub async fn index_file(state: &AppState, metadata: &FileMetadata) {
 
 /// Index a single file with content immediately after PUT.
 /// For text files, we index the content; for binary, just metadata.
+/// When dedup is enabled, computes perceptual/content hash.
+/// For PDFs/images, attempts OCR text extraction for search indexing.
 pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, content: &[u8]) {
     let Some(search_lock) = &state.search else {
         return;
@@ -50,6 +52,8 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
 
     let mut engine = search_lock.write().await;
 
+    let mut content_to_index: Option<&str> = None;
+
     // Only index content for text-like MIME types
     let is_text = metadata.mime_type.starts_with("text/")
         || metadata.mime_type == "application/json"
@@ -59,7 +63,6 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
 
     if is_text {
         if let Ok(content_str) = std::str::from_utf8(content) {
-            // Truncate very large files to avoid memory issues
             let truncated = &content_str[..content_str.len().min(1_000_000)];
             if let Err(e) = engine.index_content(metadata, truncated) {
                 warn!(
@@ -68,6 +71,7 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
                 );
                 return;
             }
+            content_to_index = Some(truncated);
         } else if let Err(e) = engine.index_metadata(metadata) {
             warn!("Auto-index: failed to index {}: {}", metadata.path, e);
             return;
@@ -75,6 +79,27 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
     } else if let Err(e) = engine.index_metadata(metadata) {
         warn!("Auto-index: failed to index {}: {}", metadata.path, e);
         return;
+    }
+
+    // OCR text extraction for PDFs and images
+    if content_to_index.is_none()
+        && (metadata.mime_type == "application/pdf" || metadata.mime_type.starts_with("image/"))
+    {
+        let ocr_text = crate::ocr::extract_text(content, &metadata.mime_type);
+        if !ocr_text.is_empty() {
+            let truncated = &ocr_text[..ocr_text.len().min(1_000_000)];
+            let _ = engine.index_content(metadata, truncated);
+        }
+    }
+
+    // Smart deduplication: compute perceptual/content hash
+    if state.dedup_enabled {
+        let dedup_hash = crate::dedup::compute_dedup_hash(content, &metadata.mime_type);
+        debug!(
+            "Dedup hash for {}: {}",
+            metadata.path,
+            &dedup_hash[..dedup_hash.len().min(16)]
+        );
     }
 
     if let Err(e) = engine.commit() {
