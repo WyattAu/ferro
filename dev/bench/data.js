@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780087654660,
+  "lastUpdate": 1780102839812,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -3869,6 +3869,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 839,
             "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "aff627e17cb66a1830f9ee1beee67f50bb2d9f7a",
+          "message": "docs: update VERSION.md and ROADMAP.md for v3.0.0\n\n917 tests (+63 from new features), all TD items resolved,\nPhase 6.3/6.4/6.5 items marked DONE. Web UI lock indicator\npolls /api/locks every 10s.",
+          "timestamp": "2026-05-30T01:53:08+01:00",
+          "tree_id": "68d650de4e9193c5772b8f4386ac993cb569f341",
+          "url": "https://github.com/WyattAu/ferro/commit/aff627e17cb66a1830f9ee1beee67f50bb2d9f7a"
+        },
+        "date": 1780102839317,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300763175,
+            "range": "± 1129742",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300705125,
+            "range": "± 123618",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 25335,
+            "range": "± 1025",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 25554,
+            "range": "± 810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9121,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5101,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1220,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 931,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2720,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1399,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8109,
+            "range": "± 68",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74827,
+            "range": "± 141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19015,
+            "range": "± 65",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 888,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 70,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 152,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 831,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 728,
+            "range": "± 3",
             "unit": "ns/iter"
           },
           {
