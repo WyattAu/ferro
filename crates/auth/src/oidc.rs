@@ -1,4 +1,4 @@
-use common::auth::Claims;
+use common::auth::{Claims, is_public_auth_path};
 use common::error::{FerroError, Result};
 use jsonwebtoken::{Validation, decode_header};
 use serde::{Deserialize, Serialize};
@@ -324,14 +324,6 @@ fn decode_claims_unsafe(token: &str) -> Result<Claims> {
     Ok(claims)
 }
 
-/// Check whether a request path is publicly accessible (no auth required).
-pub fn is_public_path(path: &str) -> bool {
-    path == "/.well-known/ferro"
-        || path == "/.well-known/openid-configuration"
-        || path.starts_with("/api/auth/login")
-        || path.starts_with("/api/auth/callback")
-}
-
 /// Axum middleware that validates Bearer tokens via OIDC.
 #[cfg(feature = "handlers")]
 pub async fn auth_middleware(
@@ -341,7 +333,7 @@ pub async fn auth_middleware(
 ) -> axum::response::Response {
     let path = request.uri().path();
 
-    if is_public_path(path) {
+    if is_public_auth_path(path) {
         return next.run(request).await;
     }
 
@@ -460,14 +452,23 @@ mod tests {
     }
 
     #[test]
-    fn test_is_public_path() {
-        assert!(is_public_path("/.well-known/ferro"));
-        assert!(is_public_path("/.well-known/openid-configuration"));
-        assert!(is_public_path("/api/auth/login"));
-        assert!(is_public_path("/api/auth/login?redirect=/files"));
-        assert!(!is_public_path("/files/test.txt"));
-        assert!(!is_public_path("/api/audit"));
-        assert!(!is_public_path("/"));
+    fn test_is_public_auth_path() {
+        assert!(is_public_auth_path("/.well-known/ferro"));
+        assert!(is_public_auth_path("/.well-known/openid-configuration"));
+        assert!(is_public_auth_path("/api/auth/login"));
+        assert!(is_public_auth_path("/api/auth/login?redirect=/files"));
+        assert!(is_public_auth_path("/api/auth/callback?code=test&state=s"));
+        assert!(is_public_auth_path("/healthz"));
+        assert!(is_public_auth_path("/api/config"));
+        assert!(is_public_auth_path("/api/auth/info"));
+        assert!(is_public_auth_path("/metrics"));
+        assert!(is_public_auth_path("/ui"));
+        assert!(is_public_auth_path("/ui/"));
+        assert!(is_public_auth_path("/api/policies"));
+        assert!(is_public_auth_path("/s/abc123"));
+        assert!(!is_public_auth_path("/files/test.txt"));
+        assert!(!is_public_auth_path("/api/audit"));
+        assert!(!is_public_auth_path("/"));
     }
 
     #[test]

@@ -5,12 +5,25 @@
 
 use hmac::{Hmac, Mac};
 use sha1::Sha1;
+use sha2::Sha256;
 
 type HmacSha1 = Hmac<Sha1>;
+type HmacSha256 = Hmac<Sha256>;
 
-const _DEFAULT_DIGITS: u32 = 6;
+pub const TOTP_DIGITS: u32 = 6;
+
+#[derive(Debug, thiserror::Error)]
+pub enum TotpError {
+    #[error("HMAC key error: {0}")]
+    HmacKey(#[from] hmac::digest::InvalidLength),
+}
 
 /// Generate a TOTP code for the given secret and timestamp.
+///
+/// Uses HMAC-SHA1 as mandated by RFC 6238 for maximum compatibility with
+/// existing authenticator apps (Google Authenticator, Authy, etc.). Most
+/// provisioning protocols and hardware tokens only support SHA-1 for TOTP.
+/// If stronger HMAC is required, use [`generate_totp_sha256`] instead.
 ///
 /// Parameters:
 /// - `secret`: Raw secret bytes (typically 20 bytes)
@@ -37,6 +50,39 @@ fn generate_hotp(secret: &[u8], counter: u64, digits: u32) -> u32 {
         | (result[offset + 3] as u32 & 0xff);
 
     binary % 10u32.pow(digits)
+}
+
+/// Generate an HOTP code using HMAC-SHA256 (RFC 4226 with SHA-256).
+fn generate_hotp_sha256(secret: &[u8], counter: u64, digits: u32) -> u32 {
+    let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC can take key of any size");
+    mac.update(&counter.to_be_bytes());
+    let result = mac.finalize().into_bytes();
+
+    let offset = (result[31] & 0x0f) as usize;
+    let binary: u32 = ((result[offset] as u32 & 0x7f) << 24)
+        | ((result[offset + 1] as u32 & 0xff) << 16)
+        | ((result[offset + 2] as u32 & 0xff) << 8)
+        | (result[offset + 3] as u32 & 0xff);
+
+    binary % 10u32.pow(digits)
+}
+
+/// Generate a TOTP code using HMAC-SHA256.
+///
+/// For environments where SHA-1 is considered insufficient, this provides
+/// TOTP generation using HMAC-SHA256. Note that support in authenticator
+/// apps varies — SHA-256 TOTP should only be used when the client
+/// application explicitly supports it (via the `algorithm=SHA256`
+/// parameter in the otpauth:// URI).
+pub fn generate_totp_sha256(
+    secret: &[u8],
+    _counter: u64,
+    timestamp: u64,
+) -> Result<String, TotpError> {
+    let step = 30u64;
+    let counter = timestamp / step;
+    let code = generate_hotp_sha256(secret, counter, TOTP_DIGITS);
+    Ok(format!("{:0width$}", code, width = TOTP_DIGITS as usize))
 }
 
 /// Verify a TOTP code against the current time, allowing clock drift.
@@ -248,5 +294,28 @@ mod tests {
         // Code may have leading zeros (e.g., 05123456), so only check the upper bound.
         // The modulus ensures it fits in 8 digits.
         assert!(verify_totp(&secret, code, 1_700_000_000, 8, 30, 0, 0));
+    }
+
+    #[test]
+    fn test_generate_totp_sha256() {
+        let secret = generate_secret();
+        let timestamp = 1_700_000_000u64;
+        let code = generate_totp_sha256(&secret, 0, timestamp).unwrap();
+        assert_eq!(code.len(), TOTP_DIGITS as usize);
+        assert!(code.chars().all(|c| c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn test_totp_sha256_deterministic() {
+        let secret = generate_secret();
+        let timestamp = 1_700_000_000u64;
+        let code1 = generate_totp_sha256(&secret, 0, timestamp).unwrap();
+        let code2 = generate_totp_sha256(&secret, 0, timestamp).unwrap();
+        assert_eq!(code1, code2, "SHA-256 TOTP must be deterministic");
+    }
+
+    #[test]
+    fn test_totp_digits_constant() {
+        assert_eq!(TOTP_DIGITS, 6);
     }
 }

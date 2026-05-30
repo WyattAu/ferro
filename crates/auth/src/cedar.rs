@@ -1,6 +1,8 @@
 use axum::response::IntoResponse;
-use cedar_policy::{Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request};
-use common::auth::{AuthDecision, AuthRequest, Claims};
+use cedar_policy::{
+    Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request, RestrictedExpression,
+};
+use common::auth::{AuthDecision, AuthRequest, Claims, is_public_auth_path};
 use common::error::{FerroError, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -125,7 +127,33 @@ impl CedarAuthorizer {
 
         // Build context from request attributes.
         // Cedar Context supports building from JSON values for string/bool/long attributes.
-        let context = Context::empty();
+        let context = if request.context.is_null() {
+            Context::empty()
+        } else {
+            let obj = request.context.as_object().cloned().unwrap_or_default();
+            let pairs: Vec<(String, RestrictedExpression)> = obj
+                .into_iter()
+                .filter_map(|(k, v)| {
+                    let expr = if v.is_string() {
+                        RestrictedExpression::new_string(v.as_str()?.to_string())
+                    } else if v.is_boolean() {
+                        RestrictedExpression::new_bool(v.as_bool()?)
+                    } else if v.is_number() {
+                        RestrictedExpression::new_long(v.as_i64()?)
+                    } else {
+                        return None;
+                    };
+                    Some((k, expr))
+                })
+                .collect();
+            match Context::from_pairs(pairs) {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    tracing::warn!("Failed to parse Cedar context: {}", e);
+                    Context::empty()
+                }
+            }
+        };
 
         let q = Request::new(principal, action, resource, context, None)
             .map_err(|e| FerroError::Internal(format!("Request creation error: {:?}", e)))?;
@@ -199,20 +227,6 @@ fn http_method_to_action(method: &axum::http::Method) -> &'static str {
     }
 }
 
-/// Paths that skip Cedar authorization (in addition to OIDC public paths).
-fn is_cedar_exempt_path(path: &str) -> bool {
-    // Public API endpoints that should always be accessible
-    path == "/.well-known/ferro"
-        || path == "/.well-known/openid-configuration"
-        || path.starts_with("/api/auth/login")
-        // Policy management must remain accessible even under restrictive policies
-        || path == "/api/policies"
-        // Health and config endpoints
-        || path == "/api/config"
-        // Shared link access — public by design
-        || path.starts_with("/s/")
-}
-
 /// Axum middleware that enforces Cedar authorization on every request.
 ///
 /// This middleware MUST run AFTER the OIDC auth middleware, so that `Claims`
@@ -229,7 +243,7 @@ pub async fn cedar_middleware(
     let path = request.uri().path();
 
     // Skip authorization for exempt paths
-    if is_cedar_exempt_path(path) {
+    if is_public_auth_path(path) {
         return next.run(request).await;
     }
 
@@ -408,17 +422,23 @@ mod tests {
     }
 
     #[test]
-    fn test_is_cedar_exempt_path() {
-        assert!(is_cedar_exempt_path("/.well-known/ferro"));
-        assert!(is_cedar_exempt_path("/.well-known/openid-configuration"));
-        assert!(is_cedar_exempt_path("/api/auth/login"));
-        assert!(is_cedar_exempt_path("/api/policies"));
-        assert!(is_cedar_exempt_path("/api/config"));
-        assert!(is_cedar_exempt_path("/s/abc123"));
-        assert!(!is_cedar_exempt_path("/"));
-        assert!(!is_cedar_exempt_path("/file.txt"));
-        assert!(!is_cedar_exempt_path("/api/audit"));
-        assert!(!is_cedar_exempt_path("/api/shares"));
+    fn test_is_public_auth_path_cedar() {
+        assert!(is_public_auth_path("/.well-known/ferro"));
+        assert!(is_public_auth_path("/.well-known/openid-configuration"));
+        assert!(is_public_auth_path("/api/auth/login"));
+        assert!(is_public_auth_path("/api/policies"));
+        assert!(is_public_auth_path("/api/config"));
+        assert!(is_public_auth_path("/s/abc123"));
+        assert!(is_public_auth_path("/healthz"));
+        assert!(is_public_auth_path("/metrics"));
+        assert!(is_public_auth_path("/api/auth/info"));
+        assert!(is_public_auth_path("/api/auth/callback"));
+        assert!(is_public_auth_path("/ui"));
+        assert!(is_public_auth_path("/ui/"));
+        assert!(!is_public_auth_path("/"));
+        assert!(!is_public_auth_path("/file.txt"));
+        assert!(!is_public_auth_path("/api/audit"));
+        assert!(!is_public_auth_path("/api/shares"));
     }
 
     #[tokio::test]

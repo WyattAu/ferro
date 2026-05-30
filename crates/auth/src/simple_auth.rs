@@ -1,19 +1,7 @@
 use base64::Engine;
 
 use crate::users::{UserInfo, UserRole, UserStoreTrait};
-
-fn is_public_path(path: &str) -> bool {
-    path == "/healthz"
-        || path == "/.well-known/ferro"
-        || path == "/.well-known/openid-configuration"
-        || path.starts_with("/api/auth/login")
-        || path.starts_with("/api/auth/callback")
-        || path.starts_with("/api/config")
-        || path.starts_with("/api/auth/info")
-        || path == "/metrics"
-        || path.starts_with("/ui/")
-        || path == "/ui"
-}
+use common::auth::is_public_auth_path;
 
 /// Axum middleware implementing HTTP Basic authentication.
 #[cfg(feature = "handlers")]
@@ -32,7 +20,7 @@ pub async fn simple_auth_middleware(
 
     let path = req.uri().path();
 
-    if is_public_path(path) {
+    if is_public_auth_path(path) {
         return next.run(req).await;
     }
 

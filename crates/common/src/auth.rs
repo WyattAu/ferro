@@ -1,5 +1,24 @@
 use serde::{Deserialize, Serialize};
 
+/// Canonical set of paths that are publicly accessible without authentication.
+///
+/// Merges the public path lists from `simple_auth`, `cedar`, and `oidc` modules
+/// into a single source of truth.
+pub fn is_public_auth_path(path: &str) -> bool {
+    path == "/healthz"
+        || path == "/.well-known/ferro"
+        || path == "/.well-known/openid-configuration"
+        || path.starts_with("/api/auth/login")
+        || path.starts_with("/api/auth/callback")
+        || path.starts_with("/api/config")
+        || path.starts_with("/api/auth/info")
+        || path == "/metrics"
+        || path.starts_with("/ui/")
+        || path == "/ui"
+        || path == "/api/policies"
+        || path.starts_with("/s/")
+}
+
 /// JWT claims extracted from an OIDC/Basic auth token.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
