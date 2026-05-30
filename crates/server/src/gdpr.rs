@@ -252,20 +252,26 @@ async fn process_data_export(state: &AppState, request_id: &str, user_id: &str) 
 
     // Create a data directory for the export
     let export_dir = std::path::PathBuf::from(format!("/tmp/ferro-gdpr-export-{}", request_id));
-    let _ = std::fs::create_dir_all(&export_dir);
+    if let Err(e) = std::fs::create_dir_all(&export_dir) {
+        tracing::warn!(error = %e, path = %export_dir.display(), "failed to create GDPR export directory");
+    }
 
     // Export user metadata as JSON
     let user_data = collect_user_data(state, user_id);
     let metadata_path = export_dir.join("user_metadata.json");
-    if let Ok(json) = serde_json::to_string_pretty(&user_data) {
-        let _ = std::fs::write(&metadata_path, json);
+    if let Ok(json) = serde_json::to_string_pretty(&user_data)
+        && let Err(e) = std::fs::write(&metadata_path, &json)
+    {
+        tracing::warn!(error = %e, path = %metadata_path.display(), "failed to write GDPR user metadata");
     }
 
     // Export audit log entries for this user
     let audit_entries = collect_user_audit_log(state, user_id);
     let audit_path = export_dir.join("audit_log.json");
-    if let Ok(json) = serde_json::to_string_pretty(&audit_entries) {
-        let _ = std::fs::write(&audit_path, json);
+    if let Ok(json) = serde_json::to_string_pretty(&audit_entries)
+        && let Err(e) = std::fs::write(&audit_path, &json)
+    {
+        tracing::warn!(error = %e, path = %audit_path.display(), "failed to write GDPR audit log");
     }
 
     // Create ZIP archive
@@ -292,7 +298,9 @@ async fn process_data_export(state: &AppState, request_id: &str, user_id: &str) 
     }
 
     // Clean up temp directory
-    let _ = std::fs::remove_dir_all(&export_dir);
+    if let Err(e) = std::fs::remove_dir_all(&export_dir) {
+        tracing::warn!(error = %e, path = %export_dir.display(), "failed to clean up GDPR export directory");
+    }
 }
 
 /// Process a data erasure request asynchronously.
