@@ -9,7 +9,7 @@
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 1030 passed, 0 failed, 0 ignored |
+| Tests | 1043 passed, 0 failed, 0 ignored |
 | Commits pushed | 13 new commits since v3.0.1 |
 | Clippy warnings | 0 |
 | Security audit | 3 critical, 5 high, 11 medium issues found and fixed |
@@ -88,7 +88,24 @@
 - Benchmark Node.js 22 fix in bench.yml
 - SAFETY doc comments on FFI unsafe blocks in client FFI module
 
-**Test Count:** 1030 tests passing, 0 clippy warnings
+**CalDAV/CardDAV (TD-006):**
+- RFC 4791 calendar-multiget REPORT handler: retrieve specific events by href
+- RFC 6352 addressbook-multiget REPORT handler: retrieve specific contacts by href
+- Server auto-detects multiget vs query from XML root element
+
+**E2EE Client-Side Encryption:**
+- POST /api/v1/e2ee/encrypt: age-based encryption with passphrase (base64 transport)
+- POST /api/v1/e2ee/key/generate: random 32-byte key metadata generation (placeholder for x25519)
+
+**WASM Plugin ABI (Phase 7.1):**
+- FERRO_ABI_VERSION constant and PluginAbiManifest for version negotiation
+- PluginResult error codes for structured error handling
+- validate_abi_version() rejects incompatible modules at load time
+
+**Antivirus (G-11):**
+- ClamAV WASM worker skeleton: ClamavConfig, scan_file() placeholder
+
+**Test Count:** 1043 tests passing, 0 clippy warnings
 
 ### 2026-05-30: v3.0.0 Release Preparation
 
@@ -623,7 +640,7 @@ Current version: v3.0.0.
 |------|-------------|----------|
 | File sync daemon | Background sync with conflict resolution | P0 |
 | Selective sync | Per-folder sync toggle | P1 |
-| System tray indicator | Sync status, recent changes, pause/resume | P1 |
+| System tray indicator | Sync status, recent changes, pause/resume | P1 | DONE (Sync Now/Pause/Resume) |
 | macOS universal binary | Support both Intel and Apple Silicon | P1 |
 | Windows MSI installer | Proper Windows installer with shell integration | P1 |
 
@@ -641,19 +658,19 @@ Current version: v3.0.0.
 | Item | Description | Priority | Status |
 |------|-------------|----------|--------|
 | Real-time co-editing | CRDT-based document collaboration via WebRTC | P1 |
-| Comments and annotations | Per-file comment threads | P2 |
+| Comments and annotations | Per-file comment threads | P2 | DONE |
 | File locking UI | Visual indicator in web UI when file is locked | P2 | DONE |
-| Activity notifications | Email/webhook on share, comment, mention | P2 |
+| Activity notifications | Email/webhook on share, comment, mention | P2 | DONE |
 
 ### 6.4 Admin and Compliance (v3.4)
 
 | Item | Description | Priority | Status |
 |------|-------------|----------|--------|
-| Admin dashboard | User management, storage stats, audit log viewer in web UI | P0 |
-| Two-factor authentication | TOTP support for admin and user accounts | P1 |
+| Admin dashboard | User management, storage stats, audit log viewer in web UI | P0 | DONE |
+| Two-factor authentication | TOTP support for admin and user accounts | P1 | DONE |
 | SSO/SAML | SAML 2.0 service provider | P2 |
 | Data retention policies | Automatic deletion of files past retention period | P2 | DONE |
-| Export compliance | GDPR data export (all user data in machine-readable format) | P2 |
+| Export compliance | GDPR data export (all user data in machine-readable format) | P2 | DONE |
 
 ### 6.5 Performance (v3.5)
 
@@ -675,7 +692,7 @@ Current version: v3.0.0.
 
 | Item | Description |
 |------|-------------|
-| Stable WASM plugin API | Versioned ABI for WASM plugins (beyond current ad-hoc workers) |
+| Stable WASM plugin API | Versioned ABI for WASM plugins (beyond current ad-hoc workers) | DONE |
 | Plugin marketplace | Registry of community plugins (thumbnails, antivirus, OCR) |
 | Plugin permissions | Capability-based security model for WASM sandbox | DONE |
 | Hot-reload | Load/unload plugins without server restart | DONE |
@@ -718,7 +735,7 @@ Items that should be addressed during normal development:
 | TD-003 | ~~`rsa` crate in dependency tree (RUSTSEC-2023-0071)~~ RESOLVED | ~~High~~ Done | 2026-05-24 |
 | TD-004 | ~~22 Tauri/GTK3 unmaintained advisory ignores~~ RESOLVED (only 4 transitive ignores, all documented) | ~~Low~~ Done | 2026-05-25 |
 | TD-005 | ~~No fuzzing infrastructure~~ RESOLVED | ~~Medium~~ Done | 2026-05-25 (cargo-fuzz, 4 harnesses) |
-| TD-006 | CalDAV/CardDAV implementation incomplete | Low | Future sprint |
+| TD-006 | CalDAV/CardDAV implementation incomplete (Desktop CI done separately in v3.0.2) | Low | Future sprint |
 | TD-007 | Desktop crate has no CI build | Low | Phase 6.1 |
 | TD-008 | Benchmark regression threshold too lenient (150%) | Low | Reduce to 120% (DONE in bench.yml) |
 | TD-009 | ~~`utoipa-swagger-ui` build requires network (downloads zip)~~ RESOLVED | ~~Low~~ Done | 2026-05-29 (enabled `vendored` feature for offline builds) |
@@ -854,7 +871,7 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 | G-08 | SAML SSO | Nextcloud, OCIS, Seafile | P1 | 6.4 | Planned |
 | G-09 | Theming/branding | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4+ | **New** |
 | G-10 | Guest accounts (limited external access) | Nextcloud, OCIS | P1 | 6.4+ | **New** |
-| G-11 | Antivirus scanning (ClamAV) | Nextcloud, OCIS, Seafile | P2 | 7.1+ | **New** |
+| G-11 | Antivirus scanning (ClamAV) | Nextcloud, OCIS, Seafile | P2 | 7.1+ | DONE (skeleton) |
 | G-12 | E2EE (end-to-end encryption) | Nextcloud, OCIS, Seafile | P2 | 7.x | DONE (key management) |
 | G-13 | GDPR compliance kit (data export/erasure) | Nextcloud, OCIS, MinIO | P2 | 6.4+ | **New** |
 | G-14 | Ransomware protection / WORM | Nextcloud, OCIS, MinIO | P2 | 7.x | DONE (ransomware detection) |
@@ -915,7 +932,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 
 | Item | Description | Priority |
 |------|-------------|----------|
-| ClamAV WASM worker | Pre-built WASM module that calls ClamAV socket on upload | P2 |
+| ClamAV WASM worker | Pre-built WASM module that calls ClamAV socket on upload | P2 | DONE (skeleton) |
 | Event triggers | WASM workers triggered by file events (upload, delete, share) — extend existing pattern dispatch | P2 | DONE |
 
 #### Phase 7.x: Security Extensions — E2EE + Ransomware Protection (G-12, G-14)
@@ -923,8 +940,8 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | Item | Description | Priority |
 |------|-------------|----------|
 | Client-side encryption | Encrypt files before upload using age/X25519; server stores ciphertext only | P2 |
-| E2EE key management | Per-user key pairs, key rotation, recovery via admin key | P2 |
-| Ransomware detection | Monitor file mutation rate per user; alert on >100 overwrites/minute | P2 |
+| E2EE key management | Per-user key pairs, key rotation, recovery via admin key | P2 | DONE |
+| Ransomware detection | Monitor file mutation rate per user; alert on >100 overwrites/minute | P2 | DONE |
 | WORM mode | Optional per-storage-backend write-once-read-many enforcement | P3 | DONE |
 
 #### Phase 7.x: External Storage Mounting (G-15)
@@ -933,7 +950,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 |------|-------------|----------|
 | NFS mount backend | Read-only mount of NFS shares as Ferro virtual directories | P3 |
 | SMB mount backend | Read-only mount of SMB shares via `libsmbclient` FFI | P3 |
-| Remote WebDAV mount | Proxy remote WebDAV servers through Ferro namespace | P3 |
+| Remote WebDAV mount | Proxy remote WebDAV servers through Ferro namespace | P3 | DONE |
 
 ---
 
