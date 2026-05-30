@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780175305192,
+  "lastUpdate": 1780182839075,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -5327,6 +5327,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 728,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "25ed0ae3873d2674d8331274d3909525610db0b0",
+          "message": "fix(auth): wire Cedar context, sync public paths, fix GraphQL auth\n\n- TD-025: Cedar middleware now passes IP/method/resource as context\n  attributes for policy evaluation (was always empty)\n- TD-026: Eliminated duplicate is_public_path in server auth/oidc,\n  consolidated to common::auth::is_public_auth_path\n- GraphQL: removed TODO stub, added current_user to GraphQLContext,\n  me() resolver now returns real user identity when available\n- 4 new tests (1006 total, 0 failures)",
+          "timestamp": "2026-05-31T00:05:17+01:00",
+          "tree_id": "649fa5cd0d3f4496427eb1e06f72b73cf431279a",
+          "url": "https://github.com/WyattAu/ferro/commit/25ed0ae3873d2674d8331274d3909525610db0b0"
+        },
+        "date": 1780182838603,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 301168307,
+            "range": "± 906849",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300723736,
+            "range": "± 899018",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24463,
+            "range": "± 733",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24173,
+            "range": "± 881",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9050,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 4936,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1300,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 971,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2744,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1411,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8186,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74860,
+            "range": "± 415",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19171,
+            "range": "± 95",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 954,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 69,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 154,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 177,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 866,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 731,
+            "range": "± 21",
             "unit": "ns/iter"
           },
           {
