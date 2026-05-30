@@ -1,7 +1,8 @@
 # ── Stage 1: Build Web UI ──────────────────────────────────────────────────
-FROM node:20-slim AS ui-builder
 
 ARG RUST_VERSION=1.95
+
+FROM node:20-slim AS ui-builder
 
 LABEL org.opencontainers.image.title="Ferro"
 LABEL org.opencontainers.image.description="Self-hosted file server with WebDAV, S3-compatible API, federation, and WASM workers"

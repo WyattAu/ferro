@@ -38,7 +38,7 @@ allow = [
     "ISC",
     "Unicode-3.0",
     "Zlib",
-    "AGPL-3.0-or-later",
+    "AGPL-3.0",
     "MPL-2.0",
     "CDLA-Permissive-2.0",
     "BSL-1.0",
