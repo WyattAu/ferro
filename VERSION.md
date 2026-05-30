@@ -2,14 +2,14 @@
 
 ## Current Status
 - **Phase:** Release Candidate (Phase 5: 11/11 criteria met)
-- **Version:** 2.5.1
-- **Tests:** 854 passed, 0 failed, 1 ignored, 0 clippy warnings
+- **Version:** 3.0.0
+- **Tests:** 917 passed, 0 failed, 0 clippy warnings
 - **E2E:** 23 Playwright tests across 11 spec files (chromium, firefox, webkit)
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
 - **Load Testing:** 1h soak test passed (18,828 requests, 0 failures, P50=6ms, P95=28ms, P99=52ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
 - **Status:** Release candidate. All P0 items from Phases 1-4 resolved. Soak test passed (1h, 21,600+ req, 0 failures). Helm chart ready. Multi-arch CI configured. Pre-commit hook installed.
-- **Last Updated:** 2026-05-29
+- **Last Updated:** 2026-05-30
 
 ## Phase Progress
 | Phase | Status | Completion |
@@ -31,6 +31,42 @@
 | Sprint N: Enterprise | Completed | 100% |
 | Sprint O: Make It Real | Completed | 100% |
 | Sprint P: Ship It | Completed | 100% |
+
+## What Was Just Completed
+
+### 2026-05-30: v3.0.0 Release Preparation
+
+**Technical Debt Resolution:**
+- TD-017: Fixed poisoned lock recovery in server-activitypub (replaced `unwrap_or_else(|e| e.into_inner())` with proper error handling)
+- TD-015: Propagated critical filesystem errors in GDPR data export (4 `let _ =` on fs ops now logged)
+- TD-011: Replaced 6 actionable production `expect()` calls (FerroClient::new, CedarAuthorizer, HTTP api_version fallback)
+- TD-016: Added SAFETY doc comments to all std::sync::Mutex in async context (4 files documented)
+- TD-002: Documented DashMap in-memory storage restart behavior in AppState
+- TD-021: Fixed benchmark auto-push to bench-data branch (fail-on-error: false)
+
+**New Features (Phase 6):**
+- Phase 6.5 P0: Streaming uploads -- large file uploads now stream to temp file instead of buffering entire body in memory
+  - New `--streaming-upload-threshold` flag (default: 65536 bytes); files above this use streaming path
+  - Atomic temp-file-then-move prevents partial uploads on crash
+  - Preserves CAS dedup, content-type sniffing, versioning, audit logging
+- Phase 6.3: Secure view -- share links can disable download (`allow_download=false`)
+  - Serves HTML preview page with CSP blocking download actions
+- Phase 6.3: File drop -- share links can accept uploads (`allow_upload=true`)
+  - Upload-only share links with drag-and-drop HTML UI
+  - POST /s/:token multipart upload handler with filename extraction and audit trail
+- Phase 6.3: File locking UI indicator -- web UI polls GET /api/locks every 10 seconds
+  - Shows lock icon on file rows and grid cards when files are locked
+  - Displays lock owner and expiry time
+- Phase 6.4: Data retention policies -- admin API for automated file lifecycle management
+  - Create policies by path prefix with max age, max file count, min free bytes
+  - Background daemon runs periodically (configurable interval, default 1 hour)
+  - Dry-run mode for safe policy testing
+  - SQLite persistence of policies (schema v4 migration)
+- Phase 6.4: Guest account expiry enforcement -- background daemon auto-purges expired guests
+  - Guest auth middleware returns 401 on expired accounts
+  - Configurable cleanup interval (default 5 minutes)
+
+**Test Count:** 917 unit/integration tests (+63 from new features), 0 failures, 0 clippy warnings
 
 ## Sprint Progress
 | Sprint | Description | Status |
@@ -141,14 +177,14 @@
 | Crate | Tests | Status |
 |-------|-------|--------|
 | ferro-common | 8 passing | Implemented |
-| ferro-core | 72 passing | Implemented |
-| ferro-server | 297 lib + 151 integration + 1 E2E + 25 property | Implemented |
-| ferro-web | 36 passing (non-WASM stubs + API tests) | Implemented + Docker WASM build passing |
+| ferro-core | 75 passing | Implemented |
+| ferro-server | 506 lib + integration + property | Implemented |
+| ferro-web | 36 passing (non-WASM stubs + API tests) | Implemented |
 | ferro-cli | 8 passing | Implemented |
-| ferro-desktop | 7 passing | Implemented |
-| ferro-dav | 51 passing | Implemented |
-| ferro-auth | 42 passing | Implemented |
-| ferro-client | 8 passing | Implemented |
+| ferro-desktop | 39 passing | Implemented |
+| ferro-dav | 55 passing | Implemented |
+| ferro-auth | 50 passing | Implemented |
+| ferro-client | 11 passing | Implemented |
 | ferro-crypto | 8 passing | Implemented |
 | ferro-fuse | 22 passing | Implemented |
 | ferro-graphql | 19 passing | Implemented |
@@ -161,7 +197,7 @@
 | ferro-webdav-handler | 10 passing | Implemented |
 | ferro-benchmarks | 18 benchmark functions | Implemented |
 
-## Total Tests: 854 passed, 0 failed, 1 ignored
+## Total Tests: 917 passed, 0 failed
 ## E2E Tests: 23 Playwright (11 spec files, 3 browsers)
 ## Property Tests: 4 (proptest)
 ## Fuzzing: 4 harnesses, 2.6M+ iterations, 0 crashes
@@ -170,4 +206,4 @@
 ## Clippy: 0 warnings (with all features: s3,gcs,azure,pg,redis,ldap)
 ## Security: cargo-deny clean, advisories/bans/licenses/sources ok
 ## Error Level: None
-## Rollback Checkpoint: main@45b5004 (Phase 5 release candidate, 2026-05-29)
+## Rollback Checkpoint: main@45b5004 (Phase 5 release candidate, 2026-05-30)

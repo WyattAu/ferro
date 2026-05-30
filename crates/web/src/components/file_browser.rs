@@ -87,6 +87,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
     let (view_mode, set_view_mode) = create_signal(ViewMode::List);
 
+    let (locks_state, set_locks_state) =
+        create_signal(std::collections::HashMap::<String, api::LockInfo>::new());
+
     let clipboard_state = use_clipboard_state();
     let palette_state = use_command_palette_state();
     let theme_state = use_theme_state();
@@ -507,6 +510,64 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     };
 
     let is_fav = move |path: String| -> bool { favorites.with(|f| f.contains(&path)) };
+
+    let load_locks = {
+        let set_locks = set_locks_state;
+        move || {
+            let set_locks = set_locks;
+            spawn_local(async move {
+                match api::list_locks().await {
+                    Ok(locks) => {
+                        let map: std::collections::HashMap<String, api::LockInfo> =
+                            locks.into_iter().map(|l| (l.path.clone(), l)).collect();
+                        set_locks.set(map);
+                    }
+                    Err(_) => set_locks.set(std::collections::HashMap::new()),
+                }
+            });
+        }
+    };
+
+    create_effect(move |_| {
+        load_locks();
+    });
+
+    create_effect(move |_| {
+        spawn_local(async move {
+            loop {
+                let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+                    let _ = web_sys::window().and_then(|w| {
+                        w.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 10_000)
+                            .ok()
+                    });
+                });
+                let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                load_locks();
+            }
+        });
+    });
+
+    let get_lock_info = move |path: &str| -> (bool, String, String) {
+        let locks = locks_state.get();
+        if let Some(lock) = locks.get(path) {
+            (true, lock.owner.clone(), lock.expires_at.clone())
+        } else {
+            let mut check = path;
+            while check.len() > 1 {
+                check = match check.rfind('/') {
+                    None => break,
+                    Some(0) => break,
+                    Some(i) => &check[..i],
+                };
+                if let Some(lock) = locks.get(check)
+                    && lock.depth == "Infinity"
+                {
+                    return (true, lock.owner.clone(), lock.expires_at.clone());
+                }
+            }
+            (false, String::new(), String::new())
+        }
+    };
 
     let fav_entries = move || {
         let favs = favorites.get();
@@ -1489,21 +1550,30 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                         key=|entry| entry.path.clone()
                                         let:entry
                                     >
-                                        <FileRow
-                                            entry=entry
-                                            on_navigate=Callback::new(navigate)
-                                            on_delete=Callback::new(do_delete)
-                                            on_download=Callback::new(do_download)
-                                            on_share=Callback::new(do_share)
-                                            on_preview=Callback::new(open_preview)
-                                            is_favorited=true
-                                            on_toggle_favorite=Callback::new(do_toggle_favorite)
-                                            show_checkbox=false
-                                            is_selected=false
-                                            on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
-                                            on_copy=Callback::new(do_copy)
-                                            on_move=Callback::new(do_move)
-                                        />
+                                        {
+                                            let ep = entry.path.clone();
+                                            let (lk, lo, le) = get_lock_info(&ep);
+                                            view! {
+                                                <FileRow
+                                                    entry=entry
+                                                    on_navigate=Callback::new(navigate)
+                                                    on_delete=Callback::new(do_delete)
+                                                    on_download=Callback::new(do_download)
+                                                    on_share=Callback::new(do_share)
+                                                    on_preview=Callback::new(open_preview)
+                                                    is_favorited=true
+                                                    on_toggle_favorite=Callback::new(do_toggle_favorite)
+                                                    show_checkbox=false
+                                                    is_selected=false
+                                                    on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
+                                                    on_copy=Callback::new(do_copy)
+                                                    on_move=Callback::new(do_move)
+                                                    is_locked=lk
+                                                    lock_owner=lo
+                                                    lock_expires=le
+                                                />
+                                            }
+                                        }
                                     </For>
                                 </tbody>
                             </table>
@@ -1552,6 +1622,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                     >
                                         {
                                             let entry_path = entry.path.clone();
+                                            let (lk, lo, le) = get_lock_info(&entry_path);
                                             view! {
                                                 <FileRow
                                                     entry=entry
@@ -1567,6 +1638,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                                     on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
                                                     on_copy=Callback::new(do_copy)
                                                     on_move=Callback::new(do_move)
+                                                    is_locked=lk
+                                                    lock_owner=lo
+                                                    lock_expires=le
                                                 />
                                             }
                                         }
@@ -1608,6 +1682,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                 on_toggle_select=grid_cb_select
                                 on_copy=grid_cb_copy
                                 on_move=grid_cb_move
+                                locks=locks_state
                             />
                         </div>
                     }.into_any(),
@@ -1643,6 +1718,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                             let entry_path = entry.path.clone();
                                             let entry_path_for_fav = entry.path.clone();
                                             let sel_path = entry.path.clone();
+                                            let (lk, lo, le) = get_lock_info(&entry.path);
                                             let _sel_idx = create_memo(move |_| {
                                                 all_entries.with(|e| e.iter().position(|x| x.path == entry_path_for_fav).unwrap_or(0))
                                             });
@@ -1663,6 +1739,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                                     })
                                                     on_copy=Callback::new(do_copy)
                                                     on_move=Callback::new(do_move)
+                                                    is_locked=lk
+                                                    lock_owner=lo
+                                                    lock_expires=le
                                                 />
                                             }
                                         }

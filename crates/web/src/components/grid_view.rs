@@ -1,6 +1,6 @@
 use leptos::*;
 
-use crate::api::FileEntry;
+use crate::api::{FileEntry, LockInfo};
 use crate::components::file_icon::{FileIcon, FileType, file_type_from_extension};
 
 fn format_size(bytes: u64) -> String {
@@ -293,11 +293,13 @@ pub fn GridView(
     on_toggle_select: Callback<(String, usize, bool, bool)>,
     on_copy: Callback<String>,
     on_move: Callback<String>,
+    locks: ReadSignal<std::collections::HashMap<String, LockInfo>>,
 ) -> impl IntoView {
     let entries_for_each = entries;
     let entries_for_idx = entries;
     let favs = favorites;
     let sels = selected_paths;
+    let locks_sig = locks;
 
     view! {
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 p-3 sm:p-4" role="grid" aria-label="File grid">
@@ -315,7 +317,28 @@ pub fn GridView(
                         ents.iter().position(|e| e.path == ep3).unwrap_or(0)
                     };
                     let is_fav = move || favs.with(|f| f.contains(&ep));
+                    let ep_lock = ep2.clone();
                     let is_sel = move || sels.with(|s| s.contains(&ep2));
+                    let li = move || {
+                        let locks_map = locks_sig.get();
+                        if let Some(lock) = locks_map.get(&ep_lock) {
+                            (true, lock.owner.clone(), lock.expires_at.clone())
+                        } else {
+                            let mut check = ep_lock.as_str();
+                            while check.len() > 1 {
+                                check = match check.rfind('/') {
+                                    None => break,
+                                    Some(0) => break,
+                                    Some(i) => &check[..i],
+                                };
+                                if let Some(lock) = locks_map.get(check)
+                                    && lock.depth == "Infinity" {
+                                        return (true, lock.owner.clone(), lock.expires_at.clone());
+                                    }
+                            }
+                            (false, String::new(), String::new())
+                        }
+                    };
                     view! {
                         <GridCard
                             entry=entry
@@ -332,6 +355,9 @@ pub fn GridView(
                             on_toggle_select=on_toggle_select
                             on_copy=on_copy
                             on_move=on_move
+                            is_locked=li().0
+                            lock_owner=li().1
+                            lock_expires=li().2
                         />
                     }
                 }
