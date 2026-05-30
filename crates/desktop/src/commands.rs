@@ -224,9 +224,8 @@ impl DesktopState {
 
         if interval_secs > 0 {
             tokio::spawn(async move {
-                let mut interval = tokio::time::interval(std::time::Duration::from_secs(
-                    interval_secs.max(10),
-                ));
+                let mut interval =
+                    tokio::time::interval(std::time::Duration::from_secs(interval_secs.max(10)));
                 loop {
                     tokio::select! {
                         _ = interval.tick() => {

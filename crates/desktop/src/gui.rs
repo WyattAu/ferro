@@ -345,10 +345,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 MenuItem::with_id(app, "resume_sync", "Resume Sync", true, None::<&str>)?;
 
             #[cfg(all(feature = "sync", feature = "tauri"))]
-            let menu = Menu::with_items(
-                app,
-                &[&show, &sync_now, &pause_sync, &resume_sync, &quit],
-            )?;
+            let menu =
+                Menu::with_items(app, &[&show, &sync_now, &pause_sync, &resume_sync, &quit])?;
             #[cfg(not(all(feature = "sync", feature = "tauri")))]
             let menu = Menu::with_items(app, &[&show, &quit])?;
 

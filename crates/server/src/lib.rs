@@ -1,6 +1,5 @@
 pub mod activity;
 pub mod admin_api;
-pub mod clamav;
 pub mod api;
 pub mod api_error;
 pub mod audit;
@@ -9,6 +8,7 @@ pub mod backup;
 pub mod batch;
 pub mod branding;
 pub mod bulk;
+pub mod clamav;
 pub mod comments;
 pub mod config;
 pub mod conflict;
@@ -881,10 +881,7 @@ fn api_routes(
             "/files/decrypt",
             axum::routing::post(encryption::decrypt_file),
         )
-        .route(
-            "/e2ee/encrypt",
-            axum::routing::post(e2ee::e2ee_encrypt),
-        )
+        .route("/e2ee/encrypt", axum::routing::post(e2ee::e2ee_encrypt))
         .route(
             "/e2ee/key/generate",
             axum::routing::post(e2ee::e2ee_key_generate),

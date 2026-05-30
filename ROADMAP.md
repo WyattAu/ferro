@@ -9,7 +9,7 @@
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 1043 passed, 0 failed, 0 ignored |
+| Tests | 998 passed, 0 failed, 0 ignored |
 | Commits pushed | 13 new commits since v3.0.1 |
 | Clippy warnings | 0 |
 | Security audit | 3 critical, 5 high, 11 medium issues found and fixed |
@@ -105,7 +105,7 @@
 **Antivirus (G-11):**
 - ClamAV WASM worker skeleton: ClamavConfig, scan_file() placeholder
 
-**Test Count:** 1043 tests passing, 0 clippy warnings
+**Test Count:** 998 tests passing, 0 clippy warnings
 
 ### 2026-05-30: v3.0.0 Release Preparation
 
@@ -829,7 +829,7 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 
 ### Testing (Required Before v3.0)
 
-- [x] 1030 unit/integration tests passing (0 failures)
+- [x] 998 unit/integration tests passing (0 failures)
 - [x] 4 property-based tests (proptest)
 - [x] 23 Playwright E2E tests (11 spec files, 3 browsers)
 - [x] 4 fuzz harnesses (2.6M+ iterations, 0 crashes)

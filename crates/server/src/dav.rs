@@ -36,9 +36,11 @@ pub async fn dispatch_caldav(
         }
         "REPORT" => {
             if is_multiget_report(&body) {
-                ferro_dav::caldav::handle_multiget(axum::extract::State(cal_state), Extension(body)).await
+                ferro_dav::caldav::handle_multiget(axum::extract::State(cal_state), Extension(body))
+                    .await
             } else {
-                ferro_dav::caldav::handle_report(axum::extract::State(cal_state), Extension(body)).await
+                ferro_dav::caldav::handle_report(axum::extract::State(cal_state), Extension(body))
+                    .await
             }
         }
         _ => axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response(),
@@ -58,8 +60,11 @@ pub async fn dispatch_carddav(
     match method.as_str() {
         "REPORT" => {
             if is_multiget_report(&body) {
-                ferro_dav::carddav::handle_multiget(axum::extract::State(card_state), Extension(body))
-                    .await
+                ferro_dav::carddav::handle_multiget(
+                    axum::extract::State(card_state),
+                    Extension(body),
+                )
+                .await
             } else {
                 ferro_dav::carddav::handle_report(axum::extract::State(card_state), Extension(body))
                     .await

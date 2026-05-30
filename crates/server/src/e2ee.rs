@@ -17,9 +17,7 @@ pub struct E2eeEncryptResponse {
     pub ciphertext: String,
 }
 
-pub async fn e2ee_encrypt(
-    axum::Json(req): axum::Json<E2eeEncryptRequest>,
-) -> Response {
+pub async fn e2ee_encrypt(axum::Json(req): axum::Json<E2eeEncryptRequest>) -> Response {
     let data = match base64::engine::general_purpose::STANDARD.decode(&req.data) {
         Ok(d) => d,
         Err(e) => {
@@ -34,7 +32,10 @@ pub async fn e2ee_encrypt(
     match encrypt_content(&data, &req.passphrase).await {
         Ok(ciphertext) => {
             let b64 = base64::engine::general_purpose::STANDARD.encode(&ciphertext);
-            (StatusCode::OK, axum::Json(E2eeEncryptResponse { ciphertext: b64 }))
+            (
+                StatusCode::OK,
+                axum::Json(E2eeEncryptResponse { ciphertext: b64 }),
+            )
                 .into_response()
         }
         Err(e) => crate::api_error::ApiError::internal(
@@ -45,9 +46,7 @@ pub async fn e2ee_encrypt(
     }
 }
 
-pub async fn e2ee_decrypt(
-    axum::Json(req): axum::Json<E2eeEncryptRequest>,
-) -> Response {
+pub async fn e2ee_decrypt(axum::Json(req): axum::Json<E2eeEncryptRequest>) -> Response {
     let ciphertext = match base64::engine::general_purpose::STANDARD.decode(&req.data) {
         Ok(d) => d,
         Err(e) => {
@@ -62,7 +61,10 @@ pub async fn e2ee_decrypt(
     match decrypt_content(&ciphertext, &req.passphrase).await {
         Ok(plaintext) => {
             let b64 = base64::engine::general_purpose::STANDARD.encode(&plaintext);
-            (StatusCode::OK, axum::Json(E2eeEncryptResponse { ciphertext: b64 }))
+            (
+                StatusCode::OK,
+                axum::Json(E2eeEncryptResponse { ciphertext: b64 }),
+            )
                 .into_response()
         }
         Err(e) => crate::api_error::ApiError::bad_request(
@@ -134,7 +136,9 @@ mod tests {
                     .method("POST")
                     .uri("/e2ee/encrypt")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(serde_json::to_string(&encrypt_req).unwrap()))
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&encrypt_req).unwrap(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -154,7 +158,9 @@ mod tests {
                     .method("POST")
                     .uri("/e2ee/decrypt")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(serde_json::to_string(&decrypt_req).unwrap()))
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&decrypt_req).unwrap(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -210,7 +216,9 @@ mod tests {
                     .method("POST")
                     .uri("/e2ee/encrypt")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(serde_json::to_string(&encrypt_req).unwrap()))
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&encrypt_req).unwrap(),
+                    ))
                     .unwrap(),
             )
             .await
@@ -229,7 +237,9 @@ mod tests {
                     .method("POST")
                     .uri("/e2ee/decrypt")
                     .header("content-type", "application/json")
-                    .body(axum::body::Body::from(serde_json::to_string(&decrypt_req).unwrap()))
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&decrypt_req).unwrap(),
+                    ))
                     .unwrap(),
             )
             .await
