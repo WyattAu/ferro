@@ -16,6 +16,7 @@ azure = ["ferro-core/azure", "object_store/azure"]
 pg = ["ferro-core/postgres", "sqlx", "sqlx/postgres", "sqlx/chrono"]
 redis = ["dep:redis"]
 ldap = ["dep:ldap3"]
+webauthn = []
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }

@@ -13,6 +13,8 @@ pub mod config;
 pub mod conflict;
 pub mod dav;
 pub mod db;
+pub mod dedup;
+pub mod email;
 pub mod encryption;
 pub mod error;
 pub mod events;
@@ -106,9 +108,11 @@ pub mod lock;
 pub mod metrics;
 pub mod move_copy;
 pub mod object_store_backend;
+pub mod ocr;
 pub mod openapi;
 #[cfg(feature = "pg")]
 pub mod pg_state;
+pub mod plugin_permissions;
 pub mod policies;
 pub mod preferences;
 pub mod presigned;
@@ -148,6 +152,8 @@ pub mod user_api;
 pub mod user_paths;
 pub mod users;
 pub mod wasm_upload;
+#[cfg(feature = "webauthn")]
+pub mod webauthn_api;
 pub mod webdav;
 pub mod webhooks;
 pub mod worker_runner;
@@ -267,11 +273,18 @@ pub struct AppState {
     pub wasm_error_count: Arc<std::sync::atomic::AtomicU64>,
     /// WASM worker total fuel consumed across all executions.
     pub wasm_fuel_total: Arc<std::sync::atomic::AtomicU64>,
+    /// Registry of loaded WASM plugins with capability declarations.
+    pub plugin_registry: Arc<DashMap<String, plugin_permissions::PluginManifest>>,
     /// Whether the server has completed startup (CAS verification, DB init, etc.).
     /// Set to true after all startup checks pass in main.rs.
     pub startup_complete: Arc<std::sync::atomic::AtomicBool>,
     pub streaming_upload_threshold: u64,
+    pub dedup_enabled: bool,
+    pub email_config: email::EmailConfig,
     pub remote_mounts: Arc<remote_mount::RemoteMountStore>,
+    pub ransomware_detector: Arc<ransomware::RansomwareDetector>,
+    #[cfg(feature = "webauthn")]
+    pub webauthn_store: Arc<tokio::sync::RwLock<crate::auth::webauthn::WebAuthnStore>>,
 }
 
 impl AppState {
@@ -344,9 +357,19 @@ impl AppState {
             wasm_dispatch_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             wasm_error_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             wasm_fuel_total: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            plugin_registry: Arc::new(DashMap::new()),
             startup_complete: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             streaming_upload_threshold: streaming_upload::DEFAULT_STREAMING_THRESHOLD,
+            dedup_enabled: false,
+            email_config: email::EmailConfig::default(),
             remote_mounts: Arc::new(remote_mount::RemoteMountStore::new()),
+            ransomware_detector: Arc::new(ransomware::RansomwareDetector::new(
+                ransomware::RansomwareConfig::default(),
+            )),
+            #[cfg(feature = "webauthn")]
+            webauthn_store: Arc::new(tokio::sync::RwLock::new(
+                crate::auth::webauthn::WebAuthnStore::new(),
+            )),
         }
     }
 
@@ -739,6 +762,33 @@ fn api_routes(
             "/auth/totp/status",
             axum::routing::get(totp_api::totp_status),
         )
+        // WebAuthn/FIDO2 authentication (G-04)
+        .merge({
+            #[cfg(feature = "webauthn")]
+            {
+                axum::Router::new()
+                    .route(
+                        "/auth/webauthn/register/begin",
+                        axum::routing::post(webauthn_api::webauthn_register_begin),
+                    )
+                    .route(
+                        "/auth/webauthn/register/finish",
+                        axum::routing::post(webauthn_api::webauthn_register_finish),
+                    )
+                    .route(
+                        "/auth/webauthn/login/begin",
+                        axum::routing::post(webauthn_api::webauthn_login_begin),
+                    )
+                    .route(
+                        "/auth/webauthn/login/finish",
+                        axum::routing::post(webauthn_api::webauthn_login_finish),
+                    )
+            }
+            #[cfg(not(feature = "webauthn"))]
+            {
+                axum::Router::new()
+            }
+        })
         .route("/search", axum::routing::get(search::handle_search))
         .route(
             "/workers",
@@ -755,6 +805,10 @@ fn api_routes(
         .route(
             "/workers/modules",
             axum::routing::get(wasm_upload::list_wasm_modules),
+        )
+        .route(
+            "/plugins",
+            axum::routing::get(plugin_permissions::list_plugins),
         )
         .route(
             "/policies",
