@@ -22,19 +22,10 @@ impl E2eeKeyMeta {
 }
 
 /// E2EE configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct E2eeConfig {
     pub enabled: bool,
     pub admin_recovery_key_id: Option<String>,
-}
-
-impl Default for E2eeConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            admin_recovery_key_id: None,
-        }
-    }
 }
 
 #[cfg(test)]
