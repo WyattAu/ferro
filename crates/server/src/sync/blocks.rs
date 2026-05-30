@@ -297,7 +297,8 @@ pub async fn get_manifest(
     let missing_blocks = if let Some(cas) = &state.cas_store {
         let mut missing = Vec::new();
         for block in &blocks {
-            let content_hash = ContentHash::new(block.hash.clone());
+            let content_hash =
+                ContentHash::new(block.hash.clone()).expect("valid block hash from client");
             match cas.exists(&content_hash).await {
                 Ok(true) => {}
                 _ => {
@@ -386,7 +387,8 @@ pub async fn upload_blocks(
             Ok(_) => {
                 // put_content deduplicates, so we can't easily distinguish new vs existing.
                 // Check existence first for accurate counts.
-                let content_hash = ContentHash::new(hash_hex.clone());
+                let content_hash =
+                    ContentHash::new(hash_hex.clone()).expect("valid computed block hash");
                 match cas.dedup_check(&content_hash).await {
                     Ok(true) => deduplicated += 1,
                     _ => stored += 1,
@@ -454,7 +456,8 @@ pub async fn check_blocks(
         if hash_str.is_empty() {
             continue;
         }
-        let content_hash = ContentHash::new(hash_str.to_string());
+        let content_hash =
+            ContentHash::new(hash_str.to_string()).expect("valid block hash from query parameter");
         match cas.exists(&content_hash).await {
             Ok(true) => present += 1,
             _ => missing.push(hash_str.to_string()),
@@ -489,7 +492,8 @@ pub async fn assemble_file(
     // Fetch all blocks
     let mut assembled = Vec::with_capacity(body.block_hashes.len() * 65536);
     for (i, hash_hex) in body.block_hashes.iter().enumerate() {
-        let content_hash = ContentHash::new(hash_hex.clone());
+        let content_hash =
+            ContentHash::new(hash_hex.clone()).expect("valid block hash from request");
         match cas.get_content(&content_hash).await {
             Ok(block_bytes) => assembled.extend_from_slice(&block_bytes),
             Err(e) => {
@@ -549,7 +553,7 @@ pub async fn get_block(State(state): State<AppState>, Path(hash): Path<String>) 
         }
     };
 
-    let content_hash = ContentHash::new(hash);
+    let content_hash = ContentHash::new(hash).expect("valid block hash from path parameter");
     match cas.get_content(&content_hash).await {
         Ok(data) => (
             StatusCode::OK,

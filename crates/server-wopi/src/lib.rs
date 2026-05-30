@@ -327,7 +327,7 @@ async fn get_file_inner(state: &WopiState, path: &str) -> Response {
     let meta = state.storage.head(&full_path).await.unwrap_or_else(|_| {
         common::metadata::FileMetadata::new(
             full_path.clone(),
-            common::metadata::ContentHash::new("0".repeat(64)),
+            common::metadata::ContentHash::new_unchecked("0".repeat(64)),
             content.len() as u64,
             "anonymous".to_string(),
         )
@@ -537,7 +537,7 @@ mod tests {
             let size = files.get(path).map(|b| b.len() as u64).unwrap_or(0);
             Ok(FileMetadata::new(
                 path.to_string(),
-                ContentHash::new("0".repeat(64)),
+                ContentHash::new_unchecked("0".repeat(64)),
                 size,
                 "owner".to_string(),
             ))

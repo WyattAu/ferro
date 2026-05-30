@@ -84,7 +84,7 @@ mod tests {
     #[tokio::test]
     async fn test_metadata_crud() {
         let store = InMemoryMetadataStore::new();
-        let hash = ContentHash::new("a".repeat(64));
+        let hash = ContentHash::new("a".repeat(64)).expect("valid hardcoded hash");
         let meta = FileMetadata::new("/test.txt".to_string(), hash, 42, "user1".to_string());
 
         assert!(!store.exists("/test.txt").await.unwrap());
@@ -102,7 +102,7 @@ mod tests {
     #[tokio::test]
     async fn test_metadata_list() {
         let store = InMemoryMetadataStore::new();
-        let hash = ContentHash::new("a".repeat(64));
+        let hash = ContentHash::new("a".repeat(64)).expect("valid hardcoded hash");
 
         store
             .put(FileMetadata::new(
@@ -146,8 +146,8 @@ mod tests {
     #[tokio::test]
     async fn test_metadata_update() {
         let store = InMemoryMetadataStore::new();
-        let hash1 = ContentHash::new("a".repeat(64));
-        let hash2 = ContentHash::new("b".repeat(64));
+        let hash1 = ContentHash::new("a".repeat(64)).expect("valid hardcoded hash");
+        let hash2 = ContentHash::new("b".repeat(64)).expect("valid hardcoded hash");
 
         store
             .put(FileMetadata::new(

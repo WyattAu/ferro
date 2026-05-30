@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2026-05-30
+
+### Security
+- Fixed Cedar EntityUid parse failure falling back to `anonymous` (authorization bypass). Requests with malformed principal/action/resource identifiers are now denied.
+- Fixed simple auth middleware granting admin access to disabled accounts. Inactive users with matching admin credentials are now rejected with 401.
+- Fixed `AlreadyExists` error mapping from 405 Method Not Allowed to 409 Conflict per HTTP specification.
+
+### Fixed
+- `ContentHash::new()` no longer panics on invalid input -- returns `Option<Self>`. All callers updated.
+- Audit chain hash now includes `user_agent` and `content_length` fields for complete tamper evidence coverage.
+- SQLite metadata timestamp parsing now logs warnings when encountering malformed dates instead of silently defaulting to `Utc::now()`.
+- MKCOL on an existing resource returns 405 Method Not Allowed per RFC 4918 Section 9.3.1.
+- `LogBuffer::push` now uses `VecDeque` instead of `Vec` for O(1) front removal (was O(n)).
+- CI audit workflow: removed duplicate `cargo-deny` install step.
+
 ## [2.5.1] - 2026-05-08
 
 ### Fixed

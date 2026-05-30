@@ -410,7 +410,8 @@ mod tests {
 
     #[test]
     fn test_build_multistatus_xml() {
-        let hash = common::metadata::ContentHash::new("a".repeat(64));
+        let hash =
+            common::metadata::ContentHash::new("a".repeat(64)).expect("valid hardcoded hash");
         let meta = FileMetadata::new(
             "/test.txt".to_string(),
             hash.clone(),

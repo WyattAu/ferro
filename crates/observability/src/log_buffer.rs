@@ -1,5 +1,6 @@
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEntry {
@@ -11,14 +12,14 @@ pub struct LogEntry {
 }
 
 pub struct LogBuffer {
-    entries: RwLock<Vec<LogEntry>>,
+    entries: RwLock<VecDeque<LogEntry>>,
     capacity: usize,
 }
 
 impl LogBuffer {
     pub fn new(capacity: usize) -> Self {
         Self {
-            entries: RwLock::new(Vec::with_capacity(capacity)),
+            entries: RwLock::new(VecDeque::with_capacity(capacity)),
             capacity,
         }
     }
@@ -26,20 +27,20 @@ impl LogBuffer {
     pub fn push(&self, entry: LogEntry) {
         let mut entries = self.entries.write();
         if entries.len() >= self.capacity {
-            entries.remove(0);
+            entries.pop_front();
         }
-        entries.push(entry);
+        entries.push_back(entry);
     }
 
     pub fn query(&self, filter_level: Option<&str>, limit: usize) -> Vec<LogEntry> {
         let entries = self.entries.read();
-        let mut result: Vec<_> = entries
+        let result: Vec<_> = entries
             .iter()
+            .rev()
             .filter(|e| filter_level.is_none_or(|l| e.level == l))
+            .take(limit)
             .cloned()
             .collect();
-        result.reverse();
-        result.truncate(limit);
         result
     }
 

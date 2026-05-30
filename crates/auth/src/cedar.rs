@@ -7,28 +7,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
-const FALLBACK_PRINCIPAL: &str = r#"User::"anonymous""#;
-const FALLBACK_ACTION: &str = r#"Action::"unknown""#;
-const FALLBACK_RESOURCE: &str = r#"File::"unknown""#;
-
-fn fallback_principal() -> EntityUid {
-    FALLBACK_PRINCIPAL
-        .parse()
-        .expect("hardcoded fallback EntityUid must parse")
-}
-
-fn fallback_action() -> EntityUid {
-    FALLBACK_ACTION
-        .parse()
-        .expect("hardcoded fallback EntityUid must parse")
-}
-
-fn fallback_resource() -> EntityUid {
-    FALLBACK_RESOURCE
-        .parse()
-        .expect("hardcoded fallback EntityUid must parse")
-}
-
 #[non_exhaustive]
 /// Cedar policy configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,10 +88,12 @@ impl CedarAuthorizer {
             Ok(uid) => uid,
             Err(e) => {
                 warn!(
-                    "Failed to parse principal EntityUid for {:?}: {:?}",
+                    "Invalid principal EntityUid for {:?}: {:?} -- denying request",
                     request.principal, e
                 );
-                fallback_principal()
+                return Ok(AuthDecision::Deny {
+                    reason: format!("Invalid principal identifier: {}", request.principal),
+                });
             }
         };
 
@@ -121,10 +101,12 @@ impl CedarAuthorizer {
             Ok(uid) => uid,
             Err(e) => {
                 warn!(
-                    "Failed to parse action EntityUid for {:?}: {:?}",
+                    "Invalid action EntityUid for {:?}: {:?} -- denying request",
                     request.action, e
                 );
-                fallback_action()
+                return Ok(AuthDecision::Deny {
+                    reason: format!("Invalid action identifier: {}", request.action),
+                });
             }
         };
 
@@ -132,10 +114,12 @@ impl CedarAuthorizer {
             Ok(uid) => uid,
             Err(e) => {
                 warn!(
-                    "Failed to parse resource EntityUid for {:?}: {:?}",
+                    "Invalid resource EntityUid for {:?}: {:?} -- denying request",
                     request.resource, e
                 );
-                fallback_resource()
+                return Ok(AuthDecision::Deny {
+                    reason: format!("Invalid resource identifier: {}", request.resource),
+                });
             }
         };
 

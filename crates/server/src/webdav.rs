@@ -1198,7 +1198,8 @@ async fn handle_mkcol(state: AppState, path: &str) -> Result<Response> {
     }
 
     if state.storage.exists(&path).await? {
-        return Err(FerroError::AlreadyExists(path.to_string()));
+        // RFC 4918 Section 9.3.1: MKCOL on an existing resource returns 405
+        return Ok(StatusCode::METHOD_NOT_ALLOWED.into_response());
     }
 
     state.storage.create_collection(&path, "anonymous").await?;

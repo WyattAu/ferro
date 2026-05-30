@@ -121,7 +121,7 @@ mod tests {
     #[tokio::test]
     async fn test_cas_not_found() {
         let cas = InMemoryCasStore::new();
-        let hash = ContentHash::new("0".repeat(64));
+        let hash = ContentHash::new("0".repeat(64)).expect("valid hardcoded hash");
 
         let result = cas.get_content(&hash).await;
         assert!(result.is_err());
@@ -140,7 +140,7 @@ mod tests {
     #[tokio::test]
     async fn test_cas_not_exists() {
         let cas = InMemoryCasStore::new();
-        let hash = ContentHash::new("a".repeat(64));
+        let hash = ContentHash::new("a".repeat(64)).expect("valid hardcoded hash");
 
         assert!(!cas.exists(&hash).await.unwrap());
     }

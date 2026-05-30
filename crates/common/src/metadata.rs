@@ -8,9 +8,20 @@ use sha2::{Digest, Sha256};
 pub struct ContentHash(String);
 
 impl ContentHash {
-    /// Create a content hash from a pre-computed 64-char hex string. Panics if length is not 64.
-    pub fn new(hex: String) -> Self {
-        assert!(hex.len() == 64, "ContentHash must be 64 hex characters");
+    /// Create a content hash from a pre-computed 64-char hex string.
+    /// Returns None if the input is not exactly 64 hex characters.
+    pub fn new(hex: String) -> Option<Self> {
+        if hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            Some(Self(hex))
+        } else {
+            None
+        }
+    }
+
+    /// Create a content hash from a pre-computed 64-char hex string without validation.
+    /// Only use for internally-generated hashes that are guaranteed valid.
+    pub fn new_unchecked(hex: String) -> Self {
+        debug_assert!(hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit()));
         Self(hex)
     }
 
@@ -31,7 +42,7 @@ impl ContentHash {
             }
             hasher.update(&buffer[..n]);
         }
-        Ok(Self(hex::encode(hasher.finalize())))
+        Ok(Self::new_unchecked(hex::encode(hasher.finalize())))
     }
 
     /// Return the hash as a hex string slice.
@@ -102,7 +113,7 @@ impl FileMetadata {
         Self {
             path,
             etag: format!("\"col-{}\"", now.timestamp_millis()),
-            content_hash: ContentHash::new("0".repeat(64)),
+            content_hash: ContentHash::new_unchecked("0".repeat(64)),
             size: 0,
             mime_type: "httpd/unix-directory".to_string(),
             is_collection: true,

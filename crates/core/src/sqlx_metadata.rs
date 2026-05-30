@@ -296,7 +296,8 @@ impl From<MetadataRow> for FileMetadata {
     fn from(row: MetadataRow) -> Self {
         Self {
             path: row.path,
-            content_hash: ContentHash::new(row.content_hash),
+            content_hash: ContentHash::new(row.content_hash)
+                .expect("valid content hash from database"),
             size: row.size as u64,
             mime_type: row.mime_type,
             is_collection: row.is_collection,
@@ -325,14 +326,25 @@ impl From<SqliteMetadataRow> for FileMetadata {
     fn from(row: SqliteMetadataRow) -> Self {
         let created = DateTime::parse_from_rfc3339(&row.created_at)
             .map(|dt| dt.with_timezone(&Utc))
-            .unwrap_or_else(|_| Utc::now());
+            .unwrap_or_else(|e| {
+                tracing::warn!("Invalid created_at '{}' in database: {}", row.created_at, e);
+                Utc::now()
+            });
         let modified = DateTime::parse_from_rfc3339(&row.modified_at)
             .map(|dt| dt.with_timezone(&Utc))
-            .unwrap_or_else(|_| Utc::now());
+            .unwrap_or_else(|e| {
+                tracing::warn!(
+                    "Invalid modified_at '{}' in database: {}",
+                    row.modified_at,
+                    e
+                );
+                Utc::now()
+            });
 
         Self {
             path: row.path,
-            content_hash: ContentHash::new(row.content_hash),
+            content_hash: ContentHash::new(row.content_hash)
+                .expect("valid content hash from database"),
             size: row.size as u64,
             mime_type: row.mime_type,
             is_collection: row.is_collection,
@@ -352,7 +364,7 @@ mod tests {
     fn test_metadata() -> FileMetadata {
         FileMetadata::new(
             "/test/file.txt".to_string(),
-            ContentHash::new("a".repeat(64)),
+            ContentHash::new("a".repeat(64)).expect("valid hardcoded hash"),
             42,
             "anonymous".to_string(),
         )
@@ -390,7 +402,7 @@ mod tests {
 
         let meta1 = FileMetadata::new(
             "/test/file.txt".to_string(),
-            ContentHash::new("a".repeat(64)),
+            ContentHash::new("a".repeat(64)).expect("valid hardcoded hash"),
             10,
             "user1".to_string(),
         );
@@ -398,7 +410,7 @@ mod tests {
 
         let meta2 = FileMetadata::new(
             "/test/file.txt".to_string(),
-            ContentHash::new("b".repeat(64)),
+            ContentHash::new("b".repeat(64)).expect("valid hardcoded hash"),
             20,
             "user2".to_string(),
         );
@@ -442,7 +454,7 @@ mod tests {
         store
             .put(FileMetadata::new(
                 "/docs/readme.md".to_string(),
-                ContentHash::new("a".repeat(64)),
+                ContentHash::new("a".repeat(64)).expect("valid hardcoded hash"),
                 100,
                 "user".to_string(),
             ))
@@ -452,7 +464,7 @@ mod tests {
         store
             .put(FileMetadata::new(
                 "/docs/nested/file.txt".to_string(),
-                ContentHash::new("b".repeat(64)),
+                ContentHash::new("b".repeat(64)).expect("valid hardcoded hash"),
                 200,
                 "user".to_string(),
             ))
@@ -462,7 +474,7 @@ mod tests {
         store
             .put(FileMetadata::new(
                 "/other/file.txt".to_string(),
-                ContentHash::new("c".repeat(64)),
+                ContentHash::new("c".repeat(64)).expect("valid hardcoded hash"),
                 300,
                 "user".to_string(),
             ))
@@ -486,7 +498,7 @@ mod tests {
 
         let mut meta = FileMetadata::new(
             "/test/folder".to_string(),
-            ContentHash::new("d".repeat(64)),
+            ContentHash::new("d".repeat(64)).expect("valid hardcoded hash"),
             0,
             "user".to_string(),
         );

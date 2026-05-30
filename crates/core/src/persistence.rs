@@ -354,6 +354,12 @@ impl AuditLogStore for SqlitePersistence {
             if let Some(ref ip) = entry.client_ip {
                 hasher.update(ip.as_bytes());
             }
+            if let Some(ref ua) = entry.user_agent {
+                hasher.update(ua.as_bytes());
+            }
+            if let Some(cl) = entry.content_length {
+                hasher.update(cl.to_le_bytes());
+            }
             hex::encode(hasher.finalize())
         };
 
@@ -468,6 +474,12 @@ impl SqlitePersistence {
             if let Some(ref ip) = row.client_ip {
                 hasher.update(ip.as_bytes());
             }
+            if let Some(ref ua) = row.user_agent {
+                hasher.update(ua.as_bytes());
+            }
+            if let Some(cl) = row.content_length {
+                hasher.update(cl.to_le_bytes());
+            }
             let computed = hex::encode(hasher.finalize());
 
             if computed == stored {
@@ -572,7 +584,7 @@ mod tests {
 
         let entries = vec![FileMetadata::new(
             "/test.txt".to_string(),
-            ContentHash::new("a".repeat(64)),
+            ContentHash::new("a".repeat(64)).expect("valid hardcoded hash"),
             42,
             "user1".to_string(),
         )];

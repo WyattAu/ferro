@@ -307,7 +307,8 @@ mod tests {
         let now = Utc::now();
         let h = ContentHash::new(
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
-        );
+        )
+        .expect("valid hardcoded hash");
         // Clone for each closure consumer to avoid move conflicts.
         let h_list = h.clone();
         let h_head = h.clone();

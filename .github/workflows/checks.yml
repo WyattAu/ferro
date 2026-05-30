@@ -83,9 +83,6 @@ jobs:
         with:
           toolchain: stable
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
-      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
-      - name: Install cargo-deny
         run: cargo install cargo-deny --locked --version 0.18.0
       - name: Run cargo-deny (advisories, bans, licenses, sources)
         run: cargo deny check advisories bans licenses sources

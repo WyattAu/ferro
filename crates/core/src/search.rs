@@ -240,7 +240,7 @@ mod tests {
     }
 
     fn make_metadata(path: &str) -> FileMetadata {
-        let hash = ContentHash::new("a".repeat(64));
+        let hash = ContentHash::new("a".repeat(64)).expect("valid hardcoded hash");
         FileMetadata::new(path.to_string(), hash, 100, "user1".to_string())
     }
 

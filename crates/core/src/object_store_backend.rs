@@ -294,7 +294,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                     Ok(FileMetadata {
                         path: path.to_string(),
                         etag: format!("\"col-{}\"", chrono_modified.timestamp_millis()),
-                        content_hash: ContentHash::new("0".repeat(64)),
+                        content_hash: ContentHash::new_unchecked("0".repeat(64)),
                         size: 0,
                         mime_type: "httpd/unix-directory".to_string(),
                         is_collection: true,
@@ -309,7 +309,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                     let chrono_modified: chrono::DateTime<chrono::Utc> = modified.into();
                     Ok(FileMetadata {
                         path: path.to_string(),
-                        content_hash: ContentHash::new("0".repeat(64)),
+                        content_hash: ContentHash::new_unchecked("0".repeat(64)),
                         size: metadata.len(),
                         mime_type: "application/octet-stream".to_string(),
                         is_collection: false,

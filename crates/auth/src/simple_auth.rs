@@ -77,11 +77,21 @@ pub async fn simple_auth_middleware(
     {
         match user_store.get_user_by_username(user).await {
             Ok(u) if u.is_active() => UserInfo::from(&u),
-            _ => UserInfo {
-                user_id: "admin".to_string(),
-                username: user.to_string(),
-                role: UserRole::Admin,
-            },
+            Ok(_u) => {
+                // User exists in store but is disabled -- deny even with admin credentials
+                return unauthorized_with_www_authenticate(
+                    "ACCOUNT_DISABLED",
+                    "account is disabled",
+                );
+            }
+            Err(_) => {
+                // Admin credentials valid but user not in store (first use) -- grant admin
+                UserInfo {
+                    user_id: "admin".to_string(),
+                    username: user.to_string(),
+                    role: UserRole::Admin,
+                }
+            }
         }
     } else {
         match user_store.authenticate(user, pass).await {

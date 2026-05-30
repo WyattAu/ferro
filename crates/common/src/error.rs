@@ -51,7 +51,7 @@ impl FerroError {
     pub fn status_code(&self) -> u16 {
         match self {
             Self::NotFound(_) => 404,
-            Self::AlreadyExists(_) => 405,
+            Self::AlreadyExists(_) => 409,
             Self::PermissionDenied(_) => 403,
             Self::InvalidArgument(_) => 400,
             Self::Internal(_) => 500,
