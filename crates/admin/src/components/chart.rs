@@ -4,7 +4,7 @@ use leptos::*;
 pub fn BarChart(
     data: Vec<(String, f64)>,
     title: String,
-    #[prop(default = "#3b82f6".to_string())] color: String,
+    #[prop(default = "#E85D04".to_string())] color: String,
 ) -> impl IntoView {
     let max_val = data
         .iter()
@@ -40,10 +40,12 @@ pub fn BarChart(
         })
         .collect();
 
+    let aria_label = format!("Bar chart: {}", title);
+
     view! {
         <div class="chart-container">
             <h4 class="chart-title">{title}</h4>
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="bar-chart">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="bar-chart" role="img" aria-label=aria_label>
                 {bars}
             </svg>
         </div>
@@ -54,7 +56,7 @@ pub fn BarChart(
 pub fn PieChart(data: Vec<(String, f64)>, title: String) -> impl IntoView {
     let total: f64 = data.iter().map(|(_, v)| v).sum();
     let colors = [
-        "#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#ec4899",
+        "#E85D04", "#370617", "#CA8A04", "#DC2626", "#8B8178", "#15803D", "#2B2B2B", "#D4520A",
     ];
 
     let mut cumulative = 0.0;
@@ -114,11 +116,13 @@ pub fn PieChart(data: Vec<(String, f64)>, title: String) -> impl IntoView {
         })
         .collect();
 
+    let aria_label = format!("Pie chart: {}", title);
+
     view! {
         <div class="chart-container">
             <h4 class="chart-title">{title}</h4>
             <div class="pie-chart-wrapper">
-                <svg viewBox="0 0 100 100" class="pie-chart">{segments}</svg>
+                <svg viewBox="0 0 100 100" class="pie-chart" role="img" aria-label=aria_label>{segments}</svg>
                 <div class="chart-legend">{legend_items}</div>
             </div>
         </div>

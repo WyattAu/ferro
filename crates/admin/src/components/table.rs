@@ -12,7 +12,7 @@ pub fn DataTable(columns: Vec<Column>, rows: Vec<serde_json::Value>) -> impl Int
 
     view! {
         <div class="table-wrapper">
-            <table class="data-table">
+            <table class="data-table" aria-label="Data table">
                 <thead>
                     <tr>
                         {columns.iter().map(|c| view! { <th>{&c.label}</th> }).collect::<Vec<_>>()}

@@ -100,7 +100,7 @@ pub fn StoragePage(api: RwSignal<ApiState>) -> impl IntoView {
                         <div class="dashboard-panels">
                             <div class="panel">
                                 <h3 class="panel-title">"File Size Distribution"</h3>
-                                <BarChart data=chart_data title="".to_string() color="#22c55e".to_string() />
+                                <BarChart data=chart_data title="".to_string() color="#E85D04".to_string() />
                             </div>
                             <div class="panel">
                                 <h3 class="panel-title">"Files by Type"</h3>

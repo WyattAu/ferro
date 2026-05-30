@@ -101,14 +101,14 @@ pub fn MonitoringPage(api: RwSignal<ApiState>) -> impl IntoView {
                 <h3 class="panel-title">"External Grafana"</h3>
                 <div class="form-group">
                     <label class="form-label">"Grafana Dashboard URL (optional)"</label>
-                    <input type="url" class="form-input" placeholder="https://grafana.example.com/d/..." prop:value=grafana_url on:input=move |ev| set_grafana_url.set(event_target_value(&ev)) />
+                    <input type="url" class="form-input" placeholder="https://grafana.example.com/d/..." prop:value=grafana_url on:input=move |ev| set_grafana_url.set(event_target_value(&ev)) aria-label="Grafana Dashboard URL" />
                 </div>
                 {move || {
                     let url = grafana_url.get();
                     if !url.is_empty() {
-                        view! { <div style="margin-top:8px"><a href=url target="_blank" class="btn btn-secondary">"Open Grafana Dashboard"</a></div> }
+                        view! { <div class="mt-2"><a href=url target="_blank" class="btn btn-secondary">"Open Grafana Dashboard"</a></div> }
                     } else {
-                        view! { <div style="margin-top:8px;color:var(--text-secondary);font-size:13px">"Configure a Grafana URL above to view dashboards"</div> }
+                        view! { <div class="mt-2 text-secondary-placeholder">"Configure a Grafana URL above to view dashboards"</div> }
                     }
                 }}
             </div>

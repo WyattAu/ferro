@@ -43,7 +43,7 @@ pub fn Header(api: RwSignal<ApiState>) -> impl IntoView {
                     if let Some(w) = web_sys::window() {
                         let _ = w.location().reload();
                     }
-                } title="Refresh page">
+                } title="Refresh page" aria-label="Refresh page">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M13.5 2.5v4h-4M2.5 13.5v-4h4M2.5 5.5A5.5 5.5 0 0113 3M13.5 10.5a5.5 5.5 0 01-10.5 2.5"/>
                     </svg>

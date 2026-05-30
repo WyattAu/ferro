@@ -99,8 +99,8 @@ pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
         <div class="page">
             <div class="page-header">
                 <div class="page-header-left">
-                    <input type="text" class="search-input" placeholder="Filter by user..." prop:value=filter_user on:input=move |ev| set_filter_user.set(event_target_value(&ev)) />
-                    <input type="text" class="search-input" placeholder="Filter by action..." prop:value=filter_action on:input=move |ev| set_filter_action.set(event_target_value(&ev)) />
+                    <input type="text" class="search-input" placeholder="Filter by user..." prop:value=filter_user on:input=move |ev| set_filter_user.set(event_target_value(&ev)) aria-label="Filter by user" />
+                    <input type="text" class="search-input" placeholder="Filter by action..." prop:value=filter_action on:input=move |ev| set_filter_action.set(event_target_value(&ev)) aria-label="Filter by action" />
                 </div>
                 <button class="btn btn-secondary" on:click=do_export>"Export CSV"</button>
             </div>

@@ -10,7 +10,7 @@ pub fn Modal(
     view! {
         <div class="modal-overlay" class:modal-visible=show>
             <div class="modal-backdrop" on:click=move |_| on_close.call(())></div>
-            <div class="modal">
+            <div class="modal" role="dialog" aria-modal="true">
                 <div class="modal-header">
                     <h3 class="modal-title">{title}</h3>
                     <button class="modal-close" on:click=move |_| on_close.call(()) aria-label="Close">

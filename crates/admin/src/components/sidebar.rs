@@ -54,8 +54,9 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
                     "nav-item".to_string()
                 }
             };
+            let ac = active;
             view! {
-                <A href=path class=nav_class>
+                <A href=path class=nav_class attr:aria-current=move || if ac.get() { Some("page") } else { None }>
                     <span class="nav-icon">{svg_icon(&icon)}</span>
                     <span class="nav-label">{label}</span>
                 </A>
@@ -68,8 +69,8 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
     view! {
         <aside class="sidebar">
             <div class="sidebar-header">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                    <rect width="28" height="28" rx="6" fill="#3b82f6"/>
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+                    <rect width="28" height="28" rx="6" fill="#E85D04"/>
                     <path d="M8 14h12M14 8v12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
                 </svg>
                 <span class="sidebar-brand">"Ferro Admin"</span>
@@ -113,7 +114,7 @@ fn svg_icon(name: &str) -> impl IntoView {
         _ => "",
     };
     view! {
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d=d/>
         </svg>
     }

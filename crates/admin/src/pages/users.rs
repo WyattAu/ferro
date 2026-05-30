@@ -103,7 +103,7 @@ pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
         <div class="page">
             <div class="page-header">
                 <div class="page-header-left">
-                    <input type="text" class="search-input" placeholder="Search users..." prop:value=search on:input=move |ev| set_search.set(event_target_value(&ev)) />
+                    <input type="text" class="search-input" placeholder="Search users..." prop:value=search on:input=move |ev| set_search.set(event_target_value(&ev)) aria-label="Search users" />
                 </div>
                 <button class="btn btn-primary" on:click=move |_| set_show_create.set(true)>"Create User"</button>
             </div>

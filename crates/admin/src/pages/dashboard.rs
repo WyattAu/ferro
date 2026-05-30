@@ -41,8 +41,8 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
 
     view! {
         <div class="page">
-            {move || loading.get().then(|| view! { <div class="loading">"Loading dashboard..."</div> })}
-            {move || error.get().map(|e| view! { <div class="error-banner">{e}</div> })}
+            {move || loading.get().then(|| view! { <div class="loading" role="status" aria-live="polite">"Loading dashboard..."</div> })}
+            {move || error.get().map(|e| view! { <div class="error-banner" role="alert" aria-live="assertive">{e}</div> })}
 
             {move || {
                 let s = stats.get()?;
@@ -78,7 +78,7 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
                     <div class="dashboard-panels">
                         <div class="panel">
                             <h3 class="panel-title">"Storage by Recent Files"</h3>
-                            <BarChart data=chart_data title="".to_string() color="#3b82f6".to_string() />
+                            <BarChart data=chart_data title="".to_string() color="#E85D04".to_string() />
                         </div>
 
                         <div class="panel">

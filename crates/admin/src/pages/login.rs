@@ -53,7 +53,7 @@ pub fn LoginPage(api: RwSignal<ApiState>) -> impl IntoView {
             <div class="login-card">
                 <div class="login-header">
                     <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                        <rect width="48" height="48" rx="10" fill="#3b82f6"/>
+                        <rect width="48" height="48" rx="10" fill="#E85D04"/>
                         <path d="M14 24h20M24 14v20" stroke="white" stroke-width="4" stroke-linecap="round"/>
                     </svg>
                     <h1 class="login-title">"Ferro Admin"</h1>
