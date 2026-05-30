@@ -1,14 +1,14 @@
 # Ferro Version Tracking
 
 ## Current Status
-- **Phase:** Release Candidate (Phase 5: 11/11 criteria met)
+- **Phase:** v3.0.0 Feature Complete
 - **Version:** 3.0.0
-- **Tests:** 917 passed, 0 failed, 0 clippy warnings
+- **Tests:** 967 passed, 0 failed, 0 clippy warnings
 - **E2E:** 23 Playwright tests across 11 spec files (chromium, firefox, webkit)
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
 - **Load Testing:** 1h soak test passed (18,828 requests, 0 failures, P50=6ms, P95=28ms, P99=52ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
-- **Status:** Release candidate. All P0 items from Phases 1-4 resolved. Soak test passed (1h, 21,600+ req, 0 failures). Helm chart ready. Multi-arch CI configured. Pre-commit hook installed.
+- **Status:** v3.0.0 feature complete. All P0/P1 ROADMAP items for Phase 6 implemented. 967 tests, 0 failures. Pre-commit hook installed.
 - **Last Updated:** 2026-05-30
 
 ## Phase Progress
@@ -44,7 +44,7 @@
 - TD-002: Documented DashMap in-memory storage restart behavior in AppState
 - TD-021: Fixed benchmark auto-push to bench-data branch (fail-on-error: false)
 
-**New Features (Phase 6):**
+**New Features (Batch 1 -- Phase 6):**
 - Phase 6.5 P0: Streaming uploads -- large file uploads now stream to temp file instead of buffering entire body in memory
   - New `--streaming-upload-threshold` flag (default: 65536 bytes); files above this use streaming path
   - Atomic temp-file-then-move prevents partial uploads on crash
@@ -66,7 +66,22 @@
   - Guest auth middleware returns 401 on expired accounts
   - Configurable cleanup interval (default 5 minutes)
 
-**Test Count:** 917 unit/integration tests (+63 from new features), 0 failures, 0 clippy warnings
+**New Features (Batch 2):**
+- Admin dashboard API -- user management (list/get/role/delete), storage stats (type breakdown, top files, 7-day growth), filterable audit log with summary
+- GDPR data export -- `GET /api/admin/users/:id/export` returns ZIP archive of all user data
+- GDPR data erasure -- `DELETE /api/admin/users/:id/data` verified purge with counts
+- Comment/annotation system -- threaded replies, resolve status, audit logging (schema v5)
+- Thumbnail LRU cache -- disk-backed, SHA-256 naming, `.meta` sidecar, `--thumbnail-cache-size` (100MB default)
+- WASM event triggers -- fired on upload/delete/share/lock, glob path matching, admin CRUD (schema v6)
+- WORM mode -- path-prefix policies, enforced on PUT/DELETE/MOVE/COPY, `WORM_PROTECTED` 403 error (schema v7)
+- Remote WebDAV mount proxy -- basic auth, response caching, connectivity test, admin CRUD (schema v8)
+- WebSocket real-time notifications -- broadcast file events (create/update/delete/move/share) to connected clients
+- Ranged GET with partial content -- `Range: bytes=` header support, 206 Partial Content, 416 Range Not Satisfiable
+- Web UI theming -- configurable logo/color/title/favicon/CSS via admin API and public `GET /api/branding` endpoint
+  - Leptos frontend applies branding: document title, CSS custom property, favicon, custom CSS injection
+  - Admin CRUD: `GET/PUT/DELETE /api/admin/branding`
+
+**Test Count:** 967 unit/integration tests (+50 from batch 2), 0 failures, 0 clippy warnings
 
 ## Sprint Progress
 | Sprint | Description | Status |
@@ -172,6 +187,21 @@
 | **Clipboard operations** | **Working (Ctrl+C/X/V, visual indicator)** |
 | **Mobile responsive** | **Working (card layout, touch targets)** |
 | **WCAG 2.1 AA** | **Working (ARIA, keyboard nav, focus management)** |
+| **Streaming uploads** | **Working (temp-file-then-move, --streaming-upload-threshold)** |
+| **Secure view shares** | **Working (allow_download=false, CSP preview)** |
+| **File drop shares** | **Working (allow_upload=true, drag-and-drop HTML)** |
+| **Data retention policies** | **Working (path prefix, max age/count/free bytes, daemon)** |
+| **Guest account expiry** | **Working (401 on expired, auto-cleanup daemon)** |
+| **Admin dashboard API** | **Working (user mgmt, storage stats, audit log)** |
+| **GDPR export/erasure** | **Working (ZIP export, verified purge)** |
+| **Comments/annotations** | **Working (threaded replies, resolve status)** |
+| **Thumbnail LRU cache** | **Working (disk-backed, --thumbnail-cache-size)** |
+| **WASM event triggers** | **Working (glob matching, admin CRUD)** |
+| **WORM mode** | **Working (path-prefix policies, 403 enforcement)** |
+| **Remote WebDAV mount** | **Working (proxy, caching, admin CRUD)** |
+| **WebSocket notifications** | **Working (file events broadcast)** |
+| **Ranged GET** | **Working (206 Partial Content, 416, Accept-Ranges)** |
+| **Web UI theming** | **Working (logo/color/title/favicon/custom CSS)** |
 
 ## Crates Status
 | Crate | Tests | Status |
@@ -197,7 +227,7 @@
 | ferro-webdav-handler | 10 passing | Implemented |
 | ferro-benchmarks | 18 benchmark functions | Implemented |
 
-## Total Tests: 917 passed, 0 failed
+## Total Tests: 967 passed, 0 failed
 ## E2E Tests: 23 Playwright (11 spec files, 3 browsers)
 ## Property Tests: 4 (proptest)
 ## Fuzzing: 4 harnesses, 2.6M+ iterations, 0 crashes
@@ -206,4 +236,4 @@
 ## Clippy: 0 warnings (with all features: s3,gcs,azure,pg,redis,ldap)
 ## Security: cargo-deny clean, advisories/bans/licenses/sources ok
 ## Error Level: None
-## Rollback Checkpoint: main@45b5004 (Phase 5 release candidate, 2026-05-30)
+## Rollback Checkpoint: main@90e5755 (pre-batch-2 polish, 2026-05-30)

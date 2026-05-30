@@ -9,7 +9,7 @@
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 917 passed, 0 failed, 0 ignored |
+| Tests | 967 passed, 0 failed, 0 ignored |
 | Clippy warnings | 0 |
 | Production `expect()` calls | 0 |
 | Production `unwrap()` calls | ~1274 (gradual improvement) |
@@ -41,7 +41,7 @@
 - TD-002: Documented DashMap in-memory storage restart behavior in AppState
 - TD-021: Fixed benchmark auto-push to bench-data branch (fail-on-error: false)
 
-**New Features (Phase 6):**
+**New Features (Batch 1):**
 - Phase 6.5 P0: Streaming uploads -- large file uploads now stream to temp file instead of buffering entire body in memory
 - Phase 6.3: Secure view -- share links can disable download (`allow_download=false`)
 - Phase 6.3: File drop -- share links can accept uploads (`allow_upload=true`)
@@ -49,7 +49,19 @@
 - Phase 6.4: Data retention policies -- admin API for automated file lifecycle management
 - Phase 6.4: Guest account expiry enforcement -- background daemon auto-purges expired guests
 
-**Test Count:** 917 unit/integration tests (+63 from new features), 0 failures, 0 clippy warnings
+**New Features (Batch 2):**
+- Admin dashboard API: user management, storage stats, filterable audit log
+- GDPR export/erasure: ZIP archive export, verified data purge with counts
+- Comments/annotations: threaded replies, resolve status, audit logging
+- Thumbnail LRU cache: disk-backed with configurable size limit
+- WASM event triggers: glob path matching on file events, admin CRUD
+- WORM mode: path-prefix policies, enforced on PUT/DELETE/MOVE/COPY
+- Remote WebDAV mount proxy: basic auth, response caching, connectivity test
+- WebSocket notifications: broadcast file events to connected clients
+- Ranged GET: 206 Partial Content, 416 Range Not Satisfiable, Accept-Ranges
+- Web UI theming: configurable logo/color/title/favicon/CSS via admin API
+
+**Test Count:** 967 unit/integration tests, 0 failures, 0 clippy warnings
 
 ### 2026-05-29 (Session 5): Soak Test, TD-013/014/015-022 Resolution
 
@@ -589,8 +601,8 @@ Current version: v3.0.0.
 | Item | Description | Priority | Status |
 |------|-------------|----------|--------|
 | Streaming uploads | True streaming (no full buffering before write) | P0 | DONE |
-| Ranged GET with caching | Support `Range` header for partial content with caching | P1 |
-| Thumbnail cache | Persistent thumbnail cache with LRU eviction | P1 |
+| Ranged GET with caching | Support `Range` header for partial content (206/416) | P1 | DONE |
+| Thumbnail cache | Persistent thumbnail cache with LRU eviction | P1 | DONE |
 | Search index sharding | Partition Tantivy index for >1M files | P2 |
 | Connection pooling | Configurable connection pool for cloud backends | P2 |
 
@@ -835,17 +847,17 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 
 | Item | Description | Priority | Status |
 |------|-------------|----------|--------|
-| Web UI theming | Configurable logo, primary color, title via TOML `[branding]` section | P1 |
+| Web UI theming | Configurable logo, primary color, title, favicon, custom CSS via admin API | P1 | DONE |
 | Guest accounts | Time-limited, read-only accounts with automatic expiry | P1 | DONE |
-| GDPR data export | `GET /api/admin/users/:id/export` returns all user data as ZIP (files + metadata + audit log) | P2 |
-| GDPR data erasure | `DELETE /api/admin/users/:id/data` purges all user data with verification | P2 |
+| GDPR data export | `GET /api/admin/users/:id/export` returns all user data as ZIP (files + metadata + audit log) | P2 | DONE |
+| GDPR data erasure | `DELETE /api/admin/users/:id/data` purges all user data with verification | P2 | DONE |
 
 #### Phase 7.1: Plugin System — Add Antivirus + Workflow Triggers (G-11, G-16)
 
 | Item | Description | Priority |
 |------|-------------|----------|
 | ClamAV WASM worker | Pre-built WASM module that calls ClamAV socket on upload | P2 |
-| Event triggers | WASM workers triggered by file events (upload, delete, share) — extend existing pattern dispatch | P2 |
+| Event triggers | WASM workers triggered by file events (upload, delete, share) — extend existing pattern dispatch | P2 | DONE |
 
 #### Phase 7.x: Security Extensions — E2EE + Ransomware Protection (G-12, G-14)
 
@@ -854,7 +866,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | Client-side encryption | Encrypt files before upload using age/X25519; server stores ciphertext only | P2 |
 | E2EE key management | Per-user key pairs, key rotation, recovery via admin key | P2 |
 | Ransomware detection | Monitor file mutation rate per user; alert on >100 overwrites/minute | P2 |
-| WORM mode | Optional per-storage-backend write-once-read-many enforcement | P3 |
+| WORM mode | Optional per-storage-backend write-once-read-many enforcement | P3 | DONE |
 
 #### Phase 7.x: External Storage Mounting (G-15)
 
