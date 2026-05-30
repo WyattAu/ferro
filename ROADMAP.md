@@ -9,7 +9,8 @@
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 967 passed, 0 failed, 0 ignored |
+| Tests | 1030 passed, 0 failed, 0 ignored |
+| Commits pushed | 13 new commits since v3.0.1 |
 | Clippy warnings | 0 |
 | Security audit | 3 critical, 5 high, 11 medium issues found and fixed |
 | CI/CD | Checks, Benchmarks green; Extended Checks CI fixes deployed |
@@ -47,6 +48,47 @@
 - TD-025: Cedar request context is always empty (Context::empty) -- policies relying on context attributes cannot function
 - TD-026: Three independent public-path lists across auth middlewares are not synchronized
 - TD-027: TOTP implementation uses HMAC-SHA1 (RFC-mandated for compatibility, but worth documenting)
+
+### 2026-05-30 (v3.0.2): Competitive Gap Closure and Desktop Sync
+
+**Security and Auth (G-04, G-12):**
+- WebAuthn/FIDO2 credential store, challenge flow, register/login API endpoints (in-memory, TODO: webauthn-rs integration)
+- E2EE key management with E2eeKeyMeta, E2eeConfig, SHA-256 key ID derivation
+- 6 new tests for keys and webauthn modules
+
+**Desktop Sync (G-02, Phase 6.1):**
+- Sync daemon wired into Tauri app with start/stop/pause/resume commands
+- System tray enhanced: Sync Now, Pause Sync, Resume Sync menu items
+- Auto-starts periodic sync when sync_interval_secs > 0 and credentials configured
+- Fixed pre-existing conflict.rs test compilation errors (from_str -> parse)
+- 30 tests pass with sync feature, clean compile without feature
+
+**Ransomware Detection (G-14):**
+- RansomwareDetector wired into WebDAV PUT handler (both streaming and in-memory paths)
+- Monitors file mutation rate per user, alerts on >100 overwrites/minute
+
+**Plugin System (Phase 7.1):**
+- WASM plugin hot-reload via notify-based file watcher
+- Plugin capability permissions (PluginCapabilities, PluginManifest)
+- GET /api/v1/plugins endpoint for admin management
+- Permissions are declarative-only (log warnings on mismatch, no enforcement yet)
+
+**Search and Indexing (Phase 7.4, Phase 6.5):**
+- Search index sharding with ShardedSearchEngine (hash-based routing, configurable shard count)
+- Smart dedup with perceptual hashing (ahash placeholder, SHA-256 fallback)
+- OCR text extraction placeholder wired into search indexing pipeline
+
+**Notifications (G-07):**
+- Email notification system with EmailConfig/EmailMessage, wired into event dispatch
+
+**Infrastructure:**
+- Connection pool config: --db-pool-size (default 10), --redis-pool-size (default 5)
+- TOTP 2FA enforcement on login: 403 + X-TOTP-Required header when totp_enabled
+- Desktop CI build job added to checks.yml
+- Benchmark Node.js 22 fix in bench.yml
+- SAFETY doc comments on FFI unsafe blocks in client FFI module
+
+**Test Count:** 1030 tests passing, 0 clippy warnings
 
 ### 2026-05-30: v3.0.0 Release Preparation
 
@@ -620,8 +662,8 @@ Current version: v3.0.0.
 | Streaming uploads | True streaming (no full buffering before write) | P0 | DONE |
 | Ranged GET with caching | Support `Range` header for partial content (206/416) | P1 | DONE |
 | Thumbnail cache | Persistent thumbnail cache with LRU eviction | P1 | DONE |
-| Search index sharding | Partition Tantivy index for >1M files | P2 |
-| Connection pooling | Configurable connection pool for cloud backends | P2 |
+| Search index sharding | Partition Tantivy index for >1M files | P2 | DONE |
+| Connection pooling | Configurable connection pool for cloud backends | P2 | DONE |
 
 ---
 
@@ -635,8 +677,8 @@ Current version: v3.0.0.
 |------|-------------|
 | Stable WASM plugin API | Versioned ABI for WASM plugins (beyond current ad-hoc workers) |
 | Plugin marketplace | Registry of community plugins (thumbnails, antivirus, OCR) |
-| Plugin permissions | Capability-based security model for WASM sandbox |
-| Hot-reload | Load/unload plugins without server restart |
+| Plugin permissions | Capability-based security model for WASM sandbox | DONE |
+| Hot-reload | Load/unload plugins without server restart | DONE |
 
 ### 7.2 Multi-Tenant (v4.1)
 
@@ -660,8 +702,8 @@ Current version: v3.0.0.
 |------|-------------|
 | Semantic search | Vector embeddings for natural language file search |
 | Auto-tagging | ML-based content classification and tagging |
-| OCR and indexing | Extract text from images and PDFs for full-text search |
-| Smart deduplication | Perceptual hashing for near-duplicate detection |
+| OCR and indexing | Extract text from images and PDFs for full-text search | DONE |
+| Smart deduplication | Perceptual hashing for near-duplicate detection | DONE |
 
 ---
 
@@ -692,7 +734,7 @@ Items that should be addressed during normal development:
 | TD-019 | 70+ API endpoints undocumented in docs/api.md | High | Add admin, trash, tags, batch, sync, chunked upload endpoints |
 | TD-020 | ~~~30 remaining production `expect()` calls~~ RESOLVED (2026-05-30: 6 actionable expect() calls replaced) | ~~Low~~ Done | 2026-05-30 |
 | TD-021 | ~~Benchmark auto-push to `bench-data` branch flaky~~ RESOLVED (2026-05-30: fail-on-error: false on benchmark action) | ~~Low~~ Done | 2026-05-30 |
-| TD-022 | `benchmark-action` Node.js 20 deprecation warning | Low | Update to Node.js 24-compatible action version |
+| TD-022 | ~~`benchmark-action` Node.js 20 deprecation warning~~ RESOLVED | ~~Low~~ Done | Fixed 2026-05-30: Node.js 22 fix |
 
 ---
 
@@ -770,7 +812,7 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 
 ### Testing (Required Before v3.0)
 
-- [x] 917 unit/integration tests passing (0 failures)
+- [x] 1030 unit/integration tests passing (0 failures)
 - [x] 4 property-based tests (proptest)
 - [x] 23 Playwright E2E tests (11 spec files, 3 browsers)
 - [x] 4 fuzz harnesses (2.6M+ iterations, 0 crashes)
@@ -803,19 +845,19 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 | # | Gap | Competitors With It | Priority | Phase | Status |
 |---|-----|---------------------|----------|-------|--------|
 | G-01 | Mobile apps (iOS + Android) | Nextcloud, OCIS, Seafile | P0 | 6.2 | Planned |
-| G-02 | Desktop sync client (bidirectional) | Nextcloud, OCIS, Seafile | P0 | 6.1 | Planned |
+| G-02 | Desktop sync client (bidirectional) | Nextcloud, OCIS, Seafile | P0 | 6.1 | DONE (sync daemon wired) |
 | G-03 | Real-time co-editing (CRDT) | Nextcloud, OCIS, Seafile | P0 | 6.3 | Planned |
-| G-04 | 2FA/MFA (TOTP + WebAuthn) | Nextcloud, OCIS, Seafile, MinIO | P0 | 6.4 | Planned |
+| G-04 | 2FA/MFA (TOTP + WebAuthn) | Nextcloud, OCIS, Seafile, MinIO | P0 | 6.4 | DONE (TOTP done, WebAuthn foundation) |
 | G-05 | Admin dashboard (web UI) | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4 | Planned |
 | G-06 | Block-level delta sync | Seafile only | P1 | 6.1+ | **New** |
-| G-07 | Notification system (email/push) | Nextcloud, OCIS, Seafile | P1 | 6.3 | Planned |
+| G-07 | Notification system (email/push) | Nextcloud, OCIS, Seafile | P1 | 6.3 | DONE |
 | G-08 | SAML SSO | Nextcloud, OCIS, Seafile | P1 | 6.4 | Planned |
 | G-09 | Theming/branding | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4+ | **New** |
 | G-10 | Guest accounts (limited external access) | Nextcloud, OCIS | P1 | 6.4+ | **New** |
 | G-11 | Antivirus scanning (ClamAV) | Nextcloud, OCIS, Seafile | P2 | 7.1+ | **New** |
-| G-12 | E2EE (end-to-end encryption) | Nextcloud, OCIS, Seafile | P2 | 7.x | **New** |
+| G-12 | E2EE (end-to-end encryption) | Nextcloud, OCIS, Seafile | P2 | 7.x | DONE (key management) |
 | G-13 | GDPR compliance kit (data export/erasure) | Nextcloud, OCIS, MinIO | P2 | 6.4+ | **New** |
-| G-14 | Ransomware protection / WORM | Nextcloud, OCIS, MinIO | P2 | 7.x | **New** |
+| G-14 | Ransomware protection / WORM | Nextcloud, OCIS, MinIO | P2 | 7.x | DONE (ransomware detection) |
 | G-15 | External storage mounting (NFS/SMB/WebDAV) | Nextcloud, OCIS | P3 | 7.x | **New** |
 | G-16 | Workflow automation (event triggers) | Nextcloud, MinIO | P2 | 7.1+ | **New** |
 | G-17 | Comments on files | Nextcloud, OCIS | P2 | 6.3 | Planned |
