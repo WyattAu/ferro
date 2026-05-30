@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780166951333,
+  "lastUpdate": 1780168414621,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -5003,6 +5003,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 720,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "f8b8e23ff2a7d0af3127ffcda9b8b123c53a6009",
+          "message": "fix(ci): fix cargo-deny audit failure — upgrade lru 0.12->0.16, add AGPL-3.0-or-later license\n\n- Upgrade lru crate: 0.12->0.16 resolves RUSTSEC-2026-0002 soundness advisory\n  (IterMut violates Stacked Borrows rules in lru <0.16.3)\n- deny.toml: add AGPL-3.0-or-later to allowed licenses (web crate uses it)\n- cargo-deny: advisories ok, bans ok, licenses ok, sources ok\n- All 998 tests pass with lru upgrade",
+          "timestamp": "2026-05-30T20:05:27+01:00",
+          "tree_id": "db1d323566cac0f79d3dddc9ab07ca2666f7b16a",
+          "url": "https://github.com/WyattAu/ferro/commit/f8b8e23ff2a7d0af3127ffcda9b8b123c53a6009"
+        },
+        "date": 1780168413531,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 266987283,
+            "range": "± 235463",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266998589,
+            "range": "± 110775",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28298,
+            "range": "± 1978",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 29792,
+            "range": "± 2501",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9089,
+            "range": "± 309",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5041,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1246,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 992,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2786,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1332,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7356,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66506,
+            "range": "± 79",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18822,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 890,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 148,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 178,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 222,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 838,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 849,
+            "range": "± 3",
             "unit": "ns/iter"
           },
           {
