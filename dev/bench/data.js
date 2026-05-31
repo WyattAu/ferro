@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780255541754,
+  "lastUpdate": 1780265934017,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -5975,6 +5975,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 821,
             "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "dbcf2531cc6e0e82371111d1be6a0e0805320703",
+          "message": "feat: API keys, RBAC presets, WebAuthn framework, Reed-Solomon erasure, office suite guide\n\n- S6: API key auth with SHA-256 hashing, X-API-Key header, per-user quotas (17 tests)\n- A7: RBAC role presets generating valid Cedar policies from UserRole assignments (10 tests)\n- A6: WebAuthn/FIDO2 framework with challenge-response, credential management, client options (20 tests)\n- A5: Reed-Solomon GF(2^8) erasure coding via reed-solomon-erasure crate, supports N+M recovery (13 tests)\n- A4: Office suite integration guide (WOPI + Collabora/OnlyOffice deployment)\n- Migration 009: api_keys table with user_id and key_hash indexes\n- 1297 total tests, 0 clippy warnings, 30 crates",
+          "timestamp": "2026-05-31T23:11:40+01:00",
+          "tree_id": "a4e54ead343320650ebf30af69c235686576f38e",
+          "url": "https://github.com/WyattAu/ferro/commit/dbcf2531cc6e0e82371111d1be6a0e0805320703"
+        },
+        "date": 1780265932901,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 266935226,
+            "range": "± 2018160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266978623,
+            "range": "± 457516",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28753,
+            "range": "± 2721",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28709,
+            "range": "± 2303",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9181,
+            "range": "± 65",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5112,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1250,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 957,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2943,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1334,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7384,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66741,
+            "range": "± 122",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18802,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 892,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 175,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 187,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 816,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 824,
+            "range": "± 4",
             "unit": "ns/iter"
           },
           {
