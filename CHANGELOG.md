@@ -7,16 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- Formatting: `cargo fmt --all` applied to workspace (desktop commands.rs, gui.rs indentation)
-- Test count verified: 998 passing, 0 failures, 0 clippy warnings
-- VERSION.md updated with accurate test counts
+### Security
+- WebAuthn API endpoints now emit `tracing::warn!` on every call, clearly marking them as stubs that perform no cryptographic verification. Module doc comments updated with WARNING annotations.
+- GDPR `list_user_files()` and `create_zip_archive()` documented as placeholders returning empty results.
+- Admin user creation failure during password change now properly logged instead of silently swallowed.
 
-### Housekeeping
-- mdBook docs build verified successful (35+ pages, all links resolve)
-- Pre-commit hook confirmed installed and passing (fmt + clippy + tests)
-- CI/CD audit confirmed: 6 workflow files, all actions pinned to commit SHAs
-- TODO stubs documented: ClamAV, WebAuthn, SMTP -- all guarded with proper interfaces
+### Fixed
+- Production `unreachable!()` in versioning route handler replaced with `StatusCode::METHOD_NOT_ALLOWED` response.
+- HTTP client build in remote mount proxy now uses `expect()` with descriptive message instead of bare `unwrap()`.
+- WORM and retention policy JSON serialization uses `unwrap_or_else()` with error logging instead of `unwrap()`.
+- Event trigger loader runtime creation uses `expect()` instead of `unwrap()`.
+
+### Added
+- 46 new unit tests for `ferro-common` (error status code mapping, ContentHash validation/compute/etag, FileMetadata, WebDAV LockDepth/LockToken/LockInfo, public auth path validation, Claims, AuthDecision).
+- 10 new unit tests for `ferro-crypto` (SHA-256/512 known vectors, HMAC RFC 4231 test vector, empty inputs, constant-time edge cases, password hash uniqueness, token encoding).
+- `prefers-reduced-motion` CSS media query to disable animations for users who prefer reduced motion.
+- MSRV (Minimum Supported Rust Version) CI check job for Rust 1.92.
+- Web UI `index.html` now includes `<meta name="description">` for SEO and sets `maximum-scale=1` for accessibility.
+
+### Changed
+- Web UI viewport meta changed from `maximum-scale=5` to `maximum-scale=1` for proper accessibility zoom behavior.
 
 ## [3.0.1] - 2026-05-30
 
