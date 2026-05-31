@@ -19,6 +19,7 @@ rand = { workspace = true }
 bytes = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 serde_json = { workspace = true }
+reed-solomon-erasure = "6"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
