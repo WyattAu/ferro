@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/crdt",
     "crates/core",
     "crates/common",
     "crates/dav",
@@ -20,6 +21,15 @@ members = [
     "crates/server-wopi",
     "crates/server-versioning",
     "crates/graphql",
+    "crates/e2ee",
+    "crates/sync-delta",
+    "crates/mount-nfs",
+    "crates/multi-tenant",
+    "crates/distributed",
+    "crates/ai",
+    "crates/plugin-marketplace",
+    "crates/selective-sync",
+    "crates/mobile-contract",
 ]
 resolver = "2"
 
@@ -36,6 +46,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 axum = "0.7"
 leptos = { version = "0.6", features = ["csr"] } # Update version as needed
+thiserror = "2"
+bytes = "1"
+sha2 = "0.10"
+rand = "0.8"
+base64 = "0.22"
+aes-gcm = { version = "0.10", features = ["aes", "heapless"] }
+hkdf = "0.12"
+zeroize = "1"
 
 [profile.release]
 strip = true

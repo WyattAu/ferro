@@ -1,0 +1,15 @@
+[package]
+name = "ferro-mobile-contract"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "REST API contracts for mobile clients (iOS Files Provider, Android SAF)"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }

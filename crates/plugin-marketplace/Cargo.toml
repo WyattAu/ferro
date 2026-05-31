@@ -1,0 +1,22 @@
+[package]
+name = "ferro-plugin-marketplace"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Plugin marketplace for discovering, installing, and managing Ferro plugins"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+dashmap = "6"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+url = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }

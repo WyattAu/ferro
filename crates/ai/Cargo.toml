@@ -1,0 +1,19 @@
+[package]
+name = "ferro-ai"
+description = "AI semantic search and auto-tagging for Ferro"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "6"
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[dev-dependencies]

@@ -183,7 +183,7 @@ pub fn Header() -> impl IntoView {
                             let input: Option<web_sys::HtmlInputElement> = ev
                                 .target()
                                 .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
-                            if let Some(input) = input {
+                            if let Some(_input) = input {
                                 let func = cb.clone();
                                 if let Some(prev) = *debounce_timer.borrow() {
                                     let _ = web_sys::window()

@@ -1,0 +1,27 @@
+[package]
+name = "ferro-mount-nfs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "NFS and SMB mount backend abstraction for Ferro"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[features]
+default = []
+ffi = ["dep:libc"]
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "fs", "macros", "rt"] }
+bytes = { workspace = true }
+chrono = "0.4"
+async-trait = "0.1"
+dashmap = "6"
+uuid = { version = "1", features = ["v4"] }
+libc = { version = "0.2", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["io-util", "fs", "macros", "rt-multi-thread", "macros"] }

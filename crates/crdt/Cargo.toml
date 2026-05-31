@@ -1,0 +1,21 @@
+[package]
+name = "ferro-crdt"
+version.workspace = true
+edition.workspace = true
+description = "CRDT implementations for real-time collaborative editing"
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+thiserror = "2"
+uuid = { version = "1", features = ["v4"] }
+js-sys = { version = "0.3", optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+
+[features]
+wasm = ["js-sys", "wasm-bindgen"]
+
+[dev-dependencies]
+serde_json = { workspace = true }

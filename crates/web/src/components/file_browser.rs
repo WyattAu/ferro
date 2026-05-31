@@ -911,11 +911,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let su = set_show_upload;
         let snf = set_show_new_folder;
         let sa = do_select_all;
-        let sbd = do_bulk_delete_fn;
+        let _sbd = do_bulk_delete_fn;
         let spf = set_preview_file;
         let ssp = set_selected_paths;
         let sdc = set_show_delete_confirm;
-        let sact = set_show_activity;
+        let _sact = set_show_activity;
         let cc = clipboard_copy_selected;
         let cx = clipboard_cut_selected;
         let cv = clipboard_paste;

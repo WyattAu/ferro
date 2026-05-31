@@ -52,9 +52,13 @@ pub fn App() -> impl IntoView {
                                     if let Ok(link) = link.dyn_into::<web_sys::HtmlLinkElement>() {
                                         link.set_href(favicon_url);
                                     }
-                                } else if let Ok(link) = doc
+                                } else if let Some(link) = doc
                                     .create_element("link")
-                                    .and_then(|e| e.dyn_into::<web_sys::HtmlLinkElement>())
+                                    .ok()
+                                    .and_then(|e| {
+                                        use wasm_bindgen::JsCast;
+                                        e.dyn_into::<web_sys::HtmlLinkElement>().ok()
+                                    })
                                 {
                                     link.set_rel("icon");
                                     link.set_href(favicon_url);
@@ -69,13 +73,18 @@ pub fn App() -> impl IntoView {
                                 if let Ok(style) = el.dyn_into::<web_sys::HtmlStyleElement>() {
                                     let _ = style.set_text_content(Some(css));
                                 }
-                            } else if let Ok(el) = doc.create_element("style") {
-                                if let Ok(style) = el.dyn_into::<web_sys::HtmlStyleElement>() {
-                                    style.set_id("ferro-branding-css");
-                                    let _ = style.set_text_content(Some(css));
-                                    if let Some(head) = doc.head() {
-                                        let _ = head.append_child(&style);
-                                    }
+                            } else if let Some(style) = doc
+                                .create_element("style")
+                                .ok()
+                                .and_then(|e| {
+                                    use wasm_bindgen::JsCast;
+                                    e.dyn_into::<web_sys::HtmlStyleElement>().ok()
+                                })
+                            {
+                                style.set_id("ferro-branding-css");
+                                let _ = style.set_text_content(Some(css));
+                                if let Some(head) = doc.head() {
+                                    let _ = head.append_child(&style);
                                 }
                             }
                         }

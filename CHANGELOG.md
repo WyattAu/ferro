@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Audit Cycle 6 - Feature Expansion)
+- `ferro-crdt` crate: RGA (Replicated Growable Array) text CRDT for real-time collaborative editing. 16 tests.
+- `ferro-sync-delta` crate: Content-defined chunking (Buzhash rolling hash), block-level diff computation, sync protocol messages. 9 tests.
+- `ferro-e2ee` crate: X25519 key management, AES-256-GCM file encryption (chunked), key envelope sharing, streaming encryption. 14 tests.
+- `ferro-mount-nfs` crate: Unified `MountBackend` trait for NFS/SMB/WebDAV, NFS and SMB skeleton backends, in-memory mock implementation. 7 tests.
+- `ferro-multi-tenant` crate: Organization and tenant management, quota enforcement, resource isolation, cross-tenant access control. 36 tests.
+- `ferro-distributed` crate: XOR erasure coding interface, geo-replication log and coordinator, Raft consensus node (leader election, log replication, term management), membership store with failure detector. 23 tests.
+- `ferro-ai` crate: Embedding model trait with mock implementation, semantic search index with cosine similarity, auto-tagging with configurable rules. 23 tests.
+- `ferro-plugin-marketplace` crate: Plugin registry (register/install/uninstall/enable/disable), plugin repository trait, version compatibility checks, review system. 15 tests.
+- `ferro-selective-sync` crate: Sync profiles with glob-based include/exclude rules, path filter with multi-profile support, conflict detection for concurrent edits. 22 tests.
+- `ferro-mobile-contract` crate: REST API contract definitions for iOS File Provider and Android SAF integration, sync checkpoint protocol, push notification payload types. 5 tests.
+- Fixed `deny.toml` license format for cargo-deny v0.18+ compatibility (added `0BSD`, `OpenSSL`).
+
+### Fixed (Audit Cycle 5)
+- Web UI WASM build failure: `web-sys` `dyn_into` return type mismatch in `app.rs` favicon/style branding code. Changed `and_then` chain to `.ok().and_then()` pattern.
+
 ### Security
 - WebAuthn API endpoints now emit `tracing::warn!` on every call, clearly marking them as stubs that perform no cryptographic verification. Module doc comments updated with WARNING annotations.
 - GDPR `list_user_files()` and `create_zip_archive()` documented as placeholders returning empty results.
