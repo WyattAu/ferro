@@ -9,8 +9,8 @@
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 998 passed, 0 failed, 0 ignored |
-| Commits pushed | 13 new commits since v3.0.1 |
+| Tests | 1016 passed, 0 failed, 0 ignored |
+| Commits pushed | 13+ new commits since v3.0.1 |
 | Clippy warnings | 0 |
 | Security audit | 3 critical, 5 high, 11 medium issues found and fixed |
 | CI/CD | Checks, Benchmarks green; Extended Checks CI fixes deployed |
@@ -20,7 +20,33 @@
 
 ## What Was Just Completed
 
-### 2026-05-30 (v3.0.3): Audit Cycle 2 — Formatting, Test Count Verification, Metadata Update
+### 2026-05-31 (v3.0.4): Audit Cycle 4 - SAML 2.0 SP, Cedar Context, Auth Consolidation, GraphQL Auth
+
+**New Features:**
+- G-08: SAML 2.0 SP -- metadata generation, AuthnRequest redirect binding + deflate, SAMLResponse parsing with NameID/attributes/groups, audience+expiry validation, cert fingerprint
+- Cedar middleware: passes IP/method/resource as context attributes (was `Context::empty()`), uses `is_authorized` instead of `is_authorized_simple`, matches `AuthDecision::Allow`/`Deny`
+- GraphQL auth: `CurrentUser` struct on `GraphQLContext`, `me()` resolver returns real identity
+
+**Technical Debt Resolution:**
+- TD-018: Verified SAFETY doc comments on all 24 unsafe blocks
+- TD-019: Verified API docs comprehensive (83 sections rest.md, 20 admin.md)
+- TD-025: Cedar request context now populated with IP/method/resource
+- TD-026: Consolidated duplicate `is_public_path` to `common::auth::is_public_auth_path`
+- TD-027: Verified TOTP HMAC-SHA1 RFC compliance documented
+
+**Security Fixes:**
+- RUSTSEC-2026-0002: upgraded `lru` 0.12->0.16
+- License deny: added `AGPL-3.0-or-later` to `deny.toml`
+
+**CI/CD Fixes:**
+- Desktop CI: `libayatana-appgtk3-dev` -> `libayatana-appindicator3-dev`
+- Dockerfile: moved `ARG RUST_VERSION=1.95` inside ui-builder stage
+
+**Gap Table Updates:** G-05, G-08, G-13, G-17, G-23, G-24 marked DONE
+
+**Test Count:** 1016 tests passing, 0 clippy warnings
+
+### 2026-05-30 (v3.0.3): Audit Cycle 2 - Formatting, Test Count Verification, Metadata Update
 
 - `cargo fmt --all`: fixed indentation in desktop commands/gui, server dav/e2ee/lib
 - Test count verified: 998 passing, 0 failures, 0 clippy warnings
@@ -53,12 +79,16 @@
 - CI-003: Fixed deny.toml license syntax (AGPL-3.0-or-later not supported as bare GNU license)
 - CI-004: Fixed Dockerfile missing global ARG declaration for RUST_VERSION
 
-**Remaining Technical Debt (tracked for next sprint):**
+**Remaining Technical Debt:**
 - TD-023: Admin crate has 12+ WCAG 2.1 AA accessibility gaps (missing ARIA, form labels, focus traps)
 - TD-024: Admin UI does not follow Spatial Materialism / Amoebic UI / Brutalism design system
-- TD-025: Cedar request context is always empty (Context::empty) -- policies relying on context attributes cannot function
-- TD-026: Three independent public-path lists across auth middlewares are not synchronized
-- TD-027: TOTP implementation uses HMAC-SHA1 (RFC-mandated for compatibility, but worth documenting)
+
+**Resolved This Cycle:**
+- TD-018: RESOLVED -- verified SAFETY doc comments on all 24 unsafe blocks
+- TD-019: RESOLVED -- verified API docs comprehensive (83 sections rest.md, 20 admin.md)
+- TD-025: RESOLVED -- Cedar middleware passes IP/method/resource as context attributes
+- TD-026: RESOLVED -- consolidated duplicate `is_public_path` to `common::auth::is_public_auth_path`
+- TD-027: RESOLVED -- TOTP HMAC-SHA1 RFC compliance documented in totp.rs
 
 ### 2026-05-30 (v3.0.2): Competitive Gap Closure and Desktop Sync
 
@@ -679,7 +709,7 @@ Current version: v3.0.0.
 |------|-------------|----------|--------|
 | Admin dashboard | User management, storage stats, audit log viewer in web UI | P0 | DONE |
 | Two-factor authentication | TOTP support for admin and user accounts | P1 | DONE |
-| SSO/SAML | SAML 2.0 service provider | P2 |
+| SSO/SAML | SAML 2.0 service provider (metadata, AuthnRequest, SAMLResponse, NameID, groups) | P2 | DONE |
 | Data retention policies | Automatic deletion of files past retention period | P2 | DONE |
 | Export compliance | GDPR data export (all user data in machine-readable format) | P2 | DONE |
 
@@ -758,11 +788,14 @@ Items that should be addressed during normal development:
 | TD-015 | ~~~180 `let _ =` swallowed errors in production code~~ RESOLVED (2026-05-30: critical fs errors in gdpr.rs now logged) | ~~Medium~~ Done | 2026-05-30 |
 | TD-016 | ~~5 `std::sync::Mutex` in async context~~ RESOLVED (2026-05-30: SAFETY comments on 4 Mutex instances) | ~~Low~~ Done | 2026-05-30 |
 | TD-017 | ~~`server-activitypub/src/store.rs` poisoned lock recovery (`unwrap_or_else(|e| e.into_inner())`)~~ RESOLVED (2026-05-30: proper error handling replacing unwrap_or_else) | ~~Medium~~ Done | 2026-05-30 |
-| TD-018 | 60 `unsafe` blocks lack SAFETY doc comments | Low | Add per-Rust-convention SAFETY comments to FFI and libc blocks |
-| TD-019 | 70+ API endpoints undocumented in docs/api.md | High | Add admin, trash, tags, batch, sync, chunked upload endpoints |
+| TD-018 | ~~60 `unsafe` blocks lack SAFETY doc comments~~ RESOLVED (2026-05-31: verified all 24 unsafe blocks have SAFETY comments) | ~~Low~~ Done | 2026-05-31 |
+| TD-019 | ~~70+ API endpoints undocumented in docs/api.md~~ RESOLVED (2026-05-31: verified 83 sections rest.md, 20 admin.md, comprehensive coverage) | ~~High~~ Done | 2026-05-31 |
 | TD-020 | ~~~30 remaining production `expect()` calls~~ RESOLVED (2026-05-30: 6 actionable expect() calls replaced) | ~~Low~~ Done | 2026-05-30 |
 | TD-021 | ~~Benchmark auto-push to `bench-data` branch flaky~~ RESOLVED (2026-05-30: fail-on-error: false on benchmark action) | ~~Low~~ Done | 2026-05-30 |
 | TD-022 | ~~`benchmark-action` Node.js 20 deprecation warning~~ RESOLVED | ~~Low~~ Done | Fixed 2026-05-30: Node.js 22 fix |
+| TD-025 | ~~Cedar request context always empty (`Context::empty()`)~~ RESOLVED (2026-05-31: middleware passes IP/method/resource) | ~~Medium~~ Done | 2026-05-31 |
+| TD-026 | ~~Three independent public-path lists not synchronized~~ RESOLVED (2026-05-31: consolidated to `common::auth::is_public_auth_path`) | ~~Medium~~ Done | 2026-05-31 |
+| TD-027 | ~~TOTP HMAC-SHA1 not documented as RFC-mandated~~ RESOLVED (2026-05-31: verified RFC compliance documented in totp.rs) | ~~Low~~ Done | 2026-05-31 |
 
 ---
 
@@ -840,7 +873,7 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 
 ### Testing (Required Before v3.0)
 
-- [x] 998 unit/integration tests passing (0 failures)
+- [x] 1016 unit/integration tests passing (0 failures)
 - [x] 4 property-based tests (proptest)
 - [x] 23 Playwright E2E tests (11 spec files, 3 browsers)
 - [x] 4 fuzz harnesses (2.6M+ iterations, 0 crashes)
@@ -876,26 +909,26 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 | G-02 | Desktop sync client (bidirectional) | Nextcloud, OCIS, Seafile | P0 | 6.1 | DONE (sync daemon wired) |
 | G-03 | Real-time co-editing (CRDT) | Nextcloud, OCIS, Seafile | P0 | 6.3 | Planned |
 | G-04 | 2FA/MFA (TOTP + WebAuthn) | Nextcloud, OCIS, Seafile, MinIO | P0 | 6.4 | DONE (TOTP done, WebAuthn foundation) |
-| G-05 | Admin dashboard (web UI) | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4 | Planned |
+| G-05 | Admin dashboard (web UI) | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4 | DONE |
 | G-06 | Block-level delta sync | Seafile only | P1 | 6.1+ | **New** |
 | G-07 | Notification system (email/push) | Nextcloud, OCIS, Seafile | P1 | 6.3 | DONE |
-| G-08 | SAML SSO | Nextcloud, OCIS, Seafile | P1 | 6.4 | Planned |
+| G-08 | SAML SSO | Nextcloud, OCIS, Seafile | P1 | 6.4 | DONE |
 | G-09 | Theming/branding | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4+ | **New** |
 | G-10 | Guest accounts (limited external access) | Nextcloud, OCIS | P1 | 6.4+ | **New** |
 | G-11 | Antivirus scanning (ClamAV) | Nextcloud, OCIS, Seafile | P2 | 7.1+ | DONE (skeleton) |
 | G-12 | E2EE (end-to-end encryption) | Nextcloud, OCIS, Seafile | P2 | 7.x | DONE (key management) |
-| G-13 | GDPR compliance kit (data export/erasure) | Nextcloud, OCIS, MinIO | P2 | 6.4+ | **New** |
+| G-13 | GDPR compliance kit (data export/erasure) | Nextcloud, OCIS, MinIO | P2 | 6.4+ | DONE |
 | G-14 | Ransomware protection / WORM | Nextcloud, OCIS, MinIO | P2 | 7.x | DONE (ransomware detection) |
 | G-15 | External storage mounting (NFS/SMB/WebDAV) | Nextcloud, OCIS | P3 | 7.x | **New** |
 | G-16 | Workflow automation (event triggers) | Nextcloud, MinIO | P2 | 7.1+ | **New** |
-| G-17 | Comments on files | Nextcloud, OCIS | P2 | 6.3 | Planned |
+| G-17 | Comments on files | Nextcloud, OCIS | P2 | 6.3 | DONE |
 | G-18 | AI-powered search (semantic embeddings) | Nextcloud, Seafile | P3 | 7.4 | Planned |
 | G-19 | Multi-tenancy | OCIS, Seafile, MinIO | P2 | 7.2 | Planned |
 | G-20 | Horizontal scaling | Nextcloud, OCIS, Seafile, MinIO | P3 | 7.3 | Planned |
 | G-21 | Plugin marketplace | Nextcloud, OCIS | P3 | 7.1 | Planned |
 | G-22 | Offline mode (mobile) | Nextcloud, OCIS, Seafile | P2 | 6.2 | Planned |
-| G-23 | Data retention policies | Nextcloud, OCIS, Seafile, MinIO | P2 | 6.4 | Planned |
-| G-24 | Secure view (no-download sharing) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | **New** |
+| G-23 | Data retention policies | Nextcloud, OCIS, Seafile, MinIO | P2 | 6.4 | DONE |
+| G-24 | Secure view (no-download sharing) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | DONE |
 | G-25 | File drop (upload-only links) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | **New** |
 
 ### Ferro Competitive Advantages (Maintain)

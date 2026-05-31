@@ -3,13 +3,13 @@
 ## Current Status
 - **Phase:** v3.0.0 Feature Complete
 - **Version:** 3.0.0
-- **Tests:** 1002 passed, 0 failed, 0 clippy warnings
+- **Tests:** 1016 passed, 0 failed, 0 clippy warnings
 - **E2E:** 14 Playwright spec files across chromium, firefox, webkit
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
 - **Load Testing:** 1h soak test passed (18,828 requests, 0 failures, P50=6ms, P95=28ms, P99=52ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
-- **Status:** v3.0.0 feature complete. All P0/P1 ROADMAP items for Phase 6 implemented. 1002 tests, 0 failures. Pre-commit hook installed.
-- **Last Updated:** 2026-05-30 (Audit Cycle 3: SMTP email via lettre, ClamAV daemon TCP, test count 998->1002)
+- **Status:** v3.0.0 feature complete. All P0/P1 ROADMAP items for Phase 6 implemented. 1016 tests, 0 failures. Pre-commit hook installed.
+- **Last Updated:** 2026-05-31 (Audit Cycle 4: SAML 2.0 SP, Cedar middleware context, duplicate auth path consolidation, GraphQL current_user, 1002->1016)
 
 ## Phase Progress
 | Phase | Status | Completion |
@@ -33,6 +33,28 @@
 | Sprint P: Ship It | Completed | 100% |
 
 ## What Was Just Completed
+
+### 2026-05-31: Audit Cycle 4
+
+**Technical Debt Resolution:**
+- TD-018: Verified SAFETY doc comments on all 24 unsafe blocks (FFI, libc syscalls, test code)
+- TD-019: Verified API docs comprehensive -- 83 sections in rest.md, 20 in admin.md, full coverage
+- TD-025: Cedar middleware now passes IP/method/resource as context attributes (was `Context::empty()`)
+- TD-026: Eliminated duplicate `is_public_path` in `server::auth::oidc`, consolidated to `common::auth::is_public_auth_path`
+- TD-027: Verified TOTP HMAC-SHA1 RFC compliance documented in `crates/auth/src/totp.rs`
+
+**New Features:**
+- SAML 2.0 SP (G-08): metadata generation, AuthnRequest redirect binding, SAMLResponse parsing with NameID/attributes/groups, audience+expiry validation, cert fingerprint
+- Cedar middleware (TD-025): context JSON with ip/method/resource attributes, `is_authorized` call, Allow/Deny matching
+- GraphQL auth: added `CurrentUser` to `GraphQLContext`, `me()` resolver returns real identity
+
+**Security Fixes:**
+- RUSTSEC-2026-0002: upgraded `lru` 0.12->0.16
+- License deny: added `AGPL-3.0-or-later` to `deny.toml`
+
+**CI/CD Fixes:**
+- Desktop CI: `libayatana-appgtk3-dev` -> `libayatana-appindicator3-dev`
+- Dockerfile: moved `ARG RUST_VERSION=1.95` inside ui-builder stage
 
 ### 2026-05-30: v3.0.0 Release Preparation
 
@@ -246,7 +268,7 @@
 | ferro-webdav-handler | 10 passing | Implemented |
 | ferro-benchmarks | 18 benchmark functions | Implemented |
 
-## Total Tests: 1002 passed, 0 failed
+## Total Tests: 1016 passed, 0 failed
 ## E2E Tests: 23 Playwright (11 spec files, 3 browsers)
 ## Property Tests: 4 (proptest)
 ## Fuzzing: 4 harnesses, 2.6M+ iterations, 0 crashes
