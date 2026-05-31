@@ -2815,7 +2815,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "reqwest 0.12.28",
- "roxmltree 0.18.1",
+ "roxmltree",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2913,7 +2913,7 @@ dependencies = [
  "ferro-common",
  "hex",
  "reqwest 0.12.28",
- "roxmltree 0.20.0",
+ "roxmltree",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -7478,15 +7478,6 @@ name = "rle-decode-fast"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
-
-[[package]]
-name = "roxmltree"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "862340e351ce1b271a378ec53f304a5558f7db87f3769dc655a8f6ecbb68b302"
-dependencies = [
- "xmlparser",
-]
 
 [[package]]
 name = "roxmltree"
@@ -12061,12 +12052,6 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
 ]
-
-[[package]]
-name = "xmlparser"
-version = "0.13.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66fee0b777b0f5ac1c69bb06d361268faafa61cd4682ae064a171c16c433e9e4"
 
 [[package]]
 name = "xxhash-rust"
