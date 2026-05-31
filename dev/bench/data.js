@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780235995003,
+  "lastUpdate": 1780249474180,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -5651,6 +5651,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 732,
             "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "b6208bcaab6ddf903c0d17f9ef484804989d57f9",
+          "message": "ci: add MSRV check, fix benchmark typo, improve web UI accessibility\n\n- Add MSRV (1.92) compilation check to CI pipeline\n- Fix typo in bench.yml: FORCE_JASCRIPT_ACTIONS_TO_NODE22\n- Add prefers-reduced-motion CSS media query for accessibility\n- Fix viewport meta maximum-scale for proper zoom behavior\n- Add meta description tag to web UI for SEO\n- Update CHANGELOG and VERSION.md for audit cycle 5",
+          "timestamp": "2026-05-31T16:12:47+01:00",
+          "tree_id": "5c639fddbaa5f48273af829eadd1c72230754570",
+          "url": "https://github.com/WyattAu/ferro/commit/b6208bcaab6ddf903c0d17f9ef484804989d57f9"
+        },
+        "date": 1780249473699,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267368801,
+            "range": "± 846945",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266986880,
+            "range": "± 228646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 31174,
+            "range": "± 2190",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 29417,
+            "range": "± 2469",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9204,
+            "range": "± 99",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5050,
+            "range": "± 108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1445,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 1144,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2815,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1336,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7370,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66483,
+            "range": "± 124",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18571,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 885,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 149,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 186,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 202,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 828,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 837,
+            "range": "± 6",
             "unit": "ns/iter"
           },
           {
