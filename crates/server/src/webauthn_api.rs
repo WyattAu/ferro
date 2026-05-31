@@ -1,6 +1,4 @@
-//! WebAuthn/FIDO2 API endpoints.
-//!
-//! TODO: integrate webauthn-rs crate for actual cryptographic operations
+//! WARNING: WebAuthn API endpoints are stubs. They do NOT perform real cryptographic verification and MUST NOT be exposed in production.
 
 use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
@@ -68,6 +66,7 @@ pub async fn webauthn_register_begin(
     State(state): State<AppState>,
     Json(_request): Json<RegisterBeginRequest>,
 ) -> Json<RegisterBeginResponse> {
+    tracing::warn!("WebAuthn stub endpoint called -- NO cryptographic verification performed");
     let config = WebAuthnConfig::default();
     let challenge_id = uuid::Uuid::new_v4().to_string();
     let challenge = format!("random-challenge-{}", challenge_id);
@@ -89,6 +88,7 @@ pub async fn webauthn_register_finish(
     State(state): State<AppState>,
     Json(request): Json<RegisterFinishRequest>,
 ) -> Json<RegisterFinishResponse> {
+    tracing::warn!("WebAuthn stub endpoint called -- NO cryptographic verification performed");
     let mut store = state.webauthn_store.write().await;
 
     if store
@@ -136,6 +136,7 @@ pub async fn webauthn_login_begin(
     State(state): State<AppState>,
     Json(request): Json<LoginBeginRequest>,
 ) -> Json<LoginBeginResponse> {
+    tracing::warn!("WebAuthn stub endpoint called -- NO cryptographic verification performed");
     let config = WebAuthnConfig::default();
     let challenge_id = uuid::Uuid::new_v4().to_string();
     let challenge = format!("random-challenge-{}", challenge_id);
@@ -156,6 +157,7 @@ pub async fn webauthn_login_finish(
     State(state): State<AppState>,
     Json(request): Json<LoginFinishRequest>,
 ) -> Json<LoginFinishResponse> {
+    tracing::warn!("WebAuthn stub endpoint called -- NO cryptographic verification performed");
     let mut store = state.webauthn_store.write().await;
 
     if store

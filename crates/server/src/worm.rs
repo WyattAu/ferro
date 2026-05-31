@@ -173,7 +173,10 @@ pub async fn create_policy(
 
     (
         StatusCode::CREATED,
-        axum::Json(serde_json::to_value(policy).unwrap()),
+        axum::Json(serde_json::to_value(policy).unwrap_or_else(|e| {
+            tracing::error!(error = %e, "failed to serialize WORM policy");
+            serde_json::json!({"error": "serialization failed"})
+        })),
     )
         .into_response()
 }

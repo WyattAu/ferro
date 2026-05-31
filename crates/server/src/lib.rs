@@ -1750,7 +1750,7 @@ pub async fn api_and_webdav_fallback(
                     )
                     .await
                 }
-                _ => unreachable!(),
+                _ => StatusCode::METHOD_NOT_ALLOWED.into_response(),
             };
         }
 

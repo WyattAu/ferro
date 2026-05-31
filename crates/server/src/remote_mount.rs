@@ -165,7 +165,7 @@ fn build_proxy_client() -> reqwest::Client {
         .timeout(std::time::Duration::from_secs(READ_TIMEOUT_SECS))
         .no_proxy()
         .build()
-        .unwrap()
+        .expect("failed to build HTTP client for remote mount proxy")
 }
 
 fn make_cache_key(mount_name: &str, remainder: &str, method: &str) -> String {

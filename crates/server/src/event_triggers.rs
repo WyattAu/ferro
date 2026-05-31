@@ -235,7 +235,8 @@ impl EventTriggerStore for WasmEventTriggerStore {
 
         let loaded: Vec<EventTrigger> = rows.filter_map(|r| r.ok()).collect();
         let store = trigger_store();
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new()
+            .expect("failed to create tokio runtime for event trigger loading");
         rt.block_on(async {
             let mut triggers = store.triggers.write().await;
             for trigger in loaded {

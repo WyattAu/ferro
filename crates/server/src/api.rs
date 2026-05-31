@@ -273,7 +273,9 @@ pub async fn auth_change_password(
                 totp_secret: None,
                 totp_enabled: false,
             };
-            let _ = state.user_store.create_user(admin_user).await;
+            if let Err(e) = state.user_store.create_user(admin_user).await {
+                tracing::error!(error = ?e, "Failed to create admin user after password change");
+            }
         }
     }
 

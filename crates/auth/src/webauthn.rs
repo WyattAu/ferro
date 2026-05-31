@@ -1,6 +1,4 @@
-//! WebAuthn/FIDO2 authentication support.
-//!
-//! TODO: integrate webauthn-rs crate for actual cryptographic operations
+//! WARNING: WebAuthn stub implementation. Does NOT perform cryptographic verification. NOT suitable for production use.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -36,7 +34,7 @@ impl Default for WebAuthnConfig {
     }
 }
 
-/// In-memory credential store (should be persisted to DB in production).
+/// In-memory credential store. WARNING: credentials are lost on restart. NOT suitable for production.
 pub struct WebAuthnStore {
     credentials: HashMap<String, Vec<WebAuthnCredential>>,
     challenges: HashMap<String, String>,
