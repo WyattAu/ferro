@@ -38,11 +38,13 @@ allow = [
     "ISC",
     "Unicode-3.0",
     "Zlib",
-    "AGPL-3.0",
+    "AGPL-3.0-only",
     "AGPL-3.0-or-later",
     "MPL-2.0",
     "CDLA-Permissive-2.0",
     "BSL-1.0",
+    "0BSD",
+    "OpenSSL",
 ]
 
 [bans]
