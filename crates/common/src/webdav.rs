@@ -151,3 +151,129 @@ pub struct MultiStatusItem {
     /// Optional error description.
     pub error_description: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lock_depth_from_header() {
+        assert_eq!(LockDepth::from_header("0"), LockDepth::Zero);
+        assert_eq!(LockDepth::from_header("1"), LockDepth::One);
+        assert_eq!(LockDepth::from_header("infinity"), LockDepth::Infinity);
+        assert_eq!(LockDepth::from_header(" Infinity "), LockDepth::Infinity);
+        assert_eq!(LockDepth::from_header("invalid"), LockDepth::Infinity);
+        assert_eq!(LockDepth::from_header(""), LockDepth::Infinity);
+    }
+
+    #[test]
+    fn test_lock_depth_to_header() {
+        assert_eq!(LockDepth::Zero.to_header(), "0");
+        assert_eq!(LockDepth::One.to_header(), "1");
+        assert_eq!(LockDepth::Infinity.to_header(), "infinity");
+    }
+
+    #[test]
+    fn test_lock_depth_roundtrip() {
+        for depth in [LockDepth::Zero, LockDepth::One, LockDepth::Infinity] {
+            assert_eq!(LockDepth::from_header(depth.to_header()), depth);
+        }
+    }
+
+    #[test]
+    fn test_lock_token_new() {
+        let token = LockToken::new();
+        let s = token.as_str();
+        assert!(s.starts_with("urn:uuid:"));
+    }
+
+    #[test]
+    fn test_lock_token_from_str() {
+        let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
+        let token = LockToken::from_str_custom(uuid_str);
+        assert!(token.is_some());
+        assert!(token.unwrap().as_str().contains(uuid_str));
+    }
+
+    #[test]
+    fn test_lock_token_from_str_invalid() {
+        assert!(LockToken::from_str_custom("not-a-uuid").is_none());
+        assert!(LockToken::from_str_custom("").is_none());
+    }
+
+    #[test]
+    fn test_lock_info_not_expired() {
+        let lock = LockInfo {
+            token: LockToken::new(),
+            path: "/file.txt".into(),
+            principal: "alice".into(),
+            scope: LockScope::Exclusive,
+            lock_type: LockType::Write,
+            depth: LockDepth::Zero,
+            timeout_seconds: 3600,
+            created_at: Utc::now(),
+            refresh_count: 0,
+        };
+        assert!(!lock.is_expired());
+    }
+
+    #[test]
+    fn test_lock_info_expired() {
+        let lock = LockInfo {
+            token: LockToken::new(),
+            path: "/file.txt".into(),
+            principal: "alice".into(),
+            scope: LockScope::Exclusive,
+            lock_type: LockType::Write,
+            depth: LockDepth::Zero,
+            timeout_seconds: 1,
+            created_at: Utc::now() - chrono::Duration::seconds(10),
+            refresh_count: 0,
+        };
+        assert!(lock.is_expired());
+    }
+
+    #[test]
+    fn test_lock_info_expires_at() {
+        let now = Utc::now();
+        let lock = LockInfo {
+            token: LockToken::new(),
+            path: "/file.txt".into(),
+            principal: "alice".into(),
+            scope: LockScope::Exclusive,
+            lock_type: LockType::Write,
+            depth: LockDepth::Zero,
+            timeout_seconds: 60,
+            created_at: now,
+            refresh_count: 0,
+        };
+        let expires = lock.expires_at();
+        let diff = expires.signed_duration_since(now).num_seconds();
+        assert!((59..=61).contains(&diff));
+    }
+
+    #[test]
+    fn test_webdav_property() {
+        let prop = WebDavProperty {
+            namespace: Some("DAV:".into()),
+            name: "displayname".into(),
+            value: "Test File".into(),
+        };
+        assert_eq!(prop.name, "displayname");
+        assert!(prop.namespace.is_some());
+    }
+
+    #[test]
+    fn test_multi_status_response() {
+        let resp = MultiStatusResponse {
+            responses: vec![MultiStatusItem {
+                href: "/file.txt".into(),
+                status: 200,
+                properties: vec![],
+                error_description: None,
+            }],
+        };
+        assert_eq!(resp.responses.len(), 1);
+        assert_eq!(resp.responses[0].status, 200);
+    }
+}

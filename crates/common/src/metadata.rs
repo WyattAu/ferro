@@ -123,3 +123,106 @@ impl FileMetadata {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_content_hash_new_valid() {
+        let hash = ContentHash::new("a".repeat(64));
+        assert!(hash.is_some());
+        assert_eq!(hash.unwrap().as_str(), "a".repeat(64));
+    }
+
+    #[test]
+    fn test_content_hash_new_invalid_length() {
+        assert!(ContentHash::new("abc".into()).is_none());
+        assert!(ContentHash::new("a".repeat(63)).is_none());
+        assert!(ContentHash::new("a".repeat(65)).is_none());
+    }
+
+    #[test]
+    fn test_content_hash_new_invalid_chars() {
+        assert!(ContentHash::new("g".repeat(64)).is_none());
+        assert!(ContentHash::new("Z".repeat(64)).is_none());
+        assert!(ContentHash::new(" ".repeat(64)).is_none());
+    }
+
+    #[test]
+    fn test_content_hash_new_empty() {
+        assert!(ContentHash::new(String::new()).is_none());
+    }
+
+    #[test]
+    fn test_content_hash_new_unchecked() {
+        let hash = ContentHash::new_unchecked("a".repeat(64));
+        assert_eq!(hash.as_str(), "a".repeat(64));
+        assert_eq!(hash.as_hex(), "a".repeat(64));
+    }
+
+    #[test]
+    fn test_content_hash_compute() {
+        let hash = ContentHash::compute(b"hello");
+        assert_eq!(hash.as_str().len(), 64);
+        assert!(hash.as_str().chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_content_hash_compute_empty() {
+        let hash = ContentHash::compute(b"");
+        assert_eq!(hash.as_str().len(), 64);
+        assert_eq!(
+            hash.as_str(),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn test_content_hash_compute_deterministic() {
+        let a = ContentHash::compute(b"test");
+        let b = ContentHash::compute(b"test");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn test_content_hash_compute_reader() {
+        let data = b"hello world";
+        let hash = ContentHash::compute_reader(&data[..]).unwrap();
+        assert_eq!(hash.as_str().len(), 64);
+        assert_eq!(hash, ContentHash::compute(data));
+    }
+
+    #[test]
+    fn test_content_hash_from_etag_with_quotes() {
+        let hash = ContentHash::from_etag("\"abc\"");
+        assert_eq!(hash.as_str().len(), 64);
+    }
+
+    #[test]
+    fn test_content_hash_from_etag_without_quotes() {
+        let hash = ContentHash::from_etag("a".repeat(64).as_str());
+        assert_eq!(hash.as_str(), "a".repeat(64));
+    }
+
+    #[test]
+    fn test_file_metadata_new() {
+        let hash = ContentHash::compute(b"data");
+        let meta = FileMetadata::new("/test.txt".into(), hash, 42, "alice".into());
+        assert_eq!(meta.path, "/test.txt");
+        assert_eq!(meta.size, 42);
+        assert!(!meta.is_collection);
+        assert_eq!(meta.owner, "alice");
+        assert!(meta.etag.starts_with('"'));
+        assert!(meta.etag.ends_with('"'));
+    }
+
+    #[test]
+    fn test_file_metadata_new_collection() {
+        let meta = FileMetadata::new_collection("/docs".into(), "alice".into());
+        assert_eq!(meta.path, "/docs");
+        assert!(meta.is_collection);
+        assert_eq!(meta.size, 0);
+        assert_eq!(meta.mime_type, "httpd/unix-directory");
+    }
+}

@@ -70,3 +70,52 @@ impl FerroError {
 
 /// Result alias using [`FerroError`].
 pub type Result<T> = std::result::Result<T, FerroError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_status_code_mapping() {
+        assert_eq!(FerroError::NotFound("x".into()).status_code(), 404);
+        assert_eq!(FerroError::AlreadyExists("x".into()).status_code(), 409);
+        assert_eq!(FerroError::PermissionDenied("x".into()).status_code(), 403);
+        assert_eq!(FerroError::InvalidArgument("x".into()).status_code(), 400);
+        assert_eq!(FerroError::Internal("x".into()).status_code(), 500);
+        assert_eq!(FerroError::LockConflict("x".into()).status_code(), 423);
+        assert_eq!(FerroError::LockTokenNotFound("x".into()).status_code(), 409);
+        assert_eq!(
+            FerroError::PreconditionFailed("x".into()).status_code(),
+            412
+        );
+        assert_eq!(
+            FerroError::UnsupportedMediaType("x".into()).status_code(),
+            415
+        );
+        assert_eq!(FerroError::Timeout.status_code(), 504);
+        assert_eq!(FerroError::StorageBackend("x".into()).status_code(), 502);
+        assert_eq!(FerroError::Unauthorized.status_code(), 401);
+        assert_eq!(FerroError::XmlError("x".into()).status_code(), 400);
+        assert_eq!(FerroError::WormProtected("x".into()).status_code(), 403);
+    }
+
+    #[test]
+    fn test_error_display() {
+        let err = FerroError::NotFound("file.txt".into());
+        let msg = format!("{err}");
+        assert!(msg.contains("file.txt"));
+        assert!(msg.contains("Not found"));
+    }
+
+    #[test]
+    fn test_result_type_alias() {
+        fn returns_ok() -> Result<String> {
+            Ok("hello".to_string())
+        }
+        fn returns_err() -> Result<String> {
+            Err(FerroError::Internal("oops".into()))
+        }
+        assert!(returns_ok().is_ok());
+        assert!(returns_err().is_err());
+    }
+}
