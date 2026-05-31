@@ -4,21 +4,45 @@
 
 ---
 
-## Current State (2026-05-30)
+## Current State (2026-05-31)
 
 | Metric | Value |
 |--------|-------|
 | Crates | 20 |
-| Tests | 1016 passed, 0 failed, 0 ignored |
-| Commits pushed | 13+ new commits since v3.0.1 |
+| Tests | 1072 passed, 0 failed, 0 ignored |
+| Commits pushed | 18+ new commits since v3.0.1 |
 | Clippy warnings | 0 |
-| Security audit | 3 critical, 5 high, 11 medium issues found and fixed |
-| CI/CD | Checks, Benchmarks green; Extended Checks CI fixes deployed |
+| Security audit | 4 ignored advisories (bincode, paste, proc-macro-error, wasmtime); 0 critical/high CVEs |
+| CI/CD | Checks, Benchmarks, Extended Checks green; MSRV check added |
 | Docs | mdBook deployed to GitHub Pages |
 | Pre-commit hook | fmt + clippy + tests (all enforced) |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
+| MSRV | 1.92 (enforced in CI) |
 
 ## What Was Just Completed
+
+### 2026-05-31 (v3.0.5): Audit Cycle 5 - Test Coverage, Production Safety, CI Hardening, Accessibility
+
+**Test Coverage Expansion (56 new tests):**
+- ferro-common: 36 new tests (error status mapping, ContentHash, FileMetadata, LockDepth, LockToken, LockInfo, auth public paths, Claims, AuthDecision)
+- ferro-crypto: 10 new tests (SHA-256/512 known vectors, HMAC RFC 4231 test vectors, empty input edge cases, truncated key handling)
+- Total: 1072 tests passing
+
+**Production Safety Hardening:**
+- WebAuthn stubs: added WARNING doc comments and runtime `tracing::warn!` to all 4 handler functions in `webauthn_api.rs` and module-level warning in `webauthn.rs`
+- Fixed production `unreachable!()` in `lib.rs:1753` to `StatusCode::METHOD_NOT_ALLOWED`
+- Fixed error swallowing in `api.rs:276` to `tracing::error!(error = ?e, ...)`
+- Replaced 4 production `unwrap()` with `expect()` or `unwrap_or_else()` (remote_mount.rs, worm.rs, retention.rs, event_triggers.rs)
+
+**CI/CD Fixes:**
+- Fixed typo in bench.yml: `FORCE_JASCRIPT_ACTIONS_TO_NODE22` -> `FORCE_JAVASCRIPT_ACTIONS_TO_NODE22`
+- Added MSRV (1.92) check job to checks.yml
+- Fixed deny.toml: license format for cargo-deny v0.18+, added `0BSD` and `OpenSSL` allowances
+
+**Web UI Accessibility:**
+- Added `prefers-reduced-motion` CSS media query (disables blob-morph animation, transitions, noise texture)
+- Fixed viewport meta: `maximum-scale=5` -> `maximum-scale=1` (prevents zoom on iOS)
+- Added `<meta name="description">` for SEO
 
 ### 2026-05-31 (v3.0.4): Audit Cycle 4 - SAML 2.0 SP, Cedar Context, Auth Consolidation, GraphQL Auth
 
@@ -44,7 +68,7 @@
 
 **Gap Table Updates:** G-05, G-08, G-13, G-17, G-23, G-24 marked DONE
 
-**Test Count:** 1016 tests passing, 0 clippy warnings
+**Test Count:** 1072 tests passing, 0 clippy warnings
 
 ### 2026-05-30 (v3.0.3): Audit Cycle 2 - Formatting, Test Count Verification, Metadata Update
 
@@ -873,7 +897,7 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 
 ### Testing (Required Before v3.0)
 
-- [x] 1016 unit/integration tests passing (0 failures)
+- [x] 1072 unit/integration tests passing (0 failures)
 - [x] 4 property-based tests (proptest)
 - [x] 23 Playwright E2E tests (11 spec files, 3 browsers)
 - [x] 4 fuzz harnesses (2.6M+ iterations, 0 crashes)
