@@ -30,6 +30,7 @@ members = [
     "crates/plugin-marketplace",
     "crates/selective-sync",
     "crates/mobile-contract",
+    "crates/offline",
 ]
 resolver = "2"
 

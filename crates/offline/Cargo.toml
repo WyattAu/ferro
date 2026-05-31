@@ -1,0 +1,31 @@
+[package]
+name = "ferro-offline"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Offline-first local storage with change queuing and server reconciliation for the Ferro ecosystem"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+ferro-selective-sync = { path = "../selective-sync" }
+ferro-sync-delta = { path = "../sync-delta" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+sha2 = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"] }
+async-trait = "0.1"
+tracing = "0.1"
+dashmap = "6"
+bytes = { workspace = true }
+hex = "0.4"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+tempfile = "3"
