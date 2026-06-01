@@ -961,9 +961,9 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 | G-13 | GDPR compliance kit (data export/erasure) | Nextcloud, OCIS, MinIO | P2 | 6.4+ | DONE |
 | G-14 | Ransomware protection / WORM | Nextcloud, OCIS, MinIO | P2 | 7.x | DONE (ransomware detection) |
 | G-15 | External storage mounting (NFS/SMB/WebDAV) | Nextcloud, OCIS | P3 | 7.x | DONE (ferro-mount-nfs) |
-| G-16 | Workflow automation (event triggers) | Nextcloud, MinIO | P2 | 7.1+ | **New** |
+| G-16 | Workflow automation (event triggers) | Nextcloud, MinIO | P2 | 7.1+ | DONE (ferro-event-bus) |
 | G-17 | Comments on files | Nextcloud, OCIS | P2 | 6.3 | DONE |
-| G-18 | AI-powered search (semantic embeddings) | Nextcloud, Seafile | P3 | 7.4 | Planned |
+| G-18 | AI-powered search (semantic embeddings) | Nextcloud, Seafile | P3 | 7.4 | DONE (ferro-search-index) |
 | G-19 | Multi-tenancy | OCIS, Seafile, MinIO | P2 | 7.2 | Planned |
 | G-20 | Horizontal scaling | Nextcloud, OCIS, Seafile, MinIO | P3 | 7.3 | Planned |
 | G-21 | Plugin marketplace | Nextcloud, OCIS | P3 | 7.1 | DONE (ferro-plugin-marketplace) |

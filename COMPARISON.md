@@ -386,15 +386,25 @@
 | ~~RBAC preset roles~~ | System roles (Admin/User/ReadOnly) with Cedar policy generation |
 | ~~WebAuthn framework~~ | Challenge-response registration/authentication with origin/RP-ID verification |
 | ~~Offline conflict detection~~ | EditEdit/EditDelete/DeleteEdit detection with sync plan generation |
+| ~~Multi-backend routing~~ | `ferro-backend-router`: glob patterns, priority rules, metadata filters, CompositeBackend |
+| ~~Rate limiting~~ | `ferro-rate-limiter`: token bucket, sliding window, fixed window, multi-tier |
+| ~~Full-text search~~ | `ferro-search-index`: inverted index, TF-IDF ranking, Levenshtein fuzzy, boolean queries |
+| ~~NFS/SMB storage backends~~ | `ferro-storage-adapter`: NfsBackend/SmbBackend traits with mock implementations |
+| ~~Event system / workflow~~ | `ferro-event-bus`: async pub/sub, dead-letter queue, event replay, interceptor |
+| ~~Audit logging~~ | `ferro-audit-log`: SQLite-backed SHA-256 chain, retention policies, JSON/CSV export |
+| ~~Session management~~ | `ferro-session-manager`: token rotation, device tracking, concurrent limits |
+| ~~Configuration management~~ | `ferro-config-manager`: TOML + env loading, validation, typed config schema |
+| ~~Webhook notifications~~ | `ferro-webhook`: HMAC-SHA256 signing, retry logic, event filtering |
+| ~~Health probes~~ | `ferro-health`: liveness/readiness/startup, Memory/DiskSpace/Custom probes |
+| ~~Caching layer~~ | `ferro-cache`: TTL expiry, LRU eviction, size limits, cache stats |
 
 ### Gaps Requiring External Effort
 
 | Gap | Severity | What's Needed |
 |-----|----------|---------------|
-| Multi-backend routing | Major | Policy-based write-path routing (S3 for public, local for internal) |
 | Native mobile apps | Moderate | Swift/Kotlin development (API contracts exist in `ferro-mobile-contract`) |
 | Native desktop sync client | Moderate | Tauri app needs full bidirectional sync (daemon exists, UI incomplete) |
 | External penetration test | Moderate | Independent third-party security audit |
-| NFS/SMB FFI backends | Nice-to-have | Real `libsmbclient`/libnfs integration (traits and mocks exist) |
 | Production Raft consensus | Nice-to-have | State machine works, needs network transport layer |
 | Plugin marketplace with WASM hosting | Nice-to-have | Registry exists, needs hosting and review workflow |
+| NFS/SMB FFI production backends | Nice-to-have | `ferro-storage-adapter` traits exist, need real `libsmbclient`/libnfs FFI |
