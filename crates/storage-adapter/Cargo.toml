@@ -1,0 +1,26 @@
+[package]
+name = "ferro-storage-adapter"
+version.workspace = true
+edition.workspace = true
+description = "Unified storage backend adapter with multi-backend routing"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+keywords = ["storage", "adapter", "s3", "filesystem", "nfs"]
+categories = ["asynchronous", "filesystem"]
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+bytes = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+dashmap = "6"
+ferro-backend-router = { path = "../backend-router" }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+tempfile = "3"

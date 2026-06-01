@@ -34,6 +34,9 @@ members = [
     "crates/backend-router",
     "crates/rate-limiter",
     "crates/search-index",
+    "crates/storage-adapter",
+    "crates/event-bus",
+    "crates/audit-log",
 ]
 resolver = "2"
 
@@ -53,6 +56,9 @@ leptos = { version = "0.6", features = ["csr"] } # Update version as needed
 thiserror = "2"
 bytes = "1"
 sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+hex = "0.4"
 rand = "0.8"
 base64 = "0.22"
 aes-gcm = { version = "0.10", features = ["aes", "heapless"] }
