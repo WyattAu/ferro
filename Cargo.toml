@@ -37,6 +37,9 @@ members = [
     "crates/storage-adapter",
     "crates/event-bus",
     "crates/audit-log",
+    "crates/session-manager",
+    "crates/config-manager",
+    "crates/webhook",
 ]
 resolver = "2"
 

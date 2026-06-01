@@ -1,0 +1,19 @@
+[package]
+name = "ferro-session-manager"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+chrono = { workspace = true }
+zeroize = { workspace = true, features = ["derive"] }
+rand = { workspace = true }
+hex = { workspace = true }
+dashmap = "6"
+uuid = { version = "1", features = ["v4"] }

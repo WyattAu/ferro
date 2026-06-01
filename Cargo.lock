@@ -2929,6 +2929,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-config-manager"
+version = "3.0.0"
+dependencies = [
+ "dashmap 6.1.0",
+ "num_cpus",
+ "parking_lot 0.12.5",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "toml 0.8.2",
+ "tracing",
+]
+
+[[package]]
 name = "ferro-core"
 version = "3.0.0"
 dependencies = [
@@ -3383,6 +3397,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-session-manager"
+version = "3.0.0"
+dependencies = [
+ "chrono",
+ "dashmap 6.1.0",
+ "hex",
+ "rand 0.8.6",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
 name = "ferro-storage-adapter"
 version = "3.0.0"
 dependencies = [
@@ -3416,6 +3446,23 @@ dependencies = [
  "bytes",
  "ferro-common",
  "quick-xml 0.37.5",
+]
+
+[[package]]
+name = "ferro-webhook"
+version = "3.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "dashmap 6.1.0",
+ "hex",
+ "hmac 0.12.1",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -6189,6 +6236,16 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
+]
+
+[[package]]
+name = "num_cpus"
+version = "1.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91df4bbde75afed763b708b7eee1e8e7651e02d97f6d5dd763e89367e957b23b"
+dependencies = [
+ "hermit-abi",
+ "libc",
 ]
 
 [[package]]
