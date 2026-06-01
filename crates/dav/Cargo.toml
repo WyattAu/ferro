@@ -23,7 +23,7 @@ persistence = ["dep:rusqlite"]
 
 [dependencies]
 async-trait = "0.1"
-axum = { version = "0.7", features = ["macros"], optional = true }
+axum = { version = "0.8", features = ["macros"], optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
