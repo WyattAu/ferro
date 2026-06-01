@@ -130,6 +130,9 @@ mod tests {
             "remote_mounts",
             "api_keys",
         ];
+        // SAFETY: `table` values come from a hardcoded constant array above, not user input.
+        // This is the ONLY acceptable use of format! in SQL queries in this codebase.
+        // CI enforces no format! in SQL outside this test function.
         for table in &tables {
             let count: i64 = conn
                 .query_row(&format!("SELECT COUNT(*) FROM {}", table), [], |row| {

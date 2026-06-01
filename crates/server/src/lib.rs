@@ -1235,6 +1235,12 @@ pub fn build_router_with_static(
     );
 
     let cors_origins = cors_allowed_origins.to_string();
+    if cors_origins == "*" {
+        tracing::warn!(
+            "SECURITY WARNING: CORS is configured to allow all origins ('*'). \
+             This is appropriate for development but should be restricted in production."
+        );
+    }
     let cors_auth_enabled = state.auth_enabled();
     if cors_origins == "*" && cors_auth_enabled {
         tracing::error!(

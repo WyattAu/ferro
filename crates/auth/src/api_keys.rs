@@ -10,6 +10,7 @@ use dashmap::DashMap;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
 use tracing::warn;
 
 /// Maximum number of API keys per user.
@@ -73,7 +74,7 @@ impl ApiKeyPermission {
     pub fn allows_action(&self, action: &str) -> bool {
         match self {
             Self::Admin => true,
-            Self::Write => matches!(action, "read" | "write" | "delete" | "list" | "admin"),
+            Self::Write => matches!(action, "read" | "write" | "delete" | "list"),
             Self::Read => matches!(action, "read" | "list"),
         }
     }
@@ -460,8 +461,9 @@ impl ApiKeyStoreTrait for InMemoryApiKeyStore {
         let hash = hash_api_key(raw_key);
         let id = self
             .hash_index
-            .get(&hash)
-            .map(|r| r.value().clone())
+            .iter()
+            .find(|entry| entry.key().as_bytes().ct_eq(hash.as_bytes()).into())
+            .map(|entry| entry.value().clone())
             .ok_or_else(|| ApiKeyError::forbidden("Invalid API key"))?;
 
         let mut key = self.get_key(&id).await?;
@@ -607,7 +609,7 @@ mod tests {
         assert!(ApiKeyPermission::Write.allows_action("read"));
         assert!(ApiKeyPermission::Write.allows_action("write"));
         assert!(ApiKeyPermission::Write.allows_action("delete"));
-        assert!(ApiKeyPermission::Write.allows_action("admin"));
+        assert!(!ApiKeyPermission::Write.allows_action("admin"));
 
         assert!(ApiKeyPermission::Read.allows_action("read"));
         assert!(ApiKeyPermission::Read.allows_action("list"));

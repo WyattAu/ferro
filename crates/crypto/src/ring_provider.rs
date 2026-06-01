@@ -97,13 +97,14 @@ impl CryptoProvider for RingProvider {
     }
 
     fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-        if a.len() != b.len() {
-            return false;
+        let max_len = a.len().max(b.len());
+        let mut result = 0u8;
+        for i in 0..max_len {
+            let byte_a = if i < a.len() { a[i] } else { 0 };
+            let byte_b = if i < b.len() { b[i] } else { 0 };
+            result |= byte_a ^ byte_b;
         }
-        let mut result: u8 = 0;
-        for (x, y) in a.iter().zip(b.iter()) {
-            result |= x ^ y;
-        }
+        result |= (a.len() ^ b.len()) as u8;
         result == 0
     }
 

@@ -221,6 +221,12 @@ impl OidcValidator {
         let kid = header.kid?;
         let decoding_key = keys.get(&kid)?;
 
+        use jsonwebtoken::Algorithm;
+        match header.alg {
+            Algorithm::HS256 | Algorithm::HS384 | Algorithm::HS512 => return None,
+            _ => {}
+        }
+
         let mut validation = Validation::new(header.alg);
         validation.set_audience(&[&self.config.audience]);
         validation.set_issuer(&[&self.config.issuer]);

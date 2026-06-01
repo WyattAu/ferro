@@ -10,43 +10,23 @@ mod tests {
     // ========================================================================
 
     mod path_traversal {
-        // Replica of the private fn in api.rs:1171-1178
-        // This proves the function only trims slashes and does NOT resolve '..'
-        fn normalize_api_path(path: &str) -> String {
-            let trimmed = path.trim_matches('/');
-            if trimmed.is_empty() {
-                "/".to_string()
-            } else {
-                format!("/{}", trimmed)
-            }
+        use ferro_server::api::normalize_api_path;
+
+        #[test]
+        fn test_normalize_api_path_rejects_traversal() {
+            assert!(normalize_api_path("../../../etc/passwd").is_err());
+            assert!(normalize_api_path("/files/../../etc/shadow").is_err());
+            assert!(normalize_api_path("a/../b").is_err());
+            assert!(normalize_api_path("./foo").is_err());
+            assert!(normalize_api_path("foo/.").is_err());
+            assert!(normalize_api_path("foo//bar").is_err());
         }
 
         #[test]
-        fn test_normalize_api_path_does_not_block_traversal() {
-            let path = normalize_api_path("../../../etc/passwd");
-            assert!(
-                path.contains(".."),
-                "CONFIRMED: normalize_api_path allows '..' traversal: got {}",
-                path
-            );
-        }
-
-        #[test]
-        fn test_normalize_api_path_nested_traversal() {
-            let path = normalize_api_path("/files/../../etc/shadow");
-            assert!(
-                path.contains(".."),
-                "CONFIRMED: nested traversal passes through: got {}",
-                path
-            );
-        }
-
-        #[test]
-        fn test_normalize_api_path_strips_slashes_only() {
-            assert_eq!(normalize_api_path("foo/bar"), "/foo/bar");
-            assert_eq!(normalize_api_path("/foo/bar"), "/foo/bar");
-            assert_eq!(normalize_api_path(""), "/");
-            assert_eq!(normalize_api_path("foo"), "/foo");
+        fn test_normalize_api_path_allows_normal() {
+            assert_eq!(normalize_api_path("foo/bar").unwrap(), "/foo/bar");
+            assert_eq!(normalize_api_path("foo").unwrap(), "/foo");
+            assert_eq!(normalize_api_path("").unwrap(), "/");
         }
 
         #[test]
@@ -334,6 +314,35 @@ mod tests {
             assert!(csp.contains("default-src 'self'"));
             assert!(!csp.contains("'unsafe-eval'"));
             assert!(csp.contains("connect-src 'self' ws: wss:"));
+        }
+    }
+
+    // ========================================================================
+    // 8. Share Password Hashing
+    // ========================================================================
+
+    mod share_passwords {
+        use ferro_server::shares::{hash_share_password, verify_share_password};
+
+        #[test]
+        fn test_share_password_hashed() {
+            let hash = hash_share_password("test123");
+            assert_ne!(hash, "test123", "Password must not be stored as plaintext");
+            assert_eq!(hash.len(), 64, "SHA-256 hex digest must be 64 chars");
+        }
+
+        #[test]
+        fn test_share_password_verification() {
+            let hash = hash_share_password("mysecret");
+            assert!(verify_share_password("mysecret", &hash));
+            assert!(!verify_share_password("wrong", &hash));
+        }
+
+        #[test]
+        fn test_share_password_different_inputs_different_hashes() {
+            let h1 = hash_share_password("abc");
+            let h2 = hash_share_password("def");
+            assert_ne!(h1, h2);
         }
     }
 

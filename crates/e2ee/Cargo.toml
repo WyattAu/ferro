@@ -17,6 +17,7 @@ base64 = { workspace = true }
 aes-gcm = { workspace = true }
 hkdf = { workspace = true }
 zeroize = { workspace = true }
+x25519-dalek = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]

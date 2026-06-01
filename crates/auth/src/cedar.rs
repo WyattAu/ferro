@@ -24,15 +24,15 @@ pub struct CedarAuthorizer {
 }
 
 impl CedarAuthorizer {
-    /// Create a new Cedar authorizer with a default permissive policy.
+    /// Create a new Cedar authorizer with a default deny-all policy.
     pub fn new() -> Result<Self> {
+        warn!("WARNING: No Cedar policies configured. All access is denied. Configure policies to enable access control.");
+
         let default_policy = r#"
-            @id("all_access")
-            permit (
-                principal,
-                action in [Action::"read", Action::"write", Action::"delete", Action::"list", Action::"admin"],
-                resource
-            );
+            @id("deny_all")
+            permit(principal, action, resource) when {
+                false
+            };
         "#;
 
         let policy_set: PolicySet = default_policy
@@ -333,40 +333,40 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_default_policy_allows_everything() {
+    async fn test_default_policy_denies_everything() {
         let authorizer = CedarAuthorizer::new().unwrap();
         assert!(
-            authorizer
+            !authorizer
                 .is_authorized_simple("alice", "read", "/file.txt")
                 .await
                 .unwrap()
         );
         assert!(
-            authorizer
+            !authorizer
                 .is_authorized_simple("alice", "write", "/file.txt")
                 .await
                 .unwrap()
         );
         assert!(
-            authorizer
+            !authorizer
                 .is_authorized_simple("alice", "delete", "/file.txt")
                 .await
                 .unwrap()
         );
         assert!(
-            authorizer
+            !authorizer
                 .is_authorized_simple("alice", "list", "/")
                 .await
                 .unwrap()
         );
         assert!(
-            authorizer
+            !authorizer
                 .is_authorized_simple("alice", "admin", "/file.txt")
                 .await
                 .unwrap()
         );
         assert!(
-            authorizer
+            !authorizer
                 .is_authorized_simple("anonymous", "read", "/file.txt")
                 .await
                 .unwrap()
@@ -476,13 +476,10 @@ mod tests {
         };
         let decision = authorizer.is_authorized(&request).await.unwrap();
         match decision {
-            AuthDecision::Allow { policy_id } => {
-                // Should be allowed by the default policy
-                assert!(policy_id.is_some());
+            AuthDecision::Allow { .. } => {
+                panic!("Should not be allowed with default deny-all policy");
             }
-            AuthDecision::Deny { reason } => {
-                panic!("Should not be denied: {}", reason);
-            }
+            AuthDecision::Deny { reason: _ } => {}
             _ => panic!("Unexpected decision"),
         }
     }
@@ -490,9 +487,11 @@ mod tests {
     #[tokio::test]
     async fn test_context_attributes_passed_to_authorizer() {
         let authorizer = CedarAuthorizer::new().unwrap();
-        // Verify that context attributes (ip, method, resource) are accepted
-        // without error. The default permissive policy ignores context,
-        // but the attributes must parse correctly into Cedar expressions.
+        let permissive = r#"
+            @id("allow_all")
+            permit(principal, action, resource);
+        "#;
+        authorizer.load_policies(&[permissive.to_string()]).await.unwrap();
         let request = AuthRequest {
             principal: "alice".to_string(),
             action: "read".to_string(),
@@ -510,6 +509,11 @@ mod tests {
     #[tokio::test]
     async fn test_context_numeric_attributes() {
         let authorizer = CedarAuthorizer::new().unwrap();
+        let permissive = r#"
+            @id("allow_all")
+            permit(principal, action, resource);
+        "#;
+        authorizer.load_policies(&[permissive.to_string()]).await.unwrap();
         let request = AuthRequest {
             principal: "alice".to_string(),
             action: "write".to_string(),

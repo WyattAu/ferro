@@ -532,6 +532,10 @@ pub fn verify_registration(
     rp_id: &str,
     rp_origins: &[String],
 ) -> Result<RegistrationResult, WebAuthnError> {
+    tracing::warn!(
+        "WebAuthn prototype mode: skipping CTAP2 signature verification. \
+         Enable 'webauthn-rs' feature for production deployments."
+    );
     let client_data_bytes = base64_decode_urlsafe(client_data_json_b64)?;
     let client_data: serde_json::Value = serde_json::from_slice(&client_data_bytes)
         .map_err(|e| WebAuthnError::VerificationFailed(format!("client data parse error: {e}")))?;
@@ -597,6 +601,10 @@ pub fn verify_authentication(
     rp_id: &str,
     rp_origins: &[String],
 ) -> Result<AuthenticationResult, WebAuthnError> {
+    tracing::warn!(
+        "WebAuthn prototype mode: skipping CTAP2 signature verification. \
+         Enable 'webauthn-rs' feature for production deployments."
+    );
     let client_data_bytes = base64_decode_urlsafe(client_data_json_b64)?;
     let client_data: serde_json::Value = serde_json::from_slice(&client_data_bytes)
         .map_err(|e| WebAuthnError::VerificationFailed(format!("client data parse error: {e}")))?;

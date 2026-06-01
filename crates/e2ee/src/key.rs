@@ -1,14 +1,8 @@
-use hkdf::Hkdf;
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 use zeroize::Zeroize;
 
 use crate::error::E2eeError;
-
-const MASTER_KEY_LEN: usize = 32;
-const ENCRYPT_KEY_LEN: usize = 32;
-const SIGNING_KEY_LEN: usize = 32;
-const DERIVED_KEY_INFO: &[u8] = b"ferro-e2ee-key-derive";
 
 pub struct E2eeKeyPair {
     public_key: Vec<u8>,
@@ -24,21 +18,12 @@ impl Drop for E2eeKeyPair {
 
 impl E2eeKeyPair {
     pub fn generate() -> Result<Self, E2eeError> {
-        let mut master_key = [0u8; MASTER_KEY_LEN];
-        rand::rngs::OsRng.fill_bytes(&mut master_key);
+        let mut secret_bytes = [0u8; 32];
+        rand::rngs::OsRng.fill_bytes(&mut secret_bytes);
 
-        let hk = Hkdf::<Sha256>::new(Some(&master_key), b"");
-
-        let mut okm = [0u8; ENCRYPT_KEY_LEN + SIGNING_KEY_LEN];
-        hk.expand(DERIVED_KEY_INFO, &mut okm)
-            .map_err(|e| E2eeError::KeyGeneration {
-                message: e.to_string(),
-            })?;
-
-        let public_key = okm[ENCRYPT_KEY_LEN..].to_vec();
-        let private_key = okm[..ENCRYPT_KEY_LEN].to_vec();
-
-        master_key.zeroize();
+        let private_key = secret_bytes.to_vec();
+        let public_key =
+            x25519_dalek::x25519(secret_bytes, x25519_dalek::X25519_BASEPOINT_BYTES).to_vec();
 
         Ok(Self {
             public_key,

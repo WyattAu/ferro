@@ -271,7 +271,7 @@ impl ShareStoreTrait for ShareStore {
         let link = ShareLink {
             token: token.clone(),
             path: req.path,
-            password: req.password,
+            password: req.password.map(|p| hash_share_password(&p)),
             expires_at,
             max_downloads: req.max_downloads,
             download_count: 0,
@@ -341,6 +341,22 @@ pub async fn create_share(
     State(state): State<AppState>,
     axum::Json(req): axum::Json<CreateShareRequest>,
 ) -> Response {
+    for component in std::path::Path::new(&req.path).components() {
+        match component {
+            std::path::Component::ParentDir | std::path::Component::CurDir => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    axum::Json(serde_json::json!({
+                        "error": "invalid_path",
+                        "message": "Path traversal detected: '..' and '.' not allowed in share paths",
+                    })),
+                )
+                    .into_response();
+            }
+            _ => {}
+        }
+    }
+
     let link = state.share_store.create(req, "anonymous".to_string()).await;
 
     crate::event_triggers::fire_event_triggers(
@@ -439,10 +455,10 @@ pub async fn serve_share(
     }
 
     // Check password if set
-    if let Some(ref required_password) = link.password {
+    if let Some(ref stored_hash) = link.password {
         let provided_password = params.get("password").map(|s| s.as_str());
         match provided_password {
-            Some(pw) if constant_time_eq(pw, required_password) => {
+            Some(pw) if verify_share_password(pw, stored_hash) => {
                 state.share_store.clear_failed_attempts(&token);
             }
             Some(_) => {
@@ -510,6 +526,17 @@ pub async fn serve_share(
 fn constant_time_eq(a: &str, b: &str) -> bool {
     use subtle::ConstantTimeEq;
     a.as_bytes().ct_eq(b.as_bytes()).into()
+}
+
+pub fn hash_share_password(password: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let hash = Sha256::digest(password.as_bytes());
+    hex::encode(hash)
+}
+
+pub fn verify_share_password(provided: &str, stored_hash: &str) -> bool {
+    let provided_hash = hash_share_password(provided);
+    constant_time_eq(&provided_hash, stored_hash)
 }
 
 /// `POST /s/:token` -- Upload a file to a file-drop (upload-only) share via multipart form.

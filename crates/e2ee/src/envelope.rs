@@ -13,11 +13,28 @@ pub struct KeyEnvelope {
     pub recipient_key_id: [u8; 32],
     pub encrypted_file_key: Vec<u8>,
     pub sender_key_id: [u8; 32],
+    pub sender_public_key: [u8; 32],
     pub signature: Vec<u8>,
 }
 
-fn derive_envelope_key(recipient_public_key: &[u8]) -> Result<[u8; 32], E2eeError> {
-    let hk = Hkdf::<Sha256>::new(None, recipient_public_key);
+fn derive_envelope_key(
+    sender_private_key: &[u8],
+    recipient_public_key: &[u8],
+) -> Result<[u8; 32], E2eeError> {
+    let sender_private: [u8; 32] = <[u8; 32]>::try_from(sender_private_key).map_err(|_| {
+        E2eeError::Encryption {
+            message: "Sender private key must be 32 bytes".into(),
+        }
+    })?;
+    let recipient_public: [u8; 32] = <[u8; 32]>::try_from(recipient_public_key).map_err(|_| {
+        E2eeError::Encryption {
+            message: "Recipient public key must be 32 bytes".into(),
+        }
+    })?;
+
+    let shared_secret = x25519_dalek::x25519(sender_private, recipient_public);
+
+    let hk = Hkdf::<Sha256>::new(None, &shared_secret);
 
     let mut key = [0u8; 32];
     hk.expand(ENVELOPE_KEY_INFO, &mut key)
@@ -51,7 +68,7 @@ pub fn create_envelope(
     recipient_public_key: &[u8],
     file_key: &[u8],
 ) -> Result<KeyEnvelope, E2eeError> {
-    let envelope_key = derive_envelope_key(recipient_public_key)?;
+    let envelope_key = derive_envelope_key(sender.private_key_bytes(), recipient_public_key)?;
     let cipher = Aes256Gcm::new_from_slice(&envelope_key).map_err(|e| E2eeError::Encryption {
         message: e.to_string(),
     })?;
@@ -66,10 +83,17 @@ pub fn create_envelope(
     let recipient_key_id = recipient_key_id_from_public_key(recipient_public_key);
     let signature = compute_sender_signature(sender, recipient_public_key);
 
+    let sender_public_key = <[u8; 32]>::try_from(sender.public_key_bytes()).map_err(|_| {
+        E2eeError::Encryption {
+            message: "Sender public key must be 32 bytes".into(),
+        }
+    })?;
+
     Ok(KeyEnvelope {
         recipient_key_id,
         encrypted_file_key,
         sender_key_id: sender.key_id(),
+        sender_public_key,
         signature: signature.to_vec(),
     })
 }
@@ -85,7 +109,7 @@ pub fn open_envelope(
         });
     }
 
-    let envelope_key = derive_envelope_key(recipient.public_key_bytes())?;
+    let envelope_key = derive_envelope_key(recipient.private_key_bytes(), &envelope.sender_public_key)?;
     let cipher = Aes256Gcm::new_from_slice(&envelope_key).map_err(|e| E2eeError::Decryption {
         message: e.to_string(),
     })?;

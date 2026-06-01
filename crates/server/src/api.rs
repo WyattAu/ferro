@@ -177,12 +177,16 @@ pub async fn auth_change_password(
 ) -> Response {
     // Parse password from JSON body manually
     let (parts, body) = req.into_parts();
-    let body_bytes = match axum::body::to_bytes(body, usize::MAX).await {
+    let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(b) => b,
         Err(_) => {
             return ApiError::bad_request(ApiError::INVALID_BODY, "Failed to read request body");
         }
     };
+
+    if body_bytes.len() > 1024 * 1024 {
+        return ApiError::bad_request(ApiError::INVALID_BODY, "Request body too large");
+    }
 
     // Extract authenticated user info from request extensions
     let user_info = parts
@@ -684,7 +688,12 @@ pub async fn get_file(
     AxumPath(path): AxumPath<String>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    let path = normalize_api_path(&path);
+    let path = match normalize_api_path(&path) {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+            "error": "invalid_path", "message": e,
+        }))).into_response(),
+    };
 
     let meta = match state.storage.head(&path).await {
         Ok(m) => m,
@@ -818,7 +827,12 @@ pub async fn put_file(
     headers: axum::http::HeaderMap,
     body: axum::body::Bytes,
 ) -> Response {
-    let path = normalize_api_path(&path);
+    let path = match normalize_api_path(&path) {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+            "error": "invalid_path", "message": e,
+        }))).into_response(),
+    };
 
     // Validate each path component for safety (reserved names, control chars, etc.)
     if let Err(reason) = crate::security::validate_path(&path) {
@@ -929,7 +943,12 @@ pub async fn delete_file(
     State(state): State<AppState>,
     AxumPath(path): AxumPath<String>,
 ) -> Response {
-    let path = normalize_api_path(&path);
+    let path = match normalize_api_path(&path) {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+            "error": "invalid_path", "message": e,
+        }))).into_response(),
+    };
     match state.storage.delete(&path).await {
         Ok(()) => {
             crate::events::dispatch_post_op(
@@ -974,7 +993,12 @@ pub async fn delete_file(
 pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::Value>) -> Response {
     let path = body.get("path").and_then(|v| v.as_str()).unwrap_or("/");
 
-    let path = normalize_api_path(path);
+    let path = match normalize_api_path(path) {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+            "error": "invalid_path", "message": e,
+        }))).into_response(),
+    };
 
     let owner = "anonymous".to_string();
 
@@ -1091,8 +1115,18 @@ pub async fn copy_file(
             .into_response();
     }
 
-    let from = normalize_api_path(from);
-    let to = normalize_api_path(to);
+    let from = match normalize_api_path(from) {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+            "error": "invalid_path", "message": e,
+        }))).into_response(),
+    };
+    let to = match normalize_api_path(to) {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+            "error": "invalid_path", "message": e,
+        }))).into_response(),
+    };
 
     match state.storage.copy(&from, &to).await {
         Ok(()) => (
@@ -1144,8 +1178,18 @@ pub async fn move_file_rest(
             .into_response();
     }
 
-    let from = normalize_api_path(from);
-    let to = normalize_api_path(to);
+    let from = match normalize_api_path(from) {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+            "error": "invalid_path", "message": e,
+        }))).into_response(),
+    };
+    let to = match normalize_api_path(to) {
+        Ok(p) => p,
+        Err(e) => return (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+            "error": "invalid_path", "message": e,
+        }))).into_response(),
+    };
 
     match state.storage.move_path(&from, &to).await {
         Ok(()) => (
@@ -1168,13 +1212,18 @@ pub async fn move_file_rest(
 }
 
 /// Normalize a user-supplied path for the REST API.
-fn normalize_api_path(path: &str) -> String {
+/// Returns an error if the path contains traversal components (`..` or `.`).
+pub fn normalize_api_path(path: &str) -> Result<String, String> {
     let trimmed = path.trim_matches('/');
     if trimmed.is_empty() {
-        "/".to_string()
-    } else {
-        format!("/{}", trimmed)
+        return Ok("/".to_string());
     }
+    for component in trimmed.split('/') {
+        if component.is_empty() || component == "." || component == ".." {
+            return Err(format!("invalid path component: '{}'", component));
+        }
+    }
+    Ok(format!("/{}", trimmed))
 }
 
 #[cfg(test)]

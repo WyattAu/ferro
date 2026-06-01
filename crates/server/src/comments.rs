@@ -339,12 +339,16 @@ pub async fn create_comment_handler(
     }
 
     let (_parts, body) = req.into_parts();
-    let body_bytes = match axum::body::to_bytes(body, usize::MAX).await {
+    let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(b) => b,
         Err(_) => {
             return ApiError::bad_request(ApiError::INVALID_BODY, "Failed to read request body");
         }
     };
+
+    if body_bytes.len() > 1024 * 1024 {
+        return ApiError::bad_request(ApiError::INVALID_BODY, "Request body too large");
+    }
 
     let request: CreateCommentRequest = match serde_json::from_slice(&body_bytes) {
         Ok(r) => r,
@@ -388,12 +392,16 @@ pub async fn update_comment_handler(
     }
 
     let (_parts, body) = req.into_parts();
-    let body_bytes = match axum::body::to_bytes(body, usize::MAX).await {
+    let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(b) => b,
         Err(_) => {
             return ApiError::bad_request(ApiError::INVALID_BODY, "Failed to read request body");
         }
     };
+
+    if body_bytes.len() > 1024 * 1024 {
+        return ApiError::bad_request(ApiError::INVALID_BODY, "Request body too large");
+    }
 
     let request: UpdateCommentRequest = match serde_json::from_slice(&body_bytes) {
         Ok(r) => r,
