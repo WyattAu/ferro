@@ -58,16 +58,24 @@ impl ConfigLoader {
                 warn!("FERRO_SERVER_PORT is not a valid u16, ignoring");
             }
         }
-        if let Ok(v) = env::var("FERRO_SERVER_WORKERS") && let Ok(w) = usize::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_SERVER_WORKERS")
+            && let Ok(w) = usize::from_str(&v)
+        {
             config.server.workers = w;
         }
-        if let Ok(v) = env::var("FERRO_SERVER_MAX_REQUEST_SIZE") && let Ok(s) = usize::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_SERVER_MAX_REQUEST_SIZE")
+            && let Ok(s) = usize::from_str(&v)
+        {
             config.server.max_request_size = s;
         }
-        if let Ok(v) = env::var("FERRO_SERVER_WEBSOCKET_ENABLED") && let Ok(b) = bool::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_SERVER_WEBSOCKET_ENABLED")
+            && let Ok(b) = bool::from_str(&v)
+        {
             config.server.websocket_enabled = b;
         }
-        if let Ok(v) = env::var("FERRO_SERVER_WEBSOCKET_MAX_CONNECTIONS") && let Ok(n) = usize::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_SERVER_WEBSOCKET_MAX_CONNECTIONS")
+            && let Ok(n) = usize::from_str(&v)
+        {
             config.server.websocket_max_connections = n;
         }
         if let Ok(v) = env::var("FERRO_SERVER_GRACEFUL_SHUTDOWN_TIMEOUT_SECS")
@@ -94,32 +102,48 @@ impl ConfigLoader {
         if let Ok(v) = env::var("FERRO_STORAGE_TEMP_DIR") {
             config.storage.temp_dir = v;
         }
-        if let Ok(v) = env::var("FERRO_STORAGE_MAX_FILE_SIZE") && let Ok(s) = u64::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_STORAGE_MAX_FILE_SIZE")
+            && let Ok(s) = u64::from_str(&v)
+        {
             config.storage.max_file_size = s;
         }
-        if let Ok(v) = env::var("FERRO_STORAGE_CHUNK_SIZE") && let Ok(s) = usize::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_STORAGE_CHUNK_SIZE")
+            && let Ok(s) = usize::from_str(&v)
+        {
             config.storage.chunk_size = s;
         }
-        if let Ok(v) = env::var("FERRO_STORAGE_VERSIONING_ENABLED") && let Ok(b) = bool::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_STORAGE_VERSIONING_ENABLED")
+            && let Ok(b) = bool::from_str(&v)
+        {
             config.storage.versioning_enabled = b;
         }
 
         if let Ok(v) = env::var("FERRO_AUTH_JWT_SECRET") {
             config.auth.jwt_secret = v;
         }
-        if let Ok(v) = env::var("FERRO_AUTH_JWT_EXPIRY_HOURS") && let Ok(h) = u64::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_AUTH_JWT_EXPIRY_HOURS")
+            && let Ok(h) = u64::from_str(&v)
+        {
             config.auth.jwt_expiry_hours = h;
         }
-        if let Ok(v) = env::var("FERRO_AUTH_REFRESH_TOKEN_DAYS") && let Ok(d) = u64::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_AUTH_REFRESH_TOKEN_DAYS")
+            && let Ok(d) = u64::from_str(&v)
+        {
             config.auth.refresh_token_days = d;
         }
-        if let Ok(v) = env::var("FERRO_AUTH_MAX_LOGIN_ATTEMPTS") && let Ok(a) = u32::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_AUTH_MAX_LOGIN_ATTEMPTS")
+            && let Ok(a) = u32::from_str(&v)
+        {
             config.auth.max_login_attempts = a;
         }
-        if let Ok(v) = env::var("FERRO_AUTH_TOTP_ENABLED") && let Ok(b) = bool::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_AUTH_TOTP_ENABLED")
+            && let Ok(b) = bool::from_str(&v)
+        {
             config.auth.totp_enabled = b;
         }
-        if let Ok(v) = env::var("FERRO_AUTH_API_KEYS_ENABLED") && let Ok(b) = bool::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_AUTH_API_KEYS_ENABLED")
+            && let Ok(b) = bool::from_str(&v)
+        {
             config.auth.api_keys_enabled = b;
         }
 
@@ -129,10 +153,14 @@ impl ConfigLoader {
         if let Ok(v) = env::var("FERRO_SECURITY_CORS_ALLOWED_METHODS") {
             config.security.cors_allowed_methods = v.split(',').map(String::from).collect();
         }
-        if let Ok(v) = env::var("FERRO_SECURITY_RATE_LIMIT_RPM") && let Ok(n) = u32::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_SECURITY_RATE_LIMIT_RPM")
+            && let Ok(n) = u32::from_str(&v)
+        {
             config.security.rate_limit_requests_per_minute = n;
         }
-        if let Ok(v) = env::var("FERRO_SECURITY_RATE_LIMIT_BURST") && let Ok(n) = u32::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_SECURITY_RATE_LIMIT_BURST")
+            && let Ok(n) = u32::from_str(&v)
+        {
             config.security.rate_limit_burst = n;
         }
         if let Ok(v) = env::var("FERRO_SECURITY_RANSOMWARE_DETECTION_ENABLED")
@@ -157,17 +185,23 @@ impl ConfigLoader {
         if let Ok(v) = env::var("FERRO_NETWORK_TRUSTED_PROXIES") {
             config.network.trusted_proxies = v.split(',').map(String::from).collect();
         }
-        if let Ok(v) = env::var("FERRO_NETWORK_WS_HEARTBEAT_SECS") && let Ok(s) = u64::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_NETWORK_WS_HEARTBEAT_SECS")
+            && let Ok(s) = u64::from_str(&v)
+        {
             config.network.websocket_heartbeat_interval_secs = s;
         }
 
-        if let Ok(v) = env::var("FERRO_ADVANCED_E2EE_ENABLED") && let Ok(b) = bool::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_ADVANCED_E2EE_ENABLED")
+            && let Ok(b) = bool::from_str(&v)
+        {
             config.advanced.e2ee_enabled = b;
         }
         if let Ok(v) = env::var("FERRO_ADVANCED_PLUGIN_DIRECTORY") {
             config.advanced.plugin_directory = Some(v);
         }
-        if let Ok(v) = env::var("FERRO_ADVANCED_TELEMETRY_ENABLED") && let Ok(b) = bool::from_str(&v) {
+        if let Ok(v) = env::var("FERRO_ADVANCED_TELEMETRY_ENABLED")
+            && let Ok(b) = bool::from_str(&v)
+        {
             config.advanced.telemetry_enabled = b;
         }
     }

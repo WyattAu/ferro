@@ -1,6 +1,6 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use ferro_server::{make_app, AppState, build_router};
+use ferro_server::{AppState, build_router, make_app};
 use tower::ServiceExt;
 
 async fn body_string(response: axum::response::Response) -> String {
@@ -69,7 +69,11 @@ async fn test_rate_limiter_rejects_excess_requests() {
     });
 
     for i in 0..5 {
-        assert!(limiter.check("192.168.1.1").await, "Request {} should pass", i + 1);
+        assert!(
+            limiter.check("192.168.1.1").await,
+            "Request {} should pass",
+            i + 1
+        );
     }
     assert!(
         !limiter.check("192.168.1.1").await,
@@ -221,8 +225,8 @@ async fn test_hsts_set_on_https() {
 
 #[tokio::test]
 async fn test_deprecation_headers_present() {
-    let state = ferro_server::AppState::in_memory()
-        .with_wopi_token_secret("bench-secret".to_string());
+    let state =
+        ferro_server::AppState::in_memory().with_wopi_token_secret("bench-secret".to_string());
     let app = build_router(state);
 
     let resp = app
@@ -245,8 +249,8 @@ async fn test_deprecation_headers_present() {
 
 #[tokio::test]
 async fn test_request_metrics_incremented() {
-    let state = ferro_server::AppState::in_memory()
-        .with_wopi_token_secret("bench-secret".to_string());
+    let state =
+        ferro_server::AppState::in_memory().with_wopi_token_secret("bench-secret".to_string());
     let app = build_router(state);
 
     app.clone()
@@ -281,9 +285,18 @@ async fn test_request_metrics_incremented() {
         .unwrap();
     assert_eq!(metrics.status(), StatusCode::OK);
     let json = body_json(metrics).await;
-    assert!(json.get("uptime_seconds").is_some(), "metrics should include uptime_seconds");
-    assert!(json.get("storage").is_some(), "metrics should include storage stats");
-    assert!(json["requests"].get("total").is_some(), "metrics should include requests.total");
+    assert!(
+        json.get("uptime_seconds").is_some(),
+        "metrics should include uptime_seconds"
+    );
+    assert!(
+        json.get("storage").is_some(),
+        "metrics should include storage stats"
+    );
+    assert!(
+        json["requests"].get("total").is_some(),
+        "metrics should include requests.total"
+    );
 }
 
 #[tokio::test]

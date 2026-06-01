@@ -2,20 +2,28 @@ use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TenantError {
-    NotFound { tenant_id: String },
-    OrganizationNotFound { org_id: String },
+    NotFound {
+        tenant_id: String,
+    },
+    OrganizationNotFound {
+        org_id: String,
+    },
     QuotaExceeded {
         tenant_id: String,
         quota: u64,
         current: u64,
     },
-    AlreadyExists { name: String },
+    AlreadyExists {
+        name: String,
+    },
     PermissionDenied {
         user_id: String,
         resource: String,
         action: String,
     },
-    Suspended { tenant_id: String },
+    Suspended {
+        tenant_id: String,
+    },
 }
 
 impl fmt::Display for TenantError {

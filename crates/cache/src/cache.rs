@@ -104,7 +104,8 @@ where
             self.stats.sub_size(existing.size_bytes);
         }
         self.stats.add_size(size_bytes);
-        self.entries.insert(key, CacheEntry::new(value, ttl, size_bytes));
+        self.entries
+            .insert(key, CacheEntry::new(value, ttl, size_bytes));
     }
 
     pub fn set_with_size(
@@ -126,11 +127,7 @@ where
 
         if let Some(max_size) = self.max_size_bytes {
             let current_size = self.stats.snapshot(self.entries.len()).size_bytes;
-            let existing_size = self
-                .entries
-                .get(&key)
-                .map(|e| e.size_bytes)
-                .unwrap_or(0);
+            let existing_size = self.entries.get(&key).map(|e| e.size_bytes).unwrap_or(0);
             if current_size.saturating_sub(existing_size) + size_bytes > max_size {
                 return Err(CacheError::SizeExceeded {
                     size_bytes: current_size.saturating_sub(existing_size) + size_bytes,

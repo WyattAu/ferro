@@ -104,10 +104,7 @@ mod tests {
         p2.add_include("Documents/**").unwrap();
         filter.add_profile(p1);
         filter.add_profile(p2);
-        assert_eq!(
-            filter.check("Documents/file.txt", None),
-            SyncDecision::Sync
-        );
+        assert_eq!(filter.check("Documents/file.txt", None), SyncDecision::Sync);
         assert_eq!(
             filter.check("Documents/report.pdf", None),
             SyncDecision::Sync
@@ -154,19 +151,13 @@ mod tests {
         profile.add_include("**/*").unwrap();
         profile.max_file_size = Some(100);
         filter.add_profile(profile);
-        assert_eq!(
-            filter.check("file.txt", Some(50)),
-            SyncDecision::Sync
-        );
+        assert_eq!(filter.check("file.txt", Some(50)), SyncDecision::Sync);
         assert_eq!(
             filter.check("big.bin", Some(200)),
             SyncDecision::Skip {
                 reason: "no matching profile".to_string()
             }
         );
-        assert_eq!(
-            filter.check("file.txt", None),
-            SyncDecision::Sync
-        );
+        assert_eq!(filter.check("file.txt", None), SyncDecision::Sync);
     }
 }

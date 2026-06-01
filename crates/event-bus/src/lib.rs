@@ -75,10 +75,19 @@ mod tests {
 
     #[async_trait::async_trait]
     impl<T: EventInterceptor> EventInterceptor for MoveInterceptor<T> {
-        async fn before_publish(&self, event_type: &str, event_json: &str) -> Result<(), EventBusError> {
+        async fn before_publish(
+            &self,
+            event_type: &str,
+            event_json: &str,
+        ) -> Result<(), EventBusError> {
             self.0.before_publish(event_type, event_json).await
         }
-        async fn after_publish(&self, event_type: &str, event_json: &str, results: &[HandlerResult]) {
+        async fn after_publish(
+            &self,
+            event_type: &str,
+            event_json: &str,
+            results: &[HandlerResult],
+        ) {
             self.0.after_publish(event_type, event_json, results).await
         }
     }
@@ -86,7 +95,11 @@ mod tests {
     #[async_trait::async_trait]
     impl EventHandler<SystemEvent> for FailSysHandler {
         async fn handle(&self, _event: &SystemEvent) -> Result<(), EventBusError> {
-            Err(EventBusError::handler_failed("fail_sys", "user.login", "boom"))
+            Err(EventBusError::handler_failed(
+                "fail_sys",
+                "user.login",
+                "boom",
+            ))
         }
         fn name(&self) -> &str {
             "fail_sys"
@@ -201,13 +214,20 @@ mod tests {
         #[async_trait::async_trait]
         impl EventHandler<FileEvent> for AlwaysFail {
             async fn handle(&self, _e: &FileEvent) -> Result<(), EventBusError> {
-                Err(EventBusError::handler_failed("always", "file.created", "fail"))
+                Err(EventBusError::handler_failed(
+                    "always",
+                    "file.created",
+                    "fail",
+                ))
             }
-            fn name(&self) -> &str { "always" }
+            fn name(&self) -> &str {
+                "always"
+            }
         }
         bus.subscribe("file.created", Box::new(AlwaysFail));
         for _ in 0..5 {
-            bus.publish(FileEvent::new("file.created", "/f.txt", "u")).await;
+            bus.publish(FileEvent::new("file.created", "/f.txt", "u"))
+                .await;
         }
         let dlq = bus.dead_letter_queue().unwrap();
         assert_eq!(dlq.len(), 3);
@@ -222,11 +242,20 @@ mod tests {
         }
         #[async_trait::async_trait]
         impl EventInterceptor for CountingInterceptor {
-            async fn before_publish(&self, _event_type: &str, _event_json: &str) -> Result<(), EventBusError> {
+            async fn before_publish(
+                &self,
+                _event_type: &str,
+                _event_json: &str,
+            ) -> Result<(), EventBusError> {
                 self.before_count.fetch_add(1, Ordering::Relaxed);
                 Ok(())
             }
-            async fn after_publish(&self, _event_type: &str, _event_json: &str, _results: &[HandlerResult]) {
+            async fn after_publish(
+                &self,
+                _event_type: &str,
+                _event_json: &str,
+                _results: &[HandlerResult],
+            ) {
                 self.after_count.fetch_add(1, Ordering::Relaxed);
             }
         }
@@ -239,8 +268,10 @@ mod tests {
             .with_interceptor(Box::new(MoveInterceptor(ic)))
             .build();
         bus.subscribe("file.created", Box::new(LogHandler::new("h")));
-        bus.publish(FileEvent::new("file.created", "/a.txt", "u1")).await;
-        bus.publish(FileEvent::new("file.created", "/b.txt", "u2")).await;
+        bus.publish(FileEvent::new("file.created", "/a.txt", "u1"))
+            .await;
+        bus.publish(FileEvent::new("file.created", "/b.txt", "u2"))
+            .await;
         assert_eq!(interceptor.before_count.load(Ordering::Relaxed), 2);
         assert_eq!(interceptor.after_count.load(Ordering::Relaxed), 2);
     }

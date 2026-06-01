@@ -129,7 +129,9 @@ async fn test_full_file_lifecycle_with_events() {
             Request::builder()
                 .method("PUT")
                 .uri("/api/v1/files/lifecycle-events/readme.md")
-                .body(Body::from("# Lifecycle Events\n\nIntegration test content."))
+                .body(Body::from(
+                    "# Lifecycle Events\n\nIntegration test content.",
+                ))
                 .unwrap(),
         )
         .await
@@ -168,9 +170,7 @@ async fn test_full_file_lifecycle_with_events() {
         )
         .await
         .unwrap();
-    assert!(
-        copy_resp.status() == StatusCode::CREATED || copy_resp.status() == StatusCode::OK,
-    );
+    assert!(copy_resp.status() == StatusCode::CREATED || copy_resp.status() == StatusCode::OK,);
 
     let list_resp = app
         .clone()
@@ -185,7 +185,7 @@ async fn test_full_file_lifecycle_with_events() {
     assert_eq!(list_resp.status(), StatusCode::OK);
     let list_json = body_json(list_resp).await;
     let entries = list_json["entries"].as_array().unwrap();
-    assert!(entries.len() >= 1);
+    assert!(!entries.is_empty());
 
     let del_resp = app
         .clone()
@@ -237,15 +237,23 @@ async fn test_storage_operations_consistency() {
             .clone()
             .oneshot(
                 Request::builder()
-                .method("POST")
-                .uri("/api/v1/files/mkdir")
-                .header("content-type", "application/json")
-                .body(Body::from(format!(r#"{{"path": "/consistency-dir-{}"}}"#, i)))
-                .unwrap(),
+                    .method("POST")
+                    .uri("/api/v1/files/mkdir")
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(
+                        r#"{{"path": "/consistency-dir-{}"}}"#,
+                        i
+                    )))
+                    .unwrap(),
             )
             .await
             .unwrap();
-        assert_eq!(resp.status(), StatusCode::CREATED, "MKCOL dir-{} should succeed", i);
+        assert_eq!(
+            resp.status(),
+            StatusCode::CREATED,
+            "MKCOL dir-{} should succeed",
+            i
+        );
     }
 
     for i in 0..10 {
@@ -253,14 +261,19 @@ async fn test_storage_operations_consistency() {
             .clone()
             .oneshot(
                 Request::builder()
-                .method("PUT")
-                .uri(format!("/api/v1/files/consistency-dir-{}/file.txt", i))
-                .body(Body::from(format!("content {}", i)))
-                .unwrap(),
+                    .method("PUT")
+                    .uri(format!("/api/v1/files/consistency-dir-{}/file.txt", i))
+                    .body(Body::from(format!("content {}", i)))
+                    .unwrap(),
             )
             .await
             .unwrap();
-        assert_eq!(resp.status(), StatusCode::CREATED, "PUT dir-{} file should succeed", i);
+        assert_eq!(
+            resp.status(),
+            StatusCode::CREATED,
+            "PUT dir-{} file should succeed",
+            i
+        );
     }
 
     for i in 0..10 {
@@ -268,9 +281,9 @@ async fn test_storage_operations_consistency() {
             .clone()
             .oneshot(
                 Request::builder()
-                .uri(format!("/api/v1/files/consistency-dir-{}/file.txt", i))
-                .body(Body::empty())
-                .unwrap(),
+                    .uri(format!("/api/v1/files/consistency-dir-{}/file.txt", i))
+                    .body(Body::empty())
+                    .unwrap(),
             )
             .await
             .unwrap();
@@ -283,9 +296,9 @@ async fn test_storage_operations_consistency() {
         .clone()
         .oneshot(
             Request::builder()
-            .uri("/api/v1/files?path=/consistency-dir-0")
-            .body(Body::empty())
-            .unwrap(),
+                .uri("/api/v1/files?path=/consistency-dir-0")
+                .body(Body::empty())
+                .unwrap(),
         )
         .await
         .unwrap();
@@ -299,10 +312,10 @@ async fn test_storage_operations_consistency() {
             .clone()
             .oneshot(
                 Request::builder()
-                .method("DELETE")
-                .uri(format!("/api/v1/files/consistency-dir-{}/file.txt", i))
-                .body(Body::empty())
-                .unwrap(),
+                    .method("DELETE")
+                    .uri(format!("/api/v1/files/consistency-dir-{}/file.txt", i))
+                    .body(Body::empty())
+                    .unwrap(),
             )
             .await
             .unwrap();
@@ -319,10 +332,10 @@ async fn test_storage_operations_consistency() {
             .clone()
             .oneshot(
                 Request::builder()
-                .method("DELETE")
-                .uri(format!("/api/v1/files/consistency-dir-{}", i))
-                .body(Body::empty())
-                .unwrap(),
+                    .method("DELETE")
+                    .uri(format!("/api/v1/files/consistency-dir-{}", i))
+                    .body(Body::empty())
+                    .unwrap(),
             )
             .await
             .unwrap();

@@ -1,4 +1,4 @@
-use crate::embedding::{cosine_similarity, EmbeddingModel};
+use crate::embedding::{EmbeddingModel, cosine_similarity};
 use crate::error::AiError;
 use dashmap::DashMap;
 use serde_json::Value;
@@ -35,13 +35,7 @@ impl SemanticIndex {
         }
     }
 
-    pub fn add(
-        &self,
-        id: &str,
-        path: &str,
-        content: &str,
-        metadata: Value,
-    ) -> Result<(), AiError> {
+    pub fn add(&self, id: &str, path: &str, content: &str, metadata: Value) -> Result<(), AiError> {
         let embedding = self.model.embed_text(content)?;
         if embedding.len() != self.dimension {
             return Err(AiError::EmbeddingFailed {
@@ -163,8 +157,13 @@ mod tests {
             .unwrap();
         idx.add("b", "/b.txt", "cooking recipes pasta", Value::Null)
             .unwrap();
-        idx.add("c", "/c.txt", "advanced rust systems programming", Value::Null)
-            .unwrap();
+        idx.add(
+            "c",
+            "/c.txt",
+            "advanced rust systems programming",
+            Value::Null,
+        )
+        .unwrap();
 
         let results = idx.search("rust programming", 5, 0.0).unwrap();
         assert!(results.len() >= 2);
@@ -206,7 +205,8 @@ mod tests {
         let before = idx.search("original content", 1, 0.0).unwrap();
         assert_eq!(before.len(), 1);
 
-        idx.reindex("doc1", "completely different text now").unwrap();
+        idx.reindex("doc1", "completely different text now")
+            .unwrap();
         let after_orig = idx.search("original content", 1, 0.5).unwrap();
         assert_eq!(after_orig.len(), 0);
     }

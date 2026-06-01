@@ -196,7 +196,11 @@ mod tests {
         let mut chunker = Chunker::new(config.clone());
         let data: Vec<u8> = (0..2000).map(|i| (i % 256) as u8).collect();
         let chunks = chunker.chunk_bytes(&data);
-        assert!(chunks.len() > 1, "expected multiple chunks, got {}", chunks.len());
+        assert!(
+            chunks.len() > 1,
+            "expected multiple chunks, got {}",
+            chunks.len()
+        );
 
         let total_size: u32 = chunks.iter().map(|c| c.size).sum();
         assert_eq!(total_size, data.len() as u32);
@@ -205,12 +209,10 @@ mod tests {
             assert!(chunk.size <= config.max_chunk_size as u32);
         }
 
-        let mut expected_index = 0u32;
         let mut expected_offset = 0u64;
-        for chunk in &chunks {
-            assert_eq!(chunk.index, expected_index);
+        for (i, chunk) in chunks.iter().enumerate() {
+            assert_eq!(chunk.index, i as u32);
             assert_eq!(chunk.offset, expected_offset);
-            expected_index += 1;
             expected_offset += chunk.size as u64;
         }
     }
@@ -257,7 +259,7 @@ mod tests {
         let mut chunker = Chunker::new(config.clone());
         let exactly_max: Vec<u8> = (0..200).map(|i| (i % 256) as u8).collect();
         let chunks = chunker.chunk_bytes(&exactly_max);
-        assert!(chunks.len() >= 1);
+        assert!(!chunks.is_empty());
         for chunk in &chunks {
             assert!(chunk.size <= 200);
         }

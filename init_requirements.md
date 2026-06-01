@@ -34,7 +34,7 @@ Ferro focuses on industry-standard protocols to ensure maximum compatibility wit
 ---
 
 ### III. The "Active FS" & Extensibility (WASM)
-Ferro isn't just a place to store files; it's a place to process them.
+Ferro provides not only file storage, but also a server-side file processing pipeline through WASM plugins.
 
 *   **Wasmtime Integration:** Ferro embeds a WebAssembly runtime.
 *   **File Workers:** Developers can write plugins in any language (Rust, AssemblyScript, Go) that compile to WASM. 
@@ -93,4 +93,4 @@ The features that make Ferro a "boring, safe choice" for IT departments.
 4.  **Phase 4 (The Desktop):** Tauri wrapper for rclone to provide the "one-click" mount experience.
 5.  **Phase 5 (The Intelligence):** Tantivy search integration and WASM worker runtime.
 
-**Why Ferro wins:** It is a 100% Rust, type-safe, memory-safe, and high-performance alternative to the bloated incumbents. It leverages the best-in-class VFS (rclone) rather than reinventing it, and it offers the enterprise "governance" they actually need.
+**Design rationale:** Ferro is a 100% Rust, type-safe, memory-safe, and high-performance alternative to incumbent PHP-based platforms. It leverages rclone's battle-tested VFS layer rather than reimplementing storage backends, and provides enterprise-grade governance features (OIDC, Cedar authorization, audit logging).

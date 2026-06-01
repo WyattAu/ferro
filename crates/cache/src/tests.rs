@@ -72,7 +72,11 @@ fn test_len_and_is_empty() {
 #[test]
 fn test_ttl_expiry() {
     let cache = make_cache();
-    cache.set("key".to_string(), "value".to_string(), Some(Duration::from_micros(100)));
+    cache.set(
+        "key".to_string(),
+        "value".to_string(),
+        Some(Duration::from_micros(100)),
+    );
     std::thread::sleep(Duration::from_millis(5));
     assert_eq!(cache.get(&"key".to_string()), None);
 }
@@ -181,7 +185,11 @@ fn test_max_size_rejects_when_full() {
 #[test]
 fn test_cleanup_expired() {
     let cache = make_cache();
-    cache.set("a".to_string(), "1".to_string(), Some(Duration::from_micros(100)));
+    cache.set(
+        "a".to_string(),
+        "1".to_string(),
+        Some(Duration::from_micros(100)),
+    );
     cache.set("b".to_string(), "2".to_string(), None);
     std::thread::sleep(Duration::from_millis(5));
     let removed = cache.cleanup_expired();

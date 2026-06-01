@@ -278,7 +278,7 @@ fn is_admin(state: &AppState, user_id: &str) -> bool {
 }
 
 async fn log_comment_audit(state: &AppState, method: &str, path: &str, user: &str) {
-    let _ = state
+    state
         .audit_log
         .log(audit::build_audit_entry(
             method, path, user, 200, None, None,
@@ -301,7 +301,7 @@ pub async fn list_comments_handler(
 
     match state.comments.list_comments(&params.path) {
         Ok(comments) => {
-            let _ = state
+            state
                 .audit_log
                 .log(audit::build_audit_entry(
                     "GET",

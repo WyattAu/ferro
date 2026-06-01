@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -74,10 +74,7 @@ pub struct QuotaManager {
 }
 
 impl QuotaManager {
-    pub fn new(
-        tenant_store: Arc<dyn TenantStore>,
-        usage_tracker: Arc<dyn UsageTracker>,
-    ) -> Self {
+    pub fn new(tenant_store: Arc<dyn TenantStore>, usage_tracker: Arc<dyn UsageTracker>) -> Self {
         Self {
             tenant_store,
             usage_tracker,
@@ -129,8 +126,8 @@ impl QuotaManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tenant::{InMemoryTenantStore, Tenant, TenantId, TenantStatus};
     use crate::organization::OrganizationId;
+    use crate::tenant::{InMemoryTenantStore, Tenant, TenantId, TenantStatus};
     use chrono::Utc;
 
     fn make_test_tenant(id: &str, slug: &str) -> Tenant {

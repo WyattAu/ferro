@@ -1,16 +1,16 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 3.0.0 | **Date:** 2026-05-30 | **Status:** Release Candidate Preparation
+**Version:** 3.0.0 | **Date:** 2026-06-01 | **Status:** Release Candidate Preparation
 
 ---
 
-## Current State (2026-05-31)
+## Current State (2026-06-01)
 
 | Metric | Value |
 |--------|-------|
 | Crates | 43 |
-| Tests | 1624 passed, 0 failed, 0 ignored |
-| Code | 106,938 lines Rust |
+| Tests | 1938 passed, 0 failed, 0 ignored |
+| Code | ~107K lines Rust |
 | Clippy warnings | 0 |
 | Security audit | Self-audit complete, 14 findings fixed (F001-F013 + F002) |
 | Pen test | 33 security tests + 44 integration tests + 91 wiring tests |
@@ -22,6 +22,36 @@
 | Competitive gaps | 0 remaining (all 25 closed) |
 
 ## What Was Just Completed
+
+### 2026-06-01 (v3.0.7): Audit Cycle 7 - Clippy Modernization, DoS Fix, CI Optimization, UI Fixes
+
+**Clippy Modernization (15 files):**
+- Fixed 10+ clippy lints triggered by newer Rust 1.95 clippy: `useless_conversion`, `unnecessary_to_owned`, `cloned_ref_to_slice_refs`, `bool_assert_comparison`, `len_zero`, `field_assignment_outside_initializer`, `identical_blocks`, `borrowed_expression`
+- All 43 crates pass `cargo clippy -- -D warnings` with all features enabled
+
+**Security Fix -- DoS Vector Eliminated:**
+- `crates/server/src/sync/blocks.rs`: Replaced 5 `.expect()` calls that parsed `ContentHash` from untrusted HTTP input (path parameters, query parameters, request bodies) with proper error handling returning `400 Bad Request`. These would panic the entire server on malformed input, constituting a denial-of-service vector.
+
+**Test Fixes (3 tests):**
+- `reconciler::test_conflict_edit_edit`: Fixed path mismatch in test (local `/file.txt` vs remote `/conflict.txt`)
+- `cedar_default_is_deny`: Corrected test premise -- Cedar denies by default when no policies are loaded (correct secure behavior)
+- `api_key_permission_hierarchy`: Updated test after F013 bug fix was applied (Write no longer allows admin)
+
+**CI/CD Optimization:**
+- Added `concurrency` groups to `checks.yml`, `bench.yml`, `extended-checks.yml` (cancel redundant runs)
+- Added `--locked` to `cargo clippy`, `cargo llvm-cov`, and `test-pg` for reproducibility
+- Added `fail-fast: false` to release build matrix (independent platform diagnostics)
+- Added `retention-days: 7` to CI artifacts in `checks.yml`
+- Restricted Dependabot auto-merge to `cargo` ecosystem only (prevents GitHub Actions auto-merge)
+
+**UI/UX Fixes:**
+- Added 3 missing CSS classes: `.text-muted`, `.border-t-3`, `.border-t-accent`
+- Added vendor prefixes: `-webkit-backdrop-filter`, `-webkit-appearance`, `-moz-appearance`
+
+**Documentation Updates:**
+- Updated VERSION.md test count to 1938 (from 1237)
+- Updated RELEASE_NOTES.md current version reference to v3.0.0
+- Removed marketing language from init_requirements.md
 
 ### 2026-05-31 (v3.0.6): Audit Cycle 6 - Feature Expansion (10 New Crates, 165 Tests)
 

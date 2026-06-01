@@ -1,8 +1,8 @@
 use wasmtime::Module;
 
-use crate::error::WasmHostError;
-use crate::sandbox::{validate_plugin, check_instance_limit};
 use crate::WasmHost;
+use crate::error::WasmHostError;
+use crate::sandbox::{check_instance_limit, validate_plugin};
 
 #[derive(Debug)]
 pub struct ValidationResult {
@@ -75,9 +75,7 @@ impl WasmHost {
         Ok(())
     }
 
-    pub fn validate_plugin_bytes(
-        wasm_bytes: &[u8],
-    ) -> Result<ValidationResult, WasmHostError> {
+    pub fn validate_plugin_bytes(wasm_bytes: &[u8]) -> Result<ValidationResult, WasmHostError> {
         validate_plugin(wasm_bytes)
     }
 

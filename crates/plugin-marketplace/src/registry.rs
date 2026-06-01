@@ -82,13 +82,20 @@ impl PluginRegistry {
                 .map(|entry| entry.value().clone())
                 .collect()
         } else {
-            self.plugins.iter().map(|entry| entry.value().clone()).collect()
+            self.plugins
+                .iter()
+                .map(|entry| entry.value().clone())
+                .collect()
         };
 
         match sort_by {
             SortField::Name => result.sort_by_key(|a| a.name.clone()),
             SortField::Downloads => result.sort_by_key(|b| std::cmp::Reverse(b.downloads)),
-            SortField::Rating => result.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap_or(std::cmp::Ordering::Equal)),
+            SortField::Rating => result.sort_by(|a, b| {
+                b.rating
+                    .partial_cmp(&a.rating)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }),
             SortField::Updated => result.sort_by_key(|b| std::cmp::Reverse(b.updated_at)),
         }
         result
@@ -102,7 +109,10 @@ impl PluginRegistry {
                 let meta = entry.value();
                 meta.name.to_lowercase().contains(&query_lower)
                     || meta.description.to_lowercase().contains(&query_lower)
-                    || meta.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
+                    || meta
+                        .tags
+                        .iter()
+                        .any(|t| t.to_lowercase().contains(&query_lower))
             })
             .map(|entry| entry.value().clone())
             .collect()
@@ -147,7 +157,11 @@ impl PluginRegistry {
         Ok(())
     }
 
-    pub fn install_with_dependencies(&self, manifest: &PluginManifest, version: &Version) -> Result<(), MarketplaceError> {
+    pub fn install_with_dependencies(
+        &self,
+        manifest: &PluginManifest,
+        version: &Version,
+    ) -> Result<(), MarketplaceError> {
         for dep in &manifest.dependencies {
             let meta = self.plugins.get(&dep.plugin_id).ok_or_else(|| {
                 MarketplaceError::PluginNotFound {
@@ -193,7 +207,10 @@ impl PluginRegistry {
     }
 
     pub fn installed_plugins(&self) -> Vec<PluginInstallation> {
-        self.installations.iter().map(|r| r.value().clone()).collect()
+        self.installations
+            .iter()
+            .map(|r| r.value().clone())
+            .collect()
     }
 
     pub fn add_review(&self, id: &PluginId, review: PluginReview) -> Result<(), MarketplaceError> {
@@ -223,7 +240,13 @@ mod tests {
     use super::*;
     use crate::plugin::{PluginDependency, PluginReview};
 
-    fn make_metadata(id: &str, name: &str, version: Version, abi: &str, tags: Vec<&str>) -> PluginMetadata {
+    fn make_metadata(
+        id: &str,
+        name: &str,
+        version: Version,
+        abi: &str,
+        tags: Vec<&str>,
+    ) -> PluginMetadata {
         PluginMetadata {
             id: PluginId::from_str_unchecked(id),
             name: name.to_string(),
@@ -246,7 +269,13 @@ mod tests {
         }
     }
 
-    fn make_manifest(id: &str, name: &str, version: Version, abi: &str, tags: Vec<&str>) -> PluginManifest {
+    fn make_manifest(
+        id: &str,
+        name: &str,
+        version: Version,
+        abi: &str,
+        tags: Vec<&str>,
+    ) -> PluginManifest {
         PluginManifest {
             metadata: make_metadata(id, name, version, abi, tags),
             wasm_url: Url::parse("https://example.com/plugin.wasm").unwrap(),

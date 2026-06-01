@@ -164,21 +164,25 @@ impl SearchIndex {
             matching_docs.retain(|_, (score, _, _)| *score > 0.0);
         }
 
-        matching_docs.retain(|_, (score, _, _)| {
-            filter.min_score.is_none_or(|min| *score >= min)
-        });
+        matching_docs.retain(|_, (score, _, _)| filter.min_score.is_none_or(|min| *score >= min));
 
         let mut results: Vec<SearchResult> = matching_docs
             .into_iter()
-            .map(|(doc_id, (score, matched_fields, highlights))| SearchResult {
-                document_id: doc_id,
-                score,
-                matched_fields,
-                highlights,
-            })
+            .map(
+                |(doc_id, (score, matched_fields, highlights))| SearchResult {
+                    document_id: doc_id,
+                    score,
+                    matched_fields,
+                    highlights,
+                },
+            )
             .collect();
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let offset = filter.offset.min(results.len());
         results = results.into_iter().skip(offset).collect();
@@ -241,10 +245,7 @@ impl SearchIndex {
         self.index_document(doc);
     }
 
-    fn evaluate_query(
-        &self,
-        query: &Query,
-    ) -> ScoreMap {
+    fn evaluate_query(&self, query: &Query) -> ScoreMap {
         let mut scores: ScoreMap = HashMap::new();
 
         let ranker = Ranker::new(
@@ -320,12 +321,7 @@ impl SearchIndex {
         scores
     }
 
-    fn score_term(
-        &self,
-        term: &str,
-        ranker: &Ranker,
-        scores: &mut ScoreMap,
-    ) {
+    fn score_term(&self, term: &str, ranker: &Ranker, scores: &mut ScoreMap) {
         let term_lower = term.to_lowercase();
         if let Some(postings) = self.inverted.get_postings(&term_lower) {
             let df = postings
@@ -383,17 +379,10 @@ impl SearchIndex {
         }
     }
 
-    fn score_field_term(
-        &self,
-        field: &str,
-        term: &str,
-        ranker: &Ranker,
-        scores: &mut ScoreMap,
-    ) {
+    fn score_field_term(&self, field: &str, term: &str, ranker: &Ranker, scores: &mut ScoreMap) {
         let term_lower = term.to_lowercase();
         if let Some(postings) = self.inverted.get_postings(&term_lower) {
-            let field_postings: Vec<_> =
-                postings.iter().filter(|p| p.field == field).collect();
+            let field_postings: Vec<_> = postings.iter().filter(|p| p.field == field).collect();
             let df = field_postings.len();
             for posting in &field_postings {
                 let tf = posting.positions.len() as f64;
@@ -413,12 +402,7 @@ impl SearchIndex {
         }
     }
 
-    fn score_phrase(
-        &self,
-        terms: &[String],
-        ranker: &Ranker,
-        scores: &mut ScoreMap,
-    ) {
+    fn score_phrase(&self, terms: &[String], ranker: &Ranker, scores: &mut ScoreMap) {
         if terms.is_empty() {
             return;
         }
@@ -467,8 +451,7 @@ impl SearchIndex {
                 if Self::has_phrase_match(&field_postings) {
                     let phrase_score = ranker.tf_idf(1.0, 1, term_lower.len());
                     let boost = ranker.field_boost(field_name);
-                    let hl =
-                        self.highlight_phrase(doc_id, field_name, &terms.join(" "));
+                    let hl = self.highlight_phrase(doc_id, field_name, &terms.join(" "));
                     let hl_empty = hl.is_empty();
 
                     scores
@@ -565,8 +548,7 @@ impl SearchIndex {
 
         for indexed_term in indexed_terms {
             let max_dist = (term.len() / 3).clamp(1, 3);
-            if let Some(similarity) =
-                fuzzy::fuzzy_match(&term_lower, &indexed_term, max_dist)
+            if let Some(similarity) = fuzzy::fuzzy_match(&term_lower, &indexed_term, max_dist)
                 && let Some(postings) = self.inverted.get_postings(&indexed_term)
             {
                 for posting in postings.iter() {
@@ -630,10 +612,7 @@ mod tests {
         let mut boosts = HashMap::new();
         boosts.insert("name".to_string(), 2.0);
         boosts.insert("path".to_string(), 1.0);
-        SearchIndex::with_boosts(
-            vec!["name".to_string(), "path".to_string()],
-            boosts,
-        )
+        SearchIndex::with_boosts(vec!["name".to_string(), "path".to_string()], boosts)
     }
 
     #[test]
@@ -641,8 +620,12 @@ mod tests {
         let idx = make_index();
         idx.add_document(make_doc("1", "report.pdf", "/docs/report.pdf"))
             .unwrap();
-        idx.add_document(make_doc("2", "presentation.pptx", "/docs/presentation.pptx"))
-            .unwrap();
+        idx.add_document(make_doc(
+            "2",
+            "presentation.pptx",
+            "/docs/presentation.pptx",
+        ))
+        .unwrap();
         idx.add_document(make_doc("3", "budget.xlsx", "/finance/budget.xlsx"))
             .unwrap();
 
@@ -724,7 +707,7 @@ mod tests {
         };
 
         assert!(
-            avg_rare > avg_common || rare_results.len() > 0,
+            avg_rare > avg_common || !rare_results.is_empty(),
             "Rare term 'unique' should score higher than common term 'the'"
         );
     }
@@ -913,10 +896,13 @@ mod tests {
         let mut new_fields = HashMap::new();
         new_fields.insert("name".to_string(), "updated.pdf".to_string());
         new_fields.insert("path".to_string(), "/docs/updated.pdf".to_string());
-        idx.update_document("1", DocumentUpdate {
-            fields: Some(new_fields),
-            metadata: None,
-        })
+        idx.update_document(
+            "1",
+            DocumentUpdate {
+                fields: Some(new_fields),
+                metadata: None,
+            },
+        )
         .unwrap();
 
         let results = idx.search("updated");
@@ -1014,8 +1000,10 @@ mod tests {
 
         let _all_results = idx.search("common OR rareword");
 
-        let mut filter = SearchFilter::default();
-        filter.min_score = Some(f64::MAX);
+        let filter = SearchFilter {
+            min_score: Some(f64::MAX),
+            ..Default::default()
+        };
         let filtered = idx.search_with_filter("common OR rareword", filter);
         assert!(filtered.is_empty());
     }
@@ -1030,14 +1018,18 @@ mod tests {
                 .unwrap();
         }
 
-        let mut filter = SearchFilter::default();
-        filter.limit = 3;
+        let filter = SearchFilter {
+            limit: 3,
+            ..Default::default()
+        };
         let results = idx.search_with_filter("document", filter);
         assert_eq!(results.len(), 3);
 
-        let mut filter2 = SearchFilter::default();
-        filter2.offset = 5;
-        filter2.limit = 100;
+        let filter2 = SearchFilter {
+            offset: 5,
+            limit: 100,
+            ..Default::default()
+        };
         let results2 = idx.search_with_filter("document", filter2);
         assert_eq!(results2.len(), 5);
     }
@@ -1110,7 +1102,7 @@ mod tests {
 
         let results = idx.search("report");
         assert_eq!(results.len(), 1);
-        assert!(results[0].highlights.contains_key(&"name".to_string()));
+        assert!(results[0].highlights.contains_key("name"));
         let hl = &results[0].highlights["name"];
         assert!(hl.contains("**report**"));
     }
@@ -1268,10 +1260,13 @@ mod tests {
         let mut new_fields = HashMap::new();
         new_fields.insert("name".to_string(), "replaced.txt".to_string());
         new_fields.insert("path".to_string(), "/replaced.txt".to_string());
-        idx.update_document("1", DocumentUpdate {
-            fields: Some(new_fields),
-            metadata: None,
-        })
+        idx.update_document(
+            "1",
+            DocumentUpdate {
+                fields: Some(new_fields),
+                metadata: None,
+            },
+        )
         .unwrap();
 
         let old_results = idx.search("original");

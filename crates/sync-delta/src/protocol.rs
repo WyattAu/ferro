@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::chunker::ChunkInfo;
 use crate::diff::BlockDiffResult;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncMessage {

@@ -2,8 +2,8 @@
 //!
 //! Provides helpers for tenant management and isolation.
 
-use ferro_multi_tenant::tenant::{Tenant, TenantId, TenantStatus, InMemoryTenantStore};
 use ferro_multi_tenant::organization::OrganizationId;
+use ferro_multi_tenant::tenant::{InMemoryTenantStore, Tenant, TenantId, TenantStatus};
 
 pub fn create_tenant_record(
     org_id: &str,

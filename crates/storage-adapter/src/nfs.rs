@@ -50,15 +50,15 @@ impl NfsBackend for MockNfsBackend {
                 "already mounted at {mount_point}"
             )));
         }
-        self.mounts.insert(mount_point.to_string(), remote.to_string());
+        self.mounts
+            .insert(mount_point.to_string(), remote.to_string());
         Ok(())
     }
 
     async fn unmount(&self, mount_point: &str) -> Result<(), StorageAdapterError> {
-        self.mounts
-            .remove(mount_point)
-            .map(|_| ())
-            .ok_or_else(|| StorageAdapterError::MountFailed(format!("not mounted at {mount_point}")))
+        self.mounts.remove(mount_point).map(|_| ()).ok_or_else(|| {
+            StorageAdapterError::MountFailed(format!("not mounted at {mount_point}"))
+        })
     }
 
     async fn is_mounted(&self, mount_point: &str) -> bool {

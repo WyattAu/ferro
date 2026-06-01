@@ -1,5 +1,5 @@
-use ferro_event_bus::event::FileEvent;
 use ferro_event_bus::EventBus;
+use ferro_event_bus::event::FileEvent;
 
 pub fn create_event_bus() -> EventBus {
     EventBus::new()

@@ -20,24 +20,19 @@ pub fn normalize_to_smb(path: &str) -> String {
 
 #[cfg(feature = "smb")]
 fn filetime_to_datetime(ft: smb2::pack::FileTime) -> Option<DateTime<Utc>> {
-    ft.to_system_time()
-        .map(DateTime::<Utc>::from)
+    ft.to_system_time().map(DateTime::<Utc>::from)
 }
 
 #[cfg(feature = "smb")]
 fn map_smb_error(e: smb2::Error, context: &str) -> StorageAdapterError {
     match e.kind() {
         smb2::ErrorKind::NotFound => StorageAdapterError::NotFound(context.to_string()),
-        smb2::ErrorKind::AccessDenied => {
-            StorageAdapterError::PermissionDenied(context.to_string())
-        }
+        smb2::ErrorKind::AccessDenied => StorageAdapterError::PermissionDenied(context.to_string()),
         smb2::ErrorKind::DiskFull => StorageAdapterError::QuotaExceeded(context.to_string()),
         smb2::ErrorKind::ConnectionLost => {
             StorageAdapterError::ConnectionFailed(context.to_string())
         }
-        smb2::ErrorKind::AuthRequired => {
-            StorageAdapterError::PermissionDenied(context.to_string())
-        }
+        smb2::ErrorKind::AuthRequired => StorageAdapterError::PermissionDenied(context.to_string()),
         _ => StorageAdapterError::IoError(std::io::Error::other(e.to_string())),
     }
 }
@@ -348,10 +343,7 @@ mod tests {
             command: Command::Read,
         };
         let mapped = map_smb_error(err, "get /secret");
-        assert!(matches!(
-            mapped,
-            StorageAdapterError::PermissionDenied(_)
-        ));
+        assert!(matches!(mapped, StorageAdapterError::PermissionDenied(_)));
     }
 
     #[cfg(feature = "smb")]
@@ -372,10 +364,7 @@ mod tests {
     fn test_map_smb_error_connection_lost() {
         let err = smb2::Error::Disconnected;
         let mapped = map_smb_error(err, "read /x");
-        assert!(matches!(
-            mapped,
-            StorageAdapterError::ConnectionFailed(_)
-        ));
+        assert!(matches!(mapped, StorageAdapterError::ConnectionFailed(_)));
     }
 
     #[cfg(feature = "smb")]

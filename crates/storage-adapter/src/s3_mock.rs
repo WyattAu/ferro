@@ -47,7 +47,8 @@ impl MockS3Backend {
     pub async fn start_multipart(&self, bucket: &str, key: &str) -> String {
         let _path = self.normalize_key(bucket, key);
         let upload_id = uuid::Uuid::new_v4().to_string();
-        self.multipart.insert(upload_id.clone(), MultipartUpload { parts: Vec::new() });
+        self.multipart
+            .insert(upload_id.clone(), MultipartUpload { parts: Vec::new() });
         upload_id
     }
 
@@ -193,7 +194,9 @@ mod tests {
     #[tokio::test]
     async fn test_put_get_lifecycle() {
         let b = MockS3Backend::new();
-        b.put("mybucket/key", b"val", &ObjectMetadata::new()).await.unwrap();
+        b.put("mybucket/key", b"val", &ObjectMetadata::new())
+            .await
+            .unwrap();
         assert_eq!(b.get("mybucket/key").await.unwrap(), b"val");
         b.delete("mybucket/key").await.unwrap();
         assert!(b.get("mybucket/key").await.is_err());
@@ -224,9 +227,15 @@ mod tests {
     #[tokio::test]
     async fn test_list_by_prefix() {
         let b = MockS3Backend::new();
-        b.put("bucket/a", b"1", &ObjectMetadata::new()).await.unwrap();
-        b.put("bucket/b", b"2", &ObjectMetadata::new()).await.unwrap();
-        b.put("other/x", b"3", &ObjectMetadata::new()).await.unwrap();
+        b.put("bucket/a", b"1", &ObjectMetadata::new())
+            .await
+            .unwrap();
+        b.put("bucket/b", b"2", &ObjectMetadata::new())
+            .await
+            .unwrap();
+        b.put("other/x", b"3", &ObjectMetadata::new())
+            .await
+            .unwrap();
         let items = b.list("bucket/").await.unwrap();
         assert_eq!(items.len(), 2);
     }

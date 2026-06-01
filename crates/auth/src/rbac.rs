@@ -176,18 +176,14 @@ mod tests {
 
     #[test]
     fn test_generate_admin_role() {
-        let policy = generate_role_policies(&[
-            ("alice".into(), UserRole::Admin),
-        ]);
+        let policy = generate_role_policies(&[("alice".into(), UserRole::Admin)]);
         assert!(policy.contains("User::\"alice\""));
         assert!(policy.contains("Action::\"admin\""));
     }
 
     #[test]
     fn test_generate_user_role_no_admin() {
-        let policy = generate_role_policies(&[
-            ("bob".into(), UserRole::User),
-        ]);
+        let policy = generate_role_policies(&[("bob".into(), UserRole::User)]);
         assert!(policy.contains("User::\"bob\""));
         assert!(policy.contains("Action::\"read\""));
         assert!(policy.contains("Action::\"write\""));
@@ -196,9 +192,7 @@ mod tests {
 
     #[test]
     fn test_generate_readonly_role_limited() {
-        let policy = generate_role_policies(&[
-            ("charlie".into(), UserRole::ReadOnly),
-        ]);
+        let policy = generate_role_policies(&[("charlie".into(), UserRole::ReadOnly)]);
         assert!(policy.contains("Action::\"read\""));
         assert!(policy.contains("Action::\"list\""));
         assert!(!policy.contains("Action::\"write\""));
@@ -253,17 +247,26 @@ mod tests {
         let json = serde_json::to_string(role).unwrap();
         let deser: RolePreset = serde_json::from_str(&json).unwrap();
         assert_eq!(deser.id, role.id);
-        assert_eq!(deser.is_system, true);
+        assert!(deser.is_system);
     }
 
     #[test]
     fn test_parse_role_name() {
         assert!(matches!(parse_role_name("admin"), Some(UserRole::Admin)));
-        assert!(matches!(parse_role_name("Administrator"), Some(UserRole::Admin)));
+        assert!(matches!(
+            parse_role_name("Administrator"),
+            Some(UserRole::Admin)
+        ));
         assert!(matches!(parse_role_name("user"), Some(UserRole::User)));
         assert!(matches!(parse_role_name("Standard"), Some(UserRole::User)));
-        assert!(matches!(parse_role_name("readonly"), Some(UserRole::ReadOnly)));
-        assert!(matches!(parse_role_name("Read-Only"), Some(UserRole::ReadOnly)));
+        assert!(matches!(
+            parse_role_name("readonly"),
+            Some(UserRole::ReadOnly)
+        ));
+        assert!(matches!(
+            parse_role_name("Read-Only"),
+            Some(UserRole::ReadOnly)
+        ));
         assert!(matches!(parse_role_name("Guest"), Some(UserRole::ReadOnly)));
         assert!(parse_role_name("nonexistent").is_none());
     }
@@ -274,7 +277,9 @@ mod tests {
             ("alice".into(), UserRole::Admin),
             ("bob".into(), UserRole::User),
         ]);
-        let ps: cedar_policy::PolicySet = policy.parse().expect("Generated policy must parse as valid Cedar");
+        let ps: cedar_policy::PolicySet = policy
+            .parse()
+            .expect("Generated policy must parse as valid Cedar");
         assert!(ps.policies().count() >= 2);
     }
 }

@@ -24,7 +24,10 @@ pub struct ClusterMember {
 pub trait MembershipStore: Send + Sync {
     fn add_member(&self, member: ClusterMember) -> Result<(), crate::error::DistributedError>;
     fn remove_member(&self, node_id: &NodeId) -> Result<(), crate::error::DistributedError>;
-    fn get_member(&self, node_id: &NodeId) -> Result<Option<ClusterMember>, crate::error::DistributedError>;
+    fn get_member(
+        &self,
+        node_id: &NodeId,
+    ) -> Result<Option<ClusterMember>, crate::error::DistributedError>;
     fn list_members(&self) -> Vec<ClusterMember>;
     fn update_heartbeat(&self, node_id: &NodeId) -> Result<(), crate::error::DistributedError>;
     fn mark_suspect(&self, node_id: &NodeId) -> Result<(), crate::error::DistributedError>;
@@ -51,8 +54,7 @@ impl Default for InMemoryMembershipStore {
 
 impl MembershipStore for InMemoryMembershipStore {
     fn add_member(&self, member: ClusterMember) -> Result<(), crate::error::DistributedError> {
-        self.members
-            .insert(member.node_id.0.clone(), member);
+        self.members.insert(member.node_id.0.clone(), member);
         Ok(())
     }
 
@@ -61,7 +63,10 @@ impl MembershipStore for InMemoryMembershipStore {
         Ok(())
     }
 
-    fn get_member(&self, node_id: &NodeId) -> Result<Option<ClusterMember>, crate::error::DistributedError> {
+    fn get_member(
+        &self,
+        node_id: &NodeId,
+    ) -> Result<Option<ClusterMember>, crate::error::DistributedError> {
         Ok(self.members.get(&node_id.0).map(|m| m.value().clone()))
     }
 
@@ -99,7 +104,11 @@ pub struct FailureDetector {
 }
 
 impl FailureDetector {
-    pub fn new(store: Arc<InMemoryMembershipStore>, suspect_timeout: Duration, dead_timeout: Duration) -> Self {
+    pub fn new(
+        store: Arc<InMemoryMembershipStore>,
+        suspect_timeout: Duration,
+        dead_timeout: Duration,
+    ) -> Self {
         Self {
             store,
             suspect_timeout,
@@ -116,13 +125,18 @@ impl FailureDetector {
                 continue;
             }
             let elapsed = now.signed_duration_since(member.last_heartbeat);
-            if elapsed >= chrono::Duration::from_std(self.dead_timeout).unwrap_or(chrono::Duration::zero()) {
+            if elapsed
+                >= chrono::Duration::from_std(self.dead_timeout).unwrap_or(chrono::Duration::zero())
+            {
                 let _ = self.store.mark_dead(&member.node_id);
                 detected.push(member.node_id.clone());
-            } else if elapsed >= chrono::Duration::from_std(self.suspect_timeout).unwrap_or(chrono::Duration::zero())
-                && member.state != MemberState::Suspect {
-                    let _ = self.store.mark_suspect(&member.node_id);
-                }
+            } else if elapsed
+                >= chrono::Duration::from_std(self.suspect_timeout)
+                    .unwrap_or(chrono::Duration::zero())
+                && member.state != MemberState::Suspect
+            {
+                let _ = self.store.mark_suspect(&member.node_id);
+            }
         }
 
         detected
@@ -153,7 +167,12 @@ mod tests {
         assert_eq!(fetched.node_id.0, "node-1");
 
         store.remove_member(&NodeId("node-1".into())).unwrap();
-        assert!(store.get_member(&NodeId("node-1".into())).unwrap().is_none());
+        assert!(
+            store
+                .get_member(&NodeId("node-1".into()))
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]

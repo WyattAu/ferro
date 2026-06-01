@@ -107,9 +107,10 @@ impl RgaString {
             let node = &self.nodes[pos];
 
             if let Some(right) = origin_right
-                && node.id == *right {
-                    break;
-                }
+                && node.id == *right
+            {
+                break;
+            }
 
             if node.origin_left.as_ref() == origin_left.as_ref() && node.id < *id {
                 pos += 1;
@@ -180,10 +181,7 @@ impl RgaString {
         let mut ops = Vec::new();
         for target in targets {
             let del_id = self.next_id(site_id);
-            ops.push(TextOperation::Delete {
-                id: del_id,
-                target,
-            });
+            ops.push(TextOperation::Delete { id: del_id, target });
         }
 
         for op in &ops {

@@ -286,12 +286,14 @@ impl SyncEngine {
     ) -> Result<super::progress::SyncSummary> {
         let summary = self.sync().await?;
 
-        progress
-            .total_files
-            .store(summary.uploaded + summary.downloaded, std::sync::atomic::Ordering::SeqCst);
-        progress
-            .total_bytes
-            .store(summary.bytes_transferred, std::sync::atomic::Ordering::SeqCst);
+        progress.total_files.store(
+            summary.uploaded + summary.downloaded,
+            std::sync::atomic::Ordering::SeqCst,
+        );
+        progress.total_bytes.store(
+            summary.bytes_transferred,
+            std::sync::atomic::Ordering::SeqCst,
+        );
 
         for _ in 0..summary.uploaded {
             progress.record_file(0);

@@ -85,7 +85,6 @@ pub struct CreateOrganization {
     pub settings: OrganizationSettings,
 }
 
-
 #[async_trait]
 pub trait OrganizationStore: Send + Sync {
     async fn create(&self, org: Organization) -> Result<Organization, TenantError>;
@@ -143,7 +142,9 @@ impl OrganizationStore for InMemoryOrganizationStore {
         self.orgs
             .get(id)
             .map(|entry| entry.value().clone())
-            .ok_or_else(|| TenantError::OrganizationNotFound { org_id: id.to_string() })
+            .ok_or_else(|| TenantError::OrganizationNotFound {
+                org_id: id.to_string(),
+            })
     }
 
     async fn update(&self, org: Organization) -> Result<Organization, TenantError> {
@@ -151,7 +152,9 @@ impl OrganizationStore for InMemoryOrganizationStore {
             self.orgs.insert(org.id.0.clone(), org.clone());
             Ok(org)
         } else {
-            Err(TenantError::OrganizationNotFound { org_id: org.id.0.clone() })
+            Err(TenantError::OrganizationNotFound {
+                org_id: org.id.0.clone(),
+            })
         }
     }
 
@@ -159,7 +162,9 @@ impl OrganizationStore for InMemoryOrganizationStore {
         self.orgs
             .remove(id)
             .map(|_| ())
-            .ok_or_else(|| TenantError::OrganizationNotFound { org_id: id.to_string() })
+            .ok_or_else(|| TenantError::OrganizationNotFound {
+                org_id: id.to_string(),
+            })
     }
 
     async fn list_by_owner(&self, owner_id: &str) -> Result<Vec<Organization>, TenantError> {
@@ -201,12 +206,12 @@ impl OrganizationStore for InMemoryOrganizationStore {
     }
 
     async fn get_members(&self, org_id: &str) -> Result<Vec<OrganizationMember>, TenantError> {
-        let member_map = self
-            .members
-            .get(org_id)
-            .ok_or_else(|| TenantError::OrganizationNotFound {
-                org_id: org_id.to_string(),
-            })?;
+        let member_map =
+            self.members
+                .get(org_id)
+                .ok_or_else(|| TenantError::OrganizationNotFound {
+                    org_id: org_id.to_string(),
+                })?;
         let members: Vec<OrganizationMember> = member_map
             .iter()
             .map(|entry| OrganizationMember {

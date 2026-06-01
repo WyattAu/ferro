@@ -2,7 +2,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use ferro_server::api::normalize_api_path;
 use ferro_server::security::validate_path;
-use ferro_server::{build_router, make_app, AppState};
+use ferro_server::{AppState, build_router, make_app};
 use tower::ServiceExt;
 
 async fn body_string(response: axum::response::Response) -> String {
@@ -33,10 +33,10 @@ async fn test_path_traversal_blocked_on_all_endpoints() {
             .clone()
             .oneshot(
                 Request::builder()
-                .method(*method)
-                .uri(*uri)
-                .body(Body::from("traversal attempt"))
-                .unwrap(),
+                    .method(*method)
+                    .uri(*uri)
+                    .body(Body::from("traversal attempt"))
+                    .unwrap(),
             )
             .await
             .unwrap();
@@ -64,9 +64,7 @@ async fn test_path_traversal_blocked_on_webdav_endpoints() {
 
     for (method, uri) in &webdav_traversal {
         let mut builder = Request::builder().method(*method).uri(*uri);
-        if *method == "COPY" {
-            builder = builder.header("Destination", "/../../tmp/b");
-        } else if *method == "MOVE" {
+        if *method == "COPY" || *method == "MOVE" {
             builder = builder.header("Destination", "/../../tmp/b");
         }
         let resp = app
@@ -110,14 +108,17 @@ async fn test_url_decoded_path_still_reachable() {
             .clone()
             .oneshot(
                 Request::builder()
-                .uri("/etc/passwd")
-                .body(Body::empty())
-                .unwrap(),
+                    .uri("/etc/passwd")
+                    .body(Body::empty())
+                    .unwrap(),
             )
             .await
             .unwrap();
-        assert_eq!(get.status(), StatusCode::NOT_FOUND,
-            "File stored under decoded path should not be accessible at the original traversal target");
+        assert_eq!(
+            get.status(),
+            StatusCode::NOT_FOUND,
+            "File stored under decoded path should not be accessible at the original traversal target"
+        );
     }
 }
 
@@ -137,8 +138,12 @@ async fn test_slash_encoded_path_normalization() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::CREATED,
-        "Slash-encoded path should work: got {}", resp.status());
+    assert_eq!(
+        resp.status(),
+        StatusCode::CREATED,
+        "Slash-encoded path should work: got {}",
+        resp.status()
+    );
 }
 
 #[tokio::test]
@@ -183,10 +188,10 @@ async fn test_reserved_filenames_blocked_on_upload() {
             .clone()
             .oneshot(
                 Request::builder()
-                .method("PUT")
-                .uri(format!("/api/v1/files/{}", name))
-                .body(Body::from("reserved"))
-                .unwrap(),
+                    .method("PUT")
+                    .uri(format!("/api/v1/files/{}", name))
+                    .body(Body::from("reserved"))
+                    .unwrap(),
             )
             .await
             .unwrap();

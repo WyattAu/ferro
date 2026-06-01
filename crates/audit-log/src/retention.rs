@@ -124,9 +124,9 @@ mod tests {
 
     #[test]
     fn test_retention_action_filter() {
-        let policy = RetentionPolicy::new().max_age(std::time::Duration::from_secs(3 * 86400)).action_filter(
-            vec![AuditAction::FileCreate],
-        );
+        let policy = RetentionPolicy::new()
+            .max_age(std::time::Duration::from_secs(3 * 86400))
+            .action_filter(vec![AuditAction::FileCreate]);
         let mut entries = vec![
             make_entry("1", 5, AuditAction::FileCreate),
             make_entry("2", 5, AuditAction::FileDelete),

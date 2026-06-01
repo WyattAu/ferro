@@ -62,25 +62,28 @@ impl TagPattern {
                     .unwrap_or(false)
             }
             TagPattern::ContentType { types } => content_type
-                .map(|ct| types.iter().any(|t| {
-                    ct.eq_ignore_ascii_case(t) || ct.starts_with(&format!("{t};"))
-                }))
+                .map(|ct| {
+                    types
+                        .iter()
+                        .any(|t| ct.eq_ignore_ascii_case(t) || ct.starts_with(&format!("{t};")))
+                })
                 .unwrap_or(false),
             TagPattern::PathPrefix { prefix } => path.starts_with(prefix),
-            TagPattern::SizeRange { min, max } => {
-                size.map(|s| {
+            TagPattern::SizeRange { min, max } => size
+                .map(|s| {
                     if let Some(min_val) = min
-                        && s < *min_val {
-                            return false;
-                        }
+                        && s < *min_val
+                    {
+                        return false;
+                    }
                     if let Some(max_val) = max
-                        && s > *max_val {
-                            return false;
-                        }
+                        && s > *max_val
+                    {
+                        return false;
+                    }
                     true
                 })
-                .unwrap_or(false)
-            }
+                .unwrap_or(false),
             TagPattern::Combined { rules } => rules
                 .iter()
                 .any(|r| r.pattern.matches(path, content_type, size)),
@@ -97,7 +100,12 @@ impl AutoTagger {
         Self { config }
     }
 
-    pub fn suggest_tags(&self, path: &str, content_type: Option<&str>, size: Option<u64>) -> Vec<Tag> {
+    pub fn suggest_tags(
+        &self,
+        path: &str,
+        content_type: Option<&str>,
+        size: Option<u64>,
+    ) -> Vec<Tag> {
         let mut tags: Vec<Tag> = Vec::new();
         for rule in &self.config.rules {
             if rule.confidence < self.config.min_confidence {

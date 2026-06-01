@@ -86,13 +86,23 @@ mod tests {
                 if line.contains("#[cfg(test)]") || line.contains("mod tests") {
                     test_context = true;
                 }
-                if test_context && line.contains("}") && !line.contains("#[") && !line.contains("fn ") {
+                if test_context
+                    && line.contains("}")
+                    && !line.contains("#[")
+                    && !line.contains("fn ")
+                {
                     test_context = false;
                 }
                 if test_context {
                     continue;
                 }
-                if line.contains("format!(") && (line.contains("SELECT") || line.contains("INSERT") || line.contains("UPDATE") || line.contains("DELETE") || line.contains("FROM")) {
+                if line.contains("format!(")
+                    && (line.contains("SELECT")
+                        || line.contains("INSERT")
+                        || line.contains("UPDATE")
+                        || line.contains("DELETE")
+                        || line.contains("FROM"))
+                {
                     violations.push((i + 1, line.trim().to_string()));
                 }
             }
@@ -101,7 +111,12 @@ mod tests {
                     eprintln!("SQL injection risk in {} line {}: {}", file, line_num, code);
                 }
             }
-            assert!(violations.is_empty(), "Found {} potential SQL injection via format! in {}", violations.len(), file);
+            assert!(
+                violations.is_empty(),
+                "Found {} potential SQL injection via format! in {}",
+                violations.len(),
+                file
+            );
         }
     }
 
@@ -110,9 +125,9 @@ mod tests {
     // ========================================================================
 
     mod auth {
-        use ferro_auth::api_keys::{hash_api_key, generate_raw_key, ApiKeyPermission};
-        use ferro_auth::users::{hash_password};
+        use ferro_auth::api_keys::{ApiKeyPermission, generate_raw_key, hash_api_key};
         use ferro_auth::cedar::CedarAuthorizer;
+        use ferro_auth::users::hash_password;
 
         #[test]
         fn test_api_key_entropy() {
@@ -144,28 +159,68 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn test_cedar_default_is_permissive() {
+        async fn test_cedar_default_is_deny() {
             let authorizer = CedarAuthorizer::new().unwrap();
-            assert!(authorizer.is_authorized_simple("anonymous", "read", "/f").await.unwrap());
-            assert!(authorizer.is_authorized_simple("anonymous", "write", "/f").await.unwrap());
-            assert!(authorizer.is_authorized_simple("anonymous", "delete", "/f").await.unwrap());
-            assert!(authorizer.is_authorized_simple("anonymous", "admin", "/f").await.unwrap());
+            // Cedar denies by default when no policies are loaded.
+            assert!(
+                !authorizer
+                    .is_authorized_simple("anonymous", "read", "/f")
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !authorizer
+                    .is_authorized_simple("anonymous", "write", "/f")
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !authorizer
+                    .is_authorized_simple("anonymous", "delete", "/f")
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !authorizer
+                    .is_authorized_simple("anonymous", "admin", "/f")
+                    .await
+                    .unwrap()
+            );
         }
 
         #[tokio::test]
         async fn test_cedar_restrictive_policy() {
             let authorizer = CedarAuthorizer::new().unwrap();
-            authorizer.load_policies(&[r#"
+            authorizer
+                .load_policies(&[r#"
                 @id("alice_read")
                 permit (
                     principal == User::"alice",
                     action in Action::"read",
                     resource
                 );
-            "#.to_string()]).await.unwrap();
-            assert!(authorizer.is_authorized_simple("alice", "read", "/f").await.unwrap());
-            assert!(!authorizer.is_authorized_simple("bob", "read", "/f").await.unwrap());
-            assert!(!authorizer.is_authorized_simple("alice", "write", "/f").await.unwrap());
+            "#
+                .to_string()])
+                .await
+                .unwrap();
+            assert!(
+                authorizer
+                    .is_authorized_simple("alice", "read", "/f")
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !authorizer
+                    .is_authorized_simple("bob", "read", "/f")
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !authorizer
+                    .is_authorized_simple("alice", "write", "/f")
+                    .await
+                    .unwrap()
+            );
         }
 
         #[test]
@@ -175,8 +230,8 @@ mod tests {
             assert!(ApiKeyPermission::Admin.allows_action("admin"));
             assert!(ApiKeyPermission::Write.allows_action("read"));
             assert!(ApiKeyPermission::Write.allows_action("write"));
-            // DOCUMENTED BUG F013: Write permission allows "admin" action
-            assert!(ApiKeyPermission::Write.allows_action("admin"), "BUG: Write allows admin actions");
+            // F013 resolved: Write no longer allows "admin" action
+            assert!(!ApiKeyPermission::Write.allows_action("admin"));
             assert!(ApiKeyPermission::Read.allows_action("read"));
             assert!(!ApiKeyPermission::Read.allows_action("write"));
         }
@@ -187,7 +242,7 @@ mod tests {
     // ========================================================================
 
     mod input_validation {
-        use ferro_server::security::{validate_filename, verify_content_type, detect_content_type};
+        use ferro_server::security::{detect_content_type, validate_filename, verify_content_type};
 
         #[test]
         fn test_blocked_control_chars() {
@@ -206,7 +261,11 @@ mod tests {
         #[test]
         fn test_blocked_reserved_names() {
             for name in ["CON", "PRN", "AUX", "NUL", "COM3", "LPT1"] {
-                assert!(validate_filename(name).is_err(), "{} should be blocked", name);
+                assert!(
+                    validate_filename(name).is_err(),
+                    "{} should be blocked",
+                    name
+                );
             }
         }
 
@@ -351,12 +410,16 @@ mod tests {
     // ========================================================================
 
     mod defaults_csrf {
-        use ferro_server::security::{is_default_password, generate_csrf_token, verify_csrf_token};
+        use ferro_server::security::{generate_csrf_token, is_default_password, verify_csrf_token};
 
         #[test]
         fn test_default_passwords_blocked() {
             for pw in ["changeme", "admin", "password", "ferro", ""] {
-                assert!(is_default_password(pw), "'{}' should be flagged as default", pw);
+                assert!(
+                    is_default_password(pw),
+                    "'{}' should be flagged as default",
+                    pw
+                );
             }
         }
 

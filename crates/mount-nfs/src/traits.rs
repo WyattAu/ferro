@@ -156,11 +156,7 @@ pub trait MountBackend: Send + Sync {
         length: u64,
     ) -> Result<Vec<u8>, MountError>;
 
-    async fn metadata(
-        &self,
-        handle: &MountHandle,
-        path: &str,
-    ) -> Result<FileMetadata, MountError>;
+    async fn metadata(&self, handle: &MountHandle, path: &str) -> Result<FileMetadata, MountError>;
 
     async fn space_usage(&self, handle: &MountHandle) -> Result<SpaceUsage, MountError>;
 

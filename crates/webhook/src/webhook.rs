@@ -4,9 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration as StdDuration;
 
-use crate::delivery::{
-    calculate_backoff, DeliveryRecord, DeliveryResult, DeliveryStatus,
-};
+use crate::delivery::{DeliveryRecord, DeliveryResult, DeliveryStatus, calculate_backoff};
 use crate::error::WebhookError;
 use crate::signer;
 
@@ -138,7 +136,9 @@ impl WebhookManager {
 
     pub fn register(&self, webhook: Webhook) -> Result<String, WebhookError> {
         if webhook.url.is_empty() {
-            return Err(WebhookError::InvalidUrl("URL must not be empty".to_string()));
+            return Err(WebhookError::InvalidUrl(
+                "URL must not be empty".to_string(),
+            ));
         }
         if self.webhooks.contains_key(&webhook.id) {
             return Err(WebhookError::AlreadyExists(webhook.id.clone()));
@@ -172,11 +172,7 @@ impl WebhookManager {
         }
     }
 
-    pub fn dispatch(
-        &self,
-        event_type: &str,
-        payload: serde_json::Value,
-    ) -> Vec<DeliveryResult> {
+    pub fn dispatch(&self, event_type: &str, payload: serde_json::Value) -> Vec<DeliveryResult> {
         let matching: Vec<Webhook> = self
             .webhooks
             .iter()
@@ -203,17 +199,16 @@ impl WebhookManager {
         results
     }
 
-    pub fn build_request(
-        &self,
-        webhook: &Webhook,
-        payload: &WebhookPayload,
-    ) -> WebhookRequest {
+    pub fn build_request(&self, webhook: &Webhook, payload: &WebhookPayload) -> WebhookRequest {
         let body = serde_json::to_vec(payload).unwrap_or_default();
         let timestamp = payload.timestamp.timestamp().to_string();
         let signature = signer::sign_payload(&webhook.secret, &body, &timestamp);
         let mut headers = HashMap::new();
         headers.insert("Content-Type".to_string(), "application/json".to_string());
-        headers.insert("X-Webhook-Signature".to_string(), format!("sha256={signature}"));
+        headers.insert(
+            "X-Webhook-Signature".to_string(),
+            format!("sha256={signature}"),
+        );
         headers.insert("X-Webhook-Timestamp".to_string(), timestamp);
         headers.insert("X-Webhook-ID".to_string(), webhook.id.clone());
         headers.insert("X-Webhook-Event".to_string(), payload.event_type.clone());
@@ -226,11 +221,7 @@ impl WebhookManager {
         }
     }
 
-    pub fn sign_payload(
-        &self,
-        secret: &str,
-        payload: &[u8],
-    ) -> (String, String) {
+    pub fn sign_payload(&self, secret: &str, payload: &[u8]) -> (String, String) {
         let timestamp = Utc::now().timestamp().to_string();
         let signature = signer::sign_payload(secret, payload, &timestamp);
         (timestamp, signature)
@@ -308,8 +299,12 @@ impl WebhookManager {
             let mut records = self.deliveries.entry(webhook_id.to_string()).or_default();
             records.push(DeliveryRecord::from_result(&result));
         } else {
-            let result =
-                DeliveryResult::failed(webhook_id.to_string(), payload_id.to_string(), None, StdDuration::ZERO);
+            let result = DeliveryResult::failed(
+                webhook_id.to_string(),
+                payload_id.to_string(),
+                None,
+                StdDuration::ZERO,
+            );
             let mut records = self.deliveries.entry(webhook_id.to_string()).or_default();
             records.push(DeliveryRecord::from_result(&result));
         }

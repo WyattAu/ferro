@@ -6,9 +6,9 @@
 use crate::change_queue::QueuedOperation;
 use ferro_selective_sync::conflict::ConflictDetector;
 use ferro_selective_sync::conflict::{ConflictType, SyncConflict};
-use ferro_sync_delta::diff::{BlockDiffRequest, BlockDiffResult};
-use ferro_sync_delta::diff::compute_block_diff;
 use ferro_sync_delta::chunker::ChunkInfo;
+use ferro_sync_delta::diff::compute_block_diff;
+use ferro_sync_delta::diff::{BlockDiffRequest, BlockDiffResult};
 use serde::{Deserialize, Serialize};
 
 /// Result of a reconciliation pass.
@@ -59,10 +59,7 @@ impl RemoteFileSnapshot {
     }
 
     /// Create a snapshot for a deleted file.
-    pub fn deleted(
-        path: &str,
-        modified_at: chrono::DateTime<chrono::Utc>,
-    ) -> Self {
+    pub fn deleted(path: &str, modified_at: chrono::DateTime<chrono::Utc>) -> Self {
         Self {
             path: path.to_string(),
             content_hash: None,
@@ -147,7 +144,10 @@ impl Reconciler {
                     }
                 }
                 crate::change_queue::OperationType::Move => {
-                    if let Some(dest) = op.dest_path.as_ref().and_then(|d| remote_map.get(d.as_str()))
+                    if let Some(dest) = op
+                        .dest_path
+                        .as_ref()
+                        .and_then(|d| remote_map.get(d.as_str()))
                         && dest.exists
                     {
                         conflicts.push(SyncConflict {
@@ -160,7 +160,10 @@ impl Reconciler {
                     }
                 }
                 crate::change_queue::OperationType::Copy => {
-                    if let Some(dest) = op.dest_path.as_ref().and_then(|d| remote_map.get(d.as_str()))
+                    if let Some(dest) = op
+                        .dest_path
+                        .as_ref()
+                        .and_then(|d| remote_map.get(d.as_str()))
                         && dest.exists
                     {
                         conflicts.push(SyncConflict {
@@ -265,7 +268,12 @@ mod tests {
     #[test]
     fn test_no_conflict_new_file() {
         let r = Reconciler::new();
-        let ops = vec![QueuedOperation::put("/new.txt", Some("h1".into()), Some(10), "u")];
+        let ops = vec![QueuedOperation::put(
+            "/new.txt",
+            Some("h1".into()),
+            Some(10),
+            "u",
+        )];
         let remote = vec![];
         let conflicts = r.detect_conflicts(&ops, &remote);
         assert!(conflicts.is_empty());
@@ -280,13 +288,7 @@ mod tests {
             Some(10),
             "u",
         )];
-        let remote = vec![make_snapshot(
-            "/file.txt",
-            Some("hash123"),
-            10,
-            now(),
-            true,
-        )];
+        let remote = vec![make_snapshot("/file.txt", Some("hash123"), 10, now(), true)];
         let conflicts = r.detect_conflicts(&ops, &remote);
         assert!(conflicts.is_empty());
     }
@@ -300,19 +302,10 @@ mod tests {
             Some(10),
             "u",
         )];
-        let remote = vec![make_snapshot(
-            "/file.txt",
-            Some("remote_hash"),
-            10,
-            now(),
-            true,
-        )];
+        let remote = vec![make_snapshot("/file.txt", Some("remote"), 10, now(), true)];
         let conflicts = r.detect_conflicts(&ops, &remote);
         assert_eq!(conflicts.len(), 1);
-        assert!(matches!(
-            conflicts[0].conflict_type,
-            ConflictType::EditEdit
-        ));
+        assert!(matches!(conflicts[0].conflict_type, ConflictType::EditEdit));
     }
 
     #[test]
@@ -337,13 +330,7 @@ mod tests {
     fn test_conflict_delete_edit() {
         let r = Reconciler::new();
         let ops = vec![QueuedOperation::delete("/file.txt", "u")];
-        let remote = vec![make_snapshot(
-            "/file.txt",
-            Some("h".into()),
-            10,
-            now(),
-            true,
-        )];
+        let remote = vec![make_snapshot("/file.txt", Some("h"), 10, now(), true)];
         let conflicts = r.detect_conflicts(&ops, &remote);
         assert_eq!(conflicts.len(), 1);
         assert!(matches!(
@@ -366,16 +353,11 @@ mod tests {
         let r = Reconciler::new();
         let ops = vec![
             QueuedOperation::put("/safe.txt", Some("h1".into()), Some(10), "u"),
-            QueuedOperation::put(
-                "/conflict.txt",
-                Some("local".into()),
-                Some(10),
-                "u",
-            ),
+            QueuedOperation::put("/conflict.txt", Some("local".into()), Some(10), "u"),
         ];
         let remote = vec![make_snapshot(
             "/conflict.txt",
-            Some("remote".into()),
+            Some("remote"),
             10,
             now(),
             true,
@@ -391,16 +373,11 @@ mod tests {
         let r = Reconciler::new();
         let ops = vec![
             QueuedOperation::put("/safe.txt", Some("h1".into()), Some(10), "u"),
-            QueuedOperation::put(
-                "/conflict.txt",
-                Some("local".into()),
-                Some(10),
-                "u",
-            ),
+            QueuedOperation::put("/conflict.txt", Some("local".into()), Some(10), "u"),
         ];
         let remote = vec![make_snapshot(
             "/conflict.txt",
-            Some("remote".into()),
+            Some("remote"),
             10,
             now(),
             true,
@@ -427,20 +404,11 @@ mod tests {
     fn test_move_conflict_at_dest() {
         let r = Reconciler::new();
         let ops = vec![QueuedOperation::move_op("/a.txt", "/b.txt", "u")];
-        let remote = vec![make_snapshot(
-            "/b.txt",
-            Some("h".into()),
-            10,
-            now(),
-            true,
-        )];
+        let remote = vec![make_snapshot("/b.txt", Some("h"), 10, now(), true)];
 
         let conflicts = r.detect_conflicts(&ops, &remote);
         assert_eq!(conflicts.len(), 1);
-        assert!(matches!(
-            conflicts[0].conflict_type,
-            ConflictType::EditEdit
-        ));
+        assert!(matches!(conflicts[0].conflict_type, ConflictType::EditEdit));
     }
 
     #[test]

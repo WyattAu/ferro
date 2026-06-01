@@ -17,8 +17,8 @@ impl WasmHost {
         let mut engine_config = wasmtime::Config::new();
         engine_config.consume_fuel(config.fuel_enabled);
 
-        let engine = Engine::new(&engine_config)
-            .map_err(|e| WasmHostError::CompileFailed(e.to_string()))?;
+        let engine =
+            Engine::new(&engine_config).map_err(|e| WasmHostError::CompileFailed(e.to_string()))?;
 
         Ok(Self {
             engine,
@@ -117,8 +117,7 @@ impl WasmHost {
         let ptr = alloc_fn
             .call(&mut store, len)
             .map_err(|e| WasmHostError::RuntimeError(e.to_string()))?;
-        memory
-            .data_mut(&mut store)[ptr as usize..ptr as usize + len as usize]
+        memory.data_mut(&mut store)[ptr as usize..ptr as usize + len as usize]
             .copy_from_slice(input);
 
         let entry = instance
@@ -383,7 +382,9 @@ mod tests {
 
         assert_eq!(host.plugin_count(), 2);
 
-        let r1 = host.call(&h1, "add", &[Val::I32(10), Val::I32(20)]).unwrap();
+        let r1 = host
+            .call(&h1, "add", &[Val::I32(10), Val::I32(20)])
+            .unwrap();
         assert_eq!(r1[0].unwrap_i32(), 30);
 
         let r2 = host.call(&h2, "answer", &[]).unwrap();

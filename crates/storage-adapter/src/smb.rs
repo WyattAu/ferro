@@ -127,14 +127,20 @@ mod tests {
         };
         smb.connect("s", "sh", &creds).await.unwrap();
         let result = smb.connect("s", "sh", &creds).await;
-        assert!(matches!(result, Err(StorageAdapterError::ConnectionFailed(_))));
+        assert!(matches!(
+            result,
+            Err(StorageAdapterError::ConnectionFailed(_))
+        ));
     }
 
     #[tokio::test]
     async fn test_disconnect_not_connected() {
         let smb = MockSmbBackend::new();
         let result = smb.disconnect().await;
-        assert!(matches!(result, Err(StorageAdapterError::ConnectionFailed(_))));
+        assert!(matches!(
+            result,
+            Err(StorageAdapterError::ConnectionFailed(_))
+        ));
     }
 
     #[tokio::test]
@@ -152,14 +158,20 @@ mod tests {
     async fn test_list_shares_unknown_server() {
         let smb = MockSmbBackend::new();
         let result = smb.list_shares("unknown").await;
-        assert!(matches!(result, Err(StorageAdapterError::ConnectionFailed(_))));
+        assert!(matches!(
+            result,
+            Err(StorageAdapterError::ConnectionFailed(_))
+        ));
     }
 
     #[tokio::test]
     async fn test_storage_through_smb() {
         let smb = MockSmbBackend::new();
         let meta = crate::backend::ObjectMetadata::new();
-        smb.storage().put("smb-file", b"hello", &meta).await.unwrap();
+        smb.storage()
+            .put("smb-file", b"hello", &meta)
+            .await
+            .unwrap();
         assert_eq!(smb.storage().get("smb-file").await.unwrap(), b"hello");
     }
 }

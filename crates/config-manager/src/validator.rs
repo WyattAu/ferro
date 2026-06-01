@@ -66,9 +66,7 @@ fn validate_auth(
     _warnings: &mut Vec<ConfigWarning>,
 ) -> Result<(), ConfigError> {
     if auth.jwt_secret.is_empty() {
-        return Err(ConfigError::MissingField(
-            "auth.jwt_secret".to_string(),
-        ));
+        return Err(ConfigError::MissingField("auth.jwt_secret".to_string()));
     }
     if auth.jwt_secret.len() < 16 {
         return Err(ConfigError::InvalidValue {

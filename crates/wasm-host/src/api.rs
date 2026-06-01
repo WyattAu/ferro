@@ -77,8 +77,6 @@ fn read_string(caller: &mut Caller<WasmState>, ptr: u32, len: u32) -> Option<Str
 fn read_bytes(caller: &mut Caller<WasmState>, ptr: u32, len: u32) -> Option<Vec<u8>> {
     let memory = caller.get_export("memory")?.into_memory()?;
     let mut buf = vec![0u8; len as usize];
-    memory
-        .read(&mut *caller, ptr as usize, &mut buf)
-        .ok()?;
+    memory.read(&mut *caller, ptr as usize, &mut buf).ok()?;
     Some(buf)
 }

@@ -58,6 +58,13 @@ impl RemoteMountStore {
         }
     }
 
+    /// Store the DB handle without locking (caller already holds the lock).
+    /// Use this from AppState::with_db to avoid deadlock.
+    pub fn with_db_handle(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
     pub fn with_db(mut self, db: DbHandle) -> Self {
         self.db = Some(db.clone());
         if let Err(e) = self.load_all_from_db(&db.lock().unwrap_or_else(|e| e.into_inner())) {
@@ -66,7 +73,7 @@ impl RemoteMountStore {
         self
     }
 
-    fn load_all_from_db(&self, conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
+    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> Result<(), rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT id, name, remote_url, local_path, username, password, enabled, created_at FROM remote_mounts",
         )?;

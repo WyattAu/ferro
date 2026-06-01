@@ -6,7 +6,7 @@ async fn body_string(response: axum::response::Response) -> String {
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use ferro_event_bus::{EventBus, Event, FileEvent};
+use ferro_event_bus::{Event, EventBus, FileEvent};
 use ferro_server::make_app;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -29,10 +29,7 @@ async fn test_file_created_event_published() {
 
     #[async_trait::async_trait]
     impl ferro_event_bus::EventHandler<FileEvent> for CountingHandler {
-        async fn handle(
-            &self,
-            event: &FileEvent,
-        ) -> Result<(), ferro_event_bus::EventBusError> {
+        async fn handle(&self, event: &FileEvent) -> Result<(), ferro_event_bus::EventBusError> {
             assert_eq!(event.event_type, "file.created");
             assert!(!event.path.is_empty());
             self.count.fetch_add(1, Ordering::Relaxed);
@@ -73,10 +70,7 @@ async fn test_multiple_handlers_for_same_event() {
 
     #[async_trait::async_trait]
     impl ferro_event_bus::EventHandler<FileEvent> for Handler {
-        async fn handle(
-            &self,
-            _event: &FileEvent,
-        ) -> Result<(), ferro_event_bus::EventBusError> {
+        async fn handle(&self, _event: &FileEvent) -> Result<(), ferro_event_bus::EventBusError> {
             self.count.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
@@ -124,10 +118,7 @@ async fn test_event_store_persistence() {
 
     #[async_trait::async_trait]
     impl ferro_event_bus::EventHandler<FileEvent> for StoreHandler {
-        async fn handle(
-            &self,
-            _event: &FileEvent,
-        ) -> Result<(), ferro_event_bus::EventBusError> {
+        async fn handle(&self, _event: &FileEvent) -> Result<(), ferro_event_bus::EventBusError> {
             self.count.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
@@ -136,10 +127,13 @@ async fn test_event_store_persistence() {
         }
     }
 
-    bus.subscribe("file.created", Box::new(StoreHandler::new(received.clone())));
+    bus.subscribe(
+        "file.created",
+        Box::new(StoreHandler::new(received.clone())),
+    );
 
     for i in 0..5 {
-        let event = FileEvent::new("file.created", &format!("/file-{}.txt", i), "user");
+        let event = FileEvent::new("file.created", format!("/file-{}.txt", i), "user");
         bus.publish(event).await;
     }
 
@@ -157,12 +151,11 @@ async fn test_failed_handler_goes_to_dlq() {
 
     #[async_trait::async_trait]
     impl ferro_event_bus::EventHandler<FileEvent> for FailHandler {
-        async fn handle(
-            &self,
-            _event: &FileEvent,
-        ) -> Result<(), ferro_event_bus::EventBusError> {
+        async fn handle(&self, _event: &FileEvent) -> Result<(), ferro_event_bus::EventBusError> {
             Err(ferro_event_bus::EventBusError::handler_failed(
-                "fail", "file.error", "boom",
+                "fail",
+                "file.error",
+                "boom",
             ))
         }
         fn name(&self) -> &str {
@@ -197,10 +190,7 @@ async fn test_concurrent_event_publish() {
 
     #[async_trait::async_trait]
     impl ferro_event_bus::EventHandler<FileEvent> for ConcurrentHandler {
-        async fn handle(
-            &self,
-            _event: &FileEvent,
-        ) -> Result<(), ferro_event_bus::EventBusError> {
+        async fn handle(&self, _event: &FileEvent) -> Result<(), ferro_event_bus::EventBusError> {
             self.count.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
@@ -209,13 +199,16 @@ async fn test_concurrent_event_publish() {
         }
     }
 
-    bus.subscribe("file.created", Box::new(ConcurrentHandler::new(received.clone())));
+    bus.subscribe(
+        "file.created",
+        Box::new(ConcurrentHandler::new(received.clone())),
+    );
 
     let mut handles = Vec::new();
     for i in 0..50 {
         let b = bus.clone();
         handles.push(tokio::spawn(async move {
-            let event = FileEvent::new("file.created", &format!("/concurrent-{}.txt", i), "user");
+            let event = FileEvent::new("file.created", format!("/concurrent-{}.txt", i), "user");
             b.publish(event).await;
         }));
     }
@@ -243,23 +236,20 @@ async fn test_audit_chain_after_file_operations() {
         let builder = if *method == "PUT" {
             Request::builder()
                 .method("PUT")
-                .uri(&format!("/api/v1/files{}", path))
+                .uri(format!("/api/v1/files{}", path))
                 .body(Body::from("audit content"))
         } else if *method == "GET" {
             Request::builder()
                 .method("GET")
-                .uri(&format!("/api/v1/files{}", path))
+                .uri(format!("/api/v1/files{}", path))
                 .body(Body::empty())
         } else {
             Request::builder()
                 .method("DELETE")
-                .uri(&format!("/api/v1/files{}", path))
+                .uri(format!("/api/v1/files{}", path))
                 .body(Body::empty())
         };
-        app.clone()
-            .oneshot(builder.unwrap())
-            .await
-            .unwrap();
+        app.clone().oneshot(builder.unwrap()).await.unwrap();
     }
 
     let audit_resp = app

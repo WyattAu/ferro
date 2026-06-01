@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::Utc;
-use ferro_audit_log::{audit_log::AuditEntry, AuditAction, AuditLog, ResourceType};
+use ferro_audit_log::{AuditAction, AuditLog, ResourceType, audit_log::AuditEntry};
 
 pub fn create_audit_log() -> AuditLog {
     AuditLog::new_in_memory().expect("Failed to create audit log")
@@ -56,8 +56,20 @@ mod tests {
     #[test]
     fn test_chain_integrity() {
         let log = create_audit_log();
-        record_file_op(&log, AuditAction::FileCreate, "user-1", "/a.txt", HashMap::new());
-        record_file_op(&log, AuditAction::FileDelete, "user-1", "/a.txt", HashMap::new());
+        record_file_op(
+            &log,
+            AuditAction::FileCreate,
+            "user-1",
+            "/a.txt",
+            HashMap::new(),
+        );
+        record_file_op(
+            &log,
+            AuditAction::FileDelete,
+            "user-1",
+            "/a.txt",
+            HashMap::new(),
+        );
         let result = log.verify_chain().unwrap();
         assert!(result.valid);
         assert_eq!(result.total, 2);

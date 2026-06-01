@@ -158,7 +158,10 @@ pub trait ChangeQueueStore: Send + Sync {
     /// Get all operations (including synced) for a specific path.
     async fn operations_for_path(&self, path: &str) -> Vec<QueuedOperation>;
     /// Prune synced operations older than the given timestamp.
-    async fn prune_synced(&self, before: chrono::DateTime<chrono::Utc>) -> Result<usize, OfflineError>;
+    async fn prune_synced(
+        &self,
+        before: chrono::DateTime<chrono::Utc>,
+    ) -> Result<usize, OfflineError>;
     /// Clear the entire queue (used for reset).
     async fn clear(&self) -> Result<(), OfflineError>;
 }
@@ -293,7 +296,10 @@ impl ChangeQueueStore for SqliteChangeQueue {
     async fn mark_synced(&self, id: &str) -> Result<(), OfflineError> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
         let affected = conn
-            .execute("UPDATE offline_queue SET synced = 1 WHERE id = ?1", params![id])
+            .execute(
+                "UPDATE offline_queue SET synced = 1 WHERE id = ?1",
+                params![id],
+            )
             .map_err(|e| OfflineError::Storage(e.to_string()))?;
         if affected == 0 {
             return Err(OfflineError::NotFound(id.to_string()));
@@ -333,7 +339,10 @@ impl ChangeQueueStore for SqliteChangeQueue {
         }
     }
 
-    async fn prune_synced(&self, before: chrono::DateTime<chrono::Utc>) -> Result<usize, OfflineError> {
+    async fn prune_synced(
+        &self,
+        before: chrono::DateTime<chrono::Utc>,
+    ) -> Result<usize, OfflineError> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
         let before_str = before.to_rfc3339();
         let affected = conn
@@ -379,7 +388,9 @@ mod tests {
     #[tokio::test]
     async fn test_enqueue_delete() {
         let q = store();
-        q.enqueue(QueuedOperation::delete("/old.txt", "bob")).await.unwrap();
+        q.enqueue(QueuedOperation::delete("/old.txt", "bob"))
+            .await
+            .unwrap();
         let pending = q.pending().await;
         assert_eq!(pending[0].op, OperationType::Delete);
     }
@@ -387,7 +398,9 @@ mod tests {
     #[tokio::test]
     async fn test_enqueue_move() {
         let q = store();
-        q.enqueue(QueuedOperation::move_op("/a.txt", "/b.txt", "alice")).await.unwrap();
+        q.enqueue(QueuedOperation::move_op("/a.txt", "/b.txt", "alice"))
+            .await
+            .unwrap();
         let pending = q.pending().await;
         assert_eq!(pending[0].op, OperationType::Move);
         assert_eq!(pending[0].dest_path.as_deref(), Some("/b.txt"));
@@ -396,7 +409,9 @@ mod tests {
     #[tokio::test]
     async fn test_enqueue_copy() {
         let q = store();
-        q.enqueue(QueuedOperation::copy("/a.txt", "/c.txt", "alice")).await.unwrap();
+        q.enqueue(QueuedOperation::copy("/a.txt", "/c.txt", "alice"))
+            .await
+            .unwrap();
         let pending = q.pending().await;
         assert_eq!(pending[0].op, OperationType::Copy);
     }
@@ -404,7 +419,9 @@ mod tests {
     #[tokio::test]
     async fn test_enqueue_create_collection() {
         let q = store();
-        q.enqueue(QueuedOperation::create_collection("/dir/", "alice")).await.unwrap();
+        q.enqueue(QueuedOperation::create_collection("/dir/", "alice"))
+            .await
+            .unwrap();
         let pending = q.pending().await;
         assert_eq!(pending[0].op, OperationType::CreateCollection);
     }
@@ -442,8 +459,12 @@ mod tests {
     async fn test_pending_count() {
         let q = store();
         assert_eq!(q.pending_count().await, 0);
-        q.enqueue(QueuedOperation::put("/a", None, None, "u")).await.unwrap();
-        q.enqueue(QueuedOperation::put("/b", None, None, "u")).await.unwrap();
+        q.enqueue(QueuedOperation::put("/a", None, None, "u"))
+            .await
+            .unwrap();
+        q.enqueue(QueuedOperation::put("/b", None, None, "u"))
+            .await
+            .unwrap();
         assert_eq!(q.pending_count().await, 2);
         q.mark_synced(&q.pending().await[0].id).await.unwrap();
         assert_eq!(q.pending_count().await, 1);
@@ -452,9 +473,15 @@ mod tests {
     #[tokio::test]
     async fn test_operations_for_path() {
         let q = store();
-        q.enqueue(QueuedOperation::put("/docs/file.txt", None, None, "u")).await.unwrap();
-        q.enqueue(QueuedOperation::delete("/docs/file.txt", "u")).await.unwrap();
-        q.enqueue(QueuedOperation::put("/other.txt", None, None, "u")).await.unwrap();
+        q.enqueue(QueuedOperation::put("/docs/file.txt", None, None, "u"))
+            .await
+            .unwrap();
+        q.enqueue(QueuedOperation::delete("/docs/file.txt", "u"))
+            .await
+            .unwrap();
+        q.enqueue(QueuedOperation::put("/other.txt", None, None, "u"))
+            .await
+            .unwrap();
 
         let ops = q.operations_for_path("/docs/file.txt").await;
         assert_eq!(ops.len(), 2);
@@ -463,7 +490,9 @@ mod tests {
     #[tokio::test]
     async fn test_operations_for_dest_path() {
         let q = store();
-        q.enqueue(QueuedOperation::move_op("/a", "/target", "u")).await.unwrap();
+        q.enqueue(QueuedOperation::move_op("/a", "/target", "u"))
+            .await
+            .unwrap();
         let ops = q.operations_for_path("/target").await;
         assert_eq!(ops.len(), 1);
     }
@@ -471,8 +500,12 @@ mod tests {
     #[tokio::test]
     async fn test_prune_synced() {
         let q = store();
-        q.enqueue(QueuedOperation::put("/a", None, None, "u")).await.unwrap();
-        q.enqueue(QueuedOperation::put("/b", None, None, "u")).await.unwrap();
+        q.enqueue(QueuedOperation::put("/a", None, None, "u"))
+            .await
+            .unwrap();
+        q.enqueue(QueuedOperation::put("/b", None, None, "u"))
+            .await
+            .unwrap();
         let id = q.pending().await[0].id.clone();
         q.mark_synced(&id).await.unwrap();
 
@@ -484,8 +517,12 @@ mod tests {
     #[tokio::test]
     async fn test_clear() {
         let q = store();
-        q.enqueue(QueuedOperation::put("/a", None, None, "u")).await.unwrap();
-        q.enqueue(QueuedOperation::put("/b", None, None, "u")).await.unwrap();
+        q.enqueue(QueuedOperation::put("/a", None, None, "u"))
+            .await
+            .unwrap();
+        q.enqueue(QueuedOperation::put("/b", None, None, "u"))
+            .await
+            .unwrap();
         q.clear().await.unwrap();
         assert_eq!(q.pending().await.len(), 0);
         assert_eq!(q.pending_count().await, 0);
@@ -507,16 +544,24 @@ mod tests {
                 .unwrap();
         }
         assert_eq!(q.pending_count().await, MAX_PENDING_OPS);
-        let result = q.enqueue(QueuedOperation::put("/overflow", None, None, "u")).await;
+        let result = q
+            .enqueue(QueuedOperation::put("/overflow", None, None, "u"))
+            .await;
         assert!(matches!(result, Err(OfflineError::QueueFull(_, _))));
     }
 
     #[tokio::test]
     async fn test_operation_ordering() {
         let q = store();
-        q.enqueue(QueuedOperation::put("/3", None, None, "u")).await.unwrap();
-        q.enqueue(QueuedOperation::put("/1", None, None, "u")).await.unwrap();
-        q.enqueue(QueuedOperation::put("/2", None, None, "u")).await.unwrap();
+        q.enqueue(QueuedOperation::put("/3", None, None, "u"))
+            .await
+            .unwrap();
+        q.enqueue(QueuedOperation::put("/1", None, None, "u"))
+            .await
+            .unwrap();
+        q.enqueue(QueuedOperation::put("/2", None, None, "u"))
+            .await
+            .unwrap();
 
         let pending = q.pending().await;
         // All enqueued nearly simultaneously, but should be ordered by queued_at

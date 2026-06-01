@@ -529,7 +529,7 @@ fn constant_time_eq(a: &str, b: &str) -> bool {
 }
 
 pub fn hash_share_password(password: &str) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let hash = Sha256::digest(password.as_bytes());
     hex::encode(hash)
 }

@@ -81,7 +81,10 @@ impl ContentCache {
         }
 
         if self.max_size > 0 && self.total_size + size > self.max_size {
-            warn!("Content cache full, skipping put for {} ({} bytes)", path, size);
+            warn!(
+                "Content cache full, skipping put for {} ({} bytes)",
+                path, size
+            );
             return;
         }
 

@@ -12,6 +12,10 @@ on:
       - 'crates/**'
       - '.github/workflows/bench.yml'
 
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 

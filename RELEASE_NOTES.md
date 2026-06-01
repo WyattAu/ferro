@@ -1,11 +1,11 @@
 # Ferro v2.0.0 -- Federation, Encryption, Real-Time Sync
 
 > **Historical document.** This release note covers v2.0.0 (2026-04-26).
-> Current version: **v2.5.1** (2026-05-08). See [CHANGELOG.md](./CHANGELOG.md) for v2.1.0+ changes.
+> Current version: **v3.0.0** (2026-05-31). See [CHANGELOG.md](./CHANGELOG.md) for the latest changes.
 
 ## What is Ferro?
 
-Ferro is a self-hosted file storage orchestrator written in 100% Rust. Think Nextcloud, but fast, lightweight, and without the PHP. It speaks WebDAV natively, so it works with every file manager on every operating system.
+Ferro is a self-hosted file storage orchestrator written in 100% Rust. It provides a high-performance alternative to Nextcloud, speaking WebDAV natively for compatibility with every file manager on every operating system.
 
 ## What's New in v2.0.0
 

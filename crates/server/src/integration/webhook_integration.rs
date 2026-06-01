@@ -2,7 +2,7 @@
 //!
 //! Provides helpers for managing outgoing webhooks.
 
-use ferro_webhook::{WebhookManager, Webhook, WebhookConfig};
+use ferro_webhook::{Webhook, WebhookConfig, WebhookManager};
 
 pub fn create_webhook_manager() -> WebhookManager {
     WebhookManager::new(WebhookConfig::default())
@@ -32,7 +32,13 @@ mod tests {
     #[test]
     fn test_register_and_list_webhook() {
         let mgr = create_webhook_manager();
-        let id = register_webhook(&mgr, "https://example.com/hook", "secret", vec!["file.created"]).unwrap();
+        let id = register_webhook(
+            &mgr,
+            "https://example.com/hook",
+            "secret",
+            vec!["file.created"],
+        )
+        .unwrap();
         assert!(!id.is_empty());
         assert_eq!(mgr.list(None).len(), 1);
         assert!(mgr.get(&id).is_some());

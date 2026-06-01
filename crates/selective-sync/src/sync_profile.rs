@@ -86,9 +86,10 @@ impl SyncProfile {
             return false;
         }
         if let Some(max_size) = self.max_file_size
-            && file_size > max_size {
-                return false;
-            }
+            && file_size > max_size
+        {
+            return false;
+        }
         true
     }
 }

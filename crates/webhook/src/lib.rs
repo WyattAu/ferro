@@ -98,8 +98,10 @@ mod tests {
     #[test]
     fn list_all_webhooks() {
         let mgr = make_manager();
-        mgr.register(make_webhook("https://a.com/h", vec![])).unwrap();
-        mgr.register(make_webhook("https://b.com/h", vec![])).unwrap();
+        mgr.register(make_webhook("https://a.com/h", vec![]))
+            .unwrap();
+        mgr.register(make_webhook("https://b.com/h", vec![]))
+            .unwrap();
         assert_eq!(mgr.list(None).len(), 2);
     }
 
@@ -133,7 +135,11 @@ mod tests {
     #[test]
     fn dispatch_skips_non_matching_event() {
         let mgr = make_manager();
-        mgr.register(make_webhook("https://example.com/hook", vec!["file.deleted"])).unwrap();
+        mgr.register(make_webhook(
+            "https://example.com/hook",
+            vec!["file.deleted"],
+        ))
+        .unwrap();
         let results = mgr.dispatch("file.created", serde_json::json!({"path": "/a.txt"}));
         assert!(results.is_empty());
     }
@@ -171,9 +177,12 @@ mod tests {
     #[test]
     fn dispatch_multiple_webhooks_same_event() {
         let mgr = make_manager();
-        mgr.register(make_webhook("https://a.com/h", vec!["file.created"])).unwrap();
-        mgr.register(make_webhook("https://b.com/h", vec!["file.created"])).unwrap();
-        mgr.register(make_webhook("https://c.com/h", vec!["file.deleted"])).unwrap();
+        mgr.register(make_webhook("https://a.com/h", vec!["file.created"]))
+            .unwrap();
+        mgr.register(make_webhook("https://b.com/h", vec!["file.created"]))
+            .unwrap();
+        mgr.register(make_webhook("https://c.com/h", vec!["file.deleted"]))
+            .unwrap();
         let results = mgr.dispatch("file.created", serde_json::json!({}));
         assert_eq!(results.len(), 2);
     }
@@ -220,7 +229,10 @@ mod tests {
     fn build_request_signature_verifiable() {
         let mgr = make_manager();
         let wh = make_webhook("https://example.com/hook", vec![]);
-        let payload = WebhookPayload::new("file.created".to_string(), serde_json::json!({"key": "val"}));
+        let payload = WebhookPayload::new(
+            "file.created".to_string(),
+            serde_json::json!({"key": "val"}),
+        );
         let req = mgr.build_request(&wh, &payload);
         let sig_header = &req.headers["X-Webhook-Signature"];
         let sig = sig_header.strip_prefix("sha256=").unwrap();
@@ -335,7 +347,10 @@ mod tests {
 
     #[test]
     fn payload_new_generates_id() {
-        let p = WebhookPayload::new("file.created".to_string(), serde_json::json!({"key": "val"}));
+        let p = WebhookPayload::new(
+            "file.created".to_string(),
+            serde_json::json!({"key": "val"}),
+        );
         assert!(!p.id.is_empty());
         assert_eq!(p.event_type, "file.created");
         assert_eq!(p.retry_count, 0);

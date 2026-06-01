@@ -189,7 +189,12 @@ impl BackendRouter {
             }
 
             for ids in overlap_groups.values() {
-                let unique: Vec<String> = ids.iter().cloned().collect::<HashSet<_>>().into_iter().collect();
+                let unique: Vec<String> = ids
+                    .iter()
+                    .cloned()
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect();
                 warnings.push(RoutingWarning::OverlappingRules {
                     path_pattern: unique.join(", "),
                     rule_ids: unique,
@@ -245,7 +250,10 @@ impl Default for BackendRouter {
     }
 }
 
-fn metadata_filter_matches(filter: &HashMap<String, String>, metadata: &HashMap<String, String>) -> bool {
+fn metadata_filter_matches(
+    filter: &HashMap<String, String>,
+    metadata: &HashMap<String, String>,
+) -> bool {
     if filter.is_empty() {
         return true;
     }
@@ -266,10 +274,10 @@ fn rules_overlap(a: &RoutingRule, b: &RoutingRule) -> bool {
     let mut both_match = false;
 
     for path in &test_paths {
-        let a_match =
-            glob_match(&a.pattern, path) && metadata_filter_matches(&a.metadata_filter, &empty_meta);
-        let b_match =
-            glob_match(&b.pattern, path) && metadata_filter_matches(&b.metadata_filter, &empty_meta);
+        let a_match = glob_match(&a.pattern, path)
+            && metadata_filter_matches(&a.metadata_filter, &empty_meta);
+        let b_match = glob_match(&b.pattern, path)
+            && metadata_filter_matches(&b.metadata_filter, &empty_meta);
         if a_match && b_match {
             both_match = true;
             break;
@@ -621,7 +629,11 @@ mod tests {
             .unwrap();
 
         let warnings = router.validate();
-        assert!(warnings.iter().any(|w| matches!(w, RoutingWarning::OverlappingRules { .. })));
+        assert!(
+            warnings
+                .iter()
+                .any(|w| matches!(w, RoutingWarning::OverlappingRules { .. }))
+        );
     }
 
     #[test]
@@ -640,9 +652,11 @@ mod tests {
             .unwrap();
 
         let warnings = router.validate();
-        assert!(warnings
-            .iter()
-            .any(|w| matches!(w, RoutingWarning::UnreachableDefault { .. })));
+        assert!(
+            warnings
+                .iter()
+                .any(|w| matches!(w, RoutingWarning::UnreachableDefault { .. }))
+        );
     }
 
     #[test]
@@ -735,13 +749,19 @@ mod tests {
         });
 
         let decision = policy.route("special/data.bin", &HashMap::new());
-        assert_eq!(decision.backend_id, BackendId::Custom("minio-prod".to_string()));
+        assert_eq!(
+            decision.backend_id,
+            BackendId::Custom("minio-prod".to_string())
+        );
     }
 
     #[test]
     fn test_backend_id_equality() {
         assert_eq!(BackendId::S3, BackendId::S3);
-        assert_eq!(BackendId::Custom("a".to_string()), BackendId::Custom("a".to_string()));
+        assert_eq!(
+            BackendId::Custom("a".to_string()),
+            BackendId::Custom("a".to_string())
+        );
         assert_ne!(BackendId::S3, BackendId::Gcs);
     }
 

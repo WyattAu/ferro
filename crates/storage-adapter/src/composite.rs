@@ -1,6 +1,6 @@
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
-use async_trait::async_trait;
 
 use crate::backend::{BackendType, ObjectInfo, ObjectMetadata, StorageBackend};
 use crate::error::StorageAdapterError;
@@ -37,7 +37,8 @@ impl CompositeBackend {
             "azure" | "azureblob" => BackendId::AzureBlob,
             other => BackendId::Custom(other.to_string()),
         };
-        self.backends.insert(id.to_string(), BackendEntry { backend });
+        self.backends
+            .insert(id.to_string(), BackendEntry { backend });
     }
 
     pub fn set_default(&mut self, backend: Arc<dyn StorageBackend>) {
@@ -194,7 +195,9 @@ mod tests {
         let mem = Arc::new(crate::memory::InMemoryBackend::new());
         let mut comp = CompositeBackend::new(make_router());
         comp.register("local", mem.clone());
-        comp.put("local/x", b"data", &ObjectMetadata::new()).await.unwrap();
+        comp.put("local/x", b"data", &ObjectMetadata::new())
+            .await
+            .unwrap();
         assert_eq!(comp.get("local/x").await.unwrap(), b"data");
     }
 
@@ -213,7 +216,10 @@ mod tests {
     async fn test_no_backend_error() {
         let comp = CompositeBackend::new(make_router());
         let result = comp.get("local/nope").await;
-        assert!(matches!(result, Err(StorageAdapterError::BackendUnavailable(_))));
+        assert!(matches!(
+            result,
+            Err(StorageAdapterError::BackendUnavailable(_))
+        ));
     }
 
     #[tokio::test]
@@ -222,7 +228,9 @@ mod tests {
         let mut comp = CompositeBackend::new(make_router());
         comp.register("s3", mem.clone());
 
-        comp.put("s3/d", b"x", &ObjectMetadata::new()).await.unwrap();
+        comp.put("s3/d", b"x", &ObjectMetadata::new())
+            .await
+            .unwrap();
         comp.delete("s3/d").await.unwrap();
         assert!(!comp.exists("s3/d").await.unwrap());
     }

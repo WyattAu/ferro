@@ -1,5 +1,5 @@
 use aes_gcm::aead::{Aead, KeyInit};
-use aes_gcm::{Aes256Gcm, AeadCore};
+use aes_gcm::{AeadCore, Aes256Gcm};
 use hkdf::Hkdf;
 use sha2::{Digest, Sha256};
 
@@ -21,16 +21,14 @@ fn derive_envelope_key(
     sender_private_key: &[u8],
     recipient_public_key: &[u8],
 ) -> Result<[u8; 32], E2eeError> {
-    let sender_private: [u8; 32] = <[u8; 32]>::try_from(sender_private_key).map_err(|_| {
-        E2eeError::Encryption {
+    let sender_private: [u8; 32] =
+        <[u8; 32]>::try_from(sender_private_key).map_err(|_| E2eeError::Encryption {
             message: "Sender private key must be 32 bytes".into(),
-        }
-    })?;
-    let recipient_public: [u8; 32] = <[u8; 32]>::try_from(recipient_public_key).map_err(|_| {
-        E2eeError::Encryption {
+        })?;
+    let recipient_public: [u8; 32] =
+        <[u8; 32]>::try_from(recipient_public_key).map_err(|_| E2eeError::Encryption {
             message: "Recipient public key must be 32 bytes".into(),
-        }
-    })?;
+        })?;
 
     let shared_secret = x25519_dalek::x25519(sender_private, recipient_public);
 
@@ -83,11 +81,10 @@ pub fn create_envelope(
     let recipient_key_id = recipient_key_id_from_public_key(recipient_public_key);
     let signature = compute_sender_signature(sender, recipient_public_key);
 
-    let sender_public_key = <[u8; 32]>::try_from(sender.public_key_bytes()).map_err(|_| {
-        E2eeError::Encryption {
+    let sender_public_key =
+        <[u8; 32]>::try_from(sender.public_key_bytes()).map_err(|_| E2eeError::Encryption {
             message: "Sender public key must be 32 bytes".into(),
-        }
-    })?;
+        })?;
 
     Ok(KeyEnvelope {
         recipient_key_id,
@@ -109,18 +106,20 @@ pub fn open_envelope(
         });
     }
 
-    let envelope_key = derive_envelope_key(recipient.private_key_bytes(), &envelope.sender_public_key)?;
+    let envelope_key =
+        derive_envelope_key(recipient.private_key_bytes(), &envelope.sender_public_key)?;
     let cipher = Aes256Gcm::new_from_slice(&envelope_key).map_err(|e| E2eeError::Decryption {
         message: e.to_string(),
     })?;
 
     let nonce = aes_gcm::Nonce::from_slice(&envelope.encrypted_file_key[..12]);
     let ciphertext_with_tag = &envelope.encrypted_file_key[12..];
-    let file_key = cipher
-        .decrypt(nonce, ciphertext_with_tag)
-        .map_err(|e| E2eeError::Decryption {
-            message: e.to_string(),
-        })?;
+    let file_key =
+        cipher
+            .decrypt(nonce, ciphertext_with_tag)
+            .map_err(|e| E2eeError::Decryption {
+                message: e.to_string(),
+            })?;
 
     Ok(file_key)
 }

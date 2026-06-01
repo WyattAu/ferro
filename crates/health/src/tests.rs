@@ -37,7 +37,11 @@ impl HealthProbe for MockProbe {
 async fn register_and_check_probe() {
     let checker = HealthChecker::new("1.0.0");
     checker
-        .register(Box::new(MockProbe::new("test", ProbeType::Liveness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "test",
+            ProbeType::Liveness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
     assert_eq!(checker.probe_count(), 1);
 
@@ -51,7 +55,11 @@ async fn register_and_check_probe() {
 async fn duplicate_registration_fails() {
     let checker = HealthChecker::new("1.0.0");
     checker
-        .register(Box::new(MockProbe::new("dup", ProbeType::Liveness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "dup",
+            ProbeType::Liveness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
     let result = checker.register(Box::new(MockProbe::new(
         "dup",
@@ -66,7 +74,11 @@ async fn duplicate_registration_fails() {
 async fn unregister_probe() {
     let checker = HealthChecker::new("1.0.0");
     checker
-        .register(Box::new(MockProbe::new("rem", ProbeType::Liveness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "rem",
+            ProbeType::Liveness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
     assert_eq!(checker.probe_count(), 1);
 
@@ -89,7 +101,11 @@ async fn unregister_nonexistent_fails() {
 async fn liveness_readiness_startup_separation() {
     let checker = HealthChecker::new("1.0.0");
     checker
-        .register(Box::new(MockProbe::new("live", ProbeType::Liveness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "live",
+            ProbeType::Liveness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
     checker
         .register(Box::new(MockProbe::new(
@@ -124,13 +140,25 @@ async fn liveness_readiness_startup_separation() {
 async fn check_all_includes_everything() {
     let checker = HealthChecker::new("1.0.0");
     checker
-        .register(Box::new(MockProbe::new("a", ProbeType::Liveness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "a",
+            ProbeType::Liveness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
     checker
-        .register(Box::new(MockProbe::new("b", ProbeType::Readiness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "b",
+            ProbeType::Readiness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
     checker
-        .register(Box::new(MockProbe::new("c", ProbeType::Startup, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "c",
+            ProbeType::Startup,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
 
     let response = checker.check_all().await;
@@ -262,9 +290,7 @@ fn probe_result_deserialization_roundtrip() {
 fn health_response_serialization() {
     let response = HealthResponse::new("2.0.0".to_string(), Duration::from_secs(3600))
         .with_info("env", "production")
-        .with_checks(vec![
-            ProbeResult::healthy("db", Duration::from_millis(5)),
-        ]);
+        .with_checks(vec![ProbeResult::healthy("db", Duration::from_millis(5))]);
 
     let json = serde_json::to_string(&response).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -279,13 +305,19 @@ fn health_response_serialization() {
 async fn global_status_override() {
     let checker = HealthChecker::new("1.0.0");
     checker
-        .register(Box::new(MockProbe::new("live", ProbeType::Liveness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "live",
+            ProbeType::Liveness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
 
     let before = checker.check_liveness().await;
     assert_eq!(before.status, HealthStatus::Healthy);
 
-    checker.set_global_status(HealthStatus::Unhealthy, "shutting down").await;
+    checker
+        .set_global_status(HealthStatus::Unhealthy, "shutting down")
+        .await;
 
     let after = checker.check_liveness().await;
     assert_eq!(after.status, HealthStatus::Unhealthy);
@@ -296,18 +328,32 @@ async fn global_status_override() {
 async fn global_status_applies_to_all_checks() {
     let checker = HealthChecker::new("1.0.0");
     checker
-        .register(Box::new(MockProbe::new("a", ProbeType::Liveness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "a",
+            ProbeType::Liveness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
     checker
-        .register(Box::new(MockProbe::new("b", ProbeType::Readiness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "b",
+            ProbeType::Readiness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
 
     checker
         .set_global_status(HealthStatus::Degraded, "partial outage")
         .await;
 
-    assert_eq!(checker.check_liveness().await.status, HealthStatus::Degraded);
-    assert_eq!(checker.check_readiness().await.status, HealthStatus::Degraded);
+    assert_eq!(
+        checker.check_liveness().await.status,
+        HealthStatus::Degraded
+    );
+    assert_eq!(
+        checker.check_readiness().await.status,
+        HealthStatus::Degraded
+    );
     assert_eq!(checker.check_all().await.status, HealthStatus::Degraded);
 }
 
@@ -315,7 +361,11 @@ async fn global_status_applies_to_all_checks() {
 async fn component_status_lookup() {
     let checker = HealthChecker::new("1.0.0");
     checker
-        .register(Box::new(MockProbe::new("db", ProbeType::Liveness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "db",
+            ProbeType::Liveness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
 
     let status = checker.component_status("db");
@@ -327,8 +377,7 @@ async fn component_status_lookup() {
 
 #[tokio::test]
 async fn database_probe() {
-    let probe = DatabaseProbe::new("postgres")
-        .with_status(HealthStatus::Healthy, "connected");
+    let probe = DatabaseProbe::new("postgres").with_status(HealthStatus::Healthy, "connected");
     let result = probe.check().await;
     assert_eq!(result.name, "postgres");
     assert_eq!(result.status, HealthStatus::Healthy);
@@ -365,15 +414,11 @@ async fn disk_space_probe_runs() {
 
 #[tokio::test]
 async fn custom_probe_with_closure() {
-    let probe = CustomProbe::new(
-        "custom",
-        ProbeType::Startup,
-        || async move {
-            ProbeResult::healthy("custom", Duration::from_millis(1))
-                .with_status(HealthStatus::Degraded)
-                .with_message("custom check")
-        },
-    );
+    let probe = CustomProbe::new("custom", ProbeType::Startup, || async move {
+        ProbeResult::healthy("custom", Duration::from_millis(1))
+            .with_status(HealthStatus::Degraded)
+            .with_message("custom check")
+    });
 
     let result = probe.check().await;
     assert_eq!(result.name, "custom");
@@ -398,7 +443,11 @@ async fn empty_checker_returns_unknown() {
 async fn response_has_version_and_uptime() {
     let checker = HealthChecker::new("3.5.0");
     checker
-        .register(Box::new(MockProbe::new("p", ProbeType::Liveness, HealthStatus::Healthy)))
+        .register(Box::new(MockProbe::new(
+            "p",
+            ProbeType::Liveness,
+            HealthStatus::Healthy,
+        )))
         .unwrap();
 
     let response = checker.check_all().await;
@@ -423,7 +472,11 @@ fn health_status_serde_roundtrip() {
 
 #[test]
 fn probe_type_serde_roundtrip() {
-    let types = [ProbeType::Liveness, ProbeType::Readiness, ProbeType::Startup];
+    let types = [
+        ProbeType::Liveness,
+        ProbeType::Readiness,
+        ProbeType::Startup,
+    ];
     for pt in &types {
         let json = serde_json::to_string(pt).unwrap();
         let de: ProbeType = serde_json::from_str(&json).unwrap();

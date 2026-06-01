@@ -3,19 +3,25 @@
 //! Provides helper functions for encrypting files before upload
 //! and decrypting after download using the ferro-e2ee crate.
 
+use ferro_e2ee::encrypt::{EncryptionConfig, decrypt_file, encrypt_file};
+use ferro_e2ee::envelope::{KeyEnvelope, create_envelope, open_envelope};
 use ferro_e2ee::key::E2eeKeyPair;
-use ferro_e2ee::encrypt::{EncryptionConfig, encrypt_file, decrypt_file};
-use ferro_e2ee::envelope::{create_envelope, open_envelope, KeyEnvelope};
 
 pub fn generate_user_keypair() -> Result<E2eeKeyPair, ferro_e2ee::error::E2eeError> {
     E2eeKeyPair::generate()
 }
 
-pub fn encrypt_file_data(key: &E2eeKeyPair, plaintext: &[u8]) -> Result<ferro_e2ee::encrypt::EncryptedFile, String> {
+pub fn encrypt_file_data(
+    key: &E2eeKeyPair,
+    plaintext: &[u8],
+) -> Result<ferro_e2ee::encrypt::EncryptedFile, String> {
     encrypt_file(key, plaintext, &EncryptionConfig::default()).map_err(|e| e.to_string())
 }
 
-pub fn decrypt_file_data(key: &E2eeKeyPair, encrypted: &ferro_e2ee::encrypt::EncryptedFile) -> Result<Vec<u8>, String> {
+pub fn decrypt_file_data(
+    key: &E2eeKeyPair,
+    encrypted: &ferro_e2ee::encrypt::EncryptedFile,
+) -> Result<Vec<u8>, String> {
     decrypt_file(key, encrypted).map_err(|e| e.to_string())
 }
 
@@ -27,7 +33,10 @@ pub fn create_key_envelope(
     create_envelope(sender, recipient_public, file_key).map_err(|e| e.to_string())
 }
 
-pub fn open_key_envelope(recipient: &E2eeKeyPair, envelope: &KeyEnvelope) -> Result<Vec<u8>, String> {
+pub fn open_key_envelope(
+    recipient: &E2eeKeyPair,
+    envelope: &KeyEnvelope,
+) -> Result<Vec<u8>, String> {
     open_envelope(recipient, envelope).map_err(|e| e.to_string())
 }
 
@@ -68,7 +77,8 @@ mod tests {
         let sender = make_keypair();
         let recipient = make_keypair();
         let file_key = b"this-is-a-32-byte-enc-key-padded!";
-        let envelope = create_key_envelope(&sender, recipient.public_key_bytes(), file_key).unwrap();
+        let envelope =
+            create_key_envelope(&sender, recipient.public_key_bytes(), file_key).unwrap();
         let recovered = open_key_envelope(&recipient, &envelope).unwrap();
         assert_eq!(file_key.as_slice(), recovered.as_slice());
     }

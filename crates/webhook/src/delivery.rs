@@ -46,7 +46,12 @@ impl DeliveryResult {
         }
     }
 
-    pub fn succeeded(webhook_id: String, payload_id: String, status_code: u16, duration: Duration) -> Self {
+    pub fn succeeded(
+        webhook_id: String,
+        payload_id: String,
+        status_code: u16,
+        duration: Duration,
+    ) -> Self {
         Self {
             webhook_id,
             payload_id,
@@ -58,7 +63,12 @@ impl DeliveryResult {
         }
     }
 
-    pub fn failed(webhook_id: String, payload_id: String, status_code: Option<u16>, duration: Duration) -> Self {
+    pub fn failed(
+        webhook_id: String,
+        payload_id: String,
+        status_code: Option<u16>,
+        duration: Duration,
+    ) -> Self {
         Self {
             webhook_id,
             payload_id,
@@ -160,7 +170,11 @@ impl DeliveryTracker {
     pub fn get_pending(&self, webhook_id: &str) -> Vec<&DeliveryRecord> {
         self.records
             .get(webhook_id)
-            .map(|v| v.iter().filter(|r| r.status == DeliveryStatus::Retrying).collect())
+            .map(|v| {
+                v.iter()
+                    .filter(|r| r.status == DeliveryStatus::Retrying)
+                    .collect()
+            })
             .unwrap_or_default()
     }
 }

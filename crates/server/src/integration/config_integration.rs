@@ -19,12 +19,12 @@ mod tests {
     #[test]
     fn test_load_default_config() {
         let config = load_default_config();
-        assert!(config.server.host.len() > 0);
+        assert!(!config.server.host.is_empty());
     }
 
     #[test]
     fn test_load_config_missing_file() {
         let config = load_server_config(Some("/nonexistent/path.toml"));
-        assert!(config.server.host.len() > 0);
+        assert!(!config.server.host.is_empty());
     }
 }

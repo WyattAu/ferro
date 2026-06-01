@@ -3,7 +3,6 @@
 //! Provides the Rust backend for iOS Files Provider and Android SAF integration.
 //! Uses the same sync engine as desktop but with mobile-specific optimizations.
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MobilePlatform {
     Android,
@@ -363,7 +362,10 @@ mod tests {
         assert_eq!(format!("{err}"), "File not found: test.pdf");
 
         let err = MobileError::CacheFull(100, 200);
-        assert_eq!(format!("{err}"), "Cache full: 100 bytes used, 200 bytes limit");
+        assert_eq!(
+            format!("{err}"),
+            "Cache full: 100 bytes used, 200 bytes limit"
+        );
 
         let err = MobileError::NotRegistered;
         assert_eq!(format!("{err}"), "Provider not registered");
@@ -414,7 +416,9 @@ mod tests {
         let mut config = MobileSyncConfig::android_defaults();
         config.server_url = "https://example.com".into();
         let provider = AndroidSAFProvider::new(config);
-        let handle = provider.handle_content_uri("content://com.example/file").unwrap();
+        let handle = provider
+            .handle_content_uri("content://com.example/file")
+            .unwrap();
         assert_eq!(handle.path, "content://com.example/file");
     }
 

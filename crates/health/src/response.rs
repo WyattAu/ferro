@@ -41,7 +41,8 @@ impl HealthResponse {
 
     pub fn override_status(mut self, status: HealthStatus, message: &str) -> Self {
         self.status = status;
-        self.info.insert("override_message".to_string(), message.to_string());
+        self.info
+            .insert("override_message".to_string(), message.to_string());
         self
     }
 

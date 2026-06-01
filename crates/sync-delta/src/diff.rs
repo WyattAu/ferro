@@ -1,6 +1,6 @@
+use crate::chunker::ChunkInfo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use crate::chunker::ChunkInfo;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDiffRequest {
@@ -16,17 +16,9 @@ pub struct BlockDiffResult {
 }
 
 pub fn compute_block_diff(request: &BlockDiffRequest) -> BlockDiffResult {
-    let local_hashes: HashSet<[u8; 32]> = request
-        .local_chunks
-        .iter()
-        .map(|c| c.hash)
-        .collect();
+    let local_hashes: HashSet<[u8; 32]> = request.local_chunks.iter().map(|c| c.hash).collect();
 
-    let new_hashes: HashSet<[u8; 32]> = request
-        .new_chunks
-        .iter()
-        .map(|c| c.hash)
-        .collect();
+    let new_hashes: HashSet<[u8; 32]> = request.new_chunks.iter().map(|c| c.hash).collect();
 
     let mut chunks_to_upload = Vec::new();
     let mut chunks_to_download = Vec::new();
@@ -88,10 +80,7 @@ mod tests {
     #[test]
     fn test_new_file() {
         let local = vec![];
-        let new_chunks = vec![
-            make_chunk(10, 0, 100, 0),
-            make_chunk(20, 100, 200, 1),
-        ];
+        let new_chunks = vec![make_chunk(10, 0, 100, 0), make_chunk(20, 100, 200, 1)];
         let request = BlockDiffRequest {
             local_chunks: local,
             new_chunks: new_chunks.clone(),
@@ -104,14 +93,8 @@ mod tests {
 
     #[test]
     fn test_reversed() {
-        let local = vec![
-            make_chunk(1, 0, 100, 0),
-            make_chunk(2, 100, 200, 1),
-        ];
-        let new_chunks = vec![
-            make_chunk(3, 0, 150, 0),
-            make_chunk(4, 150, 100, 1),
-        ];
+        let local = vec![make_chunk(1, 0, 100, 0), make_chunk(2, 100, 200, 1)];
+        let new_chunks = vec![make_chunk(3, 0, 150, 0), make_chunk(4, 150, 100, 1)];
         let request = BlockDiffRequest {
             local_chunks: local,
             new_chunks,

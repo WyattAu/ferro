@@ -75,8 +75,22 @@ mod tests {
     #[test]
     fn test_index_and_search() {
         let index = create_file_search_index();
-        index_file(&index, "f1", "report.pdf", "/docs/report.pdf", "application/pdf", 2048);
-        index_file(&index, "f2", "budget.xlsx", "/finance/budget.xlsx", "application/vnd.ms-excel", 1024);
+        index_file(
+            &index,
+            "f1",
+            "report.pdf",
+            "/docs/report.pdf",
+            "application/pdf",
+            2048,
+        );
+        index_file(
+            &index,
+            "f2",
+            "budget.xlsx",
+            "/finance/budget.xlsx",
+            "application/vnd.ms-excel",
+            1024,
+        );
 
         let results = search_files(&index, "report", 10);
         assert_eq!(results.len(), 1);
@@ -86,7 +100,14 @@ mod tests {
     #[test]
     fn test_deindex() {
         let index = create_file_search_index();
-        index_file(&index, "f1", "readme.md", "/readme.md", "text/markdown", 100);
+        index_file(
+            &index,
+            "f1",
+            "readme.md",
+            "/readme.md",
+            "text/markdown",
+            100,
+        );
         assert_eq!(index.document_count(), 1);
         deindex_file(&index, "f1");
         assert_eq!(index.document_count(), 0);
@@ -95,7 +116,14 @@ mod tests {
     #[test]
     fn test_extension_indexing() {
         let index = create_file_search_index();
-        index_file(&index, "f1", "photo.jpg", "/photos/photo.jpg", "image/jpeg", 500);
+        index_file(
+            &index,
+            "f1",
+            "photo.jpg",
+            "/photos/photo.jpg",
+            "image/jpeg",
+            500,
+        );
         let results = search_files(&index, "jpg", 10);
         assert_eq!(results.len(), 1);
     }

@@ -65,11 +65,7 @@ pub trait ResourceIsolation: Send + Sync {
         ctx: &TenantContext,
         resource_path: &str,
     ) -> Result<(), TenantError>;
-    fn enforce_path_prefix(
-        &self,
-        ctx: &TenantContext,
-        full_path: &str,
-    ) -> Result<(), TenantError>;
+    fn enforce_path_prefix(&self, ctx: &TenantContext, full_path: &str) -> Result<(), TenantError>;
 }
 
 pub struct DefaultResourceIsolation {
@@ -90,7 +86,13 @@ impl ResourceIsolation for DefaultResourceIsolation {
         ctx: &TenantContext,
         resource_path: &str,
     ) -> Result<(), TenantError> {
-        if matches!(ctx.role, OrganizationRole::ReadOnly | OrganizationRole::Member | OrganizationRole::Admin | OrganizationRole::Owner) {
+        if matches!(
+            ctx.role,
+            OrganizationRole::ReadOnly
+                | OrganizationRole::Member
+                | OrganizationRole::Admin
+                | OrganizationRole::Owner
+        ) {
             self.enforce_path_prefix(ctx, resource_path)?;
             Ok(())
         } else {
@@ -122,16 +124,10 @@ impl ResourceIsolation for DefaultResourceIsolation {
         }
     }
 
-    fn enforce_path_prefix(
-        &self,
-        ctx: &TenantContext,
-        full_path: &str,
-    ) -> Result<(), TenantError> {
+    fn enforce_path_prefix(&self, ctx: &TenantContext, full_path: &str) -> Result<(), TenantError> {
         let expected_prefix = format!(
             "{}/tenants/{}/{}",
-            self.tenant_storage_base,
-            ctx.organization_id.0,
-            ctx.tenant_id.0
+            self.tenant_storage_base, ctx.organization_id.0, ctx.tenant_id.0
         );
         let canonical = match PathBuf::from(full_path).canonicalize() {
             Ok(p) => p.to_string_lossy().to_string(),
@@ -164,11 +160,7 @@ impl TenantPathResolver {
         }
     }
 
-    pub fn resolve(
-        &self,
-        tenant_id: &str,
-        relative_path: &str,
-    ) -> Result<String, TenantError> {
+    pub fn resolve(&self, tenant_id: &str, relative_path: &str) -> Result<String, TenantError> {
         if relative_path.contains("..") {
             return Err(TenantError::PermissionDenied {
                 user_id: "system".to_string(),
@@ -189,7 +181,12 @@ impl TenantPathResolver {
 mod tests {
     use super::*;
 
-    fn make_ctx(tenant_id: &str, org_id: &str, user_id: &str, role: OrganizationRole) -> TenantContext {
+    fn make_ctx(
+        tenant_id: &str,
+        org_id: &str,
+        user_id: &str,
+        role: OrganizationRole,
+    ) -> TenantContext {
         TenantContext::new(
             TenantId(tenant_id.to_string()),
             OrganizationId(org_id.to_string()),

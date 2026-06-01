@@ -40,19 +40,34 @@ pub enum ApiKeyErrorKind {
 
 impl ApiKeyError {
     pub fn not_found(msg: impl Into<String>) -> Self {
-        Self { kind: ApiKeyErrorKind::NotFound, message: msg.into() }
+        Self {
+            kind: ApiKeyErrorKind::NotFound,
+            message: msg.into(),
+        }
     }
     pub fn forbidden(msg: impl Into<String>) -> Self {
-        Self { kind: ApiKeyErrorKind::Forbidden, message: msg.into() }
+        Self {
+            kind: ApiKeyErrorKind::Forbidden,
+            message: msg.into(),
+        }
     }
     pub fn bad_request(msg: impl Into<String>) -> Self {
-        Self { kind: ApiKeyErrorKind::BadRequest, message: msg.into() }
+        Self {
+            kind: ApiKeyErrorKind::BadRequest,
+            message: msg.into(),
+        }
     }
     pub fn conflict(msg: impl Into<String>) -> Self {
-        Self { kind: ApiKeyErrorKind::Conflict, message: msg.into() }
+        Self {
+            kind: ApiKeyErrorKind::Conflict,
+            message: msg.into(),
+        }
     }
     pub fn quota_exceeded(msg: impl Into<String>) -> Self {
-        Self { kind: ApiKeyErrorKind::QuotaExceeded, message: msg.into() }
+        Self {
+            kind: ApiKeyErrorKind::QuotaExceeded,
+            message: msg.into(),
+        }
     }
 }
 
@@ -221,10 +236,7 @@ fn urlencoding_decode(s: &str) -> String {
             b'%' => {
                 let hex: Vec<u8> = chars.by_ref().take(2).collect();
                 if hex.len() == 2
-                    && let Ok(byte) = u8::from_str_radix(
-                        &String::from_utf8_lossy(&hex),
-                        16,
-                    )
+                    && let Ok(byte) = u8::from_str_radix(&String::from_utf8_lossy(&hex), 16)
                 {
                     result.push(byte);
                     continue;
@@ -363,10 +375,7 @@ impl InMemoryApiKeyStore {
         let hash = key.key_hash.clone();
         self.keys.insert(id.clone(), key);
         self.hash_index.insert(hash, id.clone());
-        self.user_keys
-            .entry(user_id)
-            .or_default()
-            .push(id);
+        self.user_keys.entry(user_id).or_default().push(id);
     }
 }
 
@@ -477,10 +486,7 @@ impl ApiKeyStoreTrait for InMemoryApiKeyStore {
     }
 
     async fn count_keys(&self, user_id: &str) -> usize {
-        self.user_keys
-            .get(user_id)
-            .map(|r| r.len())
-            .unwrap_or(0)
+        self.user_keys.get(user_id).map(|r| r.len()).unwrap_or(0)
     }
 }
 
@@ -504,7 +510,10 @@ mod tests {
     #[tokio::test]
     async fn test_create_and_list_keys() {
         let s = store();
-        let (key, raw) = s.create_key("user1", create_request("my-key")).await.unwrap();
+        let (key, raw) = s
+            .create_key("user1", create_request("my-key"))
+            .await
+            .unwrap();
 
         assert!(raw.starts_with(KEY_PREFIX));
         assert_eq!(key.name, "my-key");
@@ -518,7 +527,10 @@ mod tests {
     #[tokio::test]
     async fn test_authenticate_valid_key() {
         let s = store();
-        let (_, raw) = s.create_key("user1", create_request("auth-test")).await.unwrap();
+        let (_, raw) = s
+            .create_key("user1", create_request("auth-test"))
+            .await
+            .unwrap();
 
         let key = s.authenticate(&raw).await.unwrap();
         assert_eq!(key.name, "auth-test");
@@ -535,7 +547,10 @@ mod tests {
     #[tokio::test]
     async fn test_revoke_key() {
         let s = store();
-        let (key, _raw) = s.create_key("user1", create_request("revokable")).await.unwrap();
+        let (key, _raw) = s
+            .create_key("user1", create_request("revokable"))
+            .await
+            .unwrap();
         let id = key.id.clone();
 
         s.revoke_key(&id, "user1").await.unwrap();

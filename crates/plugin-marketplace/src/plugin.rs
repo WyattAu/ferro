@@ -42,9 +42,7 @@ impl FromStr for PluginId {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         uuid::Uuid::parse_str(s)
             .map(|_| Self(s.to_string()))
-            .map_err(|_| MarketplaceError::PluginNotFound {
-                id: s.to_string(),
-            })
+            .map_err(|_| MarketplaceError::PluginNotFound { id: s.to_string() })
     }
 }
 
@@ -139,7 +137,11 @@ pub struct PluginReview {
 }
 
 impl PluginReview {
-    pub fn new(user_id: impl Into<String>, rating: u8, comment: impl Into<String>) -> Result<Self, String> {
+    pub fn new(
+        user_id: impl Into<String>,
+        rating: u8,
+        comment: impl Into<String>,
+    ) -> Result<Self, String> {
         if !(1..=5).contains(&rating) {
             return Err("rating must be between 1 and 5".to_string());
         }

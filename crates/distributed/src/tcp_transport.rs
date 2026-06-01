@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
@@ -82,11 +82,16 @@ impl TcpRaftTransport {
             if let Some(ref stream) = *guard
                 && stream.peer_addr().is_ok()
             {
-                let addr = self.peers.get(target).ok_or_else(|| {
-                    DistributedError::NodeUnavailable { node_id: target.0.clone() }
-                })?;
+                let addr =
+                    self.peers
+                        .get(target)
+                        .ok_or_else(|| DistributedError::NodeUnavailable {
+                            node_id: target.0.clone(),
+                        })?;
                 let new_stream = TcpStream::connect(*addr).await.map_err(|_| {
-                    DistributedError::NodeUnavailable { node_id: target.0.clone() }
+                    DistributedError::NodeUnavailable {
+                        node_id: target.0.clone(),
+                    }
                 })?;
                 new_stream.set_nodelay(true).ok();
                 return Ok(new_stream);
@@ -94,9 +99,12 @@ impl TcpRaftTransport {
             drop(guard);
         }
 
-        let addr = self.peers.get(target).ok_or_else(|| {
-            DistributedError::NodeUnavailable { node_id: target.0.clone() }
-        })?;
+        let addr = self
+            .peers
+            .get(target)
+            .ok_or_else(|| DistributedError::NodeUnavailable {
+                node_id: target.0.clone(),
+            })?;
 
         let mut backoff = Duration::from_millis(50);
         for _ in 0..MAX_RECONNECT_ATTEMPTS {
@@ -114,31 +122,44 @@ impl TcpRaftTransport {
             }
         }
 
-        Err(DistributedError::NodeUnavailable { node_id: target.0.clone() })
+        Err(DistributedError::NodeUnavailable {
+            node_id: target.0.clone(),
+        })
     }
 
-    async fn write_message(stream: &mut TcpStream, msg: &RaftMessage) -> Result<(), DistributedError> {
+    async fn write_message(
+        stream: &mut TcpStream,
+        msg: &RaftMessage,
+    ) -> Result<(), DistributedError> {
         let frame = encode_frame(msg)?;
         let timeout_fut = tokio::time::timeout(SEND_TIMEOUT, stream.write_all(&frame));
         timeout_fut
             .await
-            .map_err(|_| DistributedError::Timeout { operation: "write message".into() })?
-            .map_err(|e| DistributedError::EncodingFailed { reason: e.to_string() })?;
-        stream.flush().await.map_err(|e| {
-            DistributedError::EncodingFailed { reason: format!("flush: {}", e) }
-        })?;
+            .map_err(|_| DistributedError::Timeout {
+                operation: "write message".into(),
+            })?
+            .map_err(|e| DistributedError::EncodingFailed {
+                reason: e.to_string(),
+            })?;
+        stream
+            .flush()
+            .await
+            .map_err(|e| DistributedError::EncodingFailed {
+                reason: format!("flush: {}", e),
+            })?;
         Ok(())
     }
 
     async fn read_response(stream: &mut TcpStream) -> Result<RaftMessage, DistributedError> {
         let mut len_buf = [0u8; 4];
-        let timeout_fut =
-            tokio::time::timeout(SEND_TIMEOUT, stream.read_exact(&mut len_buf));
+        let timeout_fut = tokio::time::timeout(SEND_TIMEOUT, stream.read_exact(&mut len_buf));
         timeout_fut
             .await
-            .map_err(|_| DistributedError::Timeout { operation: "read response length".into() })?
-            .map_err(|e| {
-                DistributedError::DecodingFailed { reason: format!("read len: {}", e) }
+            .map_err(|_| DistributedError::Timeout {
+                operation: "read response length".into(),
+            })?
+            .map_err(|e| DistributedError::DecodingFailed {
+                reason: format!("read len: {}", e),
             })?;
 
         let len = u32::from_be_bytes(len_buf) as usize;
@@ -147,9 +168,11 @@ impl TcpRaftTransport {
         let timeout_fut = tokio::time::timeout(SEND_TIMEOUT, read_fut);
         timeout_fut
             .await
-            .map_err(|_| DistributedError::Timeout { operation: "read response payload".into() })?
-            .map_err(|e| {
-                DistributedError::DecodingFailed { reason: format!("read payload: {}", e) }
+            .map_err(|_| DistributedError::Timeout {
+                operation: "read response payload".into(),
+            })?
+            .map_err(|e| DistributedError::DecodingFailed {
+                reason: format!("read payload: {}", e),
             })?;
 
         let mut full_frame = Vec::with_capacity(4 + len);
@@ -187,7 +210,10 @@ impl TcpRaftTransport {
                     }
                     let guard = handler.lock().await;
                     if let Some(h) = guard.as_ref() {
-                        let incoming = IncomingMessage { from_addr, message: msg.clone() };
+                        let incoming = IncomingMessage {
+                            from_addr,
+                            message: msg.clone(),
+                        };
                         if let Some(reply) = (h.0)(incoming) {
                             drop(guard);
                             let _ = Self::write_message(&mut stream, &reply).await;
@@ -202,13 +228,20 @@ impl TcpRaftTransport {
 
 #[async_trait]
 impl RaftTransport for TcpRaftTransport {
-    async fn send(&self, target: &NodeId, msg: RaftMessage) -> Result<RaftMessage, DistributedError> {
+    async fn send(
+        &self,
+        target: &NodeId,
+        msg: RaftMessage,
+    ) -> Result<RaftMessage, DistributedError> {
         let mut stream = self.get_or_create_connection(target).await?;
         Self::write_message(&mut stream, &msg).await?;
         Self::read_response(&mut stream).await
     }
 
-    async fn broadcast(&self, msg: RaftMessage) -> Vec<(NodeId, Result<RaftMessage, DistributedError>)> {
+    async fn broadcast(
+        &self,
+        msg: RaftMessage,
+    ) -> Vec<(NodeId, Result<RaftMessage, DistributedError>)> {
         let mut results = Vec::new();
         for peer_id in self.peers.keys() {
             let result = self.send(peer_id, msg.clone()).await;
@@ -323,13 +356,19 @@ mod tests {
         let t1 = TcpRaftTransport::new(
             node1.clone(),
             format!("127.0.0.1:{}", port1).parse().unwrap(),
-            HashMap::from([(node2.clone(), format!("127.0.0.1:{}", port2).parse().unwrap())]),
+            HashMap::from([(
+                node2.clone(),
+                format!("127.0.0.1:{}", port2).parse().unwrap(),
+            )]),
         );
 
         let t2 = TcpRaftTransport::new(
             node2.clone(),
             format!("127.0.0.1:{}", port2).parse().unwrap(),
-            HashMap::from([(node1.clone(), format!("127.0.0.1:{}", port1).parse().unwrap())]),
+            HashMap::from([(
+                node1.clone(),
+                format!("127.0.0.1:{}", port1).parse().unwrap(),
+            )]),
         );
 
         t2.set_handler(MessageHandler::new(move |incoming| {
@@ -381,13 +420,19 @@ mod tests {
         let t1 = TcpRaftTransport::new(
             node1.clone(),
             format!("127.0.0.1:{}", port1).parse().unwrap(),
-            HashMap::from([(node2.clone(), format!("127.0.0.1:{}", port2).parse().unwrap())]),
+            HashMap::from([(
+                node2.clone(),
+                format!("127.0.0.1:{}", port2).parse().unwrap(),
+            )]),
         );
 
         let t2 = TcpRaftTransport::new(
             node2.clone(),
             format!("127.0.0.1:{}", port2).parse().unwrap(),
-            HashMap::from([(node1.clone(), format!("127.0.0.1:{}", port1).parse().unwrap())]),
+            HashMap::from([(
+                node1.clone(),
+                format!("127.0.0.1:{}", port1).parse().unwrap(),
+            )]),
         );
 
         let responder = node2.clone();
@@ -441,26 +486,41 @@ mod tests {
             node1.clone(),
             format!("127.0.0.1:{}", port1).parse().unwrap(),
             HashMap::from([
-                (node2.clone(), format!("127.0.0.1:{}", port2).parse().unwrap()),
-                (node3.clone(), format!("127.0.0.1:{}", port3).parse().unwrap()),
+                (
+                    node2.clone(),
+                    format!("127.0.0.1:{}", port2).parse().unwrap(),
+                ),
+                (
+                    node3.clone(),
+                    format!("127.0.0.1:{}", port3).parse().unwrap(),
+                ),
             ]),
         );
 
         let t2 = TcpRaftTransport::new(
             node2.clone(),
             format!("127.0.0.1:{}", port2).parse().unwrap(),
-            HashMap::from([(node1.clone(), format!("127.0.0.1:{}", port1).parse().unwrap())]),
+            HashMap::from([(
+                node1.clone(),
+                format!("127.0.0.1:{}", port1).parse().unwrap(),
+            )]),
         );
 
         let t3 = TcpRaftTransport::new(
             node3.clone(),
             format!("127.0.0.1:{}", port3).parse().unwrap(),
-            HashMap::from([(node1.clone(), format!("127.0.0.1:{}", port1).parse().unwrap())]),
+            HashMap::from([(
+                node1.clone(),
+                format!("127.0.0.1:{}", port1).parse().unwrap(),
+            )]),
         );
 
         t2.set_handler(MessageHandler::new(move |incoming| {
             if let RaftMessage::Ping { .. } = &incoming.message {
-                Some(RaftMessage::Pong { from: make_node("peer2"), term: Term(1) })
+                Some(RaftMessage::Pong {
+                    from: make_node("peer2"),
+                    term: Term(1),
+                })
             } else {
                 None
             }
@@ -468,7 +528,10 @@ mod tests {
 
         t3.set_handler(MessageHandler::new(move |incoming| {
             if let RaftMessage::Ping { .. } = &incoming.message {
-                Some(RaftMessage::Pong { from: make_node("peer3"), term: Term(1) })
+                Some(RaftMessage::Pong {
+                    from: make_node("peer3"),
+                    term: Term(1),
+                })
             } else {
                 None
             }
@@ -480,7 +543,10 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         let results = t1
-            .broadcast(RaftMessage::Ping { from: node1.clone(), term: Term(1) })
+            .broadcast(RaftMessage::Ping {
+                from: node1.clone(),
+                term: Term(1),
+            })
             .await;
 
         assert_eq!(results.len(), 2);
@@ -504,7 +570,10 @@ mod tests {
         let t1 = TcpRaftTransport::new(
             node1.clone(),
             format!("127.0.0.1:{}", port1).parse().unwrap(),
-            HashMap::from([(ghost.clone(), format!("127.0.0.1:{}", bad_port).parse().unwrap())]),
+            HashMap::from([(
+                ghost.clone(),
+                format!("127.0.0.1:{}", bad_port).parse().unwrap(),
+            )]),
         );
 
         t1.start().await.unwrap();
@@ -513,7 +582,10 @@ mod tests {
         let result = t1
             .send(
                 &ghost,
-                RaftMessage::Ping { from: node1.clone(), term: Term(1) },
+                RaftMessage::Ping {
+                    from: node1.clone(),
+                    term: Term(1),
+                },
             )
             .await;
 
@@ -532,13 +604,19 @@ mod tests {
         let t1 = TcpRaftTransport::new(
             node1.clone(),
             format!("127.0.0.1:{}", port1).parse().unwrap(),
-            HashMap::from([(node2.clone(), format!("127.0.0.1:{}", port2).parse().unwrap())]),
+            HashMap::from([(
+                node2.clone(),
+                format!("127.0.0.1:{}", port2).parse().unwrap(),
+            )]),
         );
 
         let t2 = TcpRaftTransport::new(
             node2.clone(),
             format!("127.0.0.1:{}", port2).parse().unwrap(),
-            HashMap::from([(node1.clone(), format!("127.0.0.1:{}", port1).parse().unwrap())]),
+            HashMap::from([(
+                node1.clone(),
+                format!("127.0.0.1:{}", port1).parse().unwrap(),
+            )]),
         );
 
         t2.set_handler(MessageHandler::new(move |incoming| {
@@ -580,13 +658,19 @@ mod tests {
         let t1 = TcpRaftTransport::new(
             node1.clone(),
             format!("127.0.0.1:{}", port1).parse().unwrap(),
-            HashMap::from([(node2.clone(), format!("127.0.0.1:{}", port2).parse().unwrap())]),
+            HashMap::from([(
+                node2.clone(),
+                format!("127.0.0.1:{}", port2).parse().unwrap(),
+            )]),
         );
 
         let t2 = TcpRaftTransport::new(
             node2.clone(),
             format!("127.0.0.1:{}", port2).parse().unwrap(),
-            HashMap::from([(node1.clone(), format!("127.0.0.1:{}", port1).parse().unwrap())]),
+            HashMap::from([(
+                node1.clone(),
+                format!("127.0.0.1:{}", port1).parse().unwrap(),
+            )]),
         );
 
         t2.start().await.unwrap();
@@ -594,7 +678,13 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         let resp = t1
-            .send(&node2, RaftMessage::Ping { from: node1.clone(), term: Term(1) })
+            .send(
+                &node2,
+                RaftMessage::Ping {
+                    from: node1.clone(),
+                    term: Term(1),
+                },
+            )
             .await
             .unwrap();
 
@@ -615,19 +705,28 @@ mod tests {
         let t1 = TcpRaftTransport::new(
             node1.clone(),
             format!("127.0.0.1:{}", port1).parse().unwrap(),
-            HashMap::from([(node2.clone(), format!("127.0.0.1:{}", port2).parse().unwrap())]),
+            HashMap::from([(
+                node2.clone(),
+                format!("127.0.0.1:{}", port2).parse().unwrap(),
+            )]),
         );
 
         let t2 = TcpRaftTransport::new(
             node2.clone(),
             format!("127.0.0.1:{}", port2).parse().unwrap(),
-            HashMap::from([(node1.clone(), format!("127.0.0.1:{}", port1).parse().unwrap())]),
+            HashMap::from([(
+                node1.clone(),
+                format!("127.0.0.1:{}", port1).parse().unwrap(),
+            )]),
         );
 
         let responder = node2.clone();
         t2.set_handler(MessageHandler::new(move |incoming| {
             if let RaftMessage::Ping { .. } = &incoming.message {
-                Some(RaftMessage::Pong { from: responder.clone(), term: Term(1) })
+                Some(RaftMessage::Pong {
+                    from: responder.clone(),
+                    term: Term(1),
+                })
             } else {
                 None
             }
@@ -638,7 +737,13 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         let resp = t1
-            .send(&node2, RaftMessage::Ping { from: node1.clone(), term: Term(1) })
+            .send(
+                &node2,
+                RaftMessage::Ping {
+                    from: node1.clone(),
+                    term: Term(1),
+                },
+            )
             .await
             .unwrap();
         assert!(matches!(resp, RaftMessage::Pong { .. }));
@@ -647,7 +752,13 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         let resp2 = t1
-            .send(&node2, RaftMessage::Ping { from: node1.clone(), term: Term(1) })
+            .send(
+                &node2,
+                RaftMessage::Ping {
+                    from: node1.clone(),
+                    term: Term(1),
+                },
+            )
             .await
             .unwrap();
         assert!(matches!(resp2, RaftMessage::Pong { .. }));
@@ -667,18 +778,27 @@ mod tests {
         let t1 = TcpRaftTransport::new(
             node1.clone(),
             format!("127.0.0.1:{}", port1).parse().unwrap(),
-            HashMap::from([(node2.clone(), format!("127.0.0.1:{}", port2).parse().unwrap())]),
+            HashMap::from([(
+                node2.clone(),
+                format!("127.0.0.1:{}", port2).parse().unwrap(),
+            )]),
         );
 
         let t2 = TcpRaftTransport::new(
             node2.clone(),
             format!("127.0.0.1:{}", port2).parse().unwrap(),
-            HashMap::from([(node1.clone(), format!("127.0.0.1:{}", port1).parse().unwrap())]),
+            HashMap::from([(
+                node1.clone(),
+                format!("127.0.0.1:{}", port1).parse().unwrap(),
+            )]),
         );
 
         t2.set_handler(MessageHandler::new(move |incoming| {
             if let RaftMessage::Ping { .. } = &incoming.message {
-                Some(RaftMessage::Pong { from: make_node("stop2"), term: Term(1) })
+                Some(RaftMessage::Pong {
+                    from: make_node("stop2"),
+                    term: Term(1),
+                })
             } else {
                 None
             }
@@ -689,7 +809,13 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         let resp = t1
-            .send(&node2, RaftMessage::Ping { from: node1.clone(), term: Term(1) })
+            .send(
+                &node2,
+                RaftMessage::Ping {
+                    from: node1.clone(),
+                    term: Term(1),
+                },
+            )
             .await
             .unwrap();
         assert!(matches!(resp, RaftMessage::Pong { .. }));

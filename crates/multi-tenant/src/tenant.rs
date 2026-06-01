@@ -43,10 +43,7 @@ pub trait TenantStore: Send + Sync {
     async fn get(&self, id: &str) -> Result<Tenant, TenantError>;
     async fn update(&self, tenant: Tenant) -> Result<Tenant, TenantError>;
     async fn delete(&self, id: &str) -> Result<(), TenantError>;
-    async fn list_by_organization(
-        &self,
-        org_id: &str,
-    ) -> Result<Vec<Tenant>, TenantError>;
+    async fn list_by_organization(&self, org_id: &str) -> Result<Vec<Tenant>, TenantError>;
     async fn get_by_slug(&self, slug: &str) -> Result<Tenant, TenantError>;
 }
 
@@ -86,7 +83,9 @@ impl TenantStore for InMemoryTenantStore {
         self.tenants
             .get(id)
             .map(|entry| entry.value().clone())
-            .ok_or_else(|| TenantError::NotFound { tenant_id: id.to_string() })
+            .ok_or_else(|| TenantError::NotFound {
+                tenant_id: id.to_string(),
+            })
     }
 
     async fn update(&self, tenant: Tenant) -> Result<Tenant, TenantError> {
@@ -94,7 +93,9 @@ impl TenantStore for InMemoryTenantStore {
             self.tenants.insert(tenant.id.0.clone(), tenant.clone());
             Ok(tenant)
         } else {
-            Err(TenantError::NotFound { tenant_id: tenant.id.0.clone() })
+            Err(TenantError::NotFound {
+                tenant_id: tenant.id.0.clone(),
+            })
         }
     }
 
@@ -102,7 +103,9 @@ impl TenantStore for InMemoryTenantStore {
         self.tenants
             .remove(id)
             .map(|_| ())
-            .ok_or_else(|| TenantError::NotFound { tenant_id: id.to_string() })
+            .ok_or_else(|| TenantError::NotFound {
+                tenant_id: id.to_string(),
+            })
     }
 
     async fn list_by_organization(&self, org_id: &str) -> Result<Vec<Tenant>, TenantError> {
@@ -185,7 +188,10 @@ mod tests {
     #[tokio::test]
     async fn test_duplicate_slug() {
         let store = make_store();
-        store.create(make_tenant("acme-prod", "org-1", "user-1")).await.unwrap();
+        store
+            .create(make_tenant("acme-prod", "org-1", "user-1"))
+            .await
+            .unwrap();
         let err = store
             .create(make_tenant("acme-prod", "org-2", "user-2"))
             .await
@@ -201,9 +207,18 @@ mod tests {
     #[tokio::test]
     async fn test_list_by_org() {
         let store = make_store();
-        store.create(make_tenant("prod-1", "org-1", "user-1")).await.unwrap();
-        store.create(make_tenant("staging", "org-1", "user-1")).await.unwrap();
-        store.create(make_tenant("prod-2", "org-2", "user-2")).await.unwrap();
+        store
+            .create(make_tenant("prod-1", "org-1", "user-1"))
+            .await
+            .unwrap();
+        store
+            .create(make_tenant("staging", "org-1", "user-1"))
+            .await
+            .unwrap();
+        store
+            .create(make_tenant("prod-2", "org-2", "user-2"))
+            .await
+            .unwrap();
 
         let tenants = store.list_by_organization("org-1").await.unwrap();
         assert_eq!(tenants.len(), 2);

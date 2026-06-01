@@ -154,9 +154,15 @@ mod tests {
     #[tokio::test]
     async fn test_list_with_prefix() {
         let b = InMemoryBackend::new();
-        b.put("docs/a.txt", b"a", &ObjectMetadata::new()).await.unwrap();
-        b.put("docs/b.txt", b"b", &ObjectMetadata::new()).await.unwrap();
-        b.put("other/c.txt", b"c", &ObjectMetadata::new()).await.unwrap();
+        b.put("docs/a.txt", b"a", &ObjectMetadata::new())
+            .await
+            .unwrap();
+        b.put("docs/b.txt", b"b", &ObjectMetadata::new())
+            .await
+            .unwrap();
+        b.put("other/c.txt", b"c", &ObjectMetadata::new())
+            .await
+            .unwrap();
         let items = b.list("docs").await.unwrap();
         assert_eq!(items.len(), 2);
     }
@@ -188,7 +194,9 @@ mod tests {
     #[tokio::test]
     async fn test_metadata_returns_info() {
         let b = InMemoryBackend::new();
-        let meta = ObjectMetadata::new().with_content_type("text/plain").with_etag("abc");
+        let meta = ObjectMetadata::new()
+            .with_content_type("text/plain")
+            .with_etag("abc");
         b.put("info", b"data", &meta).await.unwrap();
         let info = b.metadata("info").await.unwrap();
         assert_eq!(info.size, 4);

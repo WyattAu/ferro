@@ -3,11 +3,7 @@ use std::time::Duration;
 use ferro_rate_limiter::TokenBucketLimiter;
 
 pub fn create_ip_limiter(max_tokens: u32, refill_rate: u32) -> TokenBucketLimiter {
-    TokenBucketLimiter::new(
-        max_tokens,
-        refill_rate,
-        Duration::from_secs(1),
-    )
+    TokenBucketLimiter::new(max_tokens, refill_rate, Duration::from_secs(1))
 }
 
 #[cfg(test)]

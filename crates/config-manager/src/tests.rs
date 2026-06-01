@@ -126,7 +126,10 @@ public_url = "https://example.com"
     assert_eq!(config.storage.s3_region.as_deref(), Some("us-east-1"));
     assert_eq!(config.auth.jwt_secret, "my-super-secret-key-1234");
     assert_eq!(config.logging.level, "debug");
-    assert_eq!(config.network.public_url.as_deref(), Some("https://example.com"));
+    assert_eq!(
+        config.network.public_url.as_deref(),
+        Some("https://example.com")
+    );
 }
 
 #[test]
@@ -172,7 +175,12 @@ fn test_env_override_string_fields() {
 fn test_env_override_comma_separated_list() {
     let _guard = with_env_lock();
     cleanup_env();
-    unsafe { env::set_var("FERRO_SECURITY_CORS_ALLOWED_ORIGINS", "https://a.com,https://b.com") };
+    unsafe {
+        env::set_var(
+            "FERRO_SECURITY_CORS_ALLOWED_ORIGINS",
+            "https://a.com,https://b.com",
+        )
+    };
     let config = ConfigLoader::load_from_env().unwrap();
     assert_eq!(
         config.security.cors_allowed_origins,
@@ -386,9 +394,34 @@ fn test_default_chunk_size_is_power_of_two() {
 #[test]
 fn test_default_cors_methods() {
     let config = FerroConfig::default();
-    assert!(config.security.cors_allowed_methods.contains(&"GET".to_string()));
-    assert!(config.security.cors_allowed_methods.contains(&"POST".to_string()));
-    assert!(config.security.cors_allowed_methods.contains(&"PUT".to_string()));
-    assert!(config.security.cors_allowed_methods.contains(&"DELETE".to_string()));
-    assert!(config.security.cors_allowed_methods.contains(&"OPTIONS".to_string()));
+    assert!(
+        config
+            .security
+            .cors_allowed_methods
+            .contains(&"GET".to_string())
+    );
+    assert!(
+        config
+            .security
+            .cors_allowed_methods
+            .contains(&"POST".to_string())
+    );
+    assert!(
+        config
+            .security
+            .cors_allowed_methods
+            .contains(&"PUT".to_string())
+    );
+    assert!(
+        config
+            .security
+            .cors_allowed_methods
+            .contains(&"DELETE".to_string())
+    );
+    assert!(
+        config
+            .security
+            .cors_allowed_methods
+            .contains(&"OPTIONS".to_string())
+    );
 }

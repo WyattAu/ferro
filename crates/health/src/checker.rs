@@ -2,9 +2,9 @@ use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
+use crate::HealthError;
 use crate::probe::{HealthProbe, HealthStatus, ProbeType, TimedProbe};
 use crate::response::HealthResponse;
-use crate::HealthError;
 
 #[derive(Debug)]
 pub struct GlobalStatus {

@@ -5,9 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::EventBusError;
 
-pub trait Event:
-    Send + Sync + Clone + Serialize + serde::de::DeserializeOwned + 'static
-{
+pub trait Event: Send + Sync + Clone + Serialize + serde::de::DeserializeOwned + 'static {
     fn event_type(&self) -> &str;
     fn timestamp(&self) -> DateTime<Utc>;
     fn to_json(&self) -> Result<String, EventBusError> {
@@ -34,7 +32,11 @@ pub struct FileEvent {
 }
 
 impl FileEvent {
-    pub fn new(event_type: impl Into<String>, path: impl Into<String>, user_id: impl Into<String>) -> Self {
+    pub fn new(
+        event_type: impl Into<String>,
+        path: impl Into<String>,
+        user_id: impl Into<String>,
+    ) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             event_type: event_type.into(),

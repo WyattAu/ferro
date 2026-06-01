@@ -1,5 +1,8 @@
 use crate::error::MountError;
-use crate::traits::{BackendType, Credentials, FileMetadata, MountBackend, MountEntry, MountHandle, MountOptions, SpaceUsage};
+use crate::traits::{
+    BackendType, Credentials, FileMetadata, MountBackend, MountEntry, MountHandle, MountOptions,
+    SpaceUsage,
+};
 use async_trait::async_trait;
 use std::time::Duration;
 

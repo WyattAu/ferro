@@ -8,7 +8,9 @@ pub enum AiError {
     ModelNotLoaded { model_name: String },
     #[error("invalid input: {reason}")]
     InvalidInput { reason: String },
-    #[error("tag conflict for '{tag}': existing value '{existing_value}' differs from new value '{new_value}'")]
+    #[error(
+        "tag conflict for '{tag}': existing value '{existing_value}' differs from new value '{new_value}'"
+    )]
     TagConflict {
         tag: String,
         existing_value: String,

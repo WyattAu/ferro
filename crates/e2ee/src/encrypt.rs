@@ -1,5 +1,5 @@
 use aes_gcm::aead::{Aead, KeyInit};
-use aes_gcm::{Aes256Gcm, AeadCore, Nonce};
+use aes_gcm::{AeadCore, Aes256Gcm, Nonce};
 use hkdf::Hkdf;
 use rand::RngCore;
 use sha2::Sha256;
@@ -273,7 +273,9 @@ mod tests {
         let mut reader: &[u8] = data;
         let mut writer = Vec::new();
 
-        let bytes_written = stream_encrypt(&key, &mut reader, &mut writer, &config).await.unwrap();
+        let bytes_written = stream_encrypt(&key, &mut reader, &mut writer, &config)
+            .await
+            .unwrap();
         assert_eq!(bytes_written, data.len() as u64);
         assert!(!writer.is_empty());
     }

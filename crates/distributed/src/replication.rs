@@ -138,15 +138,10 @@ impl ReplicationCoordinator {
     }
 
     pub fn select_quorum(&self) -> Vec<ReplicaLocation> {
-        let mut all: Vec<ReplicaLocation> = self
-            .replicas
-            .iter()
-            .map(|r| r.value().clone())
-            .collect();
+        let mut all: Vec<ReplicaLocation> =
+            self.replicas.iter().map(|r| r.value().clone()).collect();
         all.sort_by_key(|r| r.latency_ms);
-        all.into_iter()
-            .take(self.policy.write_quorum)
-            .collect()
+        all.into_iter().take(self.policy.write_quorum).collect()
     }
 }
 

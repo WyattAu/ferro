@@ -12,7 +12,12 @@ pub fn join_document(doc: &mut CrdtDocument, site_id: u32, name: &str) -> Partic
     doc.join(ParticipantId(site_id), name)
 }
 
-pub fn insert_text(doc: &mut CrdtDocument, participant: ParticipantId, index: usize, text: &str) -> (Vec<TextOperation>, u64) {
+pub fn insert_text(
+    doc: &mut CrdtDocument,
+    participant: ParticipantId,
+    index: usize,
+    text: &str,
+) -> (Vec<TextOperation>, u64) {
     doc.insert_text(participant, index, text)
 }
 

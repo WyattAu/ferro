@@ -97,7 +97,11 @@ impl HealthProbe for TimedProbe {
 pub struct CustomProbe {
     probe_name: String,
     probe_type: ProbeType,
-    check_fn: Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ProbeResult> + Send>> + Send + Sync>,
+    check_fn: Arc<
+        dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ProbeResult> + Send>>
+            + Send
+            + Sync,
+    >,
 }
 
 impl CustomProbe {
@@ -240,7 +244,10 @@ impl HealthProbe for MemoryProbe {
             .with_status(status)
             .with_message(format!("memory usage: {:.2}%", percent))
             .with_detail("usage_percent", serde_json::json!(percent))
-            .with_detail("threshold_percent", serde_json::json!(self.threshold_percent))
+            .with_detail(
+                "threshold_percent",
+                serde_json::json!(self.threshold_percent),
+            )
     }
 
     fn probe_type(&self) -> ProbeType {

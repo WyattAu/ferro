@@ -3,7 +3,9 @@ use std::time::Duration;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct NodeId(pub String);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct Term(pub u64);
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -111,11 +113,7 @@ impl RaftNode {
 
     pub fn request_vote(&self) -> VoteRequest {
         let last_log_index = self.log.len() as u64;
-        let last_log_term = self
-            .log
-            .last()
-            .map(|e| e.term)
-            .unwrap_or(Term(0));
+        let last_log_term = self.log.last().map(|e| e.term).unwrap_or(Term(0));
         VoteRequest {
             term: self.current_term,
             candidate_id: self.id.clone(),
@@ -252,10 +250,7 @@ mod tests {
     #[test]
     fn test_vote_counting() {
         let mut node = RaftNode::new(NodeId("node-1".into()));
-        node.peers = vec![
-            NodeId("node-2".into()),
-            NodeId("node-3".into()),
-        ];
+        node.peers = vec![NodeId("node-2".into()), NodeId("node-3".into())];
         node.become_candidate();
 
         let resp1 = VoteResponse {

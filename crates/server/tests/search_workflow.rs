@@ -1,4 +1,4 @@
-use ferro_search_index::{SearchIndex, Document};
+use ferro_search_index::{Document, SearchIndex};
 use std::collections::HashMap;
 
 fn make_doc(id: &str, name: &str, path: &str) -> Document {
@@ -23,9 +23,17 @@ fn test_index_and_search_file() {
     let idx = make_index();
 
     let files = [
-        ("1", "annual-report-2024.pdf", "/docs/annual-report-2024.pdf"),
+        (
+            "1",
+            "annual-report-2024.pdf",
+            "/docs/annual-report-2024.pdf",
+        ),
         ("2", "meeting-notes.docx", "/docs/meeting-notes.docx"),
-        ("3", "budget-spreadsheet.xlsx", "/finance/budget-spreadsheet.xlsx"),
+        (
+            "3",
+            "budget-spreadsheet.xlsx",
+            "/finance/budget-spreadsheet.xlsx",
+        ),
         ("4", "vacation-photo.jpg", "/photos/2024/vacation.jpg"),
         ("5", "project-plan.md", "/projects/project-plan.md"),
         ("6", "api-reference.html", "/docs/api-reference.html"),
@@ -36,8 +44,7 @@ fn test_index_and_search_file() {
     ];
 
     for (id, name, path) in &files {
-        idx.add_document(make_doc(id, name, path))
-            .unwrap();
+        idx.add_document(make_doc(id, name, path)).unwrap();
     }
 
     assert_eq!(idx.document_count(), 10);
@@ -207,7 +214,11 @@ fn test_search_update_document() {
     let new_results = idx.search("new");
     assert_eq!(new_results.len(), 1, "Updated name should be searchable");
     let name_results = idx.search("name");
-    assert_eq!(name_results.len(), 1, "Updated name should be searchable by 'name'");
+    assert_eq!(
+        name_results.len(),
+        1,
+        "Updated name should be searchable by 'name'"
+    );
 }
 
 #[test]
@@ -223,14 +234,18 @@ fn test_search_pagination() {
         .unwrap();
     }
 
-    let mut filter = ferro_search_index::SearchFilter::default();
-    filter.limit = 5;
+    let filter = ferro_search_index::SearchFilter {
+        limit: 5,
+        ..Default::default()
+    };
     let page1 = idx.search_with_filter("document", filter);
     assert_eq!(page1.len(), 5);
 
-    let mut filter2 = ferro_search_index::SearchFilter::default();
-    filter2.offset = 10;
-    filter2.limit = 5;
+    let filter2 = ferro_search_index::SearchFilter {
+        offset: 10,
+        limit: 5,
+        ..Default::default()
+    };
     let page3 = idx.search_with_filter("document", filter2);
-    assert!(page3.len() >= 1);
+    assert!(!page3.is_empty());
 }

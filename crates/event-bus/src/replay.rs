@@ -131,7 +131,12 @@ impl Default for EventStore {
 mod tests {
     use super::*;
 
-    fn make_stored(event_type: &str, timestamp: DateTime<Utc>, path: &str, user_id: &str) -> StoredEvent {
+    fn make_stored(
+        event_type: &str,
+        timestamp: DateTime<Utc>,
+        path: &str,
+        user_id: &str,
+    ) -> StoredEvent {
         let event = serde_json::json!({
             "event_type": event_type,
             "path": path,
@@ -175,7 +180,8 @@ mod tests {
         store.append(make_stored("test", t2, "/b", "u2"));
         let results = store.query(&EventFilter::new().since(t1).until(t3));
         assert_eq!(results.len(), 2);
-        let results = store.query(&EventFilter::new().since(Utc::now() - chrono::Duration::hours(1)));
+        let results =
+            store.query(&EventFilter::new().since(Utc::now() - chrono::Duration::hours(1)));
         assert_eq!(results.len(), 1);
     }
 
@@ -183,7 +189,12 @@ mod tests {
     fn filter_by_path_prefix() {
         let store = EventStore::new();
         store.append(make_stored("file.created", Utc::now(), "/docs/a.txt", "u1"));
-        store.append(make_stored("file.created", Utc::now(), "/photos/b.jpg", "u2"));
+        store.append(make_stored(
+            "file.created",
+            Utc::now(),
+            "/photos/b.jpg",
+            "u2",
+        ));
         let results = store.query(&EventFilter::new().path_prefix("/docs"));
         assert_eq!(results.len(), 1);
     }
@@ -208,9 +219,23 @@ mod tests {
     #[test]
     fn combined_filters() {
         let store = EventStore::new();
-        store.append(make_stored("file.created", Utc::now(), "/docs/a.txt", "alice"));
-        store.append(make_stored("file.deleted", Utc::now(), "/docs/b.txt", "alice"));
-        let results = store.query(&EventFilter::new().event_type("file.created").user_id("alice"));
+        store.append(make_stored(
+            "file.created",
+            Utc::now(),
+            "/docs/a.txt",
+            "alice",
+        ));
+        store.append(make_stored(
+            "file.deleted",
+            Utc::now(),
+            "/docs/b.txt",
+            "alice",
+        ));
+        let results = store.query(
+            &EventFilter::new()
+                .event_type("file.created")
+                .user_id("alice"),
+        );
         assert_eq!(results.len(), 1);
     }
 }

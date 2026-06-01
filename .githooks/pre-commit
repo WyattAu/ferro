@@ -1,6 +1,6 @@
 #!/bin/sh
-# Ferro pre-commit hook: quality gates + tests before commit.
-# Ensures fmt, clippy, and all tests pass locally before pushing.
+# Ferro pre-commit hook: fmt + clippy quality gates.
+# Full test suite runs in CI (checks.yml) -- not locally, to keep commits fast.
 # Override: SKIP_PRECOMMIT=1 git commit ...
 
 set -euo pipefail
@@ -10,13 +10,10 @@ if [ "${SKIP_PRECOMMIT:-0}" = "1" ]; then
   exit 0
 fi
 
-echo "[pre-commit] (1/3) Checking formatting..."
+echo "[pre-commit] (1/2) Checking formatting..."
 cargo fmt --all -- --check
 
-echo "[pre-commit] (2/3) Running clippy..."
-cargo clippy --workspace --all-targets --features "s3,gcs,azure,pg,redis,ldap" -- -D warnings
-
-echo "[pre-commit] (3/3) Running tests..."
-cargo test --all --locked
+echo "[pre-commit] (2/2) Running clippy..."
+cargo clippy --workspace --all-targets --features "s3,gcs,azure,pg,redis,ldap" --locked -- -D warnings
 
 echo "[pre-commit] All checks passed."

@@ -41,7 +41,11 @@ impl MountBackend for MockBackend {
         _options: &MountOptions,
     ) -> Result<MountHandle, MountError> {
         if self.store.contains_key(remote_path) {
-            Ok(MountHandle::new(remote_path, local_path, BackendType::WebDav))
+            Ok(MountHandle::new(
+                remote_path,
+                local_path,
+                BackendType::WebDav,
+            ))
         } else {
             Err(MountError::NotFound {
                 path: remote_path.to_string(),
@@ -110,11 +114,7 @@ impl MountBackend for MockBackend {
         })
     }
 
-    async fn metadata(
-        &self,
-        handle: &MountHandle,
-        path: &str,
-    ) -> Result<FileMetadata, MountError> {
+    async fn metadata(&self, handle: &MountHandle, path: &str) -> Result<FileMetadata, MountError> {
         let entries = self.store.get(path).ok_or_else(|| MountError::NotMounted {
             mount_point: handle.local_path.clone(),
         })?;

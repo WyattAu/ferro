@@ -390,9 +390,7 @@ impl WebAuthnStore {
         let cred = creds
             .iter_mut()
             .find(|c| c.credential_id == credential_id)
-            .ok_or_else(|| {
-                WebAuthnError::CredentialNotFound(credential_id.to_string())
-            })?;
+            .ok_or_else(|| WebAuthnError::CredentialNotFound(credential_id.to_string()))?;
 
         cred.sign_count = new_sign_count;
         cred.last_used_at = chrono::Utc::now().timestamp();
@@ -438,8 +436,14 @@ impl WebAuthnStore {
                 display_name: username.to_string(),
             },
             pub_key_cred_params: vec![
-                PubKeyCredParam { alg: -7, type_: "public-key".to_string() },   // ES256
-                PubKeyCredParam { alg: -257, type_: "public-key".to_string() }, // RS256
+                PubKeyCredParam {
+                    alg: -7,
+                    type_: "public-key".to_string(),
+                }, // ES256
+                PubKeyCredParam {
+                    alg: -257,
+                    type_: "public-key".to_string(),
+                }, // RS256
             ],
             timeout: config.challenge_timeout_secs * 1000,
             exclude_credentials: existing_credential_ids
@@ -541,26 +545,45 @@ pub fn verify_registration(
         .map_err(|e| WebAuthnError::VerificationFailed(format!("client data parse error: {e}")))?;
 
     // Verify challenge
-    let client_challenge = client_data.get("challenge")
+    let client_challenge = client_data
+        .get("challenge")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| WebAuthnError::VerificationFailed("missing challenge in client data".to_string()))?;
+        .ok_or_else(|| {
+            WebAuthnError::VerificationFailed("missing challenge in client data".to_string())
+        })?;
     let client_challenge_bytes = base64_decode_urlsafe(client_challenge)?;
     if client_challenge_bytes != challenge_bytes {
-        return Err(WebAuthnError::VerificationFailed("challenge mismatch".to_string()));
+        return Err(WebAuthnError::VerificationFailed(
+            "challenge mismatch".to_string(),
+        ));
     }
 
     // Verify type
-    let typ = client_data.get("type").and_then(|v| v.as_str())
-        .ok_or_else(|| WebAuthnError::VerificationFailed("missing type in client data".to_string()))?;
+    let typ = client_data
+        .get("type")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            WebAuthnError::VerificationFailed("missing type in client data".to_string())
+        })?;
     if typ != "webauthn.create" {
-        return Err(WebAuthnError::VerificationFailed(format!("wrong type: {}", typ)));
+        return Err(WebAuthnError::VerificationFailed(format!(
+            "wrong type: {}",
+            typ
+        )));
     }
 
     // Verify origin
-    let origin = client_data.get("origin").and_then(|v| v.as_str())
-        .ok_or_else(|| WebAuthnError::VerificationFailed("missing origin in client data".to_string()))?;
+    let origin = client_data
+        .get("origin")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            WebAuthnError::VerificationFailed("missing origin in client data".to_string())
+        })?;
     if !rp_origins.iter().any(|o| o == origin) {
-        return Err(WebAuthnError::VerificationFailed(format!("origin '{}' not allowed", origin)));
+        return Err(WebAuthnError::VerificationFailed(format!(
+            "origin '{}' not allowed",
+            origin
+        )));
     }
 
     // Verify rpId
@@ -568,12 +591,17 @@ pub fn verify_registration(
     if let Some(rp) = rp_id_val
         && rp != rp_id
     {
-        return Err(WebAuthnError::VerificationFailed(format!("rpId mismatch: client sent '{}', expected '{}'", rp, rp_id)));
+        return Err(WebAuthnError::VerificationFailed(format!(
+            "rpId mismatch: client sent '{}', expected '{}'",
+            rp, rp_id
+        )));
     }
 
     // Check duplicate
     if existing_credential_id == credential_id_b64 {
-        return Err(WebAuthnError::DuplicateCredential(credential_id_b64.to_string()));
+        return Err(WebAuthnError::DuplicateCredential(
+            credential_id_b64.to_string(),
+        ));
     }
 
     Ok(RegistrationResult {
@@ -610,26 +638,39 @@ pub fn verify_authentication(
         .map_err(|e| WebAuthnError::VerificationFailed(format!("client data parse error: {e}")))?;
 
     // Verify challenge
-    let client_challenge = client_data.get("challenge")
+    let client_challenge = client_data
+        .get("challenge")
         .and_then(|v| v.as_str())
         .ok_or_else(|| WebAuthnError::VerificationFailed("missing challenge".to_string()))?;
     let client_challenge_bytes = base64_decode_urlsafe(client_challenge)?;
     if client_challenge_bytes != challenge_bytes {
-        return Err(WebAuthnError::VerificationFailed("challenge mismatch".to_string()));
+        return Err(WebAuthnError::VerificationFailed(
+            "challenge mismatch".to_string(),
+        ));
     }
 
     // Verify type
-    let typ = client_data.get("type").and_then(|v| v.as_str())
+    let typ = client_data
+        .get("type")
+        .and_then(|v| v.as_str())
         .ok_or_else(|| WebAuthnError::VerificationFailed("missing type".to_string()))?;
     if typ != "webauthn.get" {
-        return Err(WebAuthnError::VerificationFailed(format!("wrong type: {}", typ)));
+        return Err(WebAuthnError::VerificationFailed(format!(
+            "wrong type: {}",
+            typ
+        )));
     }
 
     // Verify origin
-    let origin = client_data.get("origin").and_then(|v| v.as_str())
+    let origin = client_data
+        .get("origin")
+        .and_then(|v| v.as_str())
         .ok_or_else(|| WebAuthnError::VerificationFailed("missing origin".to_string()))?;
     if !rp_origins.iter().any(|o| o == origin) {
-        return Err(WebAuthnError::VerificationFailed(format!("origin '{}' not allowed", origin)));
+        return Err(WebAuthnError::VerificationFailed(format!(
+            "origin '{}' not allowed",
+            origin
+        )));
     }
 
     // Verify rpId if present in client data
@@ -637,12 +678,17 @@ pub fn verify_authentication(
     if let Some(rp) = rp_id_val
         && rp != rp_id
     {
-        return Err(WebAuthnError::VerificationFailed(format!("rpId mismatch: client sent '{}', expected '{}'", rp, rp_id)));
+        return Err(WebAuthnError::VerificationFailed(format!(
+            "rpId mismatch: client sent '{}', expected '{}'",
+            rp, rp_id
+        )));
     }
 
     // Verify credential ID is allowed
     if !allowed_credential_ids.contains(&credential_id_b64.to_string()) {
-        return Err(WebAuthnError::VerificationFailed("credential ID not in allowed list".to_string()));
+        return Err(WebAuthnError::VerificationFailed(
+            "credential ID not in allowed list".to_string(),
+        ));
     }
 
     Ok(AuthenticationResult {
@@ -705,20 +751,25 @@ mod tests {
         let config = test_config();
 
         // Generate challenge
-        let (challenge_id, _options) = store.generate_registration_challenge(
-            &config, "alice", "Alice", &[],
-        );
+        let (challenge_id, _options) =
+            store.generate_registration_challenge(&config, "alice", "Alice", &[]);
 
         // Store challenge
         store.store_registration_challenge(&challenge_id, "alice", challenge_id.as_bytes().into());
 
         // Consume challenge
-        let (username, bytes) = store.consume_registration_challenge(&challenge_id, 300).unwrap();
+        let (username, bytes) = store
+            .consume_registration_challenge(&challenge_id, 300)
+            .unwrap();
         assert_eq!(username, "alice");
         assert_eq!(bytes, challenge_id.as_bytes());
 
         // Second consume fails
-        assert!(store.consume_registration_challenge(&challenge_id, 300).is_err());
+        assert!(
+            store
+                .consume_registration_challenge(&challenge_id, 300)
+                .is_err()
+        );
     }
 
     #[test]
@@ -740,16 +791,19 @@ mod tests {
     #[test]
     fn test_find_credential_across_users() {
         let mut store = WebAuthnStore::new();
-        store.register_credential("alice", WebAuthnCredential {
-            credential_id: "shared-1".to_string(),
-            public_key_cose: vec![],
-            sign_count: 0,
-            device_name: "Device".to_string(),
-            registered_at: 0,
-            last_used_at: 0,
-            attestation_format: "none".to_string(),
-            user_verified: false,
-        });
+        store.register_credential(
+            "alice",
+            WebAuthnCredential {
+                credential_id: "shared-1".to_string(),
+                public_key_cose: vec![],
+                sign_count: 0,
+                device_name: "Device".to_string(),
+                registered_at: 0,
+                last_used_at: 0,
+                attestation_format: "none".to_string(),
+                user_verified: false,
+            },
+        );
 
         let (username, _cred) = store.find_credential("shared-1").unwrap();
         assert_eq!(username, "alice");
@@ -760,18 +814,23 @@ mod tests {
     #[test]
     fn test_update_credential_usage() {
         let mut store = WebAuthnStore::new();
-        store.register_credential("alice", WebAuthnCredential {
-            credential_id: "cred-1".to_string(),
-            public_key_cose: vec![],
-            sign_count: 0,
-            device_name: "Device".to_string(),
-            registered_at: 0,
-            last_used_at: 0,
-            attestation_format: "none".to_string(),
-            user_verified: false,
-        });
+        store.register_credential(
+            "alice",
+            WebAuthnCredential {
+                credential_id: "cred-1".to_string(),
+                public_key_cose: vec![],
+                sign_count: 0,
+                device_name: "Device".to_string(),
+                registered_at: 0,
+                last_used_at: 0,
+                attestation_format: "none".to_string(),
+                user_verified: false,
+            },
+        );
 
-        store.update_credential_usage("alice", "cred-1", 42).unwrap();
+        store
+            .update_credential_usage("alice", "cred-1", 42)
+            .unwrap();
         let creds = store.get_credentials("alice");
         assert_eq!(creds[0].sign_count, 42);
         assert!(creds[0].last_used_at > 0);
@@ -780,16 +839,19 @@ mod tests {
     #[test]
     fn test_remove_credential() {
         let mut store = WebAuthnStore::new();
-        store.register_credential("alice", WebAuthnCredential {
-            credential_id: "cred-1".to_string(),
-            public_key_cose: vec![],
-            sign_count: 0,
-            device_name: "Device".to_string(),
-            registered_at: 0,
-            last_used_at: 0,
-            attestation_format: "none".to_string(),
-            user_verified: false,
-        });
+        store.register_credential(
+            "alice",
+            WebAuthnCredential {
+                credential_id: "cred-1".to_string(),
+                public_key_cose: vec![],
+                sign_count: 0,
+                device_name: "Device".to_string(),
+                registered_at: 0,
+                last_used_at: 0,
+                attestation_format: "none".to_string(),
+                user_verified: false,
+            },
+        );
 
         assert!(store.remove_credential("alice", "cred-1"));
         assert!(store.get_credentials("alice").is_empty());
@@ -799,16 +861,19 @@ mod tests {
     #[test]
     fn test_duplicate_detection() {
         let mut store = WebAuthnStore::new();
-        store.register_credential("alice", WebAuthnCredential {
-            credential_id: "cred-1".to_string(),
-            public_key_cose: vec![],
-            sign_count: 0,
-            device_name: "Device".to_string(),
-            registered_at: 0,
-            last_used_at: 0,
-            attestation_format: "none".to_string(),
-            user_verified: false,
-        });
+        store.register_credential(
+            "alice",
+            WebAuthnCredential {
+                credential_id: "cred-1".to_string(),
+                public_key_cose: vec![],
+                sign_count: 0,
+                device_name: "Device".to_string(),
+                registered_at: 0,
+                last_used_at: 0,
+                attestation_format: "none".to_string(),
+                user_verified: false,
+            },
+        );
 
         assert!(store.is_credential_registered("cred-1"));
         assert!(!store.is_credential_registered("cred-2"));
@@ -819,25 +884,32 @@ mod tests {
         let mut store = WebAuthnStore::new();
         let config = test_config();
 
-        let (challenge_id, _options) = store.generate_authentication_challenge(
-            &config, vec!["cred-1".to_string()],
-        );
+        let (challenge_id, _options) =
+            store.generate_authentication_challenge(&config, vec!["cred-1".to_string()]);
 
         store.store_authentication_challenge(
-            &challenge_id, "alice", vec![0u8; 32], vec!["cred-1".to_string()],
+            &challenge_id,
+            "alice",
+            vec![0u8; 32],
+            vec!["cred-1".to_string()],
         );
 
-        let (username, _bytes, allowed) = store.consume_authentication_challenge(&challenge_id, 300).unwrap();
+        let (username, _bytes, allowed) = store
+            .consume_authentication_challenge(&challenge_id, 300)
+            .unwrap();
         assert_eq!(username, "alice");
         assert_eq!(allowed, vec!["cred-1".to_string()]);
     }
 
     #[test]
     fn test_registration_options_serialization() {
-        let mut store = WebAuthnStore::new();
+        let store = WebAuthnStore::new();
         let config = test_config();
         let (_, options) = store.generate_registration_challenge(
-            &config, "alice", "Alice Johnson", &["existing-1".to_string()],
+            &config,
+            "alice",
+            "Alice Johnson",
+            &["existing-1".to_string()],
         );
 
         let json = serde_json::to_string(&options).unwrap();
@@ -850,11 +922,10 @@ mod tests {
 
     #[test]
     fn test_authentication_options_serialization() {
-        let mut store = WebAuthnStore::new();
+        let store = WebAuthnStore::new();
         let config = test_config();
-        let (_, options) = store.generate_authentication_challenge(
-            &config, vec!["cred-1".to_string()],
-        );
+        let (_, options) =
+            store.generate_authentication_challenge(&config, vec!["cred-1".to_string()]);
 
         let json = serde_json::to_string(&options).unwrap();
         let deser: AuthenticationOptions = serde_json::from_str(&json).unwrap();
@@ -880,7 +951,8 @@ mod tests {
             "different-id",
             "localhost",
             &["http://localhost:8080".to_string()],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(result.credential_id, cred_id_b64);
         assert_eq!(result.attestation_format, "none");
@@ -985,10 +1057,11 @@ mod tests {
             &[0u8; 32],
             &client_data_b64,
             &cred_id,
-            &[cred_id.clone()],
+            std::slice::from_ref(&cred_id),
             "localhost",
             &["http://localhost:8080".to_string()],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(result.credential_id, cred_id);
     }

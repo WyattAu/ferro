@@ -30,10 +30,13 @@ impl FixedWindowLimiter {
 impl RateLimiter for FixedWindowLimiter {
     async fn check(&self, key: &str) -> Result<RateLimitResult, RateLimitError> {
         let now = Instant::now();
-        let mut entry = self.states.entry(key.to_owned()).or_insert_with(|| WindowState {
-            count: 0,
-            window_start: now,
-        });
+        let mut entry = self
+            .states
+            .entry(key.to_owned())
+            .or_insert_with(|| WindowState {
+                count: 0,
+                window_start: now,
+            });
 
         let state = entry.value_mut();
         if now.duration_since(state.window_start) >= self.window {
@@ -65,10 +68,13 @@ impl RateLimiter for FixedWindowLimiter {
 
     async fn record(&self, key: &str, cost: u32) -> Result<(), RateLimitError> {
         let now = Instant::now();
-        let mut entry = self.states.entry(key.to_owned()).or_insert_with(|| WindowState {
-            count: 0,
-            window_start: now,
-        });
+        let mut entry = self
+            .states
+            .entry(key.to_owned())
+            .or_insert_with(|| WindowState {
+                count: 0,
+                window_start: now,
+            });
 
         let state = entry.value_mut();
         if now.duration_since(state.window_start) >= self.window {
@@ -121,7 +127,11 @@ mod tests {
     async fn boundary_timing() {
         let limiter = FixedWindowLimiter::new(100, Duration::from_millis(50));
         for i in 0..100 {
-            assert!(limiter.check("boundary").await.unwrap().allowed, "request {} allowed", i);
+            assert!(
+                limiter.check("boundary").await.unwrap().allowed,
+                "request {} allowed",
+                i
+            );
         }
         assert!(!limiter.check("boundary").await.unwrap().allowed);
         thread::sleep(Duration::from_millis(80));

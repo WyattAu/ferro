@@ -12,7 +12,8 @@ use crate::handler::{ErasedHandler, HandlerEraser, HandlerResult};
 
 #[async_trait]
 pub trait EventInterceptor: Send + Sync {
-    async fn before_publish(&self, event_type: &str, event_json: &str) -> Result<(), EventBusError>;
+    async fn before_publish(&self, event_type: &str, event_json: &str)
+    -> Result<(), EventBusError>;
     async fn after_publish(&self, event_type: &str, event_json: &str, results: &[HandlerResult]);
 }
 
@@ -98,7 +99,11 @@ impl EventBus {
         EventBusBuilder::new()
     }
 
-    pub fn subscribe<E: Event>(&self, event_type: &str, handler: Box<dyn crate::handler::EventHandler<E>>) {
+    pub fn subscribe<E: Event>(
+        &self,
+        event_type: &str,
+        handler: Box<dyn crate::handler::EventHandler<E>>,
+    ) {
         let erased = Arc::new(ErasedHandler::new(handler));
         let mut handlers = self.handlers.entry(event_type.to_string()).or_default();
         handlers.push(erased);
@@ -115,7 +120,10 @@ impl EventBus {
         let event_json = match event.to_json() {
             Ok(json) => json,
             Err(err) => {
-                eprintln!("[event-bus] failed to serialize event '{}': {}", event_type, err);
+                eprintln!(
+                    "[event-bus] failed to serialize event '{}': {}",
+                    event_type, err
+                );
                 return;
             }
         };
@@ -129,7 +137,10 @@ impl EventBus {
             if let Some(ref ic) = *guard
                 && let Err(err) = ic.before_publish(&event_type, &event_json).await
             {
-                eprintln!("[event-bus] interceptor rejected event '{}': {}", event_type, err);
+                eprintln!(
+                    "[event-bus] interceptor rejected event '{}': {}",
+                    event_type, err
+                );
                 return;
             }
             drop(guard);
@@ -253,10 +264,7 @@ impl EventBus {
     }
 
     pub fn handler_count(&self, event_type: &str) -> usize {
-        self.handlers
-            .get(event_type)
-            .map(|h| h.len())
-            .unwrap_or(0)
+        self.handlers.get(event_type).map(|h| h.len()).unwrap_or(0)
     }
 
     pub fn event_types(&self) -> Vec<String> {
@@ -344,6 +352,7 @@ mod tests {
             }
         }
 
+        #[allow(dead_code)]
         fn count(&self) -> usize {
             self.count.load(std::sync::atomic::Ordering::Relaxed)
         }
@@ -352,7 +361,8 @@ mod tests {
     #[async_trait]
     impl EventHandler<FileEvent> for CounterHandler {
         async fn handle(&self, _event: &FileEvent) -> Result<(), EventBusError> {
-            self.count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.count
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             Ok(())
         }
 
@@ -368,7 +378,11 @@ mod tests {
     #[async_trait]
     impl EventHandler<FileEvent> for FailHandler {
         async fn handle(&self, _event: &FileEvent) -> Result<(), EventBusError> {
-            Err(EventBusError::handler_failed(&self.name, "file.created", "intentional failure"))
+            Err(EventBusError::handler_failed(
+                &self.name,
+                "file.created",
+                "intentional failure",
+            ))
         }
 
         fn name(&self) -> &str {
@@ -399,7 +413,12 @@ mod tests {
     #[tokio::test]
     async fn handler_error_goes_to_dead_letter() {
         let bus = EventBus::new();
-        bus.subscribe("file.created", Box::new(FailHandler { name: "fail".into() }));
+        bus.subscribe(
+            "file.created",
+            Box::new(FailHandler {
+                name: "fail".into(),
+            }),
+        );
         let event = FileEvent::new("file.created", "/test.txt", "user1");
         bus.publish(event).await;
         let dlq = bus.dead_letter_queue().unwrap();
@@ -429,7 +448,12 @@ mod tests {
     async fn publish_and_wait_collects_results() {
         let bus = EventBus::new();
         bus.subscribe("file.created", Box::new(CounterHandler::new("ok_handler")));
-        bus.subscribe("file.created", Box::new(FailHandler { name: "fail_handler".into() }));
+        bus.subscribe(
+            "file.created",
+            Box::new(FailHandler {
+                name: "fail_handler".into(),
+            }),
+        );
         let event = FileEvent::new("file.created", "/test.txt", "user1");
         let results = bus.publish_and_wait(event).await;
         assert_eq!(results.len(), 2);
@@ -449,7 +473,12 @@ mod tests {
     #[tokio::test]
     async fn dead_letter_drain_and_retry() {
         let bus = EventBus::new();
-        bus.subscribe("file.created", Box::new(FailHandler { name: "fail".into() }));
+        bus.subscribe(
+            "file.created",
+            Box::new(FailHandler {
+                name: "fail".into(),
+            }),
+        );
         let event = FileEvent::new("file.created", "/test.txt", "user1");
         bus.publish(event).await;
         let dlq = bus.dead_letter_queue().unwrap();
@@ -473,7 +502,12 @@ mod tests {
     async fn builder_without_dead_letter() {
         let bus = EventBus::builder().without_dead_letter().build();
         assert!(bus.dead_letter_queue().is_none());
-        bus.subscribe("file.created", Box::new(FailHandler { name: "fail".into() }));
+        bus.subscribe(
+            "file.created",
+            Box::new(FailHandler {
+                name: "fail".into(),
+            }),
+        );
         let event = FileEvent::new("file.created", "/test.txt", "user1");
         bus.publish(event).await;
     }
@@ -498,13 +532,24 @@ mod tests {
 
         #[async_trait]
         impl EventInterceptor for MockInterceptor {
-            async fn before_publish(&self, _event_type: &str, _event_json: &str) -> Result<(), EventBusError> {
-                self.before_called.store(true, std::sync::atomic::Ordering::Relaxed);
+            async fn before_publish(
+                &self,
+                _event_type: &str,
+                _event_json: &str,
+            ) -> Result<(), EventBusError> {
+                self.before_called
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
                 Ok(())
             }
 
-            async fn after_publish(&self, _event_type: &str, _event_json: &str, _results: &[HandlerResult]) {
-                self.after_called.store(true, std::sync::atomic::Ordering::Relaxed);
+            async fn after_publish(
+                &self,
+                _event_type: &str,
+                _event_json: &str,
+                _results: &[HandlerResult],
+            ) {
+                self.after_called
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
             }
         }
 

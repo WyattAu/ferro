@@ -551,7 +551,6 @@ impl AppState {
             tracing::warn!(error = %e, "failed to load sync ops from database");
         }
         self.sync_store = Arc::new(sync_store);
-
         let activity_store = federation::store::ActivityStore::new().with_db(db.clone());
         if let Err(e) = activity_store.load_all_from_db(&conn) {
             tracing::warn!(error = %e, "failed to load activity store from database");
@@ -563,14 +562,15 @@ impl AppState {
                 self.trash.insert(entry.original_path.clone(), entry);
             }
         }
-
         let lock_mgr = lock::LockManager::new().with_db(db.clone());
         if let Err(e) = lock_mgr.load_all_from_db(&conn) {
             tracing::warn!(error = %e, "failed to load locks from database");
         }
         self.lock_manager = Arc::new(lock_mgr);
-
-        let remote_mounts = remote_mount::RemoteMountStore::new().with_db(db.clone());
+        let remote_mounts = remote_mount::RemoteMountStore::new().with_db_handle(db.clone());
+        if let Err(e) = remote_mounts.load_all_from_db(&conn) {
+            tracing::warn!(error = %e, "failed to load remote mounts from database");
+        }
         self.remote_mounts = Arc::new(remote_mounts);
 
         self

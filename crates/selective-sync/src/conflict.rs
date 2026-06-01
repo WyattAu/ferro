@@ -13,7 +13,10 @@ pub enum ConflictType {
 pub enum ConflictResolution {
     KeepLocal,
     KeepRemote,
-    KeepBoth { local_name: String, remote_name: String },
+    KeepBoth {
+        local_name: String,
+        remote_name: String,
+    },
     KeepNewer,
     Manual,
 }
@@ -69,15 +72,16 @@ impl ConflictDetector {
         let mut conflicts = Vec::new();
         for (path, local_ts) in local_files {
             if let Some(&remote_ts) = remote_map.get(path.as_str())
-                && local_ts != remote_ts {
-                    let conflict_type = ConflictType::EditEdit;
-                    conflicts.push(SyncConflict::new(
-                        path.clone(),
-                        *local_ts,
-                        *remote_ts,
-                        conflict_type,
-                    ));
-                }
+                && local_ts != remote_ts
+            {
+                let conflict_type = ConflictType::EditEdit;
+                conflicts.push(SyncConflict::new(
+                    path.clone(),
+                    *local_ts,
+                    *remote_ts,
+                    conflict_type,
+                ));
+            }
         }
         conflicts
     }
@@ -133,15 +137,16 @@ impl ConflictDetector {
 
         for (path, remote_ts_opt) in remote_files {
             if !local_set.contains(path.as_str())
-                && let Some(remote_ts) = remote_ts_opt {
-                    let now = Utc::now();
-                    conflicts.push(SyncConflict::new(
-                        path.clone(),
-                        now,
-                        *remote_ts,
-                        ConflictType::DeleteEdit,
-                    ));
-                }
+                && let Some(remote_ts) = remote_ts_opt
+            {
+                let now = Utc::now();
+                conflicts.push(SyncConflict::new(
+                    path.clone(),
+                    now,
+                    *remote_ts,
+                    ConflictType::DeleteEdit,
+                ));
+            }
         }
 
         conflicts
@@ -232,8 +237,12 @@ mod tests {
 
     #[test]
     fn test_conflict_resolution_selection() {
-        let mut conflict =
-            SyncConflict::new("file.txt".into(), dt(2026, 1, 10), dt(2026, 1, 12), ConflictType::EditEdit);
+        let mut conflict = SyncConflict::new(
+            "file.txt".into(),
+            dt(2026, 1, 10),
+            dt(2026, 1, 12),
+            ConflictType::EditEdit,
+        );
         assert!(conflict.resolution.is_none());
         conflict.resolve(ConflictResolution::KeepNewer);
         assert_eq!(conflict.resolution, Some(ConflictResolution::KeepNewer));
@@ -241,8 +250,12 @@ mod tests {
 
     #[test]
     fn test_conflict_resolution_keep_both() {
-        let mut conflict =
-            SyncConflict::new("file.txt".into(), dt(2026, 1, 10), dt(2026, 1, 12), ConflictType::EditEdit);
+        let mut conflict = SyncConflict::new(
+            "file.txt".into(),
+            dt(2026, 1, 10),
+            dt(2026, 1, 12),
+            ConflictType::EditEdit,
+        );
         conflict.resolve(ConflictResolution::KeepBoth {
             local_name: "file (local).txt".to_string(),
             remote_name: "file (remote).txt".to_string(),

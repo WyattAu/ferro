@@ -109,7 +109,10 @@ fn test_sync_state_persistence_round_trip() {
         assert_eq!(loaded.len(), 2);
 
         let entry = loaded.get("documents/report.pdf").unwrap();
-        assert_eq!(entry.status(), ferro_desktop::sync::types::FileSyncStatus::Synced);
+        assert_eq!(
+            entry.status(),
+            ferro_desktop::sync::types::FileSyncStatus::Synced
+        );
 
         let dir_entry = loaded.get("photos").unwrap();
         assert!(dir_entry.is_dir);
@@ -227,8 +230,7 @@ async fn test_sync_engine_scan_local_files() {
             let mut s = state.write().await;
             s.update_local(
                 "file1.txt",
-                "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
-                    .to_string(),
+                "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9".to_string(),
                 11,
                 1000,
                 false,

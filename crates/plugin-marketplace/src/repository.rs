@@ -7,7 +7,11 @@ use crate::plugin::{PluginId, PluginManifest, PluginMetadata, Version};
 pub trait PluginRepository {
     async fn fetch_manifest(&self, id: &PluginId) -> Result<PluginManifest, MarketplaceError>;
     async fn list_available(&self) -> Result<Vec<PluginMetadata>, MarketplaceError>;
-    async fn download_wasm(&self, id: &PluginId, version: &Version) -> Result<Vec<u8>, MarketplaceError>;
+    async fn download_wasm(
+        &self,
+        id: &PluginId,
+        version: &Version,
+    ) -> Result<Vec<u8>, MarketplaceError>;
     async fn publish(&self, manifest: PluginManifest) -> Result<(), MarketplaceError>;
 }
 
@@ -53,7 +57,11 @@ impl PluginRepository for MockPluginRepository {
             .collect())
     }
 
-    async fn download_wasm(&self, id: &PluginId, version: &Version) -> Result<Vec<u8>, MarketplaceError> {
+    async fn download_wasm(
+        &self,
+        id: &PluginId,
+        version: &Version,
+    ) -> Result<Vec<u8>, MarketplaceError> {
         let key = format!("{}:{}", id, version);
         self.wasm_binaries
             .get(&key)
@@ -143,8 +151,7 @@ mod tests {
         let version = Version::new(1, 0, 0);
         let wasm_data = vec![0x00, 0x61, 0x73, 0x6d];
 
-        let repo = MockPluginRepository::new()
-            .with_wasm(&id, &version, wasm_data.clone());
+        let repo = MockPluginRepository::new().with_wasm(&id, &version, wasm_data.clone());
 
         let downloaded = repo.download_wasm(&id, &version).await.unwrap();
         assert_eq!(downloaded, wasm_data);

@@ -1,6 +1,6 @@
 use crate::error::DistributedError;
-use reed_solomon_erasure::galois_8::Field;
 use reed_solomon_erasure::ReedSolomon;
+use reed_solomon_erasure::galois_8::Field;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 
@@ -130,9 +130,10 @@ impl ErasureCoder for XorErasureCoder {
             let mut indices: Vec<(u8, &Shard)> = Vec::new();
             for s in shards {
                 if let Some(ref s) = *s
-                    && !s.is_parity {
-                        indices.push((s.index, s));
-                    }
+                    && !s.is_parity
+                {
+                    indices.push((s.index, s));
+                }
             }
             indices.sort_by_key(|(i, _)| *i);
             let mut result = Vec::new();
@@ -149,9 +150,10 @@ impl ErasureCoder for XorErasureCoder {
             let mut data_shards_map: Vec<(u8, &Shard)> = Vec::new();
             for s in shards {
                 if let Some(ref s) = *s
-                    && !s.is_parity {
-                        data_shards_map.push((s.index, s));
-                    }
+                    && !s.is_parity
+                {
+                    data_shards_map.push((s.index, s));
+                }
             }
             data_shards_map.sort_by_key(|(i, _)| *i);
 
@@ -229,11 +231,12 @@ impl ErasureCoder for XorErasureCoder {
         let mut recovered = parity.data.clone();
         for s in shards {
             if let Some(ref s) = *s
-                && !s.is_parity {
-                    for (r, &b) in recovered.iter_mut().zip(s.data.iter()) {
-                        *r ^= b;
-                    }
+                && !s.is_parity
+            {
+                for (r, &b) in recovered.iter_mut().zip(s.data.iter()) {
+                    *r ^= b;
                 }
+            }
         }
 
         Ok(Some(Shard {
@@ -287,9 +290,7 @@ impl ErasureCoder for ReedSolomonErasureCoder {
         }
 
         // Build flat shard buffer: data_shards rows of chunk_size bytes
-        let mut shards_buf: Vec<Vec<u8>> = (0..total)
-            .map(|_| vec![0u8; chunk_size])
-            .collect();
+        let mut shards_buf: Vec<Vec<u8>> = (0..total).map(|_| vec![0u8; chunk_size]).collect();
 
         // Copy data into first data_shards rows
         for (i, shard) in shards_buf.iter_mut().enumerate().take(data_shards) {
@@ -304,10 +305,12 @@ impl ErasureCoder for ReedSolomonErasureCoder {
             }
         })?;
 
-        let mut shards_mut: Vec<&mut [u8]> = shards_buf.iter_mut().map(|s| s.as_mut_slice()).collect();
-        rs.encode(&mut shards_mut).map_err(|e| DistributedError::EncodingFailed {
-            reason: format!("Reed-Solomon encode error: {e}"),
-        })?;
+        let mut shards_mut: Vec<&mut [u8]> =
+            shards_buf.iter_mut().map(|s| s.as_mut_slice()).collect();
+        rs.encode(&mut shards_mut)
+            .map_err(|e| DistributedError::EncodingFailed {
+                reason: format!("Reed-Solomon encode error: {e}"),
+            })?;
 
         // Build Shard structs
         let mut result = Vec::with_capacity(total);
@@ -354,9 +357,10 @@ impl ErasureCoder for ReedSolomonErasureCoder {
                 }
             })?;
 
-            rs.reconstruct(&mut shards_opt).map_err(|e| DistributedError::DecodingFailed {
-                reason: format!("Reed-Solomon reconstruct error: {e}"),
-            })?;
+            rs.reconstruct(&mut shards_opt)
+                .map_err(|e| DistributedError::DecodingFailed {
+                    reason: format!("Reed-Solomon reconstruct error: {e}"),
+                })?;
         }
 
         // Reassemble data from first data_shards rows
@@ -400,9 +404,10 @@ impl ErasureCoder for ReedSolomonErasureCoder {
             }
         })?;
 
-        rs.reconstruct(&mut shards_opt).map_err(|e| DistributedError::DecodingFailed {
-            reason: format!("Reed-Solomon reconstruct error: {e}"),
-        })?;
+        rs.reconstruct(&mut shards_opt)
+            .map_err(|e| DistributedError::DecodingFailed {
+                reason: format!("Reed-Solomon reconstruct error: {e}"),
+            })?;
 
         match &shards_opt[target_idx] {
             Some(data) => Ok(Some(Shard {
@@ -626,7 +631,11 @@ mod tests {
 
         let recovered = coder.reconstruct(&shards).unwrap().unwrap();
         assert_eq!(recovered.index, original.index);
-        assert_eq!(recovered.data, expected[original.index as usize * (expected.len() / 4)..(original.index as usize + 1) * (expected.len() / 4)]);
+        assert_eq!(
+            recovered.data,
+            expected[original.index as usize * (expected.len() / 4)
+                ..(original.index as usize + 1) * (expected.len() / 4)]
+        );
         assert!(!recovered.is_parity);
     }
 

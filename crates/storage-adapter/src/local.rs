@@ -121,7 +121,12 @@ impl StorageBackend for LocalFsBackend {
                 path: full_path,
                 size: meta.len(),
                 content_type: None,
-                last_modified: Some(meta.modified().ok().map(DateTime::<Utc>::from).unwrap_or(Utc::now())),
+                last_modified: Some(
+                    meta.modified()
+                        .ok()
+                        .map(DateTime::<Utc>::from)
+                        .unwrap_or(Utc::now()),
+                ),
                 etag: Some(compute_etag(&data)),
                 metadata: std::collections::HashMap::new(),
             });
@@ -205,14 +210,19 @@ mod tests {
         let data = b.get("hello.txt").await.unwrap();
         assert_eq!(data, b"world");
         b.delete("hello.txt").await.unwrap();
-        assert!(matches!(b.get("hello.txt").await, Err(StorageAdapterError::NotFound(_))));
+        assert!(matches!(
+            b.get("hello.txt").await,
+            Err(StorageAdapterError::NotFound(_))
+        ));
     }
 
     #[tokio::test]
     async fn test_exists() {
         let (b, _dir) = temp_backend().await;
         assert!(!b.exists("missing.txt").await.unwrap());
-        b.put("present.txt", b"data", &ObjectMetadata::new()).await.unwrap();
+        b.put("present.txt", b"data", &ObjectMetadata::new())
+            .await
+            .unwrap();
         assert!(b.exists("present.txt").await.unwrap());
     }
 
@@ -240,14 +250,18 @@ mod tests {
     #[tokio::test]
     async fn test_size() {
         let (b, _dir) = temp_backend().await;
-        b.put("sized.txt", b"12345", &ObjectMetadata::new()).await.unwrap();
+        b.put("sized.txt", b"12345", &ObjectMetadata::new())
+            .await
+            .unwrap();
         assert_eq!(b.size("sized.txt").await.unwrap(), 5);
     }
 
     #[tokio::test]
     async fn test_metadata() {
         let (b, _dir) = temp_backend().await;
-        b.put("meta.txt", b"info", &ObjectMetadata::new()).await.unwrap();
+        b.put("meta.txt", b"info", &ObjectMetadata::new())
+            .await
+            .unwrap();
         let info = b.metadata("meta.txt").await.unwrap();
         assert_eq!(info.path, "meta.txt");
         assert_eq!(info.size, 4);
@@ -257,7 +271,9 @@ mod tests {
     #[tokio::test]
     async fn test_copy() {
         let (b, _dir) = temp_backend().await;
-        b.put("src.txt", b"copy", &ObjectMetadata::new()).await.unwrap();
+        b.put("src.txt", b"copy", &ObjectMetadata::new())
+            .await
+            .unwrap();
         b.copy("src.txt", "dst.txt").await.unwrap();
         assert_eq!(b.get("dst.txt").await.unwrap(), b"copy");
     }
@@ -265,7 +281,9 @@ mod tests {
     #[tokio::test]
     async fn test_move_obj() {
         let (b, _dir) = temp_backend().await;
-        b.put("m.txt", b"move", &ObjectMetadata::new()).await.unwrap();
+        b.put("m.txt", b"move", &ObjectMetadata::new())
+            .await
+            .unwrap();
         b.move_obj("m.txt", "m2.txt").await.unwrap();
         assert!(!b.exists("m.txt").await.unwrap());
         assert_eq!(b.get("m2.txt").await.unwrap(), b"move");

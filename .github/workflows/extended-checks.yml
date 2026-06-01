@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: extended-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -85,7 +89,7 @@ jobs:
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
       - name: Fetch dependencies
         run: cargo fetch --locked
-      - run: cargo llvm-cov --workspace --features "s3,gcs,azure,pg,redis,ldap" --lcov --output-path lcov.info
+      - run: cargo llvm-cov --workspace --features "s3,gcs,azure,pg,redis,ldap" --locked --lcov --output-path lcov.info
       - uses: codecov/codecov-action@0f8570b1a125f4937846a11fcfa3bcd548bd8c97 # v4.6.0
         with:
           files: lcov.info

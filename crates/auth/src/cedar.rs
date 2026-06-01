@@ -26,7 +26,9 @@ pub struct CedarAuthorizer {
 impl CedarAuthorizer {
     /// Create a new Cedar authorizer with a default deny-all policy.
     pub fn new() -> Result<Self> {
-        warn!("WARNING: No Cedar policies configured. All access is denied. Configure policies to enable access control.");
+        warn!(
+            "WARNING: No Cedar policies configured. All access is denied. Configure policies to enable access control."
+        );
 
         let default_policy = r#"
             @id("deny_all")
@@ -491,7 +493,10 @@ mod tests {
             @id("allow_all")
             permit(principal, action, resource);
         "#;
-        authorizer.load_policies(&[permissive.to_string()]).await.unwrap();
+        authorizer
+            .load_policies(&[permissive.to_string()])
+            .await
+            .unwrap();
         let request = AuthRequest {
             principal: "alice".to_string(),
             action: "read".to_string(),
@@ -513,7 +518,10 @@ mod tests {
             @id("allow_all")
             permit(principal, action, resource);
         "#;
-        authorizer.load_policies(&[permissive.to_string()]).await.unwrap();
+        authorizer
+            .load_policies(&[permissive.to_string()])
+            .await
+            .unwrap();
         let request = AuthRequest {
             principal: "alice".to_string(),
             action: "write".to_string(),

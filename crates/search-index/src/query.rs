@@ -142,10 +142,7 @@ impl ParserState {
                 let inner = self.parse_primary()?;
                 Ok(Query::Not(Box::new(inner)))
             }
-            _ => Err(SearchError::UnexpectedToken(format!(
-                "{:?}",
-                self.peek()
-            ))),
+            _ => Err(SearchError::UnexpectedToken(format!("{:?}", self.peek()))),
         }
     }
 }
@@ -234,10 +231,7 @@ mod tests {
     #[test]
     fn test_parse_not_query() {
         let q = QueryParser::parse("NOT foo").unwrap();
-        assert_eq!(
-            q,
-            Query::Not(Box::new(Query::Term("foo".to_string())))
-        );
+        assert_eq!(q, Query::Not(Box::new(Query::Term("foo".to_string()))));
     }
 
     #[test]
@@ -252,10 +246,7 @@ mod tests {
     #[test]
     fn test_parse_field_query() {
         let q = QueryParser::parse("name:value").unwrap();
-        assert_eq!(
-            q,
-            Query::Field("name".to_string(), "value".to_string())
-        );
+        assert_eq!(q, Query::Field("name".to_string(), "value".to_string()));
     }
 
     #[test]

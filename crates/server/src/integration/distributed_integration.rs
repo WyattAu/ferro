@@ -2,7 +2,7 @@
 //!
 //! Provides helpers for creating and managing Raft nodes.
 
-use ferro_distributed::consensus::{RaftNode, NodeId};
+use ferro_distributed::consensus::{NodeId, RaftNode};
 
 pub fn create_raft_node(node_id: &str) -> RaftNode {
     RaftNode::new(NodeId(node_id.to_string()))

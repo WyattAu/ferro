@@ -302,7 +302,6 @@ const fn default_true() -> bool {
     true
 }
 
-
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {

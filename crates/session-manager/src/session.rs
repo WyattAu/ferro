@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::device::DeviceInfo;
 use crate::error::SessionError;
-use crate::token::{hash_token, verify_token_hash, SessionToken};
+use crate::token::{SessionToken, hash_token, verify_token_hash};
 
 pub type SessionId = String;
 
@@ -109,7 +109,11 @@ impl SessionManager {
         Ok((session_id, token))
     }
 
-    pub fn validate_token(&self, user_id: &str, token: &SessionToken) -> Result<Session, SessionError> {
+    pub fn validate_token(
+        &self,
+        user_id: &str,
+        token: &SessionToken,
+    ) -> Result<Session, SessionError> {
         let _token_hex = token.to_hex();
 
         let user_ids = match self.user_sessions.get(user_id) {
@@ -272,11 +276,7 @@ impl SessionManager {
         match self.user_sessions.get(user_id) {
             Some(ids) => ids
                 .iter()
-                .filter(|id| {
-                    self.sessions
-                        .get(*id)
-                        .is_some_and(|s| !s.is_expired())
-                })
+                .filter(|id| self.sessions.get(*id).is_some_and(|s| !s.is_expired()))
                 .count(),
             None => 0,
         }
@@ -338,7 +338,12 @@ mod tests {
         let mgr = SessionManager::new(test_config());
         let device = test_device("dev1");
         let (session_id, token) = mgr
-            .create_session("user1", device, Some("127.0.0.1"), Duration::from_secs(3600))
+            .create_session(
+                "user1",
+                device,
+                Some("127.0.0.1"),
+                Duration::from_secs(3600),
+            )
             .unwrap();
 
         let session = mgr.validate_token("user1", &token).unwrap();
@@ -484,9 +489,7 @@ mod tests {
             .create_session("user1", device, None, Duration::from_secs(3600))
             .unwrap();
 
-        let count = mgr
-            .invalidate_all_except("user1", &keep_id)
-            .unwrap();
+        let count = mgr.invalidate_all_except("user1", &keep_id).unwrap();
         assert_eq!(count, 1);
 
         assert!(mgr.get_session(&keep_id).is_some());
@@ -635,9 +638,7 @@ mod tests {
     #[test]
     fn test_invalidate_all_except_empty_user() {
         let mgr = SessionManager::new(test_config());
-        let count = mgr
-            .invalidate_all_except("nobody", "some-id")
-            .unwrap();
+        let count = mgr.invalidate_all_except("nobody", "some-id").unwrap();
         assert_eq!(count, 0);
     }
 

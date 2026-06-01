@@ -36,7 +36,11 @@ impl HandlerResult {
 }
 
 pub trait HandlerEraser: Send + Sync {
-    fn handle_erased(&self, event_json: &str, event_type: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EventBusError>> + Send + '_>>;
+    fn handle_erased(
+        &self,
+        event_json: &str,
+        event_type: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EventBusError>> + Send + '_>>;
     fn name(&self) -> &str;
 }
 
@@ -55,7 +59,12 @@ impl<E: Event> ErasedHandler<E> {
 }
 
 impl<E: Event> HandlerEraser for ErasedHandler<E> {
-    fn handle_erased(&self, event_json: &str, _event_type: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EventBusError>> + Send + '_>> {
+    fn handle_erased(
+        &self,
+        event_json: &str,
+        _event_type: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EventBusError>> + Send + '_>>
+    {
         let event: E = match E::from_json(event_json) {
             Ok(e) => e,
             Err(err) => {

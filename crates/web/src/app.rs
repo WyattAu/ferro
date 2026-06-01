@@ -52,10 +52,8 @@ pub fn App() -> impl IntoView {
                                     if let Ok(link) = link.dyn_into::<web_sys::HtmlLinkElement>() {
                                         link.set_href(favicon_url);
                                     }
-                                } else if let Some(link) = doc
-                                    .create_element("link")
-                                    .ok()
-                                    .and_then(|e| {
+                                } else if let Some(link) =
+                                    doc.create_element("link").ok().and_then(|e| {
                                         use wasm_bindgen::JsCast;
                                         e.dyn_into::<web_sys::HtmlLinkElement>().ok()
                                     })
@@ -73,10 +71,8 @@ pub fn App() -> impl IntoView {
                                 if let Ok(style) = el.dyn_into::<web_sys::HtmlStyleElement>() {
                                     let _ = style.set_text_content(Some(css));
                                 }
-                            } else if let Some(style) = doc
-                                .create_element("style")
-                                .ok()
-                                .and_then(|e| {
+                            } else if let Some(style) =
+                                doc.create_element("style").ok().and_then(|e| {
                                     use wasm_bindgen::JsCast;
                                     e.dyn_into::<web_sys::HtmlStyleElement>().ok()
                                 })
