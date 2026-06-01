@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780265934017,
+  "lastUpdate": 1780348765910,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -6137,6 +6137,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 824,
             "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "a323c7d9302f38a3ce0f7cce6a34a9dec6bec80a",
+          "message": "fix: audit cycle 7 -- clippy, DoS fix, CI optimization, UI fixes\n\n- Fix 5 critical DoS .expect() panics in sync/blocks.rs (ContentHash from HTTP input)\n- Fix 3 broken tests: reconciler path mismatch, cedar deny-by-default, api_key F013\n- Fix 15+ clippy lints for Rust 1.95 compliance (all 43 crates pass -D warnings)\n- Add concurrency groups to checks/bench/extended workflows\n- Add --locked to clippy, llvm-cov, test-pg for reproducibility\n- Add fail-fast: false to release build matrix\n- Restrict Dependabot auto-merge to cargo ecosystem only\n- Add 3 missing CSS classes: .text-muted, .border-t-3, .border-t-accent\n- Add vendor prefixes: -webkit-backdrop-filter, -webkit-appearance\n- Update VERSION.md test count to 1938, ROADMAP.md audit cycle 7\n- Remove marketing language from init_requirements.md and RELEASE_NOTES.md\n- Add retention-days: 7 to CI artifacts\n- Optimize pre-commit hook: fmt + clippy only (tests in CI)",
+          "timestamp": "2026-06-01T22:11:49+01:00",
+          "tree_id": "e6694a395186cebad3931cd8ee9990337775cb48",
+          "url": "https://github.com/WyattAu/ferro/commit/a323c7d9302f38a3ce0f7cce6a34a9dec6bec80a"
+        },
+        "date": 1780348765409,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300813403,
+            "range": "± 1762599",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300761691,
+            "range": "± 107349",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24319,
+            "range": "± 2563",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24120,
+            "range": "± 965",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8991,
+            "range": "± 121",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 4984,
+            "range": "± 80",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1270,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 974,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2738,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1409,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8144,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74821,
+            "range": "± 648",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19293,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 941,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 75,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 70,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 153,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 187,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 185,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 836,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 737,
+            "range": "± 9",
             "unit": "ns/iter"
           },
           {
