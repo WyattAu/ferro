@@ -49,7 +49,7 @@
 - Total: 1072 tests passing
 
 **Production Safety Hardening:**
-- WebAuthn stubs: added WARNING doc comments and runtime `tracing::warn!` to all 4 handler functions in `webauthn_api.rs` and module-level warning in `webauthn.rs`
+- WebAuthn framework: rewritten from stubs to full challenge-response flow (registration/authentication), origin/RP-ID verification (20 tests)
 - Fixed production `unreachable!()` in `lib.rs:1753` to `StatusCode::METHOD_NOT_ALLOWED`
 - Fixed error swallowing in `api.rs:276` to `tracing::error!(error = ?e, ...)`
 - Replaced 4 production `unwrap()` with `expect()` or `unwrap_or_else()` (remote_mount.rs, worm.rs, retention.rs, event_triggers.rs)
@@ -735,7 +735,7 @@ Current version: v3.0.0.
 |------|-------------|----------|
 | iOS file provider | iOS Files app integration via File Provider extension | P1 |
 | Android Storage Access Framework | SAF provider for Android | P1 |
-| Offline mode | Local cache with conflict resolution | P2 |
+| Offline mode | Local cache with conflict resolution | P2 | DONE (ferro-offline) |
 | Push notifications | Notify on share received, quota warning | P2 |
 
 ### 6.3 Collaboration (v3.3)
@@ -794,7 +794,7 @@ Current version: v3.0.0.
 
 | Item | Description | Status |
 |------|-------------|--------|
-| Erasure coding | Reed-Solomon encoding for data durability across nodes | DONE (ferro-distributed, XOR prototype) |
+| Erasure coding | Reed-Solomon encoding for data durability across nodes | DONE (ferro-distributed, Reed-Solomon GF(2^8)) |
 | Geo-replication | Async replication between data centers | DONE (ferro-distributed) |
 | Consensus | Raft-based metadata consensus for distributed deployments | DONE (ferro-distributed) |
 
@@ -967,7 +967,7 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 | G-19 | Multi-tenancy | OCIS, Seafile, MinIO | P2 | 7.2 | Planned |
 | G-20 | Horizontal scaling | Nextcloud, OCIS, Seafile, MinIO | P3 | 7.3 | Planned |
 | G-21 | Plugin marketplace | Nextcloud, OCIS | P3 | 7.1 | DONE (ferro-plugin-marketplace) |
-| G-22 | Offline mode (mobile) | Nextcloud, OCIS, Seafile | P2 | 6.2 | Planned |
+| G-22 | Offline mode (mobile) | Nextcloud, OCIS, Seafile | P2 | 6.2 | DONE (ferro-offline) |
 | G-23 | Data retention policies | Nextcloud, OCIS, Seafile, MinIO | P2 | 6.4 | DONE |
 | G-24 | Secure view (no-download sharing) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | DONE |
 | G-25 | File drop (upload-only links) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | **New** |

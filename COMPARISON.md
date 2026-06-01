@@ -375,15 +375,26 @@
 | Line-level version diffing (LCS) | Only platform with LCS-based diff at line level (others do byte/file-level) |
 | Zero-config single binary (musl, static) | Matches Syncthing/Dufs simplicity while offering enterprise features |
 
+### Gaps Closed Since Analysis
+
+| Gap | Resolution |
+|-----|------------|
+| ~~Production Reed-Solomon erasure coding~~ | `ReedSolomonErasureCoder` using `reed-solomon-erasure` v6 (GF(2^8), N+M recovery) |
+| ~~Full office suite integration~~ | WOPI deployment guide for Collabora + OnlyOffice (`docs/src/guides/office-suite.md`) |
+| ~~Offline mode~~ | `ferro-offline` crate: ConnectionMonitor, SqliteChangeQueue, ContentCache, Reconciler |
+| ~~API key authentication~~ | SHA-256 hashed keys, `X-API-Key` header, per-key permissions, 25/user limit |
+| ~~RBAC preset roles~~ | System roles (Admin/User/ReadOnly) with Cedar policy generation |
+| ~~WebAuthn framework~~ | Challenge-response registration/authentication with origin/RP-ID verification |
+| ~~Offline conflict detection~~ | EditEdit/EditDelete/DeleteEdit detection with sync plan generation |
+
 ### Gaps Requiring External Effort
 
-| Gap | What's Needed |
-|-----|---------------|
-| Native mobile apps (iOS Files Provider, Android SAF) | Swift/Kotlin development (API contracts exist in ferro-mobile-contract) |
-| Native desktop sync client (mature) | Tauri app needs full bidirectional sync (daemon exists, UI incomplete) |
-| Full office suite integration | Collabora/OnlyOffice deployment guide (WOPI works) |
-| External penetration test | Independent third-party security audit |
-| NFS/SMB FFI backends | Real `libsmbclient`/libnfs integration (traits and mocks exist) |
-| Production Reed-Solomon erasure coding | XOR prototype needs replacement with reed-solomon-rs crate |
-| Production Raft consensus | State machine works, needs network transport layer |
-| Plugin marketplace with actual WASM packages | Registry exists, needs hosting and review workflow |
+| Gap | Severity | What's Needed |
+|-----|----------|---------------|
+| Multi-backend routing | Major | Policy-based write-path routing (S3 for public, local for internal) |
+| Native mobile apps | Moderate | Swift/Kotlin development (API contracts exist in `ferro-mobile-contract`) |
+| Native desktop sync client | Moderate | Tauri app needs full bidirectional sync (daemon exists, UI incomplete) |
+| External penetration test | Moderate | Independent third-party security audit |
+| NFS/SMB FFI backends | Nice-to-have | Real `libsmbclient`/libnfs integration (traits and mocks exist) |
+| Production Raft consensus | Nice-to-have | State machine works, needs network transport layer |
+| Plugin marketplace with WASM hosting | Nice-to-have | Registry exists, needs hosting and review workflow |
