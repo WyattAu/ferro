@@ -5,6 +5,10 @@ pub mod conflict;
 #[cfg(feature = "sync")]
 pub mod engine;
 #[cfg(feature = "sync")]
+pub mod pauser;
+#[cfg(feature = "sync")]
+pub mod progress;
+#[cfg(feature = "sync")]
 pub mod remote;
 #[cfg(feature = "sync")]
 pub mod scanner;

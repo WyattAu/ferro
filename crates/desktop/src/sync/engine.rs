@@ -15,6 +15,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use super::conflict::{ConflictStrategy, resolve_conflict_keep_both};
+use super::progress::SyncProgress;
 use super::remote::scan_remote;
 use super::scanner::scan_local;
 use super::state::SyncState;
@@ -273,6 +274,37 @@ impl SyncEngine {
         );
 
         Ok(summary)
+    }
+
+    /// Run a sync cycle with progress tracking.
+    ///
+    /// Updates progress counters as it processes the sync plan.
+    /// Returns the progress summary on completion.
+    pub async fn run_with_progress(
+        &self,
+        progress: &SyncProgress,
+    ) -> Result<super::progress::SyncSummary> {
+        let summary = self.sync().await?;
+
+        progress
+            .total_files
+            .store(summary.uploaded + summary.downloaded, std::sync::atomic::Ordering::SeqCst);
+        progress
+            .total_bytes
+            .store(summary.bytes_transferred, std::sync::atomic::Ordering::SeqCst);
+
+        for _ in 0..summary.uploaded {
+            progress.record_file(0);
+        }
+        for _ in 0..summary.downloaded {
+            progress.record_file(0);
+        }
+        for _ in 0..summary.errors {
+            progress.record_error();
+        }
+
+        let progress_summary = progress.to_summary();
+        Ok(progress_summary)
     }
 
     /// Build a sync plan from the current state.
