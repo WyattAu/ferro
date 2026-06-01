@@ -20,6 +20,10 @@ async-trait = "0.1"
 dashmap = "6"
 ferro-backend-router = { path = "../backend-router" }
 uuid = { version = "1", features = ["v4"] }
+smb2 = { version = "0.11", optional = true }
+
+[features]
+smb = ["dep:smb2"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

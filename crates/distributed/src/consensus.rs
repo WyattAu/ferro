@@ -1,19 +1,19 @@
 use std::time::Duration;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct NodeId(pub String);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct Term(pub u64);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LogEntry {
     pub term: Term,
     pub index: u64,
     pub command: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VoteRequest {
     pub term: Term,
     pub candidate_id: NodeId,
@@ -21,14 +21,14 @@ pub struct VoteRequest {
     pub last_log_term: Term,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VoteResponse {
     pub term: Term,
     pub vote_granted: bool,
     pub voter_id: NodeId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AppendEntriesRequest {
     pub term: Term,
     pub leader_id: NodeId,
@@ -38,7 +38,7 @@ pub struct AppendEntriesRequest {
     pub leader_commit: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AppendEntriesResponse {
     pub term: Term,
     pub success: bool,

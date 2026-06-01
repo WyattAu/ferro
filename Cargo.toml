@@ -42,6 +42,7 @@ members = [
     "crates/webhook",
     "crates/health",
     "crates/cache",
+    "crates/wasm-host",
 ]
 resolver = "2"
 

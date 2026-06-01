@@ -3,3 +3,5 @@ pub mod erasure;
 pub mod error;
 pub mod membership;
 pub mod replication;
+pub mod tcp_transport;
+pub mod transport;
