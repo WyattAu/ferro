@@ -2877,6 +2877,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-cache"
+version = "3.0.0"
+dependencies = [
+ "dashmap 6.1.0",
+ "parking_lot 0.12.5",
+ "serde",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "ferro-cli"
 version = "3.0.0"
 dependencies = [
@@ -3129,6 +3140,20 @@ dependencies = [
  "ferro-common",
  "serde",
  "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "ferro-health"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "dashmap 6.1.0",
+ "libc",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
  "tokio",
 ]
 

@@ -40,6 +40,8 @@ members = [
     "crates/session-manager",
     "crates/config-manager",
     "crates/webhook",
+    "crates/health",
+    "crates/cache",
 ]
 resolver = "2"
 
