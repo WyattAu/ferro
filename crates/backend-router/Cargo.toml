@@ -1,0 +1,18 @@
+[package]
+name = "ferro-backend-router"
+version.workspace = true
+edition.workspace = true
+description = "Policy-based write-path routing for multi-backend storage"
+readme = "README.md"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+keywords = ["routing", "storage", "backend", "policy", "s3"]
+categories = ["filesystem"]
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+
+[dev-dependencies]

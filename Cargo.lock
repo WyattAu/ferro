@@ -2841,6 +2841,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-backend-router"
+version = "3.0.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "ferro-benchmarks"
 version = "3.0.0"
 dependencies = [
@@ -3166,6 +3174,28 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "ferro-rate-limiter"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "dashmap 6.1.0",
+ "parking_lot 0.12.5",
+ "serde",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "ferro-search-index"
+version = "3.0.0"
+dependencies = [
+ "dashmap 6.1.0",
+ "parking_lot 0.12.5",
+ "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

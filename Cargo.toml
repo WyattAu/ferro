@@ -31,6 +31,9 @@ members = [
     "crates/selective-sync",
     "crates/mobile-contract",
     "crates/offline",
+    "crates/backend-router",
+    "crates/rate-limiter",
+    "crates/search-index",
 ]
 resolver = "2"
 
