@@ -103,6 +103,7 @@ pub mod federation {
 pub mod event_triggers;
 pub mod idempotency;
 pub mod indexer;
+pub mod integration;
 pub mod json_logging;
 #[cfg(feature = "ldap")]
 pub mod ldap_auth;

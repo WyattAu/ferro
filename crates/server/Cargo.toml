@@ -78,6 +78,22 @@ lru = "0.16"
 utoipa = { version = "5", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "8", features = ["axum", "vendored"] }
 lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1-rustls", "builder", "tokio1", "aws-lc-rs", "webpki-roots"] }
+ferro-rate-limiter = { path = "../rate-limiter" }
+ferro-cache = { path = "../cache" }
+ferro-health = { path = "../health" }
+ferro-session-manager = { path = "../session-manager" }
+ferro-multi-tenant = { path = "../multi-tenant" }
+ferro-event-bus = { path = "../event-bus" }
+ferro-audit-log = { path = "../audit-log" }
+ferro-webhook = { path = "../webhook" }
+ferro-search-index = { path = "../search-index" }
+ferro-backend-router = { path = "../backend-router" }
+ferro-storage-adapter = { path = "../storage-adapter" }
+ferro-config-manager = { path = "../config-manager" }
+ferro-e2ee = { path = "../e2ee" }
+ferro-crdt = { path = "../crdt" }
+ferro-distributed = { path = "../distributed" }
+ferro-offline = { path = "../offline" }
 
 [dev-dependencies]
 http-body-util = "0.1"
@@ -85,6 +101,8 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 tokio = { workspace = true }
 criterion = { version = "0.8", features = ["async_tokio"] }
 proptest = "1"
+ferro-search-index = { path = "../search-index" }
+ferro-event-bus = { path = "../event-bus" }
 
 [[bench]]
 name = "throughput"
