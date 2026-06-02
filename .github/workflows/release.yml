@@ -172,6 +172,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Lowercase owner for GHCR
+        run: echo "OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
       - uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v6.13.0
         with:
           context: .
@@ -180,7 +182,7 @@ jobs:
           push: true
           build-args: BUILD_FEATURES=s3,gcs,azure
           tags: |
-            ghcr.io/${{ github.repository_owner }}/ferro:latest
-            ghcr.io/${{ github.repository_owner }}/ferro:${{ github.ref_name }}
+            ghcr.io/${{ env.OWNER }}/ferro:latest
+            ghcr.io/${{ env.OWNER }}/ferro:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
