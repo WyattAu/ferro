@@ -20,4 +20,3 @@ limit-results = 30
 
 [preprocessor.mermaid]
 command = "mdbook-mermaid"
-renderer = "js"
