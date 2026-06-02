@@ -12,6 +12,7 @@ WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
+COPY migrations/ migrations/
 
 RUN mkdir -p crates/server/src crates/cli/src crates/desktop/src && \
     touch crates/server/src/main.rs crates/cli/src/main.rs crates/desktop/src/main.rs
