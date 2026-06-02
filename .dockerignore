@@ -1,0 +1,8 @@
+.git
+target
+docs/book
+.github
+.gitignore
+.envrc
+.flake*
+deploy

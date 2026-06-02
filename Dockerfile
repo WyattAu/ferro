@@ -8,7 +8,7 @@ ARG RUST_VERSION=1.95
 LABEL org.opencontainers.image.title="Ferro"
 LABEL org.opencontainers.image.description="Self-hosted file server with WebDAV, S3-compatible API, federation, and WASM workers"
 LABEL org.opencontainers.image.url="https://github.com/WyattAu/ferro"
-LABEL org.opencontainers.image.documentation="https://wyattau.github.io/ferro/"
+LABEL org.opencontainers.image.documentation="https://wyattau.github.io/ferro/docs/"
 LABEL org.opencontainers.image.source="https://github.com/WyattAu/ferro"
 LABEL org.opencontainers.image.vendor="WyattAu"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later"
@@ -26,45 +26,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
+COPY crates/ crates/
 
-# Copy all workspace member Cargo.toml files (required by cargo metadata)
-COPY crates/common/Cargo.toml crates/common/
-COPY crates/core/Cargo.toml crates/core/
-COPY crates/dav/Cargo.toml crates/dav/
-COPY crates/server/Cargo.toml crates/server/
-COPY crates/web/Cargo.toml crates/web/
-COPY crates/desktop/Cargo.toml crates/desktop/
-COPY crates/cli/Cargo.toml crates/cli/
-COPY crates/crypto/Cargo.toml crates/crypto/
-COPY crates/fuse/Cargo.toml crates/fuse/
-COPY crates/client/Cargo.toml crates/client/
-COPY crates/benchmarks/Cargo.toml crates/benchmarks/
-COPY crates/admin/Cargo.toml crates/admin/
-COPY crates/observability/Cargo.toml crates/observability/
-COPY crates/auth/Cargo.toml crates/auth/
-COPY crates/webdav-handler/Cargo.toml crates/webdav-handler/
-COPY crates/server-activitypub/Cargo.toml crates/server-activitypub/
-COPY crates/server-webrtc/Cargo.toml crates/server-webrtc/
-COPY crates/server-wopi/Cargo.toml crates/server-wopi/
-COPY crates/server-versioning/Cargo.toml crates/server-versioning/
-COPY crates/graphql/Cargo.toml crates/graphql/
+# Create stub source files for all workspace members so cargo metadata works
+RUN find crates -name "Cargo.toml" -exec sh -c 'dir=$(dirname "$1"); mkdir -p "$dir/src"; [ -f "$dir/src/lib.rs" ] || echo "" > "$dir/src/lib.rs"' _ {} \;
 
-# Create stub source files for all workspace members
-RUN for crate in common core dav server web desktop cli crypto fuse client benchmarks admin observability auth webdav-handler server-activitypub server-webrtc server-wopi server-versioning graphql; do \
-    mkdir -p crates/$crate/src; \
-    [ -f crates/$crate/src/lib.rs ] || echo '' > crates/$crate/src/lib.rs; \
-    done
-# Stubs for benchmark targets (required by Cargo.toml [[bench]] entries)
-RUN mkdir -p crates/benchmarks/benches && \
-    for bench in storage dav_parsing crypto_ops webdav_ops; do \
-    [ -f crates/benchmarks/benches/$bench.rs ] || echo 'fn main() {}' > crates/benchmarks/benches/$bench.rs; \
-    done
-RUN mkdir -p crates/server/benches && \
-    for bench in throughput latency webdav_ops wasm_dispatch storage_ops; do \
-    [ -f crates/server/benches/$bench.rs ] || echo 'fn main() {}' > crates/server/benches/$bench.rs; \
-    done
-
-# Now copy actual sources for crates needed by the web frontend build
+# Copy actual sources for crates needed by the web frontend build
 COPY crates/web/index.html crates/web/
 COPY crates/web/src/ crates/web/src/
 COPY crates/common/src/ crates/common/src/
@@ -86,54 +53,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY Cargo.toml Cargo.lock ./
-
-# Copy all workspace member Cargo.toml files (required by cargo metadata)
-COPY crates/common/Cargo.toml crates/common/
-COPY crates/core/Cargo.toml crates/core/
-COPY crates/dav/Cargo.toml crates/dav/
-COPY crates/server/Cargo.toml crates/server/
-COPY crates/web/Cargo.toml crates/web/
-COPY crates/desktop/Cargo.toml crates/desktop/
-COPY crates/cli/Cargo.toml crates/cli/
-COPY crates/crypto/Cargo.toml crates/crypto/
-COPY crates/fuse/Cargo.toml crates/fuse/
-COPY crates/client/Cargo.toml crates/client/
-COPY crates/benchmarks/Cargo.toml crates/benchmarks/
-COPY crates/admin/Cargo.toml crates/admin/
-COPY crates/observability/Cargo.toml crates/observability/
-COPY crates/auth/Cargo.toml crates/auth/
-COPY crates/webdav-handler/Cargo.toml crates/webdav-handler/
-COPY crates/server-activitypub/Cargo.toml crates/server-activitypub/
-COPY crates/server-webrtc/Cargo.toml crates/server-webrtc/
-COPY crates/server-wopi/Cargo.toml crates/server-wopi/
-COPY crates/server-versioning/Cargo.toml crates/server-versioning/
-COPY crates/graphql/Cargo.toml crates/graphql/
-
-# Create stub source files for all workspace members (dependency caching layer)
-RUN for crate in common core dav server web desktop cli crypto fuse client benchmarks admin observability auth webdav-handler server-activitypub server-webrtc server-wopi server-versioning graphql; do \
-    mkdir -p crates/$crate/src; \
-    echo '' > crates/$crate/src/lib.rs; \
-    done
-RUN mkdir -p crates/benchmarks/benches && \
-    for bench in storage dav_parsing crypto_ops webdav_ops; do \
-    echo 'fn main() {}' > crates/benchmarks/benches/$bench.rs; \
-    done
-RUN mkdir -p crates/server/benches && \
-    for bench in throughput latency webdav_ops wasm_dispatch storage_ops; do \
-    echo 'fn main() {}' > crates/server/benches/$bench.rs; \
-    done
-RUN echo 'fn main() {}' > crates/server/src/main.rs
-RUN echo 'fn main() {}' > crates/cli/src/main.rs
-RUN echo 'fn main() {}' > crates/desktop/src/main.rs
-
-RUN cargo build --release --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}" 2>/dev/null || true
-
 COPY . .
-RUN for crate in common core dav server web desktop cli crypto fuse client benchmarks admin observability auth webdav-handler server-activitypub server-webrtc server-wopi server-versioning graphql; do \
-    touch crates/$crate/src/lib.rs 2>/dev/null || true; \
-    done
-RUN touch crates/server/src/main.rs crates/cli/src/main.rs crates/desktop/src/main.rs
+
+# Ensure all main entrypoints exist
+RUN mkdir -p crates/server/src crates/cli/src crates/desktop/src && \
+    touch crates/server/src/main.rs crates/cli/src/main.rs crates/desktop/src/main.rs
 
 RUN cargo build --release --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}"
 
