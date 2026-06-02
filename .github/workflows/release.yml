@@ -180,7 +180,7 @@ jobs:
           push: true
           build-args: BUILD_FEATURES=s3,gcs,azure
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/ferro:latest
+            ghcr.io/${{ github.repository_owner }}/ferro:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
