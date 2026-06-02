@@ -78,6 +78,7 @@ impl StorageBackend for LocalFsBackend {
         }
         let mut file = fs::File::create(&resolved).await?;
         file.write_all(data).await?;
+        file.sync_all().await?;
         Ok(())
     }
 
