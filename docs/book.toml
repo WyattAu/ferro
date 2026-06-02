@@ -14,9 +14,8 @@ preferred-dark-theme = "navy"
 site-url = "/docs/"
 git-repository-url = "https://github.com/WyattAu/ferro"
 edit-url-template = "https://github.com/WyattAu/ferro/edit/main/docs/{path}"
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-css = ["mermaid.css"]
 
 [output.html.search]
 limit-results = 30
-
-[preprocessor.mermaid]
-command = "mdbook-mermaid"
