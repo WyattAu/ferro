@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'landing/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -31,16 +32,26 @@ jobs:
       - name: Install mdBook
         run: cargo install mdbook --version 0.4.40 --locked
       
+      - name: Install mdbook-mermaid
+        run: cargo install mdbook-mermaid --locked
+      
       - name: Build documentation
         run: mdbook build docs/
       
+      - name: Combine landing page and docs
+        run: |
+          mkdir -p site
+          cp -r landing/* site/
+          mkdir -p site/docs
+          cp -r docs/book/* site/docs/
+
       - name: Setup Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
-          path: docs/book/
+          path: site/
 
   deploy:
     environment:
@@ -51,4 +62,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fa0e8f6dda462b719fa # v5.0.0

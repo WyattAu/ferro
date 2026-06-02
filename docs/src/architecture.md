@@ -2,32 +2,75 @@
 
 ## Crate Structure
 
-Ferro is built as a Rust workspace with 20 crates:
+Ferro is built as a Rust workspace with 43 crates organized by functional domain:
 
-```
-ferro/
-+-- crates/
-|   +-- common/       # Shared types, StorageEngine trait, error handling
-|   +-- core/         # Storage backends, search engine, WASM runtime
-|   +-- server/       # Axum web server, WebDAV, REST API, all HTTP handlers
-|   +-- dav/          # CalDAV/CardDAV parsers, store traits, Axum handlers
-|   +-- crypto/       # Cryptographic primitives (hashing, HMAC, bcrypt)
-|   +-- client/       # Async WebDAV client SDK with optional C-FFI
-|   +-- fuse/         # FUSE3 filesystem mount (Linux only)
-|   +-- web/          # Leptos WASM web frontend
-|   +-- cli/          # Admin CLI tool
-|   +-- desktop/      # Tauri desktop application
-|   +-- admin/        # Leptos WASM admin dashboard
-|   +-- auth/         # Authentication (simple, OIDC), authorization (Cedar)
-|   +-- webdav-handler/ # WebDAV XML request/response builders
-|   +-- server-activitypub/ # ActivityPub federation
-|   +-- server-webrtc/     # WebRTC signaling
-|   +-- server-wopi/       # WOPI protocol for office documents
-|   +-- server-versioning/ # File versioning and diff
-|   +-- graphql/       # GraphQL API (async-graphql)
-|   +-- observability/ # Metrics, logging, health checks
-|   +-- benchmarks/    # Criterion benchmark suite
-+-- deploy/           # Deployment configurations (Docker, K8s, Terraform, etc.)
+```mermaid
+graph LR
+    subgraph Client ["Client & UI"]
+        Web["ferro-web<br/>(Leptos WASM frontend)"]
+        Desktop["ferro-desktop<br/>(Tauri desktop app)"]
+        CLI["ferro-cli<br/>(admin CLI)"]
+        Client["ferro-client<br/>(WebDAV client SDK)"]
+    end
+
+    subgraph Server ["Server"]
+        Server["ferro-server<br/>(Axum HTTP server)"]
+        DAV["ferro-dav<br/>(CalDAV/CardDAV)"]
+        WebDAVHandler["ferro-webdav-handler<br/>(WebDAV XML builders)"]
+        Admin["ferro-admin<br/>(Admin dashboard)"]
+        GraphQL["ferro-graphql<br/>(GraphQL API)"]
+    end
+
+    subgraph Auth ["Auth & Security"]
+        Auth["ferro-auth<br/>(OIDC, Cedar, Simple Auth)"]
+        Crypto["ferro-crypto<br/>(SHA, HMAC, bcrypt)"]
+    end
+
+    subgraph Core ["Core Services"]
+        Core["ferro-core<br/>(Storage, Search, WASM)"]
+        Common["ferro-common<br/>(Shared types)"]
+        Observability["ferro-observability<br/>(Metrics, Health)"]
+        Health["ferro-health<br/>(Health probes)"]
+    end
+
+    subgraph Extensions ["Extensions"]
+        E2EE["ferro-e2ee<br/>(End-to-end encryption)"]
+        CRDT["ferro-crdt<br/>(Text CRDT co-editing)"]
+        SyncDelta["ferro-sync-delta<br/>(Block-level sync)"]
+        FUSE["ferro-fuse<br/>(FUSE3 mount)"]
+        Cache["ferro-cache<br/>(In-memory cache)"]
+        EventBus["ferro-event-bus<br/>(Event system)"]
+        AuditLog["ferro-audit-log<br/>(Audit trail)"]
+        SessionMgr["ferro-session-manager<br/>(Session mgmt)"]
+        ConfigMgr["ferro-config-manager<br/>(Config mgmt)"]
+        Webhook["ferro-webhook<br/>(Webhook dispatch)"]
+        RateLimiter["ferro-rate-limiter<br/>(Token bucket)"]
+        SearchIndex["ferro-search-index<br/>(Sharded search)"]
+        StorageAdapter["ferro-storage-adapter<br/>(Storage abstraction)"]
+        BackendRouter["ferro-backend-router<br/>(Backend routing)"]
+    end
+
+    subgraph Federation ["Federation & Distributed"]
+        ActivityPub["ferro-server-activitypub<br/>(ActivityPub federation)"]
+        WebRTC["ferro-server-webrtc<br/>(WebRTC signaling)"]
+        WOPI["ferro-server-wopi<br/>(WOPI protocol)"]
+        Versioning["ferro-server-versioning<br/>(File versioning)"]
+        Distributed["ferro-distributed<br/>(Raft, erasure coding)"]
+    end
+
+    subgraph Platform ["Platform & Scaling"]
+        MultiTenant["ferro-multi-tenant<br/>(Tenant isolation)"]
+        Offline["ferro-offline<br/>(Offline mode)"]
+        SelectiveSync["ferro-selective-sync<br/>(Selective sync)"]
+        NFS["ferro-mount-nfs<br/>(NFS/SMB mount trait)"]
+        AI["ferro-ai<br/>(Semantic search, tagging)"]
+        Marketplace["ferro-plugin-marketplace<br/>(Plugin registry)"]
+        MobileContract["ferro-mobile-contract<br/>(iOS/Android API)"]
+    end
+
+    subgraph Tooling ["Tooling"]
+        Benchmarks["ferro-benchmarks<br/>(Criterion benchmarks)"]
+    end
 ```
 
 | Crate | Description |
@@ -45,58 +88,22 @@ ferro/
 
 ## Request Flow
 
-```
-HTTP Request
-    |
-    v
-+------------------+
-| Compression Layer|  (gzip, brotli)
-+--------+---------+
-         |
-+--------+---------+
-| Security Headers |  (HSTS, CSP, X-Content-Type-Options, X-Frame-Options)
-+--------+---------+
-         |
-+--------+---------+
-| Request Logging  |  (X-Request-ID, request counter)
-+--------+---------+
-         |
-+--------+---------+
-| Request ID       |  (assigns unique X-Request-ID header)
-+--------+---------+
-         |
-+--------+---------+
-| CORS Layer       |  (configurable origins, preflight handling)
-+--------+---------+
-         |
-+--------+---------+
-| Simple Auth      |  (HTTP Basic Auth if configured)
-+--------+---------+
-         |
-+--------+---------+
-| OIDC Auth        |  (PKCE flow if configured)
-+--------+---------+
-         |
-+--------+---------+
-| Cedar AuthZ      |  (policy-based authorization if configured)
-+--------+---------+
-         |
-+--------+---------+
-| Rate Limiter     |  (10,000 req/min per IP)
-+--------+---------+
-         |
-+--------+---------+
-|   Router         |  (Axum)
-|  +------------+  |
-|  | Handler(s) |  |  (WebDAV, REST, GraphQL, CalDAV, etc.)
-|  +------------+  |
-|  |  AppState   |  |
-|  +------------+  |
-+------------------+
-         |
-+--------+---------+
-|  Storage Engine  |  (In-Memory, Local FS, S3, GCS, Azure)
-+------------------+
+```mermaid
+flowchart TD
+    Request[HTTP Request]
+    Request --> Compression["Compression Layer<br/>(gzip, brotli)"]
+    Compression --> Headers["Security Headers<br/>(HSTS, CSP, X-Content-Type-Options, X-Frame-Options)"]
+    Headers --> Logging["Request Logging<br/>(X-Request-ID, request counter)"]
+    Logging --> ReqID["Request ID<br/>(assigns unique X-Request-ID)"]
+    ReqID --> CORS["CORS Layer<br/>(configurable origins, preflight)"]
+    CORS --> SimpleAuth{"Simple Auth<br/>(HTTP Basic Auth if configured)"}
+    SimpleAuth --> OIDC{"OIDC Auth<br/>(PKCE flow if configured)"}
+    OIDC --> CedarAuthZ{"Cedar AuthZ<br/>(policy-based authorization)"}
+    CedarAuthZ --> RateLimiter["Rate Limiter<br/>(10,000 req/min per IP)"]
+    RateLimiter --> Router["Router<br/>(Axum)"]
+    Router --> Handlers["Handler(s)<br/>(WebDAV, REST, GraphQL, CalDAV, etc.)"]
+    Handlers --> AppState["AppState<br/>(shared state)"]
+    AppState --> Storage["Storage Engine<br/>(In-Memory, Local FS, S3, GCS, Azure)"]
 ```
 
 The middleware stack processes requests in order. Each layer can short-circuit the request (e.g., rate limiter returns 429, auth returns 401).

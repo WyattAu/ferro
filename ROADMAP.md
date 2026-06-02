@@ -16,12 +16,35 @@
 | Pen test | 33 security tests + 44 integration tests + 91 wiring tests |
 | Integration | All 15 framework crates wired into server |
 | CI/CD | 6 workflows (checks, bench, extended, release, docs, dependabot) |
-| Docs | mdBook deployed, COMPARISON.md (15 platforms), ROADMAP.md |
+| Docs | Landing page + mdBook at /docs/, Mermaid diagrams, COMPARISON.md (15 platforms), ROADMAP.md |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | MSRV | 1.92 (enforced in CI) |
 | Competitive gaps | 0 remaining (all 25 closed) |
 
 ## What Was Just Completed
+
+### 2026-06-02 (v3.0.8): Audit Cycle 8 - Landing Page, Mermaid Diagrams, Deployment Restructure
+
+**Landing Page:**
+- Created landing page at `landing/index.html` with Spatial Materialism x Amoebic UI x Brutalism design language
+- Amoebic animated blob backgrounds, layered card surfaces, monospace typography, orange accent (#E85D04)
+- Responsive layout with sticky navigation, feature grid, architecture layers, and quick-start code block
+- Stats bar: 43 crates, 1938 tests, 9 protocols, ~15 MB binary
+
+**Documentation Diagrams -- Mermaid Migration:**
+- Added `mdbook-mermaid` preprocessor to `docs/book.toml` with JS renderer
+- Converted 4 ASCII art diagrams to Mermaid format:
+  - `docs/src/introduction.md`: Architecture overview (client layers, middleware stack, storage backends)
+  - `docs/src/architecture.md`: Crate structure (43 crates by functional domain) and request flow (middleware pipeline)
+  - `docs/src/guides/office-suite.md`: WOPI sequence diagram
+  - `deploy/monitoring/README.md`: Grafana+Loki and VictoriaMetrics+VictoriaLogs monitoring stacks
+- Set `site-url = "/docs/"` in mdBook config for correct sitemap/canonical URL generation
+
+**Deployment Restructure:**
+- Updated `.github/workflows/docs.yml` to deploy landing page at root `/` and mdBook documentation at `/docs/`
+- Combined build step: copies landing page to `site/` and mdBook output to `site/docs/`
+- Added `mdbook-mermaid` installation step to CI
+- Added `landing/**` to docs.yml path triggers
 
 ### 2026-06-01 (v3.0.7): Audit Cycle 7 - Clippy Modernization, DoS Fix, CI Optimization, UI Fixes
 

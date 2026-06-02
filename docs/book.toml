@@ -1,7 +1,7 @@
 [book]
 title = "Ferro Documentation"
 authors = ["Wyatt Au"]
-language = "en"
+language = en
 multilingual = false
 src = "src"
 
@@ -11,8 +11,13 @@ build-dir = "book"
 [output.html]
 default-theme = "light"
 preferred-dark-theme = "navy"
+site-url = "/docs/"
 git-repository-url = "https://github.com/WyattAu/ferro"
 edit-url-template = "https://github.com/WyattAu/ferro/edit/main/docs/{path}"
 
 [output.html.search]
 limit-results = 30
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+renderer = "js"

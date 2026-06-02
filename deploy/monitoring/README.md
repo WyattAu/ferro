@@ -25,38 +25,25 @@ Grafana will be available at `http://localhost:3000` (default credentials: `admi
 
 ### Grafana + Loki Stack
 
-```
-┌──────────┐     /metrics    ┌────────────┐
-│  Ferro   │ ───────────────▶│ Prometheus │
-│  :8080   │                 │   :9090    │
-└────┬─────┘                 └─────┬──────┘
-     │                             │
-     │ logs                        │ metrics
-     ▼                             ▼
-┌──────────┐                 ┌──────────────┐
-│  Loki    │                 │    Grafana   │
-│  :3100   │────────────────▶│    :3000     │
-└──────────┘   logs          └──────────────┘
+```mermaid
+graph LR
+    Ferro["Ferro<br/>:8080"]
+    Ferro -->|/metrics| Prometheus["Prometheus<br/>:9090"]
+    Ferro -->|logs| Loki["Loki<br/>:3100"]
+    Prometheus -->|metrics| Grafana["Grafana<br/>:3000"]
+    Loki -->|logs| Grafana
 ```
 
 ### VictoriaMetrics + VictoriaLogs Stack
 
-```
-┌──────────┐     /metrics    ┌──────────┐
-│  Ferro   │ ───────────────▶│ vmagent  │
-│  :8080   │                 └────┬─────┘
-└────┬─────┘                      │ remote write
-     │                            ▼
-     │ logs                 ┌──────────────────┐
-     ▼                     │ VictoriaMetrics  │
-┌──────────────┐           │     :8428        │
-│ VictoriaLogs │──────────▶└────────┬─────────┘
-│    :9428     │  metrics           │
-└──────────────┘                    ▼
-                              ┌──────────────┐
-                              │    Grafana   │
-                              │    :3000     │
-                              └──────────────┘
+```mermaid
+graph LR
+    Ferro["Ferro<br/>:8080"]
+    Ferro -->|/metrics| VMAgent["vmagent"]
+    Ferro -->|logs| VLogs["VictoriaLogs<br/>:9428"]
+    VMAgent -->|remote write| VM["VictoriaMetrics<br/>:8428"]
+    VM -->|metrics| Grafana["Grafana<br/>:3000"]
+    VLogs -->|metrics| Grafana
 ```
 
 ## Feature Comparison

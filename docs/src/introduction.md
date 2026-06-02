@@ -48,55 +48,54 @@ Ferro is a storage orchestrator -- it sits between your files and the storage ba
 
 ## Architecture Overview
 
-```
-                         +-------------------+
-                         |     Web UI        |
-                         |   (Leptos WASM)   |
-                         +--------+----------+
-                                  |
-                         +--------+----------+
-                         |   Reverse Proxy   |
-                         |     (Caddy)       |
-                         +--------+----------+
-                                  |
-                    +-------------+-------------+
-                    |          Axum Server       |
-                    |   +------+-------+------+  |
-                    |   | Auth | Rate  | CORS |  |
-                    |   | Layer| Limit |Layer |  |
-                    |   +------+-------+------+  |
-                    |   |     Security Headers    |
-                    |   +------------------------+|
-                    |   |      Middleware Stack    |
-                    |   +------------------------+|
-                    |          |                 |
-                    |  +-------+-------+         |
-                    |  | WebDAV  | REST | GraphQL |
-                    |  | Handler | API  | Handler |
-                    |  +---------+------+---------+
-                    |  | CalDAV  |CardDAV| WOPI  |
-                    |  | Handler |Handler|Handler |
-                    |  +---------+------+---------+
-                    |  |  WebSocket  | Federation  |
-                    |  |  Handler    | Handler     |
-                    |  +-------------+-------------+
-                    |          |                  |
-                    |  +-------+------------------+
-                    |  |    AppState             |
-                    |  | - StorageEngine         |
-                    |  | - MetadataStore         |
-                    |  | - SearchEngine          |
-                    |  | - LockManager           |
-                    |  | - WsManager             |
-                    |  +-------------------------+
-                    +-------------+-------------+
-                                  |
-               +------------------+------------------+
-               |                  |                  |
-        +------+------+   +------+------+   +------+------+
-        | In-Memory   |   | Local FS    |   | Object Store|
-        | Storage     |   | Storage     |   | (S3/GCS/Az) |
-        +-------------+   +-------------+   +-------------+
+```mermaid
+graph TD
+    subgraph Client ["Client Layer"]
+        UI["Web UI<br/>(Leptos WASM)"]
+        FUSE["FUSE Mount<br/>(Native)"]
+        Desktop["Desktop App<br/>(Tauri)"]
+    end
+
+    subgraph Proxy ["Reverse Proxy"]
+        Caddy["Caddy<br/>(HTTPS Termination)"]
+    end
+
+    subgraph Server ["Axum Server"]
+        subgraph Middleware ["Middleware Stack"]
+            Headers["Security Headers"]
+            CORS["CORS Layer"]
+            RateLimiter["Rate Limiter"]
+            AuthZ["Cedar AuthZ"]
+            AuthOIDC["OIDC Auth"]
+            AuthSimple["Simple Auth"]
+        end
+        subgraph Handlers ["Protocol Handlers"]
+            WebDAV["WebDAV Handler"]
+            REST["REST API"]
+            GraphQL["GraphQL Handler"]
+            CalDAV["CalDAV Handler"]
+            CardDAV["CardDAV Handler"]
+            WOPI["WOPI Handler"]
+            WebSocket["WebSocket Handler"]
+            Federation["Federation Handler"]
+        end
+        AppState["AppState<br/>- StorageEngine<br/>- MetadataStore<br/>- SearchEngine<br/>- LockManager<br/>- WsManager"]
+    end
+
+    subgraph Storage ["Storage Backends"]
+        Memory["In-Memory"]
+        LocalFS["Local FS"]
+        Cloud["Object Store<br/>(S3/GCS/Azure)"]
+    end
+
+    UI --> Caddy
+    FUSE --> Caddy
+    Desktop --> Caddy
+    Caddy --> Server
+    Server --> AppState
+    AppState --> Memory
+    AppState --> LocalFS
+    AppState --> Cloud
 ```
 
 ## License

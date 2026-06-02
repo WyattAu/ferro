@@ -4,11 +4,17 @@ Ferro implements the [WOPI (Web Application Open Platform Interface)](https://le
 
 ## Architecture
 
-```
-User Browser → Ferro (/wopi/files/{path}) → Office Backend (Collabora/OnlyOffice)
-                  ↑                                      |
-                  |  WOPI REST calls                      |
-                  +--------------------------------------+
+```mermaid
+sequenceDiagram
+    participant User as User Browser
+    participant Ferro as Ferro Server
+    participant Office as Office Backend
+
+    User->>Ferro: Navigate to /wopi/files/{path}
+    Ferro-->>Office: WOPI REST calls (file contents, metadata)
+    Office-->>Ferro: File operations (save, lock, unlock)
+    Office-->>User: Render editor in iframe
+    Note right of User: Ferro acts as WOPI host
 ```
 
 Ferro acts as the WOPI **host**: it serves files and metadata to the office backend via the WOPI REST API. The office backend renders the editor in an iframe and communicates with Ferro for file operations.
