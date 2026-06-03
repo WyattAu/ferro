@@ -4,7 +4,9 @@
 //! Files are streamed in chunks to avoid buffering the entire file in memory.
 
 use serde::{Deserialize, Serialize};
+#[cfg(unix)]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+#[cfg(unix)]
 use tokio::net::UnixStream;
 
 /// Configuration for the ClamAV scanning worker.
@@ -62,6 +64,7 @@ const CHUNK_SIZE: usize = 4096;
 /// 3. For each chunk: send 4-byte big-endian length + data
 /// 4. Send zero-length chunk to signal end
 /// 5. Read response: "stream: OK\0" (clean) or "stream: VirusName FOUND\0" (infected)
+#[cfg(unix)]
 pub async fn scan_file(
     config: &ClamavConfig,
     request: &ClamavScanRequest,
@@ -179,6 +182,7 @@ pub async fn scan_file(
 }
 
 #[cfg(test)]
+#[cfg(unix)]
 mod tests {
     use super::*;
 

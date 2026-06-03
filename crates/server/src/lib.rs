@@ -8,6 +8,7 @@ pub mod backup;
 pub mod batch;
 pub mod branding;
 pub mod bulk;
+#[cfg(unix)]
 pub mod clamav;
 pub mod comments;
 pub mod config;
