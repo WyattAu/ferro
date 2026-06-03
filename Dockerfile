@@ -14,8 +14,10 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY migrations/ migrations/
 
+# Cache cargo registry and git deps, but NOT the target directory
+# (build output must persist for COPY --from=builder)
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target \
+    --mount=type=cache,target=/usr/local/cargo/git \
     cargo build --release --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}"
 
 FROM debian:bookworm-slim

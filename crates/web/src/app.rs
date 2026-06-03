@@ -40,8 +40,10 @@ pub fn App() -> impl IntoView {
                 if let Some(window) = web_sys::window() {
                     if let Some(doc) = window.document() {
                         doc.set_title(&config.title);
-                        if let Ok(Some(el)) = doc.document_element() {
-                            let _ = el.style().set_property("--accent", &config.primary_color);
+                        if let Some(el) = doc.document_element() {
+                            if let Ok(html_el) = el.dyn_into::<web_sys::HtmlElement>() {
+                                let _ = html_el.style().set_property("--accent", &config.primary_color);
+                            }
                         }
 
                         if let Some(ref favicon_url) = config.favicon_url {

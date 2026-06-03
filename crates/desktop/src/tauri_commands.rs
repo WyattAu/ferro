@@ -140,6 +140,7 @@ pub async fn cmd_show_notification(
     use tauri_plugin_notification::NotificationExt;
     app_handle
         .notification()
+        .builder()
         .title(&title)
         .body(&body)
         .show()

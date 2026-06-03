@@ -27,29 +27,32 @@
         };
 
         # System libraries needed for Tauri / WebKitGTK / crypto
+        # Use .dev for multi-output packages to get pkg-config files
         systemLibraries = with pkgs; [
-          webkitgtk_4_1
-          gtk4
-          cairo
-          gdk-pixbuf
-          glib
-          dbus
-          openssl_3
-          librsvg
-          libsoup_3
-          pango
-          atk
-          at-spi2-atk
-          libxkbcommon
-          libepoxy
-          freetype
-          fontconfig
+          webkitgtk_4_1.dev
+          gtk3.dev
+          gtk4.dev
+          cairo.dev
+          gdk-pixbuf.dev
+          glib.dev
+          dbus.dev
+          openssl_3.dev
+          librsvg.dev
+          libsoup_3.dev
+          pango.dev
+          atk.dev
+          at-spi2-atk.dev
+          libxkbcommon.dev
+          libepoxy.dev
+          freetype.dev
+          fontconfig.dev
           libGL
-          wayland
-          libxrandr
-          libXi
-          libXcursor
-          libX11
+          wayland.dev
+          libxrandr.dev
+          libXi.dev
+          libXcursor.dev
+          libX11.dev
+          libX11.dev
         ];
 
         # Core development tools (always available)
@@ -66,6 +69,7 @@
           protobuf          # for some dependency builds
           cmake
           gcc
+          wrapGAppsHook3
           wrapGAppsHook4
         ];
 

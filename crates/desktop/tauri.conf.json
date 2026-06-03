@@ -9,7 +9,6 @@
     "frontendDist": "frontend"
   },
   "app": {
-    "title": "Ferro",
     "windows": [
       {
         "title": "Ferro",
