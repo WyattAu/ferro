@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780489100296,
+  "lastUpdate": 1780506478828,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -7109,6 +7109,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 836,
             "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "ce568063e907f5276ea6a348614734494fd51c40",
+          "message": "fix(desktop): add Tauri API guard and diagnostics\n\nwithGlobalTauri confirmed working; content renders (800x1200 flex\nDIV). Blank appearance is WebKitGTK GBM buffer compositing failure,\nnot missing content.\n\nAlso fmt: import order in gui.rs, app.rs",
+          "timestamp": "2026-06-03T18:00:31+01:00",
+          "tree_id": "535095dd88a566176e7f5258a3b574e8b25255df",
+          "url": "https://github.com/WyattAu/ferro/commit/ce568063e907f5276ea6a348614734494fd51c40"
+        },
+        "date": 1780506478257,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267033131,
+            "range": "± 222703",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267065806,
+            "range": "± 1510093",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28661,
+            "range": "± 2109",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28258,
+            "range": "± 2198",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9069,
+            "range": "± 498",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5106,
+            "range": "± 101",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1273,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 965,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2804,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1331,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7303,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66338,
+            "range": "± 309",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18793,
+            "range": "± 346",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 891,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 153,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 175,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 193,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 848,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 831,
+            "range": "± 3",
             "unit": "ns/iter"
           },
           {
