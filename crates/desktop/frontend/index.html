@@ -456,8 +456,25 @@
     </div>
 
     <script>
+        /* === Diagnostics === */
+        console.log('[ferro] DOMContentLoaded check:', document.readyState);
+        console.log('[ferro] __TAURI__ exists:', typeof window.__TAURI__ !== 'undefined');
+        console.log('[ferro] __TAURI_INTERNALS__ exists:', typeof window.__TAURI_INTERNALS__ !== 'undefined');
+        if (typeof window.__TAURI__ !== 'undefined') {
+            console.log('[fero] __TAURI__ keys:', Object.keys(window.__TAURI__));
+            console.log('[ferro] __TAURI__.core keys:', Object.keys(window.__TAURI__.core || {}));
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('[ferro] DOMContentLoaded fired');
+        });
+
         /* === Tauri API === */
-        const { invoke } = window.__TAURI__.core;
+        if (typeof window.__TAURI__ === 'undefined') {
+            document.getElementById('connect-error').textContent = 'ERROR: Tauri API not loaded. withGlobalTauri may not be configured.';
+            document.getElementById('connect-error').style.display = 'block';
+            console.error('[ferro] window.__TAURI__ is undefined - Tauri IPC not available');
+        }
+        const { invoke } = window.__TAURI__?.core || { invoke: () => { throw new Error('Tauri API not available'); } };
 
         /* === State === */
         let serverUrl = '';

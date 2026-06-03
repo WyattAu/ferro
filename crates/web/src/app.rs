@@ -42,7 +42,9 @@ pub fn App() -> impl IntoView {
                         doc.set_title(&config.title);
                         if let Some(el) = doc.document_element() {
                             if let Ok(html_el) = el.dyn_into::<web_sys::HtmlElement>() {
-                                let _ = html_el.style().set_property("--accent", &config.primary_color);
+                                let _ = html_el
+                                    .style()
+                                    .set_property("--accent", &config.primary_color);
                             }
                         }
 

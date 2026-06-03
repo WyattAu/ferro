@@ -1,13 +1,12 @@
 use tauri::{
-    Manager,
+    Manager, State,
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    State,
 };
 
 use ferro_desktop::commands::DesktopState;
-use ferro_desktop::config::DesktopConfig;
 use ferro_desktop::commands::{ConfigResponse, MountStatusResponse, SaveConfigRequest};
+use ferro_desktop::config::DesktopConfig;
 use ferro_desktop::rclone::MountProgress;
 
 use serde::{Deserialize, Serialize};
@@ -380,9 +379,7 @@ async fn cmd_show_notification(
 
 #[tauri::command]
 async fn cmd_default_mount_point() -> String {
-    DesktopConfig::default_mount_point()
-        .display()
-        .to_string()
+    DesktopConfig::default_mount_point().display().to_string()
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
