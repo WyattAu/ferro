@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780509070805,
+  "lastUpdate": 1780520991153,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -7433,6 +7433,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 584,
             "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "8165c7d1d4f9cc523c3ee6538ae89ec90a6e26d5",
+          "message": "fix(desktop): disable WebKitGTK DMA-BUF renderer on Linux\n\nSome GPU drivers fail to create GBM buffers, causing a blank\nwebview window despite DOM content being fully loaded. Set\nWEBKIT_DISABLE_DMABUF_RENDERER=1 before GTK init (only if not\nalready set by the user). Verified via programmatic screenshot:\n334 unique colors, blue accent, light text, UI elements.\n\nAlso adds take_screenshot Tauri command for headless GUI debugging.",
+          "timestamp": "2026-06-03T22:02:10+01:00",
+          "tree_id": "95d957e304918ded7cfbc550c4d3691725629338",
+          "url": "https://github.com/WyattAu/ferro/commit/8165c7d1d4f9cc523c3ee6538ae89ec90a6e26d5"
+        },
+        "date": 1780520989795,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267065506,
+            "range": "± 798204",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267070329,
+            "range": "± 1504409",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 29069,
+            "range": "± 2360",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28681,
+            "range": "± 2400",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9051,
+            "range": "± 129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5115,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1247,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 958,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2815,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1339,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7462,
+            "range": "± 54",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66898,
+            "range": "± 217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18592,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 919,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 148,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 177,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 186,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 792,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 823,
+            "range": "± 17",
             "unit": "ns/iter"
           },
           {
