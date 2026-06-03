@@ -97,6 +97,16 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(feature = "tauri")]
 fn main() {
+    // Disable WebKitGTK DMA-BUF renderer on Linux.
+    // Some GPU drivers (especially in VMs or older hardware) fail to create
+    // GBM buffers, causing the webview to render a blank window despite
+    // DOM content being present. Setting this before GTK init forces
+    // software compositing as a fallback.
+    #[cfg(target_os = "linux")]
+    if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+        unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+    }
+
     if let Err(e) = gui::run() {
         eprintln!("Error: {e}");
         std::process::exit(1);

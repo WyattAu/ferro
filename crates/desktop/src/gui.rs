@@ -382,6 +382,23 @@ async fn cmd_default_mount_point() -> String {
     DesktopConfig::default_mount_point().display().to_string()
 }
 
+/// Save a screenshot of the webview to a PNG file.
+/// Uses ImageMagick `import` as a cross-tool fallback for WebKitGTK
+/// which lacks a stable screenshot API.
+#[tauri::command]
+fn take_screenshot(output_path: String) -> Result<String, String> {
+    use std::process::Command;
+    let out = Command::new("import")
+        .args(["-window", "root", &output_path])
+        .output()
+        .map_err(|e| format!("failed to execute import: {e}"))?;
+    if out.status.success() {
+        Ok(format!("saved to {output_path}"))
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).to_string())
+    }
+}
+
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let config = DesktopConfig::default();
     let state = DesktopState::new(config);
@@ -410,6 +427,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             delete_item,
             move_item,
             test_connection,
+            take_screenshot,
         ])
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
