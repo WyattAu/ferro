@@ -2,14 +2,13 @@ use tauri::{
     Manager,
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
+    State,
 };
 
 use ferro_desktop::commands::DesktopState;
 use ferro_desktop::config::DesktopConfig;
-use ferro_desktop::tauri_commands::{
-    cmd_default_mount_point, cmd_get_config, cmd_get_mount_progress, cmd_get_mount_status,
-    cmd_mount, cmd_open_path, cmd_save_config, cmd_show_notification, cmd_unmount,
-};
+use ferro_desktop::commands::{ConfigResponse, MountStatusResponse, SaveConfigRequest};
+use ferro_desktop::rclone::MountProgress;
 
 use serde::{Deserialize, Serialize};
 
@@ -302,6 +301,90 @@ fn get_server_url() -> String {
     "http://localhost:8080".to_string()
 }
 
+#[tauri::command]
+async fn cmd_mount(state: State<'_, DesktopState>) -> Result<String, String> {
+    state.mount_drive().await
+}
+
+#[tauri::command]
+async fn cmd_unmount(state: State<'_, DesktopState>) -> Result<String, String> {
+    state.unmount_drive().await
+}
+
+#[tauri::command]
+async fn cmd_get_mount_status(
+    state: State<'_, DesktopState>,
+) -> Result<MountStatusResponse, String> {
+    Ok(state.get_mount_status().await)
+}
+
+#[tauri::command]
+async fn cmd_get_config(state: State<'_, DesktopState>) -> Result<ConfigResponse, String> {
+    Ok(state.get_config().await)
+}
+
+#[tauri::command]
+async fn cmd_save_config(
+    state: State<'_, DesktopState>,
+    request: SaveConfigRequest,
+) -> Result<(), String> {
+    state.save_config(request).await
+}
+
+#[tauri::command]
+async fn cmd_get_mount_progress() -> Result<MountProgress, String> {
+    Ok(MountProgress::default())
+}
+
+#[tauri::command]
+async fn cmd_open_path(path: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open: {}", e))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open: {}", e))?;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path])
+            .spawn()
+            .map_err(|e| format!("Failed to open: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn cmd_show_notification(
+    title: String,
+    body: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    use tauri_plugin_notification::NotificationExt;
+    app_handle
+        .notification()
+        .builder()
+        .title(&title)
+        .body(&body)
+        .show()
+        .map_err(|e| format!("Notification failed: {}", e))
+}
+
+#[tauri::command]
+async fn cmd_default_mount_point() -> String {
+    DesktopConfig::default_mount_point()
+        .display()
+        .to_string()
+}
+
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let config = DesktopConfig::default();
     let state = DesktopState::new(config);
@@ -353,6 +436,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             let tray = TrayIconBuilder::new()
                 .icon(
                     app.default_window_icon()
+                        .cloned()
                         .ok_or("no default window icon configured")?,
                 )
                 .menu(&menu)

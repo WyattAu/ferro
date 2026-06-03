@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/tauri-v2.11/crates/tauri-config-schema/schema.json",
   "productName": "Ferro",
   "version": "3.0.0",
   "identifier": "com.ferro.app",

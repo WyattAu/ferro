@@ -96,6 +96,9 @@ async fn main() -> anyhow::Result<()> {
 }
 
 #[cfg(feature = "tauri")]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    gui::run()?;
+fn main() {
+    if let Err(e) = gui::run() {
+        eprintln!("Error: {e}");
+        std::process::exit(1);
+    }
 }
