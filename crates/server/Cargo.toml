@@ -39,6 +39,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 bytes = "1"
 chrono = "0.4"
+libc = "0.2"
 thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
 clap = { version = "4", features = ["derive", "env"] }

@@ -14,10 +14,9 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY migrations/ migrations/
 
-RUN mkdir -p crates/server/src crates/cli/src crates/desktop/src && \
-    touch crates/server/src/main.rs crates/cli/src/main.rs crates/desktop/src/main.rs
-
-RUN cargo build --release --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}"
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    cargo build --release --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}"
 
 FROM debian:bookworm-slim
 

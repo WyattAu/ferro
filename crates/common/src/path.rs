@@ -50,7 +50,11 @@ pub fn is_collection_path(path: &str) -> bool {
 
 /// Validate that a path is non-empty and does not contain traversal components.
 pub fn validate_path(path: &str) -> bool {
-    !path.trim().is_empty() && !normalize_path(path).contains("..")
+    !path.trim().is_empty()
+        && !path.contains("..")
+        && !path.contains("./")
+        && !path.contains(".\\")
+        && !normalize_path(path).contains("..")
 }
 
 /// Join a base path and a segment, normalizing slashes.

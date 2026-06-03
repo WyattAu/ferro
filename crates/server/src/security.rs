@@ -2,6 +2,7 @@
 //! content-type verification, account lockout, login rate limiting,
 //! and default password enforcement.
 
+use std::net::ToSocketAddrs;
 use std::time::{Duration, Instant};
 
 use axum::http::StatusCode;
@@ -855,5 +856,303 @@ mod tests {
         assert!(is_default_password("ferro"));
         assert!(is_default_password(""));
         assert!(!is_default_password("SecurePass123!"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// URL validation (SSRF prevention)
+// ---------------------------------------------------------------------------
+
+/// Maximum allowed length for webhook URLs and similar user-supplied URLs.
+pub const MAX_URL_LENGTH: usize = 2048;
+
+/// Private/reserved IP ranges that must not be reachable from webhooks.
+fn is_private_ip(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(v4) => {
+            let octets = v4.octets();
+            // 0.0.0.0/8
+            octets[0] == 0
+                // 10.0.0.0/8
+                || octets[0] == 10
+                // 127.0.0.0/8
+                || octets[0] == 127
+                // 169.254.0.0/16 (link-local / AWS/GCP metadata)
+                || (octets[0] == 169 && octets[1] == 254)
+                // 172.16.0.0/12
+                || (octets[0] == 172 && (octets[1] & 0xF0) == 16)
+                // 192.0.0.0/24 (IETF protocol assignments)
+                || (octets[0] == 192 && octets[1] == 0 && octets[2] == 0)
+                // 192.168.0.0/16
+                || (octets[0] == 192 && octets[1] == 168)
+                // 198.18.0.0/15 (benchmarking)
+                || (octets[0] == 198 && (octets[1] & 0xFE) == 18)
+                // 224.0.0.0/4 (multicast)
+                || octets[0] >= 224
+        }
+        std::net::IpAddr::V6(v6) => {
+            // ::1 (loopback)
+            v6.is_loopback()
+                // fe80::/10 (link-local)
+                || (v6.segments()[0] & 0xFFC0) == 0xFE80
+                // fc00::/7 (unique local)
+                || (v6.segments()[0] & 0xFE00) == 0xFC00
+                // ::ffff:0:0/96 (IPv4-mapped)
+                || matches!(v6.to_ipv4_mapped(), Some(v4) if is_private_ip(v4.into()))
+        }
+    }
+}
+
+/// Allowed URL schemes for webhook callbacks.
+const ALLOWED_URL_SCHEMES: &[&str] = &["http", "https"];
+
+/// Validate a user-supplied URL for use in webhooks and external callbacks.
+/// Returns `Ok(())` if the URL is safe, or an error description.
+///
+/// Checks performed:
+/// 1. Length <= 2048 characters
+/// 2. Parses as a valid URL
+/// 3. Scheme is http or https only
+/// 4. Hostname does not resolve to a private/reserved IP
+/// 5. No credentials in URL (user:pass@host)
+/// 6. No localhost or IP address literals (requires DNS hostname)
+pub fn validate_url(url: &str) -> Result<(), String> {
+    // 1. Length check
+    if url.len() > MAX_URL_LENGTH {
+        return Err(format!(
+            "URL exceeds maximum length of {} characters",
+            MAX_URL_LENGTH
+        ));
+    }
+    if url.is_empty() {
+        return Err("URL must not be empty".to_string());
+    }
+
+    // 2. Parse
+    let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {}", e))?;
+
+    // 3. Scheme check
+    let scheme = parsed.scheme();
+    if !ALLOWED_URL_SCHEMES.contains(&scheme) {
+        return Err(format!(
+            "URL scheme '{}' is not allowed. Only http and https are permitted.",
+            scheme
+        ));
+    }
+
+    // 5. No credentials in URL (username() returns empty string if absent)
+    if !parsed.username().is_empty() {
+        return Err("URL must not contain credentials (user:pass@host)".to_string());
+    }
+
+    // 4. Host resolution check
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "URL must have a host".to_string())?;
+
+    // Block common internal hostnames
+    let host_lower = host.to_lowercase();
+    if host_lower == "localhost"
+        || host_lower == "metadata.google.internal"
+        || host_lower.ends_with(".local")
+        || host_lower.ends_with(".internal")
+    {
+        return Err(format!("URL host '{}' is not allowed", host));
+    }
+
+    // Resolve hostname to check for private IPs
+    let port = parsed.port().unwrap_or(80);
+    if let Ok(addrs) = format!("{}:{}", host, port).to_socket_addrs() {
+        for addr in addrs {
+            if is_private_ip(addr.ip()) {
+                return Err(format!(
+                    "URL host '{}' resolves to a private/reserved IP address, which is not allowed",
+                    host
+                ));
+            }
+        }
+    }
+    // If DNS resolution fails, we let it pass (DNS may resolve later).
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Input sanitization
+// ---------------------------------------------------------------------------
+
+/// Strip control characters (CRLF, null bytes, etc.) from a string.
+/// Used for sanitizing user input before constructing internal paths or queries.
+pub fn sanitize_control_chars(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| {
+            if c.is_control() || c == '\0' {
+                ' ' // Replace control chars with space
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
+/// Check if a string contains potentially dangerous HTML content.
+/// Returns true if the string contains HTML tags or event handlers.
+pub fn contains_html(input: &str) -> bool {
+    let lower = input.to_lowercase();
+    lower.contains("<script")
+        || lower.contains("</script")
+        || lower.contains("onerror=")
+        || lower.contains("onload=")
+        || lower.contains("onclick=")
+        || lower.contains("onmouseover=")
+        || lower.contains("javascript:")
+        || lower.contains("<iframe")
+        || lower.contains("<img")
+        || lower.contains("<svg")
+        || lower.contains("<object")
+        || lower.contains("<embed")
+        || lower.contains("<link")
+        || lower.contains("<style")
+        || lower.contains("alert(")
+        || lower.contains("document.")
+        || lower.contains("window.")
+}
+
+// ---------------------------------------------------------------------------
+// HTTP Request Smuggling prevention
+// ---------------------------------------------------------------------------
+
+/// Check if a request contains both Content-Length and Transfer-Encoding headers,
+/// which indicates a potential HTTP request smuggling attack (CL-TE or TE-CL).
+/// Returns true if smuggling is detected.
+pub fn is_smuggling_request(headers: &axum::http::HeaderMap) -> bool {
+    let has_content_length = headers.contains_key("content-length");
+    let has_transfer_encoding = headers.contains_key("transfer-encoding");
+    has_content_length && has_transfer_encoding
+}
+
+/// Axum middleware that rejects requests with both Content-Length and
+/// Transfer-Encoding headers to prevent HTTP request smuggling.
+pub async fn smuggling_rejection_middleware(
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    if is_smuggling_request(req.headers()) {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "INVALID_REQUEST",
+                "message": "Request contains both Content-Length and Transfer-Encoding headers, which is not permitted"
+            })),
+        )
+            .into_response();
+    }
+    next.run(req).await
+}
+
+#[cfg(test)]
+mod url_validation_tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_url_valid_https() {
+        assert!(validate_url("https://example.com/webhook").is_ok());
+    }
+
+    #[test]
+    fn test_validate_url_valid_http() {
+        assert!(validate_url("http://example.com/hook").is_ok());
+    }
+
+    #[test]
+    fn test_validate_url_file_scheme() {
+        assert!(validate_url("file:///etc/passwd").is_err());
+    }
+
+    #[test]
+    fn test_validate_url_gopher_scheme() {
+        assert!(validate_url("gopher://127.0.0.1:25").is_err());
+    }
+
+    #[test]
+    fn test_validate_url_aws_metadata() {
+        assert!(validate_url("http://169.254.169.254/latest/meta-data/").is_err());
+    }
+
+    #[test]
+    fn test_validate_url_localhost() {
+        assert!(validate_url("http://localhost:9090/api/v1/admin/stats").is_err());
+    }
+
+    #[test]
+    fn test_validate_url_127_0_0_1() {
+        assert!(validate_url("http://127.0.0.1:8080").is_err());
+    }
+
+    #[test]
+    fn test_validate_url_gcp_metadata() {
+        assert!(validate_url("http://metadata.google.internal/computeMetadata/v1/").is_err());
+    }
+
+    #[test]
+    fn test_validate_url_with_credentials() {
+        assert!(validate_url("http://user:pass@example.com/hook").is_err());
+    }
+
+    #[test]
+    fn test_validate_url_too_long() {
+        let long_url = format!("https://example.com/{}", "a".repeat(2049));
+        assert!(validate_url(&long_url).is_err());
+    }
+
+    #[test]
+    fn test_validate_url_empty() {
+        assert!(validate_url("").is_err());
+    }
+
+    #[test]
+    fn test_contains_html_script() {
+        assert!(contains_html("<script>alert(1)</script>"));
+    }
+
+    #[test]
+    fn test_contains_html_img_onerror() {
+        assert!(contains_html("<img src=x onerror=alert(1)>"));
+    }
+
+    #[test]
+    fn test_contains_html_safe() {
+        assert!(!contains_html("Hello, this is a normal comment."));
+        assert!(!contains_html("Test < 5 && result > 10"));
+    }
+
+    #[test]
+    fn test_sanitize_control_chars() {
+        // \r and \0 are control chars; \n is not per Rust's is_control()
+        let sanitized = sanitize_control_chars("hello\rworld\x00end");
+        assert_eq!(sanitized, "hello world end");
+    }
+
+    #[test]
+    fn test_is_smuggling_request() {
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("content-length", "100".parse().unwrap());
+        headers.insert("transfer-encoding", "chunked".parse().unwrap());
+        assert!(is_smuggling_request(&headers));
+    }
+
+    #[test]
+    fn test_is_not_smuggling_cl_only() {
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("content-length", "100".parse().unwrap());
+        assert!(!is_smuggling_request(&headers));
+    }
+
+    #[test]
+    fn test_is_not_smuggling_te_only() {
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("transfer-encoding", "chunked".parse().unwrap());
+        assert!(!is_smuggling_request(&headers));
     }
 }

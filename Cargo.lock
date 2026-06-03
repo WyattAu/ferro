@@ -3545,6 +3545,7 @@ dependencies = [
  "jsonwebtoken",
  "ldap3",
  "lettre",
+ "libc",
  "lru 0.16.4",
  "mime_guess",
  "object_store",

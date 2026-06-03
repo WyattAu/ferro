@@ -155,6 +155,18 @@ pub async fn create_webhook(
         return ApiError::bad_request(ApiError::BAD_REQUEST, "at least one event is required");
     }
 
+    // Validate URL scheme, length, and SSRF protection.
+    if let Err(reason) = crate::security::validate_url(&input.url) {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "INVALID_URL",
+                "message": reason,
+            })),
+        )
+            .into_response();
+    }
+
     {
         let hooks = state.webhooks.read().await;
         if hooks.len() >= MAX_WEBHOOKS {

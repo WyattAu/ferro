@@ -848,6 +848,47 @@ async fn main() -> anyhow::Result<()> {
     std_listener
         .set_nonblocking(true)
         .map_err(|e| anyhow::anyhow!("failed to set non-blocking on listener: {e}"))?;
+    // Set TCP keepalive with short idle interval to detect dead connections
+    // (Slowloris mitigation). The 30s idle + 3 probes covers ~60s detection.
+    #[cfg(unix)]
+    {
+        use std::os::unix::io::AsRawFd;
+        let raw_fd = std_listener.as_raw_fd();
+        let on: libc::c_int = 1;
+        let idle: libc::c_int = 30;
+        let intvl: libc::c_int = 10;
+        let cnt: libc::c_int = 3;
+        unsafe {
+            libc::setsockopt(
+                raw_fd,
+                libc::SOL_SOCKET,
+                libc::SO_KEEPALIVE,
+                &on as *const _ as *const libc::c_void,
+                std::mem::size_of_val(&on) as libc::socklen_t,
+            );
+            libc::setsockopt(
+                raw_fd,
+                libc::IPPROTO_TCP,
+                libc::TCP_KEEPIDLE,
+                &idle as *const _ as *const libc::c_void,
+                std::mem::size_of_val(&idle) as libc::socklen_t,
+            );
+            libc::setsockopt(
+                raw_fd,
+                libc::IPPROTO_TCP,
+                libc::TCP_KEEPINTVL,
+                &intvl as *const _ as *const libc::c_void,
+                std::mem::size_of_val(&intvl) as libc::socklen_t,
+            );
+            libc::setsockopt(
+                raw_fd,
+                libc::IPPROTO_TCP,
+                libc::TCP_KEEPCNT,
+                &cnt as *const _ as *const libc::c_void,
+                std::mem::size_of_val(&cnt) as libc::socklen_t,
+            );
+        }
+    }
     let listener = tokio::net::TcpListener::from_std(std_listener)?;
 
     // Mark startup as complete — all verification checks passed.

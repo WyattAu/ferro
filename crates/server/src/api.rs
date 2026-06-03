@@ -1024,6 +1024,29 @@ pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::V
         }
     };
 
+    // Validate each path component for safety (reserved names, control chars, etc.)
+    if let Err(reason) = crate::security::validate_path(&path) {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "invalid_path", "message": reason,
+            })),
+        )
+            .into_response();
+    }
+
+    // Reject HTML content in path components.
+    if crate::security::contains_html(&path) {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "invalid_path",
+                "message": "Path contains HTML content, which is not permitted",
+            })),
+        )
+            .into_response();
+    }
+
     let owner = "anonymous".to_string();
 
     match state.storage.create_collection(&path, &owner).await {

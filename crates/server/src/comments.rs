@@ -357,17 +357,37 @@ pub async fn create_comment_handler(
         }
     };
 
+    // Validate the raw path — reject traversal BEFORE normalizing.
+    if !common::path::validate_path(&request.path) {
+        return ApiError::bad_request(
+            ApiError::PATH_INVALID,
+            "Invalid path: path traversal is not allowed",
+        );
+    }
+
+    // Now normalize for storage.
+    let normalized_path = common::path::normalize_path(&request.path);
+
+    // Sanitize comment body: strip control characters.
+    let sanitized_body = crate::security::sanitize_control_chars(&request.body);
+    if crate::security::contains_html(&sanitized_body) {
+        return ApiError::bad_request(
+            ApiError::BAD_REQUEST,
+            "Comment body contains HTML content, which is not permitted",
+        );
+    }
+
     match state.comments.add_comment(
-        &request.path,
+        &normalized_path,
         &user_id,
-        &request.body,
+        &sanitized_body,
         request.parent_id.as_deref(),
     ) {
         Ok(comment) => {
             log_comment_audit(
                 &state,
                 "POST",
-                &format!("/api/comments (path={})", request.path),
+                &format!("/api/comments (path={})", normalized_path),
                 &user_id,
             )
             .await;

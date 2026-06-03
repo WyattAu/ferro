@@ -1550,6 +1550,11 @@ pub fn build_router_with_static(
         // storage backend from being overwhelmed. Excess connections queue in
         // the kernel listen backlog instead of competing for resources.
         .layer(ConcurrencyLimitLayer::new(128))
+        // Reject requests with both Content-Length and Transfer-Encoding
+        // to prevent HTTP request smuggling (CL-TE / TE-CL desync).
+        .layer(axum::middleware::from_fn(
+            security::smuggling_rejection_middleware,
+        ))
         .with_state(state.clone())
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
