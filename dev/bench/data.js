@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780482012663,
+  "lastUpdate": 1780485983485,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -6623,6 +6623,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 828,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "cb0585a34e7a895622e4a42a9109419fdffea2a1",
+          "message": "fix: web app type errors, desktop build deps, Dockerfile cache mount\n\n- web: fix document_element() return type (Option, not Result)\n- web: cast Element to HtmlElement before accessing .style()\n- desktop: fix tauri.conf.json remove invalid app.title field\n- desktop: fix notification API (builder() before title/body)\n- flake.nix: add gtk3, use .dev for multi-output pkg-config libs\n- Dockerfile: remove --mount=type=cache for target dir (breaks COPY)",
+          "timestamp": "2026-06-03T12:19:48+01:00",
+          "tree_id": "104b20703a90e650dd4e5a69b1e1963c54fd02f7",
+          "url": "https://github.com/WyattAu/ferro/commit/cb0585a34e7a895622e4a42a9109419fdffea2a1"
+        },
+        "date": 1780485982034,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267061360,
+            "range": "± 1321882",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266990144,
+            "range": "± 175065",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 29009,
+            "range": "± 2267",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 30444,
+            "range": "± 2129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9036,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5072,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1271,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 960,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2876,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1333,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7394,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66594,
+            "range": "± 140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18580,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 887,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 151,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 184,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 192,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 803,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 834,
+            "range": "± 5",
             "unit": "ns/iter"
           },
           {
