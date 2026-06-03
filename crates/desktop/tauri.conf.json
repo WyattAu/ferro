@@ -9,6 +9,7 @@
     "frontendDist": "frontend"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Ferro",
