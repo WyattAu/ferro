@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780520991153,
+  "lastUpdate": 1780523724551,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -7595,6 +7595,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 823,
             "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "ccba0e02d2827481b633cab71e71fac94c442ed1",
+          "message": "fix(web): copy style.css to dist via trunk copy-file\n\nTrunk does not automatically copy plain stylesheet links to dist.\nAdded data-trunk rel=copy-file for style.css so it is included in\nthe build output.\n\nVerified: trunk build produces dist/style.css (28KB, 758 lines).\nPlaywright confirms WASM renders 108 DOM elements, 2122 unique\ncolors on files page with light theme.",
+          "timestamp": "2026-06-03T22:48:43+01:00",
+          "tree_id": "6d6f305d4f77e60c7967b17ea2d5a495b08b4c18",
+          "url": "https://github.com/WyattAu/ferro/commit/ccba0e02d2827481b633cab71e71fac94c442ed1"
+        },
+        "date": 1780523723707,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 254213562,
+            "range": "± 330520",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 254360036,
+            "range": "± 1546779",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 21224,
+            "range": "± 1862",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23163,
+            "range": "± 1798",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8725,
+            "range": "± 93",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5290,
+            "range": "± 89",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1167,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 896,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2591,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1508,
+            "range": "± 64",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8672,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 79655,
+            "range": "± 120",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 110,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 21132,
+            "range": "± 67",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 990,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 85,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 79,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 143,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 150,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 159,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 726,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 762,
+            "range": "± 1",
             "unit": "ns/iter"
           },
           {
