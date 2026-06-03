@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780488289684,
+  "lastUpdate": 1780489100296,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -6947,6 +6947,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 745,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "c62346a7881c925c842e63a7e0c6081c16643f3d",
+          "message": "fix: enable withGlobalTauri for desktop frontend IPC",
+          "timestamp": "2026-06-03T13:11:42+01:00",
+          "tree_id": "d73b2ad57424d4244c3279f7ef8f331b99f1613a",
+          "url": "https://github.com/WyattAu/ferro/commit/c62346a7881c925c842e63a7e0c6081c16643f3d"
+        },
+        "date": 1780489099343,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267015427,
+            "range": "± 369908",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266971283,
+            "range": "± 125488",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 30079,
+            "range": "± 2650",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 27579,
+            "range": "± 2414",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9247,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5061,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1257,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 968,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2913,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1331,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7317,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66397,
+            "range": "± 94",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18780,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 906,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 75,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 193,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 840,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 836,
+            "range": "± 4",
             "unit": "ns/iter"
           },
           {
