@@ -107,7 +107,35 @@ fn main() {
         unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
     }
 
-    if let Err(e) = gui::run() {
+    let args = gui::CliArgs::parse();
+
+    // Initialize tracing before GUI setup.
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                match args.debug {
+                    0 => "info".into(),
+                    1 => "ferro_desktop=debug".into(),
+                    _ => "debug".into(),
+                }
+            }),
+        )
+        .with_writer(std::io::stderr)
+        .init();
+
+    tracing::info!("Ferro Desktop starting (Tauri mode)");
+    if let Some(ref url) = args.server_url {
+        tracing::info!("CLI server URL: {}", url);
+    }
+    if let Some(ref token) = args.auth_token {
+        tracing::info!("CLI auth token: provided ({} chars)", token.len());
+    }
+    if args.debug > 0 {
+        tracing::info!("Debug mode: level {}", args.debug);
+    }
+
+    if let Err(e) = gui::run(args) {
+        tracing::error!("Fatal error: {e}");
         eprintln!("Error: {e}");
         std::process::exit(1);
     }

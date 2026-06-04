@@ -11,6 +11,105 @@ use ferro_desktop::rclone::MountProgress;
 
 use serde::{Deserialize, Serialize};
 
+/// CLI arguments passed from main() to gui::run().
+/// These allow automated/headless testing without manual form input.
+#[derive(Debug, Clone)]
+pub struct CliArgs {
+    /// Pre-configured server URL (e.g. http://localhost:8080).
+    /// When set, the frontend auto-connects and skips the connect form.
+    pub server_url: Option<String>,
+
+    /// Pre-configured auth token (Bearer token or basic auth credentials).
+    pub auth_token: Option<String>,
+
+    /// Debug verbosity level (0=off, 1=debug desktop, 2=debug all).
+    pub debug: u8,
+}
+
+impl CliArgs {
+    /// Parse CLI args using a minimal parser (avoid full clap dep in tauri mode).
+    pub fn parse() -> Self {
+        let raw: Vec<String> = std::env::args().skip(1).collect();
+        let mut server_url = None;
+        let mut auth_token = None;
+        let mut debug = 0u8;
+
+        let mut i = 0;
+        while i < raw.len() {
+            match raw[i].as_str() {
+                "--server-url" | "-s" => {
+                    if i + 1 < raw.len() {
+                        server_url = Some(raw[i + 1].clone());
+                        i += 2;
+                    } else {
+                        eprintln!("--server-url requires a value");
+                        std::process::exit(1);
+                    }
+                }
+                "--auth-token" | "-t" => {
+                    if i + 1 < raw.len() {
+                        auth_token = Some(raw[i + 1].clone());
+                        i += 2;
+                    } else {
+                        eprintln!("--auth-token requires a value");
+                        std::process::exit(1);
+                    }
+                }
+                "--debug" | "-d" => {
+                    debug = 1;
+                    i += 1;
+                }
+                "-dd" => {
+                    debug = 2;
+                    i += 1;
+                }
+                "--help" | "-h" => {
+                    println!("Usage: ferro-desktop [OPTIONS]");
+                    println!();
+                    println!("Options:");
+                    println!("  -s, --server-url <URL>    Server URL (auto-connects, skips form)");
+                    println!("  -t, --auth-token <TOKEN>  Auth token (Bearer or user:pass)");
+                    println!(
+                        "  -d, --debug              Enable debug logging to /tmp/ferro-desktop.log"
+                    );
+                    println!("  -dd                      Verbose debug logging");
+                    println!("  -h, --help               Show this help");
+                    std::process::exit(0);
+                }
+                other if other.starts_with('-') => {
+                    eprintln!("Unknown option: {other}");
+                    std::process::exit(1);
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+
+        Self {
+            server_url,
+            auth_token,
+            debug,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CliConnection {
+    /// Server URL, if provided via CLI.
+    pub server_url: Option<String>,
+    /// Auth token, if provided via CLI.
+    pub auth_token: Option<String>,
+}
+
+/// Returns pre-configured connection info from CLI args.
+/// The frontend calls this on init to auto-connect without showing the form.
+#[tauri::command]
+fn get_cli_connection(state: State<'_, CliConnection>) -> CliConnection {
+    state.inner().clone()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileEntry {
@@ -399,9 +498,17 @@ fn take_screenshot(output_path: String) -> Result<String, String> {
     }
 }
 
-pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
     let config = DesktopConfig::default();
     let state = DesktopState::new(config);
+
+    // Build CLI connection info for the frontend.
+    let cli_conn = CliConnection {
+        server_url: cli_args.server_url.clone(),
+        auth_token: cli_args.auth_token.clone(),
+    };
+
+    tracing::info!(?cli_conn, "CLI args for frontend");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -409,7 +516,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .manage(state)
+        .manage(cli_conn)
         .invoke_handler(tauri::generate_handler![
+            get_cli_connection,
             get_server_url,
             cmd_mount,
             cmd_unmount,
