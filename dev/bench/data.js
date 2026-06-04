@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780523724551,
+  "lastUpdate": 1780563871325,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -7757,6 +7757,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 762,
             "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "4a3f99b1e23258290d26f73bcdb6c94aa9ca3ab8",
+          "message": "fix(web): use get_untracked() for signals in non-reactive context\n\nLeptos warns when ReadSignal.get() is called outside reactive\ntracking context (spawn_local async blocks). Use get_untracked()\nfor access_token and auth_enabled signals in init_auth(),\nis_authenticated(), and get_access_token().",
+          "timestamp": "2026-06-04T09:56:19+01:00",
+          "tree_id": "342d917def0ea4aa2b64b59cc771c770212f5bc7",
+          "url": "https://github.com/WyattAu/ferro/commit/4a3f99b1e23258290d26f73bcdb6c94aa9ca3ab8"
+        },
+        "date": 1780563870730,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300771983,
+            "range": "± 1588395",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 301059234,
+            "range": "± 469709",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24421,
+            "range": "± 759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24271,
+            "range": "± 649",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8989,
+            "range": "± 126",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5325,
+            "range": "± 137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1271,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 960,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2689,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1410,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8167,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74823,
+            "range": "± 506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 93,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19284,
+            "range": "± 106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 917,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 69,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 159,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 175,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 862,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 726,
+            "range": "± 11",
             "unit": "ns/iter"
           },
           {
