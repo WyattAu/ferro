@@ -65,11 +65,11 @@ impl AuthState {
     }
 
     pub fn is_authenticated(&self) -> bool {
-        self.access_token.get().is_some()
+        self.access_token.get_untracked().is_some()
     }
 
     pub fn get_access_token(&self) -> Option<String> {
-        self.access_token.get()
+        self.access_token.get_untracked()
     }
 }
 
@@ -142,7 +142,7 @@ pub fn init_auth(state: &AuthState) {
 
     let state = state.clone();
     spawn_local(async move {
-        let token = state.access_token.get();
+        let token = state.access_token.get_untracked();
 
         if token.is_some() {
             match crate::api::fetch_json("/api/auth/info").await {
@@ -185,7 +185,7 @@ pub fn init_auth(state: &AuthState) {
             }
         }
 
-        if !state.auth_enabled.get() {
+        if !state.auth_enabled.get_untracked() {
             state.set_loading.set(false);
         } else {
             state.set_loading.set(false);
