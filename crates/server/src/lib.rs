@@ -181,7 +181,6 @@ use lock::LockManager;
 use std::sync::Arc;
 use tower::limit::ConcurrencyLimitLayer;
 use tower_http::compression::CompressionLayer;
-use tower_http::services::{ServeDir, ServeFile};
 
 use auth::cedar::CedarAuthorizer;
 use auth::oidc::OidcValidator;
@@ -1565,12 +1564,84 @@ pub fn build_router_with_static(
     let schema = ferro_graphql::build_schema(state.graphql_context());
     let mut router = router.layer(axum::Extension(schema));
 
+    // Helper for SPA middleware MIME type detection.
+    fn mime_guess(rel: &str) -> &'static str {
+        if rel.ends_with(".js") {
+            "application/javascript"
+        } else if rel.ends_with(".wasm") {
+            "application/wasm"
+        } else if rel.ends_with(".css") {
+            "text/css; charset=utf-8"
+        } else if rel.ends_with(".html") || rel.ends_with(".htm") {
+            "text/html; charset=utf-8"
+        } else if rel.ends_with(".svg") {
+            "image/svg+xml"
+        } else if rel.ends_with(".json") {
+            "application/json"
+        } else if rel.ends_with(".png") {
+            "image/png"
+        } else if rel.ends_with(".ico") {
+            "image/x-icon"
+        } else if rel.ends_with(".woff") || rel.ends_with(".woff2") {
+            "font/woff2"
+        } else {
+            "application/octet-stream"
+        }
+    }
+
+    // Serve SPA static files when --static-dir is set.
+    // Uses custom handler instead of ServeDir to fix trailing-slash redirect bug
+    // where Leptos Router path="/" fails to match on /ui/.
     if let Some(dir) = static_dir {
-        let static_dir_path = std::path::Path::new(dir);
+        let static_dir_path = std::path::PathBuf::from(dir);
         tracing::info!("Serving static web assets from {:?}", static_dir_path);
-        let serve_dir = ServeDir::new(static_dir_path)
-            .fallback(ServeFile::new(static_dir_path.join("index.html")));
-        router = router.nest_service("/ui", serve_dir);
+
+        // SPA middleware: intercepts /ui* requests, redirects /ui/ to /ui,
+        // serves static files, falls back to index.html for SPA routing.
+        let spa_middleware = axum::middleware::from_fn(
+            move |req: axum::http::Request<axum::body::Body>, next: axum::middleware::Next| {
+                let path = req.uri().path().to_owned();
+                let static_dir_path = static_dir_path.clone();
+                async move {
+                    // Redirect /ui/ to /ui -- Leptos Router path="/" fails to match
+                    // when browser URL has trailing slash after base "/ui".
+                    if path == "/ui/" {
+                        return axum::response::Redirect::permanent("/ui").into_response();
+                    }
+                    if path == "/ui" || path.starts_with("/ui/") {
+                        let rel = path.trim_start_matches("/ui/");
+                        let file_path = static_dir_path.join(rel);
+                        if file_path.is_file() {
+                            return match tokio::fs::read(&file_path).await {
+                                Ok(content) => {
+                                    let ct = mime_guess(rel);
+                                    (
+                                        StatusCode::OK,
+                                        [(axum::http::header::CONTENT_TYPE, ct)],
+                                        content,
+                                    )
+                                        .into_response()
+                                }
+                                Err(_) => (StatusCode::NOT_FOUND, "Not found").into_response(),
+                            };
+                        }
+                        // Serve index.html for SPA client-side routing
+                        return match tokio::fs::read(static_dir_path.join("index.html")).await {
+                            Ok(content) => (
+                                StatusCode::OK,
+                                [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                                content,
+                            )
+                                .into_response(),
+                            Err(_) => (StatusCode::NOT_FOUND, "Not found").into_response(),
+                        };
+                    }
+                    // Not a /ui path, pass to next handler
+                    next.run(req).await
+                }
+            },
+        );
+        router = router.layer(spa_middleware);
     }
 
     router
