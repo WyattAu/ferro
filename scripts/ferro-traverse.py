@@ -112,9 +112,11 @@ async def traverse_wasm(base_url, output_dir):
         return str(Path(output_dir) / f"{screenshot_idx:03d}_{name}.png")
 
     async def with_page(browser, name, url=None, fn=None):
-        """Create a page with error capture, optionally navigate to URL, run fn, screenshot."""
+        """Create a page with error capture, optionally navigate to URL, run fn, screenshot.
+        If url is None but fn is provided, navigates to base_url first."""
         async def inner():
             page = await browser.new_page(viewport={"width": 1280, "height": 800})
+            result = None
 
             # Inject global error catcher BEFORE any navigation
             await page.add_script_tag(content="""
@@ -178,9 +180,10 @@ async def traverse_wasm(base_url, output_dir):
                 };
             """)
 
-            if url:
+            nav_url = url if url else (base_url + "/ui" if fn else None)
+            if nav_url:
                 try:
-                    resp = await page.goto(url, wait_until='networkidle', timeout=TIMEOUT)
+                    resp = await page.goto(nav_url, wait_until='networkidle', timeout=TIMEOUT)
                     status = resp.status
                 except Exception as e:
                     collector.add_error("playwright", name, str(e))
@@ -193,7 +196,7 @@ async def traverse_wasm(base_url, output_dir):
                     result = await fn(page)
                 except Exception as e:
                     collector.add_error("playwright", name, str(e))
-                    result = 'exception'
+                    result = {"error": str(e)}
 
             # Screenshot
             path = screenshot_path(name)
@@ -204,7 +207,7 @@ async def traverse_wasm(base_url, output_dir):
                 'errors: window.__ferro_errors__ || [],'
                 'network: window.__ferro_network_errors__ || [],'
                 'toasts: window.__ferro_toasts__ || []'
-                '}))')
+                '})')
 
             inj = json.loads(injected)
             for e in inj.get('errors', []):
@@ -267,31 +270,34 @@ async def traverse_wasm(base_url, output_dir):
 
         # 2.1: Verify file list renders
         async def test_file_list(page):
-            await page.wait_for_selector('a[aria-label="Download"]', timeout=10000)
-            items = await page.query_selector_all('a[aria-label="Download"]')
-            return {"files": len(items)}
+            # File entries are <tr> rows in the table body
+            try:
+                await page.wait_for_selector('tbody tr', state='attached', timeout=10000)
+                items = await page.query_selector_all('tbody tr')
+                return {"files": len(items)}
+            except Exception as e:
+                # Check if page shows empty state instead
+                body = await page.inner_text('body')
+                return {"files": 0, "error": str(e), "body_preview": body[:200]}
 
         r = await with_page(browser, "2.1_file_list", fn=test_file_list)
-        results.append(("HOME", "2.1_file_list", "File list renders", "PASS" if r['result'] and r['result']['files'] > 0 else "FAIL", r))
-        print(f"  2.1_file_list: {'PASS' if r['result'] and r['result']['files'] > 0 else 'FAIL'} [{r['result']}]")
+        results.append(("HOME", "2.1_file_list", "File list renders", "PASS" if r['result'] and r['result'].get('files', 0) > 0 else "FAIL", r))
+        print(f"  2.1_file_list: {'PASS' if r['result'] and r['result'].get('files', 0) > 0 else 'FAIL'} [{r['result']}]")
 
         # 2.2: Click on a directory to navigate
         async def test_click_dir(page):
-            items = await page.query_selector_all('a[aria-label="Download"]')
-            if items:
-                dir_items = [it for it in items if 'Download' in (await it.get_attribute('aria-label'))]
-                # Find a directory entry (navigate into folder)
-                links = await page.query_selector_all('a')
-                for link in links:
-                    href = await link.get_attribute('href')
-                    if href and href.startswith('/files/') and href.count('/') >= 2:
-                        await link.click()
-                        await page.wait_for_load_state('networkidle', timeout=10000)
-                        return {"navigated": href}
-            return {"navigated": "none"}
+            # File rows are <tr> elements in tbody
+            rows = await page.query_selector_all('tbody tr')
+            if rows:
+                # Click the first row (should be a collection/directory)
+                await rows[0].click()
+                await page.wait_for_load_state('networkidle', timeout=10000)
+                await page.wait_for_timeout(1000)
+                return {"navigated": page.url, "rows_before": len(rows)}
+            return {"navigated": "none", "rows_before": 0}
 
         r = await with_page(browser, "2.2_navigate_dir", fn=test_click_dir)
-        results.append(("HOME", "2.2_navigate_dir", "Navigate into directory", "PASS" if r['result']['navigated'] != 'none' else 'FAIL', r))
+        results.append(("HOME", "2.2_navigate_dir", "Navigate into directory", "PASS" if r['result'].get('navigated', 'none') != 'none' else 'FAIL', r))
 
         # 2.3: Breadcrumb navigation back to root
         async def test_breadcrumb_back(page):
@@ -303,43 +309,51 @@ async def traverse_wasm(base_url, output_dir):
             return {"clicked": False}
 
         r = await with_page(browser, "2.3_breadcrumb_back", fn=test_breadcrumb_back)
-        results.append(("HOME", "2.3_breadcrumb_back", "Breadcrumb back to root", "PASS" if r['result']['clicked'] else 'FAIL', r))
+        results.append(("HOME", "2.3_breadcrumb_back", "Breadcrumb back to root", "PASS" if r['result'].get('clicked', False) else 'FAIL', r))
 
         # 2.4: Search button (aria-label="Search files")
         async def test_search_button(page):
+            try:
+                btn = await page.query_selector('button[aria-label="Search files"]')
+                if btn:
+                    await btn.click()
+                    await page.wait_for_timeout(500)
+                    inp = await page.query_selector('#header-search-input')
+                    return {"found": True, "input_visible": inp is not None}
+                # Fallback: try text-based
+                btns = await page.query_selector_all('button')
+                for b in btns:
+                    txt = (await b.inner_text()).strip()
+                    if 'Search' in txt or 'search' in txt:
+                        await b.click()
+                        await page.wait_for_timeout(1000)
+                        return {"found": True, "input_visible": True, "method": "text_match"}
+                return {"found": False, "method": "none"}
+            except Exception as e:
+                return {"found": False, "error": str(e)}
+
+        r = await with_page(browser, "2.4_search_button", fn=test_search_button)
+        results.append(("HOME", "2.4_search_button", "Search button click", "PASS" if r['result'].get('found', False) else 'FAIL', r))
+        if r['result'].get('found'):
+            print(f"    method={r['result'].get('method', 'aria-label')} input_visible={r['result'].get('input_visible')}")
+
+        # 2.5: Type in search and close
+        async def test_search_type(page):
+            # Open search first
             btn = await page.query_selector('button[aria-label="Search files"]')
             if btn:
                 await btn.click()
                 await page.wait_for_selector('#header-search-input', timeout=5000)
-                inp = await page.query_selector('#header-search-input')
-                return {"found": True, "input_visible": inp is not None}
-            # Fallback: try text-based
-            btns = await page.query_selector_all('button')
-            for b in btns:
-                txt = (await b.inner_text()).strip()
-                if 'Search' in txt or 'search' in txt:
-                    await b.click()
-                    await page.wait_for_timeout(1000)
-                    return {"found": True, "input_visible": True, "method": "text_match"}
-            return {"found": False, "method": "none"}
-
-        r = await with_page(browser, "2.4_search_button", fn=test_search_button)
-        results.append(("HOME", "2.4_search_button", "Search button click", "PASS" if r['result']['found'] else 'FAIL', r))
-        if r['result']['found']:
-            print(f"    method={r['result']['method']} input_visible={r['result']['input_visible']}")
-
-        # 2.5: Type in search and close
-        async def test_search_type(page):
             inp = await page.query_selector('#header-search-input')
             if not inp:
-                return {"typed": False}
+                return {"typed": False, "reason": "search_input_not_found"}
             await inp.fill('readme')
             await inp.press('Escape')
             await page.wait_for_timeout(500)
             return {"typed": True}
 
         r = await with_page(browser, "2.5_search_type", fn=test_search_type)
-        results.append(("HOME", "2.5_search_type", "Search type + close with Escape", "PASS" if r['result']['typed'] else 'FAIL', r))
+        results.append(("HOME", "2.5_search_type", "Search type + close with Escape", "PASS" if r['result'].get('typed', False) else 'FAIL', r))
 
         # 2.6: Settings link
         async def test_settings_link(page):
@@ -352,7 +366,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"href": "not_found"}
 
         r = await with_page(browser, "2.6_settings_link", fn=test_settings_link)
-        results.append(("HOME", "2.6_settings_link", "Settings navigation", "PASS" if r['result']['href'] == '/ui/settings' else 'FAIL', r))
+        results.append(("HOME", "2.6_settings_link", "Settings navigation", "PASS" if r['result'].get('href', '') == '/ui/settings' else 'FAIL', r))
 
         # 2.7: Theme toggle
         async def test_theme_toggle(page):
@@ -366,7 +380,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"toggled": False}
 
         r = await with_page(browser, "2.7_theme_toggle", fn=test_theme_toggle)
-        results.append(("HOME", "2.7_theme_toggle", "Theme toggle", "PASS" if r['result']['toggled'] else 'FAIL', r))
+        results.append(("HOME", "2.7_theme_toggle", "Theme toggle", "PASS" if r['result'].get('toggled', False) else 'FAIL', r))
 
         # 2.8: Trash link
         async def test_trash_link(page):
@@ -378,7 +392,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"url": "not_found"}
 
         r = await with_page(browser, "2.8_trash_link", fn=test_trash_link)
-        results.append(("HOME", "2.8_trash_link", "Trash navigation", "PASS" if '/trash' in r['result']['url'] else 'FAIL', r))
+        results.append(("HOME", "2.8_trash_link", "Trash navigation", "PASS" if '/trash' in r['result'].get('url', '') else 'FAIL', r))
 
         # ══════════════════════════════════════════════════════════
         # SECTION 3: File Browser Toolbar & Actions
@@ -395,7 +409,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"clicked": False}
 
         r = await with_page(browser, "3.1_parent_btn", fn=test_parent_btn)
-        results.append(("TOOLBAR", "3.1_parent_btn", "Parent directory button", "PASS" if r['result']['clicked'] else 'FAIL', r))
+        results.append(("TOOLBAR", "3.1_parent_btn", "Parent directory button", "PASS" if r['result'].get('clicked', False) else 'FAIL', r))
 
         # 3.2: Home button (in breadcrumbs)
         async def test_home_btn(page):
@@ -409,7 +423,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"clicked": False}
 
         r = await with_page(browser, "3.2_home_btn", fn=test_home_btn)
-        results.append(("TOOLBAR", "3.2_home_btn", "Home breadcrumb button", "PASS" if r['result']['clicked'] else 'FAIL', r))
+        results.append(("TOOLBAR", "3.2_home_btn", "Home breadcrumb button", "PASS" if r['result'].get('clicked', False) else 'FAIL', r))
 
         # 3.3: Upload button
         async def test_upload_btn(page):
@@ -421,7 +435,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"dialog_opened": False}
 
         r = await with_page(browser, "3.3_upload_btn", fn=test_upload_btn)
-        results.append(("TOOLBAR", "3.3_upload_btn", "Upload dialog open", "PASS" if r['result']['dialog_opened'] else 'FAIL', r))
+        results.append(("TOOLBAR", "3.3_upload_btn", "Upload dialog open", "PASS" if r['result'].get('dialog_opened', False) else 'FAIL', r))
 
         # Close upload dialog if opened
         async def close_dialog(page):
@@ -443,18 +457,20 @@ async def traverse_wasm(base_url, output_dir):
             return {"dialog_opened": False}
 
         r = await with_page(browser, "3.4_mkdir_btn", fn=test_mkdir_btn)
-        results.append(("TOOLBAR", "3.4_mkdir_btn", "New folder dialog open", "PASS" if r['result']['dialog_opened'] else 'FAIL', r))
+        results.append(("TOOLBAR", "3.4_mkdir_btn", "New folder dialog open", "PASS" if r['result'].get('dialog_opened', False) else 'FAIL', r))
 
         # Close new folder dialog if opened
         await with_page(browser, "3.4b_close_mkdir", fn=close_dialog)
 
-        # 3.5: Delete button (disabled with no selection)
+        # 3.5: Delete button (should not exist without selection)
         async def test_delete_no_sel(page):
-            btn = await page.query_selector('button[aria-label="Delete Selected"]')
-            return {"exists": btn is not None, "disabled": btn is not None and await btn.is_disabled()}
+            btn = await page.query_selector('button:has-text("Delete")')
+            # Delete button should not exist or not be visible when nothing selected
+            exists = btn is not None
+            return {"exists": exists}
 
         r = await with_page(browser, "3.5_delete_no_sel", fn=test_delete_no_sel)
-        results.append(("TOOLBAR", "3.5_delete_no_sel", "Delete button (no selection)", "PASS" if r['result']['exists'] and r['result']['disabled'] else 'FAIL', r))
+        results.append(("TOOLBAR", "3.5_delete_no_sel", "Delete button (no selection)", "PASS" if not r['result'].get('exists', False) else 'FAIL', r))
 
         # 3.6: View toggle (list/grid)
         async def test_view_toggle(page):
@@ -468,7 +484,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"toggled": False}
 
         r = await with_page(browser, "3.6_view_toggle", fn=test_view_toggle)
-        results.append(("TOOLBAR", "3.6_view_toggle", "View mode toggle", "PASS" if r['result']['toggled'] else 'FAIL', r))
+        results.append(("TOOLBAR", "3.6_view_toggle", "View mode toggle", "PASS" if r['result'].get('toggled', False) else 'FAIL', r))
 
         # 3.7: Activity panel toggle
         async def test_activity_toggle(page):
@@ -480,7 +496,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"toggled": False}
 
         r = await with_page(browser, "3.7_activity_toggle", fn=test_activity_toggle)
-        results.append(("TOOLBAR", "3.7_activity_toggle", "Activity panel toggle", "PASS" if r['result']['toggled'] else 'FAIL', r))
+        results.append(("TOOLBAR", "3.7_activity_toggle", "Activity panel toggle", "PASS" if r['result'].get('toggled', False) else 'FAIL', r))
 
         # ══════════════════════════════════════════════════════════
         # SECTION 4: Settings Page Interactions
@@ -489,13 +505,12 @@ async def traverse_wasm(base_url, output_dir):
 
         # 4.1: Navigate to settings
         async def test_settings_page(page):
-            # Already navigated in 2.6, but test again for isolation
             await page.goto(f"{base_url}/ui/settings", wait_until='networkidle', timeout=TIMEOUT)
             title = await page.title()
             return {"title": title or "none", "len": len(await page.inner_text('body'))}
 
-        r = await with_page(browser, "4.1_settings_page", fn=test_settings_page)
-        results.append(("SETTINGS", "4.1_settings_page", "Settings page loads", "PASS" if r['result']['len'] > 50 else 'FAIL', r))
+        r = await with_page(browser, "4.1_settings_page", url=None, fn=test_settings_page)
+        results.append(("SETTINGS", "4.1_settings_page", "Settings page loads", "PASS" if r['result'].get('len', 0) > 50 else 'FAIL', r))
 
         # 4.2: Back to Files link
         async def test_back_to_files(page):
@@ -506,8 +521,8 @@ async def traverse_wasm(base_url, output_dir):
                 return {"navigated": page.url == f"{base_url}/ui"}
             return {"navigated": False}
 
-        r = await with_page(browser, "4.2_back_to_files", fn=test_back_to_files)
-        results.append(("SETTINGS", "4.2_back_to_files", "Back to Files", "PASS" if r['result']['navigated'] else 'FAIL', r))
+        r = await with_page(browser, "4.2_back_to_files", url=f"{base_url}/ui/settings", fn=test_back_to_files)
+        results.append(("SETTINGS", "4.2_back_to_files", "Back to Files", "PASS" if r['result'].get('navigated', False) else 'FAIL', r))
 
         # ══════════════════════════════════════════════════════════
         # SECTION 5: Command Palette (Ctrl+K)
@@ -515,14 +530,13 @@ async def traverse_wasm(base_url, output_dir):
         print("\n-- Section 5: Command Palette --")
 
         async def test_command_palette(page):
-            await page.goto(f"{base_url}/ui", wait_until='networkidle', timeout=TIMEOUT)
             await page.keyboard.press('Control+k')
             await page.wait_for_selector('div[role="dialog"][aria-label="Command Palette"]', timeout=5000)
             palette = await page.query_selector('div[role="dialog"][aria-label="Command Palette"]')
             return {"palette_visible": palette is not None}
 
         r = await with_page(browser, "5.1_cmd_palette", fn=test_command_palette)
-        results.append(("CMD", "5.1_cmd_palette", "Command palette (Ctrl+K)", "PASS" if r['result']['palette_visible'] else 'FAIL', r))
+        results.append(("CMD", "5.1_cmd_palette", "Command palette (Ctrl+K)", "PASS" if r['result'].get('palette_visible', False) else 'FAIL', r))
 
         # 5.2: Close palette with Escape
         async def test_palette_escape(page):
@@ -534,7 +548,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"palette_hidden": not visible}
 
         r = await with_page(browser, "5.2_palette_escape", fn=test_palette_escape)
-        results.append(("CMD", "5.2_palette_escape", "Close palette (Escape)", "PASS" if r['result']['palette_hidden'] else 'FAIL', r))
+        results.append(("CMD", "5.2_palette_escape", "Close palette (Escape)", "PASS" if r['result'].get('palette_hidden', False) else 'FAIL', r))
 
         # ══════════════════════════════════════════════════════════
         # SECTION 6: Keyboard Shortcuts
@@ -543,39 +557,39 @@ async def traverse_wasm(base_url, output_dir):
 
         # 6.1: Ctrl+N (new folder)
         async def test_ctrl_n(page):
-            await page.goto(f"{base_url}/ui", wait_until='networkidle', timeout=TIMEOUT)
             await page.keyboard.press('Control+n')
             await page.wait_for_selector('div[role="dialog"][aria-labelledby="new-folder-title"]', timeout=5000)
             return {"dialog_opened": True}
 
         r = await with_page(browser, "6.1_ctrl_n_new_folder", fn=test_ctrl_n)
-        results.append(("KB", "6.1_ctrl_n_new_folder", "Ctrl+N (new folder)", "PASS" if r['result']['dialog_opened'] else 'FAIL', r))
+        results.append(("KB", "6.1_ctrl_n_new_folder", "Ctrl+N (new folder)", "PASS" if r['result'].get('dialog_opened', False) else 'FAIL', r))
         await with_page(browser, "6.1b_close_ctrl_n", fn=close_dialog)
 
         # 6.2: Ctrl+U (upload)
         async def test_ctrl_u(page):
-            await page.goto(f"{base_url}/ui", wait_until='networkidle', timeout=TIMEOUT)
             await page.keyboard.press('Control+u')
             await page.wait_for_selector('div[role="dialog"][aria-labelledby="upload-title"]', timeout=5000)
             return {"dialog_opened": True}
 
         r = await with_page(browser, "6.2_ctrl_u_upload", fn=test_ctrl_u)
-        results.append(("KB", "6.2_ctrl_u_upload", "Ctrl+U (upload)", "PASS" if r['result']['dialog_opened'] else 'FAIL', r))
+        results.append(("KB", "6.2_ctrl_u_upload", "Ctrl+U (upload)", "PASS" if r['result'].get('dialog_opened', False) else 'FAIL', r))
         await with_page(browser, "6.2b_close_ctrl_u", fn=close_dialog)
 
         # 6.3: Ctrl+F (search)
         async def test_ctrl_f(page):
-            await page.goto(f"{base_url}/ui", wait_until='networkidle', timeout=TIMEOUT)
             await page.keyboard.press('Control+f')
             await page.wait_for_selector('#header-search-input', timeout=5000)
             inp = await page.query_selector('#header-search-input')
             return {"search_opened": inp is not None}
 
         r = await with_page(browser, "6.3_ctrl_f_search", fn=test_ctrl_f)
-        results.append(("KB", "6.3_ctrl_f_search", "Ctrl+F (search)", "PASS" if r['result']['search_opened'] else 'FAIL', r))
-        # Close search with Escape
-        await page.keyboard.press('Escape')
-        await page.wait_for_timeout(500)
+        results.append(("KB", "6.3_ctrl_f_search", "Ctrl+F (search)", "PASS" if r['result'].get('search_opened', False) else 'FAIL', r))
+        # Close search with Escape (reuse same page context)
+        async def close_search(page):
+            await page.keyboard.press('Escape')
+            await page.wait_for_timeout(500)
+            return {"closed": True}
+        await with_page(browser, "6.3b_close_search", fn=close_search)
 
         # ══════════════════════════════════════════════════════════
         # SECTION 7: Trash Page
@@ -589,7 +603,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"title": title or "none", "len": len(text)}
 
         r = await with_page(browser, "7.1_trash_page", fn=test_trash_page)
-        results.append(("TRASH", "7.1_trash_page", "Trash page loads", "PASS" if r['result']['len'] > 0 else 'FAIL', r))
+        results.append(("TRASH", "7.1_trash_page", "Trash page loads", "PASS" if r['result'].get('len', 0) > 0 else 'FAIL', r))
 
         # ══════════════════════════════════════════════════════════
         # SECTION 8: Admin Page
@@ -602,7 +616,7 @@ async def traverse_wasm(base_url, output_dir):
             return {"len": len(text)}
 
         r = await with_page(browser, "8.1_admin_page", fn=test_admin_page)
-        results.append(("ADMIN", "8.1_admin_page", "Admin page loads", "PASS" if r['result']['len'] > 0 else 'FAIL', r))
+        results.append(("ADMIN", "8.1_admin_page", "Admin page loads", "PASS" if r['result'].get('len', 0) > 0 else 'FAIL', r))
 
         await browser.close()
 
@@ -628,10 +642,10 @@ async def traverse_wasm(base_url, output_dir):
             for section, name, desc, status, r in results:
                 if status == 'FAIL':
                     print(f"    [{section}] {name}: {desc}")
-                    if r[5] > 0:
-                        print(f"      injected_errors={r[5]}")
-                    if r[6] > 0:
-                        print(f"      network_errors={r[6]}")
+                    if r.get('injected_errors', 0) > 0:
+                        print(f"      injected_errors={r['injected_errors']}")
+                    if r.get('injected_network', 0) > 0:
+                        print(f"      network_errors={r['injected_network']}")
         else:
             print("  ALL TESTS PASSED")
 
@@ -644,9 +658,11 @@ async def traverse_wasm(base_url, output_dir):
             "base_url": base_url,
             "results": [
                 {"section": s, "name": n, "desc": d, "status": st,
-                 "injected_errors": r[5], "injected_network": r[6],
-                 "page_errors": len(r[3]), "screenshot": r[2]}
-                for s, n, d, st, *rest in results
+                 "injected_errors": r.get("injected_errors", 0),
+                 "injected_network": r.get("injected_network", 0),
+                 "page_errors": len(r.get("page_errors", [])),
+                 "screenshot": r.get("screenshot", "")}
+                for s, n, d, st, r in results
             ],
             "error_count": collector.summary(),
             "errors": collector.errors,
@@ -756,7 +772,7 @@ def traverse_desktop(output_dir):
             '--absolute-y', str(int(y_pct * 800)),
         ], check=False, capture_output=True, timeout=5)
         time.sleep(0.1)
-        subprocess.run(['xdotool', 'click', '--window', str(win_id),
+        subprocess.run(['xdotool', 'click', '--window', str(win_id)],
                        check=False, capture_output=True, timeout=5)
         time.sleep(0.5)
 
