@@ -1205,7 +1205,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | # | Priority | Item | Description | Effort |
 |---|----------|------|-------------|--------|
 | TD-029 | P0 | Decompose `file_browser.rs` | Split 2000+ line monolithic component into sub-components: Toolbar, FileList, ShareDialog, MoveDialog, CopyDialog, BulkActionBar, ActivitySidebar | 3 days |
-| TD-030 | P0 | IntersectionObserver cleanup | Disconnect observers on component unmount to prevent memory leaks in SPA navigation | 1 day |
+| TD-030 | P0 | Document event listener cleanup | Fixed leaked document-level `keydown` listener in `file_browser.rs` and `input` listener + debounce timer in `header.rs`. Both now use `on_cleanup` to remove listeners and clear timers on unmount | 0 | DONE |
 | TD-031 | P1 | i18n framework | Extract all hardcoded English strings into a translation layer with locale files. Web UI has ~300 hardcoded strings across 15 components and 7 pages | 5 days |
 | TD-032 | P1 | Focus trap for modals | All 8 modal dialogs have `aria-modal="true"` but no focus trap. Users can Tab outside. Implement a reusable `FocusTrap` wrapper component | 2 days |
 | TD-033 | P1 | NFS/SMB mount backends | Complete `NfsBackend` and `SmbBackend` in `ferro-mount-nfs` using platform FFI (libc/nix crate) | 5 days |

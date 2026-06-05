@@ -941,98 +941,100 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let set_scd = set_show_copy_dialog;
         let set_sshd = set_show_share_dialog;
 
-        spawn_local(async move {
-            if let Some(window) = web_sys::window() {
-                if let Some(document) = window.document() {
-                    use wasm_bindgen::JsCast;
-                    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
-                        move |ev: web_sys::KeyboardEvent| {
-                            let tag = ev
-                                .target()
-                                .and_then(|t| {
-                                    use wasm_bindgen::JsCast;
-                                    t.dyn_into::<web_sys::Element>().ok()
-                                })
-                                .map(|el| el.tag_name().to_lowercase())
-                                .unwrap_or_default();
+        // Global keyboard shortcuts (wired into document, cleaned up on unmount)
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                use wasm_bindgen::JsCast;
+                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
+                    move |ev: web_sys::KeyboardEvent| {
+                        let tag = ev
+                            .target()
+                            .and_then(|t| {
+                                use wasm_bindgen::JsCast;
+                                t.dyn_into::<web_sys::Element>().ok()
+                            })
+                            .map(|el| el.tag_name().to_lowercase())
+                            .unwrap_or_default();
 
-                            if tag == "input" || tag == "textarea" || tag == "select" {
+                        if tag == "input" || tag == "textarea" || tag == "select" {
+                            return;
+                        }
+
+                        let ctrl = ev.ctrl_key() || ev.meta_key();
+
+                        if ctrl && ev.key() == "k" {
+                            ev.prevent_default();
+                            ps.toggle();
+                        } else if ctrl && ev.key() == "n" {
+                            ev.prevent_default();
+                            snf.set(true);
+                        } else if ctrl && ev.key() == "u" {
+                            ev.prevent_default();
+                            su.set(true);
+                        } else if ev.key() == "Delete" || ev.key() == "Backspace" {
+                            ev.prevent_default();
+                            if !sel_paths.with(|s| s.is_empty()) {
+                                sdc.set(true);
+                            }
+                        } else if ctrl && ev.key() == "a" {
+                            ev.prevent_default();
+                            sa();
+                        } else if ev.key() == "Escape" {
+                            if ps.is_open() {
+                                ps.close();
                                 return;
                             }
-
-                            let ctrl = ev.ctrl_key() || ev.meta_key();
-
-                            if ctrl && ev.key() == "k" {
-                                ev.prevent_default();
-                                ps.toggle();
-                            } else if ctrl && ev.key() == "n" {
-                                ev.prevent_default();
-                                snf.set(true);
-                            } else if ctrl && ev.key() == "u" {
-                                ev.prevent_default();
-                                su.set(true);
-                            } else if ev.key() == "Delete" || ev.key() == "Backspace" {
-                                ev.prevent_default();
-                                if !sel_paths.with(|s| s.is_empty()) {
-                                    sdc.set(true);
-                                }
-                            } else if ctrl && ev.key() == "a" {
-                                ev.prevent_default();
-                                sa();
-                            } else if ev.key() == "Escape" {
-                                if ps.is_open() {
-                                    ps.close();
-                                    return;
-                                }
-                                if prev_file.get().is_some() {
-                                    spf.set(None);
-                                    return;
-                                }
-                                if snfolder.get()
-                                    || supload.get()
-                                    || sshd.get()
-                                    || sm.get()
-                                    || scd.get()
-                                    || show_dc.get()
-                                {
-                                    snf.set(false);
-                                    su.set(false);
-                                    set_sshd.set(false);
-                                    set_sm.set(false);
-                                    set_scd.set(false);
-                                    sdc.set(false);
-                                    return;
-                                }
-                                if !sel_paths.with(|s| s.is_empty()) {
-                                    ssp.set(std::collections::HashSet::new());
-                                    return;
-                                }
-                            } else if ctrl && ev.key() == "f" {
-                                ev.prevent_default();
-                                if let Some(h) = hs {
-                                    h.open_search();
-                                }
-                            } else if ctrl && ev.key() == "c" {
-                                ev.prevent_default();
-                                cc();
-                            } else if ctrl && ev.key() == "x" {
-                                ev.prevent_default();
-                                cx();
-                            } else if ctrl && ev.key() == "v" {
-                                ev.prevent_default();
-                                if cs.has_files() {
-                                    cv();
-                                }
+                            if prev_file.get().is_some() {
+                                spf.set(None);
+                                return;
                             }
-                        },
-                    )
-                        as Box<dyn Fn(web_sys::KeyboardEvent)>);
+                            if snfolder.get()
+                                || supload.get()
+                                || sshd.get()
+                                || sm.get()
+                                || scd.get()
+                                || show_dc.get()
+                            {
+                                snf.set(false);
+                                su.set(false);
+                                set_sshd.set(false);
+                                set_sm.set(false);
+                                set_scd.set(false);
+                                sdc.set(false);
+                                return;
+                            }
+                            if !sel_paths.with(|s| s.is_empty()) {
+                                ssp.set(std::collections::HashSet::new());
+                                return;
+                            }
+                        } else if ctrl && ev.key() == "f" {
+                            ev.prevent_default();
+                            if let Some(h) = hs {
+                                h.open_search();
+                            }
+                        } else if ctrl && ev.key() == "c" {
+                            ev.prevent_default();
+                            cc();
+                        } else if ctrl && ev.key() == "x" {
+                            ev.prevent_default();
+                            cx();
+                        } else if ctrl && ev.key() == "v" {
+                            ev.prevent_default();
+                            if cs.has_files() {
+                                cv();
+                            }
+                        }
+                    },
+                ) as Box<dyn Fn(web_sys::KeyboardEvent)>);
+                let _ = document
+                    .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+                on_cleanup(move || {
                     let _ = document
-                        .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
-                    cb.forget();
-                }
+                        .remove_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+                    drop(cb);
+                });
             }
-        });
+        }
     }
 
     let do_move = move |path: String| {

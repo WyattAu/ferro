@@ -145,76 +145,85 @@ pub fn Header() -> impl IntoView {
         let set_searching_sig = set_searching;
         let ft_sig = filter_type;
         let fs_sig = filter_sort;
-        spawn_local(async move {
-            let debounce_timer = std::cell::RefCell::new(None::<i32>);
-            let closure = wasm_bindgen::closure::Closure::<dyn Fn()>::new(move || {
-                let query = sq.get();
-                if query.is_empty() {
-                    set_searching_sig.set(false);
-                    return;
-                }
-                set_searching_sig.set(true);
-                let ft = ft_sig.get();
-                let fs = fs_sig.get();
-                spawn_local(async move {
-                    let filters = SearchFilters {
-                        r#type: if ft.is_empty() { None } else { Some(ft) },
-                        sort: if fs.is_empty() { None } else { Some(fs) },
-                        mime_type: None,
-                    };
-                    match crate::api::search_files(&query, Some(&filters)).await {
-                        Ok(resp) => {
-                            set_search_results.set(resp.results);
-                            set_search_total.set(resp.total);
-                        }
-                        Err(_) => {
-                            set_search_results.set(vec![]);
-                            set_search_total.set(0);
-                        }
+        let debounce_timer = std::cell::RefCell::new(None::<i32>);
+        let closure = wasm_bindgen::closure::Closure::<dyn Fn()>::new(move || {
+            let query = sq.get();
+            if query.is_empty() {
+                set_searching_sig.set(false);
+                return;
+            }
+            set_searching_sig.set(true);
+            let ft = ft_sig.get();
+            let fs = fs_sig.get();
+            spawn_local(async move {
+                let filters = SearchFilters {
+                    r#type: if ft.is_empty() { None } else { Some(ft) },
+                    sort: if fs.is_empty() { None } else { Some(fs) },
+                    mime_type: None,
+                };
+                match crate::api::search_files(&query, Some(&filters)).await {
+                    Ok(resp) => {
+                        set_search_results.set(resp.results);
+                        set_search_total.set(resp.total);
                     }
-                    set_searching_sig.set(false);
-                });
+                    Err(_) => {
+                        set_search_results.set(vec![]);
+                        set_search_total.set(0);
+                    }
+                }
+                set_searching_sig.set(false);
             });
-            let cb = closure.into_js_value();
-            if let Some(window) = web_sys::window() {
-                if let Some(document) = window.document() {
-                    use wasm_bindgen::JsCast;
-                    let handler = wasm_bindgen::closure::Closure::<dyn Fn(ev::KeyboardEvent)>::new(
-                        move |ev: web_sys::KeyboardEvent| {
-                            let input: Option<web_sys::HtmlInputElement> = ev
-                                .target()
-                                .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
-                            if let Some(input) = input {
-                                // Only fire search for the dedicated search input, not any text field
-                                if input.id() != "header-search-input" {
-                                    return;
-                                }
-                                let func = cb.clone();
-                                if let Some(prev) = *debounce_timer.borrow() {
-                                    let _ = web_sys::window()
-                                        .expect("window must exist in browser context")
-                                        .clear_timeout_with_handle(prev);
-                                }
-                                if let Ok(handle) = web_sys::window()
-                                    .expect("window must exist in browser context")
-                                    .set_timeout_with_callback_and_timeout_and_arguments_0(
-                                        func.unchecked_ref(),
-                                        300,
-                                    )
-                                {
-                                    *debounce_timer.borrow_mut() = Some(handle);
-                                }
+        });
+        let cb = closure.into_js_value();
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                use wasm_bindgen::JsCast;
+                let handler =
+                    wasm_bindgen::closure::Closure::<dyn Fn(ev::KeyboardEvent)>::new(move |ev| {
+                        let input: Option<web_sys::HtmlInputElement> = ev
+                            .target()
+                            .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                        if let Some(input) = input {
+                            // Only fire search for the dedicated search input, not any text field
+                            if input.id() != "header-search-input" {
+                                return;
                             }
-                        },
-                    );
-                    let _ = document.add_event_listener_with_callback(
+                            let func = cb.clone();
+                            if let Some(prev) = *debounce_timer.borrow() {
+                                let _ = web_sys::window()
+                                    .expect("window must exist in browser context")
+                                    .clear_timeout_with_handle(prev);
+                            }
+                            if let Ok(handle) = web_sys::window()
+                                .expect("window must exist in browser context")
+                                .set_timeout_with_callback_and_timeout_and_arguments_0(
+                                    func.unchecked_ref(),
+                                    300,
+                                )
+                            {
+                                *debounce_timer.borrow_mut() = Some(handle);
+                            }
+                        }
+                    });
+                let _ = document.add_event_listener_with_callback(
+                    "input",
+                    handler.as_ref().unchecked_ref(),
+                );
+                on_cleanup(move || {
+                    let _ = document.remove_event_listener_with_callback(
                         "input",
                         handler.as_ref().unchecked_ref(),
                     );
-                    handler.forget();
-                }
+                    // Clear pending debounce timer
+                    if let Some(handle) = *debounce_timer.borrow() {
+                        let _ = web_sys::window()
+                            .expect("window must exist in browser context")
+                            .clear_timeout_with_handle(handle);
+                    }
+                    drop(handler);
+                });
             }
-        });
+        }
     }
 
     let on_type_change = move |ev: ev::Event| {
