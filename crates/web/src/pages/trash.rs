@@ -214,14 +214,14 @@ pub fn TrashPage() -> impl IntoView {
                                                         <div class="flex items-center justify-end gap-2">
                                                             <button
                                                                 class="px-2.5 py-1 text-xs bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                                                aria_label=format!("Restore {}", restore_name)
+                                                                 attr:aria-label=format!("Restore {}", restore_name)
                                                                 on:click=move |_| do_restore(restore_path.clone())
                                                             >
                                                                 "Restore"
                                                             </button>
                                                             <button
                                                                 class="px-2.5 py-1 text-xs bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                                                aria_label=format!("Permanently delete {}", purge_name)
+                                                                 attr:aria-label=format!("Permanently delete {}", purge_name)
                                                                 on:click=move |_| do_purge(purge_path.clone())
                                                             >
                                                                 "Delete Permanently"

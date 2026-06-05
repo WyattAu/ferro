@@ -110,7 +110,7 @@ pub fn FileRow(
                     type="checkbox"
                     class="rounded border text-blue-600 focus:ring-blue-500"
                     prop:checked=is_selected
-                    aria_label=format!("Select {}", name_for_delete)
+                    attr:aria-label=format!("Select {}", name_for_delete)
                     on:click=handle_checkbox_click_desktop
                 />
             </td>
@@ -157,7 +157,7 @@ pub fn FileRow(
                                 type="checkbox"
                                 class="rounded border text-blue-600 focus:ring-blue-500 min-w-[44px] min-h-[44px]"
                                 prop:checked=is_selected
-                                aria_label=format!("Select {}", name_for_delete)
+                                attr:aria-label=format!("Select {}", name_for_delete)
                                 on:click=handle_checkbox_click_mobile
                             />
                         </div>
@@ -165,7 +165,7 @@ pub fn FileRow(
                     <button
                         class="p-2 md:p-1.5 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                         class=move || if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50" }
-                        aria_label=format!("{} {}", if is_favorited { "Unfavorite" } else { "Favorite" }, name_for_favorite)
+                        attr:aria-label=format!("{} {}", if is_favorited { "Unfavorite" } else { "Favorite" }, name_for_favorite)
                         title=if is_favorited { "Remove from favorites" } else { "Add to favorites" }
                         on:click=move |ev| {
                             ev.stop_propagation();
@@ -179,7 +179,7 @@ pub fn FileRow(
                     {(!entry.is_collection && !is_locked).then(|| view! {
                         <button
                             class="p-2 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-                            aria_label=format!("Download {}", name_for_download)
+                            attr:aria-label=format!("Download {}", name_for_download)
                             title="Download"
                             on:click=move |ev| {
                                 ev.stop_propagation();
@@ -194,7 +194,7 @@ pub fn FileRow(
                     {(!entry.is_collection && !is_locked).then(|| view! {
                         <button
                             class="p-2 md:p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-                            aria_label=format!("Share {}", name_for_share)
+                            attr:aria-label=format!("Share {}", name_for_share)
                             title="Share"
                             on:click=move |ev| {
                                 ev.stop_propagation();
@@ -208,7 +208,7 @@ pub fn FileRow(
                     })}
                     <button
                         class="p-2 md:p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-                        aria_label=format!("Copy {}", name_for_copy)
+                        attr:aria-label=format!("Copy {}", name_for_copy)
                         title="Copy"
                         on:click=move |ev| {
                             ev.stop_propagation();
@@ -221,7 +221,7 @@ pub fn FileRow(
                     </button>
                     <button
                         class="p-2 md:p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-                        aria_label=format!("Move {}", name_for_move)
+                        attr:aria-label=format!("Move {}", name_for_move)
                         title="Move"
                         on:click=move |ev| {
                             ev.stop_propagation();
@@ -238,7 +238,7 @@ pub fn FileRow(
                     {(!is_locked).then(|| view! {
                         <button
                             class="p-2 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-                            aria_label=format!("Delete {}", name_for_delete)
+                            attr:aria-label=format!("Delete {}", name_for_delete)
                             title="Delete"
                             on:click=move |ev| {
                                 ev.stop_propagation();

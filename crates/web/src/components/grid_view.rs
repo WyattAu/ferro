@@ -166,7 +166,7 @@ pub fn GridCard(
                         type="checkbox"
                         class="rounded border text-blue-600 focus:ring-blue-500 w-4 h-4"
                         prop:checked=is_selected
-                        aria_label=format!("Select {}", name_for_actions)
+                        attr:aria-label=format!("Select {}", name_for_actions)
                         on:click=handle_checkbox_click
                     />
                 </div>
@@ -175,7 +175,7 @@ pub fn GridCard(
             <button
                 class="absolute top-2 right-2 z-10 p-1 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 class=move || if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 opacity-0 group-hover:opacity-100" }
-                aria_label=format!("{} {}", if is_favorited { "Unfavorite" } else { "Favorite" }, name_for_actions)
+                attr:aria-label=format!("{} {}", if is_favorited { "Unfavorite" } else { "Favorite" }, name_for_actions)
                 title=if is_favorited { "Remove from favorites" } else { "Add to favorites" }
                 on:click=handle_favorite_click
             >
@@ -220,7 +220,7 @@ pub fn GridCard(
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
                         class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        aria_label=format!("Download {}", name_for_actions)
+                        attr:aria-label=format!("Download {}", name_for_actions)
                         title="Download"
                         on:click=handle_download_click
                     >
@@ -232,7 +232,7 @@ pub fn GridCard(
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
                         class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        aria_label=format!("Share {}", name_for_actions)
+                        attr:aria-label=format!("Share {}", name_for_actions)
                         title="Share"
                         on:click=handle_share_click
                     >
@@ -243,7 +243,7 @@ pub fn GridCard(
                 })}
                 <button
                     class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria_label=format!("Copy {}", name_for_actions)
+                    attr:aria-label=format!("Copy {}", name_for_actions)
                     title="Copy"
                     on:click=handle_copy_click
                 >
@@ -253,7 +253,7 @@ pub fn GridCard(
                 </button>
                 <button
                     class="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria_label=format!("Move {}", name_for_actions)
+                    attr:aria-label=format!("Move {}", name_for_actions)
                     title="Move"
                     on:click=handle_move_click
                 >
@@ -264,7 +264,7 @@ pub fn GridCard(
                 {(!is_locked).then(|| view! {
                     <button
                         class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        aria_label=format!("Delete {}", name_for_actions)
+                        attr:aria-label=format!("Delete {}", name_for_actions)
                         title="Delete"
                         on:click=handle_delete_click
                     >
