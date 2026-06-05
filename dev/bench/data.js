@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780619621340,
+  "lastUpdate": 1780652479120,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -8243,6 +8243,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 763,
             "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "fb5a08b714d2ee0d31be84b5bb85c61bd1ce80fe",
+          "message": "feat(traverse): v3 - 61/62 tests (98%), fix CSP, fix desktop logging\n\n- Fix CSP style-src/font-src: allow fonts.googleapis.com and\n  fonts.gstatic.com for Google Fonts preconnect/stylesheets\n- Fix desktop frontend: move __TAURI__ diagnostics inside\n  DOMContentLoaded listener to avoid \"loading\" readyState\n- Rewrite traversal v3: 62 tests across 9 sections (was 40)\n  - S1 Navigation: 11 tests (added nonexistent, 404, deep path)\n  - S2 File List: 8 tests (search, breadcrumb, theme, home nav)\n  - S3 Toolbar: 7 tests (parent, home, upload/mkdir dlg, view toggle)\n  - S4 File Ops: 11 tests chained on single page (create, upload,\n    favorite, unfavorite, download, copy, move, delete file, delete\n    folder, trash nav, ARIA check)\n  - S5 Settings: 6 tests (form, save, toggle, back, reset, headings)\n  - S6 Keyboard: 5 tests (Ctrl+K XFAIL, Ctrl+N, Ctrl+U, Ctrl+F, Esc)\n  - S7 Trash/Admin: 5 tests (trash page, elements, admin, headings, nav)\n  - S8 Error Resilience: 5 tests (API, deep path, click, rapid nav, CSP)\n  - S9 Accessibility: 4 tests (ARIA, landmarks, headings, link names)\n- Fix selectors: switch to list view before file row operations\n  (default is grid view with role=\"gridcell\", not tbody tr)\n- Add CSP violation capture via securitypolicyviolation event\n- Fix integration script: create OUTPUT dir, fix heredoc expansion\n- Desktop: remove --sync from mousemove for Wayland compat",
+          "timestamp": "2026-06-05T10:31:26+01:00",
+          "tree_id": "8d354415eb6b7a8012a499da44012a0597d48466",
+          "url": "https://github.com/WyattAu/ferro/commit/fb5a08b714d2ee0d31be84b5bb85c61bd1ce80fe"
+        },
+        "date": 1780652477921,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267016260,
+            "range": "± 1450687",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266913364,
+            "range": "± 389955",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28413,
+            "range": "± 2180",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 30160,
+            "range": "± 2258",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9154,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5111,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1247,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 961,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2799,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1341,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7380,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66590,
+            "range": "± 153",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18701,
+            "range": "± 339",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 953,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 178,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 189,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 831,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 823,
+            "range": "± 5",
             "unit": "ns/iter"
           },
           {
