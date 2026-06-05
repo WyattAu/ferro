@@ -366,8 +366,10 @@ mod tests {
     mod headers {
         #[test]
         fn test_csp_blocks_framing_and_eval() {
-            let csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
-                         img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; \
+            let csp = "default-src 'self'; script-src 'self'; \
+                         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
+                         img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; \
+                         connect-src 'self' ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com; \
                          frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
             assert!(csp.contains("frame-ancestors 'none'"));
             assert!(csp.contains("default-src 'self'"));

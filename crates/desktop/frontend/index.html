@@ -501,14 +501,14 @@
 
     <script>
         /* === Diagnostics === */
-        console.log('[ferro] DOMContentLoaded check:', document.readyState);
-        console.log('[ferro] __TAURI__ exists:', typeof window.__TAURI__ !== 'undefined');
-        console.log('[ferro] __TAURI_INTERNALS__ exists:', typeof window.__TAURI_INTERNALS__ !== 'undefined');
-        if (typeof window.__TAURI__ !== 'undefined') {
-            console.log('[fero] __TAURI__ keys:', Object.keys(window.__TAURI__));
-            console.log('[ferro] __TAURI__.core keys:', Object.keys(window.__TAURI__.core || {}));
-        }
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('[ferro] DOMContentLoaded check:', document.readyState);
+            console.log('[ferro] __TAURI__ exists:', typeof window.__TAURI__ !== 'undefined');
+            console.log('[ferro] __TAURI_INTERNALS__ exists:', typeof window.__TAURI_INTERNALS__ !== 'undefined');
+            if (typeof window.__TAURI__ !== 'undefined') {
+                console.log('[fero] __TAURI__ keys:', Object.keys(window.__TAURI__));
+                console.log('[ferro] __TAURI__.core keys:', Object.keys(window.__TAURI__.core || {}));
+            }
             console.log('[ferro] DOMContentLoaded fired');
         });
 

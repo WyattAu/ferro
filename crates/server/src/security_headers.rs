@@ -32,8 +32,10 @@ pub async fn security_headers_middleware(
     headers.insert(
         axum::http::header::CONTENT_SECURITY_POLICY,
         axum::http::HeaderValue::from_static(
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
-             img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; \
+            "default-src 'self'; script-src 'self'; \
+             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
+             img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; \
+             connect-src 'self' ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com; \
              frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
         ),
     );

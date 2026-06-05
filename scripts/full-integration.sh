@@ -34,6 +34,9 @@ echo "  WASM: $([ $SKIP_WASM = false ] && echo yes || echo no)"
 echo "  Desktop: $([ $RUN_DESKTOP = true ] && echo yes || echo no)"
 echo ""
 
+# -- 0. Create output directory --
+mkdir -p "$OUTPUT"
+
 # -- 1. Kill conflicting servers --
 echo "[1] Preparing..."
 lsof -ti:"$PORT" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
@@ -96,26 +99,29 @@ if [ "$SKIP_WASM" = false ]; then
     # Parse WASM results
     echo ""
     echo "    WASM Results:"
-    python3 << 'PYEOF'
+    OUTPUT_JSON="$OUTPUT/wasm/report.json"
+    python3 -c "
 import json, sys
 try:
-    with open('/tmp/ferro-results-$$/wasm/report.json') as f:
+    with open('$OUTPUT_JSON') as f:
         d = json.load(f)
     p = sum(1 for r in d['results'] if r['status'] == 'PASS')
+    xf = sum(1 for r in d['results'] if r['status'] == 'XFAIL')
     t = len(d['results'])
-    print(f"    Passed: {p}/{t} ({100*p//max(t,1)}%)")
+    print(f'    Passed: {p}/{t} ({100*p//max(t,1)}%)  XFAIL: {xf}')
     for r in d['results']:
         if r['status'] == 'FAIL':
-            reason = ""
+            reason = ''
             if r.get('result') and isinstance(r['result'], dict):
-                reason = f" ({r['result'].get('reason', r['result'].get('r', ''))})"
-            print(f"    FAIL: [{r['section']}] {r['name']}{reason}")
+                reason = r['result'].get('reason', r['result'].get('r', ''))
+            print(f'    FAIL: [{r[\"section\"]}] {r[\"name\"]} {reason}')
 except Exception as e:
-    print(f"    Could not parse WASM report: {e}")
-PYEOF
+    print(f'    Could not parse WASM report: {e}')
+"
 
     echo "    JS Errors: $(python3 -c "import json; d=json.load(open('$OUTPUT/wasm/report.json')); print(len(d.get('errors',[])))" 2>/dev/null || echo '?')"
     echo "    Net Errors: $(python3 -c "import json; d=json.load(open('$OUTPUT/wasm/report.json')); print(len(d.get('network_errors',[])))" 2>/dev/null || echo '?')"
+    echo "    CSP Violations: $(python3 -c "import json; d=json.load(open('$OUTPUT/wasm/report.json')); print(len(d.get('csp_violations',[])))" 2>/dev/null || echo '?')"
 else
     echo "[5] Skipping WASM traversal"
 fi
@@ -146,17 +152,17 @@ if [ "$RUN_DESKTOP" = true ]; then
     # Parse Desktop results
     echo ""
     echo "    Desktop Results:"
-    python3 << 'PYEOF'
+    python3 -c "
 import json
 try:
-    with open('/tmp/ferro-results-$$/desktop/report.json') as f:
+    with open('$OUTPUT/desktop/report.json') as f:
         d = json.load(f)
     p = sum(1 for r in d['results'] if r['status'] == 'PASS')
     t = len(d['results'])
-    print(f"    Passed: {p}/{t} ({100*p//max(t,1)}%)")
+    print(f'    Passed: {p}/{t} ({100*p//max(t,1)}%)')
 except Exception as e:
-    print(f"    Could not parse Desktop report: {e}")
-PYEOF
+    print(f'    Could not parse Desktop report: {e}')
+"
 else
     echo "[6] Skipping Desktop traversal (use --desktop to enable)"
 fi
