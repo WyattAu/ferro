@@ -560,9 +560,15 @@ async def traverse_wasm(base_url, output_dir):
 
         r = await wp(browser, "4.x_file_ops", fn=t4_all_ops)
         ops_result = r['result'] or {}
-        for test_id, test_result in ops_result.items():
-            name = test_id.split('_', 1)[1] if '_' in test_id else test_id
-            add("OPS", test_id, name, test_result.get('ok', False), r)
+        if isinstance(ops_result, dict) and not ops_result.get('error'):
+            for test_id, test_result in ops_result.items():
+                if isinstance(test_result, dict):
+                    name = test_id.split('_', 1)[1] if '_' in test_id else test_id
+                    add("OPS", test_id, name, test_result.get('ok', False), r)
+                else:
+                    add("OPS", test_id, test_id, False, r)
+        else:
+            add("OPS", "4.x_file_ops", "all file ops chained", False, r)
 
         # =================================================================
         # S5: Settings Page (6 tests)
