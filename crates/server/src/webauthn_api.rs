@@ -64,16 +64,20 @@ pub struct LoginFinishResponse {
 
 pub async fn webauthn_register_begin(
     State(state): State<AppState>,
-    Json(_request): Json<RegisterBeginRequest>,
+    Json(request): Json<RegisterBeginRequest>,
 ) -> Json<RegisterBeginResponse> {
     tracing::warn!("WebAuthn stub endpoint called -- NO cryptographic verification performed");
     let config = WebAuthnConfig::default();
-    let challenge_id = uuid::Uuid::new_v4().to_string();
-    let challenge = format!("random-challenge-{}", challenge_id);
+    let challenge = format!("stub-challenge-{}", uuid::Uuid::new_v4());
+    let challenge_id = challenge.clone();
 
     {
         let mut store = state.webauthn_store.write().await;
-        store.store_challenge(&challenge_id, &challenge);
+        store.store_registration_challenge(
+            &challenge_id,
+            &request.username,
+            challenge_id.as_bytes().to_vec(),
+        );
     }
 
     Json(RegisterBeginResponse {
@@ -92,8 +96,8 @@ pub async fn webauthn_register_finish(
     let mut store = state.webauthn_store.write().await;
 
     if store
-        .get_and_remove_challenge(&request.challenge_id)
-        .is_none()
+        .consume_registration_challenge(&request.challenge_id, 300)
+        .is_err()
     {
         return Json(RegisterFinishResponse {
             success: false,
@@ -115,16 +119,18 @@ pub async fn webauthn_register_finish(
     let now = chrono::Utc::now().timestamp();
     let cred = WebAuthnCredential {
         credential_id: request.credential_id.clone(),
-        public_key: public_key_bytes,
+        public_key_cose: public_key_bytes,
         sign_count: 0,
         device_name: request
             .device_name
             .unwrap_or_else(|| "Unknown Device".to_string()),
         registered_at: now,
         last_used_at: now,
+        attestation_format: "none".to_string(),
+        user_verified: false,
     };
 
-    store.register_credential(&request.username, cred);
+    store.register_credential(&request.credential_id, cred);
 
     Json(RegisterFinishResponse {
         success: true,
@@ -138,8 +144,18 @@ pub async fn webauthn_login_begin(
 ) -> Json<LoginBeginResponse> {
     tracing::warn!("WebAuthn stub endpoint called -- NO cryptographic verification performed");
     let config = WebAuthnConfig::default();
-    let challenge_id = uuid::Uuid::new_v4().to_string();
-    let challenge = format!("random-challenge-{}", challenge_id);
+    let challenge = format!("stub-challenge-{}", uuid::Uuid::new_v4());
+    let challenge_id = challenge.clone();
+
+    {
+        let mut store = state.webauthn_store.write().await;
+        store.store_authentication_challenge(
+            &challenge_id,
+            &request.username,
+            challenge_id.as_bytes().to_vec(),
+            Vec::new(),
+        );
+    }
 
     let store = state.webauthn_store.read().await;
     let creds = store.get_credentials(&request.username);
@@ -161,8 +177,8 @@ pub async fn webauthn_login_finish(
     let mut store = state.webauthn_store.write().await;
 
     if store
-        .get_and_remove_challenge(&request.challenge_id)
-        .is_none()
+        .consume_authentication_challenge(&request.challenge_id, 300)
+        .is_err()
     {
         return Json(LoginFinishResponse {
             success: false,
