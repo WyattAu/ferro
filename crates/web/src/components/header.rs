@@ -183,7 +183,11 @@ pub fn Header() -> impl IntoView {
                             let input: Option<web_sys::HtmlInputElement> = ev
                                 .target()
                                 .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
-                            if let Some(_input) = input {
+                            if let Some(input) = input {
+                                // Only fire search for the dedicated search input, not any text field
+                                if input.id() != "header-search-input" {
+                                    return;
+                                }
                                 let func = cb.clone();
                                 if let Some(prev) = *debounce_timer.borrow() {
                                     let _ = web_sys::window()
