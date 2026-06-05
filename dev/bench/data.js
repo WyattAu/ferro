@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780679350930,
+  "lastUpdate": 1780700760727,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -8729,6 +8729,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 825,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "556b0a10d7b2f953367aa1ebcd3ee48cb2fcd9c1",
+          "message": "fix(meta): update docs, CI, and versioning for audit cycle 8\n\n- Add feature flags to CI test job (s3,gcs,azure,pg,redis,ldap)\n- Update VERSION.md: 1962 tests, 43 crates, audit cycle 8\n- Update README crate count from 20 to 43\n- Update landing page test count to 1962\n- Fix contractions in docs (don't -> do not, etc.)\n- Rename 'What Was Just Completed' to 'Recently Completed'\n- Apply cargo fmt across workspace",
+          "timestamp": "2026-06-05T23:59:20+01:00",
+          "tree_id": "ded36653d716e3ff66ada11ac31ed72c17366ab9",
+          "url": "https://github.com/WyattAu/ferro/commit/556b0a10d7b2f953367aa1ebcd3ee48cb2fcd9c1"
+        },
+        "date": 1780700759577,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 233278788,
+            "range": "± 898071",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 233280640,
+            "range": "± 1281992",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 19735,
+            "range": "± 721",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 19334,
+            "range": "± 507",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 6613,
+            "range": "± 54",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 4006,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 941,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 730,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2116,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1128,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 6342,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 57913,
+            "range": "± 429",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 72,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 14831,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 711,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 56,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 118,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 137,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 139,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 635,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 584,
+            "range": "± 11",
             "unit": "ns/iter"
           },
           {
