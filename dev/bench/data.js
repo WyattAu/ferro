@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780601421760,
+  "lastUpdate": 1780619621340,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -8081,6 +8081,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 743,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "2ebc5fd8e0b84ac9dca12b9056c3850703dad39d",
+          "message": "fix(traverse): improve headless test robustness (31/33 pass)\n\n- Use document.dispatchEvent for keyboard shortcuts (bypasses focus)\n- Navigate to subdir before testing parent button (disabled at root)\n- Fix settings back-to-files selector (href^=\"/ui\" matches both variants)\n- Add Leptos reactive rendering waits for trash/admin pages\n- Poll for search input visibility with timeout\n- Include result field in JSON report for debugging\n- Document 2 remaining failures as known headless-Chromium limitations",
+          "timestamp": "2026-06-05T01:26:19+01:00",
+          "tree_id": "179d33e563ad0c4a854d389ed17bae7e110eeaa7",
+          "url": "https://github.com/WyattAu/ferro/commit/2ebc5fd8e0b84ac9dca12b9056c3850703dad39d"
+        },
+        "date": 1780619620455,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 254247722,
+            "range": "± 558011",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 254229221,
+            "range": "± 234006",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 23737,
+            "range": "± 1521",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23576,
+            "range": "± 1424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8839,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5241,
+            "range": "± 94",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1165,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 887,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2604,
+            "range": "± 53",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1521,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8630,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 79684,
+            "range": "± 625",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 105,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 21302,
+            "range": "± 71",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 989,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 85,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 79,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 152,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 150,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 159,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 707,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 763,
+            "range": "± 1",
             "unit": "ns/iter"
           },
           {
