@@ -583,9 +583,9 @@ def traverse_desktop(output_dir):
     def find_win():
         for pattern in ['Ferro', 'ferro-desktop']:
             try:
-                out = subprocess.check_output(['xdotool', 'search', '--name', pattern],
-                                               capture_output=True, timeout=5)
-                for line in out.decode().strip().split('\n'):
+                out = subprocess.run(['xdotool', 'search', '--name', pattern],
+                                     capture_output=True, timeout=5)
+                for line in out.stdout.decode().strip().split('\n'):
                     line = line.strip()
                     if line.isdigit(): return int(line)
             except Exception: pass
@@ -597,23 +597,21 @@ def traverse_desktop(output_dir):
 
     def click_pct(xp, yp):
         """Click at relative position within window."""
-        rect = subprocess.check_output(['xdotool', 'getwindowgeometry', '--shell', str(win_id)],
-                                        capture_output=True, timeout=5).decode()
-        for part in rect.split(';'):
-            if 'WINDOW' in part:
-                parts = part.strip().split()
-                w = int(parts[2])
-                h = int(parts[4])
-                ax = int(w * xp)
-                ay = int(h * yp)
-                subprocess.run(['xdotool', 'mousemove', '--sync', '--window', str(win_id), str(ax), str(ay)],
-                               check=False, capture_output=True, timeout=5)
-                time.sleep(0.1)
-                subprocess.run(['xdotool', 'click', '--window', str(win_id), '1'],
-                               check=False, capture_output=True, timeout=5)
-                time.sleep(0.5)
-                return True
-        return False
+        rect = subprocess.run(['xdotool', 'getwindowgeometry', '--shell', str(win_id)],
+                                    capture_output=True, timeout=5).stdout
+        w = h = 1200
+        for part in rect.decode().split(';'):
+            part = part.strip()
+            if part.startswith('WIDTH='): w = int(part.split('=')[1])
+            elif part.startswith('HEIGHT='): h = int(part.split('=')[1])
+        ax, ay = int(w * xp), int(h * yp)
+        subprocess.run(['xdotool', 'mousemove', '--sync', '--window', str(win_id), str(ax), str(ay)],
+                   check=False, capture_output=True, timeout=5)
+        time.sleep(0.1)
+        subprocess.run(['xdotool', 'click', '--window', str(win_id), '1'],
+                   check=False, capture_output=True, timeout=5)
+        time.sleep(0.5)
+        return True
 
     def key(k):
         subprocess.run(['xdotool', 'key', '--clearmodifiers', k],
