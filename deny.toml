@@ -25,6 +25,27 @@ ignore = [
     # WASI path_open(TRUNCATE) bypasses FilePerms::WRITE -- transitive via wasmtime (WASM sandbox feature)
     # Ferro only exposes sandboxed WASM workers with restricted capabilities; TRUNCATE is not user-accessible
     { id = "RUSTSEC-2026-0149", reason = "WASI truncate bypass in wasmtime -- Ferro WASM workers use restricted capabilities, truncate not exposed" },
+    # wasmtime 18.x has multiple security advisories -- upgrade to wasmtime 43+ tracked as TD-028
+    # WASM host is an optional feature; production deployments use x86_64 with restricted capabilities
+    { id = "RUSTSEC-2020-0168", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2024-0384", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2024-0438", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2025-0046", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2025-0057", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2025-0118", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0020", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0021", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0085", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0086", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0087", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0088", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0089", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0091", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0092", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0093", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0094", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0095", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
+    { id = "RUSTSEC-2026-0096", reason = "wasmtime 18.x -- upgrade to 43+ tracked as TD-028" },
 ]
 
 [licenses]

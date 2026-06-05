@@ -102,7 +102,7 @@ jobs:
         with:
           toolchain: stable
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked --version 0.18.0
+        run: cargo install cargo-deny --locked --version 0.19.4
       - name: Run cargo-deny (advisories, bans, licenses, sources)
         run: cargo deny check advisories bans licenses sources
 
