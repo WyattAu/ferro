@@ -894,6 +894,51 @@ Items that should be addressed during normal development:
 | TD-025 | ~~Cedar request context always empty (`Context::empty()`)~~ RESOLVED (2026-05-31: middleware passes IP/method/resource) | ~~Medium~~ Done | 2026-05-31 |
 | TD-026 | ~~Three independent public-path lists not synchronized~~ RESOLVED (2026-05-31: consolidated to `common::auth::is_public_auth_path`) | ~~Medium~~ Done | 2026-05-31 |
 | TD-027 | ~~TOTP HMAC-SHA1 not documented as RFC-mandated~~ RESOLVED (2026-05-31: verified RFC compliance documented in totp.rs) | ~~Low~~ Done | 2026-05-31 |
+| TD-028 | `wasmtime` 18.x pinned in `ferro-wasm-host`, 19 security advisories (upgrade to 43+) | Medium | Open | — |
+
+
+---
+
+## Audit 2026-06-05: End-to-End Quality & CI/CD Pipeline
+
+### Findings Fixed
+
+| # | Severity | Finding | Fix |
+|---|----------|---------|-----|
+| 1 | Critical | `webauthn_api.rs` method/field mismatches with auth crate API (4 compile errors) | Rewrote stubs to use correct `store_registration_challenge`, `consume_registration/authentication_challenge`, `public_key_cose` |
+| 2 | Critical | `gui.rs` borrowed `AppHandle` escaping into `tokio::spawn` (2 lifetime errors) | Used `app.clone()` for on_menu_event, `app.handle().clone()` for setup |
+| 3 | High | `gui.rs` `is_dir` check searches only direct children of `<prop>`, misses nested `<collection>` | Changed `p.children()` to `p.descendants()` |
+| 4 | High | `sync_integration.rs` test data has mismatched hashes (`hash_local_1 != hash_remote_1`) but expects `Synced` | Fixed test data to use matching hashes |
+| 5 | High | `sync_integration.rs` test checks stale `loaded` snapshot after `mark_local_deleted` | Fixed to check `state.get()` after mutation |
+| 6 | High | Global `input` event listener fires search from ANY text field, not just search input | Added `input.id() != "header-search-input"` guard |
+| 7 | Medium | `console.log` in production auth error handlers (2 instances) | Replaced with `tracing::warn` |
+| 8 | Medium | `SearchResultsPanel` component (115 lines) is dead code, never imported | Removed |
+| 9 | Medium | `CONTRIBUTING.md` has exclamation mark in opening sentence | Removed |
+| 10 | Medium | Dockerfile does not include WASM frontend assets -- E2E tests serve no UI | Added wasm32 target, trunk build, copy dist to /app/ui |
+| 11 | Medium | CI `cargo-deny` pinned to 0.18.0, deserialization error on deny.toml v2 | Updated to 0.19.4 |
+| 12 | Medium | 19 wasmtime 18.x security advisories unignored in deny.toml | Added all IDs with TD-028 tracking |
+| 13 | Low | `sync_integration.rs` missing `Ordering` import | Added `use std::sync::atomic::Ordering` |
+| 14 | Low | Landing page test count shows 1938, actual is 2041 | Updated to 2041 |
+
+### UI/UX Audit Summary (79 findings)
+
+| Category | Critical | Major | Minor |
+|----------|----------|-------|-------|
+| Accessibility | 3 | 16 | 8 |
+| Responsiveness | 0 | 2 | 4 |
+| Design Language | 0 | 1 | 4 |
+| Code Quality | 2 | 6 | 10 |
+| Performance | 0 | 3 | 4 |
+| Total | 5 | 28 | 30 |
+
+### Remaining Technical Debt from UI Audit
+
+- Grid card action buttons below 44x44px touch target minimum (30 items)
+- `format_size()` duplicated 6 times across components (extract to shared util)
+- `file_browser.rs` has ~25 signals in single 2000+ line component (decompose)
+- IntersectionObserver and polling loops never disconnected on unmount
+- `urlencoding()` / `percent_decode` duplicated 3 times (extract to shared util)
+- Inline styles in header.rs should be CSS classes
 
 ---
 
