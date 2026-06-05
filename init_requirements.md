@@ -41,7 +41,7 @@ Ferro provides not only file storage, but also a server-side file processing pip
 *   **Event-Driven Execution:** 
     *   When a file matches a certain pattern (e.g., `*.pdf` or `path/to/invoices/*`), Ferro triggers a WASM worker.
     *   **Use Cases:** Auto-OCR, image resizing, virus scanning, or sending a notification to a webhook.
-*   **Sandboxing:** WASM ensures these workers cannot crash the main Ferro binary or access files they aren't authorized to see.
+*   **Sandboxing:** WASM ensures these workers cannot crash the main Ferro binary or access files they are not authorized to see.
 
 ---
 

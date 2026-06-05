@@ -21,7 +21,7 @@
 | MSRV | 1.92 (enforced in CI) |
 | Competitive gaps | 0 remaining (all 25 closed) |
 
-## What Was Just Completed
+## Recently Completed
 
 ### 2026-06-02 (v3.0.8): Audit Cycle 8 - Landing Page, Mermaid Diagrams, Deployment Restructure
 

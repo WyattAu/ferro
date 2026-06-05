@@ -3,8 +3,8 @@ use leptos_router::A;
 
 use crate::api;
 use crate::api::TrashedEntry;
-use ferro_common::format::format_size;
 use crate::components::toast::ToastContext;
+use ferro_common::format::format_size;
 
 #[component]
 pub fn TrashPage() -> impl IntoView {
@@ -242,4 +242,3 @@ pub fn TrashPage() -> impl IntoView {
         </div>
     }
 }
-

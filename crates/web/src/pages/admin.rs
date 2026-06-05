@@ -193,4 +193,3 @@ fn AuditLogCard() -> impl IntoView {
         </div>
     }
 }
-

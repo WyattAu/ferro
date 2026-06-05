@@ -81,7 +81,7 @@
 | 1 | No default credentials required (auth optional) | [x] | High | `lib.rs:177-179` — auth must be explicitly configured |
 | 2 | Security headers recommended in docs | [~] | Medium | `SECURITY.md` recommends reverse proxy headers |
 | 3 | HSTS / security headers middleware | [x] | Medium | `security_headers.rs` — added as outermost middleware |
-| 4 | Error responses don't leak stack traces | [x] | Medium | `error.rs:7-14` returns JSON error without internals |
+| 4 | Error responses do not leak stack traces | [x] | Medium | `error.rs:7-14` returns JSON error without internals |
 | 5 | Default WOPI token secret in code | [~] | High | `lib.rs:94` — production checklist requires changing |
 | 6 | Unnecessary features disabled by default | [x] | Low | OIDC, Cedar, WASM, S3 all opt-in |
 | 7 | CORS restricted to cross-origin requests only | [x] | Medium | `lib.rs:378-407` |

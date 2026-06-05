@@ -43,7 +43,7 @@ The Podman configuration includes SELinux label support (`:z` and `:Z` volume op
 podman run -v ./data:/data:Z ghcr.io/wyattau/ferro:latest
 ```
 
-### Container won't start
+### Container does not start
 
 ```bash
 # Check logs

@@ -74,7 +74,7 @@ jobs:
       - name: Fetch dependencies
         run: cargo fetch --locked
       - name: Run tests
-        run: cargo test --locked --all
+        run: cargo test --locked --all --features "s3,gcs,azure,pg,redis,ldap"
 
   test-cloud-features:
     name: Test Cloud Features

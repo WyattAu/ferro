@@ -547,4 +547,3 @@ async fn cmd_info(client: &client::FerroClient) -> anyhow::Result<()> {
 
     Ok(())
 }
-

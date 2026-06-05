@@ -351,7 +351,7 @@ See [deploy/README-ecosystem.md](deploy/README-ecosystem.md) for all deployment 
 
 ## Architecture
 
-Ferro is built as a Rust workspace with 20 crates:
+Ferro is built as a Rust workspace with 43 crates:
 
 | Crate | Description |
 |-------|-------------|
