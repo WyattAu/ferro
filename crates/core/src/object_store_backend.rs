@@ -179,9 +179,15 @@ impl StorageEngine for ObjectStoreStorageEngine {
         let obj_prefix = self.to_obj_path(prefix);
         let mut items = Vec::new();
 
+        // Use None for empty prefix (root) to get proper delimiter-based listing.
+        // Some(&empty_path) causes object_store local backend to return all
+        // objects recursively without grouping by common prefix.
+        let is_root = prefix.trim_start_matches('/').is_empty();
+        let list_prefix = if is_root { None } else { Some(&obj_prefix) };
+
         let result = self
             .store
-            .list_with_delimiter(Some(&obj_prefix))
+            .list_with_delimiter(list_prefix)
             .await
             .map_err(|e| FerroError::StorageBackend(e.to_string()))?;
 
@@ -680,6 +686,64 @@ mod tests {
 
         let retrieved = engine.get("/small.bin").await.unwrap();
         assert_eq!(retrieved, content);
+    }
+
+    #[tokio::test]
+    async fn test_list_sees_preexisting_files() {
+        // Reproduce: files created directly on disk (not via put()) must be visible via list().
+        let tmp = TempDir::new().unwrap();
+        let sub = tmp.path().join("subdir");
+        std::fs::create_dir_all(&sub).unwrap();
+        std::fs::write(tmp.path().join("file1.txt"), "hello").unwrap();
+        std::fs::write(sub.join("file2.txt"), "world").unwrap();
+
+        let local: Arc<dyn ObjectStore> =
+            Arc::new(LocalFileSystem::new_with_prefix(tmp.path()).unwrap());
+
+        // Direct object_store inspection
+        let lr = local.list_with_delimiter(None).await.unwrap();
+        println!(
+            "direct objects: {:?}",
+            lr.objects
+                .iter()
+                .map(|o| o.location.to_string())
+                .collect::<Vec<_>>()
+        );
+        println!(
+            "direct prefixes: {:?}",
+            lr.common_prefixes
+                .iter()
+                .map(|p| p.to_string())
+                .collect::<Vec<_>>()
+        );
+
+        let engine = ObjectStoreStorageEngine::new(local);
+
+        // Root listing: should see file1.txt + subdir as collection
+        let items = engine.list("/").await.unwrap();
+        println!(
+            "root items: {:?}",
+            items.iter().map(|m| m.path.as_str()).collect::<Vec<_>>()
+        );
+        assert!(
+            items.iter().any(|m| m.path == "/file1.txt"),
+            "should see file1.txt"
+        );
+        assert!(
+            items.iter().any(|m| m.path == "/subdir" && m.is_collection),
+            "should see subdir as collection"
+        );
+
+        // Subdir listing: should see file2.txt
+        let items = engine.list("/subdir").await.unwrap();
+        println!(
+            "subdir items: {:?}",
+            items.iter().map(|m| m.path.as_str()).collect::<Vec<_>>()
+        );
+        assert!(
+            items.iter().any(|m| m.path == "/subdir/file2.txt"),
+            "should see subdir/file2.txt"
+        );
     }
 
     #[tokio::test]
