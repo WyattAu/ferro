@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780652479120,
+  "lastUpdate": 1780659682969,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -8405,6 +8405,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 823,
             "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "44bb704ca2be872d9e7c91595e1f044027b6357d",
+          "message": "chore(web): remove dead SearchResultsPanel component\n\nThe SearchResultsPanel component (115 lines) was never imported\nor rendered. Search results are handled directly in header.rs.",
+          "timestamp": "2026-06-05T12:34:34+01:00",
+          "tree_id": "a5795e05aff671a3e35deb2d38801a23ed04c3aa",
+          "url": "https://github.com/WyattAu/ferro/commit/44bb704ca2be872d9e7c91595e1f044027b6357d"
+        },
+        "date": 1780659681486,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267065810,
+            "range": "± 1205857",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266889056,
+            "range": "± 950731",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28760,
+            "range": "± 2917",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28455,
+            "range": "± 2400",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9168,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5108,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1252,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 950,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 3073,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1339,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7356,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66558,
+            "range": "± 192",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18531,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 913,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 67,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 180,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 194,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 797,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 842,
+            "range": "± 6",
             "unit": "ns/iter"
           },
           {
