@@ -4,12 +4,12 @@
 
 ---
 
-## Current State (2026-06-01)
+## Current State (2026-06-05)
 
 | Metric | Value |
 |--------|-------|
 | Crates | 43 |
-| Tests | 1938 passed, 0 failed, 0 ignored |
+| Tests | 1962 passed, 0 failed, 0 ignored |
 | Code | ~107K lines Rust |
 | Clippy warnings | 0 |
 | Security audit | Self-audit complete, 14 findings fixed (F001-F013 + F002) |
@@ -20,6 +20,7 @@
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | MSRV | 1.92 (enforced in CI) |
 | Competitive gaps | 0 remaining (all 25 closed) |
+| Pre-commit hook | fmt + clippy + targeted crate tests (configurable) |
 
 ## Recently Completed
 
@@ -1192,3 +1193,92 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | Concurrent connections (local storage) | >1000 |
 | rclone E2E compatibility | 100% of Class 1/2/3 WebDAV operations |
 | Soak test duration | 24h zero-defect |
+
+---
+
+## Technical Roadmap: v3.1 to Production
+
+### v3.1 -- Quality Hardening
+
+**Objective:** Address remaining technical debt identified in the 2026-06-05 comprehensive audit.
+
+| # | Priority | Item | Description | Effort |
+|---|----------|------|-------------|--------|
+| TD-029 | P0 | Decompose `file_browser.rs` | Split 2000+ line monolithic component into sub-components: Toolbar, FileList, ShareDialog, MoveDialog, CopyDialog, BulkActionBar, ActivitySidebar | 3 days |
+| TD-030 | P0 | IntersectionObserver cleanup | Disconnect observers on component unmount to prevent memory leaks in SPA navigation | 1 day |
+| TD-031 | P1 | i18n framework | Extract all hardcoded English strings into a translation layer with locale files. Web UI has ~300 hardcoded strings across 15 components and 7 pages | 5 days |
+| TD-032 | P1 | Focus trap for modals | All 8 modal dialogs have `aria-modal="true"` but no focus trap. Users can Tab outside. Implement a reusable `FocusTrap` wrapper component | 2 days |
+| TD-033 | P1 | NFS/SMB mount backends | Complete `NfsBackend` and `SmbBackend` in `ferro-mount-nfs` using platform FFI (libc/nix crate) | 5 days |
+| TD-034 | P2 | External penetration test | Engage external security firm for independent pen test against staging deployment | 2 weeks (external) |
+| TD-035 | P2 | Code coverage enforcement | Add `cargo llvm-cov` minimum threshold to CI (currently informational only). Target: 80% overall, 95% critical paths | 1 day |
+
+### v3.2 -- Performance and Scale
+
+**Objective:** Optimize for production workloads and multi-tenant deployments.
+
+| # | Priority | Item | Description | Effort |
+|---|----------|------|-------------|--------|
+| PF-001 | P0 | PostgreSQL migration path | Document and automate migration from SQLite to PostgreSQL for >100 concurrent user deployments. Connection pooling with `deadpool-postgres` | 5 days |
+| PF-002 | P0 | Raft consensus activation | Wire `ferro-distributed` consensus module into server for multi-node deployments. Currently scaffolded with TCP transport | 10 days |
+| PF-003 | P1 | Query optimization | Profile and optimize the Tantivy search index for >1M files. Add index sharding, query caching, and result pagination at the engine level | 5 days |
+| PF-004 | P1 | Object storage streaming | Implement streaming PUT/GET for S3/GCS/Azure backends (avoid buffering entire file in memory on server) | 3 days |
+| PF-005 | P2 | gRPC protocol | Add gRPC transport option alongside WebDAV for high-throughput programmatic clients | 7 days |
+| PF-006 | P2 | Cache layer | Wire `ferro-cache` into metadata read path with configurable TTL and invalidation strategy | 3 days |
+
+### v3.3 -- Client Ecosystem
+
+**Objective:** Complete the client application stack for all platforms.
+
+| # | Priority | Item | Description | Effort |
+|---|----------|------|-------------|--------|
+| CL-001 | P0 | Tauri desktop polish | Complete the Tauri desktop app with native file picker integration, system tray, and auto-update | 10 days |
+| CL-002 | P1 | FUSE mount stability | Extend FUSE mount test coverage, handle network interruptions gracefully, add reconnection logic | 5 days |
+| CL-003 | P1 | iOS Files Provider | Implement iOS Files Provider extension using `ferro-mobile-contract` API bindings | 15 days |
+| CL-004 | P1 | Android SAF | Implement Android Storage Access Framework provider using `ferro-mobile-contract` API bindings | 15 days |
+| CL-005 | P2 | CLI improvements | Add interactive mode, shell completions (bash/zsh/fish), and man page generation | 3 days |
+
+### v3.4 -- Production Operations
+
+**Objective:** Operational readiness for hosted/managed deployment.
+
+| # | Priority | Item | Description | Effort |
+|---|----------|------|-------------|--------|
+| OP-001 | P0 | Horizontal scaling guide | Document and test multi-node deployment with Raft consensus and load balancing | 3 days |
+| OP-002 | P0 | Backup and recovery | Automated backup workflow: SQLite checkpoint + CAS blob archive + point-in-time restore testing | 3 days |
+| OP-003 | P1 | Monitoring stack | Deploy Grafana dashboards for Prometheus metrics, Loki for log aggregation, alerting rules | 5 days |
+| OP-004 | P1 | Configuration validation | Add JSON Schema for `ferro.toml` with CLI validation (`--validate-config`) | 2 days |
+| OP-005 | P2 | Blue-green deployment | Document zero-downtime deployment strategy with database migration support | 2 days |
+| OP-006 | P2 | Rate limiting per-tenant | Extend `ferro-rate-limiter` with tenant-aware quotas in multi-tenant mode | 3 days |
+
+### v4.0 -- Advanced Features
+
+**Objective:** Differentiating features that establish Ferro as a platform.
+
+| # | Priority | Item | Description | Effort |
+|---|----------|------|-------------|--------|
+| AF-001 | P1 | Real-time collaboration UI | Wire `ferro-crdt` into the web UI for live document co-editing with conflict resolution visualization | 15 days |
+| AF-002 | P1 | AI semantic search | Wire `ferro-ai` embeddings into search API with vector similarity ranking alongside full-text | 10 days |
+| AF-003 | P2 | Plugin SDK | Define stable WASM plugin ABI for third-party extensions (custom protocols, storage backends, auth providers) | 10 days |
+| AF-004 | P2 | Webhook delivery improvements | Add delivery retry with exponential backoff, dead letter queue, and delivery status API | 3 days |
+| AF-005 | P3 | ActivityPub federation polish | Complete inbox/outbox handling, object resolution, and following workflow between Ferro instances | 10 days |
+
+### Milestone Timeline
+
+| Version | Target Date | Key Deliverables |
+|---------|-------------|------------------|
+| v3.0.1 | Current | Audit fixes, dead code removal, XSS fix, a11y improvements |
+| v3.1 | +4 weeks | TD-029..TD-035 (quality hardening) |
+| v3.2 | +10 weeks | PF-001..PF-006 (performance, Raft, PostgreSQL) |
+| v3.3 | +18 weeks | CL-001..CL-005 (desktop, FUSE, mobile) |
+| v3.4 | +22 weeks | OP-001..OP-006 (operations, monitoring, scaling) |
+| v4.0 | +30 weeks | AF-001..AF-005 (collaboration, AI, plugin SDK) |
+
+### Risk Register (Updated)
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Leptos 0.7 breaking changes | Medium | Medium | Pin leptos version; plan migration window in v3.1 |
+| WASM plugin ABI instability | High | Low (future feature) | Design with versioned ABI from start (v4.0) |
+| Performance regression with SQLite at scale | Medium | High | Recommend PostgreSQL for >100 concurrent users (PF-001) |
+| Tauri GTK4 migration delayed | Medium | Low (desktop-only) | Server/core unaffected; continue with GTK3 |
+| Raft consensus complexity | High | High | Incremental rollout; single-node mode remains default |
