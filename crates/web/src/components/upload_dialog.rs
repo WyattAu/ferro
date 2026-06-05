@@ -7,11 +7,11 @@ use crate::components::toast::ToastContext;
 #[component]
 pub fn UploadDialog(
     /// Whether the dialog is visible.
-    open: Signal<bool>,
+    open: ReadSignal<bool>,
     /// Setter for dialog visibility.
     set_open: WriteSignal<bool>,
     /// Current directory path (where files will be uploaded).
-    current_path: Signal<String>,
+    current_path: ReadSignal<String>,
     /// Callback invoked after successful upload(s).
     on_uploaded: Callback<()>,
 ) -> impl IntoView {

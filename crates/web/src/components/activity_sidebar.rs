@@ -7,7 +7,7 @@ use crate::api;
 #[component]
 pub fn ActivitySidebar(
     /// Whether the sidebar is visible.
-    open: Signal<bool>,
+    open: ReadSignal<bool>,
     /// Setter for sidebar visibility.
     set_open: WriteSignal<bool>,
 ) -> impl IntoView {

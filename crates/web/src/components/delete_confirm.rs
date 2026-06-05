@@ -4,7 +4,7 @@ use leptos::*;
 #[component]
 pub fn DeleteConfirmDialog(
     /// Whether the dialog is visible.
-    open: Signal<bool>,
+    open: ReadSignal<bool>,
     /// Setter for dialog visibility.
     set_open: WriteSignal<bool>,
     /// Number of items to be deleted (displayed in the message).

@@ -10,13 +10,13 @@ pub fn PathDialog(
     /// Action button label (e.g. "Move" or "Copy").
     action_label: &'static str,
     /// Whether the dialog is visible.
-    open: Signal<bool>,
+    open: ReadSignal<bool>,
     /// Setter for dialog visibility.
     set_open: WriteSignal<bool>,
     /// Source path display signal.
-    source: Signal<String>,
+    source: ReadSignal<String>,
     /// Destination path input signal.
-    dest: Signal<String>,
+    dest: ReadSignal<String>,
     /// Setter for destination path input.
     set_dest: WriteSignal<String>,
     /// Called when the user confirms the action (source, dest).

@@ -8,7 +8,7 @@ use crate::components::toast::ToastContext;
 #[component]
 pub fn ShareDialog(
     /// Whether the dialog is visible.
-    open: Signal<bool>,
+    open: ReadSignal<bool>,
     /// Setter for dialog visibility.
     set_open: WriteSignal<bool>,
 ) -> impl IntoView {
