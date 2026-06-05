@@ -8,7 +8,6 @@ pub mod file_row;
 pub mod grid_view;
 pub mod header;
 pub mod onboarding;
-pub mod search_results;
 pub mod skeleton;
 pub mod theme_toggle;
 pub mod toast;
