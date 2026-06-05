@@ -185,7 +185,7 @@ fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<FileEntry> {
             });
 
         let is_dir = prop.map_or(false, |p| {
-            p.children()
+            p.descendants()
                 .any(|n| n.is_element() && n.tag_name().name() == "collection")
         });
 
@@ -577,8 +577,10 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     }
                     #[cfg(all(feature = "sync", feature = "tauri"))]
                     "sync_now" => {
-                        let state = app.state::<DesktopState>();
+                        use tauri::Manager;
+                        let handle = app.clone();
                         tokio::spawn(async move {
+                            let state = handle.state::<DesktopState>();
                             if let Err(e) = state.sync_now().await {
                                 tracing::error!("manual sync failed: {}", e);
                             }
@@ -605,9 +607,10 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             // Auto-start sync if configured
             #[cfg(all(feature = "sync", feature = "tauri"))]
             {
-                let state = app.state::<DesktopState>();
+                use tauri::Manager;
                 let handle = app.handle().clone();
                 tokio::spawn(async move {
+                    let state = handle.state::<DesktopState>();
                     let config = state.config.read().await;
                     let should_start = config.sync_interval_secs > 0
                         && !config.username.is_empty()
@@ -620,7 +623,6 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                             tracing::warn!("auto-start sync failed: {}", e);
                         }
                     }
-                    let _ = handle;
                 });
             }
 

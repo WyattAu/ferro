@@ -18,6 +18,7 @@ fn test_progress_tracking_realistic_counts() {
     #[cfg(feature = "sync")]
     {
         use ferro_desktop::sync::progress::SyncProgress;
+        use std::sync::atomic::Ordering;
 
         let progress = SyncProgress::new();
         progress.total_files.store(1_000_000, Ordering::SeqCst);
@@ -78,13 +79,13 @@ fn test_sync_state_persistence_round_trip() {
         state.insert(SyncEntry {
             relative_path: "documents/report.pdf".to_string(),
             is_dir: false,
-            local_hash: "hash_local_1".to_string(),
-            remote_hash: "hash_remote_1".to_string(),
+            local_hash: "hash_synced".to_string(),
+            remote_hash: "hash_synced".to_string(),
             local_size: 1024,
             remote_size: 1024,
             local_mtime_ms: 1000,
             remote_mtime_ms: 1000,
-            last_synced_hash: "hash_local_1".to_string(),
+            last_synced_hash: "hash_synced".to_string(),
             last_synced_ms: 1000,
             local_deleted: false,
             remote_deleted: false,
@@ -119,7 +120,7 @@ fn test_sync_state_persistence_round_trip() {
 
         state.mark_local_deleted("documents/report.pdf");
         assert_eq!(
-            loaded.get("documents/report.pdf").unwrap().status(),
+            state.get("documents/report.pdf").unwrap().status(),
             ferro_desktop::sync::types::FileSyncStatus::LocalDeleted
         );
 
