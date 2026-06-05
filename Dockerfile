@@ -8,14 +8,24 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Add wasm32 target for WASM frontend build
+RUN rustup target add wasm32-unknown-unknown
+
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY migrations/ migrations/
 
-# Cache cargo registry and git deps, but NOT the target directory
-# (build output must persist for COPY --from=builder)
+# Install trunk for WASM build
+RUN cargo install trunk --version 0.21.14 --locked
+
+# Build WASM frontend first (trunk needs wasm32 target)
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    trunk build --release --dist crates/web/dist
+
+# Build server and CLI binaries
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     cargo build --release --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}"
@@ -34,6 +44,7 @@ WORKDIR /app
 
 COPY --from=builder --chown=ferro:ferro /app/target/release/ferro-server /app/ferro-server
 COPY --from=builder --chown=ferro:ferro /app/target/release/ferro-cli   /app/ferro-cli
+COPY --from=builder --chown=ferro:ferro /app/crates/web/dist           /app/ui
 
 RUN mkdir -p /data && chown ferro:ferro /data
 
