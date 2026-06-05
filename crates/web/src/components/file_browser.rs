@@ -2,15 +2,21 @@ use leptos::*;
 use leptos_router::A;
 
 use crate::api;
+use crate::components::activity_sidebar::ActivitySidebar;
 use crate::components::clipboard::{ClipboardAction, use_clipboard_state};
 use crate::components::command_palette::{Command, use_command_palette_state};
+use crate::components::delete_confirm::DeleteConfirmDialog;
 use crate::components::file_preview::FilePreview;
 use crate::components::file_row::FileRow;
 use crate::components::grid_view::GridView;
 use crate::components::header::use_header_state;
+use crate::components::new_folder_dialog::NewFolderDialog;
+use crate::components::path_dialog::PathDialog;
+use crate::components::share_dialog::ShareDialog;
 use crate::components::skeleton::{SkeletonFavorites, SkeletonGrid, SkeletonList, SkeletonRecent};
 use crate::components::theme_toggle::{Theme, use_theme_state};
 use crate::components::toast::ToastContext;
+use crate::components::upload_dialog::UploadDialog;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum BrowserTab {
@@ -50,17 +56,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let (loading, set_loading) = create_signal(false);
     let (error, set_error) = create_signal(None::<String>);
     let (show_new_folder, set_show_new_folder) = create_signal(false);
-    let (new_folder_name, set_new_folder_name) = create_signal(String::new());
     let (show_upload, set_show_upload) = create_signal(false);
     let (upload_drag, set_upload_drag) = create_signal(false);
     let (show_share_dialog, set_show_share_dialog) = create_signal(false);
-    let (share_path, set_share_path) = create_signal(String::new());
-    let (share_password, set_share_password) = create_signal(String::new());
-    let (share_expires, set_share_expires) = create_signal(String::from("168"));
-    let (share_url, set_share_url) = create_signal(String::new());
-    let (share_creating, set_share_creating) = create_signal(false);
-    let (share_error, set_share_error) = create_signal(String::new());
-    let (share_copied, set_share_copied) = create_signal(false);
     let (preview_file, set_preview_file) = create_signal(None::<api::FileEntry>);
     let (active_tab, set_active_tab) = create_signal(BrowserTab::Files);
     let (favorites, set_favorites) = create_signal::<Vec<String>>(vec![]);
@@ -75,15 +73,16 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let (select_mode, set_select_mode) = create_signal(false);
     let (last_clicked_index, set_last_clicked_index) = create_signal(None::<usize>);
 
+    let (show_activity, set_show_activity) = create_signal(false);
+    let (show_delete_confirm, set_show_delete_confirm) = create_signal(false);
+    // Move dialog signals (owned here, passed to PathDialog)
     let (show_move_dialog, set_show_move_dialog) = create_signal(false);
     let (move_source, set_move_source) = create_signal(String::new());
     let (move_dest, set_move_dest) = create_signal(String::new());
+    // Copy dialog signals (owned here, passed to PathDialog)
     let (show_copy_dialog, set_show_copy_dialog) = create_signal(false);
     let (copy_source, set_copy_source) = create_signal(String::new());
     let (copy_dest, set_copy_dest) = create_signal(String::new());
-    let (show_activity, set_show_activity) = create_signal(false);
-    let (activity_entries, set_activity_entries) = create_signal::<Vec<api::ActivityEntry>>(vec![]);
-    let (show_delete_confirm, set_show_delete_confirm) = create_signal(false);
 
     let (view_mode, set_view_mode) = create_signal(ViewMode::List);
 
@@ -302,33 +301,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         }
     };
 
-    let do_create_folder = move |_: ev::MouseEvent| {
-        let name = new_folder_name.get();
-        if name.is_empty() {
-            return;
-        }
-        let path = current_path.get();
-        let folder_path = if path == "/" {
-            format!("/{}", name)
-        } else {
-            format!("{}/{}", path, name)
-        };
-        let fp = folder_path.clone();
-        spawn_local(async move {
-            match api::create_directory(&fp).await {
-                Ok(()) => {
-                    set_show_new_folder.set(false);
-                    set_new_folder_name.set(String::new());
-                    ToastContext::success("Folder created");
-                    reload();
-                }
-                Err(e) => {
-                    set_error.set(Some(format!("Create folder failed: {}", e)));
-                    ToastContext::error(format!("Failed to create folder: {}", e));
-                }
-            }
-        });
-    };
+    // Folder creation is now handled by NewFolderDialog component with on_created callback
 
     let do_delete = move |path: String| {
         spawn_local(async move {
@@ -351,61 +324,13 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     };
 
-    let do_share = move |path: String| {
-        set_share_path.set(path);
-        set_share_password.set(String::new());
-        set_share_expires.set(String::from("168"));
-        set_share_url.set(String::new());
-        set_share_error.set(String::new());
-        set_share_copied.set(false);
+    // Share dialog opens via context handle (ShareDialogHandle.open_for)
+    let do_share = move |_path: String| {
         set_show_share_dialog.set(true);
+        // ShareDialogHandle will be available after component mounts via provide_context
     };
 
-    let do_create_share = move |_: ev::MouseEvent| {
-        let path = share_path.get();
-        let password = share_password.get();
-        let expires_str = share_expires.get();
-        let pw = if password.is_empty() {
-            None
-        } else {
-            Some(password)
-        };
-        let expires: u32 = expires_str.parse().unwrap_or(168);
-        set_share_creating.set(true);
-        set_share_error.set(String::new());
-        spawn_local(async move {
-            let pw_ref = pw.as_deref();
-            match api::create_share(&path, pw_ref, Some(expires)).await {
-                Ok(resp) => {
-                    set_share_url.set(resp.url);
-                    set_share_creating.set(false);
-                    ToastContext::success("Share link created");
-                }
-                Err(e) => {
-                    let err_msg = e.clone();
-                    set_share_error.set(e);
-                    set_share_creating.set(false);
-                    ToastContext::error(format!("Share creation failed: {}", err_msg));
-                }
-            }
-        });
-    };
-
-    let do_copy_share_url = move |_: ev::MouseEvent| {
-        let url = share_url.get();
-        if !url.is_empty()
-            && let Some(window) = web_sys::window()
-        {
-            let nav = window.navigator();
-            let clipboard = nav.clipboard();
-            wasm_bindgen_futures::spawn_local(async move {
-                let _ = wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&url)).await;
-            });
-            set_share_copied.set(true);
-            ToastContext::info("Link copied to clipboard");
-        }
-    };
-
+    // do_upload_files remains here because it is also used by drag-and-drop on the container
     let do_upload_files = move |file_list: web_sys::FileList| {
         let path = current_path.get();
         let count = file_list.length();
@@ -457,20 +382,6 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         set_upload_drag.set(false);
         if let Some(dt) = ev.data_transfer()
             && let Some(files) = web_sys::DataTransfer::files(&dt)
-        {
-            do_upload_files(files);
-        }
-    };
-
-    let handle_file_input = move |ev: ev::Event| {
-        set_show_upload.set(false);
-        let target = ev.target();
-        let input: Option<web_sys::HtmlInputElement> = target.and_then(|t| {
-            use wasm_bindgen::JsCast;
-            t.dyn_into::<web_sys::HtmlInputElement>().ok()
-        });
-        if let Some(input) = input
-            && let Some(files) = web_sys::HtmlInputElement::files(&input)
         {
             do_upload_files(files);
         }
@@ -658,7 +569,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
     let selected_count = move || selected_paths.with(|s| s.len());
 
-    let do_bulk_delete_fn = move || {
+    let do_bulk_delete = move |_: ev::MouseEvent| {
+        set_show_delete_confirm.set(true);
+    };
+
+    let on_delete_confirm = Callback::new(move |_: ev::MouseEvent| {
         let paths: Vec<String> = selected_paths.get().into_iter().collect();
         if paths.is_empty() {
             return;
@@ -681,16 +596,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 }
             }
         });
-    };
-
-    let do_bulk_delete = move |_: ev::MouseEvent| {
-        set_show_delete_confirm.set(true);
-    };
-
-    let do_confirmed_delete = move |_: ev::MouseEvent| {
-        set_show_delete_confirm.set(false);
-        do_bulk_delete_fn();
-    };
+    });
 
     let do_bulk_download = move |_: ev::MouseEvent| {
         let paths: Vec<String> = selected_paths.get().into_iter().collect();
@@ -765,20 +671,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let is_entry_selected =
         move |path: String| -> bool { selected_paths.with(|s| s.contains(&path)) };
 
-    let load_activity = move || {
-        spawn_local(async move {
-            match api::get_activity(20, 0).await {
-                Ok(resp) => set_activity_entries.set(resp.entries),
-                Err(_) => set_activity_entries.set(vec![]),
-            }
-        });
-    };
-
-    create_effect(move |_| {
-        if show_activity.get() {
-            load_activity();
-        }
-    });
+    // Activity loading is now handled by ActivitySidebar component
 
     let toggle_activity = move |_: ev::MouseEvent| {
         set_show_activity.update(|v| *v = !*v);
@@ -1049,13 +942,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         set_show_copy_dialog.set(true);
     };
 
-    let execute_move = move |_: ev::MouseEvent| {
-        let source = move_source.get();
-        let dest = move_dest.get();
-        if dest.is_empty() {
-            ToastContext::error("Destination path cannot be empty");
-            return;
-        }
+    // PathDialog on_confirm callbacks handle the actual API calls
+    let on_move_confirm = Callback::new(move |(source, dest): (String, String)| {
         let s = source.clone();
         let d = dest.clone();
         spawn_local(async move {
@@ -1068,15 +956,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 Err(e) => ToastContext::error(format!("Move failed: {}", e)),
             }
         });
-    };
+    });
 
-    let execute_copy = move |_: ev::MouseEvent| {
-        let source = copy_source.get();
-        let dest = copy_dest.get();
-        if dest.is_empty() {
-            ToastContext::error("Destination path cannot be empty");
-            return;
-        }
+    let on_copy_confirm = Callback::new(move |(source, dest): (String, String)| {
         let s = source.clone();
         let d = dest.clone();
         spawn_local(async move {
@@ -1089,7 +971,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 Err(e) => ToastContext::error(format!("Copy failed: {}", e)),
             }
         });
-    };
+    });
+
+    let on_created = Callback::new(move |_: ()| reload());
+    let on_uploaded = Callback::new(move |_: ()| reload());
 
     let grid_cb_navigate = Callback::new(navigate);
     let grid_cb_delete = Callback::new(do_delete);
@@ -1303,199 +1188,30 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                </div>
            })}
 
-           // New folder dialog
-           {move || show_new_folder.get().then(|| view! {
-               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                   on:keydown=move |ev: ev::KeyboardEvent| {
-                       if ev.key() == "Escape" {
-                           set_show_new_folder.set(false);
-                       }
-                   }
-               >
-                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                       role="dialog"
-                       aria-modal="true"
-                       aria-labelledby="new-folder-title"
-                       tabindex="-1"
-                   >
-                       <h3 id="new-folder-title" class="text-section font-mono text-gray-900 mb-4">"New Folder"</h3>
-                       <label class="block mb-4">
-                           <span class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Folder name"</span>
-                           <input
-                               type="text"
-                               placeholder="Folder name"
-                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               prop:value=new_folder_name
-                               on:input=move |ev| set_new_folder_name.set(event_target_value(&ev))
-                           />
-                       </label>
-                       <div class="flex justify-end gap-2">
-                           <button
-                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                               on:click=move |_| set_show_new_folder.set(false)
-                           >
-                               "Cancel"
-                           </button>
-                           <button
-                               class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                               on:click=do_create_folder
-                           >
-                               "Create"
-                           </button>
-                       </div>
-                   </div>
-               </div>
-           })}
+            // New folder dialog (extracted component)
+            <NewFolderDialog
+                open=show_new_folder
+                set_open=set_show_new_folder
+                current_path=current_path
+                on_created=on_created
+            />
 
-           // Upload dialog
-           {move || show_upload.get().then(|| view! {
-               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                   on:keydown=move |ev: ev::KeyboardEvent| {
-                       if ev.key() == "Escape" {
-                           set_show_upload.set(false);
-                       }
-                   }
-               >
-                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                       role="dialog"
-                       aria-modal="true"
-                       aria-labelledby="upload-title"
-                       tabindex="-1"
-                   >
-                       <h3 id="upload-title" class="text-section font-mono text-gray-900 mb-4">"Upload File"</h3>
-                       <label class="block w-full border-2 border-dashed border-gray-300 rounded p-8 text-center cursor-pointer hover:border-blue-400 transition-colors">
-                           <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                           </svg>
-                           <p id="upload-file-hint" class="text-sm text-gray-600">"Click to select files or drag and drop"</p>
-                           <input
-                               type="file"
-                               class="hidden"
-                               multiple
-                               aria-describedby="upload-file-hint"
-                               on:change=handle_file_input
-                           />
-                       </label>
-                       <div class="flex justify-end mt-4">
-                           <button
-                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                               on:click=move |_| set_show_upload.set(false)
-                           >
-                               "Close"
-                           </button>
-                       </div>
-                   </div>
-               </div>
-           })}
+            // Upload dialog (extracted component)
+            <UploadDialog
+                open=show_upload
+                set_open=set_show_upload
+                current_path=current_path
+                on_uploaded=on_uploaded
+            />
 
-           // Share dialog
-           {move || show_share_dialog.get().then(|| view! {
-               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                   on:keydown=move |ev: ev::KeyboardEvent| {
-                       if ev.key() == "Escape" {
-                           set_show_share_dialog.set(false);
-                       }
-                   }
-               >
-                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                       role="dialog"
-                       aria-modal="true"
-                       aria-labelledby="share-title"
-                       tabindex="-1"
-                   >
-                       <div class="flex items-center justify-between mb-4">
-                           <h3 id="share-title" class="text-lg font-semibold text-gray-900">"Share File"</h3>
-                           <button
-                               class="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                               aria-label="Close dialog"
-                               on:click=move |_| set_show_share_dialog.set(false)
-                           >
-                               <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                               </svg>
-                           </button>
-                       </div>
+            // Share dialog (extracted component)
+            <ShareDialog
+                open=show_share_dialog
+                set_open=set_show_share_dialog
+            />
 
-                       <div class="mb-4">
-                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Path"</label>
-                           <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
-                               {share_path}
-                           </div>
-                       </div>
-
-                       <div class="mb-4">
-                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Password (optional)"</label>
-                           <input
-                               type="password"
-                               placeholder="Leave empty for no password"
-                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                               prop:value=share_password
-                               on:input=move |ev| set_share_password.set(event_target_value(&ev))
-                           />
-                       </div>
-
-                       <div class="mb-4">
-                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Expires"</label>
-                           <select
-                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                               on:change=move |ev| set_share_expires.set(event_target_value(&ev))
-                           >
-                               <option value="1" selected=move || share_expires.get() == "1">"1 hour"</option>
-                               <option value="24" selected=move || share_expires.get() == "24">"24 hours"</option>
-                               <option value="168" selected=move || share_expires.get() == "168">"7 days"</option>
-                               <option value="720" selected=move || share_expires.get() == "720">"30 days"</option>
-                           </select>
-                       </div>
-
-                       {move || (!share_error.get().is_empty()).then(|| view! {
-                           <div class="mb-4 p-2 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
-                               {share_error}
-                           </div>
-                       })}
-
-                       {move || (!share_url.get().is_empty()).then(|| view! {
-                           <div class="mb-4">
-                               <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Share URL"</label>
-                               <div class="flex items-center gap-2">
-                                   <input
-                                       type="text"
-                                       readonly
-                                       class="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 font-mono"
-                                       prop:value=share_url
-                                   />
-                                   <button
-                                       class="px-3 py-2 text-sm bg-green-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-green-700 transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                       on:click=do_copy_share_url
-                                   >
-                                       {move || if share_copied.get() { "Copied!" } else { "Copy" }}
-                                   </button>
-                               </div>
-                           </div>
-                       })}
-
-                       <div class="flex justify-end gap-2">
-                           <button
-                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                               on:click=move |_| set_show_share_dialog.set(false)
-                           >
-                               "Close"
-                           </button>
-                           {move || share_url.get().is_empty().then(|| view! {
-                               <button
-                                   class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                   disabled=share_creating
-                                   on:click=do_create_share
-                               >
-                                   {move || if share_creating.get() { "Creating..." } else { "Create Share" }}
-                               </button>
-                           })}
-                       </div>
-                   </div>
-               </div>
-           })}
-
-           // Error display
-           {move || error.get().map(|e| view! {
+            // Error display
+            {move || error.get().map(|e| view! {
                <div class="bg-red-50 border-b border-l-4 border-l-red-500 px-6 py-3" role="alert" aria-live="assertive">
                    <div class="flex items-center justify-between">
                        <span class="text-red-700 text-sm">"Error: " {e}</span>
@@ -1830,192 +1546,51 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                </div>
            })}
 
-           // Move dialog
-           {move || show_move_dialog.get().then(|| view! {
-               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                   on:keydown=move |ev: ev::KeyboardEvent| {
-                       if ev.key() == "Escape" { set_show_move_dialog.set(false); }
-                   }
-               >
-                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                       role="dialog"
-                       aria-modal="true"
-                       tabindex="-1"
-                   >
-                       <h3 class="text-section font-mono text-gray-900 mb-4">"Move File"</h3>
-                       <div class="mb-4">
-                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Source"</label>
-                           <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
-                               {move_source}
-                           </div>
-                       </div>
-                       <div class="mb-4">
-                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Destination"</label>
-                           <input
-                               type="text"
-                               placeholder="/new/path/file.txt"
-                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               prop:value=move_dest
-                               on:input=move |ev| set_move_dest.set(event_target_value(&ev))
-                           />
-                       </div>
-                       <div class="flex justify-end gap-2">
-                           <button
-                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                               on:click=move |_| set_show_move_dialog.set(false)
-                           >"Cancel"</button>
-                           <button
-                               class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                               on:click=execute_move
-                           >"Move"</button>
-                       </div>
-                   </div>
-               </div>
-           })}
+            // Move dialog (extracted PathDialog component)
+            <PathDialog
+                title="Move File"
+                action_label="Move"
+                open=show_move_dialog
+                set_open=set_show_move_dialog
+                source=move_source
+                dest=move_dest
+                set_dest=set_move_dest
+                on_confirm=on_move_confirm
+            />
 
-           // Copy dialog
-           {move || show_copy_dialog.get().then(|| view! {
-               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                   on:keydown=move |ev: ev::KeyboardEvent| {
-                       if ev.key() == "Escape" { set_show_copy_dialog.set(false); }
-                   }
-               >
-                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                       role="dialog"
-                       aria-modal="true"
-                       tabindex="-1"
-                   >
-                       <h3 class="text-section font-mono text-gray-900 mb-4">"Copy File"</h3>
-                       <div class="mb-4">
-                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Source"</label>
-                           <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
-                               {copy_source}
-                           </div>
-                       </div>
-                       <div class="mb-4">
-                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Destination"</label>
-                           <input
-                               type="text"
-                               placeholder="/new/path/copy.txt"
-                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               prop:value=copy_dest
-                               on:input=move |ev| set_copy_dest.set(event_target_value(&ev))
-                           />
-                       </div>
-                       <div class="flex justify-end gap-2">
-                           <button
-                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                               on:click=move |_| set_show_copy_dialog.set(false)
-                           >"Cancel"</button>
-                           <button
-                               class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                               on:click=execute_copy
-                           >"Copy"</button>
-                       </div>
-                   </div>
-               </div>
-           })}
+            // Copy dialog (extracted PathDialog component)
+            <PathDialog
+                title="Copy File"
+                action_label="Copy"
+                open=show_copy_dialog
+                set_open=set_show_copy_dialog
+                source=copy_source
+                dest=copy_dest
+                set_dest=set_copy_dest
+                on_confirm=on_copy_confirm
+            />
 
-           // File preview modal
-           {move || preview_file.get().map(|file| view! {
-               <FilePreview
-                   file=file
-                   on_close=Callback::new(close_preview)
-               />
-           })}
+            // File preview modal
+            {move || preview_file.get().map(|file| view! {
+                <FilePreview
+                    file=file
+                    on_close=Callback::new(close_preview)
+                />
+            })}
 
-           // Delete confirmation dialog
-           {move || show_delete_confirm.get().then(|| view! {
-               <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 transition-opacity duration-200"
-                   on:keydown=move |ev: ev::KeyboardEvent| {
-                       if ev.key() == "Escape" {
-                           set_show_delete_confirm.set(false);
-                       }
-                   }
-               >
-                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                       role="dialog"
-                       aria-modal="true"
-                       aria-labelledby="delete-confirm-title"
-                       tabindex="-1"
-                   >
-                       <h3 id="delete-confirm-title" class="text-lg font-semibold text-gray-900 mb-2">"Confirm Delete"</h3>
-                       <p class="text-sm text-gray-600 mb-6">
-                           {move || format!("Are you sure you want to delete {} file(s)? This action cannot be undone.", selected_count())}
-                       </p>
-                       <div class="flex justify-end gap-2">
-                           <button
-                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
-                               on:click=move |_| set_show_delete_confirm.set(false)
-                           >
-                               "Cancel"
-                           </button>
-                           <button
-                               class="px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
-                               on:click=do_confirmed_delete
-                           >
-                               "Delete"
-                           </button>
-                       </div>
-                   </div>
-               </div>
-           })}
-       </div>
+            // Delete confirmation dialog (extracted component)
+            <DeleteConfirmDialog
+                open=show_delete_confirm
+                set_open=set_show_delete_confirm
+                count=Signal::derive(move || selected_paths.with(|s| s.len()))
+                on_confirm=on_delete_confirm
+            />
+        </div>
 
-       // Activity sidebar
-       {move || show_activity.get().then(|| view! {
-           <div class="w-72 brutal-border border-l surface overflow-y-auto transition-all duration-200">
-               <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                   <h3 class="text-label font-mono text-gray-900">"Activity"</h3>
-                   <button
-                       class="p-1 text-gray-400 hover:text-gray-600 rounded"
-                       on:click=move |_| set_show_activity.set(false)
-                       aria-label="Close activity panel"
-                   >
-                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                   </button>
-               </div>
-               <div class="p-4 space-y-3">
-                   <For
-                       each=move || activity_entries.get()
-                       key=|e| format!("{}{}", e.timestamp.clone(), e.path.clone())
-                       let:entry
-                   >
-                       {
-                           let action = entry.action.clone();
-                           let entry_path = entry.path.clone();
-                           let entry_ts = entry.timestamp.clone();
-                           let file_name = entry_path.rsplit('/').next().unwrap_or(&entry_path).to_string();
-                           let ts_display = if entry_ts.len() >= 19 { entry_ts[..19].to_string() } else { entry_ts };
-                           view! {
-                               <div class="flex items-start gap-2">
-                                   <span class="text-base mt-0.5 shrink-0 font-mono">
-                                       {match action.as_str() {
-                                           "upload" => "\u{2191}",
-                                           "delete" => "\u{2715}",
-                                           "create_folder" => "\u{2192}",
-                                           "copy" => "\u{2295}",
-                                           "move" => "\u{2192}",
-                                           _ => "\u{2022}",
-                                       }}
-                                   </span>
-                                   <div class="min-w-0">
-                                       <div class="text-sm font-mono text-gray-900 truncate" title=entry_path.clone()>
-                                           {file_name}
-                                       </div>
-                                       <div class="text-xs text-gray-500 font-mono">
-                                           {action} " " {ts_display}
-                                       </div>
-                                   </div>
-                               </div>
-                           }
-                       }
-                   </For>
-                   {move || activity_entries.with(Vec::is_empty).then(|| view! {
-                       <div class="text-sm text-gray-500 text-center py-4">"No recent activity"</div>
-                   })}
-                </div>
-            </div>
-        })}
+        // Activity sidebar (extracted component)
+        <ActivitySidebar
+            open=show_activity
+            set_open=set_show_activity
+        />
     }
 }
