@@ -207,7 +207,7 @@ pub fn start_login() {
                 }
             }
             Err(e) => {
-                tracing::warn!("Login failed: {}", e);
+                web_sys::console::warn_1(&format!("Login failed: {}", e).into());
             }
         }
     });
@@ -238,7 +238,7 @@ pub fn handle_callback(state: &AuthState, code: &str, query_state: &str) {
                 }
             }
             Err(e) => {
-                tracing::warn!("Auth callback failed: {}", e);
+                web_sys::console::warn_1(&format!("Auth callback failed: {}", e).into());
             }
         }
     });
