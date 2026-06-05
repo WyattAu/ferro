@@ -3,6 +3,7 @@ use leptos::*;
 use crate::api::{SearchFilters, SearchResultEntry};
 use crate::auth;
 use crate::components::theme_toggle::ThemeToggle;
+use ferro_common::format::format_size;
 use leptos_router::A;
 
 #[derive(Clone, Copy)]
@@ -231,7 +232,7 @@ pub fn Header() -> impl IntoView {
     let has_searched = move || search_total.get() > 0 || !search_results.with(Vec::is_empty);
 
     view! {
-        <header class="surface border-b px-4 sm:px-6 py-3 shadow-concrete">
+        <header class="fixed top-0 left-0 right-0 w-full z-30 surface border-b px-4 sm:px-6 py-3 shadow-concrete">
             <div class="flex items-center justify-between max-w-7xl mx-auto">
                 <div class="flex items-center gap-3">
                     <A href="/" class="flex items-center gap-3 no-underline">
@@ -348,6 +349,7 @@ pub fn Header() -> impl IntoView {
                                 type="text"
                                 id="header-search-input"
                                 placeholder="Search files..."
+                                attr:aria-label="Search files"
                                 class="w-full px-4 py-2 pl-10 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                                 prop:value=search_query
                                 on:input=on_search_input
@@ -373,6 +375,7 @@ pub fn Header() -> impl IntoView {
                             <select
                                 class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                                 style="letter-spacing: 0.05em;"
+                                attr:aria-label="Filter by type"
                                 on:change=on_type_change
                             >
                                 <option value="" selected=move || filter_type.get().is_empty()>"All Types"</option>
@@ -382,6 +385,7 @@ pub fn Header() -> impl IntoView {
                             <select
                                 class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                                 style="letter-spacing: 0.05em;"
+                                attr:aria-label="Sort results by"
                                 on:change=on_sort_change
                             >
                                 <option value="" selected=move || filter_sort.get().is_empty()>"Relevance"</option>
@@ -439,31 +443,11 @@ fn QuotaIndicator(info: crate::api::QuotaInfo) -> impl IntoView {
     }
 }
 
-fn format_size(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = 1024 * KB;
-    const GB: u64 = 1024 * MB;
-    const TB: u64 = 1024 * GB;
-
-    if bytes < KB {
-        format!("{} B", bytes)
-    } else if bytes < MB {
-        format!("{:.1} KB", bytes as f64 / KB as f64)
-    } else if bytes < GB {
-        format!("{:.1} MB", bytes as f64 / MB as f64)
-    } else if bytes < TB {
-        format!("{:.1} GB", bytes as f64 / GB as f64)
-    } else {
-        format!("{:.1} TB", bytes as f64 / TB as f64)
-    }
-}
-
 #[component]
 fn SearchResultsList(
     results: ReadSignal<Vec<SearchResultEntry>>,
     query: ReadSignal<String>,
 ) -> impl IntoView {
-    let navigate = leptos_router::use_navigate();
     view! {
         {move || {
             let empty = results.with(Vec::is_empty);
@@ -482,16 +466,14 @@ fn SearchResultsList(
                     </div>
                 }.into_any();
             }
-            let nav = navigate.clone();
             view! {
-                <div class="surface brutal-border shadow-xl max-h-64 overflow-auto rounded-lg">
+                <div class="surface brutal-border shadow-xl max-h-64 overflow-auto rounded-lg" role="listbox" aria-label="Search results">
                     <For
                         each=move || results.get()
                         key=|r| r.path.clone()
                         let:result
                     >
                         {
-                            let _n = nav.clone();
                             let dir_path = result.path.clone();
                             let parent = dir_path.rfind('/').map(|i| &dir_path[..i]).unwrap_or("/");
                             view! {

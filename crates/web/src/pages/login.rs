@@ -6,7 +6,6 @@ use crate::components::theme_toggle::{ThemeToggle, provide_theme_state};
 
 #[component]
 pub fn LoginPage() -> impl IntoView {
-    let _state = auth::use_auth_state();
     provide_theme_state();
 
     let on_login = move |_: ev::MouseEvent| {

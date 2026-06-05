@@ -2,6 +2,7 @@ mod client;
 mod commands;
 
 use clap::{Parser, Subcommand};
+use ferro_common::format::format_size;
 use sha2::Digest;
 
 #[derive(Parser, Debug)]
@@ -547,18 +548,3 @@ async fn cmd_info(client: &client::FerroClient) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn format_size(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = 1024 * KB;
-    const GB: u64 = 1024 * MB;
-
-    if bytes < KB {
-        format!("{} B", bytes)
-    } else if bytes < MB {
-        format!("{:.1} KB", bytes as f64 / KB as f64)
-    } else if bytes < GB {
-        format!("{:.1} MB", bytes as f64 / MB as f64)
-    } else {
-        format!("{:.1} GB", bytes as f64 / GB as f64)
-    }
-}

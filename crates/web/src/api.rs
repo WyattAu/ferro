@@ -1268,10 +1268,24 @@ pub fn request_notification_permission() {}
 
 #[cfg(target_arch = "wasm32")]
 pub fn show_notification(title: &str, body: &str) {
+    // Sanitize: strip any characters that could break out of JS string literals
+    let sanitize = |s: &str| -> String {
+        s.chars()
+            .map(|c| match c {
+                '\\' => "\\\\".to_string(),
+                '\'' => "\\'".to_string(),
+                '"' => "\\\"".to_string(),
+                '\n' => "\\n".to_string(),
+                '\r' => "\\r".to_string(),
+                c if (c as u32) < 0x20 => format!("\\u{:04x}", c as u32),
+                c => c.to_string(),
+            })
+            .collect()
+    };
+    let safe_title = sanitize(title);
+    let safe_body = sanitize(body);
     let _ = js_sys::eval(&format!(
-        "if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {{ new Notification('{}', {{ body: '{}' }}); }}",
-        title.replace('\'', "\\'"),
-        body.replace('\'', "\\'")
+        "if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {{ new Notification('{safe_title}', {{ body: '{safe_body}' }}); }}"
     ));
 }
 

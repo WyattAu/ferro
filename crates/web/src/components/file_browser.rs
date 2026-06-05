@@ -224,8 +224,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             let observer =
                 web_sys::IntersectionObserver::new_with_options(callback_fn, &options).unwrap();
             observer.observe(&sentinel);
-            // Keep the closure alive for the lifetime of the effect
-            callback.forget();
+            leptos::on_cleanup(move || {
+                observer.disconnect();
+                drop(callback);
+            });
             Some(())
         });
     }
@@ -260,9 +262,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     };
 
-    let _initial = initial;
     create_effect(move |_| {
-        load_directory(_initial.clone());
+        load_directory(initial.clone());
     });
 
     let navigate = move |path: String| {
@@ -528,6 +529,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         }
     };
 
+    // Alive flag for polling loop cleanup on component unmount
+    let (alive, set_alive) = create_signal(true);
+
     create_effect(move |_| {
         load_locks();
     });
@@ -535,6 +539,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     create_effect(move |_| {
         spawn_local(async move {
             loop {
+                // Check if component is still mounted
+                if !alive.get() {
+                    break;
+                }
                 let promise = js_sys::Promise::new(&mut |resolve, _reject| {
                     let _ = web_sys::window().and_then(|w| {
                         w.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 10_000)
@@ -544,6 +552,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
                 load_locks();
             }
+        });
+        leptos::on_cleanup(move || {
+            set_alive.set(false);
         });
     });
 
@@ -911,11 +922,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let su = set_show_upload;
         let snf = set_show_new_folder;
         let sa = do_select_all;
-        let _sbd = do_bulk_delete_fn;
         let spf = set_preview_file;
         let ssp = set_selected_paths;
         let sdc = set_show_delete_confirm;
-        let _sact = set_show_activity;
         let cc = clipboard_copy_selected;
         let cx = clipboard_cut_selected;
         let cv = clipboard_paste;
@@ -1095,919 +1104,916 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let grid_cb_move = Callback::new(do_move);
 
     view! {
-        <div class="flex flex-1 overflow-hidden">
-        <div class="flex-1 overflow-auto"
-            _ref=scroll_container_ref
-            role="region"
-            aria-label="File list"
-            on:dragover=handle_drag_over
-            on:dragleave=handle_drag_leave
-            on:drop=handle_drop
-        >
-            // Toolbar
-            <div class="brutal-border border-b px-3 sm:px-6 py-3 surface shadow-concrete">
-                <div class="flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 min-w-0 flex-1">
-                        <button
-                            class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
-                            aria-label="Go to parent directory"
-                            on:click=go_up
-                            disabled=move || current_path.get() == "/"
-                        >
-                            <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
-                            </svg>
-                        </button>
+       <div
+           _ref=scroll_container_ref
+           role="region"
+           aria-label="File list"
+           on:dragover=handle_drag_over
+           on:dragleave=handle_drag_leave
+           on:drop=handle_drop
+       >
+           // Toolbar
+           <div class="brutal-border border-b px-3 sm:px-6 py-3 surface shadow-concrete sticky top-0 z-20 bg-white dark:bg-gray-800">
+               <div class="flex items-center justify-between gap-2">
+                   <div class="flex items-center gap-2 min-w-0 flex-1">
+                       <button
+                           class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+                           aria-label="Go to parent directory"
+                           on:click=go_up
+                           disabled=move || current_path.get() == "/"
+                       >
+                           <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                           </svg>
+                       </button>
 
-                        <nav aria-label="Breadcrumb" class="flex items-center gap-1 text-sm min-w-0 overflow-hidden">
-                            <ol class="flex items-center gap-1 list-none m-0 p-0 overflow-hidden">
-                                <For
-                                    each=breadcrumb_segments
-                                    key=|(path, _)| path.clone()
-                                    let:segment
-                                >
-                                    {
-                                        let (path, label) = segment;
-                                        let is_root = path == "/";
-                                        let p = path.clone();
-                                        let is_current = move || path == current_path.get();
-                                        view! {
-                                            <li class="flex items-center">
-                                                {(!is_root).then(|| view! {
-                                                    <span class="text-gray-500 mx-1" aria-hidden="true">"/"</span>
-                                                })}
-                                                <button
-                                                    class="text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded truncate max-w-[120px] sm:max-w-none"
-                                                    attr:aria-current=move || if is_current() { Some("page") } else { None }
-                                                    on:click=move |_| navigate(p.clone())
-                                                >
-                                                    {label}
-                                                </button>
-                                            </li>
-                                        }
-                                    }
-                                </For>
-                            </ol>
-                        </nav>
-                    </div>
+                       <nav aria-label="Breadcrumb" class="flex items-center gap-1 text-sm min-w-0 overflow-hidden">
+                           <ol class="flex items-center gap-1 list-none m-0 p-0 overflow-hidden">
+                               <For
+                                   each=breadcrumb_segments
+                                   key=|(path, _)| path.clone()
+                                   let:segment
+                               >
+                                   {
+                                       let (path, label) = segment;
+                                       let is_root = path == "/";
+                                       let p = path.clone();
+                                       let is_current = move || path == current_path.get();
+                                       view! {
+                                           <li class="flex items-center">
+                                               {(!is_root).then(|| view! {
+                                                   <span class="text-gray-500 mx-1" aria-hidden="true">"/"</span>
+                                               })}
+                                               <button
+                                                   class="text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded truncate max-w-[120px] sm:max-w-none"
+                                                   attr:aria-current=move || if is_current() { Some("page") } else { None }
+                                                   on:click=move |_| navigate(p.clone())
+                                               >
+                                                   {label}
+                                               </button>
+                                           </li>
+                                       }
+                                   }
+                               </For>
+                           </ol>
+                       </nav>
+                   </div>
 
-                    <div class="flex items-center gap-1 sm:gap-2 flex-wrap justify-end shrink-0">
-                        <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded p-0.5">
-                            <button
-                                class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                class=move || if active_tab.get() == BrowserTab::Files { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
-                                on:click=move |_| switch_tab(BrowserTab::Files)
-                            >
-                                "Files"
-                            </button>
-                            <button
-                                class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                class=move || if active_tab.get() == BrowserTab::Favorites { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
-                                on:click=move |_| switch_tab(BrowserTab::Favorites)
-                            >
-                                <span class="hidden sm:inline">"Favorites"</span>
-                                <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-                            </button>
-                            <button
-                                class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                class=move || if active_tab.get() == BrowserTab::Recent { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
-                                on:click=move |_| switch_tab(BrowserTab::Recent)
-                            >
-                                <span class="hidden sm:inline">"Recent"</span>
-                                <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            </button>
-                        </div>
+                   <div class="flex items-center gap-1 sm:gap-2 flex-wrap justify-end shrink-0">
+                       <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded p-0.5">
+                           <button
+                               class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               class=move || if active_tab.get() == BrowserTab::Files { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
+                               on:click=move |_| switch_tab(BrowserTab::Files)
+                           >
+                               "Files"
+                           </button>
+                           <button
+                               class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               class=move || if active_tab.get() == BrowserTab::Favorites { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
+                               on:click=move |_| switch_tab(BrowserTab::Favorites)
+                           >
+                               <span class="hidden sm:inline">"Favorites"</span>
+                               <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                           </button>
+                           <button
+                               class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               class=move || if active_tab.get() == BrowserTab::Recent { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
+                               on:click=move |_| switch_tab(BrowserTab::Recent)
+                           >
+                               <span class="hidden sm:inline">"Recent"</span>
+                               <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                           </button>
+                       </div>
 
-                        {move || clipboard_state.has_files().then(|| {
-                            let count = clipboard_state.file_count();
-                            let al = clipboard_state.action().map(|a| match a {
-                                ClipboardAction::Copy => "Copy",
-                                ClipboardAction::Cut => "Cut",
-                            }).unwrap_or_default();
-                            view! {
-                                <button
-                                    class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-green-600 text-white rounded-sm brutal-border font-bold uppercase hover:bg-green-700 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
-                                    on:click=move |_| clipboard_paste()
-                                    title=move || format!("{} file(s) on clipboard ({})", count, al)
-                                >
-                                    <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                    </svg>
-                                    <span class="hidden sm:inline">{move || format!("{} ({})", count, al)}</span>
-                                    <span class="sm:hidden">{count}</span>
-                                </button>
-                            }.into_any()
-                        })}
+                       {move || clipboard_state.has_files().then(|| {
+                           let count = clipboard_state.file_count();
+                           let al = clipboard_state.action().map(|a| match a {
+                               ClipboardAction::Copy => "Copy",
+                               ClipboardAction::Cut => "Cut",
+                           }).unwrap_or_default();
+                           view! {
+                               <button
+                                   class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-green-600 text-white rounded-sm brutal-border font-bold uppercase hover:bg-green-700 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                                   on:click=move |_| clipboard_paste()
+                                   title=move || format!("{} file(s) on clipboard ({})", count, al)
+                               >
+                                   <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                   </svg>
+                                   <span class="hidden sm:inline">{move || format!("{} ({})", count, al)}</span>
+                                   <span class="sm:hidden">{count}</span>
+                               </button>
+                           }.into_any()
+                       })}
 
-                        <button
-                            class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded-sm hover:bg-blue-700 brutal-border shadow-iron transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px] uppercase font-bold tracking-wider"
-                            aria-label="Upload files"
-                            on:click=move |_| set_show_upload.set(true)
-                        >
-                            <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span class="hidden sm:inline">"Upload"</span>
-                        </button>
-                        <button
-                            class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 rounded-sm brutal-border font-bold uppercase hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px] tracking-wider"
-                            aria-label="New folder"
-                            on:click=move |_| set_show_new_folder.set(true)
-                        >
-                            <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span class="hidden sm:inline">"New Folder"</span>
-                        </button>
-                        <A
-                            href="/ui/trash"
-                            class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100 transition-colors no-underline flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
-                            attr:aria-label="Trash"
-                        >
-                            <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            <span class="hidden sm:inline">"Trash"</span>
-                        </A>
+                       <button
+                           class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded-sm hover:bg-blue-700 brutal-border shadow-iron transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px] uppercase font-bold tracking-wider"
+                           aria-label="Upload files"
+                           on:click=move |_| set_show_upload.set(true)
+                       >
+                           <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                           </svg>
+                           <span class="hidden sm:inline">"Upload"</span>
+                       </button>
+                       <button
+                           class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 rounded-sm brutal-border font-bold uppercase hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px] tracking-wider"
+                           aria-label="New folder"
+                           on:click=move |_| set_show_new_folder.set(true)
+                       >
+                           <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                           </svg>
+                           <span class="hidden sm:inline">"New Folder"</span>
+                       </button>
+                       <A
+                           href="/ui/trash"
+                           class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100 transition-colors no-underline flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                           attr:aria-label="Trash"
+                       >
+                           <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                           </svg>
+                           <span class="hidden sm:inline">"Trash"</span>
+                       </A>
 
-                        // View mode toggle
-                        <button
-                            class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                            aria-label=move || if view_mode.get() == ViewMode::Grid { "Switch to list view" } else { "Switch to grid view" }
-                            title=move || if view_mode.get() == ViewMode::Grid { "List view" } else { "Grid view" }
-                            on:click=toggle_view_mode
-                        >
-                            {move || match view_mode.get() {
-                                ViewMode::List => view! {
-                                    <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                                    </svg>
-                                }.into_any(),
-                                ViewMode::Grid => view! {
-                                    <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                                    </svg>
-                                }.into_any(),
-                            }}
-                        </button>
+                       // View mode toggle
+                       <button
+                           class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                           aria-label=move || if view_mode.get() == ViewMode::Grid { "Switch to list view" } else { "Switch to grid view" }
+                           title=move || if view_mode.get() == ViewMode::Grid { "List view" } else { "Grid view" }
+                           on:click=toggle_view_mode
+                       >
+                           {move || match view_mode.get() {
+                               ViewMode::List => view! {
+                                   <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                   </svg>
+                               }.into_any(),
+                               ViewMode::Grid => view! {
+                                   <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                   </svg>
+                               }.into_any(),
+                           }}
+                       </button>
 
-                        <button
-                            class=move || format!(
-                                "p-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center {}",
-                                if select_mode.get() { "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" } else { "text-gray-500 hover:text-gray-700 hover:bg-gray-100" }
-                            )
-                            aria-label="Toggle select mode"
-                            aria_pressed=move || select_mode.get()
-                            on:click=toggle_select_mode
-                        >
-                            <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                            </svg>
-                        </button>
-                        <button
-                            class=move || format!(
-                                "p-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-200 {}",
-                                if show_activity.get() { "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" } else { "text-gray-500 hover:text-gray-700 hover:bg-gray-100" }
-                            )
-                            aria-label="Toggle activity panel"
-                            on:click=toggle_activity
-                        >
-                            <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
+                       <button
+                           class=move || format!(
+                               "p-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center {}",
+                               if select_mode.get() { "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" } else { "text-gray-500 hover:text-gray-700 hover:bg-gray-100" }
+                           )
+                           aria-label="Toggle select mode"
+                           aria_pressed=move || select_mode.get()
+                           on:click=toggle_select_mode
+                       >
+                           <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                           </svg>
+                       </button>
+                       <button
+                           class=move || format!(
+                               "p-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-200 {}",
+                               if show_activity.get() { "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" } else { "text-gray-500 hover:text-gray-700 hover:bg-gray-100" }
+                           )
+                           aria-label="Toggle activity panel"
+                           on:click=toggle_activity
+                       >
+                           <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                           </svg>
+                       </button>
+                   </div>
+               </div>
+           </div>
 
-            // Drag overlay
-            {move || upload_drag.get().then(|| view! {
-                <div class="fixed inset-0 bg-blue-500 bg-opacity-20 z-50 flex items-center justify-center pointer-events-none backdrop-blur-sm" aria-hidden="true">
-                    <div class="surface brutal-border shadow-2xl p-12 text-center blob-shape float-animation">
-                        <svg class="w-16 h-16 text-accent mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <p class="text-xl font-semibold text-gray-700">"Drop files to upload"</p>
-                        <p class="text-sm text-gray-500 mt-1">"Files will be uploaded to the current directory"</p>
-                    </div>
-                </div>
-            })}
+           // Drag overlay
+           {move || upload_drag.get().then(|| view! {
+               <div class="fixed inset-0 bg-blue-500 bg-opacity-20 z-50 flex items-center justify-center pointer-events-none backdrop-blur-sm" aria-hidden="true">
+                   <div class="surface brutal-border shadow-2xl p-12 text-center blob-shape float-animation">
+                       <svg class="w-16 h-16 text-accent mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                       </svg>
+                       <p class="text-xl font-semibold text-gray-700">"Drop files to upload"</p>
+                       <p class="text-sm text-gray-500 mt-1">"Files will be uploaded to the current directory"</p>
+                   </div>
+               </div>
+           })}
 
-            // New folder dialog
-            {move || show_new_folder.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                    on:keydown=move |ev: ev::KeyboardEvent| {
-                        if ev.key() == "Escape" {
-                            set_show_new_folder.set(false);
-                        }
-                    }
-                >
-                    <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="new-folder-title"
-                        tabindex="-1"
-                    >
-                        <h3 id="new-folder-title" class="text-section font-mono text-gray-900 mb-4">"New Folder"</h3>
-                        <label class="block mb-4">
-                            <span class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Folder name"</span>
-                            <input
-                                type="text"
-                                placeholder="Folder name"
-                                class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                prop:value=new_folder_name
-                                on:input=move |ev| set_new_folder_name.set(event_target_value(&ev))
-                            />
-                        </label>
-                        <div class="flex justify-end gap-2">
-                            <button
-                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                                on:click=move |_| set_show_new_folder.set(false)
-                            >
-                                "Cancel"
-                            </button>
-                            <button
-                                class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                on:click=do_create_folder
-                            >
-                                "Create"
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            })}
+           // New folder dialog
+           {move || show_new_folder.get().then(|| view! {
+               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
+                   on:keydown=move |ev: ev::KeyboardEvent| {
+                       if ev.key() == "Escape" {
+                           set_show_new_folder.set(false);
+                       }
+                   }
+               >
+                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
+                       role="dialog"
+                       aria-modal="true"
+                       aria-labelledby="new-folder-title"
+                       tabindex="-1"
+                   >
+                       <h3 id="new-folder-title" class="text-section font-mono text-gray-900 mb-4">"New Folder"</h3>
+                       <label class="block mb-4">
+                           <span class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Folder name"</span>
+                           <input
+                               type="text"
+                               placeholder="Folder name"
+                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               prop:value=new_folder_name
+                               on:input=move |ev| set_new_folder_name.set(event_target_value(&ev))
+                           />
+                       </label>
+                       <div class="flex justify-end gap-2">
+                           <button
+                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                               on:click=move |_| set_show_new_folder.set(false)
+                           >
+                               "Cancel"
+                           </button>
+                           <button
+                               class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                               on:click=do_create_folder
+                           >
+                               "Create"
+                           </button>
+                       </div>
+                   </div>
+               </div>
+           })}
 
-            // Upload dialog
-            {move || show_upload.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                    on:keydown=move |ev: ev::KeyboardEvent| {
-                        if ev.key() == "Escape" {
-                            set_show_upload.set(false);
-                        }
-                    }
-                >
-                    <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="upload-title"
-                        tabindex="-1"
-                    >
-                        <h3 id="upload-title" class="text-section font-mono text-gray-900 mb-4">"Upload File"</h3>
-                        <label class="block w-full border-2 border-dashed border-gray-300 rounded p-8 text-center cursor-pointer hover:border-blue-400 transition-colors">
-                            <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                            </svg>
-                            <p id="upload-file-hint" class="text-sm text-gray-600">"Click to select files or drag and drop"</p>
-                            <input
-                                type="file"
-                                class="hidden"
-                                multiple
-                                aria-describedby="upload-file-hint"
-                                on:change=handle_file_input
-                            />
-                        </label>
-                        <div class="flex justify-end mt-4">
-                            <button
-                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                                on:click=move |_| set_show_upload.set(false)
-                            >
-                                "Close"
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            })}
+           // Upload dialog
+           {move || show_upload.get().then(|| view! {
+               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
+                   on:keydown=move |ev: ev::KeyboardEvent| {
+                       if ev.key() == "Escape" {
+                           set_show_upload.set(false);
+                       }
+                   }
+               >
+                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
+                       role="dialog"
+                       aria-modal="true"
+                       aria-labelledby="upload-title"
+                       tabindex="-1"
+                   >
+                       <h3 id="upload-title" class="text-section font-mono text-gray-900 mb-4">"Upload File"</h3>
+                       <label class="block w-full border-2 border-dashed border-gray-300 rounded p-8 text-center cursor-pointer hover:border-blue-400 transition-colors">
+                           <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                           </svg>
+                           <p id="upload-file-hint" class="text-sm text-gray-600">"Click to select files or drag and drop"</p>
+                           <input
+                               type="file"
+                               class="hidden"
+                               multiple
+                               aria-describedby="upload-file-hint"
+                               on:change=handle_file_input
+                           />
+                       </label>
+                       <div class="flex justify-end mt-4">
+                           <button
+                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                               on:click=move |_| set_show_upload.set(false)
+                           >
+                               "Close"
+                           </button>
+                       </div>
+                   </div>
+               </div>
+           })}
 
-            // Share dialog
-            {move || show_share_dialog.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                    on:keydown=move |ev: ev::KeyboardEvent| {
-                        if ev.key() == "Escape" {
-                            set_show_share_dialog.set(false);
-                        }
-                    }
-                >
-                    <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="share-title"
-                        tabindex="-1"
-                    >
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 id="share-title" class="text-lg font-semibold text-gray-900">"Share File"</h3>
-                            <button
-                                class="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                                aria-label="Close dialog"
-                                on:click=move |_| set_show_share_dialog.set(false)
-                            >
-                                <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
+           // Share dialog
+           {move || show_share_dialog.get().then(|| view! {
+               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
+                   on:keydown=move |ev: ev::KeyboardEvent| {
+                       if ev.key() == "Escape" {
+                           set_show_share_dialog.set(false);
+                       }
+                   }
+               >
+                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
+                       role="dialog"
+                       aria-modal="true"
+                       aria-labelledby="share-title"
+                       tabindex="-1"
+                   >
+                       <div class="flex items-center justify-between mb-4">
+                           <h3 id="share-title" class="text-lg font-semibold text-gray-900">"Share File"</h3>
+                           <button
+                               class="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                               aria-label="Close dialog"
+                               on:click=move |_| set_show_share_dialog.set(false)
+                           >
+                               <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                               </svg>
+                           </button>
+                       </div>
 
-                        <div class="mb-4">
-                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Path"</label>
-                            <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
-                                {share_path}
-                            </div>
-                        </div>
+                       <div class="mb-4">
+                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Path"</label>
+                           <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
+                               {share_path}
+                           </div>
+                       </div>
 
-                        <div class="mb-4">
-                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Password (optional)"</label>
-                            <input
-                                type="password"
-                                placeholder="Leave empty for no password"
-                                class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                prop:value=share_password
-                                on:input=move |ev| set_share_password.set(event_target_value(&ev))
-                            />
-                        </div>
+                       <div class="mb-4">
+                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Password (optional)"</label>
+                           <input
+                               type="password"
+                               placeholder="Leave empty for no password"
+                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                               prop:value=share_password
+                               on:input=move |ev| set_share_password.set(event_target_value(&ev))
+                           />
+                       </div>
 
-                        <div class="mb-4">
-                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Expires"</label>
-                            <select
-                                class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                on:change=move |ev| set_share_expires.set(event_target_value(&ev))
-                            >
-                                <option value="1" selected=move || share_expires.get() == "1">"1 hour"</option>
-                                <option value="24" selected=move || share_expires.get() == "24">"24 hours"</option>
-                                <option value="168" selected=move || share_expires.get() == "168">"7 days"</option>
-                                <option value="720" selected=move || share_expires.get() == "720">"30 days"</option>
-                            </select>
-                        </div>
+                       <div class="mb-4">
+                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Expires"</label>
+                           <select
+                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                               on:change=move |ev| set_share_expires.set(event_target_value(&ev))
+                           >
+                               <option value="1" selected=move || share_expires.get() == "1">"1 hour"</option>
+                               <option value="24" selected=move || share_expires.get() == "24">"24 hours"</option>
+                               <option value="168" selected=move || share_expires.get() == "168">"7 days"</option>
+                               <option value="720" selected=move || share_expires.get() == "720">"30 days"</option>
+                           </select>
+                       </div>
 
-                        {move || (!share_error.get().is_empty()).then(|| view! {
-                            <div class="mb-4 p-2 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
-                                {share_error}
-                            </div>
-                        })}
+                       {move || (!share_error.get().is_empty()).then(|| view! {
+                           <div class="mb-4 p-2 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
+                               {share_error}
+                           </div>
+                       })}
 
-                        {move || (!share_url.get().is_empty()).then(|| view! {
-                            <div class="mb-4">
-                                <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Share URL"</label>
-                                <div class="flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        readonly
-                                        class="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 font-mono"
-                                        prop:value=share_url
-                                    />
-                                    <button
-                                        class="px-3 py-2 text-sm bg-green-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-green-700 transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                        on:click=do_copy_share_url
-                                    >
-                                        {move || if share_copied.get() { "Copied!" } else { "Copy" }}
-                                    </button>
-                                </div>
-                            </div>
-                        })}
+                       {move || (!share_url.get().is_empty()).then(|| view! {
+                           <div class="mb-4">
+                               <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Share URL"</label>
+                               <div class="flex items-center gap-2">
+                                   <input
+                                       type="text"
+                                       readonly
+                                       class="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 font-mono"
+                                       prop:value=share_url
+                                   />
+                                   <button
+                                       class="px-3 py-2 text-sm bg-green-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-green-700 transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                       on:click=do_copy_share_url
+                                   >
+                                       {move || if share_copied.get() { "Copied!" } else { "Copy" }}
+                                   </button>
+                               </div>
+                           </div>
+                       })}
 
-                        <div class="flex justify-end gap-2">
-                            <button
-                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                                on:click=move |_| set_show_share_dialog.set(false)
-                            >
-                                "Close"
-                            </button>
-                            {move || share_url.get().is_empty().then(|| view! {
-                                <button
-                                    class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                    disabled=share_creating
-                                    on:click=do_create_share
-                                >
-                                    {move || if share_creating.get() { "Creating..." } else { "Create Share" }}
-                                </button>
-                            })}
-                        </div>
-                    </div>
-                </div>
-            })}
+                       <div class="flex justify-end gap-2">
+                           <button
+                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                               on:click=move |_| set_show_share_dialog.set(false)
+                           >
+                               "Close"
+                           </button>
+                           {move || share_url.get().is_empty().then(|| view! {
+                               <button
+                                   class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                   disabled=share_creating
+                                   on:click=do_create_share
+                               >
+                                   {move || if share_creating.get() { "Creating..." } else { "Create Share" }}
+                               </button>
+                           })}
+                       </div>
+                   </div>
+               </div>
+           })}
 
-            // Error display
-            {move || error.get().map(|e| view! {
-                <div class="bg-red-50 border-b border-l-4 border-l-red-500 px-6 py-3" role="alert" aria-live="assertive">
-                    <div class="flex items-center justify-between">
-                        <span class="text-red-700 text-sm">"Error: " {e}</span>
-                        <button
-                            class="text-red-500 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded p-0.5"
-                            aria-label="Dismiss error"
-                            on:click=move |_| set_error.set(None)
-                        >
-                            <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            })}
+           // Error display
+           {move || error.get().map(|e| view! {
+               <div class="bg-red-50 border-b border-l-4 border-l-red-500 px-6 py-3" role="alert" aria-live="assertive">
+                   <div class="flex items-center justify-between">
+                       <span class="text-red-700 text-sm">"Error: " {e}</span>
+                       <button
+                           class="text-red-500 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded p-0.5"
+                           aria-label="Dismiss error"
+                           on:click=move |_| set_error.set(None)
+                       >
+                           <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                           </svg>
+                       </button>
+                   </div>
+               </div>
+           })}
 
-            // Loading skeleton (grid)
-            {move || (loading.get() && view_mode.get() == ViewMode::Grid).then(|| view! {
-                <SkeletonGrid />
-            })}
+           // Loading skeleton (grid)
+           {move || (loading.get() && view_mode.get() == ViewMode::Grid).then(|| view! {
+               <SkeletonGrid />
+           })}
 
-            // Loading skeleton (list)
-            {move || (loading.get() && view_mode.get() == ViewMode::List).then(|| view! {
-                <SkeletonList />
-            })}
+           // Loading skeleton (list)
+           {move || (loading.get() && view_mode.get() == ViewMode::List).then(|| view! {
+               <SkeletonList />
+           })}
 
-            // Favorites view
-            {move || (active_tab.get() == BrowserTab::Favorites).then(|| view! {
-                {move || favorites_loading.get().then(|| view! {
-                    <SkeletonFavorites />
-                })}
-                {move || {
-                    if favorites_loading.get() {
-                        return view! { <div class="hidden"></div> }.into_any();
-                    }
-                    let favs = fav_entries();
-                    if favs.is_empty() {
-                        view! {
-                            <div class="px-6 py-16 text-center text-gray-500" role="status">
-                                <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976 2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519 4.674z" />
-                                </svg>
-                                <div class="text-lg font-medium">"No favorites yet"</div>
-                                <div class="text-sm mt-1">"Star files to add them here"</div>
-                            </div>
-                        }.into_any()
-                    } else {
-                        view! {
-                            <table class="w-full" role="grid">
-                                <thead class="bg-gray-50 border-b sticky top-0">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">"Name"</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Size"</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">"Modified"</th>
-                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Actions"</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <For
-                                        each=move || fav_entries()
-                                        key=|entry| entry.path.clone()
-                                        let:entry
-                                    >
-                                        {
-                                            let ep = entry.path.clone();
-                                            let (lk, lo, le) = get_lock_info(&ep);
-                                            view! {
-                                                <FileRow
-                                                    entry=entry
-                                                    on_navigate=Callback::new(navigate)
-                                                    on_delete=Callback::new(do_delete)
-                                                    on_download=Callback::new(do_download)
-                                                    on_share=Callback::new(do_share)
-                                                    on_preview=Callback::new(open_preview)
-                                                    is_favorited=true
-                                                    on_toggle_favorite=Callback::new(do_toggle_favorite)
-                                                    show_checkbox=false
-                                                    is_selected=false
-                                                    on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
-                                                    on_copy=Callback::new(do_copy)
-                                                    on_move=Callback::new(do_move)
-                                                    is_locked=lk
-                                                    lock_owner=lo
-                                                    lock_expires=le
-                                                />
-                                            }
-                                        }
-                                    </For>
-                                </tbody>
-                            </table>
-                        }.into_any()
-                    }
-                }}
-            })}
+           // Favorites view
+           {move || (active_tab.get() == BrowserTab::Favorites).then(|| view! {
+               {move || favorites_loading.get().then(|| view! {
+                   <SkeletonFavorites />
+               })}
+               {move || {
+                   if favorites_loading.get() {
+                       return view! { <div class="hidden"></div> }.into_any();
+                   }
+                   let favs = fav_entries();
+                   if favs.is_empty() {
+                       view! {
+                           <div class="px-6 py-16 text-center text-gray-500" role="status">
+                               <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976 2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519 4.674z" />
+                               </svg>
+                               <div class="text-lg font-medium">"No favorites yet"</div>
+                               <div class="text-sm mt-1">"Star files to add them here"</div>
+                           </div>
+                       }.into_any()
+                   } else {
+                       view! {
+                           <table class="w-full table-fixed" role="grid">
+                               <thead class="bg-gray-50 border-b sticky top-0">
+                                   <tr>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">"Name"</th>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Size"</th>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">"Modified"</th>
+                                       <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Actions"</th>
+                                   </tr>
+                               </thead>
+                               <tbody>
+                                   <For
+                                       each=move || fav_entries()
+                                       key=|entry| entry.path.clone()
+                                       let:entry
+                                   >
+                                       {
+                                           let ep = entry.path.clone();
+                                           let (lk, lo, le) = get_lock_info(&ep);
+                                           view! {
+                                               <FileRow
+                                                   entry=entry
+                                                   on_navigate=Callback::new(navigate)
+                                                   on_delete=Callback::new(do_delete)
+                                                   on_download=Callback::new(do_download)
+                                                   on_share=Callback::new(do_share)
+                                                   on_preview=Callback::new(open_preview)
+                                                   is_favorited=true
+                                                   on_toggle_favorite=Callback::new(do_toggle_favorite)
+                                                   show_checkbox=false
+                                                   is_selected=false
+                                                   on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
+                                                   on_copy=Callback::new(do_copy)
+                                                   on_move=Callback::new(do_move)
+                                                   is_locked=lk
+                                                   lock_owner=lo
+                                                   lock_expires=le
+                                               />
+                                           }
+                                       }
+                                   </For>
+                               </tbody>
+                           </table>
+                       }.into_any()
+                   }
+               }}
+           })}
 
-            // Recent view
-            {move || (active_tab.get() == BrowserTab::Recent).then(|| view! {
-                {move || recent_loading.get().then(|| view! {
-                    <SkeletonRecent />
-                })}
-                {move || {
-                    if recent_loading.get() {
-                        return view! { <div class="hidden"></div> }.into_any();
-                    }
-                    let recent = recent_files.get();
-                    if recent.is_empty() {
-                        view! {
-                            <div class="px-6 py-16 text-center text-gray-500" role="status">
-                                <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <div class="text-lg font-medium">"No recent activity"</div>
-                                <div class="text-sm mt-1">"Upload files to get started"</div>
-                            </div>
-                        }.into_any()
-                    } else {
-                        view! {
-                            <table class="w-full" role="grid">
-                                <thead class="bg-gray-50 border-b sticky top-0">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">"Name"</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Size"</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">"Modified"</th>
-                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Actions"</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <For
-                                        each=move || recent_files.get()
-                                        key=|entry| entry.path.clone()
-                                        let:entry
-                                    >
-                                        {
+           // Recent view
+           {move || (active_tab.get() == BrowserTab::Recent).then(|| view! {
+               {move || recent_loading.get().then(|| view! {
+                   <SkeletonRecent />
+               })}
+               {move || {
+                   if recent_loading.get() {
+                       return view! { <div class="hidden"></div> }.into_any();
+                   }
+                   let recent = recent_files.get();
+                   if recent.is_empty() {
+                       view! {
+                           <div class="px-6 py-16 text-center text-gray-500" role="status">
+                               <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                               </svg>
+                               <div class="text-lg font-medium">"No recent activity"</div>
+                               <div class="text-sm mt-1">"Upload files to get started"</div>
+                           </div>
+                       }.into_any()
+                   } else {
+                       view! {
+                           <table class="w-full table-fixed" role="grid">
+                               <thead class="bg-gray-50 border-b sticky top-0">
+                                   <tr>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">"Name"</th>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Size"</th>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">"Modified"</th>
+                                       <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Actions"</th>
+                                   </tr>
+                               </thead>
+                               <tbody>
+                                   <For
+                                       each=move || recent_files.get()
+                                       key=|entry| entry.path.clone()
+                                       let:entry
+                                   >
+                                       {
+                                           let entry_path = entry.path.clone();
+                                           let (lk, lo, le) = get_lock_info(&entry_path);
+                                           view! {
+                                               <FileRow
+                                                   entry=entry
+                                                   on_navigate=Callback::new(navigate)
+                                                   on_delete=Callback::new(do_delete)
+                                                   on_download=Callback::new(do_download)
+                                                   on_share=Callback::new(do_share)
+                                                   on_preview=Callback::new(open_preview)
+                                                   is_favorited=is_fav(entry_path)
+                                                   on_toggle_favorite=Callback::new(do_toggle_favorite)
+                                                   show_checkbox=false
+                                                   is_selected=false
+                                                   on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
+                                                   on_copy=Callback::new(do_copy)
+                                                   on_move=Callback::new(do_move)
+                                                   is_locked=lk
+                                                   lock_owner=lo
+                                                   lock_expires=le
+                                               />
+                                           }
+                                       }
+                                   </For>
+                               </tbody>
+                           </table>
+                       }.into_any()
+                   }
+               }}
+           })}
+
+           // File list/grid (Files tab)
+           {move || (show_files_view() && !loading.get()).then(|| view! {
+               {match view_mode.get() {
+                   ViewMode::Grid => view! {
+                       <div class="transition-opacity duration-200">
+                           {move || select_mode.get().then(|| view! {
+                               <div class="px-4 py-2 flex items-center gap-2">
+                                   <input
+                                       type="checkbox"
+                                       class="rounded border text-blue-600 focus:ring-blue-500"
+                                       aria-label="Select all files"
+                                       on:click=select_all
+                                   />
+                                   <span class="text-xs text-gray-500">"Select all"</span>
+                               </div>
+                           })}
+                           <GridView
+                               entries=all_entries
+                               on_navigate=grid_cb_navigate
+                               on_delete=grid_cb_delete
+                               on_download=grid_cb_download
+                               on_share=grid_cb_share
+                               on_preview=grid_cb_preview
+                               favorites=favorites_signal
+                               on_toggle_favorite=grid_cb_fav
+                               show_checkbox=select_mode.get()
+                               selected_paths=selected_paths_signal
+                               on_toggle_select=grid_cb_select
+                               on_copy=grid_cb_copy
+                               on_move=grid_cb_move
+                               locks=locks_state
+                           />
+                       </div>
+                   }.into_any(),
+                   ViewMode::List => view! {
+                       <div class="transition-opacity duration-200">
+                           <table class="w-full table-fixed" role="grid">
+                               <thead class="bg-gray-50 border-b sticky top-0 hidden md:table-header-group">
+                                   <tr>
+                                       {move || select_mode.get().then(|| view! {
+                                           <th class="px-4 py-2 w-10" scope="col">
+                                               <input
+                                                   type="checkbox"
+                                                   class="rounded border text-blue-600 focus:ring-blue-500"
+                                                   aria-label="Select all files"
+                                                   on:click=select_all
+                                               />
+                                           </th>
+                                       })}
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">"Name"</th>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Size"</th>
+                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40 hidden lg:table-cell" scope="col">"Modified"</th>
+                                       <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Actions"</th>
+                                   </tr>
+                               </thead>
+                               <tbody class="block md:table-row-group">
+                                   <For
+                                       each=display_entries
+                                       key=|entry| entry.path.clone()
+                                       let:entry
+                                   >
+                                       {
                                             let entry_path = entry.path.clone();
-                                            let (lk, lo, le) = get_lock_info(&entry_path);
-                                            view! {
-                                                <FileRow
-                                                    entry=entry
-                                                    on_navigate=Callback::new(navigate)
-                                                    on_delete=Callback::new(do_delete)
-                                                    on_download=Callback::new(do_download)
-                                                    on_share=Callback::new(do_share)
-                                                    on_preview=Callback::new(open_preview)
-                                                    is_favorited=is_fav(entry_path)
-                                                    on_toggle_favorite=Callback::new(do_toggle_favorite)
-                                                    show_checkbox=false
-                                                    is_selected=false
-                                                    on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
-                                                    on_copy=Callback::new(do_copy)
-                                                    on_move=Callback::new(do_move)
-                                                    is_locked=lk
-                                                    lock_owner=lo
-                                                    lock_expires=le
-                                                />
-                                            }
-                                        }
-                                    </For>
-                                </tbody>
-                            </table>
-                        }.into_any()
-                    }
-                }}
-            })}
-
-            // File list/grid (Files tab)
-            {move || (show_files_view() && !loading.get()).then(|| view! {
-                {match view_mode.get() {
-                    ViewMode::Grid => view! {
-                        <div class="transition-opacity duration-200">
-                            {move || select_mode.get().then(|| view! {
-                                <div class="px-4 py-2 flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        class="rounded border text-blue-600 focus:ring-blue-500"
-                                        aria-label="Select all files"
-                                        on:click=select_all
-                                    />
-                                    <span class="text-xs text-gray-500">"Select all"</span>
-                                </div>
-                            })}
-                            <GridView
-                                entries=all_entries
-                                on_navigate=grid_cb_navigate
-                                on_delete=grid_cb_delete
-                                on_download=grid_cb_download
-                                on_share=grid_cb_share
-                                on_preview=grid_cb_preview
-                                favorites=favorites_signal
-                                on_toggle_favorite=grid_cb_fav
-                                show_checkbox=select_mode.get()
-                                selected_paths=selected_paths_signal
-                                on_toggle_select=grid_cb_select
-                                on_copy=grid_cb_copy
-                                on_move=grid_cb_move
-                                locks=locks_state
-                            />
-                        </div>
-                    }.into_any(),
-                    ViewMode::List => view! {
-                        <div class="transition-opacity duration-200">
-                            <table class="w-full" role="grid">
-                                <thead class="bg-gray-50 border-b sticky top-0 hidden md:table-header-group">
-                                    <tr>
-                                        {move || select_mode.get().then(|| view! {
-                                            <th class="px-4 py-2 w-10" scope="col">
-                                                <input
-                                                    type="checkbox"
-                                                    class="rounded border text-blue-600 focus:ring-blue-500"
-                                                    aria-label="Select all files"
-                                                    on:click=select_all
-                                                />
-                                            </th>
-                                        })}
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">"Name"</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Size"</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40 hidden lg:table-cell" scope="col">"Modified"</th>
-                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Actions"</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="block md:table-row-group">
-                                    <For
-                                        each=display_entries
-                                        key=|entry| entry.path.clone()
-                                        let:entry
-                                    >
-                                        {
-                                            let entry_path = entry.path.clone();
-                                            let entry_path_for_fav = entry.path.clone();
                                             let sel_path = entry.path.clone();
                                             let (lk, lo, le) = get_lock_info(&entry.path);
-                                            let _sel_idx = create_memo(move |_| {
-                                                all_entries.with(|e| e.iter().position(|x| x.path == entry_path_for_fav).unwrap_or(0))
-                                            });
                                             view! {
-                                                <FileRow
-                                                    entry=entry
-                                                    on_navigate=Callback::new(navigate)
-                                                    on_delete=Callback::new(do_delete)
-                                                    on_download=Callback::new(do_download)
-                                                    on_share=Callback::new(do_share)
-                                                    on_preview=Callback::new(open_preview)
-                                                    is_favorited=is_fav(entry_path)
-                                                    on_toggle_favorite=Callback::new(do_toggle_favorite)
-                                                    show_checkbox=select_mode.get()
-                                                    is_selected=is_entry_selected(sel_path)
-                                                    on_toggle_select=Callback::new(move |(path, idx, shift, ctrl): (String, usize, bool, bool)| {
-                                                        toggle_select(path, idx, shift, ctrl);
-                                                    })
-                                                    on_copy=Callback::new(do_copy)
-                                                    on_move=Callback::new(do_move)
-                                                    is_locked=lk
-                                                    lock_owner=lo
-                                                    lock_expires=le
-                                                />
-                                            }
-                                        }
-                                    </For>
-                                </tbody>
-                            </table>
-                        </div>
-                    }.into_any(),
-                }}
-            })}
+                                               <FileRow
+                                                   entry=entry
+                                                   on_navigate=Callback::new(navigate)
+                                                   on_delete=Callback::new(do_delete)
+                                                   on_download=Callback::new(do_download)
+                                                   on_share=Callback::new(do_share)
+                                                   on_preview=Callback::new(open_preview)
+                                                   is_favorited=is_fav(entry_path)
+                                                   on_toggle_favorite=Callback::new(do_toggle_favorite)
+                                                   show_checkbox=select_mode.get()
+                                                   is_selected=is_entry_selected(sel_path)
+                                                   on_toggle_select=Callback::new(move |(path, idx, shift, ctrl): (String, usize, bool, bool)| {
+                                                       toggle_select(path, idx, shift, ctrl);
+                                                   })
+                                                   on_copy=Callback::new(do_copy)
+                                                   on_move=Callback::new(do_move)
+                                                   is_locked=lk
+                                                   lock_owner=lo
+                                                   lock_expires=le
+                                               />
+                                           }
+                                       }
+                                   </For>
+                               </tbody>
+                           </table>
+                       </div>
+                   }.into_any(),
+               }}
+           })}
 
-            // Bulk action bar
-            {move || (select_mode.get() && selected_count() > 0).then(|| view! {
-                <div class="fixed bottom-0 sm:bottom-4 left-0 sm:left-1/2 sm:-translate-x-1/2 w-full sm:w-auto surface-dark text-white dark:text-gray-900 rounded-none sm:rounded shadow-2xl brutal-border border-t-3 border-t-accent px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-4 z-50 justify-between sm:justify-center transition-all duration-200">
-                    <span class="text-sm font-bold font-mono uppercase tracking-wider">
-                        {move || selected_count()} " selected"
-                    </span>
+           // Bulk action bar
+           {move || (select_mode.get() && selected_count() > 0).then(|| view! {
+               <div class="fixed bottom-0 sm:bottom-4 left-0 sm:left-1/2 sm:-translate-x-1/2 w-full sm:w-auto surface-dark text-white dark:text-gray-900 rounded-none sm:rounded shadow-2xl brutal-border border-t-3 border-t-accent px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-4 z-50 justify-between sm:justify-center transition-all duration-200">
+                   <span class="text-sm font-bold font-mono uppercase tracking-wider">
+                       {move || selected_count()} " selected"
+                   </span>
                     <div class="flex items-center gap-2">
                         <button
                             class="px-3 py-1.5 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[44px]"
                             on:click=do_bulk_delete
+                            aria-label="Delete selected files"
                         >
                             "Delete"
                         </button>
                         <button
                             class="px-3 py-1.5 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]"
                             on:click=do_bulk_download
+                            aria-label="Download selected files"
                         >
                             <span class="hidden sm:inline">"Download"</span>
-                            <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            <svg class="w-4 h-4 sm:hidden" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                         </button>
                         <button
                             class="px-3 py-1.5 text-sm bg-gray-600 dark:bg-gray-300 text-white dark:text-gray-900 brutal-border rounded-sm font-bold uppercase hover:bg-gray-500 dark:hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 min-h-[44px]"
                             on:click=move |_| {
                                 set_selected_paths.set(std::collections::HashSet::new());
                             }
+                            aria-label="Clear selection"
                         >
                             "Clear"
                         </button>
                     </div>
-                </div>
-            })}
+               </div>
+           })}
 
-            // Scroll sentinel -- IntersectionObserver watches this element
-            {move || {
-                let total = all_entries.with(Vec::len);
-                let displayed = display_count.get();
-                (total > displayed && !loading.get() && show_files_view()).then(|| view! {
-                    <div _ref=scroll_sentinel_ref class="py-4 text-center text-sm text-muted font-mono" role="status" aria-live="polite">
-                        <div class="animate-spin w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-accent rounded-full mx-auto mb-2"></div>
-                        "Loading more..."
-                    </div>
-                })
-            }}
+           // Scroll sentinel -- IntersectionObserver watches this element
+           {move || {
+               let total = all_entries.with(Vec::len);
+               let displayed = display_count.get();
+               (total > displayed && !loading.get() && show_files_view()).then(|| view! {
+                   <div _ref=scroll_sentinel_ref class="py-4 text-center text-sm text-muted font-mono" role="status" aria-live="polite">
+                       <div class="animate-spin w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-accent rounded-full mx-auto mb-2"></div>
+                       "Loading more..."
+                   </div>
+               })
+           }}
 
-            // Empty state (files tab)
-            {move || (!loading.get() && show_files_view() && all_entries.with(Vec::is_empty) && error.get().is_none()).then(|| view! {
-                <div class="px-6 py-16 text-center" role="status">
-                    <svg class="w-20 h-20 mx-auto mb-4 text-gray-300" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                    <div class="text-lg font-medium text-gray-500">"This folder is empty"</div>
-                    <div class="text-sm text-gray-400 mt-1 mb-4">"Drop files here or upload your first file"</div>
-                    <button
-                        class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                        on:click=move |_| set_show_upload.set(true)
-                    >
-                        "Upload your first file"
-                    </button>
-                </div>
-            })}
+           // Empty state (files tab)
+           {move || (!loading.get() && show_files_view() && all_entries.with(Vec::is_empty) && error.get().is_none()).then(|| view! {
+               <div class="px-6 py-16 text-center" role="status">
+                   <svg class="w-20 h-20 mx-auto mb-4 text-gray-300" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                   </svg>
+                   <div class="text-lg font-medium text-gray-500">"This folder is empty"</div>
+                   <div class="text-sm text-gray-400 mt-1 mb-4">"Drop files here or upload your first file"</div>
+                   <button
+                       class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                       on:click=move |_| set_show_upload.set(true)
+                   >
+                       "Upload your first file"
+                   </button>
+               </div>
+           })}
 
-            // Drag hint
-            {move || (!loading.get() && !all_entries.with(Vec::is_empty) && show_files_view()).then(|| view! {
-                <div class="border-t border-gray-100 px-6 py-2 text-center">
-                    <span class="text-xs text-gray-500">"Drag and drop files here to upload"</span>
-                </div>
-            })}
+           // Drag hint
+           {move || (!loading.get() && !all_entries.with(Vec::is_empty) && show_files_view()).then(|| view! {
+               <div class="border-t border-gray-100 px-6 py-2 text-center">
+                   <span class="text-xs text-gray-500">"Drag and drop files here to upload"</span>
+               </div>
+           })}
 
-            // Move dialog
-            {move || show_move_dialog.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                    on:keydown=move |ev: ev::KeyboardEvent| {
-                        if ev.key() == "Escape" { set_show_move_dialog.set(false); }
-                    }
-                >
-                    <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                        role="dialog"
-                        aria-modal="true"
-                        tabindex="-1"
-                    >
-                        <h3 class="text-section font-mono text-gray-900 mb-4">"Move File"</h3>
-                        <div class="mb-4">
-                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Source"</label>
-                            <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
-                                {move_source}
-                            </div>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Destination"</label>
-                            <input
-                                type="text"
-                                placeholder="/new/path/file.txt"
-                                class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                prop:value=move_dest
-                                on:input=move |ev| set_move_dest.set(event_target_value(&ev))
-                            />
-                        </div>
-                        <div class="flex justify-end gap-2">
-                            <button
-                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                                on:click=move |_| set_show_move_dialog.set(false)
-                            >"Cancel"</button>
-                            <button
-                                class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                on:click=execute_move
-                            >"Move"</button>
-                        </div>
-                    </div>
-                </div>
-            })}
+           // Move dialog
+           {move || show_move_dialog.get().then(|| view! {
+               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
+                   on:keydown=move |ev: ev::KeyboardEvent| {
+                       if ev.key() == "Escape" { set_show_move_dialog.set(false); }
+                   }
+               >
+                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
+                       role="dialog"
+                       aria-modal="true"
+                       tabindex="-1"
+                   >
+                       <h3 class="text-section font-mono text-gray-900 mb-4">"Move File"</h3>
+                       <div class="mb-4">
+                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Source"</label>
+                           <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
+                               {move_source}
+                           </div>
+                       </div>
+                       <div class="mb-4">
+                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Destination"</label>
+                           <input
+                               type="text"
+                               placeholder="/new/path/file.txt"
+                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               prop:value=move_dest
+                               on:input=move |ev| set_move_dest.set(event_target_value(&ev))
+                           />
+                       </div>
+                       <div class="flex justify-end gap-2">
+                           <button
+                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                               on:click=move |_| set_show_move_dialog.set(false)
+                           >"Cancel"</button>
+                           <button
+                               class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                               on:click=execute_move
+                           >"Move"</button>
+                       </div>
+                   </div>
+               </div>
+           })}
 
-            // Copy dialog
-            {move || show_copy_dialog.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
-                    on:keydown=move |ev: ev::KeyboardEvent| {
-                        if ev.key() == "Escape" { set_show_copy_dialog.set(false); }
-                    }
-                >
-                    <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                        role="dialog"
-                        aria-modal="true"
-                        tabindex="-1"
-                    >
-                        <h3 class="text-section font-mono text-gray-900 mb-4">"Copy File"</h3>
-                        <div class="mb-4">
-                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Source"</label>
-                            <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
-                                {copy_source}
-                            </div>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Destination"</label>
-                            <input
-                                type="text"
-                                placeholder="/new/path/copy.txt"
-                                class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                prop:value=copy_dest
-                                on:input=move |ev| set_copy_dest.set(event_target_value(&ev))
-                            />
-                        </div>
-                        <div class="flex justify-end gap-2">
-                            <button
-                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                                on:click=move |_| set_show_copy_dialog.set(false)
-                            >"Cancel"</button>
-                            <button
-                                class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                on:click=execute_copy
-                            >"Copy"</button>
-                        </div>
-                    </div>
-                </div>
-            })}
+           // Copy dialog
+           {move || show_copy_dialog.get().then(|| view! {
+               <div class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center transition-opacity duration-200"
+                   on:keydown=move |ev: ev::KeyboardEvent| {
+                       if ev.key() == "Escape" { set_show_copy_dialog.set(false); }
+                   }
+               >
+                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
+                       role="dialog"
+                       aria-modal="true"
+                       tabindex="-1"
+                   >
+                       <h3 class="text-section font-mono text-gray-900 mb-4">"Copy File"</h3>
+                       <div class="mb-4">
+                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Source"</label>
+                           <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
+                               {copy_source}
+                           </div>
+                       </div>
+                       <div class="mb-4">
+                           <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Destination"</label>
+                           <input
+                               type="text"
+                               placeholder="/new/path/copy.txt"
+                               class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               prop:value=copy_dest
+                               on:input=move |ev| set_copy_dest.set(event_target_value(&ev))
+                           />
+                       </div>
+                       <div class="flex justify-end gap-2">
+                           <button
+                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                               on:click=move |_| set_show_copy_dialog.set(false)
+                           >"Cancel"</button>
+                           <button
+                               class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                               on:click=execute_copy
+                           >"Copy"</button>
+                       </div>
+                   </div>
+               </div>
+           })}
 
-            // File preview modal
-            {move || preview_file.get().map(|file| view! {
-                <FilePreview
-                    file=file
-                    on_close=Callback::new(close_preview)
-                />
-            })}
+           // File preview modal
+           {move || preview_file.get().map(|file| view! {
+               <FilePreview
+                   file=file
+                   on_close=Callback::new(close_preview)
+               />
+           })}
 
-            // Delete confirmation dialog
-            {move || show_delete_confirm.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 transition-opacity duration-200"
-                    on:keydown=move |ev: ev::KeyboardEvent| {
-                        if ev.key() == "Escape" {
-                            set_show_delete_confirm.set(false);
-                        }
-                    }
-                >
-                    <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="delete-confirm-title"
-                        tabindex="-1"
-                    >
-                        <h3 id="delete-confirm-title" class="text-lg font-semibold text-gray-900 mb-2">"Confirm Delete"</h3>
-                        <p class="text-sm text-gray-600 mb-6">
-                            {move || format!("Are you sure you want to delete {} file(s)? This action cannot be undone.", selected_count())}
-                        </p>
-                        <div class="flex justify-end gap-2">
-                            <button
-                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
-                                on:click=move |_| set_show_delete_confirm.set(false)
-                            >
-                                "Cancel"
-                            </button>
-                            <button
-                                class="px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
-                                on:click=do_confirmed_delete
-                            >
-                                "Delete"
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            })}
-        </div>
+           // Delete confirmation dialog
+           {move || show_delete_confirm.get().then(|| view! {
+               <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 transition-opacity duration-200"
+                   on:keydown=move |ev: ev::KeyboardEvent| {
+                       if ev.key() == "Escape" {
+                           set_show_delete_confirm.set(false);
+                       }
+                   }
+               >
+                   <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
+                       role="dialog"
+                       aria-modal="true"
+                       aria-labelledby="delete-confirm-title"
+                       tabindex="-1"
+                   >
+                       <h3 id="delete-confirm-title" class="text-lg font-semibold text-gray-900 mb-2">"Confirm Delete"</h3>
+                       <p class="text-sm text-gray-600 mb-6">
+                           {move || format!("Are you sure you want to delete {} file(s)? This action cannot be undone.", selected_count())}
+                       </p>
+                       <div class="flex justify-end gap-2">
+                           <button
+                               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
+                               on:click=move |_| set_show_delete_confirm.set(false)
+                           >
+                               "Cancel"
+                           </button>
+                           <button
+                               class="px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                               on:click=do_confirmed_delete
+                           >
+                               "Delete"
+                           </button>
+                       </div>
+                   </div>
+               </div>
+           })}
+       </div>
 
-        // Activity sidebar
-        {move || show_activity.get().then(|| view! {
-            <div class="w-72 brutal-border border-l surface overflow-y-auto transition-all duration-200">
-                <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                    <h3 class="text-label font-mono text-gray-900">"Activity"</h3>
-                    <button
-                        class="p-1 text-gray-400 hover:text-gray-600 rounded"
-                        on:click=move |_| set_show_activity.set(false)
-                        aria-label="Close activity panel"
-                    >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-                <div class="p-4 space-y-3">
-                    <For
-                        each=move || activity_entries.get()
-                        key=|e| format!("{}{}", e.timestamp.clone(), e.path.clone())
-                        let:entry
-                    >
-                        {
-                            let action = entry.action.clone();
-                            let entry_path = entry.path.clone();
-                            let entry_ts = entry.timestamp.clone();
-                            let file_name = entry_path.rsplit('/').next().unwrap_or(&entry_path).to_string();
-                            let ts_display = if entry_ts.len() >= 19 { entry_ts[..19].to_string() } else { entry_ts };
-                            view! {
-                                <div class="flex items-start gap-2">
-                                    <span class="text-base mt-0.5 shrink-0 font-mono">
-                                        {match action.as_str() {
-                                            "upload" => "\u{2191}",
-                                            "delete" => "\u{2715}",
-                                            "create_folder" => "\u{2192}",
-                                            "copy" => "\u{2295}",
-                                            "move" => "\u{2192}",
-                                            _ => "\u{2022}",
-                                        }}
-                                    </span>
-                                    <div class="min-w-0">
-                                        <div class="text-sm font-mono text-gray-900 truncate" title=entry_path.clone()>
-                                            {file_name}
-                                        </div>
-                                        <div class="text-xs text-gray-500 font-mono">
-                                            {action} " " {ts_display}
-                                        </div>
-                                    </div>
-                                </div>
-                            }
-                        }
-                    </For>
-                    {move || activity_entries.with(Vec::is_empty).then(|| view! {
-                        <div class="text-sm text-gray-500 text-center py-4">"No recent activity"</div>
-                    })}
+       // Activity sidebar
+       {move || show_activity.get().then(|| view! {
+           <div class="w-72 brutal-border border-l surface overflow-y-auto transition-all duration-200">
+               <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                   <h3 class="text-label font-mono text-gray-900">"Activity"</h3>
+                   <button
+                       class="p-1 text-gray-400 hover:text-gray-600 rounded"
+                       on:click=move |_| set_show_activity.set(false)
+                       aria-label="Close activity panel"
+                   >
+                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                   </button>
+               </div>
+               <div class="p-4 space-y-3">
+                   <For
+                       each=move || activity_entries.get()
+                       key=|e| format!("{}{}", e.timestamp.clone(), e.path.clone())
+                       let:entry
+                   >
+                       {
+                           let action = entry.action.clone();
+                           let entry_path = entry.path.clone();
+                           let entry_ts = entry.timestamp.clone();
+                           let file_name = entry_path.rsplit('/').next().unwrap_or(&entry_path).to_string();
+                           let ts_display = if entry_ts.len() >= 19 { entry_ts[..19].to_string() } else { entry_ts };
+                           view! {
+                               <div class="flex items-start gap-2">
+                                   <span class="text-base mt-0.5 shrink-0 font-mono">
+                                       {match action.as_str() {
+                                           "upload" => "\u{2191}",
+                                           "delete" => "\u{2715}",
+                                           "create_folder" => "\u{2192}",
+                                           "copy" => "\u{2295}",
+                                           "move" => "\u{2192}",
+                                           _ => "\u{2022}",
+                                       }}
+                                   </span>
+                                   <div class="min-w-0">
+                                       <div class="text-sm font-mono text-gray-900 truncate" title=entry_path.clone()>
+                                           {file_name}
+                                       </div>
+                                       <div class="text-xs text-gray-500 font-mono">
+                                           {action} " " {ts_display}
+                                       </div>
+                                   </div>
+                               </div>
+                           }
+                       }
+                   </For>
+                   {move || activity_entries.with(Vec::is_empty).then(|| view! {
+                       <div class="text-sm text-gray-500 text-center py-4">"No recent activity"</div>
+                   })}
                 </div>
             </div>
         })}
-        </div>
     }
 }

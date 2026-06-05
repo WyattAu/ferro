@@ -894,7 +894,7 @@ Items that should be addressed during normal development:
 | TD-025 | ~~Cedar request context always empty (`Context::empty()`)~~ RESOLVED (2026-05-31: middleware passes IP/method/resource) | ~~Medium~~ Done | 2026-05-31 |
 | TD-026 | ~~Three independent public-path lists not synchronized~~ RESOLVED (2026-05-31: consolidated to `common::auth::is_public_auth_path`) | ~~Medium~~ Done | 2026-05-31 |
 | TD-027 | ~~TOTP HMAC-SHA1 not documented as RFC-mandated~~ RESOLVED (2026-05-31: verified RFC compliance documented in totp.rs) | ~~Low~~ Done | 2026-05-31 |
-| TD-028 | `wasmtime` 18.x pinned in `ferro-wasm-host`, 19 security advisories (upgrade to 43+) | Medium | Open | — |
+| TD-028 | ~~`wasmtime` 18.x pinned in `ferro-wasm-host`, 19 security advisories~~ RESOLVED (2026-06-05: bumped to wasmtime 44, removed 19 deny.toml ignores, 23/23 tests pass) | ~~Medium~~ Done | 2026-06-05 |
 
 
 ---
@@ -916,7 +916,7 @@ Items that should be addressed during normal development:
 | 9 | Medium | `CONTRIBUTING.md` has exclamation mark in opening sentence | Removed |
 | 10 | Medium | Dockerfile does not include WASM frontend assets -- E2E tests serve no UI | Added wasm32 target, trunk build, copy dist to /app/ui |
 | 11 | Medium | CI `cargo-deny` pinned to 0.18.0, deserialization error on deny.toml v2 | Updated to 0.19.4 |
-| 12 | Medium | 19 wasmtime 18.x security advisories unignored in deny.toml | Added all IDs with TD-028 tracking |
+| 12 | Medium | 19 wasmtime 18.x security advisories unignored in deny.toml | RESOLVED: upgraded to wasmtime 44, removed all 19 ignores |
 | 13 | Low | `sync_integration.rs` missing `Ordering` import | Added `use std::sync::atomic::Ordering` |
 | 14 | Low | Landing page test count shows 1938, actual is 2041 | Updated to 2041 |
 

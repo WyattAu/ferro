@@ -67,10 +67,7 @@ pub fn SettingsPage() -> impl IntoView {
         });
     };
 
-    let _on_show_hidden_toggle = move |ev: ev::Event| {
-        let checked = event_target_checked(&ev);
-        set_prefs.update(|p| p.show_hidden_files = checked);
-    };
+    // Toggle handler for show-hidden-files is wired inline in the view below
 
     let handle_reset_onboarding = move |_: ev::MouseEvent| {
         reset_onboarding();

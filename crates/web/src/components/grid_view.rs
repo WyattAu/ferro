@@ -2,22 +2,7 @@ use leptos::*;
 
 use crate::api::{FileEntry, LockInfo};
 use crate::components::file_icon::{FileIcon, FileType, file_type_from_extension};
-
-fn format_size(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = 1024 * KB;
-    const GB: u64 = 1024 * MB;
-
-    if bytes < KB {
-        format!("{} B", bytes)
-    } else if bytes < MB {
-        format!("{:.1} KB", bytes as f64 / KB as f64)
-    } else if bytes < GB {
-        format!("{:.1} MB", bytes as f64 / MB as f64)
-    } else {
-        format!("{:.1} GB", bytes as f64 / GB as f64)
-    }
-}
+use ferro_common::format::format_size;
 
 #[component]
 pub fn GridCard(
@@ -173,7 +158,7 @@ pub fn GridCard(
             })}
 
             <button
-                class="absolute top-2 right-2 z-10 p-1 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 class=move || if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 opacity-0 group-hover:opacity-100" }
                 attr:aria-label=format!("{} {}", if is_favorited { "Unfavorite" } else { "Favorite" }, name_for_actions)
                 title=if is_favorited { "Remove from favorites" } else { "Add to favorites" }
@@ -219,7 +204,7 @@ pub fn GridCard(
             <div class="flex items-center justify-center gap-1 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
-                        class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         attr:aria-label=format!("Download {}", name_for_actions)
                         title="Download"
                         on:click=handle_download_click
@@ -231,7 +216,7 @@ pub fn GridCard(
                 })}
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
-                        class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         attr:aria-label=format!("Share {}", name_for_actions)
                         title="Share"
                         on:click=handle_share_click
@@ -242,7 +227,7 @@ pub fn GridCard(
                     </button>
                 })}
                 <button
-                    class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     attr:aria-label=format!("Copy {}", name_for_actions)
                     title="Copy"
                     on:click=handle_copy_click
@@ -252,7 +237,7 @@ pub fn GridCard(
                     </svg>
                 </button>
                 <button
-                    class="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     attr:aria-label=format!("Move {}", name_for_actions)
                     title="Move"
                     on:click=handle_move_click
@@ -263,7 +248,7 @@ pub fn GridCard(
                 </button>
                 {(!is_locked).then(|| view! {
                     <button
-                        class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         attr:aria-label=format!("Delete {}", name_for_actions)
                         title="Delete"
                         on:click=handle_delete_click

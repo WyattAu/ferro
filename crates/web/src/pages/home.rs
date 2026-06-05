@@ -13,12 +13,14 @@ pub fn HomePage(initial_path: String) -> impl IntoView {
     provide_command_palette_state();
     provide_header_state();
     view! {
-        <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
+        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
             <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">"Skip to main content"</a>
             <Header />
-            <main id="main-content" class="flex-1 max-w-7xl w-full mx-auto bg-white dark:bg-gray-800 shadow-sm my-2 sm:my-4 rounded-xl overflow-hidden">
-                <FileBrowser initial_path=initial_path />
-            </main>
+            <div class="flex-1 overflow-auto px-2 sm:px-4 pt-16">
+                <main id="main-content" class="max-w-7xl w-full mx-auto bg-white dark:bg-gray-800 shadow-sm rounded-xl">
+                    <FileBrowser initial_path=initial_path />
+                </main>
+            </div>
             <CommandPalette />
         </div>
     }

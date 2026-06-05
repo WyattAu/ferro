@@ -7,7 +7,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-wasmtime = "18"
+wasmtime = "44"
 dashmap = "6"
 sha2 = { workspace = true }
 thiserror = { workspace = true }
