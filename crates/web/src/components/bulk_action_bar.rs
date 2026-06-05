@@ -1,0 +1,50 @@
+use leptos::*;
+
+/// Floating action bar shown when files are selected in select mode.
+#[component]
+pub fn BulkActionBar(
+    /// Whether select mode is active.
+    select_mode: ReadSignal<bool>,
+    /// Number of currently selected items.
+    selected_count: Signal<usize>,
+    /// Called when user clicks Delete.
+    on_delete: Callback<()>,
+    /// Called when user clicks Download.
+    on_download: Callback<()>,
+    /// Called when user clicks Clear.
+    on_clear: Callback<()>,
+) -> impl IntoView {
+    view! {
+        {move || (select_mode.get() && selected_count.get() > 0).then(|| view! {
+            <div class="fixed bottom-0 sm:bottom-4 left-0 sm:left-1/2 sm:-translate-x-1/2 w-full sm:w-auto surface-dark text-white dark:text-gray-900 rounded-none sm:rounded shadow-2xl brutal-border border-t-3 border-t-accent px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-4 z-50 justify-between sm:justify-center transition-all duration-200">
+                <span class="text-sm font-bold font-mono uppercase tracking-wider">
+                    {move || selected_count.get()} " selected"
+                </span>
+                 <div class="flex items-center gap-2">
+                     <button
+                         class="px-3 py-1.5 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[44px]"
+                         on:click=move |_| on_delete.call(())
+                         aria-label="Delete selected files"
+                     >
+                         "Delete"
+                     </button>
+                     <button
+                         class="px-3 py-1.5 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]"
+                         on:click=move |_| on_download.call(())
+                         aria-label="Download selected files"
+                     >
+                         <span class="hidden sm:inline">"Download"</span>
+                         <svg class="w-4 h-4 sm:hidden" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                     </button>
+                     <button
+                         class="px-3 py-1.5 text-sm bg-gray-600 dark:bg-gray-300 text-white dark:text-gray-900 brutal-border rounded-sm font-bold uppercase hover:bg-gray-500 dark:hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 min-h-[44px]"
+                         on:click=move |_| on_clear.call(())
+                         aria-label="Clear selection"
+                     >
+                         "Clear"
+                     </button>
+                 </div>
+            </div>
+        })}
+    }
+}

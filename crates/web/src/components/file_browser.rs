@@ -3,15 +3,19 @@ use leptos_router::A;
 
 use crate::api;
 use crate::components::activity_sidebar::ActivitySidebar;
+use crate::components::bulk_action_bar::BulkActionBar;
 use crate::components::clipboard::{ClipboardAction, use_clipboard_state};
 use crate::components::command_palette::{Command, use_command_palette_state};
 use crate::components::delete_confirm::DeleteConfirmDialog;
+use crate::components::drag_hint::DragHint;
+use crate::components::empty_state::EmptyState;
 use crate::components::file_preview::FilePreview;
 use crate::components::file_row::FileRow;
 use crate::components::grid_view::GridView;
 use crate::components::header::use_header_state;
 use crate::components::new_folder_dialog::NewFolderDialog;
 use crate::components::path_dialog::PathDialog;
+use crate::components::scroll_sentinel::ScrollSentinel;
 use crate::components::share_dialog::ShareDialog;
 use crate::components::skeleton::{SkeletonFavorites, SkeletonGrid, SkeletonList, SkeletonRecent};
 use crate::components::theme_toggle::{Theme, use_theme_state};
@@ -567,9 +571,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         do_select_all();
     };
 
-    let selected_count = move || selected_paths.with(|s| s.len());
-
-    let do_bulk_delete = move |_: ev::MouseEvent| {
+    let _do_bulk_delete = move |_: ev::MouseEvent| {
+        set_show_delete_confirm.set(true);
+    };
+    let do_bulk_delete_nop = move || {
         set_show_delete_confirm.set(true);
     };
 
@@ -598,7 +603,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     });
 
-    let do_bulk_download = move |_: ev::MouseEvent| {
+    let _do_bulk_download = move |_: ev::MouseEvent| {
         let paths: Vec<String> = selected_paths.get().into_iter().collect();
         for path in &paths {
             let p = path.clone();
@@ -1475,76 +1480,47 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                }}
            })}
 
-           // Bulk action bar
-           {move || (select_mode.get() && selected_count() > 0).then(|| view! {
-               <div class="fixed bottom-0 sm:bottom-4 left-0 sm:left-1/2 sm:-translate-x-1/2 w-full sm:w-auto surface-dark text-white dark:text-gray-900 rounded-none sm:rounded shadow-2xl brutal-border border-t-3 border-t-accent px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-4 z-50 justify-between sm:justify-center transition-all duration-200">
-                   <span class="text-sm font-bold font-mono uppercase tracking-wider">
-                       {move || selected_count()} " selected"
-                   </span>
-                    <div class="flex items-center gap-2">
-                        <button
-                            class="px-3 py-1.5 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[44px]"
-                            on:click=do_bulk_delete
-                            aria-label="Delete selected files"
-                        >
-                            "Delete"
-                        </button>
-                        <button
-                            class="px-3 py-1.5 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]"
-                            on:click=do_bulk_download
-                            aria-label="Download selected files"
-                        >
-                            <span class="hidden sm:inline">"Download"</span>
-                            <svg class="w-4 h-4 sm:hidden" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        </button>
-                        <button
-                            class="px-3 py-1.5 text-sm bg-gray-600 dark:bg-gray-300 text-white dark:text-gray-900 brutal-border rounded-sm font-bold uppercase hover:bg-gray-500 dark:hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 min-h-[44px]"
-                            on:click=move |_| {
-                                set_selected_paths.set(std::collections::HashSet::new());
-                            }
-                            aria-label="Clear selection"
-                        >
-                            "Clear"
-                        </button>
-                    </div>
-               </div>
-           })}
+            // Bulk action bar (extracted component)
+            <BulkActionBar
+                select_mode=select_mode
+                selected_count=Signal::derive(move || selected_paths.with(|s| s.len()))
+                on_delete=Callback::new(move |_| do_bulk_delete_nop())
+                on_download=Callback::new(move |_: ()| {
+                    let paths: Vec<String> = selected_paths.get().into_iter().collect();
+                    for path in &paths {
+                        let p = path.clone();
+                        spawn_local(async move {
+                            let _ = api::download_file(&p).await;
+                        });
+                    }
+                })
+                on_clear=Callback::new(move |_| set_selected_paths.set(std::collections::HashSet::new()))
+            />
 
-           // Scroll sentinel -- IntersectionObserver watches this element
-           {move || {
-               let total = all_entries.with(Vec::len);
-               let displayed = display_count.get();
-               (total > displayed && !loading.get() && show_files_view()).then(|| view! {
-                   <div _ref=scroll_sentinel_ref class="py-4 text-center text-sm text-muted font-mono" role="status" aria-live="polite">
-                       <div class="animate-spin w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-accent rounded-full mx-auto mb-2"></div>
-                       "Loading more..."
-                   </div>
-               })
-           }}
+            // Scroll sentinel (extracted component)
+            <ScrollSentinel
+                total=Signal::derive(move || all_entries.with(Vec::len))
+                displayed=display_count
+                loading=loading
+                files_tab_active=Signal::derive(show_files_view)
+                sentinel_ref=scroll_sentinel_ref
+            />
 
-           // Empty state (files tab)
-           {move || (!loading.get() && show_files_view() && all_entries.with(Vec::is_empty) && error.get().is_none()).then(|| view! {
-               <div class="px-6 py-16 text-center" role="status">
-                   <svg class="w-20 h-20 mx-auto mb-4 text-gray-300" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                   </svg>
-                   <div class="text-lg font-medium text-gray-500">"This folder is empty"</div>
-                   <div class="text-sm text-gray-400 mt-1 mb-4">"Drop files here or upload your first file"</div>
-                   <button
-                       class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                       on:click=move |_| set_show_upload.set(true)
-                   >
-                       "Upload your first file"
-                   </button>
-               </div>
-           })}
+            // Empty state (extracted component)
+            <EmptyState
+                loading=loading
+                files_tab_active=Signal::derive(show_files_view)
+                has_error=Signal::derive(move || error.get().is_some())
+                is_empty=Signal::derive(move || all_entries.with(Vec::is_empty))
+                on_upload=Callback::new(move |_| set_show_upload.set(true))
+            />
 
-           // Drag hint
-           {move || (!loading.get() && !all_entries.with(Vec::is_empty) && show_files_view()).then(|| view! {
-               <div class="border-t border-gray-100 px-6 py-2 text-center">
-                   <span class="text-xs text-gray-500">"Drag and drop files here to upload"</span>
-               </div>
-           })}
+            // Drag hint (extracted component)
+            <DragHint
+                loading=loading
+                has_entries=Signal::derive(move || !all_entries.with(Vec::is_empty))
+                files_tab_active=Signal::derive(show_files_view)
+            />
 
             // Move dialog (extracted PathDialog component)
             <PathDialog

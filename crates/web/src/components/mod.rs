@@ -1,7 +1,10 @@
 pub mod activity_sidebar;
+pub mod bulk_action_bar;
 pub mod clipboard;
 pub mod command_palette;
 pub mod delete_confirm;
+pub mod drag_hint;
+pub mod empty_state;
 pub mod error_boundary;
 pub mod file_browser;
 pub mod file_icon;
@@ -12,6 +15,7 @@ pub mod header;
 pub mod new_folder_dialog;
 pub mod onboarding;
 pub mod path_dialog;
+pub mod scroll_sentinel;
 pub mod share_dialog;
 pub mod skeleton;
 pub mod theme_toggle;
