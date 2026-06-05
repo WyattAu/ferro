@@ -1,6 +1,6 @@
 # Contributing to Ferro
 
-Thank you for your interest in contributing! This guide covers everything you need.
+Thank you for your interest in contributing. This guide covers everything you need.
 
 ## Quick Start
 
