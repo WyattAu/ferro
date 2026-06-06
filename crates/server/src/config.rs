@@ -23,6 +23,7 @@ pub async fn get_server_config(State(state): State<AppState>) -> Response {
 }
 
 use clap::Parser;
+use clap_complete::Shell;
 use serde::Deserialize;
 
 /// Configuration values loaded from a TOML file.
@@ -92,6 +93,14 @@ pub struct ServerConfig {
     /// Validate configuration file and exit (exit code 0 if valid, 1 if errors)
     #[arg(long)]
     pub validate_config: bool,
+
+    /// Generate shell completion script and exit
+    #[arg(long = "generate-completions", value_enum)]
+    pub generate_completions: Option<Shell>,
+
+    /// Print man page to stdout and exit
+    #[arg(long = "print-man-page")]
+    pub print_man_page: bool,
 
     #[arg(long, default_value = "0.0.0.0")]
     pub host: String,

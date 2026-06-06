@@ -1,7 +1,8 @@
 mod client;
 mod commands;
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
 use ferro_common::format::format_size;
 use sha2::Digest;
 
@@ -14,7 +15,7 @@ use sha2::Digest;
 )]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 
     #[arg(long, env = "FERRO_URL", default_value = "http://localhost:8080")]
     server_url: String,
@@ -27,6 +28,14 @@ struct Cli {
 
     #[arg(short, long)]
     verbose: bool,
+
+    /// Generate shell completion script and exit
+    #[arg(long = "generate-completions", value_enum)]
+    generate_completions: Option<Shell>,
+
+    /// Print man page to stdout and exit
+    #[arg(long = "print-man-page")]
+    print_man_page: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -150,6 +159,19 @@ enum BackupCommands {
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
+    // Early-exit: generate shell completions
+    if let Some(shell) = cli.generate_completions {
+        let mut cmd = Cli::command();
+        clap_complete::generate(shell, &mut cmd, "ferro", &mut std::io::stdout());
+        return Ok(());
+    }
+
+    // Early-exit: print man page
+    if cli.print_man_page {
+        print_cli_man_page();
+        return Ok(());
+    }
+
     let log_level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -160,7 +182,12 @@ async fn main() -> anyhow::Result<()> {
 
     let ferro_client = client::FerroClient::new(&cli.server_url, cli.token.as_deref())?;
 
-    match cli.command {
+    let Some(command) = cli.command else {
+        eprintln!("No subcommand provided. Use --help for usage information.");
+        std::process::exit(1);
+    };
+
+    match command {
         Commands::Server(cmd) => handle_server(cmd, &ferro_client).await,
         Commands::File(cmd) => handle_file(cmd, &ferro_client).await,
         Commands::User(cmd) => handle_user(cmd, &ferro_client).await,
@@ -546,4 +573,108 @@ async fn cmd_info(client: &client::FerroClient) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn print_cli_man_page() {
+    let version = env!("CARGO_PKG_VERSION");
+    print!(
+        r#".TH FERRO 1 "June 2026" "Ferro {version}" "User Commands"
+.SH NAME
+ferro \- Ferro Storage Orchestrator CLI client
+.SH SYNOPSIS
+.B ferro
+[\fIOPTIONS\fR] \fISUBCOMMAND\fR
+.SH DESCRIPTION
+.B ferro
+is a command-line client for interacting with Ferro storage servers.
+It supports file operations, user management, sharing, snapshots, and backups.
+.SH OPTIONS
+.TP
+.BI \-\-server-url " " \fIURL\fR
+Ferro server URL (default: http://localhost:8080). Also set via FERRO_URL.
+.TP
+.BI \-\-token " " \fITOKEN\fR
+Authentication token. Also set via FERRO_TOKEN.
+.TP
+.BI \-\-output " " \fIFORMAT\fR
+Output format: text or json (default: text).
+.TP
+.BI \-v ", " \-\-verbose
+Enable debug logging.
+.TP
+.BI \-\-generate-completions " " \fISHELL\fR
+Generate shell completion script (bash, zsh, fish, powershell) and exit.
+.TP
+.BI \-\-print-man-page
+Print this man page to stdout and exit.
+.TP
+.BI \-h ", " \-\-help
+Print help information.
+.TP
+.BI \-V ", " \-\-version
+Print version information.
+.SH SUBCOMMANDS
+.TP
+.B server health|capabilities
+Query server status and capabilities.
+.TP
+.B file list|upload|download|delete|mkdir|info|hash|search
+File operations on the remote server.
+.TP
+.B user list|whoami
+User management operations.
+.TP
+.B policy list|add|remove
+Cedar authorization policy management.
+.TP
+.B share list|create|delete
+Share link management.
+.TP
+.B snapshot list|create|delete|restore
+Snapshot management.
+.TP
+.B backup create|list|restore|delete
+Backup management.
+.TP
+.B info
+Display server connection info.
+.SH EXAMPLES
+List files at the root:
+.RS
+.B ferro file list /
+.RE
+.PP
+Upload a file:
+.RS
+.B ferro file upload ./photo.jpg /photos/photo.jpg
+.RE
+.PP
+Create a share link:
+.RS
+.B ferro share create /documents/report.pdf --expires-hours 24
+.RE
+.PP
+Generate bash completions:
+.RS
+.B ferro --generate-completions bash > /etc/bash_completion.d/ferro
+.RE
+.PP
+Install man page:
+.RS
+.B ferro --print-man-page > /usr/share/man/man1/ferro.1
+.RE
+.SH ENVIRONMENT
+.TP
+.B FERRO_URL
+Server URL (alternative to --server-url).
+.TP
+.B FERRO_TOKEN
+Authentication token (alternative to --token).
+.SH AUTHOR
+Ferro Contributors
+.SH LICENSE
+See the Ferro project repository for license details.
+"#,
+        version = version
+    );
 }

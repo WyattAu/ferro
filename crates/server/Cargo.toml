@@ -43,6 +43,7 @@ libc = "0.2"
 thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
 clap = { version = "4", features = ["derive", "env"] }
+clap_complete = "4"
 dashmap = "6"
 anyhow = "1"
 toml = "0.8"

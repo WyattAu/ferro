@@ -24,19 +24,25 @@
 
 ## Recently Completed
 
-### 2026-06-06 (v3.0.10): Roadmap Item Execution
+### 2026-06-06 (v3.0.10): Roadmap Item Execution -- All Remaining Items
 
 **v3.2 Performance and Scale:**
+- PF-004: Object storage streaming -- `put_stream()` trait method + `ObjectStoreStorageEngine` streaming multipart impl
+- PF-006: Cache layer -- read_cache already wired into REST API + remote mount (verified)
 - PF-001: PostgreSQL migration guide (docs/src/deployment/postgresql-migration.md)
-- Connection pooling guidance with PgBouncer
+
+**v3.3 Client Ecosystem:**
+- CL-005: CLI improvements -- `--generate-completions bash/zsh/fish/powershell` + `--print-man-page` for server + CLI
 
 **v3.4 Production Operations:**
-- OP-004: --validate-config CLI flag with comprehensive validation (schema, port, storage, OIDC, CORS, WOPI)
+- OP-004: `--validate-config` CLI flag with comprehensive validation
 - OP-001: Horizontal scaling guide (docs/src/deployment/horizontal-scaling.md)
-- OP-005: Blue-green deployment guide (docs/src/deployment/blue-green.md, Docker Compose + Caddy + K8s)
+- OP-005: Blue-green deployment guide (docs/src/deployment/blue-green.md)
 
 **v4.0 Advanced Features:**
-- AF-004: Webhook delivery improvements -- 5 attempts with jittered exponential backoff, dead letter queue, delivery tracking in SQLite, 2 new API endpoints (GET /api/admin/webhooks/:id/deliveries, GET /api/admin/webhooks/deliveries/dead)
+- AF-003: Stable WASM plugin ABI (crates/wasm-host/src/abi.rs: ABI v1, PluginManifest, host/guest interfaces)
+- AF-004: Webhook delivery improvements (5 attempts, jittered backoff, DLQ, delivery tracking, 2 API endpoints)
+- AF-005: ActivityPub federation polish (inbox Follow/Accept/Undo, actor resolution, HTTP signing, 13 new tests)
 
 ### 2026-06-06 (v3.0.9): Audit Cycle 9 - Comprehensive 7-Phase Quality Audit
 
@@ -1274,9 +1280,9 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | PF-001 | P0 | PostgreSQL migration path | Document and automate migration from SQLite to PostgreSQL for >100 concurrent user deployments. Connection pooling with `deadpool-postgres` | 5 days | DONE (docs/src/deployment/postgresql-migration.md) |
 | PF-002 | P0 | Raft consensus activation | Wire `ferro-distributed` consensus module into server for multi-node deployments. Currently scaffolded with TCP transport | 10 days |
 | PF-003 | P1 | Query optimization | Profile and optimize the Tantivy search index for >1M files. Add index sharding, query caching, and result pagination at the engine level | 5 days |
-| PF-004 | P1 | Object storage streaming | Implement streaming PUT/GET for S3/GCS/Azure backends (avoid buffering entire file in memory on server) | 3 days |
+| PF-004 | P1 | Object storage streaming | Implement streaming PUT/GET for S3/GCS/Azure backends (avoid buffering entire file in memory on server) | 3 days | DONE (put_stream trait + object_store impl with streaming multipart) |
 | PF-005 | P2 | gRPC protocol | Add gRPC transport option alongside WebDAV for high-throughput programmatic clients | 7 days |
-| PF-006 | P2 | Cache layer | Wire `ferro-cache` into metadata read path with configurable TTL and invalidation strategy | 3 days |
+| PF-006 | P2 | Cache layer | Wire `ferro-cache` into metadata read path with configurable TTL and invalidation strategy | 3 days | DONE (read_cache already wired into REST API + remote mount) |
 
 ### v3.3 -- Client Ecosystem
 
@@ -1288,7 +1294,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | CL-002 | P1 | FUSE mount stability | Extend FUSE mount test coverage, handle network interruptions gracefully, add reconnection logic | 5 days |
 | CL-003 | P1 | iOS Files Provider | Implement iOS Files Provider extension using `ferro-mobile-contract` API bindings | 15 days |
 | CL-004 | P1 | Android SAF | Implement Android Storage Access Framework provider using `ferro-mobile-contract` API bindings | 15 days |
-| CL-005 | P2 | CLI improvements | Add interactive mode, shell completions (bash/zsh/fish), and man page generation | 3 days |
+| CL-005 | P2 | CLI improvements | Add interactive mode, shell completions (bash/zsh/fish), and man page generation | 3 days | DONE (--generate-completions bash/zsh/fish/powershell + --print-man-page for server + CLI) |
 
 ### v3.4 -- Production Operations
 
@@ -1311,9 +1317,9 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 |---|----------|------|-------------|--------|
 | AF-001 | P1 | Real-time collaboration UI | Wire `ferro-crdt` into the web UI for live document co-editing with conflict resolution visualization | 15 days |
 | AF-002 | P1 | AI semantic search | Wire `ferro-ai` embeddings into search API with vector similarity ranking alongside full-text | 10 days |
-| AF-003 | P2 | Plugin SDK | Define stable WASM plugin ABI for third-party extensions (custom protocols, storage backends, auth providers) | 10 days |
+| AF-003 | P2 | Plugin SDK | Define stable WASM plugin ABI for third-party extensions (custom protocols, storage backends, auth providers) | 10 days | DONE (crates/wasm-host/src/abi.rs: ABI v1, PluginManifest, host_exports, guest_imports, error codes) |
 | AF-004 | P2 | Webhook delivery improvements | Add delivery retry with exponential backoff, dead letter queue, and delivery status API | 3 days | DONE (5 attempts, jittered backoff, DLQ table, 2 new API endpoints) |
-| AF-005 | P3 | ActivityPub federation polish | Complete inbox/outbox handling, object resolution, and following workflow between Ferro instances | 10 days |
+| AF-005 | P3 | ActivityPub federation polish | Complete inbox/outbox handling, object resolution, and following workflow between Ferro instances | 10 days | DONE (inbox Follow/Accept/Undo, actor resolution, HTTP signing, 13 new tests) |
 
 ### Milestone Timeline
 

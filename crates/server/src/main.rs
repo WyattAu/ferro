@@ -14,6 +14,21 @@ use tracing::info;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let mut cli = ServerConfig::parse();
+
+    // Early-exit: generate shell completions
+    if let Some(shell) = cli.generate_completions {
+        use clap::CommandFactory;
+        let mut cmd = ServerConfig::command();
+        clap_complete::generate(shell, &mut cmd, "ferro-server", &mut std::io::stdout());
+        return Ok(());
+    }
+
+    // Early-exit: print man page
+    if cli.print_man_page {
+        print_man_page();
+        return Ok(());
+    }
+
     let original_args: Vec<String> = std::env::args().collect();
 
     let file_config = if let Some(ref config_path) = cli.config {
@@ -1049,6 +1064,123 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Server shutdown complete");
     Ok(())
+}
+
+fn print_man_page() {
+    let version = env!("CARGO_PKG_VERSION");
+    print!(
+        r#".TH FERRO-SERVER 1 "June 2026" "Ferro {version}" "User Commands"
+.SH NAME
+ferro-server \- Ferro Storage Orchestrator server
+.SH SYNOPSIS
+.B ferro-server
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B ferro-server
+starts the Ferro storage orchestrator, providing WebDAV, CalDAV, CardDAV,
+and REST API access to configured storage backends.
+.SH OPTIONS
+.TP
+.BI \-\-config " " \fIFILE\fR
+Path to TOML configuration file. Auto-detected at ./ferro.toml or /etc/ferro/ferro.toml.
+.TP
+.BI \-\-host " " \fIADDR\fR
+Listen address (default: 0.0.0.0).
+.TP
+.BI \-p ", " \-\-port " " \fIPORT\fR
+Listen port (default: 8080).
+.TP
+.BI \-\-log-level " " \fILEVEL\fR
+Log level: trace, debug, info, warn, error (default: info).
+.TP
+.BI \-\-log-format " " \fIFORMAT\fR
+Log format: text or json (default: text).
+.TP
+.BI \-\-storage " " \fIBACKEND\fR
+Storage backend: memory (default), local:/path, s3://bucket, gs://bucket, az://container.
+.TP
+.BI \-\-data-dir " " \fIDIR\fR
+Directory for persistent SQLite data (metadata, CAS, snapshots, audit).
+.TP
+.BI \-\-oidc-issuer " " \fIURL\fR
+OIDC issuer URL (enables authentication).
+.TP
+.BI \-\-oidc-client-id " " \fIID\fR
+OIDC client ID (required when --oidc-issuer is set).
+.TP
+.BI \-\-admin-user " " \fIUSER\fR
+Admin username for HTTP Basic Auth.
+.TP
+.BI \-\-admin-password " " \fIPASS\fR
+Admin password for HTTP Basic Auth.
+.TP
+.BI \-\-wasm-enabled
+Enable WASM worker runtime.
+.TP
+.BI \-\-cas-enabled
+Enable content-addressable deduplication.
+.TP
+.BI \-\-static-dir " " \fIDIR\fR
+Path to static web assets directory.
+.TP
+.BI \-\-validate-config
+Validate configuration file and exit.
+.TP
+.BI \-\-generate-completions " " \fISHELL\fR
+Generate shell completion script (bash, zsh, fish, powershell) and exit.
+.TP
+.BI \-\-print-man-page
+Print this man page to stdout and exit.
+.TP
+.BI \-h ", " \-\-help
+Print help information.
+.TP
+.BI \-V ", " \-\-version
+Print version information.
+.SH FILES
+.TP
+.I /etc/ferro/ferro.toml
+System-wide configuration file (auto-detected).
+.TP
+.I ./ferro.toml
+Per-project configuration file (auto-detected).
+.SH ENVIRONMENT
+.TP
+.B FERRO_CONFIG
+Path to configuration file (alternative to --config).
+.TP
+.B FERRO_DATA_DIR
+Data directory (alternative to --data-dir).
+.TP
+.B FERRO_OIDC_ISSUER
+OIDC issuer URL (alternative to --oidc-issuer).
+.SH EXAMPLES
+Start with default settings:
+.RS
+.B ferro-server
+.RE
+.PP
+Start with persistent storage and authentication:
+.RS
+.B ferro-server --data-dir /var/lib/ferro --oidc-issuer https://auth.example.com
+.RE
+.PP
+Generate bash completions:
+.RS
+.B ferro-server --generate-completions bash > /etc/bash_completion.d/ferro-server
+.RE
+.PP
+Install man page:
+.RS
+.B ferro-server --print-man-page > /usr/share/man/man1/ferro-server.1
+.RE
+.SH AUTHOR
+Ferro Contributors
+.SH LICENSE
+See the Ferro project repository for license details.
+"#,
+        version = version
+    );
 }
 
 fn parse_duration(s: &str) -> Option<std::time::Duration> {

@@ -148,6 +148,29 @@ pub trait StorageEngine: Send + Sync {
         self.put(path, content, owner).await
     }
 
+    /// Stream a file upload from an AsyncRead without loading the entire file into memory.
+    /// Default implementation reads all bytes and calls put().
+    /// Backends should override for true streaming (e.g., S3 multipart upload from reader).
+    async fn put_stream(
+        &self,
+        path: &str,
+        reader: Pin<Box<dyn tokio::io::AsyncRead + Send>>,
+        size: u64,
+        owner: &str,
+    ) -> Result<FileMetadata> {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::with_capacity(size as usize);
+        reader.take(size).read_to_end(&mut buf).await.map_err(|e| {
+            crate::error::FerroError::StorageBackend(format!("Stream read error: {e}"))
+        })?;
+        self.put(path, Bytes::from(buf), owner).await
+    }
+
+    /// Check if streaming upload is supported.
+    fn supports_put_stream(&self) -> bool {
+        false
+    }
+
     /// Check if multipart upload is supported.
     fn supports_multipart(&self) -> bool {
         false

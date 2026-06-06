@@ -22,6 +22,58 @@ pub struct FederationState {
     pub federation_secret: String,
 }
 
+pub async fn resolve_actor(actor_url: &str) -> Result<actor::Actor, String> {
+    let client = delivery::federation_client();
+    let response = client
+        .get(actor_url)
+        .header("Accept", "application/activity+json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch actor {}: {}", actor_url, e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!(
+            "Actor fetch failed with status {} for {}",
+            status, actor_url
+        ));
+    }
+
+    response
+        .json::<actor::Actor>()
+        .await
+        .map_err(|e| format!("Failed to parse actor JSON from {}: {}", actor_url, e))
+}
+
+async fn deliver_accept(state: &FederationState, accept: &Activity, remote_actor_url: &str) {
+    let remote_actor = match resolve_actor(remote_actor_url).await {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::warn!("Failed to resolve remote actor {}: {}", remote_actor_url, e);
+            return;
+        }
+    };
+
+    let accept_value = match serde_json::to_value(accept) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!("Failed to serialize Accept: {}", e);
+            return;
+        }
+    };
+
+    if let Err(e) = delivery::deliver_to_inbox(
+        &remote_actor.inbox,
+        &accept_value,
+        &state.federation_secret,
+        &state.external_url,
+    )
+    .await
+    {
+        tracing::warn!("Failed to deliver Accept to {}: {}", remote_actor.inbox, e);
+    }
+}
+
 pub async fn get_actor(
     State(state): State<FederationState>,
     axum::extract::Path(username): axum::extract::Path<String>,
@@ -169,16 +221,6 @@ pub async fn inbox(
         tracing::warn!("inbox: {e}");
     }
 
-    let delivery_state = state.clone();
-    let act = serde_json::to_value(activity.clone()).unwrap_or_default();
-    tokio::spawn(async move {
-        let results = delivery::deliver_to_followers(&delivery_state, &act).await;
-        let errors: Vec<_> = results.into_iter().filter_map(|r| r.err()).collect();
-        if !errors.is_empty() {
-            tracing::warn!("Follower delivery had errors: {:?}", errors);
-        }
-    });
-
     match activity.r#type {
         ActivityType::Follow => {
             let accept = Activity {
@@ -192,19 +234,28 @@ pub async fn inbox(
                 published: chrono::Utc::now().to_rfc3339(),
                 target: None,
             };
-            state.activity_store.add_to_outbox(accept).ok();
+            state.activity_store.add_to_outbox(accept.clone()).ok();
             state
                 .activity_store
                 .add_follower("admin", &activity.actor)
                 .ok();
+
+            let deliver_state = state.clone();
+            let accept_clone = accept;
+            let remote_actor = activity.actor.clone();
+            tokio::spawn(async move {
+                deliver_accept(&deliver_state, &accept_clone, &remote_actor).await;
+            });
         }
         ActivityType::Create | ActivityType::Update | ActivityType::Delete => {}
         ActivityType::Announce => {}
         ActivityType::Undo => {
-            state
-                .activity_store
-                .remove_follower("admin", &activity.actor)
-                .ok();
+            if let serde_json::Value::String(target_url) = &activity.object {
+                state
+                    .activity_store
+                    .remove_follower("admin", target_url)
+                    .ok();
+            }
         }
         _ => {}
     }
@@ -277,6 +328,77 @@ pub async fn list_following(
 }
 
 #[derive(Deserialize)]
+pub struct FollowRemoteRequest {
+    pub actor_url: String,
+}
+
+pub async fn follow_remote(
+    State(state): State<FederationState>,
+    axum::Json(req): axum::Json<FollowRemoteRequest>,
+) -> Response {
+    if state.federation_secret.is_empty() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            axum::Json(json!({
+                "error": "Federation is disabled",
+                "error_description": "Set FERRO_FEDERATION_SECRET to enable federation"
+            })),
+        )
+            .into_response();
+    }
+
+    let remote_actor = match resolve_actor(&req.actor_url).await {
+        Ok(a) => a,
+        Err(e) => {
+            return (
+                StatusCode::BAD_GATEWAY,
+                axum::Json(json!({"error": format!("Failed to resolve actor: {}", e)})),
+            )
+                .into_response();
+        }
+    };
+
+    let local_actor_url = format!("{}/fed/actor/admin", state.external_url);
+    let follow = Activity::follow(&local_actor_url, &remote_actor.id);
+    state.activity_store.add_to_outbox(follow.clone()).ok();
+
+    let follow_value = match serde_json::to_value(&follow) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(json!({"error": format!("Failed to serialize activity: {}", e)})),
+            )
+                .into_response();
+        }
+    };
+
+    match delivery::deliver_to_inbox(
+        &remote_actor.inbox,
+        &follow_value,
+        &state.federation_secret,
+        &state.external_url,
+    )
+    .await
+    {
+        Ok(()) => (
+            StatusCode::OK,
+            axum::Json(json!({
+                "status": "follow_sent",
+                "activity_id": follow.id,
+                "target": remote_actor.id,
+            })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::BAD_GATEWAY,
+            axum::Json(json!({"error": format!("Failed to deliver Follow: {}", e)})),
+        )
+            .into_response(),
+    }
+}
+
+#[derive(Deserialize)]
 pub struct ShareRequest {
     pub path: String,
     pub comment: Option<String>,
@@ -332,12 +454,14 @@ pub fn routes(state: FederationState) -> Router {
         .route("/fed/outbox", axum::routing::get(list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(nodeinfo))
         .route("/fed/share", axum::routing::post(federated_share))
+        .route("/fed/follow", axum::routing::post(follow_remote))
         .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use activity::{Activity, ActivityType};
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
@@ -354,6 +478,51 @@ mod tests {
             r#"keyId="{}",algorithm="hs2019",headers="(request-target)",signature="{}""#,
             key_id, sig_b64
         )
+    }
+
+    fn make_state() -> FederationState {
+        FederationState {
+            activity_store: std::sync::Arc::new(store::ActivityStore::new()),
+            external_url: "https://local.example.com".to_string(),
+            federation_secret: "test-secret".to_string(),
+        }
+    }
+
+    fn make_follow_activity(remote_actor: &str) -> Activity {
+        Activity {
+            context: serde_json::json!("https://www.w3.org/ns/activitystreams"),
+            id: format!("{}/activities/{}", remote_actor, uuid::Uuid::new_v4()),
+            r#type: ActivityType::Follow,
+            actor: remote_actor.to_string(),
+            object: serde_json::json!("https://local.example.com/fed/actor/admin"),
+            to: Some(vec![
+                "https://local.example.com/fed/actor/admin".to_string(),
+            ]),
+            cc: None,
+            published: chrono::Utc::now().to_rfc3339(),
+            target: None,
+        }
+    }
+
+    async fn build_inbox_request(
+        state: &FederationState,
+        activity: &Activity,
+    ) -> axum::http::Request<axum::body::Body> {
+        let body = serde_json::to_vec(activity).unwrap();
+        let sig_header = create_hmac_signature(
+            &state.federation_secret,
+            "POST",
+            "/fed/inbox",
+            &format!("{}#main-key", activity.actor),
+        );
+
+        axum::http::Request::builder()
+            .method("POST")
+            .uri("/fed/inbox")
+            .header("Signature", &sig_header)
+            .header("Content-Type", "application/activity+json")
+            .body(axum::body::Body::from(body))
+            .unwrap()
     }
 
     #[test]
@@ -438,5 +607,178 @@ mod tests {
     fn test_signature_parse_missing_signature() {
         let sig = r#"keyId="k",algorithm="hs2019""#;
         assert!(HttpSignature::parse(sig).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_inbox_follow_creates_accept_and_stores_follower() {
+        let state = make_state();
+        let remote_actor = "https://remote.example.com/actor/bob";
+        let activity = make_follow_activity(remote_actor);
+        let req = build_inbox_request(&state, &activity).await;
+
+        let response = inbox(State(state.clone()), req).await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let followers = state.activity_store.get_followers("admin");
+        assert_eq!(followers.len(), 1);
+        assert_eq!(followers[0], remote_actor);
+
+        let outbox = state.activity_store.get_outbox(0, 10);
+        assert_eq!(outbox.len(), 1);
+        assert_eq!(outbox[0].r#type, ActivityType::Accept);
+        assert_eq!(outbox[0].object, serde_json::json!(activity.id));
+        assert_eq!(outbox[0].to, Some(vec![remote_actor.to_string()]));
+    }
+
+    #[tokio::test]
+    async fn test_inbox_undo_removes_follower() {
+        let state = make_state();
+        let remote_actor = "https://remote.example.com/actor/bob";
+
+        state
+            .activity_store
+            .add_follower("admin", remote_actor)
+            .unwrap();
+        assert_eq!(state.activity_store.get_followers("admin").len(), 1);
+
+        let undo = Activity {
+            context: serde_json::json!("https://www.w3.org/ns/activitystreams"),
+            id: format!("{}/activities/undo-{}", remote_actor, uuid::Uuid::new_v4()),
+            r#type: ActivityType::Undo,
+            actor: remote_actor.to_string(),
+            object: serde_json::json!(remote_actor),
+            to: Some(vec![
+                "https://local.example.com/fed/actor/admin".to_string(),
+            ]),
+            cc: None,
+            published: chrono::Utc::now().to_rfc3339(),
+            target: None,
+        };
+        let req = build_inbox_request(&state, &undo).await;
+
+        let response = inbox(State(state.clone()), req).await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let followers = state.activity_store.get_followers("admin");
+        assert!(followers.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_inbox_rejects_missing_signature() {
+        let state = make_state();
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/fed/inbox")
+            .header("Content-Type", "application/activity+json")
+            .body(axum::body::Body::from("{}"))
+            .unwrap();
+
+        let response = inbox(State(state), req).await;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_inbox_rejects_invalid_signature() {
+        let state = make_state();
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/fed/inbox")
+            .header(
+                "Signature",
+                r#"keyId="k",algorithm="hs2019",headers="(request-target)",signature="AAAAAA==""#,
+            )
+            .header("Content-Type", "application/activity+json")
+            .body(axum::body::Body::from("{}"))
+            .unwrap();
+
+        let response = inbox(State(state), req).await;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_inbox_disabled_federation() {
+        let state = FederationState {
+            activity_store: std::sync::Arc::new(store::ActivityStore::new()),
+            external_url: "https://local.example.com".to_string(),
+            federation_secret: String::new(),
+        };
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/fed/inbox")
+            .body(axum::body::Body::from("{}"))
+            .unwrap();
+
+        let response = inbox(State(state), req).await;
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[test]
+    fn test_actor_creation() {
+        let actor = actor::Actor::new("https://files.example.com", "admin", "Admin").unwrap();
+        assert_eq!(actor.preferred_username, "admin");
+        assert_eq!(actor.r#type, "Service");
+        assert!(actor.inbox.contains("/fed/inbox"));
+        assert!(actor.outbox.contains("/fed/outbox"));
+        assert!(actor.followers.contains("/fed/followers"));
+        assert!(actor.following.contains("/fed/following"));
+    }
+
+    #[test]
+    fn test_activity_store_follow_workflow() {
+        let store = store::ActivityStore::new();
+        let remote_actor = "https://remote.example.com/actor/bob";
+
+        assert!(store.get_followers("admin").is_empty());
+
+        store.add_follower("admin", remote_actor).unwrap();
+        let followers = store.get_followers("admin");
+        assert_eq!(followers.len(), 1);
+        assert_eq!(followers[0], remote_actor);
+
+        store.remove_follower("admin", remote_actor).unwrap();
+        assert!(store.get_followers("admin").is_empty());
+    }
+
+    #[test]
+    fn test_activity_types_serialization() {
+        let types = vec![
+            ActivityType::Create,
+            ActivityType::Update,
+            ActivityType::Delete,
+            ActivityType::Announce,
+            ActivityType::Follow,
+            ActivityType::Accept,
+            ActivityType::Reject,
+            ActivityType::Like,
+            ActivityType::Undo,
+        ];
+        for t in types {
+            let json = serde_json::to_string(&t).unwrap();
+            let parsed: ActivityType = serde_json::from_str(&json).unwrap();
+            assert_eq!(t, parsed);
+        }
+    }
+
+    #[test]
+    fn test_follower_delivery_collects_errors() {
+        let state = make_state();
+        store::ActivityStore::add_follower(
+            &state.activity_store,
+            "admin",
+            "https://bad.example.com/fed/actor/alice",
+        )
+        .unwrap();
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let results = rt.block_on(async {
+            delivery::deliver_to_followers(
+                &state,
+                &serde_json::json!({"type": "Create", "actor": "https://local.example.com/fed/actor/admin"}),
+            )
+            .await
+        });
+
+        assert!(!results.is_empty());
+        assert!(results.iter().any(|r| r.is_err()));
     }
 }

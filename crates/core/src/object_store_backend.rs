@@ -94,6 +94,82 @@ impl StorageEngine for ObjectStoreStorageEngine {
         true
     }
 
+    fn supports_put_stream(&self) -> bool {
+        true
+    }
+
+    async fn put_stream(
+        &self,
+        path: &str,
+        mut reader: std::pin::Pin<Box<dyn tokio::io::AsyncRead + Send>>,
+        size: u64,
+        owner: &str,
+    ) -> Result<FileMetadata> {
+        use tokio::io::AsyncReadExt;
+        let obj_path = self.to_obj_path(path);
+
+        // For small files, read into memory and use put()
+        if size <= MULTIPART_THRESHOLD as u64 {
+            let mut buf = Vec::with_capacity(size as usize);
+            reader
+                .read_to_end(&mut buf)
+                .await
+                .map_err(|e| FerroError::StorageBackend(format!("Failed to read stream: {}", e)))?;
+            let content = Bytes::from(buf);
+            let hash = ContentHash::compute(&content);
+            self.store
+                .put(&obj_path, content.into())
+                .await
+                .map_err(|e| FerroError::StorageBackend(e.to_string()))?;
+            let meta = FileMetadata::new(path.to_string(), hash, size, owner.to_string());
+            debug!("PUT stream {} ({} bytes, small)", path, meta.size);
+            return Ok(meta);
+        }
+
+        // For large files, use multipart upload from reader
+        let mut upload = self.store.put_multipart(&obj_path).await.map_err(|e| {
+            FerroError::StorageBackend(format!("Failed to initiate multipart upload: {}", e))
+        })?;
+
+        let mut hasher = sha2::Sha256::new();
+        use sha2::Digest;
+        let mut total_read = 0u64;
+        let mut chunk_buf = vec![0u8; MULTIPART_CHUNK_SIZE];
+
+        loop {
+            let to_read = (size - total_read).min(MULTIPART_CHUNK_SIZE as u64) as usize;
+            if to_read == 0 {
+                break;
+            }
+            let n = reader
+                .read(&mut chunk_buf[..to_read])
+                .await
+                .map_err(|e| FerroError::StorageBackend(format!("Stream read error: {}", e)))?;
+            if n == 0 {
+                break;
+            }
+
+            hasher.update(&chunk_buf[..n]);
+            let part = upload.put_part(object_store::PutPayload::from_bytes(
+                Bytes::copy_from_slice(&chunk_buf[..n]),
+            ));
+            part.await.map_err(|e| {
+                FerroError::StorageBackend(format!("Multipart part upload failed: {}", e))
+            })?;
+            total_read += n as u64;
+        }
+
+        upload
+            .complete()
+            .await
+            .map_err(|e| FerroError::StorageBackend(format!("Multipart complete failed: {}", e)))?;
+
+        let hash = ContentHash::new_unchecked(hex::encode(hasher.finalize()));
+        let meta = FileMetadata::new(path.to_string(), hash, size, owner.to_string());
+        debug!("PUT stream {} ({} bytes, multipart)", path, meta.size);
+        Ok(meta)
+    }
+
     async fn put_multipart(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata> {
         let obj_path = self.to_obj_path(path);
         let hash = ContentHash::compute(&content);
