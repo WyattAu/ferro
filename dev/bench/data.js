@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780740694685,
+  "lastUpdate": 1780744229266,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -9377,6 +9377,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 809,
             "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "8dde36597a71eab3e1d5ac112c4b9a3d0bc24610",
+          "message": "audit: comprehensive quality audit across 7 phases\n\nPhase 1 (Testing & Code Quality):\n- 1981 tests pass, 0 clippy warnings, clean formatting\n- Enhanced pre-commit hook: 5 stages (fmt, clippy, secret scan, TODO scan, tests)\n- Added timing output and skip flags (SKIP_CLIPPY, SKIP_TESTS, SKIP_SECRET_SCAN)\n\nPhase 2 (CI/CD):\n- Fixed RUSTSEC-2024-0384 advisory (instant crate via reed-solomon-erasure)\n- Updated bench.yml alert-threshold from 150% to 120%\n- Updated extended-checks.yml node-version from 20 to 22 (EOL Apr 2026)\n\nPhase 3 (UI/UX):\n- Added aria-label to settings toggle switch (role=switch)\n- Added aria-label to Favorites/Recent tab buttons (hidden on mobile)\n- Added aria-hidden=true to decorative SVG icons in tab buttons\n- Added aria-labelledby to path_dialog (all dialogs now consistent)\n- Added id=command-palette-search for robust focus management\n\nPhase 4 (Documentation):\n- Fixed VERSION.md test count (1072 -> 1981, corrected self-contradiction)\n- Fixed README.md Rust version (1.92+ -> 1.95+)\n- Fixed README.md broken anchor link (#docker-compose removed)\n- Fixed CONTRIBUTING.md Rust version (1.92+ -> 1.95+)\n- Fixed SECURITY.md supported versions (2.x -> 3.x)\n- Fixed docs/src/security.md supported versions (2.x -> 3.x)\n- Updated landing page test count (1962 -> 1981)",
+          "timestamp": "2026-06-06T12:02:54+01:00",
+          "tree_id": "cfa0926432c30fb3d6052874e015c7190f283b2e",
+          "url": "https://github.com/WyattAu/ferro/commit/8dde36597a71eab3e1d5ac112c4b9a3d0bc24610"
+        },
+        "date": 1780744228025,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 266772000,
+            "range": "± 697780",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266782320,
+            "range": "± 131912",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 30146,
+            "range": "± 2568",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28361,
+            "range": "± 2250",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8721,
+            "range": "± 66",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5245,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1184,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 921,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2729,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1340,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7378,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66759,
+            "range": "± 164",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 86,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19174,
+            "range": "± 105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 941,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 173,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 186,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 806,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 842,
+            "range": "± 17",
             "unit": "ns/iter"
           },
           {
