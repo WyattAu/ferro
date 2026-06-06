@@ -1,15 +1,15 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 3.0.0 | **Date:** 2026-06-01 | **Status:** Release Candidate Preparation
+**Version:** 3.0.0 | **Date:** 2026-06-06 | **Status:** Release Candidate Preparation
 
 ---
 
-## Current State (2026-06-05)
+## Current State (2026-06-06)
 
 | Metric | Value |
 |--------|-------|
 | Crates | 43 |
-| Tests | 1962 passed, 0 failed, 0 ignored |
+| Tests | 1981 passed, 0 failed, 0 ignored |
 | Code | ~107K lines Rust |
 | Clippy warnings | 0 |
 | Security audit | Self-audit complete, 14 findings fixed (F001-F013 + F002) |
@@ -23,6 +23,45 @@
 | Pre-commit hook | fmt + clippy + targeted crate tests (configurable) |
 
 ## Recently Completed
+
+### 2026-06-06 (v3.0.9): Audit Cycle 9 - Comprehensive 7-Phase Quality Audit
+
+**Phase 1: Testing & Code Quality:**
+- 1981 tests pass, 0 clippy warnings, clean formatting
+- Enhanced pre-commit hook: 5 stages (fmt, clippy, secret scan, TODO scan, tests)
+- Added timing output and skip flags (SKIP_CLIPPY, SKIP_TESTS, SKIP_SECRET_SCAN)
+- Code quality audit: 65 production unwrap (acceptable), 36 unsafe blocks (all justified), 0 todo/unimplemented/FIXME
+
+**Phase 2: CI/CD Pipeline:**
+- Fixed RUSTSEC-2024-0384 advisory (instant crate via reed-solomon-erasure v6 -> parking_lot v0.11.2)
+- Updated bench.yml alert-threshold from 150% to 120%
+- Updated extended-checks.yml node-version from 20 to 22 (EOL Apr 2026)
+- All 6 workflows audited: checks, extended-checks, release, docs, bench, dependabot-auto-merge
+
+**Phase 3: UI/UX:**
+- Added aria-label to settings toggle switch (role=switch)
+- Added aria-label to Favorites/Recent tab buttons (hidden on mobile)
+- Added aria-hidden=true to decorative SVG icons in tab buttons
+- Added aria-labelledby to path_dialog (all dialogs now consistent)
+- Added id=command-palette-search for robust focus management
+- Design language audit: 9/10 adherence to Spatial Materialism x Amoebic UI x Brutalism
+
+**Phase 4: Documentation:**
+- Fixed VERSION.md test count (1072 -> 1981, corrected self-contradiction)
+- Fixed README.md Rust version (1.92+ -> 1.95+)
+- Fixed README.md broken anchor link (#docker-compose removed)
+- Fixed CONTRIBUTING.md Rust version (1.92+ -> 1.95+)
+- Fixed SECURITY.md supported versions (2.x -> 3.x)
+- Fixed docs/src/security.md supported versions (2.x -> 3.x)
+- Updated landing page test count (1962 -> 1981)
+
+**Phase 5: Version Control:**
+- Atomic commit (8dde365) with pre-commit hook passing all 5 stages
+- Pushed to main, CI/CD pipelines triggered
+
+**Phase 6: Web Deployment:**
+- Landing page verified live (HTTP 200) at wyattau.github.io/ferro/
+- Documentation site verified live (HTTP 200) at wyattau.github.io/ferro/docs/
 
 ### 2026-06-02 (v3.0.8): Audit Cycle 8 - Landing Page, Mermaid Diagrams, Deployment Restructure
 
@@ -877,7 +916,7 @@ Items that should be addressed during normal development:
 | TD-005 | ~~No fuzzing infrastructure~~ RESOLVED | ~~Medium~~ Done | 2026-05-25 (cargo-fuzz, 4 harnesses) |
 | TD-006 | CalDAV/CardDAV implementation incomplete (Desktop CI done separately in v3.0.2) | Low | Future sprint |
 | TD-007 | Desktop crate has no CI build | Low | Phase 6.1 |
-| TD-008 | Benchmark regression threshold too lenient (150%) | Low | Reduce to 120% (DONE in bench.yml) |
+| TD-008 | ~~Benchmark regression threshold too lenient (150%)~~ RESOLVED | Low | Reduce to 120% (DONE in bench.yml, verified 2026-06-06) |
 | TD-009 | ~~`utoipa-swagger-ui` build requires network (downloads zip)~~ RESOLVED | ~~Low~~ Done | 2026-05-29 (enabled `vendored` feature for offline builds) |
 | TD-010 | ~~Some docker-compose files use `latest` tags~~ RESOLVED | Low | Done 2026-05-26 (all pinned to SHA) |
 | TD-011 | ~~~30 remaining production `expect()` calls (down from 44)~~ RESOLVED (2026-05-30: 6 actionable expect() calls replaced) | ~~Low~~ Done | 2026-05-30 |
