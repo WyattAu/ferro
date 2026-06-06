@@ -981,6 +981,14 @@ fn api_routes(
             axum::routing::post(webhooks::create_webhook).get(webhooks::list_webhooks),
         )
         .route(
+            "/admin/webhooks/:id/deliveries",
+            axum::routing::get(webhooks::list_webhook_deliveries),
+        )
+        .route(
+            "/admin/webhooks/deliveries/dead",
+            axum::routing::get(webhooks::list_dead_letters),
+        )
+        .route(
             "/admin/users",
             axum::routing::post(user_api::create_user).get(admin_api::admin_list_users),
         )

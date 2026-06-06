@@ -13,6 +13,15 @@ use crate::db::DbHandle;
 
 const MAX_WEBHOOKS: usize = 100;
 
+/// Maximum delivery attempts before moving to dead letter queue.
+const MAX_DELIVERY_ATTEMPTS: u32 = 5;
+
+/// Base delay for exponential backoff (seconds).
+const BACKOFF_BASE_SECS: u64 = 2;
+
+/// Maximum backoff delay (seconds).
+const BACKOFF_MAX_SECS: u64 = 300;
+
 static WEBHOOK_CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLock::new(|| {
     reqwest::Client::builder()
         .pool_max_idle_per_host(10)
@@ -50,6 +59,36 @@ pub struct WebhookEvent {
     pub etag: Option<String>,
 }
 
+/// A webhook delivery attempt record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeliveryRecord {
+    pub id: String,
+    pub webhook_id: String,
+    pub event: String,
+    pub url: String,
+    pub status: String, // pending, delivered, failed, dead
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status_code: Option<u16>,
+    pub attempt_count: u32,
+    pub max_attempts: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_retry_at: Option<String>,
+    pub created_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivered_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+}
+
+/// Calculate exponential backoff delay with jitter.
+fn calculate_backoff(attempt: u32) -> std::time::Duration {
+    let base_delay = BACKOFF_BASE_SECS.saturating_pow(attempt);
+    let capped = base_delay.min(BACKOFF_MAX_SECS);
+    // Add jitter: 0-50% of the delay
+    let jitter = (rand::random::<u64>() * capped) / 2;
+    std::time::Duration::from_secs(capped + jitter)
+}
+
 /// Compute an HMAC-SHA256 signature for webhook payload verification.
 pub fn sign_payload(secret: &str, payload: &[u8]) -> String {
     use hmac::{Hmac, KeyInit, Mac};
@@ -69,8 +108,12 @@ pub fn sign_payload(secret: &str, payload: &[u8]) -> String {
     hex::encode(result.into_bytes())
 }
 
-/// Fire matching webhooks for an event with retry logic.
-pub async fn fire_webhooks(webhooks: Arc<RwLock<Vec<WebhookConfig>>>, event: WebhookEvent) {
+/// Fire matching webhooks for an event with retry logic and delivery tracking.
+pub async fn fire_webhooks(
+    webhooks: Arc<RwLock<Vec<WebhookConfig>>>,
+    event: WebhookEvent,
+    db: Option<DbHandle>,
+) {
     let hooks = {
         let guard = webhooks.read().await;
         guard
@@ -83,6 +126,7 @@ pub async fn fire_webhooks(webhooks: Arc<RwLock<Vec<WebhookConfig>>>, event: Web
     for hook in hooks {
         let hook_clone = hook.clone();
         let event_clone = event.clone();
+        let db_clone = db.clone();
         tokio::spawn(async move {
             let payload = match serde_json::to_vec(&event_clone) {
                 Ok(p) => p,
@@ -93,11 +137,23 @@ pub async fn fire_webhooks(webhooks: Arc<RwLock<Vec<WebhookConfig>>>, event: Web
             };
 
             let signature = sign_payload(&hook_clone.secret, &payload);
+            let delivery_id = uuid::Uuid::new_v4().to_string();
+
+            // Record initial delivery attempt
+            if let Some(ref db) = db_clone {
+                record_delivery_start(
+                    db,
+                    &delivery_id,
+                    &hook_clone.id,
+                    &event_clone.event,
+                    &hook_clone.url,
+                    &payload,
+                );
+            }
 
             let client = &WEBHOOK_CLIENT;
-            let mut delay = std::time::Duration::from_secs(1);
 
-            for attempt in 0..3 {
+            for attempt in 0..MAX_DELIVERY_ATTEMPTS {
                 let result = client
                     .post(&hook_clone.url)
                     .header("Content-Type", "application/json")
@@ -112,17 +168,34 @@ pub async fn fire_webhooks(webhooks: Arc<RwLock<Vec<WebhookConfig>>>, event: Web
                         tracing::debug!(
                             webhook_id = %hook_clone.id,
                             event = %event_clone.event,
+                            attempt = attempt + 1,
                             "Webhook delivered successfully"
                         );
+                        if let Some(ref db) = db_clone {
+                            record_delivery_success(db, &delivery_id, resp.status().as_u16());
+                        }
                         return;
                     }
                     Ok(resp) => {
+                        let status = resp.status().as_u16();
                         tracing::warn!(
                             webhook_id = %hook_clone.id,
                             attempt = attempt + 1,
-                            status = resp.status().as_u16(),
+                            status = status,
                             "Webhook delivery failed"
                         );
+                        if attempt == MAX_DELIVERY_ATTEMPTS - 1 {
+                            // Final attempt failed -- move to dead letter queue
+                            if let Some(ref db) = db_clone {
+                                record_delivery_dead(
+                                    db,
+                                    &delivery_id,
+                                    status,
+                                    "Max attempts exceeded",
+                                );
+                            }
+                            return;
+                        }
                     }
                     Err(e) => {
                         tracing::warn!(
@@ -131,13 +204,26 @@ pub async fn fire_webhooks(webhooks: Arc<RwLock<Vec<WebhookConfig>>>, event: Web
                             error = %e,
                             "Webhook delivery error"
                         );
+                        if attempt == MAX_DELIVERY_ATTEMPTS - 1 {
+                            if let Some(ref db) = db_clone {
+                                record_delivery_dead(
+                                    db,
+                                    &delivery_id,
+                                    0,
+                                    &format!("Network error: {e}"),
+                                );
+                            }
+                            return;
+                        }
                     }
                 }
 
-                if attempt < 2 {
-                    tokio::time::sleep(delay).await;
-                    delay *= 2;
+                // Exponential backoff with jitter
+                let delay = calculate_backoff(attempt);
+                if let Some(ref db) = db_clone {
+                    update_delivery_retry(db, &delivery_id, attempt + 1, &delay);
                 }
+                tokio::time::sleep(delay).await;
             }
         });
     }
@@ -270,6 +356,200 @@ pub fn load_webhooks_from_db(
         hooks.push(row?);
     }
     Ok(hooks)
+}
+
+// ── Delivery Tracking Database Functions ──
+
+fn record_delivery_start(
+    db: &DbHandle,
+    delivery_id: &str,
+    webhook_id: &str,
+    event: &str,
+    url: &str,
+    payload: &[u8],
+) {
+    let conn = match db.lock() {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("DB lock poisoned: {e}");
+            return;
+        }
+    };
+    if let Err(e) = conn.execute(
+        "INSERT INTO webhook_deliveries (id, webhook_id, event, url, status, attempt_count, max_attempts, payload) VALUES (?1, ?2, ?3, ?4, 'pending', 0, ?5, ?6)",
+        params![delivery_id, webhook_id, event, url, MAX_DELIVERY_ATTEMPTS, String::from_utf8_lossy(payload)],
+    ) {
+        warn!("Failed to record webhook delivery start: {e}");
+    }
+}
+
+fn record_delivery_success(db: &DbHandle, delivery_id: &str, status_code: u16) {
+    let conn = match db.lock() {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("DB lock poisoned: {e}");
+            return;
+        }
+    };
+    if let Err(e) = conn.execute(
+        "UPDATE webhook_deliveries SET status = 'delivered', status_code = ?1, delivered_at = datetime('now') WHERE id = ?2",
+        params![status_code as u32, delivery_id],
+    ) {
+        warn!("Failed to record webhook delivery success: {e}");
+    }
+}
+
+fn record_delivery_dead(db: &DbHandle, delivery_id: &str, status_code: u16, error: &str) {
+    let conn = match db.lock() {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("DB lock poisoned: {e}");
+            return;
+        }
+    };
+    if let Err(e) = conn.execute(
+        "UPDATE webhook_deliveries SET status = 'dead', status_code = ?1, error_message = ?2 WHERE id = ?3",
+        params![status_code as u32, error, delivery_id],
+    ) {
+        warn!("Failed to record webhook delivery death: {e}");
+    }
+}
+
+fn update_delivery_retry(
+    db: &DbHandle,
+    delivery_id: &str,
+    attempt: u32,
+    delay: &std::time::Duration,
+) {
+    let conn = match db.lock() {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("DB lock poisoned: {e}");
+            return;
+        }
+    };
+    let next_retry = chrono::Utc::now()
+        + chrono::Duration::from_std(*delay).unwrap_or_else(|_| chrono::Duration::seconds(60));
+    if let Err(e) = conn.execute(
+        "UPDATE webhook_deliveries SET attempt_count = ?1, next_retry_at = ?2 WHERE id = ?3",
+        params![attempt, next_retry.to_rfc3339(), delivery_id],
+    ) {
+        warn!("Failed to update webhook delivery retry: {e}");
+    }
+}
+
+/// GET /api/admin/webhooks/:id/deliveries — list delivery history for a webhook.
+pub async fn list_webhook_deliveries(
+    State(state): State<AppState>,
+    Path(webhook_id): Path<String>,
+) -> Response {
+    let db = match state.db {
+        Some(ref db) => db.clone(),
+        None => return ApiError::internal("INTERNAL_ERROR", "Database not available"),
+    };
+
+    let conn = match db.lock() {
+        Ok(c) => c,
+        Err(e) => return ApiError::internal("INTERNAL_ERROR", format!("Database lock error: {e}")),
+    };
+
+    let mut stmt = match conn.prepare(
+        "SELECT id, webhook_id, event, url, status, status_code, attempt_count, max_attempts, next_retry_at, created_at, delivered_at, error_message FROM webhook_deliveries WHERE webhook_id = ?1 ORDER BY created_at DESC LIMIT 100"
+    ) {
+        Ok(s) => s,
+        Err(e) => return ApiError::internal("INTERNAL_ERROR", format!("Query error: {e}")),
+    };
+
+    let rows = match stmt.query_map(params![webhook_id], |row| {
+        Ok(DeliveryRecord {
+            id: row.get(0)?,
+            webhook_id: row.get(1)?,
+            event: row.get(2)?,
+            url: row.get(3)?,
+            status: row.get(4)?,
+            status_code: row.get::<_, Option<u32>>(5)?.map(|v| v as u16),
+            attempt_count: row.get::<_, u32>(6)?,
+            max_attempts: row.get::<_, u32>(7)?,
+            next_retry_at: row.get(8)?,
+            created_at: row.get(9)?,
+            delivered_at: row.get(10)?,
+            error_message: row.get(11)?,
+        })
+    }) {
+        Ok(r) => r,
+        Err(e) => return ApiError::internal("INTERNAL_ERROR", format!("Query error: {e}")),
+    };
+
+    let deliveries: Vec<DeliveryRecord> = rows.filter_map(|r| r.ok()).collect();
+    (StatusCode::OK, axum::Json(deliveries)).into_response()
+}
+
+/// GET /api/admin/webhooks/deliveries/dead — list dead letter queue entries.
+pub async fn list_dead_letters(State(state): State<AppState>) -> Response {
+    let db = match state.db {
+        Some(ref db) => db.clone(),
+        None => return ApiError::internal("INTERNAL_ERROR", "Database not available"),
+    };
+
+    let conn = match db.lock() {
+        Ok(c) => c,
+        Err(e) => return ApiError::internal("INTERNAL_ERROR", format!("Database lock error: {e}")),
+    };
+
+    let mut stmt = match conn.prepare(
+        "SELECT id, webhook_id, event, url, status, status_code, attempt_count, max_attempts, next_retry_at, created_at, delivered_at, error_message FROM webhook_deliveries WHERE status = 'dead' ORDER BY created_at DESC LIMIT 100"
+    ) {
+        Ok(s) => s,
+        Err(e) => return ApiError::internal("INTERNAL_ERROR", format!("Query error: {e}")),
+    };
+
+    let rows = match stmt.query_map([], |row| {
+        Ok(DeliveryRecord {
+            id: row.get(0)?,
+            webhook_id: row.get(1)?,
+            event: row.get(2)?,
+            url: row.get(3)?,
+            status: row.get(4)?,
+            status_code: row.get::<_, Option<u32>>(5)?.map(|v| v as u16),
+            attempt_count: row.get::<_, u32>(6)?,
+            max_attempts: row.get::<_, u32>(7)?,
+            next_retry_at: row.get(8)?,
+            created_at: row.get(9)?,
+            delivered_at: row.get(10)?,
+            error_message: row.get(11)?,
+        })
+    }) {
+        Ok(r) => r,
+        Err(e) => return ApiError::internal("INTERNAL_ERROR", format!("Query error: {e}")),
+    };
+
+    let deliveries: Vec<DeliveryRecord> = rows.filter_map(|r| r.ok()).collect();
+    (StatusCode::OK, axum::Json(deliveries)).into_response()
+}
+
+pub fn create_webhook_delivery_tables(conn: &rusqlite::Connection) {
+    if let Err(e) = conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS webhook_deliveries (
+            id TEXT PRIMARY KEY,
+            webhook_id TEXT NOT NULL,
+            event TEXT NOT NULL,
+            url TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            status_code INTEGER,
+            attempt_count INTEGER NOT NULL DEFAULT 0,
+            max_attempts INTEGER NOT NULL DEFAULT 5,
+            next_retry_at TEXT,
+            payload TEXT NOT NULL,
+            response_body TEXT,
+            error_message TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            delivered_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook_id ON webhook_deliveries(webhook_id);
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);"
+    ) {
+        warn!("Failed to create webhook_deliveries table: {e}");
+    }
 }
 
 #[cfg(test)]

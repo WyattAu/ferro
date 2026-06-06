@@ -28,6 +28,92 @@ async fn main() -> anyhow::Result<()> {
 
     apply_file_config(&original_args, &mut cli, &file_config);
 
+    // --validate-config: load config, run validation, print results, exit
+    if cli.validate_config {
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+
+        // Schema version check
+        if let Some(version) = file_config.schema_version
+            && version > 1
+        {
+            errors.push(format!(
+                "Unsupported config file schema_version: {}. Supported versions: 1.",
+                version
+            ));
+        }
+
+        // Port validation
+        if cli.port == 0 {
+            errors.push("Port must be between 1 and 65535.".to_string());
+        }
+
+        // Storage backend validation
+        if cli.storage != "memory"
+            && !cli.storage.starts_with("local:")
+            && !cli.storage.starts_with("s3://")
+            && !cli.storage.starts_with("gs://")
+            && !cli.storage.starts_with("az://")
+        {
+            errors.push(format!(
+                "Invalid storage backend '{}'. Supported: memory, local:/path, s3://bucket, gs://bucket, az://container",
+                cli.storage
+            ));
+        }
+
+        // Data dir + persistence warnings
+        if cli.data_dir.is_none() {
+            warnings.push("No --data-dir set. All data will be lost on restart.".to_string());
+        }
+
+        // CORS + auth conflict
+        if !cli.cors_allowed_origins.is_empty()
+            && cli.cors_allowed_origins.contains('*')
+            && cli.oidc_issuer.is_some()
+        {
+            errors.push(
+                "CORS wildcard '*' cannot be used with OIDC authentication enabled.".to_string(),
+            );
+        }
+
+        // OIDC validation
+        if cli.oidc_issuer.is_some() && cli.oidc_client_id.is_none() {
+            errors.push("--oidc-client-id is required when --oidc-issuer is set.".to_string());
+        }
+
+        // WOPI validation
+        if !cli.wopi_office_url.is_empty() && cli.wopi_token_secret.is_none() {
+            errors
+                .push("--wopi-token-secret is required when --wopi-office-url is set.".to_string());
+        }
+
+        // Print results
+        if !errors.is_empty() {
+            eprintln!("Configuration errors:");
+            for e in &errors {
+                eprintln!("  ERROR: {}", e);
+            }
+        }
+        if !warnings.is_empty() {
+            eprintln!("Configuration warnings:");
+            for w in &warnings {
+                eprintln!("  WARN:  {}", w);
+            }
+        }
+
+        if errors.is_empty() {
+            println!("Configuration is valid. {} warning(s).", warnings.len());
+            std::process::exit(0);
+        } else {
+            eprintln!(
+                "Configuration validation failed: {} error(s), {} warning(s).",
+                errors.len(),
+                warnings.len()
+            );
+            std::process::exit(1);
+        }
+    }
+
     // Validate config file schema version (currently only version 1 is supported)
     if let Some(version) = file_config.schema_version
         && version > 1

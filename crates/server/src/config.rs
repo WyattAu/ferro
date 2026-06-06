@@ -89,6 +89,10 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_CONFIG")]
     pub config: Option<String>,
 
+    /// Validate configuration file and exit (exit code 0 if valid, 1 if errors)
+    #[arg(long)]
+    pub validate_config: bool,
+
     #[arg(long, default_value = "0.0.0.0")]
     pub host: String,
 

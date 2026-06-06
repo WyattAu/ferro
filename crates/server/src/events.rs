@@ -101,7 +101,12 @@ pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
         },
         _ => return,
     };
-    crate::webhooks::fire_webhooks(state.webhooks.clone(), webhook_event.clone()).await;
+    crate::webhooks::fire_webhooks(
+        state.webhooks.clone(),
+        webhook_event.clone(),
+        state.db.clone(),
+    )
+    .await;
 
     // Email notifications when enabled
     if state.email_config.enabled {
