@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780702731998,
+  "lastUpdate": 1780738069909,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -9053,6 +9053,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 846,
             "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "cef8bc76bb546100be1489ad898fdbee2efaa052",
+          "message": "feat(web): add FocusTrap component for modal dialogs (TD-032)\n\n- Create reusable FocusTrap component (114 lines): auto-focus first\n  focusable element on mount, Tab/Shift+Tab trapping via is_same_node,\n  focus restore to previous element on unmount\n- Wire FocusTrap into all 5 dialog components: share_dialog, path_dialog,\n  delete_confirm, new_folder_dialog, upload_dialog\n- Register focus_trap module in components/mod.rs\n- Fix cargo fmt violations in file_browser.rs and header.rs from TD-030\n  (formatting-only, no logic change)",
+          "timestamp": "2026-06-06T10:21:13+01:00",
+          "tree_id": "5f317f5db207711e2a1d8856fad7692b495f7e12",
+          "url": "https://github.com/WyattAu/ferro/commit/cef8bc76bb546100be1489ad898fdbee2efaa052"
+        },
+        "date": 1780738069393,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300675624,
+            "range": "± 1017055",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300721172,
+            "range": "± 1438618",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24331,
+            "range": "± 941",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24107,
+            "range": "± 810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8817,
+            "range": "± 165",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5109,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1213,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 948,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2681,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1411,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8151,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74840,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19373,
+            "range": "± 72",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 912,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 76,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 70,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 156,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 180,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 882,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 751,
+            "range": "± 3",
             "unit": "ns/iter"
           },
           {
