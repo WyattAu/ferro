@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780755365277,
+  "lastUpdate": 1780763291158,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -9863,6 +9863,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 759,
             "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "a669cbd2678e03cd4ad22ab57413f3ffafd6321a",
+          "message": "feat: complete all remaining roadmap items (PF-003, PF-005, AF-001, AF-002, CL-001-004)\n\nPF-003: Search index optimization\n- SearchIndexConfig with cache TTL + shard_count\n- QueryCache with DashMap, TTL-based expiry, hit/miss stats\n- search_paginated(offset, limit) convenience method\n- SearchMetrics with query_time_us, total_results, cache_hit\n- 8 new tests\n\nPF-005: gRPC protocol scaffold\n- New crate crates/grpc/ with tonic 0.14 + prost 0.14\n- Proto definition: FerroStorage service (PutFile, GetFile, DeleteFile, ListFiles, HeadFile)\n- FerroGrpcService delegating to StorageEngine trait\n\nAF-001: Real-time collaboration UI\n- CollabEditor: CRDT-backed textarea with diff-based ops\n- PresenceIndicator: connected user avatars\n- CollabAwarenessBar: document version + read-only warning\n- ConnectionBadge: color-coded connection status\n- CollabStateHandle: WebSocket sync protocol (Join/Ops/State/Participants)\n- 525 lines, fully integrated into web frontend\n\nAF-002: AI semantic search\n- AiSearchBridge wrapping ferro-ai SemanticIndex\n- Blended scoring: 60% text + 40% semantic\n- Fallback to text-only when embeddings unavailable\n- 6 new tests\n\nCL-001-004: Platform integration contracts\n- docs/src/guides/platform-integration.md (658 lines)\n- Tauri desktop, FUSE stability, iOS Files Provider, Android SAF\n- API contracts, implementation approach, testing strategy\n\nTest count: 2013 (up from 1999)",
+          "timestamp": "2026-06-06T17:14:54+01:00",
+          "tree_id": "02b5bce07a29fa4216aa01219ac970661c8f7bed",
+          "url": "https://github.com/WyattAu/ferro/commit/a669cbd2678e03cd4ad22ab57413f3ffafd6321a"
+        },
+        "date": 1780763290512,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300873299,
+            "range": "± 1681122",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300853700,
+            "range": "± 1467032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 32162,
+            "range": "± 3969",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 31489,
+            "range": "± 2532",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8510,
+            "range": "± 97",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5148,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1207,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 949,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2734,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1410,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8170,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74887,
+            "range": "± 197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 91,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19520,
+            "range": "± 176",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 923,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 156,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 175,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 180,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 846,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 761,
+            "range": "± 3",
             "unit": "ns/iter"
           },
           {
