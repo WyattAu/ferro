@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780744229266,
+  "lastUpdate": 1780748835068,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -9539,6 +9539,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 842,
             "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "ab04f5b224b70d0a5d5ae0b9d9544c7097e22080",
+          "message": "feat: roadmap item execution -- validation, webhooks, deployment guides\n\nv3.2 - PF-001: PostgreSQL migration guide\nv3.4 - OP-004: --validate-config CLI flag\nv3.4 - OP-001: Horizontal scaling guide\nv3.4 - OP-005: Blue-green deployment guide\nv4.0 - AF-004: Webhook delivery improvements (DLQ, retry, tracking)",
+          "timestamp": "2026-06-06T13:20:29+01:00",
+          "tree_id": "7a464209c3539ac591ff518c9ae2157f8e4a51f0",
+          "url": "https://github.com/WyattAu/ferro/commit/ab04f5b224b70d0a5d5ae0b9d9544c7097e22080"
+        },
+        "date": 1780748834495,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 266711403,
+            "range": "± 499557",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266730081,
+            "range": "± 168183",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 30302,
+            "range": "± 2291",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 28766,
+            "range": "± 2299",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 7112,
+            "range": "± 430",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5274,
+            "range": "± 106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1225,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 946,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2764,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1327,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7384,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66742,
+            "range": "± 148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 86,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18840,
+            "range": "± 160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 915,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 174,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 186,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 836,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 831,
+            "range": "± 7",
             "unit": "ns/iter"
           },
           {
