@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780748835068,
+  "lastUpdate": 1780755365277,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -9701,6 +9701,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 831,
             "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "a2331499f3fe3c77d4b46d581b9112cf8e8977a6",
+          "message": "feat: complete all remaining roadmap items (PF-004, CL-005, AF-003, AF-005)\n\nPF-004: Object storage streaming\n- Added put_stream() trait method to StorageEngine\n- Implemented streaming multipart upload for ObjectStoreStorageEngine\n- Small files use put(), large files stream to multipart upload\n\nCL-005: CLI improvements\n- Added --generate-completions bash/zsh/fish/powershell to server + CLI\n- Added --print-man-page to server + CLI\n- Uses clap_complete for shell completion generation\n\nAF-003: Stable WASM plugin ABI\n- Created crates/wasm-host/src/abi.rs with ABI_VERSION = 1\n- PluginManifest, Capability/Permission enums, host exports, guest imports\n- AbiError enum with 8 error codes\n\nAF-005: ActivityPub federation polish\n- Fixed inbox Follow handler to deliver Accept response\n- Added resolve_actor() for remote actor profile fetching\n- Added HTTP signing for outbound requests\n- Added follow_remote() and /fed/follow route\n- 13 new tests for federation workflow\n\nTest count: 1999 (up from 1981)",
+          "timestamp": "2026-06-06T15:07:37+01:00",
+          "tree_id": "5366467bde4b19ee18ac8a5c1a621e9cb7ec5e06",
+          "url": "https://github.com/WyattAu/ferro/commit/a2331499f3fe3c77d4b46d581b9112cf8e8977a6"
+        },
+        "date": 1780755363936,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300964995,
+            "range": "± 597129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300887865,
+            "range": "± 338983",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24414,
+            "range": "± 801",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24013,
+            "range": "± 641",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8625,
+            "range": "± 149",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5162,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1201,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 923,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2670,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1414,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8170,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74872,
+            "range": "± 65",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 91,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19285,
+            "range": "± 219",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 899,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 154,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 175,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 180,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 852,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 759,
+            "range": "± 5",
             "unit": "ns/iter"
           },
           {
