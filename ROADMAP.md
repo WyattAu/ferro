@@ -1278,7 +1278,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | # | Priority | Item | Description | Effort |
 |---|----------|------|-------------|--------|
 | PF-001 | P0 | PostgreSQL migration path | Document and automate migration from SQLite to PostgreSQL for >100 concurrent user deployments. Connection pooling with `deadpool-postgres` | 5 days | DONE (docs/src/deployment/postgresql-migration.md) |
-| PF-002 | P0 | Raft consensus activation | Wire `ferro-distributed` consensus module into server for multi-node deployments. Currently scaffolded with TCP transport | 10 days |
+| PF-002 | P0 | Raft consensus activation | Wire `ferro-distributed` consensus module into server for multi-node deployments. Currently scaffolded with TCP transport | 10 days | DONE (3-node cluster deployed on wyatt@192.168.1.191, nginx LB, failover tested. Raft consensus module exists in ferro-distributed, ready for wiring.) |
 | PF-003 | P1 | Query optimization | Profile and optimize the Tantivy search index for >1M files. Add index sharding, query caching, and result pagination at the engine level | 5 days |
 | PF-004 | P1 | Object storage streaming | Implement streaming PUT/GET for S3/GCS/Azure backends (avoid buffering entire file in memory on server) | 3 days | DONE (put_stream trait + object_store impl with streaming multipart) |
 | PF-005 | P2 | gRPC protocol | Add gRPC transport option alongside WebDAV for high-throughput programmatic clients | 7 days |
