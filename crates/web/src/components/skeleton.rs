@@ -1,9 +1,11 @@
 use leptos::*;
 
+use crate::t;
+
 #[component]
 pub fn SkeletonList() -> impl IntoView {
     view! {
-        <div class="p-3 sm:p-4 space-y-0" role="status" aria-label="Loading files">
+        <div class="p-3 sm:p-4 space-y-0" role="status" aria-label={t!("skeleton.loading_files")}>
             <div class="hidden md:block bg-gray-50 border-b mb-2 px-4 py-2">
                 <div class="flex gap-4">
                     <div class="h-3 w-10 bg-gray-200 rounded animate-pulse"></div>
@@ -33,7 +35,7 @@ pub fn SkeletonList() -> impl IntoView {
 #[component]
 pub fn SkeletonGrid() -> impl IntoView {
     view! {
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 p-3 sm:p-4" role="status" aria-label="Loading files">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 p-3 sm:p-4" role="status" aria-label={t!("skeleton.loading_files")}>
             {(0..8).map(|_| view! {
                 <div class="surface brutal-border rounded-xl p-4">
                     <div class="flex flex-col items-center text-center">
@@ -57,7 +59,7 @@ pub fn SkeletonGrid() -> impl IntoView {
 #[component]
 pub fn SkeletonFavorites() -> impl IntoView {
     view! {
-        <div class="p-3 sm:p-4 space-y-0" role="status" aria-label="Loading favorites">
+        <div class="p-3 sm:p-4 space-y-0" role="status" aria-label={t!("skeleton.loading_favorites")}>
             <div class="hidden md:block bg-gray-50 border-b mb-2 px-4 py-2">
                 <div class="flex gap-4">
                     <div class="h-3 w-10 bg-gray-200 rounded animate-pulse"></div>
@@ -85,7 +87,7 @@ pub fn SkeletonFavorites() -> impl IntoView {
 #[component]
 pub fn SkeletonRecent() -> impl IntoView {
     view! {
-        <div class="p-3 sm:p-4 space-y-0" role="status" aria-label="Loading recent files">
+        <div class="p-3 sm:p-4 space-y-0" role="status" aria-label={t!("skeleton.loading_recent")}>
             <div class="hidden md:block bg-gray-50 border-b mb-2 px-4 py-2">
                 <div class="flex gap-4">
                     <div class="h-3 w-10 bg-gray-200 rounded animate-pulse"></div>

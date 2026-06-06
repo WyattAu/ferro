@@ -1,6 +1,7 @@
 use leptos::*;
 
 use crate::components::focus_trap::FocusTrap;
+use crate::t;
 
 /// Confirmation dialog for bulk delete operations.
 #[component]
@@ -30,7 +31,7 @@ pub fn DeleteConfirmDialog(
                     aria-labelledby="delete-confirm-title"
                     tabindex="-1"
                 >
-                    <h3 id="delete-confirm-title" class="text-lg font-semibold text-gray-900 mb-2">"Confirm Delete"</h3>
+                    <h3 id="delete-confirm-title" class="text-lg font-semibold text-gray-900 mb-2">{t!("dialog.delete_confirm.title")}</h3>
                     <p class="text-sm text-gray-600 mb-6">
                         {move || format!("Are you sure you want to delete {} file(s)? This action cannot be undone.", count.get())}
                     </p>
@@ -39,7 +40,7 @@ pub fn DeleteConfirmDialog(
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
                             on:click=move |_| set_open.set(false)
                         >
-                            "Cancel"
+                            {t!("common.cancel")}
                         </button>
                         <button
                             class="px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
@@ -48,7 +49,7 @@ pub fn DeleteConfirmDialog(
                                 on_confirm.call(ev);
                             }
                         >
-                            "Delete"
+                            {t!("common.delete")}
                         </button>
                     </div>
                 </div>

@@ -2,6 +2,7 @@ use leptos::*;
 
 use crate::components::focus_trap::FocusTrap;
 use crate::components::toast::ToastContext;
+use crate::t;
 
 /// Reusable dialog for path-based operations (Move / Copy).
 #[component]
@@ -27,7 +28,7 @@ pub fn PathDialog(
         let source = source.get();
         let dest = dest.get();
         if dest.is_empty() {
-            ToastContext::error("Destination path cannot be empty");
+            ToastContext::error(t!("error.destination_empty"));
             return;
         }
         on_confirm.call((source, dest));
@@ -48,13 +49,13 @@ pub fn PathDialog(
                 >
                     <h3 class="text-section font-mono text-gray-900 mb-4">{title}</h3>
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Source"</label>
+                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.path.source_label")}</label>
                         <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
                             {source}
                         </div>
                     </div>
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Destination"</label>
+                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.path.destination_label")}</label>
                         <input
                             type="text"
                             placeholder="/new/path/file.txt"
@@ -67,7 +68,7 @@ pub fn PathDialog(
                         <button
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                             on:click=move |_| set_open.set(false)
-                        >"Cancel"</button>
+                        >{t!("common.cancel")}</button>
                         <button
                             class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                             on:click=do_execute

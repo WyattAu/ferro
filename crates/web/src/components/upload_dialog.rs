@@ -3,6 +3,7 @@ use leptos::*;
 use crate::api;
 use crate::components::focus_trap::FocusTrap;
 use crate::components::toast::ToastContext;
+use crate::t;
 
 /// Dialog for uploading files via file picker.
 #[component]
@@ -82,12 +83,12 @@ pub fn UploadDialog(
                     aria-labelledby="upload-title"
                     tabindex="-1"
                 >
-                    <h3 id="upload-title" class="text-section font-mono text-gray-900 mb-4">"Upload File"</h3>
+                    <h3 id="upload-title" class="text-section font-mono text-gray-900 mb-4">{t!("dialog.upload.title")}</h3>
                     <label class="block w-full border-2 border-dashed border-gray-300 rounded p-8 text-center cursor-pointer hover:border-blue-400 transition-colors">
                         <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        <p id="upload-file-hint" class="text-sm text-gray-600">"Click to select files or drag and drop"</p>
+                        <p id="upload-file-hint" class="text-sm text-gray-600">{t!("dialog.upload.file_hint")}</p>
                         <input
                             type="file"
                             class="hidden"
@@ -101,7 +102,7 @@ pub fn UploadDialog(
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                             on:click=move |_| set_open.set(false)
                         >
-                            "Close"
+                            {t!("common.close")}
                         </button>
                     </div>
                 </div>

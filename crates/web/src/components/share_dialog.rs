@@ -3,6 +3,7 @@ use leptos::*;
 use crate::api;
 use crate::components::focus_trap::FocusTrap;
 use crate::components::toast::ToastContext;
+use crate::t;
 
 /// Share dialog: password-protected link creation with expiration options.
 /// Fully self-contained -- owns all share_* state internally.
@@ -54,7 +55,7 @@ pub fn ShareDialog(
                 Ok(resp) => {
                     set_share_url.set(resp.url);
                     set_share_creating.set(false);
-                    ToastContext::success("Share link created");
+                    ToastContext::success(t!("toast.share_link_created"));
                 }
                 Err(e) => {
                     let err_msg = e.clone();
@@ -77,7 +78,7 @@ pub fn ShareDialog(
                 let _ = wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&url)).await;
             });
             set_share_copied.set(true);
-            ToastContext::info("Link copied to clipboard");
+            ToastContext::info(t!("toast.link_copied"));
         }
     };
 
@@ -98,10 +99,10 @@ pub fn ShareDialog(
                     tabindex="-1"
                 >
                     <div class="flex items-center justify-between mb-4">
-                        <h3 id="share-title" class="text-lg font-semibold text-gray-900">"Share File"</h3>
+                        <h3 id="share-title" class="text-lg font-semibold text-gray-900">{t!("dialog.share.title")}</h3>
                         <button
                             class="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                            aria-label="Close dialog"
+                            aria-label=t!("aria.close_dialog")
                             on:click=move |_| set_open.set(false)
                         >
                             <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,17 +112,17 @@ pub fn ShareDialog(
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Path"</label>
+                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.path_label")}</label>
                         <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
                             {share_path}
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Password (optional)"</label>
+                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.password_label")}</label>
                         <input
                             type="password"
-                            placeholder="Leave empty for no password"
+                            placeholder=t!("dialog.share.password_placeholder")
                             class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                             prop:value=share_password
                             on:input=move |ev| set_share_password.set(event_target_value(&ev))
@@ -129,15 +130,15 @@ pub fn ShareDialog(
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Expires"</label>
+                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.expires_label")}</label>
                         <select
                             class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                             on:change=move |ev| set_share_expires.set(event_target_value(&ev))
                         >
-                            <option value="1" selected=move || share_expires.get() == "1">"1 hour"</option>
-                            <option value="24" selected=move || share_expires.get() == "24">"24 hours"</option>
-                            <option value="168" selected=move || share_expires.get() == "168">"7 days"</option>
-                            <option value="720" selected=move || share_expires.get() == "720">"30 days"</option>
+                            <option value="1" selected=move || share_expires.get() == "1">{t!("dialog.share.1h")}</option>
+                            <option value="24" selected=move || share_expires.get() == "24">{t!("dialog.share.24h")}</option>
+                            <option value="168" selected=move || share_expires.get() == "168">{t!("dialog.share.7d")}</option>
+                            <option value="720" selected=move || share_expires.get() == "720">{t!("dialog.share.30d")}</option>
                         </select>
                     </div>
 
@@ -149,7 +150,7 @@ pub fn ShareDialog(
 
                     {move || (!share_url.get().is_empty()).then(|| view! {
                         <div class="mb-4">
-                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Share URL"</label>
+                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.url_label")}</label>
                             <div class="flex items-center gap-2">
                                 <input
                                     type="text"
@@ -161,7 +162,7 @@ pub fn ShareDialog(
                                     class="px-3 py-2 text-sm bg-green-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-green-700 transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                     on:click=do_copy_share_url
                                 >
-                                    {move || if share_copied.get() { "Copied!" } else { "Copy" }}
+                                    {move || if share_copied.get() { t!("dialog.share.copied") } else { t!("common.copy") }}
                                 </button>
                             </div>
                         </div>
@@ -172,7 +173,7 @@ pub fn ShareDialog(
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                             on:click=move |_| set_open.set(false)
                         >
-                            "Close"
+                            {t!("common.close")}
                         </button>
                         {move || share_url.get().is_empty().then(|| view! {
                             <button
@@ -180,7 +181,7 @@ pub fn ShareDialog(
                                 disabled=share_creating
                                 on:click=do_create_share
                             >
-                                {move || if share_creating.get() { "Creating..." } else { "Create Share" }}
+                                {move || if share_creating.get() { t!("dialog.share.creating") } else { t!("dialog.share.create_share") }}
                             </button>
                         })}
                     </div>

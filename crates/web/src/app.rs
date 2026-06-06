@@ -6,6 +6,7 @@ use crate::auth;
 use crate::components::error_boundary::ErrorBoundary;
 use crate::components::onboarding::OnboardingOverlay;
 use crate::components::toast::ProvideToastContext;
+use crate::i18n::{I18nCtx, Locale};
 use crate::pages::admin::AdminPage;
 use crate::pages::auth::AuthCallbackPage;
 use crate::pages::home::HomePage;
@@ -15,6 +16,7 @@ use crate::pages::trash::TrashPage;
 
 #[component]
 pub fn App() -> impl IntoView {
+    I18nCtx::provide(Locale::default());
     let auth_state = auth::provide_auth_state();
     let (branding, set_branding) = create_signal(None::<BrandingConfig>);
     provide_context(branding);

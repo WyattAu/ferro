@@ -1,5 +1,7 @@
 use leptos::*;
 
+use crate::t;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToastType {
     Success,
@@ -91,7 +93,7 @@ pub fn ProvideToastContext(children: Children) -> impl IntoView {
 
     view! {
         {children()}
-        <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none" role="region" aria-label="Notifications">
+        <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none" role="region" aria-label={t!("toast.aria_notifications")}>
             <For
                 each=move || toasts.get()
                 key=|t| t.id
@@ -196,7 +198,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
             <p class="flex-1 text-sm font-medium">{message_text}</p>
             <button
                 class="p-0.5 rounded-sm opacity-60 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-current font-mono"
-                aria-label="Dismiss notification"
+                aria-label=t!("toast.aria_dismiss")
                 on:click=handle_dismiss
             >
                 <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">

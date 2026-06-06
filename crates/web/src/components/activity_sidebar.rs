@@ -1,6 +1,7 @@
 use leptos::*;
 
 use crate::api;
+use crate::t;
 
 /// Sidebar panel showing recent file activity (uploads, deletes, moves, etc.).
 /// Self-contained: loads its own data when opened.
@@ -33,11 +34,11 @@ pub fn ActivitySidebar(
         {move || open.get().then(|| view! {
             <div class="w-72 brutal-border border-l surface overflow-y-auto transition-all duration-200">
                 <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                    <h3 class="text-label font-mono text-gray-900">"Activity"</h3>
+                    <h3 class="text-label font-mono text-gray-900">{t!("aria.activity_heading")}</h3>
                     <button
                         class="p-1 text-gray-400 hover:text-gray-600 rounded"
                         on:click=move |_| set_open.set(false)
-                        aria-label="Close activity panel"
+                        aria-label=t!("aria.close_activity")
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -79,7 +80,7 @@ pub fn ActivitySidebar(
                         }
                     </For>
                     {move || entries.with(Vec::is_empty).then(|| view! {
-                        <div class="text-sm text-gray-500 text-center py-4">"No recent activity"</div>
+                        <div class="text-sm text-gray-500 text-center py-4">{t!("empty.recent")}</div>
                     })}
                  </div>
              </div>

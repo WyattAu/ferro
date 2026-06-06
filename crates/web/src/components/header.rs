@@ -3,6 +3,7 @@ use leptos::*;
 use crate::api::{SearchFilters, SearchResultEntry};
 use crate::auth;
 use crate::components::theme_toggle::ThemeToggle;
+use crate::t;
 use ferro_common::format::format_size;
 use leptos_router::A;
 
@@ -249,13 +250,13 @@ pub fn Header() -> impl IntoView {
                                 .and_then(|b| b.logo_url)
                             {
                                 view! {
-                                    <img src=url alt="Logo" class="w-10 h-10 object-contain" />
+                                    <img src=url alt=t!("brand.logo_alt") class="w-10 h-10 object-contain" />
                                 }
                                 .into_any()
                             } else {
                                 view! {
                                     <div class="w-10 h-10 brutal-border flex items-center justify-center bg-white dark:bg-gray-800" style="font-family: var(--font-display);">
-                                        <span class="font-bold text-xl" style="color: var(--accent); letter-spacing: -0.03em;">"F"</span>
+                                        <span class="font-bold text-xl" style="color: var(--accent); letter-spacing: -0.03em;">{t!("brand.name")}</span>
                                     </div>
                                 }
                                 .into_any()
@@ -266,10 +267,10 @@ pub fn Header() -> impl IntoView {
                                 let title = branding
                                     .and_then(|s| s.get())
                                     .map(|b| b.title)
-                                    .unwrap_or_else(|| "Ferro".to_string());
+                                    .unwrap_or_else(|| t!("brand.name").to_string());
                                 view! {
                                     <h1 class="font-mono font-bold text-xl leading-none" style="letter-spacing: -0.02em; color: var(--text-primary);">{title}</h1>
-                                    <span class="text-label">"Storage Orchestrator"</span>
+                                    <span class="text-label">{t!("brand.tagline")}</span>
                                 }
                             }}
                         </div>
@@ -284,7 +285,7 @@ pub fn Header() -> impl IntoView {
                     <button
                         class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         on:click=toggle_search
-                        aria-label="Search files"
+                        attr:aria-label=t!("search.aria_label")
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -294,7 +295,7 @@ pub fn Header() -> impl IntoView {
                     <A
                         href="/ui/settings"
                         class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
-                        attr:aria-label="Settings"
+                        attr:aria-label=t!("aria.settings")
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -329,7 +330,7 @@ pub fn Header() -> impl IntoView {
                                         style="text-transform: uppercase; letter-spacing: 0.08em;"
                                         on:click=move |_| auth::logout(&auth_st)
                                     >
-                                        "Sign out"
+                                        {t!("common.sign_out")}
                                     </button>
                                 </div>
                             }.into_any()
@@ -340,7 +341,7 @@ pub fn Header() -> impl IntoView {
                                     class="font-mono text-xs font-bold uppercase no-underline px-3 py-2 brutal-border hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                                     style="letter-spacing: 0.08em; color: var(--accent);"
                                 >
-                                    "Sign in"
+                                    {t!("common.sign_in")}
                                 </a>
                             }.into_any()
                         }
@@ -355,8 +356,8 @@ pub fn Header() -> impl IntoView {
                             <input
                                 type="text"
                                 id="header-search-input"
-                                placeholder="Search files..."
-                                attr:aria-label="Search files"
+                                placeholder=t!("search.placeholder")
+                                attr:aria-label=t!("search.aria_label")
                                 class="w-full px-4 py-2 pl-10 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                                 prop:value=search_query
                                 on:input=on_search_input
@@ -369,7 +370,7 @@ pub fn Header() -> impl IntoView {
                         <button
                             class="p-2 text-gray-500 hover:text-blue-600 rounded transition-colors"
                             on:click=close_search
-                            aria-label="Close search"
+                            aria-label=t!("search.aria_close")
                         >
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -382,29 +383,29 @@ pub fn Header() -> impl IntoView {
                             <select
                                 class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                                 style="letter-spacing: 0.05em;"
-                                attr:aria-label="Filter by type"
+                                attr:aria-label=t!("search.filter_type")
                                 on:change=on_type_change
                             >
-                                <option value="" selected=move || filter_type.get().is_empty()>"All Types"</option>
-                                <option value="file" selected=move || filter_type.get() == "file">"Files"</option>
-                                <option value="folder" selected=move || filter_type.get() == "folder">"Folders"</option>
+                                <option value="" selected=move || filter_type.get().is_empty()>{t!("search.filter_all")}</option>
+                                <option value="file" selected=move || filter_type.get() == "file">{t!("search.filter_files")}</option>
+                                <option value="folder" selected=move || filter_type.get() == "folder">{t!("search.filter_folders")}</option>
                             </select>
                             <select
                                 class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                                 style="letter-spacing: 0.05em;"
-                                attr:aria-label="Sort results by"
+                                attr:aria-label=t!("search.sort_by")
                                 on:change=on_sort_change
                             >
-                                <option value="" selected=move || filter_sort.get().is_empty()>"Relevance"</option>
-                                <option value="name" selected=move || filter_sort.get() == "name">"Name"</option>
-                                <option value="date" selected=move || filter_sort.get() == "date">"Date"</option>
-                                <option value="size" selected=move || filter_sort.get() == "size">"Size"</option>
+                                <option value="" selected=move || filter_sort.get().is_empty()>{t!("search.sort_relevance")}</option>
+                                <option value="name" selected=move || filter_sort.get() == "name">{t!("search.sort_name")}</option>
+                                <option value="date" selected=move || filter_sort.get() == "date">{t!("search.sort_date")}</option>
+                                <option value="size" selected=move || filter_sort.get() == "size">{t!("search.sort_size")}</option>
                             </select>
                         </div>
                     })}
 
                     {move || searching.get().then(|| view! {
-                        <div class="text-sm font-mono text-gray-500">"Searching..."</div>
+                        <div class="text-sm font-mono text-gray-500">{t!("common.searching")}</div>
                     })}
                     {move || has_searched().then(|| view! {
                         <div class="text-xs font-mono text-gray-400 mb-1" style="letter-spacing: 0.05em;">
@@ -468,13 +469,13 @@ fn SearchResultsList(
                         <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        <div class="font-mono font-semibold text-sm text-gray-500">"No files match your search"</div>
-                        <div class="text-xs text-gray-400 mt-1">"Check spelling, try different keywords, or remove filters"</div>
+                        <div class="font-mono font-semibold text-sm text-gray-500">{t!("search.no_results")}</div>
+                        <div class="text-xs text-gray-400 mt-1">{t!("search.no_results_hint")}</div>
                     </div>
                 }.into_any();
             }
             view! {
-                <div class="surface brutal-border shadow-xl max-h-64 overflow-auto rounded-lg" role="listbox" aria-label="Search results">
+                <div class="surface brutal-border shadow-xl max-h-64 overflow-auto rounded-lg" role="listbox" aria-label=t!("search.aria_results")>
                     <For
                         each=move || results.get()
                         key=|r| r.path.clone()

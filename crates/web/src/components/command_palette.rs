@@ -1,5 +1,7 @@
 use leptos::*;
 
+use crate::t;
+
 #[derive(Clone)]
 pub struct Command {
     pub id: String,
@@ -159,7 +161,7 @@ pub fn CommandPalette() -> impl IntoView {
             <div
                 class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-start justify-center pt-[15vh] sm:pt-[20vh] backdrop-blur-sm"
                 role="dialog"
-                aria-label="Command palette"
+                aria-label=t!("command_palette.aria")
                 on:click=move |_| state.close()
             >
                 <div
@@ -174,21 +176,19 @@ pub fn CommandPalette() -> impl IntoView {
                         <input
                             type="text"
                             class="w-full py-3 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none text-sm font-mono"
-                            placeholder="Type a command..."
+                            placeholder=t!("command_palette.placeholder")
                             prop:value=search
                             on:input=move |ev| set_search.set(event_target_value(&ev))
                             aria-label="Search commands"
                         />
-                        <kbd class="hidden sm:inline-block px-2 py-0.5 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-sm brutal-border ml-2 shrink-0 font-mono">"ESC"</kbd>
+                        <kbd class="hidden sm:inline-block px-2 py-0.5 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-sm brutal-border ml-2 shrink-0 font-mono">{t!("command_palette.esc")}</kbd>
                     </div>
                     <div class="max-h-64 overflow-y-auto py-1" role="listbox">
                         {move || {
                             let cmds = filtered_commands();
                             if cmds.is_empty() {
                                 view! {
-                                    <div class="px-4 py-8 text-center text-sm text-gray-500">
-                                        "No matching commands"
-                                    </div>
+                                    <div class="px-4 py-8 text-center text-sm text-gray-500">{t!("empty.commands")}</div>
                                 }.into_any()
                             } else {
                                 view! {

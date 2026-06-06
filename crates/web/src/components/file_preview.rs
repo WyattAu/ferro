@@ -2,6 +2,8 @@ use leptos::*;
 
 use crate::api::FileEntry;
 
+use crate::t;
+
 const TEXT_EXTENSIONS: &[&str] = &[
     "txt",
     "md",
@@ -109,7 +111,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
             class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
-            aria-label="File preview"
+            aria-label=t!("preview.aria")
             tabindex="-1"
             on:keydown=handle_keydown
         >
@@ -125,7 +127,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                     </div>
                     <button
                         class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded surface shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ml-4"
-                        aria-label="Close preview"
+                        aria-label=t!("preview.aria_close")
                         on:click=close
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,7 +141,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                     {move || loading.get().then(|| view! {
                         <div class="flex items-center justify-center py-12">
                             <div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                            <span class="ml-3 text-gray-500">"Loading..."</span>
+                            <span class="ml-3 text-gray-500">{t!("common.loading")}</span>
                         </div>
                     })}
 
@@ -172,7 +174,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                     <div class="flex items-center justify-center">
                                         <video controls class="max-w-full max-h-[60vh] rounded-lg">
                                             <source src={p} type="video/mp4" />
-                                            "Your browser does not support the video element."
+                                            {t!("preview.no_video")}
                                         </video>
                                     </div>
                                 }.into_any(),
@@ -180,7 +182,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                     <div class="flex items-center justify-center py-8">
                                         <audio controls>
                                             <source src={p} type="audio/mpeg" />
-                                            "Your browser does not support the audio element."
+                                            {t!("preview.no_audio")}
                                         </audio>
                                     </div>
                                 }.into_any(),
@@ -196,7 +198,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                         <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
-                                        <p class="text-gray-500 mb-4">"Preview not available for this file type"</p>
+                                        <p class="text-gray-500 mb-4">{t!("preview.not_available")}</p>
                                         <button
                                             class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                             on:click=move |_| {
@@ -206,7 +208,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                                 });
                                             }
                                         >
-                                            "Download"
+                                            {t!("common.download")}
                                         </button>
                                     </div>
                                 }.into_any(),

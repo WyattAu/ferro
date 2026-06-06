@@ -1,5 +1,7 @@
 use leptos::*;
 
+use crate::t;
+
 /// Subtle hint bar at the bottom of the file list reminding users they can drag-and-drop.
 #[component]
 pub fn DragHint(
@@ -13,7 +15,7 @@ pub fn DragHint(
     view! {
         {move || (!loading.get() && has_entries.get() && files_tab_active.get()).then(|| view! {
             <div class="border-t border-gray-100 px-6 py-2 text-center">
-                <span class="text-xs text-gray-500">"Drag and drop files here to upload"</span>
+                <span class="text-xs text-gray-500">{t!("drop.hint")}</span>
             </div>
         })}
     }

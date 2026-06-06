@@ -2,6 +2,7 @@ use leptos::*;
 
 use crate::api::{FileEntry, LockInfo};
 use crate::components::file_icon::{FileIcon, FileType, file_type_from_extension};
+use crate::t;
 use ferro_common::format::format_size;
 
 #[component]
@@ -128,7 +129,7 @@ pub fn GridCard(
     let lock_tooltip = if is_locked && !lock_owner.is_empty() {
         format!("Locked by {} until {}", lock_owner, lock_expires)
     } else if is_locked {
-        "Locked".to_string()
+        t!("common.locked").to_string()
     } else {
         String::new()
     };
@@ -160,8 +161,8 @@ pub fn GridCard(
             <button
                 class="absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 class=move || if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 opacity-0 group-hover:opacity-100" }
-                attr:aria-label=format!("{} {}", if is_favorited { "Unfavorite" } else { "Favorite" }, name_for_actions)
-                title=if is_favorited { "Remove from favorites" } else { "Add to favorites" }
+                attr:aria-label=format!("{} {}", if is_favorited { t!("fav.unfavorite") } else { t!("fav.favorite") }, name_for_actions)
+                title=if is_favorited { t!("fav.remove") } else { t!("fav.add") }
                 on:click=handle_favorite_click
             >
                 <svg class="w-4 h-4" aria-hidden="true" fill=move || if is_favorited { "currentColor" } else { "none" } stroke="currentColor" viewBox="0 0 24 24">
@@ -206,7 +207,7 @@ pub fn GridCard(
                     <button
                         class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         attr:aria-label=format!("Download {}", name_for_actions)
-                        title="Download"
+                        title=t!("common.download")
                         on:click=handle_download_click
                     >
                         <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -218,7 +219,7 @@ pub fn GridCard(
                     <button
                         class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         attr:aria-label=format!("Share {}", name_for_actions)
-                        title="Share"
+                        title=t!("common.share")
                         on:click=handle_share_click
                     >
                         <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,7 +230,7 @@ pub fn GridCard(
                 <button
                     class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     attr:aria-label=format!("Copy {}", name_for_actions)
-                    title="Copy"
+                    title=t!("common.copy")
                     on:click=handle_copy_click
                 >
                     <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,7 +240,7 @@ pub fn GridCard(
                 <button
                     class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     attr:aria-label=format!("Move {}", name_for_actions)
-                    title="Move"
+                    title=t!("common.move")
                     on:click=handle_move_click
                 >
                     <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +251,7 @@ pub fn GridCard(
                     <button
                         class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         attr:aria-label=format!("Delete {}", name_for_actions)
-                        title="Delete"
+                        title=t!("common.delete")
                         on:click=handle_delete_click
                     >
                         <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -287,7 +288,7 @@ pub fn GridView(
     let locks_sig = locks;
 
     view! {
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 p-3 sm:p-4" role="grid" aria-label="File grid">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 p-3 sm:p-4" role="grid" aria-label=t!("file_list.aria")>
             <For
                 each=move || entries_for_each.get()
                 key=|entry| entry.path.clone()

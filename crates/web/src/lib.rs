@@ -2,6 +2,7 @@ pub mod api;
 pub mod app;
 pub mod auth;
 pub mod components;
+pub mod i18n;
 pub mod pages;
 
 use wasm_bindgen::prelude::*;

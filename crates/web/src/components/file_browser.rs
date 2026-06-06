@@ -1,3 +1,4 @@
+use crate::t;
 use leptos::*;
 use leptos_router::A;
 
@@ -151,10 +152,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         spawn_local(async move {
             if is_fav {
                 let _ = api::remove_favorite(&fav_path).await;
-                ToastContext::info("Removed from favorites");
+                ToastContext::info(t!("toast.removed_from_favorites"));
             } else {
                 let _ = api::add_favorite(&fav_path).await;
-                ToastContext::info("Added to favorites");
+                ToastContext::info(t!("toast.added_to_favorites"));
             }
             if let Ok(paths) = api::list_favorites().await {
                 set_favorites.set(paths);
@@ -311,7 +312,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         spawn_local(async move {
             match api::delete_file(&path).await {
                 Ok(()) => {
-                    ToastContext::success("File deleted");
+                    ToastContext::success(t!("toast.file_deleted"));
                     reload();
                 }
                 Err(e) => {
@@ -357,7 +358,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                         Ok(()) => {
                             ToastContext::success(format!("File uploaded: {}", file_name));
                             api::show_notification(
-                                "Upload Complete",
+                                t!("toast.upload_complete"),
                                 &format!("{} uploaded successfully", file_name),
                             );
                             reload();
@@ -393,7 +394,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
     let breadcrumb_segments = move || {
         let path = current_path.get();
-        let mut segments: Vec<(String, String)> = vec![("/".to_string(), "Home".to_string())];
+        let mut segments: Vec<(String, String)> =
+            vec![("/".to_string(), t!("nav.home").to_string())];
         if path != "/" {
             let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
             let mut built = String::new();
@@ -687,25 +689,25 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let commands = vec![
             Command {
                 id: "upload-file".to_string(),
-                label: "Upload File".to_string(),
+                label: t!("cmd.upload_file").to_string(),
                 shortcut: Some("Ctrl+U".to_string()),
                 action: Callback::new(move |_| set_show_upload.set(true)),
             },
             Command {
                 id: "new-folder".to_string(),
-                label: "New Folder".to_string(),
+                label: t!("cmd.new_folder").to_string(),
                 shortcut: Some("Ctrl+N".to_string()),
                 action: Callback::new(move |_| set_show_new_folder.set(true)),
             },
             Command {
                 id: "go-home".to_string(),
-                label: "Go to Home".to_string(),
+                label: t!("cmd.go_home").to_string(),
                 shortcut: None,
                 action: Callback::new(move |_| load_directory("/".to_string())),
             },
             Command {
                 id: "go-trash".to_string(),
-                label: "Go to Trash".to_string(),
+                label: t!("cmd.go_trash").to_string(),
                 shortcut: None,
                 action: Callback::new(move |_| {
                     #[cfg(target_arch = "wasm32")]
@@ -719,7 +721,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             },
             Command {
                 id: "toggle-dark-mode".to_string(),
-                label: "Toggle Dark Mode".to_string(),
+                label: t!("cmd.toggle_dark_mode").to_string(),
                 shortcut: None,
                 action: Callback::new(move |_| {
                     let current = ts.theme().get();
@@ -732,13 +734,13 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             },
             Command {
                 id: "select-all".to_string(),
-                label: "Select All".to_string(),
+                label: t!("cmd.select_all").to_string(),
                 shortcut: Some("Ctrl+A".to_string()),
                 action: Callback::new(move |_| do_select_all()),
             },
             Command {
                 id: "delete-selected".to_string(),
-                label: "Delete Selected".to_string(),
+                label: t!("cmd.delete_selected").to_string(),
                 shortcut: Some("Del".to_string()),
                 action: Callback::new(move |_| {
                     if !selected_paths.with(|s| s.is_empty()) {
@@ -748,7 +750,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             },
             Command {
                 id: "open-preview".to_string(),
-                label: "Open File Preview".to_string(),
+                label: t!("cmd.open_file_preview").to_string(),
                 shortcut: None,
                 action: Callback::new(move |_| {
                     let paths: Vec<String> = selected_paths.get().into_iter().collect();
@@ -762,7 +764,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             },
             Command {
                 id: "search-files".to_string(),
-                label: "Search Files".to_string(),
+                label: t!("cmd.search_files").to_string(),
                 shortcut: Some("Ctrl+F".to_string()),
                 action: Callback::new(move |_| {
                     if let Some(hs) = header_state {
@@ -772,7 +774,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             },
             Command {
                 id: "toggle-activity".to_string(),
-                label: "Toggle Activity Feed".to_string(),
+                label: t!("cmd.toggle_activity").to_string(),
                 shortcut: None,
                 action: Callback::new(move |_| {
                     set_show_activity.update(|v| *v = !*v);
@@ -780,25 +782,25 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             },
             Command {
                 id: "copy-selected".to_string(),
-                label: "Copy Selected".to_string(),
+                label: t!("cmd.copy_selected").to_string(),
                 shortcut: Some("Ctrl+C".to_string()),
                 action: Callback::new(move |_| clipboard_copy_selected()),
             },
             Command {
                 id: "cut-selected".to_string(),
-                label: "Cut Selected".to_string(),
+                label: t!("cmd.cut_selected").to_string(),
                 shortcut: Some("Ctrl+X".to_string()),
                 action: Callback::new(move |_| clipboard_cut_selected()),
             },
             Command {
                 id: "paste-files".to_string(),
-                label: "Paste Files".to_string(),
+                label: t!("cmd.paste_files").to_string(),
                 shortcut: Some("Ctrl+V".to_string()),
                 action: Callback::new(move |_| clipboard_paste()),
             },
             Command {
                 id: "toggle-view".to_string(),
-                label: "Toggle Grid/List View".to_string(),
+                label: t!("cmd.toggle_view").to_string(),
                 shortcut: None,
                 action: Callback::new(move |_| {
                     let current = view_mode.get();
@@ -1002,7 +1004,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
        <div
            _ref=scroll_container_ref
            role="region"
-           aria-label="File list"
+            aria-label=t!("file_list.aria")
            on:dragover=handle_drag_over
            on:dragleave=handle_drag_leave
            on:drop=handle_drop
@@ -1013,7 +1015,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                    <div class="flex items-center gap-2 min-w-0 flex-1">
                        <button
                            class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
-                           aria-label="Go to parent directory"
+                            aria-label=t!("breadcrumb.parent")
                            on:click=go_up
                            disabled=move || current_path.get() == "/"
                        >
@@ -1022,7 +1024,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                            </svg>
                        </button>
 
-                       <nav aria-label="Breadcrumb" class="flex items-center gap-1 text-sm min-w-0 overflow-hidden">
+                                               <nav aria-label=t!("breadcrumb.aria") class="flex items-center gap-1 text-sm min-w-0 overflow-hidden">
                            <ol class="flex items-center gap-1 list-none m-0 p-0 overflow-hidden">
                                <For
                                    each=breadcrumb_segments
@@ -1037,7 +1039,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                        view! {
                                            <li class="flex items-center">
                                                {(!is_root).then(|| view! {
-                                                   <span class="text-gray-500 mx-1" aria-hidden="true">"/"</span>
+                                                    <span class="text-gray-500 mx-1" aria-hidden="true">{t!("breadcrumb.separator")}</span>
                                                })}
                                                <button
                                                    class="text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded truncate max-w-[120px] sm:max-w-none"
@@ -1059,16 +1061,16 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                            <button
                                class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                                class=move || if active_tab.get() == BrowserTab::Files { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
-                               on:click=move |_| switch_tab(BrowserTab::Files)
-                           >
-                               "Files"
+                                on:click=move |_| switch_tab(BrowserTab::Files)
+                            >
+                                {t!("nav.files")}
                            </button>
                            <button
                                class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                                class=move || if active_tab.get() == BrowserTab::Favorites { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
                                on:click=move |_| switch_tab(BrowserTab::Favorites)
                            >
-                               <span class="hidden sm:inline">"Favorites"</span>
+                                <span class="hidden sm:inline">{t!("nav.favorites")}</span>
                                <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
                            </button>
                            <button
@@ -1076,7 +1078,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                class=move || if active_tab.get() == BrowserTab::Recent { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
                                on:click=move |_| switch_tab(BrowserTab::Recent)
                            >
-                               <span class="hidden sm:inline">"Recent"</span>
+                                <span class="hidden sm:inline">{t!("nav.recent")}</span>
                                <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                            </button>
                        </div>
@@ -1084,8 +1086,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                        {move || clipboard_state.has_files().then(|| {
                            let count = clipboard_state.file_count();
                            let al = clipboard_state.action().map(|a| match a {
-                               ClipboardAction::Copy => "Copy",
-                               ClipboardAction::Cut => "Cut",
+                                ClipboardAction::Copy => t!("clipboard.copy"),
+                                ClipboardAction::Cut => t!("clipboard.cut"),
                            }).unwrap_or_default();
                            view! {
                                <button
@@ -1104,40 +1106,40 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
                        <button
                            class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded-sm hover:bg-blue-700 brutal-border shadow-iron transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px] uppercase font-bold tracking-wider"
-                           aria-label="Upload files"
+                           aria-label=t!("toolbar.aria_upload")
                            on:click=move |_| set_show_upload.set(true)
                        >
                            <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                            </svg>
-                           <span class="hidden sm:inline">"Upload"</span>
+                           <span class="hidden sm:inline">{t!("common.upload")}</span>
                        </button>
                        <button
                            class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 rounded-sm brutal-border font-bold uppercase hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px] tracking-wider"
-                           aria-label="New folder"
+                            aria-label=t!("toolbar.aria_new_folder")
                            on:click=move |_| set_show_new_folder.set(true)
                        >
                            <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                            </svg>
-                           <span class="hidden sm:inline">"New Folder"</span>
+                           <span class="hidden sm:inline">{t!("dialog.new_folder.title")}</span>
                        </button>
                        <A
                            href="/ui/trash"
                            class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100 transition-colors no-underline flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
-                           attr:aria-label="Trash"
+                            attr:aria-label=t!("toolbar.aria_trash")
                        >
                            <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                            </svg>
-                           <span class="hidden sm:inline">"Trash"</span>
+                           <span class="hidden sm:inline">{t!("common.trash")}</span>
                        </A>
 
                        // View mode toggle
                        <button
                            class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                           aria-label=move || if view_mode.get() == ViewMode::Grid { "Switch to list view" } else { "Switch to grid view" }
-                           title=move || if view_mode.get() == ViewMode::Grid { "List view" } else { "Grid view" }
+                            aria-label=move || if view_mode.get() == ViewMode::Grid { t!("toolbar.aria_toggle_view") } else { t!("toolbar.aria_toggle_grid") }
+                            title=move || if view_mode.get() == ViewMode::Grid { t!("toolbar.list_view") } else { t!("toolbar.grid_view") }
                            on:click=toggle_view_mode
                        >
                            {move || match view_mode.get() {
@@ -1159,7 +1161,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                "p-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center {}",
                                if select_mode.get() { "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" } else { "text-gray-500 hover:text-gray-700 hover:bg-gray-100" }
                            )
-                           aria-label="Toggle select mode"
+                            aria-label=t!("toolbar.aria_select_mode")
                            aria_pressed=move || select_mode.get()
                            on:click=toggle_select_mode
                        >
@@ -1172,7 +1174,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                "p-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-200 {}",
                                if show_activity.get() { "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" } else { "text-gray-500 hover:text-gray-700 hover:bg-gray-100" }
                            )
-                           aria-label="Toggle activity panel"
+                            aria-label=t!("toolbar.aria_activity")
                            on:click=toggle_activity
                        >
                            <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1190,8 +1192,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                        <svg class="w-16 h-16 text-accent mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                        </svg>
-                       <p class="text-xl font-semibold text-gray-700">"Drop files to upload"</p>
-                       <p class="text-sm text-gray-500 mt-1">"Files will be uploaded to the current directory"</p>
+                        <p class="text-xl font-semibold text-gray-700">{t!("drop.overlay")}</p>
+                        <p class="text-sm text-gray-500 mt-1">{t!("drop.overlay_hint")}</p>
                    </div>
                </div>
            })}
@@ -1222,10 +1224,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             {move || error.get().map(|e| view! {
                <div class="bg-red-50 border-b border-l-4 border-l-red-500 px-6 py-3" role="alert" aria-live="assertive">
                    <div class="flex items-center justify-between">
-                       <span class="text-red-700 text-sm">"Error: " {e}</span>
+                        <span class="text-red-700 text-sm">{t!("error.prefix")} {e}</span>
                        <button
                            class="text-red-500 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded p-0.5"
-                           aria-label="Dismiss error"
+                            aria-label=t!("error.dismiss")
                            on:click=move |_| set_error.set(None)
                        >
                            <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1262,8 +1264,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976 2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519 4.674z" />
                                </svg>
-                               <div class="text-lg font-medium">"No favorites yet"</div>
-                               <div class="text-sm mt-1">"Star files to add them here"</div>
+                                <div class="text-lg font-medium">{t!("empty.favorites")}</div>
+                                <div class="text-sm mt-1">{t!("empty.favorites_hint")}</div>
                            </div>
                        }.into_any()
                    } else {
@@ -1272,10 +1274,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                <thead class="bg-gray-50 border-b sticky top-0">
                                    <tr>
                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">"Name"</th>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Size"</th>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">"Modified"</th>
-                                       <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Actions"</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">{t!("common.name")}</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.size")}</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">{t!("common.modified")}</th>
+                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.actions")}</th>
                                    </tr>
                                </thead>
                                <tbody>
@@ -1332,8 +1334,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                </svg>
-                               <div class="text-lg font-medium">"No recent activity"</div>
-                               <div class="text-sm mt-1">"Upload files to get started"</div>
+                                <div class="text-lg font-medium">{t!("empty.recent")}</div>
+                                <div class="text-sm mt-1">{t!("empty.recent_hint")}</div>
                            </div>
                        }.into_any()
                    } else {
@@ -1342,10 +1344,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                <thead class="bg-gray-50 border-b sticky top-0">
                                    <tr>
                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">"Name"</th>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Size"</th>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">"Modified"</th>
-                                       <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Actions"</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">{t!("common.name")}</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.size")}</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">{t!("common.modified")}</th>
+                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.actions")}</th>
                                    </tr>
                                </thead>
                                <tbody>
@@ -1396,10 +1398,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                    <input
                                        type="checkbox"
                                        class="rounded border text-blue-600 focus:ring-blue-500"
-                                       aria-label="Select all files"
-                                       on:click=select_all
-                                   />
-                                   <span class="text-xs text-gray-500">"Select all"</span>
+                                        aria-label=t!("file_list.aria_select_all")
+                                        on:click=select_all
+                                    />
+                                    <span class="text-xs text-gray-500">{t!("toolbar.select_all")}</span>
                                </div>
                            })}
                            <GridView
@@ -1430,16 +1432,16 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                                <input
                                                    type="checkbox"
                                                    class="rounded border text-blue-600 focus:ring-blue-500"
-                                                   aria-label="Select all files"
+                                                    aria-label=t!("file_list.aria_select_all")
                                                    on:click=select_all
                                                />
                                            </th>
                                        })}
                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">"Name"</th>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Size"</th>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40 hidden lg:table-cell" scope="col">"Modified"</th>
-                                       <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">"Actions"</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">{t!("common.name")}</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.size")}</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40 hidden lg:table-cell" scope="col">{t!("common.modified")}</th>
+                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.actions")}</th>
                                    </tr>
                                </thead>
                                <tbody class="block md:table-row-group">
@@ -1527,8 +1529,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
             // Move dialog (extracted PathDialog component)
             <PathDialog
-                title="Move File"
-                action_label="Move"
+                 title=t!("dialog.path.source_label")
+                 action_label=t!("common.move")
                 open=show_move_dialog
                 set_open=set_show_move_dialog
                 source=move_source
@@ -1539,8 +1541,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
             // Copy dialog (extracted PathDialog component)
             <PathDialog
-                title="Copy File"
-                action_label="Copy"
+                 title=t!("common.copy")
+                 action_label=t!("common.copy")
                 open=show_copy_dialog
                 set_open=set_show_copy_dialog
                 source=copy_source

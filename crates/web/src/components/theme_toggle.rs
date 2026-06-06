@@ -1,5 +1,7 @@
 use leptos::*;
 
+use crate::t;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Theme {
     #[default]
@@ -169,7 +171,7 @@ pub fn ThemeToggle() -> impl IntoView {
         <button
             class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded surface brutal-border shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             on:click=toggle
-            aria-label="Toggle theme"
+            aria-label=t!("aria.toggle_theme")
         >
             {move || match ts_for_view.theme.get() {
                 Theme::Light => view! {

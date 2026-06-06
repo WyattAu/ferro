@@ -3,6 +3,7 @@ use leptos_router::*;
 
 use crate::auth;
 use crate::components::theme_toggle::{ThemeToggle, provide_theme_state};
+use crate::t;
 
 #[component]
 pub fn LoginPage() -> impl IntoView {
@@ -19,28 +20,28 @@ pub fn LoginPage() -> impl IntoView {
             </div>
             <div class="brutal-block rounded-lg shadow-2xl p-8 max-w-md w-full text-center">
                 <div class="flex items-center justify-center gap-2 mb-8">
-                    <div class="w-10 h-10 bg-transparent brutal-border rounded flex items-center justify-center font-display text-display text-accent">"F"</div>
+                    <div class="w-10 h-10 bg-transparent brutal-border rounded flex items-center justify-center font-display text-display text-accent">{t!("brand.name")}</div>
                     <div class="text-left">
-                        <h1 class="text-xl font-bold font-mono text-gray-900 leading-none">"Ferro"</h1>
-                        <span class="text-label text-muted">"Storage Orchestrator"</span>
+                        <h1 class="text-xl font-bold font-mono text-gray-900 leading-none">{t!("brand.name")}</h1>
+                        <span class="text-label text-muted">{t!("brand.tagline")}</span>
                     </div>
                 </div>
 
-                <h2 class="text-section font-mono text-gray-900 mb-2">"Welcome to Ferro"</h2>
-                <p class="text-muted font-mono mb-6">"Sign in with your organization to continue"</p>
+                <h2 class="text-section font-mono text-gray-900 mb-2">{t!("login.welcome")}</h2>
+                <p class="text-muted font-mono mb-6">{t!("login.description")}</p>
 
                 <button
                     class="w-full bg-blue-600 text-white px-4 py-3 rounded-sm hover:bg-blue-700 transition-colors font-bold uppercase tracking-widest brutal-border shadow-iron focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                     on:click=on_login
                 >
-                    "Sign in"
+                    {t!("common.sign_in")}
                 </button>
 
                 <A
                     href="/"
                     class="block mt-4 text-sm text-muted font-mono hover:text-gray-700 no-underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded text-label"
                 >
-                    "Skip for now"
+                    {t!("common.skip_for_now")}
                 </A>
             </div>
         </div>

@@ -2,6 +2,8 @@ use leptos::*;
 
 use leptos::html::Div;
 
+use crate::t;
+
 /// Placeholder element observed by IntersectionObserver for infinite scroll.
 /// Shows a spinner when more entries exist beyond the current display window.
 #[component]
@@ -19,12 +21,12 @@ pub fn ScrollSentinel(
 ) -> impl IntoView {
     view! {
         {move || {
-            let t = total.get();
-            let d = displayed.get();
-            (t > d && !loading.get() && files_tab_active.get()).then(|| view! {
+            let total_count = total.get();
+            let display_count = displayed.get();
+            (total_count > display_count && !loading.get() && files_tab_active.get()).then(|| view! {
                 <div _ref=sentinel_ref class="py-4 text-center text-sm text-muted font-mono" role="status" aria-live="polite">
                     <div class="animate-spin w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-accent rounded-full mx-auto mb-2"></div>
-                    "Loading more..."
+                    {t!("common.loading_more")}
                 </div>
             })
         }}

@@ -1,6 +1,7 @@
 use leptos::*;
 
 use crate::auth;
+use crate::t;
 
 fn parse_query_string(search: &str) -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
@@ -54,7 +55,7 @@ pub fn AuthCallbackPage() -> impl IntoView {
         let cb_state = params.get("state").cloned().unwrap_or_default();
 
         if code.is_empty() {
-            set_error.set(Some("Missing authorization code".to_string()));
+            set_error.set(Some(t!("error.minus_auth_code").to_string()));
             set_processing.set(false);
             return;
         }
@@ -68,7 +69,7 @@ pub fn AuthCallbackPage() -> impl IntoView {
                 {move || processing.get().then(|| view! {
                     <div>
                         <div class="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p class="text-gray-600">"Completing sign in..."</p>
+                        <p class="text-gray-600">{t!("error.completing_sign_in")}</p>
                     </div>
                 })}
 
@@ -79,10 +80,10 @@ pub fn AuthCallbackPage() -> impl IntoView {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </div>
-                        <h2 class="text-lg font-semibold text-gray-900 mb-2">"Sign in failed"</h2>
+                        <h2 class="text-lg font-semibold text-gray-900 mb-2">{t!("error.sign_in_failed")}</h2>
                         <p class="text-gray-500 mb-4">{e}</p>
                         <a href="/ui/auth/login" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 no-underline">
-                            "Try again"
+                            {t!("common.try_again")}
                         </a>
                     </div>
                 })}

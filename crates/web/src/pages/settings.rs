@@ -4,6 +4,7 @@ use leptos_router::A;
 use crate::api::{self, UserPreferences};
 use crate::components::onboarding::reset_onboarding;
 use crate::components::toast::ToastContext;
+use crate::t;
 
 #[component]
 pub fn SettingsPage() -> impl IntoView {
@@ -33,7 +34,7 @@ pub fn SettingsPage() -> impl IntoView {
         let p = prefs.get();
         spawn_local(async move {
             match api::update_preferences(&p).await {
-                Ok(_) => ToastContext::success("Preferences saved"),
+                Ok(_) => ToastContext::success(t!("toast.preferences_saved")),
                 Err(e) => ToastContext::error(format!("Failed to save: {}", e)),
             }
             set_saving.set(false);
@@ -71,23 +72,23 @@ pub fn SettingsPage() -> impl IntoView {
 
     let handle_reset_onboarding = move |_: ev::MouseEvent| {
         reset_onboarding();
-        ToastContext::info("Onboarding tour has been reset. Reload the page to see it again.");
+        ToastContext::info(t!("toast.onboarding_reset"));
     };
 
     view! {
         <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded brutal-border">"Skip to main content"</a>
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded brutal-border">{t!("nav.skip_to_content")}</a>
 
             <header class="surface brutal-border border-b px-6 py-3 shadow-concrete">
                 <div class="flex items-center justify-between max-w-7xl mx-auto">
                     <div class="flex items-center gap-3">
                         <A href="/ui/" class="flex items-center gap-2 no-underline">
                             <div class="w-8 h-8 bg-transparent brutal-border rounded flex items-center justify-center font-display text-accent">
-                                <span class="font-bold text-sm">"F"</span>
+                                <span class="font-bold text-sm">{t!("brand.name")}</span>
                             </div>
                             <div>
-                                <h1 class="text-lg font-bold font-mono text-gray-900 leading-none">"Ferro"</h1>
-                                <span class="text-label text-muted">"Settings"</span>
+                                <h1 class="text-lg font-bold font-mono text-gray-900 leading-none">{t!("brand.name")}</h1>
+                                <span class="text-label text-muted">{t!("settings.title")}</span>
                             </div>
                         </A>
                     </div>
@@ -95,7 +96,7 @@ pub fn SettingsPage() -> impl IntoView {
                         href="/ui/"
                         class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        "Back to Files"
+                        {t!("nav.back_to_files")}
                     </A>
                 </div>
             </header>
@@ -104,17 +105,17 @@ pub fn SettingsPage() -> impl IntoView {
                 {move || loading.get().then(|| view! {
                     <div class="px-6 py-12 text-center text-gray-500" role="status" aria-live="polite">
                         <div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
-                        "Loading preferences..."
+                        {t!("settings.loading_prefs")}
                     </div>
                 })}
 
                 {move || (!loading.get()).then(|| view! {
                     <div class="p-6 space-y-6">
-                        <h2 class="text-section font-mono text-gray-900">"Preferences"</h2>
+                        <h2 class="text-section font-mono text-gray-900">{t!("settings.section_prefs")}</h2>
 
                         <div class="space-y-5">
                             <fieldset>
-                                <legend class="block text-label font-mono text-gray-700 mb-2">"Theme"</legend>
+                                <legend class="block text-label font-mono text-gray-700 mb-2">{t!("settings.theme_label")}</legend>
                                 <div class="flex items-center gap-4">
                                     <label class="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -125,7 +126,7 @@ pub fn SettingsPage() -> impl IntoView {
                                             on:change=on_theme_change
                                             class="text-blue-600 focus:ring-blue-500"
                                         />
-                                        <span class="text-sm text-gray-700">"Light"</span>
+                                        <span class="text-sm text-gray-700">{t!("settings.theme_light")}</span>
                                     </label>
                                     <label class="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -136,7 +137,7 @@ pub fn SettingsPage() -> impl IntoView {
                                             on:change=on_theme_change
                                             class="text-blue-600 focus:ring-blue-500"
                                         />
-                                        <span class="text-sm text-gray-700">"Dark"</span>
+                                        <span class="text-sm text-gray-700">{t!("settings.theme_dark")}</span>
                                     </label>
                                     <label class="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -147,13 +148,13 @@ pub fn SettingsPage() -> impl IntoView {
                                             on:change=on_theme_change
                                             class="text-blue-600 focus:ring-blue-500"
                                         />
-                                        <span class="text-sm text-gray-700">"System"</span>
+                                        <span class="text-sm text-gray-700">{t!("settings.theme_system")}</span>
                                     </label>
                                 </div>
                             </fieldset>
 
                             <fieldset>
-                                <legend class="block text-label font-mono text-gray-700 mb-2">"Default View"</legend>
+                                <legend class="block text-label font-mono text-gray-700 mb-2">{t!("settings.default_view_label")}</legend>
                                 <div class="flex items-center gap-4">
                                     <label class="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -164,7 +165,7 @@ pub fn SettingsPage() -> impl IntoView {
                                             on:change=on_view_mode_change
                                             class="text-blue-600 focus:ring-blue-500"
                                         />
-                                        <span class="text-sm text-gray-700">"List"</span>
+                                        <span class="text-sm text-gray-700">{t!("settings.view_list")}</span>
                                     </label>
                                     <label class="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -175,38 +176,38 @@ pub fn SettingsPage() -> impl IntoView {
                                             on:change=on_view_mode_change
                                             class="text-blue-600 focus:ring-blue-500"
                                         />
-                                        <span class="text-sm text-gray-700">"Grid"</span>
+                                        <span class="text-sm text-gray-700">{t!("settings.view_grid")}</span>
                                     </label>
                                 </div>
                             </fieldset>
 
                             <div>
-                                <label class="block text-label font-mono text-gray-700 mb-1" for="sort-by">"Default Sort"</label>
+                                <label class="block text-label font-mono text-gray-700 mb-1" for="sort-by">{t!("settings.default_sort_label")}</label>
                                 <select
                                     id="sort-by"
                                     class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                                     on:change=on_sort_by_change
                                 >
-                                    <option value="name" selected=move || prefs.with(|p| p.sort_by == "name")>"Name"</option>
-                                    <option value="date" selected=move || prefs.with(|p| p.sort_by == "date")>"Date"</option>
-                                    <option value="size" selected=move || prefs.with(|p| p.sort_by == "size")>"Size"</option>
+                                    <option value="name" selected=move || prefs.with(|p| p.sort_by == "name")>{t!("settings.sort_name")}</option>
+                                    <option value="date" selected=move || prefs.with(|p| p.sort_by == "date")>{t!("settings.sort_date")}</option>
+                                    <option value="size" selected=move || prefs.with(|p| p.sort_by == "size")>{t!("settings.sort_size")}</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label class="block text-label font-mono text-gray-700 mb-1" for="sort-order">"Sort Order"</label>
+                                <label class="block text-label font-mono text-gray-700 mb-1" for="sort-order">{t!("settings.sort_order_label")}</label>
                                 <select
                                     id="sort-order"
                                     class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                                     on:change=on_sort_order_change
                                 >
-                                    <option value="asc" selected=move || prefs.with(|p| p.sort_order == "asc")>"Ascending"</option>
-                                    <option value="desc" selected=move || prefs.with(|p| p.sort_order == "desc")>"Descending"</option>
+                                    <option value="asc" selected=move || prefs.with(|p| p.sort_order == "asc")>{t!("settings.sort_ascending")}</option>
+                                    <option value="desc" selected=move || prefs.with(|p| p.sort_order == "desc")>{t!("settings.sort_descending")}</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label class="block text-label font-mono text-gray-700 mb-1" for="items-per-page">"Items Per Page"</label>
+                                <label class="block text-label font-mono text-gray-700 mb-1" for="items-per-page">{t!("settings.items_per_page_label")}</label>
                                 <select
                                     id="items-per-page"
                                     class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -219,7 +220,7 @@ pub fn SettingsPage() -> impl IntoView {
                             </div>
 
                             <div class="flex items-center justify-between">
-                                <label class="text-label font-mono text-gray-700" for="show-hidden">"Show Hidden Files"</label>
+                                <label class="text-label font-mono text-gray-700" for="show-hidden">{t!("settings.show_hidden_label")}</label>
                                 <button
                                     id="show-hidden"
                                     role="switch"
@@ -249,19 +250,19 @@ pub fn SettingsPage() -> impl IntoView {
                                 disabled=saving
                                 on:click=save_prefs
                             >
-                                {move || if saving.get() { "Saving..." } else { "Save" }}
+                                {move || if saving.get() { t!("common.saving") } else { t!("common.save") }}
                             </button>
                         </div>
 
                         <div class="pt-4 border-t border-gray-200">
-                            <h3 class="text-label font-mono text-gray-700 mb-3">"Onboarding"</h3>
+                            <h3 class="text-label font-mono text-gray-700 mb-3">{t!("settings.section_onboarding")}</h3>
                             <button
                                 class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded brutal-border font-bold uppercase hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
                                 on:click=handle_reset_onboarding
                             >
-                                "Reset Onboarding Tour"
+                                {t!("settings.reset_tour")}
                             </button>
-                            <p class="text-xs text-gray-400 mt-1">"Show the introductory tour again on next page load"</p>
+                            <p class="text-xs text-gray-400 mt-1">{t!("settings.reset_tour_hint")}</p>
                         </div>
                     </div>
                 })}

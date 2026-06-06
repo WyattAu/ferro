@@ -1,5 +1,7 @@
 use leptos::*;
 
+use crate::t;
+
 #[component]
 pub fn ErrorBoundary(children: Children) -> impl IntoView {
     #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]
@@ -50,9 +52,9 @@ pub fn ErrorBoundary(children: Children) -> impl IntoView {
                     <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.832c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
-                    <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">"Something went wrong"</h1>
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t!("error_boundary.title")}</h1>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                        "An unexpected error occurred. Please try reloading the page."
+                        {t!("error_boundary.description")}
                     </p>
                     <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6 text-left">
                         <p class="text-xs font-mono text-red-600 dark:text-red-400 break-all max-h-32 overflow-y-auto">{msg}</p>
@@ -65,7 +67,7 @@ pub fn ErrorBoundary(children: Children) -> impl IntoView {
                             }
                         }
                     >
-                        "Reload"
+                        {t!("common.reload")}
                     </button>
                 </div>
             </div>

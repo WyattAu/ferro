@@ -1,5 +1,7 @@
 use leptos::*;
 
+use crate::t;
+
 #[allow(dead_code)] // Used by WASM runtime
 const ONBOARDING_KEY: &str = "ferro_onboarding_completed";
 
@@ -31,34 +33,34 @@ impl OnboardingStep {
 
     fn title(&self) -> &'static str {
         match self {
-            OnboardingStep::Welcome => "Welcome to Ferro",
-            OnboardingStep::Upload => "Upload Files",
-            OnboardingStep::Organize => "Organize",
-            OnboardingStep::Share => "Share",
-            OnboardingStep::Settings => "Settings",
-            OnboardingStep::Shortcuts => "Keyboard Shortcuts",
+            OnboardingStep::Welcome => t!("onboarding.step_1_title"),
+            OnboardingStep::Upload => t!("onboarding.step_2_title"),
+            OnboardingStep::Organize => t!("onboarding.step_3_title"),
+            OnboardingStep::Share => t!("onboarding.step_4_title"),
+            OnboardingStep::Settings => t!("onboarding.step_5_title"),
+            OnboardingStep::Shortcuts => t!("onboarding.step_6_title"),
         }
     }
 
     fn description(&self) -> &'static str {
         match self {
             OnboardingStep::Welcome => {
-                "Ferro is your personal storage orchestrator. Upload, organize, share, and manage your files with ease. Let us show you around."
+                t!("onboarding.step_1_desc")
             }
             OnboardingStep::Upload => {
-                "Click the Upload button or drag and drop files directly into the browser to upload them. You can upload multiple files at once."
+                t!("onboarding.step_2_desc")
             }
             OnboardingStep::Organize => {
-                "Use the New Folder button to create directories. Navigate using breadcrumbs or the parent directory button to keep your files organized."
+                t!("onboarding.step_3_desc")
             }
             OnboardingStep::Share => {
-                "Share any file with others using the share button. Create time-limited links with optional password protection."
+                t!("onboarding.step_4_desc")
             }
             OnboardingStep::Settings => {
-                "Access Settings from the gear icon in the header. Customize your theme, default view, sort order, and other preferences."
+                t!("onboarding.step_5_desc")
             }
             OnboardingStep::Shortcuts => {
-                "Press Ctrl+K to open the command palette for quick access to actions. Use Ctrl+F to search, Ctrl+A to select all, and more."
+                t!("onboarding.step_6_desc")
             }
         }
     }
@@ -200,14 +202,14 @@ pub fn OnboardingOverlay() -> impl IntoView {
         {move || visible.get().then(|| view! {
             <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" on:click=handle_skip></div>
-                <div class="relative brutal-block rounded shadow-2xl w-[calc(100%-2rem)] sm:w-[480px] max-h-[90vh] overflow-y-auto transition-all duration-200 scale-100 opacity-100" role="dialog" aria-modal="true" aria-label="Welcome tour">
+                <div class="relative brutal-block rounded shadow-2xl w-[calc(100%-2rem)] sm:w-[480px] max-h-[90vh] overflow-y-auto transition-all duration-200 scale-100 opacity-100" role="dialog" aria-modal="true" aria-label=t!("onboarding.aria")>
                     <div class="p-6 sm:p-8">
                         <div class="flex justify-end mb-2">
                             <button
                                 class="text-sm text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 font-mono text-label"
                                 on:click=handle_skip
                             >
-                                "Skip tour"
+                                {t!("onboarding.skip_tour")}
                             </button>
                         </div>
 
@@ -240,7 +242,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
                                 on:click=handle_back
                                 disabled=is_first()
                             >
-                                "Back"
+                                {t!("common.back")}
                             </button>
 
                             <div class="flex gap-1.5">
@@ -262,7 +264,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
                                 )
                                 on:click=handle_next
                             >
-                                {move || if is_last() { "Get Started" } else { "Next" }}
+                                {move || if is_last() { t!("onboarding.get_started") } else { t!("common.next") }}
                             </button>
                         </div>
                     </div>

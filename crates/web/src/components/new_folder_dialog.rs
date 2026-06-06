@@ -3,6 +3,7 @@ use leptos::*;
 use crate::api;
 use crate::components::focus_trap::FocusTrap;
 use crate::components::toast::ToastContext;
+use crate::t;
 
 /// Dialog for creating a new folder in the current directory.
 #[component]
@@ -35,7 +36,7 @@ pub fn NewFolderDialog(
                 Ok(()) => {
                     set_open.set(false);
                     set_folder_name.set(String::new());
-                    ToastContext::success("Folder created");
+                    ToastContext::success(t!("toast.folder_created"));
                     on_created.call(());
                 }
                 Err(e) => {
@@ -61,12 +62,12 @@ pub fn NewFolderDialog(
                     aria-labelledby="new-folder-title"
                     tabindex="-1"
                 >
-                    <h3 id="new-folder-title" class="text-section font-mono text-gray-900 mb-4">"New Folder"</h3>
+                    <h3 id="new-folder-title" class="text-section font-mono text-gray-900 mb-4">{t!("dialog.new_folder.title")}</h3>
                     <label class="block mb-4">
-                        <span class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">"Folder name"</span>
+                        <span class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.new_folder.name_label")}</span>
                         <input
                             type="text"
-                            placeholder="Folder name"
+                            placeholder=t!("dialog.new_folder.name_placeholder")
                             class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             prop:value=folder_name
                             on:input=move |ev| set_folder_name.set(event_target_value(&ev))
@@ -77,13 +78,13 @@ pub fn NewFolderDialog(
                             class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                             on:click=move |_| set_open.set(false)
                         >
-                            "Cancel"
+                            {t!("common.cancel")}
                         </button>
                         <button
                             class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                             on:click=do_create
                         >
-                            "Create"
+                            {t!("common.create")}
                         </button>
                     </div>
                 </div>
