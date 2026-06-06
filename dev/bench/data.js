@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780763291158,
+  "lastUpdate": 1780765377304,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -10024,6 +10024,168 @@ window.BENCHMARK_DATA = {
           {
             "name": "metadata_deserialize",
             "value": 761,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "d1efafd538282ff2078341a108ca3306c34ede72",
+          "message": "feat: OP-006 tenant-aware rate limiting -- final roadmap item complete\n\nTenantAwareRateLimiter:\n- Wraps TokenBucketLimiter with per-tenant isolated buckets\n- TenantRateLimitStore for config CRUD (max_requests, refill_rate, refill_interval)\n- Thread-safe via DashMap\n\nAdmin API endpoints:\n- GET /api/admin/tenants/:id/rate-limit (get config)\n- PUT /api/admin/tenants/:id/rate-limit (update config)\n- DELETE /api/admin/tenants/:id/rate-limit (revert to defaults)\n- GET /api/admin/tenants/:id/rate-limit/status (usage status)\n- GET /api/admin/tenants/rate-limits (list all)\n\nMiddleware:\n- Extracts X-Tenant-ID header\n- Enforces per-tenant rate limits independently\n- Returns X-RateLimit-Remaining response header\n- Falls through gracefully when no tenant header present\n\nTests: 4 new (tenant isolation, config CRUD, status check, list)\nTotal: 2022 tests, 0 failures\n\nALL ROADMAP ITEMS NOW COMPLETE.",
+          "timestamp": "2026-06-06T17:49:39+01:00",
+          "tree_id": "f751697f11abe4f843883fe8fb7257afb0414e8b",
+          "url": "https://github.com/WyattAu/ferro/commit/d1efafd538282ff2078341a108ca3306c34ede72"
+        },
+        "date": 1780765376783,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300657354,
+            "range": "± 1094774",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300654579,
+            "range": "± 371371",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 23991,
+            "range": "± 700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24301,
+            "range": "± 629",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8657,
+            "range": "± 59",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5130,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1207,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 920,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2689,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1407,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8177,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74863,
+            "range": "± 85",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 91,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19296,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 929,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 152,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 178,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 185,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 829,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 749,
             "range": "± 3",
             "unit": "ns/iter"
           },
