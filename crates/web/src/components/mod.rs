@@ -10,6 +10,7 @@ pub mod file_browser;
 pub mod file_icon;
 pub mod file_preview;
 pub mod file_row;
+pub mod focus_trap;
 pub mod grid_view;
 pub mod header;
 pub mod new_folder_dialog;

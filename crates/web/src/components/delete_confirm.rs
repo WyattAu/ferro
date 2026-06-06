@@ -1,5 +1,7 @@
 use leptos::*;
 
+use crate::components::focus_trap::FocusTrap;
+
 /// Confirmation dialog for bulk delete operations.
 #[component]
 pub fn DeleteConfirmDialog(
@@ -21,6 +23,7 @@ pub fn DeleteConfirmDialog(
                     }
                 }
             >
+                <FocusTrap>
                 <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
                     role="dialog"
                     aria-modal="true"
@@ -49,6 +52,7 @@ pub fn DeleteConfirmDialog(
                         </button>
                     </div>
                 </div>
+                </FocusTrap>
             </div>
         })}
     }

@@ -205,10 +205,8 @@ pub fn Header() -> impl IntoView {
                             }
                         }
                     });
-                let _ = document.add_event_listener_with_callback(
-                    "input",
-                    handler.as_ref().unchecked_ref(),
-                );
+                let _ = document
+                    .add_event_listener_with_callback("input", handler.as_ref().unchecked_ref());
                 on_cleanup(move || {
                     let _ = document.remove_event_listener_with_callback(
                         "input",

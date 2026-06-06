@@ -1,6 +1,7 @@
 use leptos::*;
 
 use crate::api;
+use crate::components::focus_trap::FocusTrap;
 use crate::components::toast::ToastContext;
 
 /// Dialog for uploading files via file picker.
@@ -74,6 +75,7 @@ pub fn UploadDialog(
                     }
                 }
             >
+                <FocusTrap>
                 <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
                     role="dialog"
                     aria-modal="true"
@@ -103,6 +105,7 @@ pub fn UploadDialog(
                         </button>
                     </div>
                 </div>
+                </FocusTrap>
             </div>
         })}
     }

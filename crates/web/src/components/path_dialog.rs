@@ -1,5 +1,6 @@
 use leptos::*;
 
+use crate::components::focus_trap::FocusTrap;
 use crate::components::toast::ToastContext;
 
 /// Reusable dialog for path-based operations (Move / Copy).
@@ -39,6 +40,7 @@ pub fn PathDialog(
                     if ev.key() == "Escape" { set_open.set(false); }
                 }
             >
+                <FocusTrap>
                 <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
                     role="dialog"
                     aria-modal="true"
@@ -72,6 +74,7 @@ pub fn PathDialog(
                         >{action_label}</button>
                     </div>
                 </div>
+                </FocusTrap>
             </div>
         })}
     }
