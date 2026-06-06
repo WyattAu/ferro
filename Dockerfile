@@ -23,7 +23,7 @@ RUN cargo install trunk --version 0.21.14 --locked
 # Build WASM frontend first (trunk needs wasm32 target)
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    trunk build --release --dist crates/web/dist
+    trunk build --release --dist crates/web/dist crates/web/index.html
 
 # Build server and CLI binaries
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
