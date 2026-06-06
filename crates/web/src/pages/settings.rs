@@ -225,6 +225,7 @@ pub fn SettingsPage() -> impl IntoView {
                                     id="show-hidden"
                                     role="switch"
                                     aria-checked=move || prefs.with(|p| p.show_hidden_files)
+                                    aria-label=move || t!("settings.show_hidden_label")
                                     class=move || format!(
                                         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 {}",
                                         if prefs.with(|p| p.show_hidden_files) { "bg-blue-600" } else { "bg-gray-200 dark:bg-gray-600" }

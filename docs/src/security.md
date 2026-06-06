@@ -124,8 +124,8 @@ Persisted audit entries are protected by a SHA-256 hash chain: each entry's `cha
 
 | Version | Supported |
 |---------|-----------|
-| 2.x | Yes |
-| < 2.0 | No |
+| 3.x | Yes |
+| < 3.0 | No |
 
 ## Dependency Security
 

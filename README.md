@@ -50,7 +50,7 @@ chmod +x ferro-server
 docker compose up -d
 ```
 
-The Docker image includes the bundled Leptos web UI and a Caddy reverse proxy with automatic HTTPS. See the [Docker Compose](#docker-compose) section below for details.
+The Docker image includes the bundled Leptos web UI and a Caddy reverse proxy with automatic HTTPS.
 
 ### From Source
 
@@ -293,7 +293,7 @@ See [docs/api.md](docs/api.md) for detailed request/response documentation.
 ## Development
 
 ### Prerequisites
-- Rust 1.92+ (edition 2024)
+- Rust 1.95+ (edition 2024)
 - OpenSSL (for PostgreSQL support)
 
 ### Build

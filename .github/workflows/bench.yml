@@ -48,7 +48,7 @@ jobs:
           output-file-path: benchmark-results.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: ${{ github.event_name == 'push' }}
-          alert-threshold: '150%'
+          alert-threshold: '120%'
           comment-on-alert: true
           fail-on-alert: false
           fail-on-error: false

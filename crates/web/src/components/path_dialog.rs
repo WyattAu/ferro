@@ -45,9 +45,10 @@ pub fn PathDialog(
                 <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
                     role="dialog"
                     aria-modal="true"
+                    aria-labelledby="path-dialog-title"
                     tabindex="-1"
                 >
-                    <h3 class="text-section font-mono text-gray-900 mb-4">{title}</h3>
+                    <h3 id="path-dialog-title" class="text-section font-mono text-gray-900 mb-4">{title}</h3>
                     <div class="mb-4">
                         <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.path.source_label")}</label>
                         <div class="px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 truncate">
