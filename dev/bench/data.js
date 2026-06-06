@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780738069909,
+  "lastUpdate": 1780740694685,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -9215,6 +9215,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 751,
             "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "466654b21b895d4596a4213adf439f2dada9c58f",
+          "message": "ci(coverage): enforce minimum 80% line coverage threshold (TD-035)\n\n- Add --fail-under-lines 80 to cargo-llvm-cov in extended-checks.yml\n- Add min_coverage: 80 to Codecov action\n- CI will now fail if workspace coverage drops below 80% target",
+          "timestamp": "2026-06-06T11:02:53+01:00",
+          "tree_id": "fe2d60fbd9a0f66dc0aa78bfe9ed95181fc4c1be",
+          "url": "https://github.com/WyattAu/ferro/commit/466654b21b895d4596a4213adf439f2dada9c58f"
+        },
+        "date": 1780740693410,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 266739302,
+            "range": "± 560246",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267124854,
+            "range": "± 1313566",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 30519,
+            "range": "± 2428",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 31032,
+            "range": "± 2487",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8676,
+            "range": "± 54",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5146,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1190,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 907,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2723,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1338,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7382,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66512,
+            "range": "± 128",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 86,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18695,
+            "range": "± 65",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 890,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 148,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 173,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 181,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 831,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 809,
+            "range": "± 5",
             "unit": "ns/iter"
           },
           {
