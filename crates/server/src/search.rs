@@ -18,130 +18,174 @@ pub async fn handle_search(
     let limit = params.limit.unwrap_or(50).min(100);
     let offset = params.offset.unwrap_or(0);
 
-    match &state.search {
-        Some(search_lock) => {
-            let engine = search_lock.read().await;
-            match engine.search(&params.q, limit + offset) {
-                Ok(results) => {
-                    let mut items: Vec<serde_json::Value> = results
-                        .into_iter()
-                        .skip(offset)
-                        .take(limit)
-                        .map(|r| {
-                            let name = r.path.rsplit('/').next().unwrap_or(&r.path).to_string();
-                            serde_json::json!({
-                                "path": r.path,
-                                "name": name,
-                                "score": r.score,
-                                "snippet": r.snippet,
-                            })
+    // Collect text search results
+    let mut text_results: Vec<serde_json::Value> = Vec::new();
+    let mut search_configured = false;
+
+    if let Some(ref search_lock) = state.search {
+        search_configured = true;
+        let engine = search_lock.read().await;
+        match engine.search(&params.q, limit + offset) {
+            Ok(results) => {
+                text_results = results
+                    .into_iter()
+                    .skip(offset)
+                    .take(limit)
+                    .map(|r| {
+                        let name = r.path.rsplit('/').next().unwrap_or(&r.path).to_string();
+                        serde_json::json!({
+                            "path": r.path,
+                            "name": name,
+                            "score": r.score,
+                            "snippet": r.snippet,
+                            "source": "text",
                         })
-                        .collect();
-
-                    if let Some(ref sort) = params.sort {
-                        match sort.as_str() {
-                            "name" => {
-                                items.sort_by(|a, b| {
-                                    a.get("name")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("")
-                                        .cmp(b.get("name").and_then(|v| v.as_str()).unwrap_or(""))
-                                });
-                            }
-                            "date" | "size" => {}
-                            "relevance" => {
-                                items.sort_by(|a, b| {
-                                    let sa = b.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                                    let sb = a.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                                    sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
-                                });
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    if let Some(ref type_filter) = params.r#type {
-                        items.retain(|item| {
-                            let path = item.get("path").and_then(|v| v.as_str()).unwrap_or("");
-                            match type_filter.as_str() {
-                                "file" => path.contains('.'),
-                                "folder" => !path.contains('.'),
-                                _ => true,
-                            }
-                        });
-                    }
-
-                    if let Some(ref mime_filter) = params.mime_type {
-                        let pattern = mime_filter.to_lowercase();
-                        if pattern.contains('*') {
-                            let prefix = pattern.replace('*', "");
-                            items.retain(|_| true);
-                            let _ = prefix;
-                        } else {
-                            items.retain(|_| true);
-                        }
-                    }
-
-                    let total = items.len();
-                    let paginated: Vec<_> = items.into_iter().take(limit).collect();
-
-                    let filters_applied = serde_json::json!({
-                        "type": params.r#type,
-                        "mime_type": params.mime_type,
-                        "sort": params.sort,
-                        "modified_after": params.modified_after,
-                        "modified_before": params.modified_before,
-                        "size_min": params.size_min,
-                        "size_max": params.size_max,
-                    });
-
-                    let body = serde_json::json!({
-                        "query": params.q,
-                        "results": paginated,
-                        "total": total,
-                        "limit": limit,
-                        "offset": offset,
-                        "filters_applied": filters_applied,
-                    });
-                    (StatusCode::OK, axum::Json(body)).into_response()
-                }
-                Err(e) => {
-                    tracing::warn!("Search engine error, gracefully degrading: {}", e);
-                    let body = serde_json::json!({
-                        "query": params.q,
-                        "results": [],
-                        "total": 0,
-                        "limit": limit,
-                        "offset": offset,
-                        "configured": true,
-                        "degraded": true,
-                        "error": e.to_string(),
-                    });
-                    (StatusCode::OK, axum::Json(body)).into_response()
-                }
+                    })
+                    .collect();
+            }
+            Err(e) => {
+                tracing::warn!("Text search engine error: {}", e);
             }
         }
-        None => {
-            let filters_applied = serde_json::json!({
-                "type": params.r#type,
-                "mime_type": params.mime_type,
-                "sort": params.sort,
-                "modified_after": params.modified_after,
-                "modified_before": params.modified_before,
-                "size_min": params.size_min,
-                "size_max": params.size_max,
-            });
-            let body = serde_json::json!({
-                "query": params.q,
-                "results": [],
-                "total": 0,
-                "limit": limit,
-                "offset": offset,
-                "filters_applied": filters_applied,
-                "configured": false,
-            });
-            (StatusCode::OK, axum::Json(body)).into_response()
+    }
+
+    // Run semantic search if AI bridge is available
+    let mut semantic_used = false;
+    let mut semantic_results: Vec<serde_json::Value> = Vec::new();
+
+    if let Some(ref ai_bridge) = state.ai_search
+        && ai_bridge.is_available()
+    {
+        match ai_bridge.semantic_search(&params.q, limit + offset, None) {
+            Ok(results) => {
+                semantic_used = true;
+                semantic_results = results
+                    .into_iter()
+                    .map(|r| {
+                        let name = r.path.rsplit('/').next().unwrap_or(&r.path).to_string();
+                        serde_json::json!({
+                            "path": r.path,
+                            "name": name,
+                            "score": r.score as f64,
+                            "snippet": null,
+                            "source": "semantic",
+                        })
+                    })
+                    .collect();
+            }
+            Err(e) => {
+                tracing::debug!("Semantic search unavailable: {}", e);
+            }
         }
+    }
+
+    // Merge results: boost documents appearing in both text and semantic results
+    let mut merged: Vec<serde_json::Value> = if semantic_used && !semantic_results.is_empty() {
+        let mut score_map: std::collections::HashMap<String, serde_json::Value> =
+            std::collections::HashMap::new();
+
+        for item in text_results {
+            let path = item.get("path").and_then(|v| v.as_str()).unwrap_or("");
+            score_map.insert(path.to_string(), item);
+        }
+
+        for item in &semantic_results {
+            let path = item.get("path").and_then(|v| v.as_str()).unwrap_or("");
+            if let Some(existing) = score_map.get_mut(path) {
+                let text_score = existing
+                    .get("score")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
+                let sem_score = item.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                existing["score"] = serde_json::json!(text_score * 0.6 + sem_score * 0.4);
+                existing["source"] = serde_json::json!("combined");
+            } else {
+                score_map.insert(path.to_string(), item.clone());
+            }
+        }
+
+        let mut merged: Vec<serde_json::Value> = score_map.into_values().collect();
+        merged.sort_by(|a, b| {
+            let sa = b.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let sb = a.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        merged
+    } else {
+        text_results
+    };
+
+    // Apply post-search filters
+    if let Some(ref sort) = params.sort {
+        match sort.as_str() {
+            "name" => {
+                merged.sort_by(|a, b| {
+                    a.get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .cmp(b.get("name").and_then(|v| v.as_str()).unwrap_or(""))
+                });
+            }
+            "relevance" => {
+                merged.sort_by(|a, b| {
+                    let sa = b.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let sb = a.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
+                });
+            }
+            "date" | "size" => {}
+            _ => {}
+        }
+    }
+
+    if let Some(ref type_filter) = params.r#type {
+        merged.retain(|item| {
+            let path = item.get("path").and_then(|v| v.as_str()).unwrap_or("");
+            match type_filter.as_str() {
+                "file" => path.contains('.'),
+                "folder" => !path.contains('.'),
+                _ => true,
+            }
+        });
+    }
+
+    let total = merged.len();
+    let paginated: Vec<_> = merged.into_iter().take(limit).collect();
+
+    let filters_applied = serde_json::json!({
+        "type": params.r#type,
+        "mime_type": params.mime_type,
+        "sort": params.sort,
+        "modified_after": params.modified_after,
+        "modified_before": params.modified_before,
+        "size_min": params.size_min,
+        "size_max": params.size_max,
+    });
+
+    let body = serde_json::json!({
+        "query": params.q,
+        "results": paginated,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "filters_applied": filters_applied,
+        "semantic_search": semantic_used,
+    });
+
+    if !search_configured && !semantic_used {
+        let body = serde_json::json!({
+            "query": params.q,
+            "results": [],
+            "total": 0,
+            "limit": limit,
+            "offset": offset,
+            "filters_applied": filters_applied,
+            "configured": false,
+            "semantic_search": false,
+        });
+        (StatusCode::OK, axum::Json(body)).into_response()
+    } else {
+        (StatusCode::OK, axum::Json(body)).into_response()
     }
 }
 

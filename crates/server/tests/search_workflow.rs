@@ -62,7 +62,7 @@ fn test_index_and_search_file() {
     field_filters.insert("type".to_string(), "image".to_string());
     filter.field_filters = field_filters;
 
-    let image_results = idx.search_with_filter("photo", filter);
+    let (image_results, _metrics) = idx.search_with_filter("photo", filter);
     assert!(
         !image_results.is_empty(),
         "Search for 'photo' filtered by type=image should return results"
@@ -238,7 +238,7 @@ fn test_search_pagination() {
         limit: 5,
         ..Default::default()
     };
-    let page1 = idx.search_with_filter("document", filter);
+    let (page1, _metrics) = idx.search_with_filter("document", filter);
     assert_eq!(page1.len(), 5);
 
     let filter2 = ferro_search_index::SearchFilter {
@@ -246,6 +246,6 @@ fn test_search_pagination() {
         limit: 5,
         ..Default::default()
     };
-    let page3 = idx.search_with_filter("document", filter2);
+    let (page3, _metrics) = idx.search_with_filter("document", filter2);
     assert!(!page3.is_empty());
 }

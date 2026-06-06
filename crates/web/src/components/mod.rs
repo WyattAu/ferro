@@ -1,6 +1,7 @@
 pub mod activity_sidebar;
 pub mod bulk_action_bar;
 pub mod clipboard;
+pub mod collaboration;
 pub mod command_palette;
 pub mod delete_confirm;
 pub mod drag_hint;

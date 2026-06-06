@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package ferro.storage;
+
+message FileContent {
+  bytes data = 1;
+}
+
+message FileMetadata {
+  string path = 1;
+  string content_hash = 2;
+  uint64 size = 3;
+  string mime_type = 4;
+  bool is_collection = 5;
+  int64 created_at = 6;
+  int64 modified_at = 7;
+  string owner = 8;
+  string etag = 9;
+}
+
+message PutFileRequest {
+  string path = 1;
+  FileContent content = 2;
+  string owner = 3;
+}
+
+message PutFileResponse {
+  FileMetadata metadata = 1;
+}
+
+message GetFileRequest {
+  string path = 1;
+}
+
+message GetFileResponse {
+  FileContent content = 1;
+  FileMetadata metadata = 2;
+}
+
+message DeleteFileRequest {
+  string path = 1;
+}
+
+message DeleteFileResponse {}
+
+message ListFilesRequest {
+  string path = 1;
+}
+
+message ListFilesResponse {
+  repeated FileMetadata entries = 1;
+}
+
+message HeadFileRequest {
+  string path = 1;
+}
+
+message HeadFileResponse {
+  FileMetadata metadata = 1;
+}
+
+service FerroStorage {
+  rpc PutFile(PutFileRequest) returns (PutFileResponse);
+  rpc GetFile(GetFileRequest) returns (GetFileResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  rpc HeadFile(HeadFileRequest) returns (HeadFileResponse);
+}

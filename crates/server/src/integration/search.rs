@@ -55,7 +55,8 @@ pub fn search_files(
         limit,
         offset: 0,
     };
-    index.search_with_filter(query, filter)
+    let (results, _metrics) = index.search_with_filter(query, filter);
+    results
 }
 
 pub fn deindex_file(index: &SearchIndex, file_id: &str) {

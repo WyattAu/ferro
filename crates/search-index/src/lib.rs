@@ -5,6 +5,8 @@ pub mod query;
 pub mod ranking;
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
 use error::SearchError;
@@ -15,6 +17,83 @@ use ranking::Ranker;
 pub type FieldBoost = HashMap<String, f64>;
 
 type ScoreMap = HashMap<String, (f64, Vec<String>, HashMap<String, String>)>;
+
+#[derive(Debug, Clone)]
+pub struct SearchIndexConfig {
+    pub cache_ttl: Duration,
+    pub shard_count: usize,
+}
+
+impl Default for SearchIndexConfig {
+    fn default() -> Self {
+        Self {
+            cache_ttl: Duration::from_secs(300),
+            shard_count: 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SearchMetrics {
+    pub query_time_us: u64,
+    pub total_results: usize,
+    pub cache_hit: bool,
+}
+
+struct CacheEntry {
+    results: Vec<SearchResult>,
+    created_at: Instant,
+}
+
+struct QueryCache {
+    entries: DashMap<String, CacheEntry>,
+    ttl: Duration,
+    hits: AtomicUsize,
+    misses: AtomicUsize,
+}
+
+impl QueryCache {
+    fn new(ttl: Duration) -> Self {
+        Self {
+            entries: DashMap::new(),
+            ttl,
+            hits: AtomicUsize::new(0),
+            misses: AtomicUsize::new(0),
+        }
+    }
+
+    fn get(&self, key: &str) -> Option<Vec<SearchResult>> {
+        if let Some(entry) = self.entries.get(key)
+            && entry.created_at.elapsed() < self.ttl
+        {
+            self.hits.fetch_add(1, Ordering::Relaxed);
+            return Some(entry.results.clone());
+        }
+        self.misses.fetch_add(1, Ordering::Relaxed);
+        None
+    }
+
+    fn insert(&self, key: String, results: Vec<SearchResult>) {
+        self.entries.insert(
+            key,
+            CacheEntry {
+                results,
+                created_at: Instant::now(),
+            },
+        );
+    }
+
+    fn invalidate(&self) {
+        self.entries.clear();
+    }
+
+    fn stats(&self) -> (usize, usize) {
+        (
+            self.hits.load(Ordering::Relaxed),
+            self.misses.load(Ordering::Relaxed),
+        )
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Document {
@@ -50,6 +129,8 @@ pub struct SearchIndex {
     inverted: InvertedIndex,
     fields: Vec<String>,
     field_boosts: FieldBoost,
+    config: SearchIndexConfig,
+    cache: QueryCache,
 }
 
 impl SearchIndex {
@@ -58,11 +139,21 @@ impl SearchIndex {
     }
 
     pub fn with_boosts(fields: Vec<String>, field_boosts: FieldBoost) -> Self {
+        Self::with_config(fields, field_boosts, SearchIndexConfig::default())
+    }
+
+    pub fn with_config(
+        fields: Vec<String>,
+        field_boosts: FieldBoost,
+        config: SearchIndexConfig,
+    ) -> Self {
         Self {
             documents: DashMap::new(),
             inverted: InvertedIndex::new(),
+            cache: QueryCache::new(config.cache_ttl),
             fields,
             field_boosts,
+            config,
         }
     }
 
@@ -75,6 +166,7 @@ impl SearchIndex {
         }
         self.index_document(&doc);
         self.documents.insert(doc.id.clone(), doc);
+        self.cache.invalidate();
         Ok(())
     }
 
@@ -95,6 +187,7 @@ impl SearchIndex {
         }
 
         self.inverted.remove_document(id, &terms_to_remove);
+        self.cache.invalidate();
         Ok(())
     }
 
@@ -132,14 +225,103 @@ impl SearchIndex {
         drop(doc);
         self.inverted.remove_document(id, &old_terms);
         self.index_document(&updated);
+        self.cache.invalidate();
         Ok(())
     }
 
     pub fn search(&self, query: &str) -> Vec<SearchResult> {
-        self.search_with_filter(query, SearchFilter::default())
+        self.search_with_filter(query, SearchFilter::default()).0
     }
 
-    pub fn search_with_filter(&self, query_str: &str, filter: SearchFilter) -> Vec<SearchResult> {
+    pub fn search_with_metrics(
+        &self,
+        query: &str,
+        filter: SearchFilter,
+    ) -> (Vec<SearchResult>, SearchMetrics) {
+        let start = Instant::now();
+        let cache_key = format!("{}:{:?}", query, filter);
+
+        if let Some(cached) = self.cache.get(&cache_key) {
+            let elapsed = start.elapsed().as_micros() as u64;
+            let total = cached.len();
+            return (
+                cached,
+                SearchMetrics {
+                    query_time_us: elapsed,
+                    total_results: total,
+                    cache_hit: true,
+                },
+            );
+        }
+
+        let results = self.execute_search(query, &filter);
+        let total = results.len();
+        let elapsed = start.elapsed().as_micros() as u64;
+
+        self.cache.insert(cache_key, results.clone());
+
+        (
+            results,
+            SearchMetrics {
+                query_time_us: elapsed,
+                total_results: total,
+                cache_hit: false,
+            },
+        )
+    }
+
+    pub fn search_with_filter(
+        &self,
+        query_str: &str,
+        filter: SearchFilter,
+    ) -> (Vec<SearchResult>, SearchMetrics) {
+        let start = Instant::now();
+        let cache_key = format!("{}:{:?}", query_str, filter);
+
+        if let Some(cached) = self.cache.get(&cache_key) {
+            let elapsed = start.elapsed().as_micros() as u64;
+            let total = cached.len();
+            return (
+                cached,
+                SearchMetrics {
+                    query_time_us: elapsed,
+                    total_results: total,
+                    cache_hit: true,
+                },
+            );
+        }
+
+        let results = self.execute_search(query_str, &filter);
+        let total = results.len();
+        let elapsed = start.elapsed().as_micros() as u64;
+
+        self.cache.insert(cache_key, results.clone());
+
+        (
+            results,
+            SearchMetrics {
+                query_time_us: elapsed,
+                total_results: total,
+                cache_hit: false,
+            },
+        )
+    }
+
+    pub fn search_paginated(
+        &self,
+        query_str: &str,
+        offset: usize,
+        limit: usize,
+    ) -> (Vec<SearchResult>, SearchMetrics) {
+        let filter = SearchFilter {
+            offset,
+            limit,
+            ..Default::default()
+        };
+        self.search_with_filter(query_str, filter)
+    }
+
+    fn execute_search(&self, query_str: &str, filter: &SearchFilter) -> Vec<SearchResult> {
         let parsed = match QueryParser::parse(query_str) {
             Ok(q) => q,
             Err(_) => return Vec::new(),
@@ -213,6 +395,14 @@ impl SearchIndex {
 
     pub fn term_count(&self) -> usize {
         self.inverted.term_count()
+    }
+
+    pub fn config(&self) -> &SearchIndexConfig {
+        &self.config
+    }
+
+    pub fn cache_stats(&self) -> (usize, usize) {
+        self.cache.stats()
     }
 
     fn index_document(&self, doc: &Document) {
@@ -948,7 +1138,7 @@ mod tests {
         field_filters.insert("type".to_string(), "file".to_string());
         filter.field_filters = field_filters;
 
-        let results = idx.search_with_filter("report", filter);
+        let (results, _) = idx.search_with_filter("report", filter);
         assert_eq!(results.len(), 2);
     }
 
@@ -985,7 +1175,7 @@ mod tests {
         ff.insert("type".to_string(), "file".to_string());
         filter.field_filters = ff;
 
-        let results = idx.search_with_filter("report", filter);
+        let (results, _) = idx.search_with_filter("report", filter);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].document_id, "2");
     }
@@ -1004,7 +1194,7 @@ mod tests {
             min_score: Some(f64::MAX),
             ..Default::default()
         };
-        let filtered = idx.search_with_filter("common OR rareword", filter);
+        let (filtered, _) = idx.search_with_filter("common OR rareword", filter);
         assert!(filtered.is_empty());
     }
 
@@ -1022,7 +1212,7 @@ mod tests {
             limit: 3,
             ..Default::default()
         };
-        let results = idx.search_with_filter("document", filter);
+        let (results, _) = idx.search_with_filter("document", filter);
         assert_eq!(results.len(), 3);
 
         let filter2 = SearchFilter {
@@ -1030,7 +1220,7 @@ mod tests {
             limit: 100,
             ..Default::default()
         };
-        let results2 = idx.search_with_filter("document", filter2);
+        let (results2, _) = idx.search_with_filter("document", filter2);
         assert_eq!(results2.len(), 5);
     }
 
@@ -1275,5 +1465,110 @@ mod tests {
         let new_results = idx.search("replaced");
         assert_eq!(new_results.len(), 1);
         assert_eq!(new_results[0].document_id, "1");
+    }
+
+    #[test]
+    fn test_search_metrics_returns_timing() {
+        let idx = make_index();
+        idx.add_document(make_doc("1", "hello world", "/hello/world"))
+            .unwrap();
+
+        let (_, metrics) = idx.search_with_metrics("hello", SearchFilter::default());
+        assert!(metrics.query_time_us > 0);
+        assert_eq!(metrics.total_results, 1);
+        assert!(!metrics.cache_hit);
+    }
+
+    #[test]
+    fn test_cache_hit() {
+        let idx = make_index();
+        idx.add_document(make_doc("1", "hello world", "/hello/world"))
+            .unwrap();
+
+        let _ = idx.search("hello");
+        let (results, metrics) = idx.search_with_metrics("hello", SearchFilter::default());
+        assert!(metrics.cache_hit);
+        assert_eq!(results.len(), 1);
+
+        let (hits, misses) = idx.cache_stats();
+        assert!(hits >= 1);
+        assert!(misses >= 1);
+    }
+
+    #[test]
+    fn test_cache_invalidated_on_add() {
+        let idx = make_index();
+        idx.add_document(make_doc("1", "hello", "/hello")).unwrap();
+
+        let _ = idx.search("hello");
+
+        idx.add_document(make_doc("2", "hello world", "/hello/world"))
+            .unwrap();
+
+        let (_, metrics) = idx.search_with_metrics("hello", SearchFilter::default());
+        assert!(!metrics.cache_hit);
+        assert_eq!(metrics.total_results, 2);
+    }
+
+    #[test]
+    fn test_cache_invalidated_on_remove() {
+        let idx = make_index();
+        idx.add_document(make_doc("1", "hello", "/hello")).unwrap();
+        idx.add_document(make_doc("2", "hello world", "/hello/world"))
+            .unwrap();
+
+        let _ = idx.search("hello");
+
+        idx.remove_document("2").unwrap();
+
+        let (_, metrics) = idx.search_with_metrics("hello", SearchFilter::default());
+        assert!(!metrics.cache_hit);
+        assert_eq!(metrics.total_results, 1);
+    }
+
+    #[test]
+    fn test_search_paginated() {
+        let idx = make_index();
+        for i in 0..20 {
+            let name = format!("unique_{i} item");
+            let path = format!("/items/{i}");
+            idx.add_document(make_doc(&i.to_string(), &name, &path))
+                .unwrap();
+        }
+
+        let (page1, metrics) = idx.search_paginated("item", 0, 5);
+        assert_eq!(page1.len(), 5);
+        assert!(metrics.query_time_us > 0);
+
+        let (page2, _) = idx.search_paginated("item", 15, 10);
+        assert_eq!(page2.len(), 5);
+
+        let (page3, _) = idx.search_paginated("item", 100, 10);
+        assert!(page3.is_empty());
+    }
+
+    #[test]
+    fn test_config_default() {
+        let config = SearchIndexConfig::default();
+        assert_eq!(config.cache_ttl, std::time::Duration::from_secs(300));
+        assert_eq!(config.shard_count, 1);
+    }
+
+    #[test]
+    fn test_config_accessor() {
+        let idx = make_index();
+        let config = idx.config();
+        assert_eq!(config.shard_count, 1);
+    }
+
+    #[test]
+    fn test_custom_config() {
+        let config = SearchIndexConfig {
+            cache_ttl: std::time::Duration::from_secs(60),
+            shard_count: 4,
+        };
+        let idx = SearchIndex::with_config(vec!["name".to_string()], HashMap::new(), config);
+        assert_eq!(idx.config().cache_ttl, std::time::Duration::from_secs(60));
+        assert_eq!(idx.config().shard_count, 4);
     }
 }

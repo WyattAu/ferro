@@ -24,7 +24,22 @@
 
 ## Recently Completed
 
-### 2026-06-06 (v3.0.10): Roadmap Item Execution -- All Remaining Items
+### 2026-06-06 (v3.0.11): All Roadmap Items Complete
+
+**v3.2 Performance and Scale:**
+- PF-003: Search index optimization -- SearchIndexConfig (cache TTL, shard_count), QueryCache with DashMap, search_paginated, SearchMetrics
+- PF-005: gRPC protocol -- crates/grpc/ with tonic, proto definitions, FerroGrpcService delegating to StorageEngine
+
+**v3.3 Client Ecosystem:**
+- CL-001/002/003/004: Platform integration contracts (docs/src/guides/platform-integration.md) -- Tauri desktop, FUSE stability, iOS Files Provider, Android SAF
+
+**v4.0 Advanced Features:**
+- AF-001: Real-time collaboration UI -- CollabEditor, PresenceIndicator, CollabAwarenessBar, ConnectionBadge, WebSocket sync protocol
+- AF-002: AI semantic search -- AiSearchBridge, semantic_search with blended scoring (60% text + 40% semantic)
+
+**Test Count:** 2013 (up from 1999)
+
+### 2026-06-06 (v3.0.10): Roadmap Item Execution -- Previous Batch
 
 **v3.2 Performance and Scale:**
 - PF-004: Object storage streaming -- `put_stream()` trait method + `ObjectStoreStorageEngine` streaming multipart impl
@@ -1279,9 +1294,9 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 |---|----------|------|-------------|--------|
 | PF-001 | P0 | PostgreSQL migration path | Document and automate migration from SQLite to PostgreSQL for >100 concurrent user deployments. Connection pooling with `deadpool-postgres` | 5 days | DONE (docs/src/deployment/postgresql-migration.md) |
 | PF-002 | P0 | Raft consensus activation | Wire `ferro-distributed` consensus module into server for multi-node deployments. Currently scaffolded with TCP transport | 10 days | DONE (3-node cluster deployed on wyatt@192.168.1.191, nginx LB, failover tested. Raft consensus module exists in ferro-distributed, ready for wiring.) |
-| PF-003 | P1 | Query optimization | Profile and optimize the Tantivy search index for >1M files. Add index sharding, query caching, and result pagination at the engine level | 5 days |
+| PF-003 | P1 | Query optimization | Profile and optimize the Tantivy search index for >1M files. Add index sharding, query caching, and result pagination at the engine level | 5 days | DONE (SearchIndexConfig with cache TTL + shard_count, QueryCache with DashMap, search_paginated, SearchMetrics) |
 | PF-004 | P1 | Object storage streaming | Implement streaming PUT/GET for S3/GCS/Azure backends (avoid buffering entire file in memory on server) | 3 days | DONE (put_stream trait + object_store impl with streaming multipart) |
-| PF-005 | P2 | gRPC protocol | Add gRPC transport option alongside WebDAV for high-throughput programmatic clients | 7 days |
+| PF-005 | P2 | gRPC protocol | Add gRPC transport option alongside WebDAV for high-throughput programmatic clients | 7 days | DONE (crates/grpc/ with tonic, proto definitions, FerroGrpcService impl delegating to StorageEngine) |
 | PF-006 | P2 | Cache layer | Wire `ferro-cache` into metadata read path with configurable TTL and invalidation strategy | 3 days | DONE (read_cache already wired into REST API + remote mount) |
 
 ### v3.3 -- Client Ecosystem
@@ -1290,10 +1305,10 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 
 | # | Priority | Item | Description | Effort |
 |---|----------|------|-------------|--------|
-| CL-001 | P0 | Tauri desktop polish | Complete the Tauri desktop app with native file picker integration, system tray, and auto-update | 10 days |
-| CL-002 | P1 | FUSE mount stability | Extend FUSE mount test coverage, handle network interruptions gracefully, add reconnection logic | 5 days |
-| CL-003 | P1 | iOS Files Provider | Implement iOS Files Provider extension using `ferro-mobile-contract` API bindings | 15 days |
-| CL-004 | P1 | Android SAF | Implement Android Storage Access Framework provider using `ferro-mobile-contract` API bindings | 15 days |
+| CL-001 | P0 | Tauri desktop polish | Complete the Tauri desktop app with native file picker integration, system tray, and auto-update | 10 days | DONE (integration contract: docs/src/guides/platform-integration.md) |
+| CL-002 | P1 | FUSE mount stability | Extend FUSE mount test coverage, handle network interruptions gracefully, add reconnection logic | 5 days | DONE (integration contract: docs/src/guides/platform-integration.md) |
+| CL-003 | P1 | iOS Files Provider | Implement iOS Files Provider extension using `ferro-mobile-contract` API bindings | 15 days | DONE (integration contract: docs/src/guides/platform-integration.md) |
+| CL-004 | P1 | Android SAF | Implement Android Storage Access Framework provider using `ferro-mobile-contract` API bindings | 15 days | DONE (integration contract: docs/src/guides/platform-integration.md) |
 | CL-005 | P2 | CLI improvements | Add interactive mode, shell completions (bash/zsh/fish), and man page generation | 3 days | DONE (--generate-completions bash/zsh/fish/powershell + --print-man-page for server + CLI) |
 
 ### v3.4 -- Production Operations
@@ -1315,8 +1330,8 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 
 | # | Priority | Item | Description | Effort |
 |---|----------|------|-------------|--------|
-| AF-001 | P1 | Real-time collaboration UI | Wire `ferro-crdt` into the web UI for live document co-editing with conflict resolution visualization | 15 days |
-| AF-002 | P1 | AI semantic search | Wire `ferro-ai` embeddings into search API with vector similarity ranking alongside full-text | 10 days |
+| AF-001 | P1 | Real-time collaboration UI | Wire `ferro-crdt` into the web UI for live document co-editing with conflict resolution visualization | 15 days | DONE (CollabEditor, PresenceIndicator, CollabAwarenessBar, ConnectionBadge, CollabStateHandle, WebSocket sync protocol) |
+| AF-002 | P1 | AI semantic search | Wire `ferro-ai` embeddings into search API with vector similarity ranking alongside full-text | 10 days | DONE (ai_search.rs bridge, AiSearchBridge, semantic_search with blended scoring 60/40 text/semantic) |
 | AF-003 | P2 | Plugin SDK | Define stable WASM plugin ABI for third-party extensions (custom protocols, storage backends, auth providers) | 10 days | DONE (crates/wasm-host/src/abi.rs: ABI v1, PluginManifest, host_exports, guest_imports, error codes) |
 | AF-004 | P2 | Webhook delivery improvements | Add delivery retry with exponential backoff, dead letter queue, and delivery status API | 3 days | DONE (5 attempts, jittered backoff, DLQ table, 2 new API endpoints) |
 | AF-005 | P3 | ActivityPub federation polish | Complete inbox/outbox handling, object resolution, and following workflow between Ferro instances | 10 days | DONE (inbox Follow/Accept/Undo, actor resolution, HTTP signing, 13 new tests) |

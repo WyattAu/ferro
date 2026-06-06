@@ -1,0 +1,21 @@
+[package]
+name = "ferro-grpc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "gRPC API scaffold for the Ferro storage engine"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+tonic = { workspace = true }
+prost = { workspace = true }
+tonic-prost = "0.14"
+tokio = { workspace = true }
+bytes = { workspace = true }
+async-trait = "0.1"
+
+[build-dependencies]
+tonic-prost-build = "0.14"

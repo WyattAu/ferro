@@ -1,5 +1,6 @@
 pub mod activity;
 pub mod admin_api;
+pub mod ai_search;
 pub mod api;
 pub mod api_error;
 pub mod audit;
@@ -205,6 +206,7 @@ pub struct AppState {
     pub oidc: Option<Arc<OidcValidator>>,
     pub cedar: Option<Arc<CedarAuthorizer>>,
     pub search: Option<Arc<tokio::sync::RwLock<SearchEngine>>>,
+    pub ai_search: Option<Arc<ai_search::AiSearchBridge>>,
     pub wasm_runtime: Option<Arc<WasmWorkerRuntime>>,
     pub workers_dir: Option<std::path::PathBuf>,
     pub metadata_store: Option<Arc<dyn ferro_core::metadata::MetadataStore>>,
@@ -298,6 +300,7 @@ impl AppState {
             oidc: None,
             cedar: None,
             search: None,
+            ai_search: None,
             wasm_runtime: None,
             workers_dir: None,
             metadata_store: None,
@@ -392,6 +395,11 @@ impl AppState {
 
     pub fn with_search(mut self, engine: SearchEngine) -> Self {
         self.search = Some(Arc::new(tokio::sync::RwLock::new(engine)));
+        self
+    }
+
+    pub fn with_ai_search(mut self, bridge: ai_search::AiSearchBridge) -> Self {
+        self.ai_search = Some(Arc::new(bridge));
         self
     }
 
