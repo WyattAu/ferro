@@ -24,7 +24,14 @@
 
 ## Recently Completed
 
-### 2026-06-06 (v3.0.11): All Roadmap Items Complete
+### 2026-06-06 (v3.0.12): All Roadmap Items Complete -- Final Item
+
+**v3.4 Production Operations:**
+- OP-006: Rate limiting per-tenant -- TenantAwareRateLimiter, TenantRateLimitStore, admin CRUD API (GET/PUT/DELETE /api/admin/tenants/:id/rate-limit), middleware layer with X-Tenant-ID header extraction, X-RateLimit-Remaining response header, 4 new tests
+
+**Test Count:** 2022 (up from 2013)
+
+### 2026-06-06 (v3.0.11): All Roadmap Items Complete -- Previous Batch
 
 **v3.2 Performance and Scale:**
 - PF-003: Search index optimization -- SearchIndexConfig (cache TTL, shard_count), QueryCache with DashMap, search_paginated, SearchMetrics
@@ -1322,7 +1329,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | OP-003 | P1 | Monitoring stack | Deploy Grafana dashboards for Prometheus metrics, Loki for log aggregation, alerting rules | 5 days |
 | OP-004 | P1 | Configuration validation | Add JSON Schema for `ferro.toml` with CLI validation (`--validate-config`) | 2 days | DONE (--validate-config flag with schema, port, storage, OIDC, CORS, WOPI checks) |
 | OP-005 | P2 | Blue-green deployment | Document zero-downtime deployment strategy with database migration support | 2 days | DONE (docs/src/deployment/blue-green.md, Docker Compose + Caddy + K8s) |
-| OP-006 | P2 | Rate limiting per-tenant | Extend `ferro-rate-limiter` with tenant-aware quotas in multi-tenant mode | 3 days |
+| OP-006 | P2 | Rate limiting per-tenant | Extend `ferro-rate-limiter` with tenant-aware quotas in multi-tenant mode | 3 days | DONE (TenantAwareRateLimiter, TenantRateLimitStore, admin CRUD API, middleware layer, 4 new tests) |
 
 ### v4.0 -- Advanced Features
 

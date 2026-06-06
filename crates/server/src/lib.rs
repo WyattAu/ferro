@@ -147,6 +147,7 @@ pub mod storage_health;
 pub mod streaming_upload;
 pub mod sync;
 pub mod tags;
+pub mod tenant_rate_limit_api;
 pub mod thumbnail_cache;
 pub mod thumbnails;
 pub mod totp_api;
@@ -290,6 +291,10 @@ pub struct AppState {
     pub ransomware_detector: Arc<ransomware::RansomwareDetector>,
     #[cfg(feature = "webauthn")]
     pub webauthn_store: Arc<tokio::sync::RwLock<crate::auth::webauthn::WebAuthnStore>>,
+    /// Per-tenant rate limit configuration store.
+    pub tenant_rate_limit_store: Option<Arc<ferro_rate_limiter::tenant::TenantRateLimitStore>>,
+    /// Per-tenant rate limiter instance.
+    pub tenant_rate_limiter: Option<Arc<ferro_rate_limiter::tenant::TenantAwareRateLimiter>>,
 }
 
 impl AppState {
@@ -376,6 +381,8 @@ impl AppState {
             webauthn_store: Arc::new(tokio::sync::RwLock::new(
                 crate::auth::webauthn::WebAuthnStore::new(),
             )),
+            tenant_rate_limit_store: None,
+            tenant_rate_limiter: None,
         }
     }
 
@@ -596,6 +603,18 @@ impl AppState {
 
     pub fn with_streaming_upload_threshold(mut self, threshold: u64) -> Self {
         self.streaming_upload_threshold = threshold;
+        self
+    }
+
+    pub fn with_tenant_rate_limiting(
+        mut self,
+        store: Arc<ferro_rate_limiter::tenant::TenantRateLimitStore>,
+    ) -> Self {
+        let limiter = Arc::new(ferro_rate_limiter::tenant::TenantAwareRateLimiter::new(
+            store.clone(),
+        ));
+        self.tenant_rate_limit_store = Some(store);
+        self.tenant_rate_limiter = Some(limiter);
         self
     }
 
@@ -1076,6 +1095,21 @@ fn api_routes(
             "/admin/triggers/{id}/toggle",
             axum::routing::post(event_triggers::toggle_event_trigger),
         )
+        // Tenant rate limiting (OP-006)
+        .route(
+            "/admin/tenants/rate-limits",
+            axum::routing::get(tenant_rate_limit_api::list_tenant_rate_limits),
+        )
+        .route(
+            "/admin/tenants/{id}/rate-limit",
+            axum::routing::get(tenant_rate_limit_api::get_tenant_rate_limit)
+                .put(tenant_rate_limit_api::update_tenant_rate_limit)
+                .delete(tenant_rate_limit_api::delete_tenant_rate_limit),
+        )
+        .route(
+            "/admin/tenants/{id}/rate-limit/status",
+            axum::routing::get(tenant_rate_limit_api::get_tenant_rate_limit_status),
+        )
         // Extended shares (G-24, G-25)
         .route(
             "/shares/ext",
@@ -1519,6 +1553,47 @@ pub fn build_router_with_static(
         // matching, and we dispatch based on path prefix.
         .fallback(api_and_webdav_fallback)
         .layer(rate_limit_layer)
+        .layer({
+            let tenant_limiter = state.tenant_rate_limiter.clone();
+            axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
+                let limiter = tenant_limiter.clone();
+                async move {
+                    // Only apply tenant rate limiting if a tenant limiter is configured.
+                    let Some(limiter) = limiter else {
+                        return next.run(req).await;
+                    };
+
+                    // Extract tenant ID from X-Tenant-ID header.
+                    let tenant_id = req
+                        .headers()
+                        .get("x-tenant-id")
+                        .and_then(|v| v.to_str().ok())
+                        .map(|s| s.to_string());
+
+                    let Some(tid) = tenant_id else {
+                        // No tenant header — pass through (global rate limit already applied).
+                        return next.run(req).await;
+                    };
+
+                    use ferro_rate_limiter::RateLimiter;
+                    match limiter.check(&tid).await {
+                        Ok(result) if result.allowed => {
+                            let mut response = next.run(req).await;
+                            if let Ok(val) =
+                                axum::http::HeaderValue::from_str(&result.remaining.to_string())
+                            {
+                                response.headers_mut().insert("X-RateLimit-Remaining", val);
+                            }
+                            response
+                        }
+                        _ => api_error::ApiError::too_many_requests(
+                            api_error::ApiError::RATE_LIMITED,
+                            "Tenant rate limit exceeded",
+                        ),
+                    }
+                }
+            })
+        })
         .layer(cedar_layer)
         .layer(auth_layer)
         .layer(simple_auth_layer)

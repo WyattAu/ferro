@@ -8,6 +8,7 @@ mod error;
 mod fixed_window;
 mod multi;
 mod sliding_window;
+pub mod tenant;
 
 pub use bucket::TokenBucketLimiter;
 pub use error::RateLimitError;
