@@ -1210,7 +1210,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | TD-032 | P1 | Focus trap for modals | **DONE** (2026-06-06). Created `FocusTrap` component (114 lines): auto-focus first focusable, Tab/Shift+Tab trapping via `is_same_node`, focus restore on unmount. Wired into all 5 dialog components (share, path, delete, new_folder, upload) + registered in `mod.rs`. 0 clippy, 0 fmt issues. | 2 days |
 | TD-033 | P1 | NFS/SMB mount backends | **DONE** (2026-06-06). Replaced NFS/SMB stub implementations with full `MountBackend` trait impls. Mount/unmount use `libc::mount()`/`libc::umount2()` behind `ffi` feature (with graceful fallback). File ops (read_dir, read_file, metadata, space_usage) use `tokio::fs` on mounted paths. Added config builders for mount source strings and mount options. 13 new unit tests (NFS: config, options, path resolution; SMB: config, options, credentials, path resolution). Total: 20 tests passing. | 5 days |
 | TD-034 | P2 | External penetration test | Engage external security firm for independent pen test against staging deployment | 2 weeks (external) |
-| TD-035 | P2 | Code coverage enforcement | Add `cargo llvm-cov` minimum threshold to CI (currently informational only). Target: 80% overall, 95% critical paths | 1 day |
+| TD-035 | P2 | Code coverage enforcement | **DONE** (2026-06-06). Added `--fail-under-lines 80` to `cargo llvm-cov` in `extended-checks.yml`. Added `min_coverage: 80` to Codecov action. CI will now fail if workspace line coverage drops below 80%. | 1 day |
 
 ### v3.2 -- Performance and Scale
 
