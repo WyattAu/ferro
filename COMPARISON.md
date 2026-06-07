@@ -403,6 +403,37 @@
 | ~~Desktop sync client~~ | Tauri desktop with SyncPauser, SyncProgress, block-level delta sync, WebDAV backend |
 | ~~Mobile apps~~ | Tauri 2.0: IosFilesProvider (Files Provider extension), AndroidSAFProvider (DocumentProvider), WiFi/charging controls |
 
-### All Gaps Closed
+### Remaining Competitive Gaps (2026-06-07 Audit)
 
-All 25 competitive gaps have been resolved. Zero remaining gaps.
+| # | Gap | Status | Severity | Recommendation | Effort |
+|---|-----|--------|----------|----------------|--------|
+| 1 | iOS app (native) | Contract only -- no Swift implementation | Critical | Implement SwiftUI app using mobile-contract API | 8-12 weeks |
+| 2 | Android app (native) | Contract only -- no Kotlin implementation | Critical | Implement Kotlin app using mobile-contract API | 8-12 weeks |
+| 3 | Offline mode | Crate exists (ferro-offline), not wired into handlers | High | Wire into WebDAV + desktop sync engine | 2-3 weeks |
+| 4 | WebAuthn/FIDO2 | Stub -- no cryptographic verification | High | Add webauthn-rs, implement COSE signature verification | 3-4 weeks |
+| 5 | API keys | Fully implemented in auth crate, not wired into server | High | Wire extract_api_key into auth middleware + CRUD routes | 1 week |
+| 6 | Windows desktop client | Buildable but no installer/shell integration | High | Create MSI installer, Windows shell extension | 2-3 weeks |
+| 7 | OCR | Placeholder -- returns empty string | Medium | Implement PDF text extraction + tesseract WASM worker | 3-4 weeks |
+| 8 | Mobile push notifications | Types defined, no FCM/APNS delivery pipeline | Medium | Implement after mobile apps exist | 2-3 weeks |
+| 9 | Linux desktop GUI | CLI only, no packaged desktop app | Medium | Package Tauri as deb/rpm/AppImage | 1-2 weeks |
+| 10 | macOS native integration | Tauri shell, no Finder Sync Extension | Medium | Create Finder Sync Extension, universal binary | 3-4 weeks |
+| 11 | API federation | ActivityPub exists, REST API federation missing | Medium | Add CS3-like cross-instance API proxying | 6-8 weeks |
+| 12 | Consistent hashing | Completely missing | Medium | Defer -- Raft + erasure coding covers use case | 3-4 weeks |
+| 13 | Compliance certifications | Self-audit only, no SOC 2/CSA STAR | Medium | Formal third-party security audit | 4-6 weeks |
+| 14 | RBAC comparison accuracy | Implemented via Cedar presets (comparison table inaccurate) | Low | Update COMPARISON.md to say "Yes (Cedar presets)" | 1 hour |
+
+### Quick Wins (Wire existing code, 1-2 weeks total)
+
+| Gap | Action | Effort |
+|-----|--------|--------|
+| API keys | Wire extract_api_key into auth middleware + add CRUD routes | 1 week |
+| Offline mode | Wire ferro-offline crate into WebDAV handlers + desktop sync | 2 weeks |
+| RBAC comparison | Update COMPARISON.md table | 1 hour |
+
+### Priority Roadmap
+
+| Priority | Gaps | Total Effort |
+|----------|------|--------------|
+| Quick Wins | API keys, Offline mode, RBAC doc | 2 weeks |
+| High Impact | WebAuthn, Windows client, OCR | 8-10 weeks |
+| Large Effort | iOS app, Android app, API federation, Compliance | 24-36 weeks |

@@ -9,10 +9,12 @@ const config = {
   fullyParallel: false,
   retries: 0,
   reporter: "list",
+  outputDir: "./test-results",
   use: {
     baseURL: process.env.BASE_URL || "http://localhost:8080",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   projects: [
     {
@@ -33,4 +35,4 @@ if (!process.env.CI) {
   };
 }
 
-export default defineConfig(config);
+export default defineConfig(config as any);
