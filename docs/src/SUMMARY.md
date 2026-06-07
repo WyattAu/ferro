@@ -37,6 +37,7 @@
   - [Podman](./deployment/podman.md)
   - [Firecracker](./deployment/firecracker.md)
   - [Terraform](./deployment/terraform.md)
+  - [Production Guide](./deployment/production.md)
 
 ---
 
@@ -46,6 +47,8 @@
   - [CalDAV Clients](./guides/caldav-clients.md)
   - [Encryption](./guides/encryption.md)
   - [Federation Setup](./guides/federation.md)
+  - [Office Suite Integration](./guides/office-suite.md)
+  - [Platform Integration](./guides/platform-integration.md)
   - [Upgrade Guide](./guides/upgrade.md)
 
 ---

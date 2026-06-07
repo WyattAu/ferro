@@ -26,8 +26,13 @@ support for online document editing.
 - **Audit Logging** — Track all file operations
 - **Metadata Snapshots** — Point-in-time recovery for ransomware protection
 - **Rate Limiting** — Per-IP token-bucket rate limiter
+- **Push Notifications** — FCM (Android) and APNS (iOS) delivery pipeline
+- **API Federation** — ActivityPub-based cross-instance federation
+- **Compliance Documentation** — SOC 2, ISO 27001, HIPAA, PCI DSS, FedRAMP mapping
 - **Web UI** — Modern Leptos-based file browser with drag-and-drop upload
 - **Admin CLI** — Full command-line management tool
+- **Admin Dashboard** — Leptos-based admin panel with user management, storage stats, audit log
+- **GDPR Compliance** — Data export (ZIP) and verified data erasure endpoints
 - **Docker Support** — Multi-stage Dockerfile with docker-compose
 - **Nix Flakes** — Reproducible development environments
 
@@ -77,6 +82,9 @@ cargo build --release --bin ferro-server
 | `--max-body-size` | `FERRO_MAX_BODY_SIZE` | `1073741824` | Max request body size in bytes (default: 1 GB) |
 | `--wasm-enabled` | `FERRO_WASM_ENABLED` | `false` | Enable WASM worker runtime |
 | `--cas-enabled` | — | `false` | Enable in-memory content-addressable deduplication |
+| `--validate-config` | — | `false` | Validate configuration file and exit (exit code 0 = valid) |
+| `--generate-completions` | — | (none) | Generate shell completion script and exit |
+| `--print-man-page` | — | `false` | Print man page to stdout and exit |
 | `--search-index-path` | — | (auto) | Search index directory (defaults to `{data-dir}/search-index`) |
 | `--metadata-db` | `FERRO_METADATA_DB` | (none) | PostgreSQL metadata database URL |
 | `--oidc-issuer` | `FERRO_OIDC_ISSUER` | (none) | OIDC issuer URL (enables authentication) |
@@ -95,12 +103,36 @@ cargo build --release --bin ferro-server
 | `--graceful-shutdown-timeout` | — | `30` | Graceful shutdown timeout in seconds |
 | `--maintenance-mode` | — | `false` | Enable maintenance mode (503 for all requests) |
 | `--cors-allowed-origins` | — | (none) | CORS allowed origins (comma-separated, `*` for all) |
-| `--api-version` | — | `1` | API version prefix (`1` = `/api/v1/`) |
-| `--max-file-versions` | — | `0` | Maximum file versions to keep (0 = unlimited) |
-| `--thumbnail-size` | — | `256` | Thumbnail size in pixels |
-| `--multi-user` | — | `false` | Enable multi-user mode |
-| `--migrate-from` | — | (none) | Migrate data from another storage backend |
+| `--api-version` | `FERRO_API_VERSION` | `v1` | API version prefix (`v1` = `/api/v1/`) |
+| `--max-file-versions` | `FERRO_MAX_FILE_VERSIONS` | `10` | Maximum file versions to keep per file (0 = disabled) |
+| `--thumbnail-size` | `FERRO_THUMBNAIL_SIZE` | `256` | Maximum thumbnail dimension in pixels (64–1024) |
+| `--thumbnail-cache-size` | `FERRO_THUMBNAIL_CACHE_SIZE` | `104857600` | Maximum thumbnail cache size in bytes (default: 100 MB) |
+| `--multi-user` | `FERRO_MULTI_USER` | `false` | Enable multi-user mode with per-user home directories |
+| `--migrate-from` | `FERRO_MIGRATE_FROM` | (none) | Migrate data from another storage backend |
+| `--dedup-enabled` | — | `false` | Enable perceptual deduplication on upload |
+| `--streaming-upload-threshold` | `FERRO_STREAMING_UPLOAD_THRESHOLD` | `65536` | Content-Length threshold (bytes) for streaming uploads |
+| `--retention-check-interval` | `FERRO_RETENTION_CHECK_INTERVAL` | `3600` | Retention policy check interval in seconds (0 = disabled) |
+| `--guest-cleanup-interval` | `FERRO_GUEST_CLEANUP_INTERVAL` | `300` | Guest account cleanup interval in seconds (0 = disabled) |
 | `--federation-secret` | `FERRO_FEDERATION_SECRET` | (none) | Secret for ActivityPub federation HTTP signatures |
+| `--federation-trusted-peers` | `FERRO_FEDERATION_TRUSTED_PEERS` | (none) | Comma-separated trusted federation peer URLs |
+| `--smtp-host` | `FERRO_SMTP_HOST` | (none) | Email notification SMTP host |
+| `--smtp-port` | `FERRO_SMTP_PORT` | (none) | Email notification SMTP port |
+| `--smtp-username` | `FERRO_SMTP_USERNAME` | (none) | Email notification SMTP username |
+| `--smtp-password` | `FERRO_SMTP_PASSWORD` | (none) | Email notification SMTP password |
+| `--email-from` | `FERRO_EMAIL_FROM` | `noreply@ferro.local` | Email notification from address |
+| `--email-from-name` | `FERRO_EMAIL_FROM_NAME` | `Ferro` | Email notification from name |
+| `--ldap-url` | `FERRO_LDAP_URL` | (none) | LDAP server URL (enables LDAP auth, requires `ldap` feature) |
+| `--ldap-bind-dn` | `FERRO_LDAP_BIND_DN` | (none) | LDAP bind DN for service account |
+| `--ldap-bind-password` | `FERRO_LDAP_BIND_PASSWORD` | (none) | LDAP service account password |
+| `--ldap-user-search-base` | `FERRO_LDAP_USER_SEARCH_BASE` | (empty) | LDAP user search base DN |
+| `--sync-nodes` | `FERRO_SYNC_NODES` | (none) | Comma-separated peer node addresses for cross-node sync |
+| `--sync-interval` | `FERRO_SYNC_INTERVAL` | `300` | Sync scan interval in seconds (0 = on-demand only) |
+| `--sync-mode` | `FERRO_SYNC_MODE` | `bidirectional` | Sync mode: `push`, `pull`, or `bidirectional` |
+| `--offline-cache-dir` | `FERRO_OFFLINE_CACHE_DIR` | (none) | Directory for offline content cache (enables offline-first mode) |
+| `--offline-queue-size` | `FERRO_OFFLINE_QUEUE_SIZE` | `50000` | Maximum pending offline queue operations |
+| `--fcm-server-key` | `FERRO_FCM_SERVER_KEY` | (none) | Firebase Cloud Messaging server key for Android push notifications |
+| `--apns-key-path` | `FERRO_APNS_KEY_PATH` | (none) | Path to APNS private key file (.p8) for iOS push notifications |
+| `--apns-team-id` | `FERRO_APNS_TEAM_ID` | (none) | Apple Developer Team ID for APNS |
 
 ### Storage Backends
 

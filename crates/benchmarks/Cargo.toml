@@ -11,10 +11,12 @@ ferro-core = { path = "../core", default-features = false }
 ferro-common = { path = "../common" }
 ferro-dav = { path = "../dav" }
 ferro-crypto = { path = "../crypto" }
+ferro-search-index = { path = "../search-index" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
 bytes = "1"
 serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
 
 [[bench]]
 name = "storage"
@@ -30,4 +32,8 @@ harness = false
 
 [[bench]]
 name = "webdav_ops"
+harness = false
+
+[[bench]]
+name = "owncloud_sync"
 harness = false

@@ -162,7 +162,7 @@ pub fn WebhooksPage(api: RwSignal<ApiState>) -> impl IntoView {
                     </div>
                     <div class="form-group">
                         <label class="form-label">"Events"</label>
-                        <div class="checkbox-group">
+                        <div class="checkbox-group" role="group" aria-label="Webhook events">
                             {event_options.iter().map(|event| {
                                 let ev = event.to_string();
                                 let se = selected_events.get();
@@ -177,7 +177,7 @@ pub fn WebhooksPage(api: RwSignal<ApiState>) -> impl IntoView {
                             }).collect::<Vec<_>>()}
                         </div>
                     </div>
-                    {move || form_error.get().map(|e| view! { <div class="form-error">{e}</div> })}
+                    {move || form_error.get().map(|e| view! { <div class="form-error" role="alert" aria-live="assertive">{e}</div> })}
                     <div class="modal-actions">
                         <button type="button" class="btn btn-secondary" on:click=move |_| set_show_create.set(false)>"Cancel"</button>
                         <button type="submit" class="btn btn-primary">"Create Webhook"</button>

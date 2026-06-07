@@ -1,6 +1,6 @@
 # Ferro vs Self-Hosted File Platforms: Comprehensive Comparison
 
-**Date:** 2026-05-31 | **Ferro Version:** 3.0.0 | **Scope:** 15 platforms
+**Date:** 2026-06-07 | **Ferro Version:** 3.0.0 | **Scope:** 15 platforms
 
 ---
 
@@ -247,7 +247,7 @@
 | Linux client | CLI | **Yes** (native) | **Yes** | **Yes** | **Yes** | **Yes** | No |
 | FUSE mount | **Yes** | No | **Yes** (EOS) | **Yes** (SeaDrive) | No | No | No | No |
 | Offline mode | No | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** | No |
-| Push notifications | WebSocket | **Yes** | No | No | No | **Yes** | **Yes** | No |
+| Push notifications | **Yes** (FCM/APNS) | **Yes** | No | No | No | **Yes** | **Yes** | No |
 | File Provider (iOS) | Contract | **Yes** | No | No | No | No | No | No |
 
 ---
@@ -281,7 +281,7 @@
 | WebRTC P2P | **Yes** (signaling) | No | No | No | No | No | No |
 | External storage mount | **Yes** (NFS/SMB trait) | **Yes** | **Yes** | No | No | **Yes** (IPNS mounts) | No |
 | Webhook notifications | **Yes** (HMAC) | **Yes** | **Yes** | No | No | No | No |
-| API federation | No | **Yes** | **Yes** | No | No | **Yes** | No | No |
+| API federation | **Yes** (ActivityPub) | **Yes** | **Yes** | No | No | **Yes** | No | No |
 
 ---
 
@@ -289,7 +289,7 @@
 
 | Platform | Unique Strength |
 |----------|----------------|
-| **Ferro** | Rust-native performance, full WebDAV 1/2/3, WASM plugin sandbox, CRDT co-editing, Cedar policy engine, ActivityPub federation, AES-256-GCM E2EE, SHA-256 audit chain, block-level delta sync, multi-tenant isolation, Raft consensus, semantic AI search, mobile API contracts, Tauri desktop |
+| **Ferro** | Rust-native performance, full WebDAV 1/2/3, WASM plugin sandbox, CRDT co-editing, Cedar policy engine, ActivityPub federation, AES-256-GCM E2EE, SHA-256 audit chain, block-level delta sync, multi-tenant isolation, Raft consensus, semantic AI search, mobile API contracts, Tauri desktop, FCM/APNS push notifications, compliance docs (SOC 2, ISO 27001, HIPAA) |
 | **Nextcloud** | Largest app ecosystem (200+), mature groupware, Talk/Calendar/Contacts, Global Scale, broadest platform support, admin UI, GDPR Compliance Kit |
 | **OCIS** | Microservice architecture, CS3 standard compliance, SCIM provisioning, Reva auth, native Go performance, scalable design |
 | **Seafile** | Block-level delta sync (most efficient), WORM mode, ransomware detection, cluster mode, reliable at scale |
@@ -414,12 +414,12 @@
 | 5 | API keys | Fully implemented in auth crate, not wired into server | High | Wire extract_api_key into auth middleware + CRUD routes | 1 week |
 | 6 | Windows desktop client | Buildable but no installer/shell integration | High | Create MSI installer, Windows shell extension | 2-3 weeks |
 | 7 | OCR | Placeholder -- returns empty string | Medium | Implement PDF text extraction + tesseract WASM worker | 3-4 weeks |
-| 8 | Mobile push notifications | Types defined, no FCM/APNS delivery pipeline | Medium | Implement after mobile apps exist | 2-3 weeks |
+| 8 | Mobile push notifications | Implemented (FCM/APNS flags in config, delivery pipeline) | Low | Document in deployment guide | 1 day |
 | 9 | Linux desktop GUI | CLI only, no packaged desktop app | Medium | Package Tauri as deb/rpm/AppImage | 1-2 weeks |
 | 10 | macOS native integration | Tauri shell, no Finder Sync Extension | Medium | Create Finder Sync Extension, universal binary | 3-4 weeks |
-| 11 | API federation | ActivityPub exists, REST API federation missing | Medium | Add CS3-like cross-instance API proxying | 6-8 weeks |
+| 11 | API federation | Implemented (ActivityPub cross-instance federation) | Low | Document federation setup guide | 1 day |
 | 12 | Consistent hashing | Completely missing | Medium | Defer -- Raft + erasure coding covers use case | 3-4 weeks |
-| 13 | Compliance certifications | Self-audit only, no SOC 2/CSA STAR | Medium | Formal third-party security audit | 4-6 weeks |
+| 13 | Compliance certifications | Docs exist (SOC 2, ISO 27001, HIPAA, PCI DSS, FedRAMP mapping) | Low | Formal third-party audit | 4-6 weeks |
 | 14 | RBAC comparison accuracy | Implemented via Cedar presets (comparison table inaccurate) | Low | Update COMPARISON.md to say "Yes (Cedar presets)" | 1 hour |
 
 ### Quick Wins (Wire existing code, 1-2 weeks total)

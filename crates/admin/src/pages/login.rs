@@ -50,34 +50,36 @@ pub fn LoginPage(api: RwSignal<ApiState>) -> impl IntoView {
 
     view! {
         <div class="login-page">
-            <div class="login-card">
+            <div class="login-card surface brutal-border">
                 <div class="login-header">
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true">
                         <rect width="48" height="48" rx="10" fill="#E85D04"/>
                         <path d="M14 24h20M24 14v20" stroke="white" stroke-width="4" stroke-linecap="round"/>
                     </svg>
-                    <h1 class="login-title">"Ferro Admin"</h1>
+                    <h1 class="login-title font-display text-accent">"Ferro Admin"</h1>
                     <p class="login-subtitle">"Connect to your Ferro server to manage it"</p>
                 </div>
 
-                <form class="login-form" on:submit=move |ev| ev.prevent_default()>
+                <form class="login-form" on:submit=move |ev| ev.prevent_default() aria-label="Server connection form">
                     <div class="form-group">
                         <label class="form-label" for="server-url">"Server URL"</label>
-                        <input id="server-url" type="url" class="form-input" placeholder="https://ferro.example.com" prop:value=server_url on:input=move |ev| set_server_url.set(event_target_value(&ev)) />
+                        <input id="server-url" type="url" class="form-input" placeholder="https://ferro.example.com" prop:value=server_url on:input=move |ev| set_server_url.set(event_target_value(&ev)) aria-required="true" />
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="admin-token">"Admin Token"</label>
-                        <input id="admin-token" type="password" class="form-input" placeholder="Enter your admin token or password" prop:value=token on:input=move |ev| set_token.set(event_target_value(&ev)) />
+                        <input id="admin-token" type="password" class="form-input" placeholder="Enter your admin token or password" prop:value=token on:input=move |ev| set_token.set(event_target_value(&ev)) aria-required="true" />
                     </div>
-                    {move || error.get().map(|e| view! { <div class="form-error">{e}</div> })}
-                    <button type="submit" class="btn btn-primary btn-block" disabled=loading>
+                    <div aria-live="assertive">
+                        {move || error.get().map(|e| view! { <div class="form-error" role="alert">{e}</div> })}
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" disabled=loading aria-label=move || if loading.get() { "Connecting to server" } else { "Connect to server" }>
                         {move || if loading.get() { "Connecting..." } else { "Connect" }}
                     </button>
                     {has_saved.then(|| view! {
                         <button type="button" class="btn btn-secondary btn-block" on:click=move |_| {
                             let navigate = leptos_router::use_navigate();
                             navigate("/", Default::default());
-                        }>"Go to Dashboard"</button>
+                        } aria-label="Go to dashboard">"Go to Dashboard"</button>
                     })}
                 </form>
                 <div class="login-footer">

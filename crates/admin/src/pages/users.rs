@@ -101,20 +101,26 @@ pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
 
     view! {
         <div class="page">
-            <div class="page-header">
+            <div class="page-header surface brutal-border">
                 <div class="page-header-left">
                     <input type="text" class="search-input" placeholder="Search users..." prop:value=search on:input=move |ev| set_search.set(event_target_value(&ev)) aria-label="Search users" />
                 </div>
-                <button class="btn btn-primary" on:click=move |_| set_show_create.set(true)>"Create User"</button>
+                <button class="btn btn-primary" on:click=move |_| set_show_create.set(true) aria-label="Create new user">"Create User"</button>
             </div>
 
-            {move || msg.get().map(|m| view! { <div class="success-banner">{m}</div> })}
-            {move || error.get().map(|e| view! { <div class="error-banner">{e}</div> })}
-            {move || loading.get().then(|| view! { <div class="loading">"Loading users..."</div> })}
+            <div aria-live="polite">
+                {move || msg.get().map(|m| view! { <div class="success-banner" role="status">{m}</div> })}
+            </div>
+            <div aria-live="assertive">
+                {move || error.get().map(|e| view! { <div class="error-banner" role="alert">{e}</div> })}
+            </div>
+            <div aria-live="polite">
+                {move || loading.get().then(|| view! { <div class="loading" role="status">"Loading users..."</div> })}
+            </div>
 
             <div class="table-wrapper">
-                <table class="data-table">
-                    <thead><tr><th>"Username"</th><th>"Role"</th><th>"Created"</th><th>"Last Login"</th><th>"Actions"</th></tr></thead>
+                <table class="data-table" aria-label="User management table">
+                    <thead><tr><th scope="col">"Username"</th><th scope="col">"Role"</th><th scope="col">"Created"</th><th scope="col">"Last Login"</th><th scope="col">"Actions"</th></tr></thead>
                     <tbody>
                         {move || {
                             let filtered = filtered_users();
@@ -147,24 +153,26 @@ pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
             </div>
 
             <Modal title="Create User".to_string() show=show_create.get() on_close=Callback::new(move |()| set_show_create.set(false))>
-                <form class="modal-form" on:submit=move |ev| ev.prevent_default()>
+                <form class="modal-form" on:submit=move |ev| ev.prevent_default() aria-label="Create new user form">
                     <div class="form-group">
-                        <label class="form-label">"Username"</label>
-                        <input type="text" class="form-input" placeholder="Enter username" prop:value=new_username on:input=move |ev| set_new_username.set(event_target_value(&ev)) />
+                        <label class="form-label" for="new-username">"Username"</label>
+                        <input id="new-username" type="text" class="form-input" placeholder="Enter username" prop:value=new_username on:input=move |ev| set_new_username.set(event_target_value(&ev)) aria-required="true" />
                     </div>
                     <div class="form-group">
-                        <label class="form-label">"Password"</label>
-                        <input type="password" class="form-input" placeholder="Enter password" prop:value=new_password on:input=move |ev| set_new_password.set(event_target_value(&ev)) />
+                        <label class="form-label" for="new-password">"Password"</label>
+                        <input id="new-password" type="password" class="form-input" placeholder="Enter password" prop:value=new_password on:input=move |ev| set_new_password.set(event_target_value(&ev)) aria-required="true" />
                     </div>
                     <div class="form-group">
-                        <label class="form-label">"Role"</label>
-                        <select class="form-input" prop:value=new_role on:change=move |ev| set_new_role.set(event_target_value(&ev))>
+                        <label class="form-label" for="new-role">"Role"</label>
+                        <select id="new-role" class="form-input" prop:value=new_role on:change=move |ev| set_new_role.set(event_target_value(&ev)) aria-required="true">
                             <option value="viewer">"Viewer"</option>
                             <option value="editor">"Editor"</option>
                             <option value="admin">"Admin"</option>
                         </select>
                     </div>
-                    {move || form_error.get().map(|e| view! { <div class="form-error">{e}</div> })}
+                    <div aria-live="assertive">
+                        {move || form_error.get().map(|e| view! { <div class="form-error" role="alert">{e}</div> })}
+                    </div>
                     <div class="modal-actions">
                         <button type="button" class="btn btn-secondary" on:click=move |_| set_show_create.set(false)>"Cancel"</button>
                         <button type="submit" class="btn btn-primary">"Create User"</button>
@@ -178,8 +186,8 @@ pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
                     <strong>{move || delete_target.get()}</strong>
                     <p>"? This action cannot be undone."</p>
                     <div class="modal-actions">
-                        <button class="btn btn-secondary" on:click=move |_| set_show_delete_confirm.set(false)>"Cancel"</button>
-                        <button class="btn btn-danger" on:click=do_delete>"Delete"</button>
+                        <button type="button" class="btn btn-secondary" on:click=move |_| set_show_delete_confirm.set(false) aria-label="Cancel deletion">"Cancel"</button>
+                        <button type="button" class="btn btn-danger" on:click=do_delete aria-label="Confirm user deletion">"Delete"</button>
                     </div>
                 </div>
             </Modal>

@@ -36,9 +36,15 @@ pub fn StoragePage(api: RwSignal<ApiState>) -> impl IntoView {
 
     view! {
         <div class="page">
-            {move || loading.get().then(|| view! { <div class="loading">"Loading storage information..."</div> })}
-            {move || error.get().map(|e| view! { <div class="error-banner">{e}</div> })}
-            {move || msg.get().map(|m| view! { <div class="success-banner">{m}</div> })}
+            <div aria-live="polite">
+                {move || loading.get().then(|| view! { <div class="loading" role="status">"Loading storage information..."</div> })}
+            </div>
+            <div aria-live="assertive">
+                {move || error.get().map(|e| view! { <div class="error-banner" role="alert">{e}</div> })}
+            </div>
+            <div aria-live="polite">
+                {move || msg.get().map(|m| view! { <div class="success-banner" role="status">{m}</div> })}
+            </div>
 
             {move || {
                 let s = storage.get()?;
@@ -79,37 +85,37 @@ pub fn StoragePage(api: RwSignal<ApiState>) -> impl IntoView {
                 Some(view! {
                     <>
                         <div class="stats-grid">
-                            <div class="stats-card">
+                            <div class="stats-card surface">
                                 <div class="stats-card-header"><span class="stats-card-title">"Total Storage"</span></div>
                                 <div class="stats-card-value">{format_bytes(total_bytes)}</div>
                             </div>
-                            <div class="stats-card">
+                            <div class="stats-card surface">
                                 <div class="stats-card-header"><span class="stats-card-title">"Files"</span></div>
                                 <div class="stats-card-value">{file_count}</div>
                             </div>
-                            <div class="stats-card">
+                            <div class="stats-card surface">
                                 <div class="stats-card-header"><span class="stats-card-title">"Directories"</span></div>
                                 <div class="stats-card-value">{dir_count}</div>
                             </div>
-                            <div class="stats-card">
+                            <div class="stats-card surface">
                                 <div class="stats-card-header"><span class="stats-card-title">"Backend"</span></div>
                                 <div class="stats-card-value">{backend}</div>
                             </div>
                         </div>
 
                         <div class="dashboard-panels">
-                            <div class="panel">
-                                <h3 class="panel-title">"File Size Distribution"</h3>
+                            <div class="panel surface">
+                                <h2 class="panel-title font-display">"File Size Distribution"</h2>
                                 <BarChart data=chart_data title="".to_string() color="#E85D04".to_string() />
                             </div>
-                            <div class="panel">
-                                <h3 class="panel-title">"Files by Type"</h3>
+                            <div class="panel surface">
+                                <h2 class="panel-title font-display">"Files by Type"</h2>
                                 <PieChart data=type_data title="".to_string() />
                             </div>
                         </div>
 
-                        <div class="panel">
-                            <h3 class="panel-title">"Largest File"</h3>
+                        <div class="panel surface">
+                            <h2 class="panel-title font-display">"Largest File"</h2>
                             <div class="detail-row">
                                 <span class="detail-label">"Path"</span>
                                 <span class="detail-value mono">{largest_path}</span>
@@ -120,14 +126,14 @@ pub fn StoragePage(api: RwSignal<ApiState>) -> impl IntoView {
                             </div>
                         </div>
 
-                        <div class="panel">
+                        <div class="panel surface brutal-border">
                             <div class="panel-header-row">
-                                <h3 class="panel-title">"Recent Files"</h3>
-                                <button class="btn btn-secondary btn-sm" on:click=do_empty_trash>"Empty Trash"</button>
+                                <h2 class="panel-title font-display">"Recent Files"</h2>
+                                <button class="btn btn-secondary btn-sm" on:click=do_empty_trash aria-label="Empty trash">"Empty Trash"</button>
                             </div>
                             <div class="table-wrapper">
-                                <table class="data-table">
-                                    <thead><tr><th>"Path"</th><th>"Size"</th><th>"Modified"</th></tr></thead>
+                                <table class="data-table" aria-label="Recent files">
+                                    <thead><tr><th scope="col">"Path"</th><th scope="col">"Size"</th><th scope="col">"Modified"</th></tr></thead>
                                     <tbody>
                                         {if file_rows.is_empty() {
                                             vec![view! { <tr><td colspan="3" class="table-empty">"No files found"</td></tr> }]

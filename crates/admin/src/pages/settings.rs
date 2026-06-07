@@ -29,9 +29,15 @@ pub fn SettingsPage(api: RwSignal<ApiState>) -> impl IntoView {
 
     view! {
         <div class="page">
-            {move || loading.get().then(|| view! { <div class="loading">"Loading settings..."</div> })}
-            {move || error.get().map(|e| view! { <div class="error-banner">{e}</div> })}
-            {move || msg.get().map(|m| view! { <div class="success-banner">{m}</div> })}
+            <div aria-live="polite">
+                {move || loading.get().then(|| view! { <div class="loading" role="status">"Loading settings..."</div> })}
+            </div>
+            <div aria-live="assertive">
+                {move || error.get().map(|e| view! { <div class="error-banner" role="alert">{e}</div> })}
+            </div>
+            <div aria-live="polite">
+                {move || msg.get().map(|m| view! { <div class="success-banner" role="status">{m}</div> })}
+            </div>
 
             {move || {
                 let s = stats.get()?;
@@ -42,8 +48,8 @@ pub fn SettingsPage(api: RwSignal<ApiState>) -> impl IntoView {
                 let total_files = s.get("total_files").and_then(|v| v.as_u64()).unwrap_or(0);
                 let total_bytes = s.get("total_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
                 Some(view! {
-                    <div class="panel">
-                        <h3 class="panel-title">"Server Information"</h3>
+                    <div class="panel surface brutal-border">
+                        <h2 class="panel-title font-display">"Server Information"</h2>
                         <div class="settings-grid">
                             <div class="detail-row"><span class="detail-label">"Version"</span><span class="detail-value">{version}</span></div>
                             <div class="detail-row"><span class="detail-label">"Uptime"</span><span class="detail-value">{uptime}</span></div>
@@ -56,43 +62,43 @@ pub fn SettingsPage(api: RwSignal<ApiState>) -> impl IntoView {
                 })
             }}
 
-            <div class="panel">
-                <h3 class="panel-title">"Authentication Settings"</h3>
+            <div class="panel surface">
+                <h2 class="panel-title font-display">"Authentication Settings"</h2>
                 <div class="form-group">
-                    <label class="form-label">"Session Timeout (seconds)"</label>
-                    <input type="number" class="form-input form-input-half" prop:value=session_timeout on:input=move |ev| set_session_timeout.set(event_target_value(&ev)) />
+                    <label class="form-label" for="session-timeout">"Session Timeout (seconds)"</label>
+                    <input id="session-timeout" type="number" class="form-input form-input-half" prop:value=session_timeout on:input=move |ev| set_session_timeout.set(event_target_value(&ev)) />
                     <span class="form-hint">"Duration in seconds before a session expires"</span>
                 </div>
-                <button class="btn btn-primary" on:click=move |_| set_msg.set(Some("Auth settings saved (requires server restart)".to_string()))>"Save Auth Settings"</button>
+                <button class="btn btn-primary" on:click=move |_| set_msg.set(Some("Auth settings saved (requires server restart)".to_string())) aria-label="Save authentication settings">"Save Auth Settings"</button>
             </div>
 
-            <div class="panel">
-                <h3 class="panel-title">"CORS Configuration"</h3>
+            <div class="panel surface">
+                <h2 class="panel-title font-display">"CORS Configuration"</h2>
                 <div class="form-group">
-                    <label class="form-label">"Allowed Origins"</label>
-                    <input type="text" class="form-input" placeholder="https://example.com, https://app.example.com (or * for all)" prop:value=cors_origins on:input=move |ev| set_cors_origins.set(event_target_value(&ev)) />
+                    <label class="form-label" for="cors-origins">"Allowed Origins"</label>
+                    <input id="cors-origins" type="text" class="form-input" placeholder="https://example.com, https://app.example.com (or * for all)" prop:value=cors_origins on:input=move |ev| set_cors_origins.set(event_target_value(&ev)) />
                     <span class="form-hint">"Comma-separated list of allowed origins."</span>
                 </div>
-                <button class="btn btn-primary" on:click=move |_| set_msg.set(Some("CORS settings saved (requires server restart)".to_string()))>"Save CORS Settings"</button>
+                <button class="btn btn-primary" on:click=move |_| set_msg.set(Some("CORS settings saved (requires server restart)".to_string())) aria-label="Save CORS settings">"Save CORS Settings"</button>
             </div>
 
-            <div class="panel">
-                <h3 class="panel-title">"Rate Limiting"</h3>
+            <div class="panel surface">
+                <h2 class="panel-title font-display">"Rate Limiting"</h2>
                 <div class="form-group">
-                    <label class="form-label">"Max Requests Per Minute"</label>
-                    <input type="number" class="form-input form-input-half" prop:value=rate_limit on:input=move |ev| set_rate_limit.set(event_target_value(&ev)) />
+                    <label class="form-label" for="rate-limit">"Max Requests Per Minute"</label>
+                    <input id="rate-limit" type="number" class="form-input form-input-half" prop:value=rate_limit on:input=move |ev| set_rate_limit.set(event_target_value(&ev)) />
                     <span class="form-hint">"Maximum requests per client IP per minute"</span>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">"Max File Size (bytes)"</label>
-                    <input type="number" class="form-input form-input-half" prop:value=max_file_size on:input=move |ev| set_max_file_size.set(event_target_value(&ev)) />
+                    <label class="form-label" for="max-file-size">"Max File Size (bytes)"</label>
+                    <input id="max-file-size" type="number" class="form-input form-input-half" prop:value=max_file_size on:input=move |ev| set_max_file_size.set(event_target_value(&ev)) />
                     <span class="form-hint">"Default: 1073741824 (1GB)"</span>
                 </div>
-                <button class="btn btn-primary" on:click=move |_| set_msg.set(Some("Rate limit settings saved (requires server restart)".to_string()))>"Save Rate Limits"</button>
+                <button class="btn btn-primary" on:click=move |_| set_msg.set(Some("Rate limit settings saved (requires server restart)".to_string())) aria-label="Save rate limit settings">"Save Rate Limits"</button>
             </div>
 
-            <div class="panel">
-                <h3 class="panel-title">"Danger Zone"</h3>
+            <div class="panel surface brutal-border">
+                <h2 class="panel-title font-display text-accent">"Danger Zone"</h2>
                 <div class="detail-row">
                     <span class="detail-label">"Note"</span>
                     <span class="detail-value">"Settings changes require a server restart. Some settings can only be configured via the server configuration file."</span>

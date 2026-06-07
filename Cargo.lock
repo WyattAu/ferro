@@ -3072,8 +3072,10 @@ dependencies = [
  "ferro-core",
  "ferro-crypto",
  "ferro-dav",
+ "ferro-search-index",
  "serde_json",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

@@ -97,20 +97,24 @@ pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
 
     view! {
         <div class="page">
-            <div class="page-header">
+            <div class="page-header surface brutal-border">
                 <div class="page-header-left">
-                    <input type="text" class="search-input" placeholder="Filter by user..." prop:value=filter_user on:input=move |ev| set_filter_user.set(event_target_value(&ev)) aria-label="Filter by user" />
-                    <input type="text" class="search-input" placeholder="Filter by action..." prop:value=filter_action on:input=move |ev| set_filter_action.set(event_target_value(&ev)) aria-label="Filter by action" />
+                    <input type="text" class="search-input" placeholder="Filter by user..." prop:value=filter_user on:input=move |ev| set_filter_user.set(event_target_value(&ev)) aria-label="Filter audit log by user" />
+                    <input type="text" class="search-input" placeholder="Filter by action..." prop:value=filter_action on:input=move |ev| set_filter_action.set(event_target_value(&ev)) aria-label="Filter audit log by action" />
                 </div>
-                <button class="btn btn-secondary" on:click=do_export>"Export CSV"</button>
+                <button class="btn btn-secondary" on:click=do_export aria-label="Export audit log as CSV">"Export CSV"</button>
             </div>
 
-            {move || error.get().map(|e| view! { <div class="error-banner">{e}</div> })}
-            {move || loading.get().then(|| view! { <div class="loading">"Loading audit log..."</div> })}
+            <div aria-live="assertive">
+                {move || error.get().map(|e| view! { <div class="error-banner" role="alert">{e}</div> })}
+            </div>
+            <div aria-live="polite">
+                {move || loading.get().then(|| view! { <div class="loading" role="status">"Loading audit log..."</div> })}
+            </div>
 
             <div class="table-wrapper">
-                <table class="data-table">
-                    <thead><tr><th>"Timestamp"</th><th>"User"</th><th>"Action"</th><th>"Resource"</th><th>"Status"</th></tr></thead>
+                <table class="data-table" aria-label="Audit log table">
+                    <thead><tr><th scope="col">"Timestamp"</th><th scope="col">"User"</th><th scope="col">"Action"</th><th scope="col">"Resource"</th><th scope="col">"Status"</th></tr></thead>
                     <tbody>
                         {move || {
                             let user_filter = filter_user.get().to_lowercase();
@@ -148,13 +152,13 @@ pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
                 </table>
             </div>
 
-            <div class="pagination">
-                <span class="pagination-info">
+            <div class="pagination" role="navigation" aria-label="Audit log pagination">
+                <span class="pagination-info" aria-live="polite">
                     {format!("Page {} of {} ({} total entries)", current_page + 1, total_pages.max(1), total.get())}
                 </span>
                 <div class="pagination-controls">
-                    <button class="btn btn-secondary btn-sm" on:click=do_prev disabled=current_page == 0>"Previous"</button>
-                    <button class="btn btn-secondary btn-sm" on:click=do_next disabled=current_page + 1 >= total_pages>"Next"</button>
+                    <button class="btn btn-secondary btn-sm" on:click=do_prev disabled=current_page == 0 aria-label="Go to previous page">"Previous"</button>
+                    <button class="btn btn-secondary btn-sm" on:click=do_next disabled=current_page + 1 >= total_pages aria-label="Go to next page">"Next"</button>
                 </div>
             </div>
         </div>

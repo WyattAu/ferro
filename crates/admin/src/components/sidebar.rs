@@ -57,8 +57,8 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
             let ac = active;
             view! {
                 <A href=path class=nav_class attr:aria-current=move || if ac.get() { Some("page") } else { None }>
-                    <span class="nav-icon">{svg_icon(&icon)}</span>
-                    <span class="nav-label">{label}</span>
+                    <span class="nav-icon" aria-hidden="true">{svg_icon(&icon)}</span>
+                    <span class="nav-label font-display">{label}</span>
                 </A>
             }
         })
@@ -67,25 +67,25 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
     let conn = is_connected();
 
     view! {
-        <aside class="sidebar">
+        <aside class="sidebar" role="complementary" aria-label="Admin navigation sidebar">
             <div class="sidebar-header">
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
                     <rect width="28" height="28" rx="6" fill="#E85D04"/>
                     <path d="M8 14h12M14 8v12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
                 </svg>
-                <span class="sidebar-brand">"Ferro Admin"</span>
+                <span class="sidebar-brand font-display">"Ferro Admin"</span>
             </div>
 
-            <nav class="sidebar-nav">{nav_links}</nav>
+            <nav class="sidebar-nav" aria-label="Main navigation">{nav_links}</nav>
 
             <div class="sidebar-footer">
-                <div class="sidebar-server" class:sidebar-connected=conn>
-                    <span class="server-status-dot"></span>
+                <div class="sidebar-server" class:sidebar-connected=conn aria-live="polite">
+                    <span class="server-status-dot" aria-hidden="true"></span>
                     <span class="server-url" title=server_url()>
                         {move || if is_connected() { "Connected" } else { "Disconnected" }}
                     </span>
                 </div>
-                <button class="sidebar-disconnect" on:click=move |_| disconnect.call(()) disabled=!conn>
+                <button class="sidebar-disconnect" on:click=move |_| disconnect.call(()) disabled=!conn aria-label="Disconnect from server">
                     "Disconnect"
                 </button>
             </div>

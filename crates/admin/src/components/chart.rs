@@ -44,8 +44,8 @@ pub fn BarChart(
 
     view! {
         <div class="chart-container">
-            <h4 class="chart-title">{title}</h4>
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="bar-chart" role="img" aria-label=aria_label>
+            <h3 class="chart-title font-display">{title}</h3>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="bar-chart" role="img" aria-label=aria_label aria-hidden="true">
                 {bars}
             </svg>
         </div>
@@ -107,10 +107,10 @@ pub fn PieChart(data: Vec<(String, f64)>, title: String) -> impl IntoView {
                 "0%".to_string()
             };
             view! {
-                <div class="legend-item">
-                    <span class="legend-color" style={format!("background: {}", c)}></span>
+                <div class="legend-item" role="listitem">
+                    <span class="legend-color" style={format!("background: {}", c)} aria-hidden="true"></span>
                     <span class="legend-label">{label}</span>
-                    <span class="legend-value">{pct}</span>
+                    <span class="legend-value font-display">{pct}</span>
                 </div>
             }
         })
@@ -120,10 +120,10 @@ pub fn PieChart(data: Vec<(String, f64)>, title: String) -> impl IntoView {
 
     view! {
         <div class="chart-container">
-            <h4 class="chart-title">{title}</h4>
+            <h3 class="chart-title font-display">{title}</h3>
             <div class="pie-chart-wrapper">
-                <svg viewBox="0 0 100 100" class="pie-chart" role="img" aria-label=aria_label>{segments}</svg>
-                <div class="chart-legend">{legend_items}</div>
+                <svg viewBox="0 0 100 100" class="pie-chart" role="img" aria-label=aria_label aria-hidden="true">{segments}</svg>
+                <div class="chart-legend" role="list" aria-label="Chart legend">{legend_items}</div>
             </div>
         </div>
     }

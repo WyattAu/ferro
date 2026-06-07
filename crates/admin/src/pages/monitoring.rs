@@ -43,8 +43,12 @@ pub fn MonitoringPage(api: RwSignal<ApiState>) -> impl IntoView {
 
     view! {
         <div class="page">
-            {move || loading.get().then(|| view! { <div class="loading">"Loading monitoring data..."</div> })}
-            {move || error.get().map(|e| view! { <div class="error-banner">{e}</div> })}
+            <div aria-live="polite">
+                {move || loading.get().then(|| view! { <div class="loading" role="status">"Loading monitoring data..."</div> })}
+            </div>
+            <div aria-live="assertive">
+                {move || error.get().map(|e| view! { <div class="error-banner" role="alert">{e}</div> })}
+            </div>
 
             {move || {
                 let s = stats.get()?;
@@ -72,36 +76,36 @@ pub fn MonitoringPage(api: RwSignal<ApiState>) -> impl IntoView {
                 Some(view! {
                     <>
                         <div class="stats-grid">
-                            <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Uptime"</span></div><div class="stats-card-value">{uptime}</div></div>
-                            <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Version"</span></div><div class="stats-card-value">{version}</div></div>
-                            <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Auth"</span></div><div class="stats-card-value">{auth_type}</div></div>
-                            <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Search"</span></div><div class="stats-card-value">{if search_on { "Enabled" } else { "Disabled" }}</div></div>
-                            <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Storage"</span></div><div class="stats-card-value">{storage_backend}</div></div>
-                            <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Total Files"</span></div><div class="stats-card-value">{total_files}</div></div>
+                            <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Uptime"</span></div><div class="stats-card-value">{uptime}</div></div>
+                            <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Version"</span></div><div class="stats-card-value">{version}</div></div>
+                            <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Auth"</span></div><div class="stats-card-value">{auth_type}</div></div>
+                            <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Search"</span></div><div class="stats-card-value">{if search_on { "Enabled" } else { "Disabled" }}</div></div>
+                            <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Storage"</span></div><div class="stats-card-value">{storage_backend}</div></div>
+                            <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Total Files"</span></div><div class="stats-card-value">{total_files}</div></div>
                         </div>
-                        <div class="panel">
-                            <h3 class="panel-title">"Server Features"</h3>
+                        <div class="panel surface">
+                            <h2 class="panel-title font-display">"Server Features"</h2>
                             <div class="feature-grid">{feature_rows}</div>
                         </div>
                     </>
                 })
             }}
 
-            <div class="panel">
+            <div class="panel surface brutal-border">
                 <div class="panel-header-row">
-                    <h3 class="panel-title">"Prometheus Metrics"</h3>
-                    <button class="btn btn-secondary btn-sm" on:click=do_refresh disabled=metrics_loading>
+                    <h2 class="panel-title font-display">"Prometheus Metrics"</h2>
+                    <button class="btn btn-secondary btn-sm" on:click=do_refresh disabled=metrics_loading aria-label=move || if metrics_loading.get() { "Refreshing metrics" } else { "Refresh metrics" }>
                         {move || if metrics_loading.get() { "Refreshing..." } else { "Refresh Metrics" }}
                     </button>
                 </div>
-                <pre class="metrics-output">{move || metrics_text.get()}</pre>
+                <pre class="metrics-output" aria-label="Prometheus metrics output">{move || metrics_text.get()}</pre>
             </div>
 
-            <div class="panel">
-                <h3 class="panel-title">"External Grafana"</h3>
+            <div class="panel surface">
+                <h2 class="panel-title font-display">"External Grafana"</h2>
                 <div class="form-group">
-                    <label class="form-label">"Grafana Dashboard URL (optional)"</label>
-                    <input type="url" class="form-input" placeholder="https://grafana.example.com/d/..." prop:value=grafana_url on:input=move |ev| set_grafana_url.set(event_target_value(&ev)) aria-label="Grafana Dashboard URL" />
+                    <label class="form-label" for="grafana-url">"Grafana Dashboard URL (optional)"</label>
+                    <input id="grafana-url" type="url" class="form-input" placeholder="https://grafana.example.com/d/..." prop:value=grafana_url on:input=move |ev| set_grafana_url.set(event_target_value(&ev)) aria-label="Grafana Dashboard URL" />
                 </div>
                 {move || {
                     let url = grafana_url.get();

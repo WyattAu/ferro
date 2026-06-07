@@ -51,34 +51,38 @@ pub fn FederationPage(api: RwSignal<ApiState>) -> impl IntoView {
 
     view! {
         <div class="page">
-            {move || loading.get().then(|| view! { <div class="loading">"Loading federation data..."</div> })}
-            {move || error.get().map(|e| view! { <div class="error-banner">{e}</div> })}
+            <div aria-live="polite">
+                {move || loading.get().then(|| view! { <div class="loading" role="status">"Loading federation data..."</div> })}
+            </div>
+            <div aria-live="assertive">
+                {move || error.get().map(|e| view! { <div class="error-banner" role="alert">{e}</div> })}
+            </div>
 
             <div class="stats-grid">
-                <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Followers"</span></div><div class="stats-card-value">{followers.get().len()}</div></div>
-                <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Following"</span></div><div class="stats-card-value">{following.get().len()}</div></div>
-                <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Inbox"</span></div><div class="stats-card-value">{inbox.get().len()}</div></div>
-                <div class="stats-card"><div class="stats-card-header"><span class="stats-card-title">"Outbox"</span></div><div class="stats-card-value">{outbox.get().len()}</div></div>
+                <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Followers"</span></div><div class="stats-card-value">{followers.get().len()}</div></div>
+                <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Following"</span></div><div class="stats-card-value">{following.get().len()}</div></div>
+                <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Inbox"</span></div><div class="stats-card-value">{inbox.get().len()}</div></div>
+                <div class="stats-card surface"><div class="stats-card-header"><span class="stats-card-title font-display">"Outbox"</span></div><div class="stats-card-value">{outbox.get().len()}</div></div>
             </div>
 
             {move || nodeinfo.get().map(|ni| {
                 let software = ni.get("software").and_then(|s| s.get("name")).and_then(|v| v.as_str()).unwrap_or("-").to_string();
                 let ver = ni.get("software").and_then(|s| s.get("version")).and_then(|v| v.as_str()).unwrap_or("-").to_string();
                 view! {
-                    <div class="panel">
-                        <h3 class="panel-title">"Node Information"</h3>
+                    <div class="panel surface">
+                        <h2 class="panel-title font-display">"Node Information"</h2>
                         <div class="detail-row"><span class="detail-label">"Software"</span><span class="detail-value">{software}</span></div>
                         <div class="detail-row"><span class="detail-label">"Version"</span><span class="detail-value">{ver}</span></div>
                     </div>
                 }
             })}
 
-            <div class="panel">
-                <div class="tab-bar" role="tablist">
-                    <button class={format!("tab {}", if active_tab.get() == "followers" { "tab-active" } else { "" })} on:click=move |_| set_tab("followers".to_string()) role="tab" aria-selected={active_tab.get() == "followers"}>"Followers"</button>
-                    <button class={format!("tab {}", if active_tab.get() == "following" { "tab-active" } else { "" })} on:click=move |_| set_tab("following".to_string()) role="tab" aria-selected={active_tab.get() == "following"}>"Following"</button>
-                    <button class={format!("tab {}", if active_tab.get() == "inbox" { "tab-active" } else { "" })} on:click=move |_| set_tab("inbox".to_string()) role="tab" aria-selected={active_tab.get() == "inbox"}>"Inbox"</button>
-                    <button class={format!("tab {}", if active_tab.get() == "outbox" { "tab-active" } else { "" })} on:click=move |_| set_tab("outbox".to_string()) role="tab" aria-selected={active_tab.get() == "outbox"}>"Outbox"</button>
+            <div class="panel surface brutal-border">
+                <div class="tab-bar" role="tablist" aria-label="Federation data tabs">
+                    <button class={format!("tab font-display {}", if active_tab.get() == "followers" { "tab-active" } else { "" })} on:click=move |_| set_tab("followers".to_string()) role="tab" aria-selected={active_tab.get() == "followers"} id="tab-followers" aria-controls="panel-followers">"Followers"</button>
+                    <button class={format!("tab font-display {}", if active_tab.get() == "following" { "tab-active" } else { "" })} on:click=move |_| set_tab("following".to_string()) role="tab" aria-selected={active_tab.get() == "following"} id="tab-following" aria-controls="panel-following">"Following"</button>
+                    <button class={format!("tab font-display {}", if active_tab.get() == "inbox" { "tab-active" } else { "" })} on:click=move |_| set_tab("inbox".to_string()) role="tab" aria-selected={active_tab.get() == "inbox"} id="tab-inbox" aria-controls="panel-inbox">"Inbox"</button>
+                    <button class={format!("tab font-display {}", if active_tab.get() == "outbox" { "tab-active" } else { "" })} on:click=move |_| set_tab("outbox".to_string()) role="tab" aria-selected={active_tab.get() == "outbox"} id="tab-outbox" aria-controls="panel-outbox">"Outbox"</button>
                 </div>
                 {move || {
                     let tab = active_tab.get();
@@ -90,7 +94,7 @@ pub fn FederationPage(api: RwSignal<ApiState>) -> impl IntoView {
                                 let bv = if act_type == "Follow" { BadgeVariant::Success } else { BadgeVariant::Info };
                                 view! { <tr><td class="mono">{actor}</td><td><Badge text=act_type variant=bv/></td></tr> }
                             }).collect::<Vec<_>>();
-                            if items.is_empty() { view! { <div role="tabpanel"><table class="data-table"><tbody><tr><td class="table-empty">"No followers"</td></tr></tbody></table></div> }.into_any() } else { view! { <div role="tabpanel"><div class="table-wrapper"><table class="data-table"><thead><tr><th>"Actor"</th><th>"Type"</th></tr></thead><tbody>{items}</tbody></table></div></div> }.into_any() }
+                            if items.is_empty() { view! { <div role="tabpanel" id="panel-followers" aria-labelledby="tab-followers"><table class="data-table"><tbody><tr><td class="table-empty">"No followers"</td></tr></tbody></table></div> }.into_any() } else { view! { <div role="tabpanel" id="panel-followers" aria-labelledby="tab-followers"><div class="table-wrapper"><table class="data-table"><thead><tr><th scope="col">"Actor"</th><th scope="col">"Type"</th></tr></thead><tbody>{items}</tbody></table></div></div> }.into_any() }
                         }
                         "following" => {
                             let items = following.get().iter().map(|item| {
@@ -99,7 +103,7 @@ pub fn FederationPage(api: RwSignal<ApiState>) -> impl IntoView {
                                 let bv = BadgeVariant::Info;
                                 view! { <tr><td class="mono">{actor}</td><td><Badge text=act_type variant=bv/></td></tr> }
                             }).collect::<Vec<_>>();
-                            if items.is_empty() { view! { <div role="tabpanel"><table class="data-table"><tbody><tr><td class="table-empty">"Not following anyone"</td></tr></tbody></table></div> }.into_any() } else { view! { <div role="tabpanel"><div class="table-wrapper"><table class="data-table"><thead><tr><th>"Actor"</th><th>"Type"</th></tr></thead><tbody>{items}</tbody></table></div></div> }.into_any() }
+                            if items.is_empty() { view! { <div role="tabpanel" id="panel-following" aria-labelledby="tab-following"><table class="data-table"><tbody><tr><td class="table-empty">"Not following anyone"</td></tr></tbody></table></div> }.into_any() } else { view! { <div role="tabpanel" id="panel-following" aria-labelledby="tab-following"><div class="table-wrapper"><table class="data-table"><thead><tr><th scope="col">"Actor"</th><th scope="col">"Type"</th></tr></thead><tbody>{items}</tbody></table></div></div> }.into_any() }
                         }
                         "inbox" => {
                             let items = inbox.get().iter().take(20).map(|item| {
@@ -108,7 +112,7 @@ pub fn FederationPage(api: RwSignal<ApiState>) -> impl IntoView {
                                 let id = item.get("id").and_then(|i| i.as_str()).unwrap_or("-").to_string();
                                 view! { <tr><td><Badge text=act_type variant=BadgeVariant::Neutral/></td><td class="mono">{actor}</td><td class="mono">{id}</td></tr> }
                             }).collect::<Vec<_>>();
-                            if items.is_empty() { view! { <div role="tabpanel"><table class="data-table"><tbody><tr><td class="table-empty">"Inbox is empty"</td></tr></tbody></table></div> }.into_any() } else { view! { <div role="tabpanel"><div class="table-wrapper"><table class="data-table"><thead><tr><th>"Type"</th><th>"Actor"</th><th>"ID"</th></tr></thead><tbody>{items}</tbody></table></div></div> }.into_any() }
+                            if items.is_empty() { view! { <div role="tabpanel" id="panel-inbox" aria-labelledby="tab-inbox"><table class="data-table"><tbody><tr><td class="table-empty">"Inbox is empty"</td></tr></tbody></table></div> }.into_any() } else { view! { <div role="tabpanel" id="panel-inbox" aria-labelledby="tab-inbox"><div class="table-wrapper"><table class="data-table"><thead><tr><th scope="col">"Type"</th><th scope="col">"Actor"</th><th scope="col">"ID"</th></tr></thead><tbody>{items}</tbody></table></div></div> }.into_any() }
                         }
                         "outbox" => {
                             let items = outbox.get().iter().take(20).map(|item| {
@@ -117,7 +121,7 @@ pub fn FederationPage(api: RwSignal<ApiState>) -> impl IntoView {
                                 let id = item.get("id").and_then(|i| i.as_str()).unwrap_or("-").to_string();
                                 view! { <tr><td><Badge text=act_type variant=BadgeVariant::Neutral/></td><td class="mono">{actor}</td><td class="mono">{id}</td></tr> }
                             }).collect::<Vec<_>>();
-                            if items.is_empty() { view! { <div role="tabpanel"><table class="data-table"><tbody><tr><td class="table-empty">"Outbox is empty"</td></tr></tbody></table></div> }.into_any() } else { view! { <div role="tabpanel"><div class="table-wrapper"><table class="data-table"><thead><tr><th>"Type"</th><th>"Actor"</th><th>"ID"</th></tr></thead><tbody>{items}</tbody></table></div></div> }.into_any() }
+                            if items.is_empty() { view! { <div role="tabpanel" id="panel-outbox" aria-labelledby="tab-outbox"><table class="data-table"><tbody><tr><td class="table-empty">"Outbox is empty"</td></tr></tbody></table></div> }.into_any() } else { view! { <div role="tabpanel" id="panel-outbox" aria-labelledby="tab-outbox"><div class="table-wrapper"><table class="data-table"><thead><tr><th scope="col">"Type"</th><th scope="col">"Actor"</th><th scope="col">"ID"</th></tr></thead><tbody>{items}</tbody></table></div></div> }.into_any() }
                         }
                         _ => view! { <div class="empty-state">"Select a tab"</div> }.into_any(),
                     }

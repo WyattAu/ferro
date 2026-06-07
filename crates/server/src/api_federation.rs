@@ -7,8 +7,8 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -111,10 +111,11 @@ impl FederationTokenStore {
 
     pub async fn validate_token(&self, token: &str) -> Option<FederationToken> {
         let ft = self.tokens.get(token)?;
-        if chrono::Utc::now() > chrono::DateTime::parse_from_rfc3339(&ft.expires_at)
-            .ok()
-            .map(|dt| dt.with_timezone(&chrono::Utc))
-            .unwrap_or_default()
+        if chrono::Utc::now()
+            > chrono::DateTime::parse_from_rfc3339(&ft.expires_at)
+                .ok()
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+                .unwrap_or_default()
         {
             self.tokens.remove(token);
             return None;
@@ -217,7 +218,9 @@ pub async fn get_fed_file(
                         .unwrap_or(StatusCode::BAD_GATEWAY);
                     match resp.bytes().await {
                         Ok(body) => (status, body).into_response(),
-                        Err(_) => ApiError::bad_gateway("FED_PROXY_ERROR", "Failed to read peer response"),
+                        Err(_) => {
+                            ApiError::bad_gateway("FED_PROXY_ERROR", "Failed to read peer response")
+                        }
                     }
                 }
                 Err(_) => ApiError::bad_gateway("FED_PEER_UNREACHABLE", "Could not reach peer"),
@@ -266,7 +269,9 @@ pub async fn put_fed_file(
                         .unwrap_or(StatusCode::BAD_GATEWAY);
                     match resp.bytes().await {
                         Ok(body) => (status, body).into_response(),
-                        Err(_) => ApiError::bad_gateway("FED_PROXY_ERROR", "Failed to read peer response"),
+                        Err(_) => {
+                            ApiError::bad_gateway("FED_PROXY_ERROR", "Failed to read peer response")
+                        }
                     }
                 }
                 Err(_) => ApiError::bad_gateway("FED_PEER_UNREACHABLE", "Could not reach peer"),
@@ -356,10 +361,7 @@ pub async fn federated_search(
                         .unwrap_or_default()
                         .to_string(),
                     peer: peer.url.clone(),
-                    score: item
-                        .get("score")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0),
+                    score: item.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0),
                 });
             }
         }
@@ -396,10 +398,7 @@ pub async fn add_peer(
 
 pub fn routes() -> axum::Router<AppState> {
     axum::Router::new()
-        .route(
-            "/fed/exchange-token",
-            axum::routing::post(exchange_token),
-        )
+        .route("/fed/exchange-token", axum::routing::post(exchange_token))
         .route(
             "/fed/files/{*path}",
             axum::routing::get(get_fed_file)
@@ -407,10 +406,7 @@ pub fn routes() -> axum::Router<AppState> {
                 .delete(delete_fed_file),
         )
         .route("/fed/search", axum::routing::get(federated_search))
-        .route(
-            "/fed/peers",
-            axum::routing::get(list_peers).post(add_peer),
-        )
+        .route("/fed/peers", axum::routing::get(list_peers).post(add_peer))
 }
 
 #[cfg(test)]

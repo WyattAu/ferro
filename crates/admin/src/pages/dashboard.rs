@@ -41,8 +41,12 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
 
     view! {
         <div class="page">
-            {move || loading.get().then(|| view! { <div class="loading" role="status" aria-live="polite">"Loading dashboard..."</div> })}
-            {move || error.get().map(|e| view! { <div class="error-banner" role="alert" aria-live="assertive">{e}</div> })}
+            <div aria-live="polite">
+                {move || loading.get().then(|| view! { <div class="loading" role="status" aria-live="polite">"Loading dashboard..."</div> })}
+            </div>
+            <div aria-live="assertive">
+                {move || error.get().map(|e| view! { <div class="error-banner" role="alert">{e}</div> })}
+            </div>
 
             {move || {
                 let s = stats.get()?;
@@ -76,14 +80,14 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
                 chart_data.reverse();
                 Some(view! {
                     <div class="dashboard-panels">
-                        <div class="panel">
-                            <h3 class="panel-title">"Storage by Recent Files"</h3>
+                        <div class="panel surface">
+                            <h2 class="panel-title font-display">"Storage by Recent Files"</h2>
                             <BarChart data=chart_data title="".to_string() color="#E85D04".to_string() />
                         </div>
 
-                        <div class="panel">
-                            <h3 class="panel-title">"Recent Activity"</h3>
-                            <div class="activity-list">
+                        <div class="panel surface">
+                            <h2 class="panel-title font-display">"Recent Activity"</h2>
+                            <div class="activity-list" aria-label="Recent activity list">
                                 {audit_entries.get().iter().take(10).map(|entry| {
                                     let action = entry.get("action").and_then(|a| a.as_str()).unwrap_or("unknown").to_string();
                                     let user = entry.get("user").and_then(|u| u.as_str()).unwrap_or("system").to_string();

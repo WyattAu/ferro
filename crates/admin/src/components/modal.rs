@@ -8,13 +8,13 @@ pub fn Modal(
     children: Children,
 ) -> impl IntoView {
     view! {
-        <div class="modal-overlay" class:modal-visible=show>
-            <div class="modal-backdrop" on:click=move |_| on_close.call(())></div>
-            <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-overlay" class:modal-visible=show aria-hidden=move || !show>
+            <div class="modal-backdrop" on:click=move |_| on_close.call(()) aria-hidden="true"></div>
+            <div class="modal" role="dialog" aria-modal="true" aria-label=title.clone()>
                 <div class="modal-header">
-                    <h3 class="modal-title">{title}</h3>
-                    <button class="modal-close" on:click=move |_| on_close.call(()) aria-label="Close">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                    <h2 class="modal-title font-display">{title}</h2>
+                    <button class="modal-close" on:click=move |_| on_close.call(()) aria-label="Close dialog">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <line x1="4" y1="4" x2="16" y2="16"/>
                             <line x1="16" y1="4" x2="4" y2="16"/>
                         </svg>

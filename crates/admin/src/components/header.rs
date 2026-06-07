@@ -28,13 +28,13 @@ pub fn Header(api: RwSignal<ApiState>) -> impl IntoView {
     let conn = is_connected();
 
     view! {
-        <header class="admin-header">
+        <header class="admin-header" role="banner">
             <div class="header-left">
-                <h1 class="header-title">{page_title}</h1>
+                <h1 class="header-title font-display text-accent">{page_title}</h1>
             </div>
             <div class="header-right">
-                <div class="connection-status" class:status-connected=conn>
-                    <span class="status-dot"></span>
+                <div class="connection-status" class:status-connected=conn aria-live="polite" role="status">
+                    <span class="status-dot" aria-hidden="true"></span>
                     <span class="status-text">
                         {move || if is_connected() { "Connected" } else { "Disconnected" }}
                     </span>
@@ -44,7 +44,7 @@ pub fn Header(api: RwSignal<ApiState>) -> impl IntoView {
                         let _ = w.location().reload();
                     }
                 } title="Refresh page" aria-label="Refresh page">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M13.5 2.5v4h-4M2.5 13.5v-4h4M2.5 5.5A5.5 5.5 0 0113 3M13.5 10.5a5.5 5.5 0 01-10.5 2.5"/>
                     </svg>
                 </button>
