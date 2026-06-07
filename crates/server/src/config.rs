@@ -46,6 +46,7 @@ pub struct FileConfigValues {
     pub wopi_token_secret: Option<String>,
     pub wopi_office_url: Option<String>,
     pub federation_secret: Option<String>,
+    pub federation_trusted_peers: Option<Vec<String>>,
     pub oidc_issuer: Option<String>,
     pub oidc_client_id: Option<String>,
     pub oidc_audience: Option<String>,
@@ -63,6 +64,9 @@ pub struct FileConfigValues {
     pub dedup_enabled: Option<bool>,
     pub offline_cache_dir: Option<String>,
     pub offline_queue_size: Option<usize>,
+    pub fcm_server_key: Option<String>,
+    pub apns_key_path: Option<String>,
+    pub apns_team_id: Option<String>,
 }
 
 /// Configuration loaded from a TOML file with include support.
@@ -201,6 +205,12 @@ pub struct ServerConfig {
     /// When empty (default), federation is disabled and the inbox returns 503.
     #[arg(long, env = "FERRO_FEDERATION_SECRET", default_value = "")]
     pub federation_secret: String,
+
+    /// Comma-separated list of trusted federation peer URLs.
+    /// When set, only these instances can exchange federation tokens.
+    /// When empty (default), any instance can exchange tokens (open federation).
+    #[arg(long, env = "FERRO_FEDERATION_TRUSTED_PEERS", value_delimiter = ',')]
+    pub federation_trusted_peers: Vec<String>,
 
     /// Admin username for simple authentication (enables Basic Auth)
     #[arg(long, env = "FERRO_ADMIN_USER")]
@@ -358,6 +368,18 @@ pub struct ServerConfig {
     /// Default: 50000.
     #[arg(long, env = "FERRO_OFFLINE_QUEUE_SIZE", default_value = "50000")]
     pub offline_queue_size: usize,
+
+    /// Firebase Cloud Messaging server key for Android push notifications.
+    #[arg(long, env = "FERRO_FCM_SERVER_KEY")]
+    pub fcm_server_key: Option<String>,
+
+    /// Path to APNS private key file (.p8) for iOS push notifications.
+    #[arg(long, env = "FERRO_APNS_KEY_PATH")]
+    pub apns_key_path: Option<String>,
+
+    /// Apple Developer Team ID for APNS.
+    #[arg(long, env = "FERRO_APNS_TEAM_ID")]
+    pub apns_team_id: Option<String>,
 }
 
 /// Custom Debug implementation that redacts sensitive fields (passwords, secrets, tokens).
@@ -393,6 +415,7 @@ impl std::fmt::Debug for ServerConfig {
             .field("external_url", &self.external_url)
             .field("wopi_office_url", &self.wopi_office_url)
             .field("federation_secret", &"***REDACTED***")
+            .field("federation_trusted_peers", &self.federation_trusted_peers)
             .field("admin_user", &self.admin_user)
             .field(
                 "admin_password",
@@ -445,6 +468,7 @@ impl std::fmt::Debug for FileConfigValues {
                 "federation_secret",
                 &self.federation_secret.as_ref().map(|_| "***REDACTED***"),
             )
+            .field("federation_trusted_peers", &self.federation_trusted_peers)
             .field("oidc_issuer", &self.oidc_issuer)
             .field("oidc_client_id", &self.oidc_client_id)
             .field("oidc_audience", &self.oidc_audience)
@@ -464,6 +488,18 @@ impl std::fmt::Debug for FileConfigValues {
             .field("dedup_enabled", &self.dedup_enabled)
             .field("offline_cache_dir", &self.offline_cache_dir)
             .field("offline_queue_size", &self.offline_queue_size)
+            .field(
+                "fcm_server_key",
+                &self.fcm_server_key.as_ref().map(|_| "***REDACTED***"),
+            )
+            .field(
+                "apns_key_path",
+                &self.apns_key_path.as_ref().map(|_| "***REDACTED***"),
+            )
+            .field(
+                "apns_team_id",
+                &self.apns_team_id.as_ref().map(|_| "***REDACTED***"),
+            )
             .finish()
     }
 }
@@ -555,6 +591,9 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
         wopi_token_secret: override_.wopi_token_secret.or(base.wopi_token_secret),
         wopi_office_url: override_.wopi_office_url.or(base.wopi_office_url),
         federation_secret: override_.federation_secret.or(base.federation_secret),
+        federation_trusted_peers: override_
+            .federation_trusted_peers
+            .or(base.federation_trusted_peers),
         oidc_issuer: override_.oidc_issuer.or(base.oidc_issuer),
         oidc_client_id: override_.oidc_client_id.or(base.oidc_client_id),
         oidc_audience: override_.oidc_audience.or(base.oidc_audience),
@@ -576,6 +615,9 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
             .or(base.streaming_upload_threshold),
         offline_cache_dir: override_.offline_cache_dir.or(base.offline_cache_dir),
         offline_queue_size: override_.offline_queue_size.or(base.offline_queue_size),
+        fcm_server_key: override_.fcm_server_key.or(base.fcm_server_key),
+        apns_key_path: override_.apns_key_path.or(base.apns_key_path),
+        apns_team_id: override_.apns_team_id.or(base.apns_team_id),
     }
 }
 
@@ -651,6 +693,11 @@ where
     if !was_set("federation_secret") {
         cli.federation_secret = file.federation_secret.clone().unwrap_or_default();
     }
+    if !was_set("federation_trusted_peers")
+        && let Some(ref peers) = file.federation_trusted_peers
+    {
+        cli.federation_trusted_peers = peers.clone();
+    }
     if !was_set("oidc_issuer") {
         cli.oidc_issuer = file.oidc_issuer.clone();
     }
@@ -720,6 +767,15 @@ where
         && let Some(size) = file.offline_queue_size
     {
         cli.offline_queue_size = size;
+    }
+    if !was_set("fcm_server_key") {
+        cli.fcm_server_key = file.fcm_server_key.clone();
+    }
+    if !was_set("apns_key_path") {
+        cli.apns_key_path = file.apns_key_path.clone();
+    }
+    if !was_set("apns_team_id") {
+        cli.apns_team_id = file.apns_team_id.clone();
     }
 }
 

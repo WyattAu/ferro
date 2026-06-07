@@ -40,6 +40,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../../../migrations/008_remote_mounts.sql"),
     ),
     ("009", include_str!("../../../migrations/009_api_keys.sql")),
+    (
+        "011",
+        include_str!("../../../migrations/011_push_notifications.sql"),
+    ),
 ];
 
 fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {

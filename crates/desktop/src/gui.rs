@@ -4,6 +4,10 @@ use tauri::{
     tray::TrayIconBuilder,
 };
 
+#[cfg(all(feature = "tauri", feature = "android"))]
+#[path = "android.rs"]
+mod android;
+
 use ferro_desktop::commands::DesktopState;
 use ferro_desktop::commands::{ConfigResponse, MountStatusResponse, SaveConfigRequest};
 use ferro_desktop::config::DesktopConfig;
@@ -591,7 +595,14 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             let resume_sync =
                 MenuItem::with_id(app, "resume_sync", "Resume Sync", true, None::<&str>)?;
 
-            #[cfg(all(feature = "sync", feature = "tauri"))]
+            #[cfg(all(feature = "android", feature = "tauri"))]
+            let share_file =
+                MenuItem::with_id(app, "share_file", "Share File", true, None::<&str>)?;
+            #[cfg(all(feature = "android", feature = "tauri"))]
+            let open_in_files =
+                MenuItem::with_id(app, "open_in_files", "Open in Files", true, None::<&str>)?;
+
+            #[cfg(all(feature = "sync", feature = "tauri", not(feature = "android")))]
             let menu = Menu::with_items(
                 app,
                 &[
@@ -600,6 +611,24 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     &sync_now,
                     &pause_sync,
                     &resume_sync,
+                    &separator,
+                    &open_settings,
+                    &separator,
+                    &quit,
+                ],
+            )?;
+            #[cfg(all(feature = "sync", feature = "tauri", feature = "android"))]
+            let menu = Menu::with_items(
+                app,
+                &[
+                    &show,
+                    &separator,
+                    &sync_now,
+                    &pause_sync,
+                    &resume_sync,
+                    &separator,
+                    &share_file,
+                    &open_in_files,
                     &separator,
                     &open_settings,
                     &separator,
@@ -656,6 +685,17 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                         let state = app.state::<DesktopState>();
                         state.resume_sync();
                     }
+                    #[cfg(all(feature = "android", feature = "tauri"))]
+                    "share_file" => {
+                        let _ = app.share().share("Shared from Ferro".to_string());
+                    }
+                    #[cfg(all(feature = "android", feature = "tauri"))]
+                    "open_in_files" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
                     _ => {}
                 })
                 .build(app)?;
@@ -687,6 +727,14 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let _ = tray;
+
+            #[cfg(all(feature = "android", feature = "tauri"))]
+            {
+                android::register_notification_channels(app.handle());
+                android::setup_file_provider(app.handle());
+                tracing::info!("Android platform initialized");
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())

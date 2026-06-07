@@ -35,6 +35,16 @@ mobile = [
     "dep:roxmltree",
     "dep:reqwest",
 ]
+android = [
+    "dep:tauri",
+    "dep:tauri-plugin-shell",
+    "dep:tauri-plugin-dialog",
+    "dep:tauri-plugin-fs",
+    "dep:tauri-plugin-notification",
+    "dep:tauri-plugin-http",
+    "dep:roxmltree",
+    "dep:reqwest",
+]
 sync = [
     "dep:reqwest",
     "dep:walkdir",
@@ -70,6 +80,12 @@ walkdir = { version = "2", optional = true }
 sha2 = { version = "0.10", optional = true }
 hex = { version = "0.4", optional = true }
 base64 = { version = "0.22", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.9"
+core-foundation-sys = "0.8"
+cocoa = "0.25"
+objc = "0.2"
 
 [build-dependencies]
 tauri-build = { version = "2", optional = true }

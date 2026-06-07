@@ -45,7 +45,26 @@
     "shortDescription": "Ferro File Sync",
     "longDescription": "Secure self-hosted file synchronization client",
     "macOS": {
-      "minimumSystemVersion": "10.15"
+      "minimumSystemVersion": "12.0",
+      "signingIdentity": null,
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "dmg": {
+        "appPosition": [480, 170],
+        "applicationFolderPosition": [180, 170],
+        "windowSize": [660, 400]
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libgtk-3-0", "libwebkit2gtk-4.1-0", "libayatana-appindicator3-1"],
+        "section": "utils"
+      },
+      "rpm": {
+        "requires": ["gtk3", "webkit2gtk4.1", "libayatana-appindicator-gtk3"]
+      }
     },
     "windows": {
       "certificateThumbprint": null,

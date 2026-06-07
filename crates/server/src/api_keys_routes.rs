@@ -390,7 +390,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_api_key_auth_flow() {
-
         let state = AppState::in_memory().with_wopi_token_secret("test".to_string());
         let api_key_store = state.api_key_store.clone();
 

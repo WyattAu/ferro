@@ -51,3 +51,4 @@
 ---
 
 - [Security](./security.md)
+  - [Compliance & Certification](./security/compliance.md)

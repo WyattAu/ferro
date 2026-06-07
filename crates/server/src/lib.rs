@@ -128,6 +128,7 @@ pub mod policies;
 pub mod preferences;
 pub mod presigned;
 pub mod prometheus_metrics;
+pub mod push_notifications;
 pub mod quota;
 pub mod range_get;
 pub mod ransomware;
@@ -312,6 +313,12 @@ pub struct AppState {
     pub offline_reconciler: Arc<ferro_offline::reconciler::Reconciler>,
     /// In-memory API key store for service-to-service and CLI authentication.
     pub api_key_store: Arc<InMemoryApiKeyStore>,
+    /// Federation token store for cross-instance API federation.
+    /// Push notification store (SQLite-backed, optional).
+    pub push_notification_store:
+        Option<Arc<tokio::sync::RwLock<push_notifications::PushNotificationStore>>>,
+    /// Push notification configuration (FCM/APNS keys).
+    pub push_notification_config: push_notifications::PushNotificationConfig,
 }
 
 impl AppState {
@@ -407,6 +414,8 @@ impl AppState {
             )),
             offline_reconciler: Arc::new(ferro_offline::reconciler::Reconciler::new()),
             api_key_store: Arc::new(InMemoryApiKeyStore::new()),
+            push_notification_store: None,
+            push_notification_config: push_notifications::PushNotificationConfig::default(),
         }
     }
 
@@ -601,6 +610,12 @@ impl AppState {
                 self.trash.insert(entry.original_path.clone(), entry);
             }
         }
+        let push_store = push_notifications::PushNotificationStore::new(db.clone());
+        if let Err(e) = push_store.init_table() {
+            tracing::warn!(error = %e, "failed to init push_notifications table");
+        }
+        self.push_notification_store = Some(Arc::new(tokio::sync::RwLock::new(push_store)));
+
         let lock_mgr = lock::LockManager::new().with_db(db.clone());
         if let Err(e) = lock_mgr.load_all_from_db(&conn) {
             tracing::warn!(error = %e, "failed to load locks from database");
@@ -647,6 +662,16 @@ impl AppState {
         queue: Arc<ferro_offline::change_queue::SqliteChangeQueue>,
     ) -> Self {
         self.offline_queue = Some(queue);
+        self
+    }
+
+    pub fn with_push_notifications(
+        mut self,
+        store: push_notifications::PushNotificationStore,
+        config: push_notifications::PushNotificationConfig,
+    ) -> Self {
+        self.push_notification_store = Some(Arc::new(tokio::sync::RwLock::new(store)));
+        self.push_notification_config = config;
         self
     }
 
@@ -1234,6 +1259,19 @@ fn api_routes(
         .route(
             "/api-keys/:id",
             axum::routing::delete(api_keys_routes::delete_api_key),
+        )
+        // Push notification endpoints
+        .route(
+            "/push/register",
+            axum::routing::post(push_notifications::register_push_token),
+        )
+        .route(
+            "/push/unregister",
+            axum::routing::post(push_notifications::unregister_push_token),
+        )
+        .route(
+            "/push/tokens",
+            axum::routing::get(push_notifications::list_push_tokens),
         )
         .merge(Router::from(openapi::swagger_ui()))
 }

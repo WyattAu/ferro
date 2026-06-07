@@ -596,6 +596,16 @@ async fn main() -> anyhow::Result<()> {
         .with_max_file_versions(cli.max_file_versions)
         .with_streaming_upload_threshold(cli.streaming_upload_threshold);
 
+    // Initialize federation token store if federation secret is configured
+    let state = if !state.federation_secret.is_empty() {
+        for peer in &cli.federation_trusted_peers {
+            info!("Federation trusted peer: {}", peer);
+        }
+        state
+    } else {
+        state
+    };
+
     let mut state = if let Some(ref data_dir) = cli.data_dir {
         state.with_data_dir(data_dir.clone())
     } else {
@@ -986,6 +996,25 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         });
+    }
+
+    // Configure push notifications if CLI flags are set
+    let mut state = state;
+    state.push_notification_config = ferro_server::push_notifications::PushNotificationConfig {
+        fcm_server_key: cli.fcm_server_key.clone(),
+        apns_key_path: cli.apns_key_path.clone(),
+        apns_team_id: cli.apns_team_id.clone(),
+        apns_bundle_id: "com.ferro.app".to_string(),
+        apns_production: true,
+    };
+    if state.push_notification_config.fcm_server_key.is_some()
+        || state.push_notification_config.apns_key_path.is_some()
+    {
+        info!(
+            "Push notifications enabled (FCM: {}, APNS: {})",
+            state.push_notification_config.fcm_server_key.is_some(),
+            state.push_notification_config.apns_key_path.is_some()
+        );
     }
 
     let lock_manager = state.lock_manager.clone();

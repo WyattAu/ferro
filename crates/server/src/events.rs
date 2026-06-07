@@ -129,4 +129,23 @@ pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
             }
         });
     }
+
+    // Push notifications when configured
+    if let Some(ref push_store) = state.push_notification_store {
+        let push_config = state.push_notification_config.clone();
+        let store = push_store.clone();
+        let user_id = event.owner.clone();
+        let event_type_str = event.op_type.to_string();
+        let path_str = event.path.clone();
+        tokio::spawn(async move {
+            crate::push_notifications::dispatch_push_notifications(
+                &store,
+                &push_config,
+                &user_id,
+                &event_type_str,
+                &path_str,
+            )
+            .await;
+        });
+    }
 }
