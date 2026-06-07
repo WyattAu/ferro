@@ -24,7 +24,41 @@
 
 ## Recently Completed
 
-### 2026-06-06 (v3.0.12): All Roadmap Items Complete -- Final Item
+### 2026-06-06 (v3.0.13): Federation & Sync Infrastructure
+
+**Storage Backends:**
+- NasStorageEngine: NFS/SMB/CIFS as first-class StorageEngine (retry logic, stale handle recovery, path traversal protection)
+- CLI support: `nas:/path`, `nas-nfs:/path`, `nas-smb:/path`
+
+**Sync Protocol (New Crate: crates/sync-protocol/):**
+- Vector clock-based change tracking
+- File manifest with content hashing
+- SyncRequest/SyncResponse wire protocol
+- Conflict resolution (LWW, KeepLocal, KeepRemote, KeepBoth, Manual)
+- Persistent state in SQLite
+- Real-time change detection via notify crate
+- SyncEngine orchestrating push/pull/full sync
+- CLI flags: --sync-nodes, --sync-interval, --sync-mode
+
+**Federation Sync:**
+- federation_sync.rs: Wire ActivityPub into storage pipeline
+- Publish Create/Update/Delete activities to followers
+- Apply inbound file activities locally
+- Conflict resolution by checksum/size
+
+**Erasure Coding:**
+- erasure_storage.rs: Reed-Solomon erasure coding wrapper
+- Configurable data/parity shards
+- Shard distribution across storage backends
+- Reconstruction on GET
+
+**Metadata Replication:**
+- metadata_replication.rs: Cross-node metadata sync
+- HTTP transport for change replication
+- Consistency checks across nodes
+- Latest-timestamp-wins conflict resolution
+
+**Test Count:** 2044 (up from 2022)
 
 **v3.4 Production Operations:**
 - OP-006: Rate limiting per-tenant -- TenantAwareRateLimiter, TenantRateLimitStore, admin CRUD API (GET/PUT/DELETE /api/admin/tenants/:id/rate-limit), middleware layer with X-Tenant-ID header extraction, X-RateLimit-Remaining response header, 4 new tests

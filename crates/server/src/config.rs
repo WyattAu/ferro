@@ -332,6 +332,20 @@ pub struct ServerConfig {
     /// LDAP user search base DN
     #[arg(long, env = "FERRO_LDAP_USER_SEARCH_BASE", default_value = "")]
     pub ldap_user_search_base: String,
+
+    /// Comma-separated list of peer node addresses for cross-node sync.
+    /// Each entry should be a URL like "tcp://192.168.1.10:9090".
+    #[arg(long, env = "FERRO_SYNC_NODES", value_delimiter = ',')]
+    pub sync_nodes: Vec<String>,
+
+    /// Sync scan interval in seconds. How often to check for local file
+    /// changes. 0 = scan only on-demand (default: 300 = 5 minutes).
+    #[arg(long, env = "FERRO_SYNC_INTERVAL", default_value = "300")]
+    pub sync_interval: u64,
+
+    /// Sync mode: "push", "pull", or "bidirectional" (default).
+    #[arg(long, env = "FERRO_SYNC_MODE", default_value = "bidirectional")]
+    pub sync_mode: String,
 }
 
 /// Custom Debug implementation that redacts sensitive fields (passwords, secrets, tokens).
@@ -384,6 +398,9 @@ impl std::fmt::Debug for ServerConfig {
             .field("thumbnail_cache_size", &self.thumbnail_cache_size)
             .field("multi_user", &self.multi_user)
             .field("dedup_enabled", &self.dedup_enabled)
+            .field("sync_nodes", &self.sync_nodes)
+            .field("sync_interval", &self.sync_interval)
+            .field("sync_mode", &self.sync_mode)
             .finish()
     }
 }

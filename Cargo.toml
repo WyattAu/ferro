@@ -44,6 +44,7 @@ members = [
     "crates/cache",
     "crates/wasm-host",
     "crates/grpc",
+    "crates/sync-protocol",
 ]
 resolver = "2"
 

@@ -66,12 +66,15 @@ async fn main() -> anyhow::Result<()> {
         // Storage backend validation
         if cli.storage != "memory"
             && !cli.storage.starts_with("local:")
+            && !cli.storage.starts_with("nas:")
+            && !cli.storage.starts_with("nas-nfs:")
+            && !cli.storage.starts_with("nas-smb:")
             && !cli.storage.starts_with("s3://")
             && !cli.storage.starts_with("gs://")
             && !cli.storage.starts_with("az://")
         {
             errors.push(format!(
-                "Invalid storage backend '{}'. Supported: memory, local:/path, s3://bucket, gs://bucket, az://container",
+                "Invalid storage backend '{}'. Supported: memory, local:/path, nas:/mount, nas-nfs:/mount, nas-smb:/mount, s3://bucket, gs://bucket, az://container",
                 cli.storage
             ));
         }
@@ -175,6 +178,17 @@ async fn main() -> anyhow::Result<()> {
     // Build storage backend
     let state = match cli.storage.as_str() {
         "memory" => AppState::in_memory(),
+        path if path.starts_with("nas:")
+            || path.starts_with("nas-nfs:")
+            || path.starts_with("nas-smb:") =>
+        {
+            info!("NAS storage backend: {}", path);
+            let config = ferro_core::nas_backend::NasStorageConfig::parse(path)
+                .ok_or_else(|| anyhow::anyhow!("Invalid NAS storage path: {}", path))?;
+            let engine = ferro_core::nas_backend::NasStorageEngine::new(&config)
+                .map_err(|e| anyhow::anyhow!("Failed to create NAS storage engine: {}", e))?;
+            AppState::new(std::sync::Arc::new(engine))
+        }
         path if path.starts_with("local:") => {
             let dir = path
                 .strip_prefix("local:")
@@ -1208,6 +1222,16 @@ fn build_storage_backend(
         "memory" => Ok(std::sync::Arc::new(
             ferro_server::storage::InMemoryStorageEngine::new(),
         )),
+        path if path.starts_with("nas:")
+            || path.starts_with("nas-nfs:")
+            || path.starts_with("nas-smb:") =>
+        {
+            let config = ferro_core::nas_backend::NasStorageConfig::parse(path)
+                .ok_or_else(|| anyhow::anyhow!("Invalid NAS storage path: {}", path))?;
+            let engine = ferro_core::nas_backend::NasStorageEngine::new(&config)
+                .map_err(|e| anyhow::anyhow!("Failed to create NAS storage engine: {}", e))?;
+            Ok(std::sync::Arc::new(engine))
+        }
         path if path.starts_with("local:") => {
             let dir = path
                 .strip_prefix("local:")

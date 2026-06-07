@@ -97,6 +97,7 @@ ferro-e2ee = { path = "../e2ee" }
 ferro-crdt = { path = "../crdt" }
 ferro-distributed = { path = "../distributed" }
 ferro-offline = { path = "../offline" }
+ferro-sync-protocol = { path = "../sync-protocol" }
 
 [dev-dependencies]
 http-body-util = "0.1"

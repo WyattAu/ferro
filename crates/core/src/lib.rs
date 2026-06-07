@@ -3,6 +3,7 @@
 pub mod cas;
 pub mod fs_util;
 pub mod metadata;
+pub mod nas_backend;
 pub mod presigned;
 pub mod storage;
 
