@@ -3,6 +3,7 @@ pub mod admin_api;
 pub mod ai_search;
 pub mod api;
 pub mod api_error;
+pub mod api_federation;
 pub mod api_keys_routes;
 pub mod audit;
 pub mod auth;
@@ -966,6 +967,7 @@ fn api_routes(
             "/fed/share",
             axum::routing::post(federation::federated_share),
         )
+        .merge(api_federation::routes())
         .route(
             "/files/encrypt",
             axum::routing::post(encryption::encrypt_file),
