@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780860956107,
+  "lastUpdate": 1780864427304,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -10511,6 +10511,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 832,
             "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "c138f5e0dee7b564089f94081db2f7f814e432f3",
+          "message": "feat: all remaining competitive gaps closed\n\nAndroid app via Tauri 2.0:\n- android.rs: notification channels, share intent, file provider\n- tauri.conf.json: Android config (minSdk 24, targetSdk 34)\n- desktop.yml: CI for Android builds (aarch64 APK)\n\nPush notifications (Gap #9):\n- push_notifications.rs: FCM + APNS integration\n- PushNotificationStore: SQLite-backed token store\n- API: POST /api/v1/push/register, /unregister, GET /tokens\n- CLI flags: --fcm-server-key, --apns-key-path, --apns-team-id\n- Migration 011: push_tokens table\n\nLinux desktop GUI packaging (Gap #9):\n- package-linux.sh: .deb, .rpm, AppImage creation\n- desktop.yml: Multi-platform CI (Windows/macOS/Linux)\n\nmacOS native integration (Gap #10):\n- macos_integration.rs: Finder Sync, Spotlight, Menu Bar, Universal Binary, DMG\n- tauri.conf.json: macOS DMG config, Linux deb/rpm deps\n- Cargo.toml: macOS-specific dependencies\n\nCompliance documentation (Gap #14):\n- compliance.md: SOC 2, CSA STAR, ISO 27001, HIPAA, GDPR mapping\n\nNote: API federation (Gap #13) module created but deferred due to\nsyntax issues in generated code. Will be reimplemented in next cycle.",
+          "timestamp": "2026-06-07T21:24:04+01:00",
+          "tree_id": "f5be60d9e2fe4f5a9bb40cff69ccc88f7bd60ac7",
+          "url": "https://github.com/WyattAu/ferro/commit/c138f5e0dee7b564089f94081db2f7f814e432f3"
+        },
+        "date": 1780864426507,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 261298670,
+            "range": "± 4138480",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 261732153,
+            "range": "± 3992238",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28697,
+            "range": "± 2510",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 29240,
+            "range": "± 2456",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8561,
+            "range": "± 239",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5234,
+            "range": "± 154",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1176,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 879,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2736,
+            "range": "± 63",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1289,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7227,
+            "range": "± 173",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 64903,
+            "range": "± 1544",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 86,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18520,
+            "range": "± 418",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 923,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 160,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 174,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 180,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 800,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 816,
+            "range": "± 20",
             "unit": "ns/iter"
           },
           {
