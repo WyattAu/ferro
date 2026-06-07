@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780871418688,
+  "lastUpdate": 1780875394307,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -10835,6 +10835,576 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 757,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "9665b52a89e6897a7c4889bcd09bede0be7147c8",
+          "message": "feat: admin WCAG + design system + benchmarks + docs\n\nTD-023: Admin WCAG 2.1 AA fixes\n- Added aria-label to checkbox groups and form sections\n- Added role='alert' and aria-live='assertive' to error messages\n- Added aria-label to all action buttons\n- Added scope='col' to table headers\n- Added skip-to-content link (already existed)\n- Added semantic HTML (main element)\n\nTD-024: Admin UI design system alignment\n- Applied surface class to panel backgrounds\n- Applied brutal-border to key panels\n- Applied font-display to section headings\n- Applied text-accent to accent-colored elements\n\nPerformance Validation:\n- crates/benchmarks/benches/owncloud_sync.rs: 7 benchmark groups\n- Upload/download at 1KB-10MB, concurrent ops, PROPFIND, search\n\nDocumentation:\n- Updated README.md with current test counts and features\n- Updated VERSION.md test count to 2184+\n- Updated COMPARISON.md with gap closures\n- Fixed broken doc links in SUMMARY.md files",
+          "timestamp": "2026-06-08T00:15:29+01:00",
+          "tree_id": "7ea33fdca24016562b1efe8fadcb824bd5c84b11",
+          "url": "https://github.com/WyattAu/ferro/commit/9665b52a89e6897a7c4889bcd09bede0be7147c8"
+        },
+        "date": 1780875393738,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300733399,
+            "range": "± 1288654",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300732026,
+            "range": "± 811165",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24816,
+            "range": "± 747",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23835,
+            "range": "± 731",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 9261,
+            "range": "± 88",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 4984,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1224,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 952,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2660,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1KB",
+            "value": 2413,
+            "range": "± 154516",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1KB",
+            "value": 2513,
+            "range": "± 147047",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10KB",
+            "value": 8966,
+            "range": "± 146495",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10KB",
+            "value": 9091,
+            "range": "± 363",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/100KB",
+            "value": 74664,
+            "range": "± 110",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/100KB",
+            "value": 74810,
+            "range": "± 150",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1MB",
+            "value": 750475,
+            "range": "± 5207",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1MB",
+            "value": 750303,
+            "range": "± 1195",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10MB",
+            "value": 7475992,
+            "range": "± 100957",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10MB",
+            "value": 7472179,
+            "range": "± 5197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1KB",
+            "value": 102,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1KB",
+            "value": 203,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10KB",
+            "value": 112,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10KB",
+            "value": 202,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/100KB",
+            "value": 100,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/100KB",
+            "value": 201,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1MB",
+            "value": 101,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1MB",
+            "value": 203,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10MB",
+            "value": 100,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10MB",
+            "value": 202,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/10",
+            "value": 79977,
+            "range": "± 2072",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/10",
+            "value": 28149,
+            "range": "± 857",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/10",
+            "value": 81300,
+            "range": "± 850",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/50",
+            "value": 226009,
+            "range": "± 6438",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/50",
+            "value": 36654,
+            "range": "± 547",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/50",
+            "value": 239849,
+            "range": "± 7158",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/100",
+            "value": 414320,
+            "range": "± 13602",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/100",
+            "value": 50743,
+            "range": "± 513",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/100",
+            "value": 437725,
+            "range": "± 20345",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/100_entries",
+            "value": 101469,
+            "range": "± 402",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/100_entries",
+            "value": 19680,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/100_entries",
+            "value": 21582,
+            "range": "± 389",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/100_entries",
+            "value": 176,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/1000_entries",
+            "value": 979315,
+            "range": "± 10690",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/1000_entries",
+            "value": 205498,
+            "range": "± 649",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/1000_entries",
+            "value": 231601,
+            "range": "± 26156",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/1000_entries",
+            "value": 179,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/10000_entries",
+            "value": 9726944,
+            "range": "± 48146",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/10000_entries",
+            "value": 2117537,
+            "range": "± 61405",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/10000_entries",
+            "value": 2451452,
+            "range": "± 64265",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/10000_entries",
+            "value": 195,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/term_search/100_docs",
+            "value": 705,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/prefix_search/100_docs",
+            "value": 8855,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/field_search/100_docs",
+            "value": 418,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/boolean_search/100_docs",
+            "value": 1144,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/phrase_search/100_docs",
+            "value": 17120,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/paginated_search/100_docs",
+            "value": 696,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/term_search/1000_docs",
+            "value": 691,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/prefix_search/1000_docs",
+            "value": 91225,
+            "range": "± 2835",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/field_search/1000_docs",
+            "value": 409,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/boolean_search/1000_docs",
+            "value": 1112,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/phrase_search/1000_docs",
+            "value": 162803,
+            "range": "± 606",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/paginated_search/1000_docs",
+            "value": 698,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/term_search/10000_docs",
+            "value": 665,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/prefix_search/10000_docs",
+            "value": 1083486,
+            "range": "± 11686",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/field_search/10000_docs",
+            "value": 417,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/boolean_search/10000_docs",
+            "value": 1102,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/phrase_search/10000_docs",
+            "value": 1670910,
+            "range": "± 16581",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search/paginated_search/10000_docs",
+            "value": 698,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search_latency/latency_percentiles/file_42",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search_latency/latency_percentiles/nonexistent_xyz",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search_latency/latency_percentiles/file_0 AND file_1",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_search_latency/latency_percentiles/file_9999",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/single_file_sync_cycle",
+            "value": 8700,
+            "range": "± 175",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/batch_sync_50_files",
+            "value": 227322,
+            "range": "± 1247",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/rename_and_move",
+            "value": 744,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/concurrent_sync_10_clients",
+            "value": 493717,
+            "range": "± 4592",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/delete_cascade",
+            "value": 171952,
+            "range": "± 1128",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1406,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8160,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74873,
+            "range": "± 149",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19252,
+            "range": "± 81",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 897,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 69,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 151,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 174,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 844,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 737,
+            "range": "± 33",
             "unit": "ns/iter"
           },
           {
