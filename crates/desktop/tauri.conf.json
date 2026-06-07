@@ -23,6 +23,10 @@
     ],
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: https://asset.localhost; font-src 'self' data:; connect-src ipc: http://ipc.localhost 'self' https://* http://*"
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.ico",
+      "iconAsTemplate": false
     }
   },
   "bundle": {
@@ -36,7 +40,7 @@
       "icons/icon.ico"
     ],
     "resources": [],
-    "copyright": "",
+    "copyright": "Copyright 2024 Ferro Contributors",
     "category": "Utility",
     "shortDescription": "Ferro File Sync",
     "longDescription": "Secure self-hosted file synchronization client",
@@ -46,7 +50,26 @@
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": ""
+      "timestampUrl": "",
+      "nsis": {
+        "installMode": "both",
+        "language": null,
+        "headerImage": null,
+        "sidebarImage": null,
+        "installerIcon": null,
+        "displayLanguageSelector": false,
+        "bannerImage": null
+      },
+      "wix": null
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/WyattAu/ferro/releases/latest/download/latest.json"
+      ]
     }
   }
 }

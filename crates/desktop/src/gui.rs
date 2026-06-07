@@ -1,6 +1,6 @@
 use tauri::{
     Manager, State,
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
 };
 
@@ -481,6 +481,37 @@ async fn cmd_default_mount_point() -> String {
     DesktopConfig::default_mount_point().display().to_string()
 }
 
+// ── Windows Shell Integration Commands ──────────────────────────────
+
+#[tauri::command]
+async fn cmd_register_context_menu() -> Result<String, String> {
+    ferro_desktop::shell_integration::register_context_menu()?;
+    Ok("Context menu registered".to_string())
+}
+
+#[tauri::command]
+async fn cmd_unregister_context_menu() -> Result<String, String> {
+    ferro_desktop::shell_integration::unregister_context_menu()?;
+    Ok("Context menu unregistered".to_string())
+}
+
+#[tauri::command]
+async fn cmd_is_context_menu_registered() -> Result<bool, String> {
+    Ok(ferro_desktop::shell_integration::is_registered())
+}
+
+#[tauri::command]
+async fn cmd_register_autostart(exe_path: String) -> Result<String, String> {
+    ferro_desktop::shell_integration::register_autostart(&exe_path)?;
+    Ok("Autostart registered".to_string())
+}
+
+#[tauri::command]
+async fn cmd_unregister_autostart() -> Result<String, String> {
+    ferro_desktop::shell_integration::unregister_autostart()?;
+    Ok("Autostart unregistered".to_string())
+}
+
 /// Save a screenshot of the webview to a PNG file.
 /// Uses ImageMagick `import` as a cross-tool fallback for WebKitGTK
 /// which lacks a stable screenshot API.
@@ -515,6 +546,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(state)
         .manage(cli_conn)
         .invoke_handler(tauri::generate_handler![
@@ -529,6 +561,11 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             cmd_open_path,
             cmd_show_notification,
             cmd_default_mount_point,
+            cmd_register_context_menu,
+            cmd_unregister_context_menu,
+            cmd_is_context_menu_registered,
+            cmd_register_autostart,
+            cmd_unregister_autostart,
             list_directory,
             get_file,
             put_file,
@@ -541,6 +578,9 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
+            let open_settings =
+                MenuItem::with_id(app, "open_settings", "Settings", true, None::<&str>)?;
+            let separator = PredefinedMenuItem::separator(app)?;
 
             #[cfg(all(feature = "sync", feature = "tauri"))]
             let sync_now = MenuItem::with_id(app, "sync_now", "Sync Now", true, None::<&str>)?;
@@ -552,10 +592,23 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                 MenuItem::with_id(app, "resume_sync", "Resume Sync", true, None::<&str>)?;
 
             #[cfg(all(feature = "sync", feature = "tauri"))]
-            let menu =
-                Menu::with_items(app, &[&show, &sync_now, &pause_sync, &resume_sync, &quit])?;
+            let menu = Menu::with_items(
+                app,
+                &[
+                    &show,
+                    &separator,
+                    &sync_now,
+                    &pause_sync,
+                    &resume_sync,
+                    &separator,
+                    &open_settings,
+                    &separator,
+                    &quit,
+                ],
+            )?;
             #[cfg(not(all(feature = "sync", feature = "tauri")))]
-            let menu = Menu::with_items(app, &[&show, &quit])?;
+            let menu =
+                Menu::with_items(app, &[&show, &separator, &open_settings, &separator, &quit])?;
 
             let tray = TrayIconBuilder::new()
                 .icon(
@@ -573,6 +626,13 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
                             let _ = window.set_focus();
+                        }
+                    }
+                    "open_settings" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                            let _ = window.emit("navigate-to-settings", ());
                         }
                     }
                     #[cfg(all(feature = "sync", feature = "tauri"))]

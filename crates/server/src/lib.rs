@@ -3,6 +3,7 @@ pub mod admin_api;
 pub mod ai_search;
 pub mod api;
 pub mod api_error;
+pub mod api_keys_routes;
 pub mod audit;
 pub mod auth;
 pub mod backup;
@@ -117,6 +118,8 @@ pub mod metrics;
 pub mod move_copy;
 pub mod object_store_backend;
 pub mod ocr;
+pub mod ocr_engine;
+pub mod offline_wiring;
 pub mod openapi;
 #[cfg(feature = "pg")]
 pub mod pg_state;
@@ -187,6 +190,7 @@ use std::sync::Arc;
 use tower::limit::ConcurrencyLimitLayer;
 use tower_http::compression::CompressionLayer;
 
+use auth::api_keys::InMemoryApiKeyStore;
 use auth::cedar::CedarAuthorizer;
 use auth::oidc::OidcValidator;
 use ferro_core::search::SearchEngine;
@@ -298,6 +302,16 @@ pub struct AppState {
     pub tenant_rate_limit_store: Option<Arc<ferro_rate_limiter::tenant::TenantRateLimitStore>>,
     /// Per-tenant rate limiter instance.
     pub tenant_rate_limiter: Option<Arc<ferro_rate_limiter::tenant::TenantAwareRateLimiter>>,
+    /// Connection monitor for offline-first mode.
+    pub connection_monitor: Arc<ferro_offline::monitor::ConnectionMonitor>,
+    /// SQLite-backed change queue for offline write operations.
+    pub offline_queue: Option<Arc<ferro_offline::change_queue::SqliteChangeQueue>>,
+    /// In-memory content cache for offline reads.
+    pub offline_cache: Arc<tokio::sync::RwLock<ferro_offline::cache::ContentCache>>,
+    /// Reconciler for syncing queued changes on reconnection.
+    pub offline_reconciler: Arc<ferro_offline::reconciler::Reconciler>,
+    /// In-memory API key store for service-to-service and CLI authentication.
+    pub api_key_store: Arc<InMemoryApiKeyStore>,
 }
 
 impl AppState {
@@ -386,6 +400,13 @@ impl AppState {
             )),
             tenant_rate_limit_store: None,
             tenant_rate_limiter: None,
+            connection_monitor: Arc::new(ferro_offline::monitor::ConnectionMonitor::new()),
+            offline_queue: None,
+            offline_cache: Arc::new(tokio::sync::RwLock::new(
+                ferro_offline::cache::ContentCache::unlimited(),
+            )),
+            offline_reconciler: Arc::new(ferro_offline::reconciler::Reconciler::new()),
+            api_key_store: Arc::new(InMemoryApiKeyStore::new()),
         }
     }
 
@@ -618,6 +639,21 @@ impl AppState {
         ));
         self.tenant_rate_limit_store = Some(store);
         self.tenant_rate_limiter = Some(limiter);
+        self
+    }
+
+    pub fn with_offline_queue(
+        mut self,
+        queue: Arc<ferro_offline::change_queue::SqliteChangeQueue>,
+    ) -> Self {
+        self.offline_queue = Some(queue);
+        self
+    }
+
+    pub fn with_offline_cache_size(mut self, max_size: u64) -> Self {
+        self.offline_cache = Arc::new(tokio::sync::RwLock::new(
+            ferro_offline::cache::ContentCache::new(max_size),
+        ));
         self
     }
 
@@ -1189,6 +1225,16 @@ fn api_routes(
             axum::routing::delete(upload::cancel_upload),
         )
         .route("/uploads", axum::routing::get(upload::list_uploads))
+        // API key management
+        .route(
+            "/api-keys",
+            axum::routing::get(api_keys_routes::list_api_keys)
+                .post(api_keys_routes::create_api_key),
+        )
+        .route(
+            "/api-keys/:id",
+            axum::routing::delete(api_keys_routes::delete_api_key),
+        )
         .merge(Router::from(openapi::swagger_ui()))
 }
 
@@ -1229,13 +1275,15 @@ pub fn build_router_with_static(
     let admin_password_for_default_check = admin_password.clone();
     let admin_password_rotated = state.admin_password_rotated.clone();
     let user_store = state.user_store.clone();
+    let api_key_store = state.api_key_store.clone();
     let simple_auth_layer =
         axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-            simple_auth::simple_auth_middleware(
+            simple_auth::simple_auth_middleware_with_api_keys(
                 req,
                 admin_user.clone(),
                 admin_password.clone(),
                 user_store.clone(),
+                Some(api_key_store.clone()),
                 next,
             )
         });

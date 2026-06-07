@@ -273,7 +273,7 @@ mod tests {
 
     #[test]
     fn test_serialization_roundtrip() {
-        let mut msg = SyncMessage::Ping {
+        let msg = SyncMessage::Ping {
             from_node: "test-node".to_string(),
         };
         let json = serde_json::to_string(&msg).unwrap();

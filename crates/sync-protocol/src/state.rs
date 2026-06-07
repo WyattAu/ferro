@@ -340,7 +340,6 @@ impl SyncStateManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
 
     fn make_manager() -> SyncStateManager {
         SyncStateManager::new_in_memory().unwrap()

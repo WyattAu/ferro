@@ -61,6 +61,8 @@ pub struct FileConfigValues {
     pub graceful_shutdown_timeout: Option<u64>,
     pub cors_allowed_origins: Option<String>,
     pub dedup_enabled: Option<bool>,
+    pub offline_cache_dir: Option<String>,
+    pub offline_queue_size: Option<usize>,
 }
 
 /// Configuration loaded from a TOML file with include support.
@@ -346,6 +348,16 @@ pub struct ServerConfig {
     /// Sync mode: "push", "pull", or "bidirectional" (default).
     #[arg(long, env = "FERRO_SYNC_MODE", default_value = "bidirectional")]
     pub sync_mode: String,
+
+    /// Directory for offline content cache (enables offline-first mode).
+    /// When set, file content is cached locally for reads during disconnection.
+    #[arg(long, env = "FERRO_OFFLINE_CACHE_DIR")]
+    pub offline_cache_dir: Option<String>,
+
+    /// Maximum number of pending offline queue operations before rejecting writes.
+    /// Default: 50000.
+    #[arg(long, env = "FERRO_OFFLINE_QUEUE_SIZE", default_value = "50000")]
+    pub offline_queue_size: usize,
 }
 
 /// Custom Debug implementation that redacts sensitive fields (passwords, secrets, tokens).
@@ -450,6 +462,8 @@ impl std::fmt::Debug for FileConfigValues {
             .field("graceful_shutdown_timeout", &self.graceful_shutdown_timeout)
             .field("cors_allowed_origins", &self.cors_allowed_origins)
             .field("dedup_enabled", &self.dedup_enabled)
+            .field("offline_cache_dir", &self.offline_cache_dir)
+            .field("offline_queue_size", &self.offline_queue_size)
             .finish()
     }
 }
@@ -560,6 +574,8 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
         streaming_upload_threshold: override_
             .streaming_upload_threshold
             .or(base.streaming_upload_threshold),
+        offline_cache_dir: override_.offline_cache_dir.or(base.offline_cache_dir),
+        offline_queue_size: override_.offline_queue_size.or(base.offline_queue_size),
     }
 }
 
@@ -696,6 +712,14 @@ where
         && let Some(enabled) = file.dedup_enabled
     {
         cli.dedup_enabled = enabled;
+    }
+    if !was_set("offline_cache_dir") {
+        cli.offline_cache_dir = file.offline_cache_dir.clone();
+    }
+    if !was_set("offline_queue_size")
+        && let Some(size) = file.offline_queue_size
+    {
+        cli.offline_queue_size = size;
     }
 }
 

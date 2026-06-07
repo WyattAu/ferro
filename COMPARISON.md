@@ -128,7 +128,7 @@
 | WebAuthn/FIDO2 | Stub | **Yes** | **Yes** | No | No | No | No | No | No |
 | API keys | No | **Yes** | **Yes** | **Yes** | No | **Yes** | **Yes** | No | No |
 | Policy engine | **Yes** (Cedar) | RBAC | RBAC | RBAC | No | None | IAM | IAM | No |
-| RBAC | No (Cedar policies) | **Yes** | **Yes** | **Yes** | No | Basic | IAM | IAM | No |
+| RBAC | Yes (Cedar presets) | **Yes** | **Yes** | **Yes** | No | Basic | IAM | IAM | No |
 | Audit logging | **Yes** (SHA-256 chain) | **Yes** | **Yes** | **Yes** (Pro) | No | **Yes** | No | No |
 | Rate limiting | **Yes** (per-IP) | **Yes** | **Yes** | No | No | **Yes** | No | No |
 | Account lockout | **Yes** | **Yes** | **Yes** | No | No | No | No | No |

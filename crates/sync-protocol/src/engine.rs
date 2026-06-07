@@ -82,9 +82,7 @@ impl SyncEngine {
         state_manager: SyncStateManager,
     ) -> Result<Self, SyncError> {
         let detector = ChangeDetector::new(config.sync_root.clone(), config.node_id.clone())
-            .map_err(|e| {
-                SyncError::Io(std::io::Error::other(e.to_string()))
-            })?;
+            .map_err(|e| SyncError::Io(std::io::Error::other(e.to_string())))?;
 
         Ok(Self {
             config,

@@ -1,9 +1,14 @@
 use base64::Engine;
 
+use crate::api_keys::ApiKeyStoreTrait;
 use crate::users::{UserInfo, UserRole, UserStoreTrait};
 use common::auth::is_public_auth_path;
 
 /// Axum middleware implementing HTTP Basic authentication.
+///
+/// When an `api_key_store` is provided, the middleware first checks for a valid
+/// API key in the `X-API-Key` header or `?api_key=` query parameter. If found
+/// and valid, the user is authenticated via the API key and Basic auth is skipped.
 #[cfg(feature = "handlers")]
 pub async fn simple_auth_middleware(
     req: axum::extract::Request,
@@ -12,15 +17,58 @@ pub async fn simple_auth_middleware(
     user_store: std::sync::Arc<dyn UserStoreTrait>,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    use subtle::ConstantTimeEq;
+    simple_auth_middleware_with_api_keys(req, admin_user, admin_password, user_store, None, next)
+        .await
+}
 
-    if admin_user.is_none() || admin_password.is_none() {
-        return next.run(req).await;
-    }
+/// Extended `simple_auth_middleware` that also checks API keys.
+///
+/// When `api_key_store` is `Some`, validates `X-API-Key` / `?api_key=` before
+/// falling back to HTTP Basic authentication.
+#[cfg(feature = "handlers")]
+pub async fn simple_auth_middleware_with_api_keys(
+    mut req: axum::extract::Request,
+    admin_user: Option<String>,
+    admin_password: Option<String>,
+    user_store: std::sync::Arc<dyn UserStoreTrait>,
+    api_key_store: Option<std::sync::Arc<dyn ApiKeyStoreTrait>>,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use subtle::ConstantTimeEq;
 
     let path = req.uri().path();
 
     if is_public_auth_path(path) {
+        return next.run(req).await;
+    }
+
+    // --- API key authentication (checked first) ---
+    if let Some(ref store) = api_key_store {
+        let raw_key = crate::api_keys::extract_api_key(req.headers(), req.uri().query());
+        if let Some(key) = raw_key {
+            match store.authenticate(&key).await {
+                Ok(api_key) => {
+                    let sub = format!("api-key:{}", api_key.user_id);
+                    req.extensions_mut().insert(UserInfo {
+                        user_id: api_key.user_id,
+                        username: sub,
+                        role: match api_key.permission {
+                            crate::api_keys::ApiKeyPermission::Admin => UserRole::Admin,
+                            crate::api_keys::ApiKeyPermission::Write => UserRole::User,
+                            crate::api_keys::ApiKeyPermission::Read => UserRole::ReadOnly,
+                        },
+                    });
+                    return next.run(req).await;
+                }
+                Err(_) => {
+                    // Invalid API key -- fall through to Basic auth
+                }
+            }
+        }
+    }
+
+    // --- Basic auth (original logic) ---
+    if admin_user.is_none() || admin_password.is_none() {
         return next.run(req).await;
     }
 
@@ -93,7 +141,6 @@ pub async fn simple_auth_middleware(
         }
     };
 
-    let mut req = req;
     req.extensions_mut().insert(authenticated);
     next.run(req).await
 }

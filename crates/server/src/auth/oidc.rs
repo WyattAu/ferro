@@ -12,6 +12,8 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
+use crate::users::UserInfo;
+
 /// OIDC provider configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OidcConfig {
@@ -278,6 +280,10 @@ fn decode_claims_unsafe(token: &str) -> Result<Claims> {
 /// Optional auth middleware: if OIDC is configured, validates the Bearer token.
 /// If not configured, allows all requests through with anonymous claims.
 /// The resulting Claims are inserted as a request Extension.
+///
+/// When a `UserInfo` extension is already present (set by API key middleware),
+/// OIDC validation is skipped and synthetic claims are generated for the
+/// API key-authenticated user.
 pub async fn auth_middleware(
     oidc: Option<Arc<OidcValidator>>,
     mut request: Request<Body>,
@@ -286,6 +292,30 @@ pub async fn auth_middleware(
     let path = request.uri().path();
 
     if is_public_auth_path(path) {
+        return next.run(request).await;
+    }
+
+    // If UserInfo was already set by API key middleware, skip OIDC validation
+    // and generate synthetic Claims for the API key user.
+    if let Some(user_info) = request.extensions().get::<crate::users::UserInfo>().cloned() {
+        let claims = Claims {
+            sub: user_info.user_id.clone(),
+            aud: "ferro".to_string(),
+            iss: "ferro-api-key".to_string(),
+            exp: 0,
+            iat: 0,
+            nonce: None,
+            email: None,
+            name: Some(user_info.username.clone()),
+            groups: None,
+        };
+        let user_sub = claims.sub.clone();
+        request.extensions_mut().insert(claims);
+        request.headers_mut().insert(
+            "X-Ferro-User",
+            axum::http::HeaderValue::from_str(&user_sub)
+                .unwrap_or_else(|_| axum::http::HeaderValue::from_static("anonymous")),
+        );
         return next.run(request).await;
     }
 

@@ -161,7 +161,10 @@ impl FederationSync {
                     );
 
                     if let Ok(meta) = self.state.storage.head(&file_sync.path).await {
-                        let dominated = file_sync.checksum.as_ref().is_some_and(|cs| meta.content_hash.as_str() == cs)
+                        let dominated = file_sync
+                            .checksum
+                            .as_ref()
+                            .is_some_and(|cs| meta.content_hash.as_str() == cs)
                             || meta.size == file_sync.size.unwrap_or(0);
                         if dominated {
                             return Ok(());

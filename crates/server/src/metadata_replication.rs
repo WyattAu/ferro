@@ -234,7 +234,11 @@ impl MetadataReplicator {
 
         let peers = self.config.peer_endpoints.clone();
         for peer in &peers {
-            match self.transport.send_changes(peer, std::slice::from_ref(&change)).await {
+            match self
+                .transport
+                .send_changes(peer, std::slice::from_ref(&change))
+                .await
+            {
                 Ok(()) => {
                     info!("Replicated change {} to {}", change.id, peer);
                 }

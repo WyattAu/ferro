@@ -193,6 +193,11 @@ impl ApiError {
 
     pub const GUEST_EXPIRED: &'static str = "GUEST_EXPIRED";
 
+    // API keys
+    pub const API_KEY_NOT_FOUND: &'static str = "API_KEY_NOT_FOUND";
+    pub const API_KEY_EXPIRED: &'static str = "API_KEY_EXPIRED";
+    pub const API_KEY_QUOTA_EXCEEDED: &'static str = "API_KEY_QUOTA_EXCEEDED";
+
     // Configuration / feature flags
     pub const NOT_CONFIGURED: &'static str = "NOT_CONFIGURED";
     pub const MAINTENANCE_MODE: &'static str = "MAINTENANCE_MODE";

@@ -1,4 +1,5 @@
 use clap::Parser;
+use ferro_offline::change_queue::ChangeQueueStore;
 use ferro_server::auth::cedar::CedarAuthorizer;
 use ferro_server::auth::oidc::OidcConfig;
 use ferro_server::config::ServerConfig;
@@ -878,6 +879,113 @@ async fn main() -> anyhow::Result<()> {
             .maintenance_mode
             .store(true, std::sync::atomic::Ordering::Relaxed);
         tracing::warn!("Server started in MAINTENANCE MODE — all write operations are blocked");
+    }
+
+    // Configure offline-first mode if --offline-cache-dir is set
+    let state = if let Some(ref cache_dir) = cli.offline_cache_dir {
+        std::fs::create_dir_all(cache_dir).map_err(|e| {
+            anyhow::anyhow!("Failed to create offline cache dir {}: {}", cache_dir, e)
+        })?;
+        info!("Offline-first mode enabled: cache dir = {}", cache_dir);
+
+        let queue_db_path = std::path::Path::new(cache_dir).join("offline_queue.db");
+        let queue_db_url = format!("sqlite:{}", queue_db_path.display());
+        match rusqlite::Connection::open(&queue_db_path) {
+            Ok(conn) => {
+                let db_handle = std::sync::Arc::new(std::sync::Mutex::new(conn));
+                let queue = std::sync::Arc::new(
+                    ferro_offline::change_queue::SqliteChangeQueue::new(db_handle),
+                );
+                if let Err(e) = queue.init() {
+                    tracing::warn!("Failed to init offline queue table: {}", e);
+                }
+                info!("Offline change queue initialized at {}", queue_db_url);
+                state
+                    .with_offline_queue(queue)
+                    .with_offline_cache_size(cli.offline_queue_size as u64 * 1024)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to open offline queue DB: {}, offline queue disabled",
+                    e
+                );
+                state
+            }
+        }
+    } else {
+        state
+    };
+
+    // Spawn reconnection listener: when ConnectionMonitor detects online, sync queued changes
+    if state.offline_queue.is_some() {
+        let monitor = state.connection_monitor.clone();
+        let queue = state.offline_queue.clone().unwrap();
+        let storage = state.storage.clone();
+        let reconcile_cancel = shutdown_token.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    new_state = monitor.wait_for_change() => {
+                        if new_state == ferro_offline::monitor::ConnectionState::Online {
+                            info!("Connection restored — syncing offline queue");
+                            let pending = queue.pending().await;
+                            if pending.is_empty() {
+                                continue;
+                            }
+                            info!("Replaying {} queued offline operations", pending.len());
+                            let mut synced = 0u32;
+                            let mut failed = 0u32;
+                            for op in &pending {
+                                let result: std::result::Result<(), common::error::FerroError> = match op.op {
+                                    ferro_offline::change_queue::OperationType::Put => {
+                                        storage.head(&op.source_path).await.map(|_| ())
+                                    }
+                                    ferro_offline::change_queue::OperationType::Delete => {
+                                        storage.delete(&op.source_path).await
+                                    }
+                                    ferro_offline::change_queue::OperationType::Move => {
+                                        if let Some(ref dest) = op.dest_path {
+                                            storage.move_path(&op.source_path, dest).await
+                                        } else {
+                                            Ok(())
+                                        }
+                                    }
+                                    ferro_offline::change_queue::OperationType::Copy => {
+                                        if let Some(ref dest) = op.dest_path {
+                                            storage.copy(&op.source_path, dest).await
+                                        } else {
+                                            Ok(())
+                                        }
+                                    }
+                                    ferro_offline::change_queue::OperationType::CreateCollection => {
+                                        storage.create_collection(&op.source_path, &op.owner).await.map(|_| ())
+                                    }
+                                    _ => {
+                                        tracing::warn!("Unhandled offline operation type: {:?}", op.op);
+                                        Ok(())
+                                    }
+                                };
+                                match result {
+                                    Ok(_) => {
+                                        let _ = queue.mark_synced(&op.id).await;
+                                        synced += 1;
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!("Failed to sync op {}: {}", op.id, e);
+                                        failed += 1;
+                                    }
+                                }
+                            }
+                            info!("Offline queue sync complete: {} synced, {} failed", synced, failed);
+                        }
+                    }
+                    _ = reconcile_cancel.cancelled() => {
+                        tracing::info!("Offline reconnection listener shutting down");
+                        break;
+                    }
+                }
+            }
+        });
     }
 
     let lock_manager = state.lock_manager.clone();

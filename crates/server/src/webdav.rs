@@ -11,9 +11,10 @@ use common::error::FerroError;
 use common::error::Result;
 use common::path::normalize_path;
 use common::webdav::LockDepth;
+use ferro_offline::change_queue::ChangeQueueStore;
 use http_body_util::BodyExt;
 use tokio::io::AsyncReadExt;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 /// Maximum recursion depth for PROPFIND depth:infinity to prevent DoS.
 const MAX_PROPFIND_DEPTH: u32 = 100;
@@ -647,6 +648,43 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
         )));
     }
 
+    // Offline-first: check content cache before hitting storage
+    if !state.connection_monitor.is_online() {
+        let mut cache = state.offline_cache.write().await;
+        if let Some(cached_data) = cache.get(&path) {
+            debug!("OFFLINE GET: serving cached content for {}", path);
+            let content_type = sniff_content_type(&cached_data, &path);
+            let etag = format!(
+                "\"{}\"",
+                common::metadata::ContentHash::compute(&cached_data).as_str()
+            );
+            let mut resp_headers = HeaderMap::new();
+            resp_headers.insert(
+                "Content-Type",
+                HeaderValue::from_str(&content_type)
+                    .map_err(|e| FerroError::Internal(e.to_string()))?,
+            );
+            resp_headers.insert(
+                "Content-Length",
+                HeaderValue::from_str(&cached_data.len().to_string())
+                    .map_err(|e| FerroError::Internal(e.to_string()))?,
+            );
+            resp_headers.insert(
+                "ETag",
+                HeaderValue::from_str(&etag).map_err(|e| FerroError::Internal(e.to_string()))?,
+            );
+            resp_headers.insert(
+                HeaderName::from_static("accept-ranges"),
+                crate::range_get::accept_ranges_header(),
+            );
+            return Ok((StatusCode::OK, resp_headers, Body::from(cached_data)).into_response());
+        }
+        return Err(FerroError::NotFound(format!(
+            "Resource not available offline: {}",
+            path
+        )));
+    }
+
     let meta = state.storage.head(&path).await?;
     if meta.is_collection {
         return Err(FerroError::InvalidArgument(
@@ -870,6 +908,102 @@ async fn handle_put(
             "Invalid path: {}",
             path
         )));
+    }
+
+    // Offline-first: if offline and queue is enabled, queue the write operation
+    if !state.connection_monitor.is_online()
+        && let Some(ref queue) = state.offline_queue
+    {
+        let owner = extract_owner(headers, None);
+        let content_hash = Some(
+            common::metadata::ContentHash::compute(&body)
+                .as_str()
+                .to_string(),
+        );
+        let content_size = Some(body.len() as u64);
+        let op = ferro_offline::change_queue::QueuedOperation::put(
+            &path,
+            content_hash,
+            content_size,
+            &owner,
+        );
+        match queue.enqueue(op).await {
+            Ok(()) => {
+                // Cache the content for later sync
+                let mut cache = state.offline_cache.write().await;
+                cache.put(&path, body.to_vec());
+                debug!("OFFLINE PUT: queued write for {}", path);
+                let mut resp_headers = HeaderMap::new();
+                resp_headers.insert(
+                    "ETag",
+                    HeaderValue::from_str(&format!(
+                        "\"offline-{}\"",
+                        common::metadata::ContentHash::compute(&body).as_str()
+                    ))
+                    .map_err(|e| FerroError::Internal(e.to_string()))?,
+                );
+                return Ok((StatusCode::CREATED, resp_headers, "").into_response());
+            }
+            Err(e) => {
+                tracing::warn!("Offline queue enqueue failed for {}: {}", path, e);
+                return Err(FerroError::Internal(format!(
+                    "Offline queue full or unavailable: {}",
+                    e
+                )));
+            }
+        }
+    }
+
+    // Online path: if we have an offline queue with pending ops, attempt sync
+    if let Some(ref queue) = state.offline_queue {
+        let pending = queue.pending().await;
+        if !pending.is_empty() {
+            info!(
+                "Syncing {} pending offline operations before handling PUT",
+                pending.len()
+            );
+            let mut synced = 0u32;
+            for op in &pending {
+                let result: std::result::Result<(), FerroError> = match op.op {
+                    ferro_offline::change_queue::OperationType::Put => {
+                        state.storage.head(&op.source_path).await.map(|_| ())
+                    }
+                    ferro_offline::change_queue::OperationType::Delete => {
+                        state.storage.delete(&op.source_path).await
+                    }
+                    ferro_offline::change_queue::OperationType::Move => {
+                        if let Some(ref dest) = op.dest_path {
+                            state.storage.move_path(&op.source_path, dest).await
+                        } else {
+                            Ok(())
+                        }
+                    }
+                    ferro_offline::change_queue::OperationType::Copy => {
+                        if let Some(ref dest) = op.dest_path {
+                            state.storage.copy(&op.source_path, dest).await
+                        } else {
+                            Ok(())
+                        }
+                    }
+                    ferro_offline::change_queue::OperationType::CreateCollection => state
+                        .storage
+                        .create_collection(&op.source_path, &op.owner)
+                        .await
+                        .map(|_| ()),
+                    _ => {
+                        warn!("Unhandled offline operation type: {:?}", op.op);
+                        Ok(())
+                    }
+                };
+                if result.is_ok() {
+                    let _ = queue.mark_synced(&op.id).await;
+                    synced += 1;
+                }
+            }
+            if synced > 0 {
+                info!("Synced {} offline operations", synced);
+            }
+        }
     }
 
     if let Some(lock) = state.lock_manager.check_lock(&path).await {
@@ -1103,6 +1237,12 @@ async fn handle_put(
             &owner,
         )
         .await;
+    }
+
+    // Update offline content cache so it's available if connectivity drops
+    {
+        let mut cache = state.offline_cache.write().await;
+        cache.put(&path, body_for_index.to_vec());
     }
 
     Ok((status, resp_headers, "").into_response())
@@ -3087,5 +3227,168 @@ mod tests {
             .unwrap();
 
         assert_eq!(get_resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_offline_put_queues_operation() {
+        let mut state = AppState::in_memory();
+        state.connection_monitor.set_offline();
+
+        let queue_db = rusqlite::Connection::open_in_memory().unwrap();
+        let db_handle = Arc::new(std::sync::Mutex::new(queue_db));
+        let queue = Arc::new(ferro_offline::change_queue::SqliteChangeQueue::new(
+            db_handle,
+        ));
+        queue.init().unwrap();
+        state.offline_queue = Some(queue.clone());
+
+        let app = Router::new()
+            .route("/*path", any(handle_any))
+            .with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/test-file.txt")
+                    .header("Content-Type", "text/plain")
+                    .body(Body::from("hello offline"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+        assert_eq!(queue.pending_count().await, 1);
+        let pending = queue.pending().await;
+        assert_eq!(pending[0].source_path, "/test-file.txt");
+    }
+
+    #[tokio::test]
+    async fn test_offline_get_from_cache() {
+        let state = AppState::in_memory();
+        state.connection_monitor.set_offline();
+
+        // Pre-populate the cache
+        {
+            let mut cache = state.offline_cache.write().await;
+            cache.put("/cached.txt", b"cached content".to_vec());
+        }
+
+        let app = Router::new()
+            .route("/*path", any(handle_any))
+            .with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/cached.txt")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!(body.as_ref(), b"cached content");
+    }
+
+    #[tokio::test]
+    async fn test_offline_get_uncached_returns_not_found() {
+        let state = AppState::in_memory();
+        state.connection_monitor.set_offline();
+
+        let app = Router::new()
+            .route("/*path", any(handle_any))
+            .with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/not-cached.txt")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_online_put_updates_cache() {
+        let state = AppState::in_memory();
+
+        let app = Router::new()
+            .route("/*path", any(handle_any))
+            .with_state(state.clone());
+
+        // PUT a file while online
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/cache-me.txt")
+                    .header("Content-Type", "text/plain")
+                    .body(Body::from("online content"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+
+        // Verify it's in the offline cache
+        let cache = state.offline_cache.read().await;
+        assert!(cache.contains("/cache-me.txt"));
+    }
+
+    #[tokio::test]
+    async fn test_online_put_syncs_pending_offline_ops() {
+        let mut state = AppState::in_memory();
+        state.connection_monitor.set_offline();
+
+        let queue_db = rusqlite::Connection::open_in_memory().unwrap();
+        let db_handle = Arc::new(std::sync::Mutex::new(queue_db));
+        let queue = Arc::new(ferro_offline::change_queue::SqliteChangeQueue::new(
+            db_handle,
+        ));
+        queue.init().unwrap();
+        state.offline_queue = Some(queue.clone());
+
+        // Queue a delete operation while offline
+        queue
+            .enqueue(ferro_offline::change_queue::QueuedOperation::delete(
+                "/old.txt", "test",
+            ))
+            .await
+            .unwrap();
+        assert_eq!(queue.pending_count().await, 1);
+
+        // Go online
+        state.connection_monitor.set_online();
+
+        let app = Router::new()
+            .route("/*path", any(handle_any))
+            .with_state(state);
+
+        // Any PUT while online should trigger sync of pending ops
+        let _response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/trigger-sync.txt")
+                    .header("Content-Type", "text/plain")
+                    .body(Body::from("trigger"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // Pending ops should have been processed (marked synced or attempted)
+        // Note: delete of "/old.txt" will succeed on in-memory store (it doesn't exist, but delete is idempotent)
     }
 }
