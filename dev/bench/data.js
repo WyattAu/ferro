@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780864427304,
+  "lastUpdate": 1780871418688,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -10673,6 +10673,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 816,
             "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "8b1ed5c54f7a2037fbccfd1befa5c1a61432d2d4",
+          "message": "feat: API federation (Gap #13) - cross-instance REST proxying\n\napi_federation.rs: Clean implementation with:\n- FederationTokenStore: DashMap-based token/peer management\n- POST /api/v1/fed/exchange-token: HMAC-signed token exchange\n- GET/PUT/DELETE /api/v1/fed/files/{path}: Remote file proxying\n- GET /api/v1/fed/search?q=...: Federated search aggregation\n- GET/POST /api/v1/fed/peers: Trusted peer management\n- 4 tests: token roundtrip, peer management, exchange, add_peer\n\nRoutes merged via .merge(api_federation::routes()) in lib.rs",
+          "timestamp": "2026-06-07T23:23:47+01:00",
+          "tree_id": "fafc49eaaf6a5d256ca9a84c3229bcb72030e111",
+          "url": "https://github.com/WyattAu/ferro/commit/8b1ed5c54f7a2037fbccfd1befa5c1a61432d2d4"
+        },
+        "date": 1780871418135,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 300752016,
+            "range": "± 348903",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 300698763,
+            "range": "± 220200",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 24181,
+            "range": "± 735",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 23960,
+            "range": "± 874",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8404,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5089,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1170,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 940,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2690,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1435,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8166,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 74848,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 19116,
+            "range": "± 81",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 922,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 73,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 71,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 150,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 175,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 179,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 839,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 757,
+            "range": "± 2",
             "unit": "ns/iter"
           },
           {
