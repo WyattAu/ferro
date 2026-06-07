@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780835937904,
+  "lastUpdate": 1780860956107,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -10349,6 +10349,168 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 737,
             "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "f11ea17620c39a57a67a07ef8f1f5cc6330ee5a7",
+          "message": "feat: close competitive gaps - WebAuthn, offline, OCR, Windows, API keys\n\nGap #7 - WebAuthn/FIDO2 (REAL cryptographic verification):\n- Replaced stubs with ring-based ECDSA P-256 + RSA PKCS#1 verification\n- COSE key parser, CTAP2 authenticator data parser\n- Registration verification: challenge, origin, rpIdHash, attestation\n- Authentication verification: signature, sign count replay protection\n- 37 tests including real ECDSA key generation and all failure paths\n\nGap #6 - Offline mode (wired into WebDAV):\n- offline_wiring.rs: queue PUT/DELETE/MOVE/COPY when offline\n- ContentCache for GET requests\n- Reconnection sync listener\n- CLI flags: --offline-cache-dir, --offline-queue-size\n\nGap #8 - OCR (PDF text extraction):\n- ocr_engine.rs: real PDF text extraction using pdf crate\n- Parses Tj/TJ operators, UTF-16BE/UTF-8 strings\n- Replaces placeholder that returned empty string\n\nGap #1 - Windows desktop productization:\n- shell_integration.rs: Windows context menu, autostart\n- tauri.conf.json: NSIS installer config, auto-updater\n- desktop-windows.yml: CI for Windows builds + installer\n- build-windows.sh: developer build script\n\nGap #10 - API keys (verified already implemented):\n- Confirmed auth middleware + CRUD routes + tests all working\n\nGap #11 - RBAC comparison:\n- Fixed COMPARISON.md: 'No (Cedar policies)' -> 'Yes (Cedar presets)'",
+          "timestamp": "2026-06-07T20:22:38+01:00",
+          "tree_id": "8d0964a4b4923e2f5a6a3d453f7ec77b9eaeafda",
+          "url": "https://github.com/WyattAu/ferro/commit/f11ea17620c39a57a67a07ef8f1f5cc6330ee5a7"
+        },
+        "date": 1780860954957,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 266752761,
+            "range": "± 1027276",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 266691242,
+            "range": "± 232377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28184,
+            "range": "± 2133",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 30201,
+            "range": "± 2348",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8923,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5236,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1193,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 901,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2738,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1324,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7366,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66614,
+            "range": "± 269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 86,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18701,
+            "range": "± 89",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 887,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 147,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 186,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 790,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 832,
+            "range": "± 11",
             "unit": "ns/iter"
           },
           {
