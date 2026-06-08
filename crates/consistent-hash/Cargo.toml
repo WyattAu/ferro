@@ -1,0 +1,19 @@
+[package]
+name = "ferro-consistent-hash"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Consistent hashing for distributed data placement with virtual nodes support"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+keywords = ["consistent-hashing", "hash-ring", "distributed", "load-balancing"]
+categories = ["algorithms", "distributed"]
+publish = false
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+
+[dev-dependencies]

@@ -3058,6 +3058,7 @@ dependencies = [
 name = "ferro-backend-router"
 version = "3.0.0"
 dependencies = [
+ "ferro-consistent-hash",
  "serde",
  "thiserror 2.0.18",
 ]
@@ -3154,6 +3155,16 @@ dependencies = [
  "thiserror 2.0.18",
  "toml 0.8.2",
  "tracing",
+]
+
+[[package]]
+name = "ferro-consistent-hash"
+version = "3.0.0"
+dependencies = [
+ "hex",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

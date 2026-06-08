@@ -209,7 +209,7 @@
 | Geo-replication | **Yes** (ferro-distributed) | **Yes** | No | **Yes** (Pro) | **Yes** | **Yes** | No | No | **Yes** | No | No |
 | Raft consensus | **Yes** (ferro-distributed) | No | No | No | No | No | **Yes** (CRDT) | No | No | No | No |
 | Multi-tenancy | **Yes** (ferro-multi-tenant) | No (multi-instance) | **Yes** | **Yes** (Pro) | No | No | No | No | No | No | No |
-| Consistent hashing | No | No | No | No | **Yes** | No | **Yes** (Kademlia) | No | **Yes** | No | No |
+| Consistent hashing | **Yes** (ferro-consistent-hash) | No | No | No | **Yes** | No | **Yes** (Kademlia) | No | **Yes** | No | No |
 | Quorum reads/writes | **Yes** (ferro-distributed) | No | **Yes** | No | No | **Yes** | No | No | **Yes** | No | No |
 | Data versioning | **Yes** (file-level) | No | No | No | No | No | **Yes** (MFS) | **Yes** | No | No | **Yes** (branches) |
 | Failure detection | **Yes** (ferro-distributed) | Via apps | No | No | No | No | No | No | **Yes** | No | No |
@@ -418,7 +418,7 @@
 | 9 | Linux desktop GUI | CLI only, no packaged desktop app | Medium | Package Tauri as deb/rpm/AppImage | 1-2 weeks |
 | 10 | macOS native integration | Tauri shell, no Finder Sync Extension | Medium | Create Finder Sync Extension, universal binary | 3-4 weeks |
 | 11 | API federation | Implemented (ActivityPub cross-instance federation) | Low | Document federation setup guide | 1 day |
-| 12 | Consistent hashing | Completely missing | Medium | Defer -- Raft + erasure coding covers use case | 3-4 weeks |
+| 12 | Consistent hashing | Implemented (ferro-consistent-hash) | DONE | Implemented with virtual nodes, weighted routing, replication support |
 | 13 | Compliance certifications | Docs exist (SOC 2, ISO 27001, HIPAA, PCI DSS, FedRAMP mapping) | Low | Formal third-party audit | 4-6 weeks |
 | 14 | RBAC comparison accuracy | Implemented via Cedar presets (comparison table inaccurate) | Low | Update COMPARISON.md to say "Yes (Cedar presets)" | 1 hour |
 

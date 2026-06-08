@@ -14,5 +14,6 @@ publish = false
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+ferro-consistent-hash = { path = "../consistent-hash" }
 
 [dev-dependencies]
