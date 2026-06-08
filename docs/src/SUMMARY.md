@@ -50,6 +50,7 @@
   - [Office Suite Integration](./guides/office-suite.md)
   - [Platform Integration](./guides/platform-integration.md)
   - [GUI Refactor Roadmap](./guides/gui-refactor-roadmap.md)
+  - [Deferred Items Analysis](./guides/deferred-items-analysis.md)
   - [Upgrade Guide](./guides/upgrade.md)
 
 ---
