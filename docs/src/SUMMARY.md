@@ -51,6 +51,7 @@
   - [Platform Integration](./guides/platform-integration.md)
   - [GUI Refactor Roadmap](./guides/gui-refactor-roadmap.md)
   - [Deferred Items Analysis](./guides/deferred-items-analysis.md)
+  - [UI Honest Assessment](./guides/ui-honest-assessment.md)
   - [Upgrade Guide](./guides/upgrade.md)
 
 ---
