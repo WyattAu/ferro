@@ -52,6 +52,7 @@
   - [GUI Refactor Roadmap](./guides/gui-refactor-roadmap.md)
   - [Deferred Items Analysis](./guides/deferred-items-analysis.md)
   - [UI Honest Assessment](./guides/ui-honest-assessment.md)
+  - [UI Improvement Roadmap](./guides/ui-improvement-roadmap.md)
   - [Upgrade Guide](./guides/upgrade.md)
 
 ---

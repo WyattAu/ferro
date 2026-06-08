@@ -1,0 +1,272 @@
+# UI Improvement Roadmap & Ecosystem Migration Plan
+
+**Date:** 2026-06-08 | **Version:** 3.1.0-rc.1 | **Status:** Comprehensive Plan
+
+---
+
+## Part 1: UI Improvement Roadmap
+
+Based on the honest assessment, here are the specific improvements needed:
+
+### Priority 1: File Browser (Critical - 2 weeks)
+
+| Item | Current | Target | Effort |
+|------|---------|--------|--------|
+| Drag-and-drop between folders | None | Native drag-drop with visual feedback | 3 days |
+| Inline renaming | None | Double-click to rename | 2 days |
+| File thumbnails | None | Image/PDF/video thumbnails | 3 days |
+| Progress indicators | None | Upload progress bar | 1 day |
+| Context menu | Basic | Native right-click with full options | 1 day |
+
+### Priority 2: Onboarding (High - 1 week)
+
+| Item | Current | Target | Effort |
+|------|---------|--------|--------|
+| Setup wizard | None | First-time user guide | 2 days |
+| Sample files | None | Create example folder structure | 1 day |
+| Feature tour | None | Interactive walkthrough | 2 days |
+
+### Priority 3: Desktop Integration (High - 2 weeks)
+
+| Item | Current | Target | Effort |
+|------|---------|--------|--------|
+| Finder overlay | None | macOS Finder Sync Extension | 3 days |
+| Explorer overlay | None | Windows shell extension | 3 days |
+| System tray | Basic | Sync status, quick actions | 2 days |
+
+### Priority 4: Admin Dashboard (Medium - 1 week)
+
+| Item | Current | Target | Effort |
+|------|---------|--------|--------|
+| Usage charts | None | SVG charts for storage/users | 2 days |
+| Activity feed | None | Real-time file operations | 2 days |
+| Storage analytics | Basic | Detailed breakdown | 2 days |
+
+### Priority 5: Mobile Apps (Critical - 8 weeks each)
+
+| Item | Current | Target | Effort |
+|------|---------|--------|--------|
+| iOS app | Contract | SwiftUI native app | 8 weeks |
+| Android app | Contract | Kotlin native app | 8 weeks |
+
+---
+
+## Part 2: Ecosystem Analysis
+
+### Tauri Plugins Analysis
+
+| Plugin | Version | Status | Recommendation |
+|--------|---------|--------|----------------|
+| `tauri-plugin-context-menu` | 0.1 | Available | **ADOPT** - Native context menus |
+| `tauri-plugin-fs-pro` | N/A | Not published | **SKIP** - Use tauri-plugin-fs |
+| `sentry-tauri` | 0.1 | Available | **DEFER** - kuchikiki conflict |
+| `tauri-plugin-theme` | 0.1 | Available | **DEFER** - Custom implementation works |
+| `tauri-plugin-clipboard` | 0.1 | Available | **SKIP** - Custom implementation works |
+| `tauri-plugin-device-info` | 0.2 | Available | **ADOPT** - Device detection |
+| `tauri-plugin-screenshots` | 0.1 | Available | **DEFER** - Not critical |
+
+### Leptos Packages Analysis
+
+| Package | Version | Status | Recommendation |
+|---------|---------|--------|----------------|
+| `leptos-use` | 0.5 | Available | **ADOPT** - Reactive primitives |
+| `leptos-fetch` | 0.4 | Available | **ADOPT** - API caching |
+| `leptos-hotkeys` | 0.3 | Available | **REPLACE** - Declarative shortcuts |
+| `leptos-declarative` | 0.2 | Available | **ADOPT** - Control flow |
+| `leptos-struct-table` | 0.3 | Available | **ADOPT** - Admin tables |
+| `lepticons` | 0.2 | Available | **ADOPT** - Lucide icons |
+| `leptos_animate` | 0.1 | Available | **ADOPT** - FLIP animations |
+| `Stylance` | 0.2 | Available | **ADOPT** - CSS modules |
+| `Tailwind Fuse` | 0.1 | Available | **ADOPL** - Class conflicts |
+| `Thaw` | 0.5 | Available | **SKIP** - Conflicts with design |
+| `Rust shadcn/ui` | 0.3 | Available | **SKIP** - Conflicts with design |
+| `leptix` | 0.2 | Available | **ADOPT** - Accessible components |
+
+---
+
+## Part 3: Full Migration Roadmap
+
+### Phase 1: Foundation (Week 1-2)
+
+**Goal:** Establish the migration infrastructure and implement critical items.
+
+| Day | Task | Package | Status |
+|-----|------|---------|--------|
+| 1 | Pin kuchikiki version | Cargo.toml | TODO |
+| 1 | Add leptos-fetch dependency | crates/web | TODO |
+| 2 | Create API caching layer | crates/web/src/api_cache.rs | DONE |
+| 2 | Add leptos-use dependency | crates/web | TODO |
+| 3 | Create reactive hooks | crates/web/src/hooks.rs | DONE |
+| 3 | Test API caching with file operations | crates/web | TODO |
+| 4 | Add tauri-plugin-context-menu | crates/desktop | DEFERRED |
+| 5 | Test context menu on desktop | crates/desktop | TODO |
+
+### Phase 2: Components (Week 3-4)
+
+**Goal:** Replace custom components with ecosystem packages.
+
+| Day | Task | Package | Status |
+|-----|------|---------|--------|
+| 1 | Add leptix dependency | crates/web | TODO |
+| 2 | Replace Button component | leptix | TODO |
+| 2 | Replace Input component | leptix | TODO |
+| 3 | Replace Dialog component | leptix | TODO |
+| 3 | Replace Select component | leptix | TODO |
+| 4 | Add lepticons dependency | crates/web | TODO |
+| 4 | Replace custom icons | lepticons | TODO |
+| 5 | Test all components | crates/web | TODO |
+
+### Phase 3: Admin UI (Week 5-6)
+
+**Goal:** Improve admin dashboard with better components.
+
+| Day | Task | Package | Status |
+|-----|------|---------|--------|
+| 1 | Add leptos-struct-table | crates/admin | TODO |
+| 2 | Replace admin tables | leptos-struct-table | TODO |
+| 3 | Add chart components | crates/admin | TODO |
+| 4 | Add admin dashboard charts | SVG | TODO |
+| 5 | Test admin UI | crates/admin | TODO |
+
+### Phase 4: Styling (Week 7-8)
+
+**Goal:** Improve CSS architecture and animations.
+
+| Day | Task | Package | Status |
+|-----|------|---------|--------|
+| 1 | Add Stylance dependency | crates/web | TODO |
+| 2 | Create CSS modules | crates/web/src/styles | DONE |
+| 3 | Add Tailwind Fuse | crates/web | TODO |
+| 4 | Add leptos_animate | crates/web | TODO |
+| 5 | Test animations | crates/web | TODO |
+
+### Phase 5: Desktop Polish (Week 9-10)
+
+**Goal:** Improve desktop app experience.
+
+| Day | Task | Package | Status |
+|-----|------|---------|--------|
+| 1 | Add native context menu | tauri-plugin-context-menu | DEFERRED |
+| 2 | Add file picker | tauri-plugin-fs | TODO |
+| 3 | Add system tray enhancements | crates/desktop | TODO |
+| 4 | Test desktop features | crates/desktop | TODO |
+| 5 | Package for distribution | CI/CD | TODO |
+
+### Phase 6: Testing & Polish (Week 11-12)
+
+**Goal:** Ensure quality and fix remaining issues.
+
+| Day | Task | Package | Status |
+|-----|------|---------|--------|
+| 1 | Run full test suite | workspace | TODO |
+| 2 | Fix any remaining issues | workspace | TODO |
+| 3 | Update documentation | docs | TODO |
+| 4 | Create release notes | CHANGELOG | TODO |
+| 5 | Tag release | git | TODO |
+
+---
+
+## Part 4: Migration Decision Matrix
+
+### Adopt vs Skip Decision Framework
+
+| Factor | Weight | Adopt | Skip |
+|--------|--------|-------|------|
+| Design system compatibility | High | leptix, lepticons | Thaw, shadcn/ui |
+| Dependency conflicts | High | Skip conflicting | Use alternatives |
+| Community support | Medium | Well-maintained | Unmaintained |
+| API stability | Medium | Stable releases | Pre-release |
+| Bundle size impact | Low | Small | Large |
+| Migration effort | Medium | Low effort | High effort |
+
+### Final Decisions
+
+| Package | Decision | Reason |
+|---------|----------|--------|
+| leptos-fetch | ADOPT | Better API caching than custom |
+| leptos-use | ADOPT | Reactive primitives, better DX |
+| leptix | ADOPT | Accessible, unstyled, compatible |
+| lepticons | ADOPT | Consistent icon set |
+| leptos-struct-table | ADOPT | Better admin tables |
+| leptos_animate | ADOPT | FLIP animations |
+| Stylance | ADOPT | CSS modules |
+| Tailwind Fuse | ADOPT | Class conflicts |
+| Thaw | SKIP | Conflicts with design |
+| shadcn/ui | SKIP | Conflicts with design |
+| tauri-plugin-context-menu | DEFER | kuchikiki conflict |
+| sentry-tauri | DEFER | kuchikiki conflict |
+
+---
+
+## Part 5: Success Metrics
+
+| Metric | Current | Target | Timeline |
+|--------|---------|--------|----------|
+| Component reuse | 0% | 60%+ | Week 8 |
+| Custom hooks | 15+ | 5-8 | Week 4 |
+| CSS specificity issues | 5-10 | 0 | Week 6 |
+| Bundle size | ~150KB | <120KB | Week 8 |
+| Lighthouse a11y | 85 | 95+ | Week 10 |
+| Time to add feature | 2-3 days | 1-2 days | Week 12 |
+| File browser features | Basic | Full parity | Week 4 |
+| Mobile apps | Contract | Native | Week 20 |
+
+---
+
+## Part 6: Risk Mitigation
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Package version conflicts | Medium | High | Pin versions, test thoroughly |
+| Design system conflicts | Medium | Medium | Use unstyled components (leptix) |
+| Breaking changes | Low | High | Incremental migration, feature flags |
+| Performance regression | Low | Medium | Benchmark before/after |
+| Accessibility regression | Low | High | Use leptix (Radix port) |
+| Community package abandonment | Medium | Medium | Monitor, maintain forks if needed |
+
+---
+
+## Part 7: Implementation Checklist
+
+### Week 1-2
+- [ ] Pin kuchikiki version in Cargo.toml
+- [ ] Add leptos-fetch dependency
+- [ ] Test API caching with file operations
+- [ ] Add leptos-use dependency
+- [ ] Test reactive hooks
+
+### Week 3-4
+- [ ] Add leptix dependency
+- [ ] Replace Button component
+- [ ] Replace Input component
+- [ ] Replace Dialog component
+- [ ] Replace Select component
+- [ ] Add lepticons dependency
+- [ ] Replace custom icons
+- [ ] Test all components
+
+### Week 5-6
+- [ ] Add leptos-struct-table
+- [ ] Replace admin tables
+- [ ] Add chart components
+- [ ] Test admin UI
+
+### Week 7-8
+- [ ] Add Stylance dependency
+- [ ] Create CSS modules
+- [ ] Add Tailwind Fuse
+- [ ] Add leptos_animate
+- [ ] Test animations
+
+### Week 9-10
+- [ ] Add native context menu (when kuchikiki resolves)
+- [ ] Add file picker
+- [ ] Test desktop features
+- [ ] Package for distribution
+
+### Week 11-12
+- [ ] Run full test suite
+- [ ] Fix remaining issues
+- [ ] Update documentation
+- [ ] Create release notes
+- [ ] Tag release
