@@ -22,6 +22,7 @@ pub fn GridCard(
     on_toggle_select: Callback<(String, usize, bool, bool)>,
     #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
+    #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
     #[prop(default = false)] is_locked: bool,
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
@@ -50,6 +51,7 @@ pub fn GridCard(
     let path_for_share = entry.path.clone();
     let path_for_copy = entry.path.clone();
     let path_for_move = entry.path.clone();
+    let path_for_rename = entry.path.clone();
     let path_for_delete = entry.path.clone();
     let path_for_thumbnail = entry.path.clone();
     let name_for_actions = entry.name.clone();
@@ -119,6 +121,11 @@ pub fn GridCard(
     let handle_move_click = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
         on_move.call(path_for_move.clone());
+    };
+
+    let handle_rename_click = move |ev: ev::MouseEvent| {
+        ev.stop_propagation();
+        on_rename.call(path_for_rename.clone());
     };
 
     let handle_delete_click = move |ev: ev::MouseEvent| {
@@ -247,6 +254,18 @@ pub fn GridCard(
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                     </svg>
                 </button>
+                {(!entry_is_collection && !is_locked).then(|| view! {
+                    <button
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        attr:aria-label=format!("Rename {}", name_for_actions)
+                        title=t!("common.rename")
+                        on:click=handle_rename_click
+                    >
+                        <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </button>
+                })}
                 {(!is_locked).then(|| view! {
                     <button
                         class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -279,6 +298,7 @@ pub fn GridView(
     on_toggle_select: Callback<(String, usize, bool, bool)>,
     on_copy: Callback<String>,
     on_move: Callback<String>,
+    #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
     locks: ReadSignal<std::collections::HashMap<String, LockInfo>>,
 ) -> impl IntoView {
     let entries_for_each = entries;
@@ -341,6 +361,7 @@ pub fn GridView(
                             on_toggle_select=on_toggle_select
                             on_copy=on_copy
                             on_move=on_move
+                            on_rename=on_rename
                             is_locked=li().0
                             lock_owner=li().1
                             lock_expires=li().2

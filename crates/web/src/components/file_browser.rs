@@ -99,6 +99,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let theme_state = use_theme_state();
     let header_state = use_header_state();
 
+    let (show_rename_dialog, set_show_rename_dialog) = create_signal(false);
+    let (rename_source, set_rename_source) = create_signal(String::new());
+    let (rename_new_name, set_rename_new_name) = create_signal(String::new());
+
     create_effect(move |_| {
         spawn_local(async move {
             if let Ok(prefs) = api::get_preferences().await {
@@ -952,6 +956,34 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         set_show_copy_dialog.set(true);
     };
 
+    let do_rename = move |path: String| {
+        let file_name = path.rsplit('/').next().unwrap_or("").to_string();
+        set_rename_source.set(path.clone());
+        set_rename_new_name.set(file_name);
+        set_show_rename_dialog.set(true);
+    };
+
+    let on_rename_confirm = Callback::new(move |(source, new_name): (String, String)| {
+        let parent = source.rsplit_once('/').map(|(p, _)| p).unwrap_or("/");
+        let dest = if parent == "/" {
+            format!("/{}", new_name)
+        } else {
+            format!("{}/{}", parent, new_name)
+        };
+        let s = source.clone();
+        let d = dest.clone();
+        spawn_local(async move {
+            match api::move_file(&s, &d).await {
+                Ok(()) => {
+                    set_show_rename_dialog.set(false);
+                    ToastContext::success(format!("Renamed to {}", new_name));
+                    reload();
+                }
+                Err(e) => ToastContext::error(format!("Rename failed: {}", e)),
+            }
+        });
+    });
+
     // PathDialog on_confirm callbacks handle the actual API calls
     let on_move_confirm = Callback::new(move |(source, dest): (String, String)| {
         let s = source.clone();
@@ -999,6 +1031,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     );
     let grid_cb_copy = Callback::new(do_copy);
     let grid_cb_move = Callback::new(do_move);
+    let grid_cb_rename = Callback::new(do_rename);
 
     view! {
        <div
@@ -1291,36 +1324,37 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                        {
                                            let ep = entry.path.clone();
                                            let (lk, lo, le) = get_lock_info(&ep);
-                                           view! {
-                                               <FileRow
-                                                   entry=entry
-                                                   on_navigate=Callback::new(navigate)
-                                                   on_delete=Callback::new(do_delete)
-                                                   on_download=Callback::new(do_download)
-                                                   on_share=Callback::new(do_share)
-                                                   on_preview=Callback::new(open_preview)
-                                                   is_favorited=true
-                                                   on_toggle_favorite=Callback::new(do_toggle_favorite)
-                                                   show_checkbox=false
-                                                   is_selected=false
-                                                   on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
-                                                   on_copy=Callback::new(do_copy)
-                                                   on_move=Callback::new(do_move)
-                                                   is_locked=lk
-                                                   lock_owner=lo
-                                                   lock_expires=le
-                                               />
-                                           }
-                                       }
-                                   </For>
-                               </tbody>
-                           </table>
-                       }.into_any()
-                   }
-               }}
-           })}
+                                            view! {
+                                                <FileRow
+                                                    entry=entry
+                                                    on_navigate=Callback::new(navigate)
+                                                    on_delete=Callback::new(do_delete)
+                                                    on_download=Callback::new(do_download)
+                                                    on_share=Callback::new(do_share)
+                                                    on_preview=Callback::new(open_preview)
+                                                    is_favorited=true
+                                                    on_toggle_favorite=Callback::new(do_toggle_favorite)
+                                                    show_checkbox=false
+                                                    is_selected=false
+                                                    on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
+                                                    on_copy=Callback::new(do_copy)
+                                                    on_move=Callback::new(do_move)
+                                                    on_rename=Callback::new(do_rename)
+                                                    is_locked=lk
+                                                    lock_owner=lo
+                                                    lock_expires=le
+                                                />
+                                            }
+                                        }
+                                    </For>
+                                </tbody>
+                            </table>
+                        }.into_any()
+                    }
+                }}
+            })}
 
-           // Recent view
+            // Recent view
            {move || (active_tab.get() == BrowserTab::Recent).then(|| view! {
                {move || recent_loading.get().then(|| view! {
                    <SkeletonRecent />
@@ -1361,31 +1395,32 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                        {
                                            let entry_path = entry.path.clone();
                                            let (lk, lo, le) = get_lock_info(&entry_path);
-                                           view! {
-                                               <FileRow
-                                                   entry=entry
-                                                   on_navigate=Callback::new(navigate)
-                                                   on_delete=Callback::new(do_delete)
-                                                   on_download=Callback::new(do_download)
-                                                   on_share=Callback::new(do_share)
-                                                   on_preview=Callback::new(open_preview)
-                                                   is_favorited=is_fav(entry_path)
-                                                   on_toggle_favorite=Callback::new(do_toggle_favorite)
-                                                   show_checkbox=false
-                                                   is_selected=false
-                                                   on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
-                                                   on_copy=Callback::new(do_copy)
-                                                   on_move=Callback::new(do_move)
-                                                   is_locked=lk
-                                                   lock_owner=lo
-                                                   lock_expires=le
-                                               />
-                                           }
-                                       }
-                                   </For>
-                               </tbody>
-                           </table>
-                       }.into_any()
+                                            view! {
+                                                <FileRow
+                                                    entry=entry
+                                                    on_navigate=Callback::new(navigate)
+                                                    on_delete=Callback::new(do_delete)
+                                                    on_download=Callback::new(do_download)
+                                                    on_share=Callback::new(do_share)
+                                                    on_preview=Callback::new(open_preview)
+                                                    is_favorited=is_fav(entry_path)
+                                                    on_toggle_favorite=Callback::new(do_toggle_favorite)
+                                                    show_checkbox=false
+                                                    is_selected=false
+                                                    on_toggle_select=Callback::new(move |_: (String, usize, bool, bool)| {})
+                                                    on_copy=Callback::new(do_copy)
+                                                    on_move=Callback::new(do_move)
+                                                    on_rename=Callback::new(do_rename)
+                                                    is_locked=lk
+                                                    lock_owner=lo
+                                                    lock_expires=le
+                                                />
+                                            }
+                                        }
+                                    </For>
+                                </tbody>
+                            </table>
+                        }.into_any()
                    }
                }}
            })}
@@ -1406,22 +1441,23 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                     <span class="text-xs text-gray-500">{t!("toolbar.select_all")}</span>
                                </div>
                            })}
-                           <GridView
-                               entries=all_entries
-                               on_navigate=grid_cb_navigate
-                               on_delete=grid_cb_delete
-                               on_download=grid_cb_download
-                               on_share=grid_cb_share
-                               on_preview=grid_cb_preview
-                               favorites=favorites_signal
-                               on_toggle_favorite=grid_cb_fav
-                               show_checkbox=select_mode.get()
-                               selected_paths=selected_paths_signal
-                               on_toggle_select=grid_cb_select
-                               on_copy=grid_cb_copy
-                               on_move=grid_cb_move
-                               locks=locks_state
-                           />
+                            <GridView
+                                entries=all_entries
+                                on_navigate=grid_cb_navigate
+                                on_delete=grid_cb_delete
+                                on_download=grid_cb_download
+                                on_share=grid_cb_share
+                                on_preview=grid_cb_preview
+                                favorites=favorites_signal
+                                on_toggle_favorite=grid_cb_fav
+                                show_checkbox=select_mode.get()
+                                selected_paths=selected_paths_signal
+                                on_toggle_select=grid_cb_select
+                                on_copy=grid_cb_copy
+                                on_move=grid_cb_move
+                                on_rename=grid_cb_rename
+                                locks=locks_state
+                            />
                        </div>
                    }.into_any(),
                    ViewMode::List => view! {
@@ -1456,28 +1492,29 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                             let entry_path = entry.path.clone();
                                             let sel_path = entry.path.clone();
                                             let (lk, lo, le) = get_lock_info(&entry.path);
-                                            view! {
-                                               <FileRow
-                                                   entry=entry
-                                                   on_navigate=Callback::new(navigate)
-                                                   on_delete=Callback::new(do_delete)
-                                                   on_download=Callback::new(do_download)
-                                                   on_share=Callback::new(do_share)
-                                                   on_preview=Callback::new(open_preview)
-                                                   is_favorited=is_fav(entry_path)
-                                                   on_toggle_favorite=Callback::new(do_toggle_favorite)
-                                                   show_checkbox=select_mode.get()
-                                                   is_selected=is_entry_selected(sel_path)
-                                                   on_toggle_select=Callback::new(move |(path, idx, shift, ctrl): (String, usize, bool, bool)| {
-                                                       toggle_select(path, idx, shift, ctrl);
-                                                   })
-                                                   on_copy=Callback::new(do_copy)
-                                                   on_move=Callback::new(do_move)
-                                                   is_locked=lk
-                                                   lock_owner=lo
-                                                   lock_expires=le
-                                               />
-                                           }
+                                             view! {
+                                                <FileRow
+                                                    entry=entry
+                                                    on_navigate=Callback::new(navigate)
+                                                    on_delete=Callback::new(do_delete)
+                                                    on_download=Callback::new(do_download)
+                                                    on_share=Callback::new(do_share)
+                                                    on_preview=Callback::new(open_preview)
+                                                    is_favorited=is_fav(entry_path)
+                                                    on_toggle_favorite=Callback::new(do_toggle_favorite)
+                                                    show_checkbox=select_mode.get()
+                                                    is_selected=is_entry_selected(sel_path)
+                                                    on_toggle_select=Callback::new(move |(path, idx, shift, ctrl): (String, usize, bool, bool)| {
+                                                        toggle_select(path, idx, shift, ctrl);
+                                                    })
+                                                    on_copy=Callback::new(do_copy)
+                                                    on_move=Callback::new(do_move)
+                                                    on_rename=Callback::new(do_rename)
+                                                    is_locked=lk
+                                                    lock_owner=lo
+                                                    lock_expires=le
+                                                />
+                                            }
                                        }
                                    </For>
                                </tbody>
@@ -1551,6 +1588,18 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 dest=copy_dest
                 set_dest=set_copy_dest
                 on_confirm=on_copy_confirm
+            />
+
+            // Rename dialog (extracted PathDialog component)
+            <PathDialog
+                 title=t!("common.rename")
+                 action_label=t!("common.rename")
+                open=show_rename_dialog
+                set_open=set_show_rename_dialog
+                source=rename_source
+                dest=rename_new_name
+                set_dest=set_rename_new_name
+                on_confirm=on_rename_confirm
             />
 
             // File preview modal

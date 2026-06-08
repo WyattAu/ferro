@@ -533,6 +533,39 @@ fn take_screenshot(output_path: String) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+async fn cmd_update_tray_tooltip(
+    app_handle: tauri::AppHandle,
+    #[allow(unused)] state: State<'_, DesktopState>,
+) -> Result<(), String> {
+    let mut tooltip = "Ferro - File Storage".to_string();
+
+    #[cfg(all(feature = "sync", feature = "tauri"))]
+    {
+        let sync_status = state.get_sync_status().await;
+        if sync_status.running {
+            if sync_status.paused {
+                tooltip = "Ferro - Sync Paused".to_string();
+            } else if let Some(ref err) = sync_status.error {
+                tooltip = format!("Ferro - Sync Error: {}", err);
+            } else if let Some(ref summary) = sync_status.last_summary {
+                tooltip = format!(
+                    "Ferro - Synced: {} up, {} down",
+                    summary.uploaded, summary.downloaded
+                );
+            } else {
+                tooltip = "Ferro - Syncing...".to_string();
+            }
+        }
+    }
+
+    if let Some(tray) = app_handle.tray_by_id("main") {
+        let _ = tray.set_tooltip(Some(&tooltip));
+    }
+
+    Ok(())
+}
+
 pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
     let config = DesktopConfig::default();
     let state = DesktopState::new(config);
@@ -570,6 +603,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             cmd_is_context_menu_registered,
             cmd_register_autostart,
             cmd_unregister_autostart,
+            cmd_update_tray_tooltip,
             list_directory,
             get_file,
             put_file,
@@ -582,6 +616,8 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
+            let open_folder =
+                MenuItem::with_id(app, "open_folder", "Open Folder", true, None::<&str>)?;
             let open_settings =
                 MenuItem::with_id(app, "open_settings", "Settings", true, None::<&str>)?;
             let separator = PredefinedMenuItem::separator(app)?;
@@ -612,6 +648,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     &pause_sync,
                     &resume_sync,
                     &separator,
+                    &open_folder,
                     &open_settings,
                     &separator,
                     &quit,
@@ -630,14 +667,24 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     &share_file,
                     &open_in_files,
                     &separator,
+                    &open_folder,
                     &open_settings,
                     &separator,
                     &quit,
                 ],
             )?;
             #[cfg(not(all(feature = "sync", feature = "tauri")))]
-            let menu =
-                Menu::with_items(app, &[&show, &separator, &open_settings, &separator, &quit])?;
+            let menu = Menu::with_items(
+                app,
+                &[
+                    &show,
+                    &separator,
+                    &open_folder,
+                    &open_settings,
+                    &separator,
+                    &quit,
+                ],
+            )?;
 
             let tray = TrayIconBuilder::new()
                 .icon(
@@ -657,6 +704,16 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                             let _ = window.set_focus();
                         }
                     }
+                    "open_folder" => {
+                        let state = app.state::<DesktopState>();
+                        let handle = app.clone();
+                        tokio::spawn(async move {
+                            let config = state.config.read().await;
+                            let mount_point = config.mount_point.display().to_string();
+                            drop(config);
+                            let _ = crate::gui::cmd_open_path(mount_point).await;
+                        });
+                    }
                     "open_settings" => {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
@@ -673,17 +730,27 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                             if let Err(e) = state.sync_now().await {
                                 tracing::error!("manual sync failed: {}", e);
                             }
+                            // Update tray tooltip after sync
+                            let _ = cmd_update_tray_tooltip(handle.clone(), handle.state()).await;
                         });
                     }
                     #[cfg(all(feature = "sync", feature = "tauri"))]
                     "pause_sync" => {
                         let state = app.state::<DesktopState>();
                         state.pause_sync();
+                        let handle = app.clone();
+                        tokio::spawn(async move {
+                            let _ = cmd_update_tray_tooltip(handle.clone(), handle.state()).await;
+                        });
                     }
                     #[cfg(all(feature = "sync", feature = "tauri"))]
                     "resume_sync" => {
                         let state = app.state::<DesktopState>();
                         state.resume_sync();
+                        let handle = app.clone();
+                        tokio::spawn(async move {
+                            let _ = cmd_update_tray_tooltip(handle.clone(), handle.state()).await;
+                        });
                     }
                     #[cfg(all(feature = "android", feature = "tauri"))]
                     "share_file" => {

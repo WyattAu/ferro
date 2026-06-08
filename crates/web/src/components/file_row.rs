@@ -20,6 +20,7 @@ pub fn FileRow(
     on_toggle_select: Callback<(String, usize, bool, bool)>,
     #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
+    #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
     #[prop(default = false)] is_locked: bool,
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
@@ -52,6 +53,7 @@ pub fn FileRow(
     let path_for_select = entry.path.clone();
     let path_for_copy = entry.path.clone();
     let path_for_move = entry.path.clone();
+    let path_for_rename = entry.path.clone();
     let name_for_download = entry.name.clone();
     let name_for_share = entry.name.clone();
     let name_for_delete = entry.name.clone();
@@ -234,6 +236,21 @@ pub fn FileRow(
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                         </svg>
                     </button>
+                    {(!entry.is_collection && !is_locked).then(|| view! {
+                        <button
+                            class="p-2 md:p-1.5 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                            attr:aria-label=format!("Rename {}", entry.name)
+                            title=t!("common.rename")
+                            on:click=move |ev| {
+                                ev.stop_propagation();
+                                on_rename.call(path_for_rename.clone());
+                            }
+                        >
+                            <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                    })}
                     {is_locked.then(|| view! {
                         <span class="text-xs text-red-500 font-medium px-2">{t!("common.locked")}</span>
                     })}
