@@ -49,6 +49,7 @@
   - [Federation Setup](./guides/federation.md)
   - [Office Suite Integration](./guides/office-suite.md)
   - [Platform Integration](./guides/platform-integration.md)
+  - [GUI Refactor Roadmap](./guides/gui-refactor-roadmap.md)
   - [Upgrade Guide](./guides/upgrade.md)
 
 ---
