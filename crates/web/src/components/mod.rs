@@ -30,6 +30,7 @@ pub mod scroll_sentinel;
 pub mod share_dialog;
 pub mod skeleton;
 pub mod theme_toggle;
+pub mod thumbnail;
 pub mod toast;
 pub mod tooltip;
 pub mod upload_dialog;

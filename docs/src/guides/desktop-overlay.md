@@ -1,0 +1,240 @@
+# Desktop Overlay Integration
+
+This guide covers the architecture and implementation of file manager overlay integrations for Ferro on desktop platforms.
+
+## Overview
+
+Ferro provides visual feedback in native file managers through overlay icons that display sync status directly in the file browser. This integration helps users understand the state of their synced files without opening the Ferro application.
+
+### Supported Platforms
+
+| Platform | Integration Method | Status |
+|----------|-------------------|--------|
+| macOS | Finder Sync Extension | Stub |
+| Windows | Explorer Shell Extension (COM) | Stub |
+| Linux | D-Bus Service + Icon Themes | Stub |
+
+## macOS Finder Sync Extension
+
+### Architecture
+
+The macOS integration uses Apple's **FileSync** framework to provide badge icons in Finder.
+
+```
+┌─────────────────────────────────────┐
+│         Finder.app                   │
+│  ┌───────────────────────────────┐  │
+│  │   Sync Extension (badge)      │  │
+│  └───────────┬───────────────────┘  │
+└──────────────┼──────────────────────┘
+               │ XPC / Shared Memory
+┌──────────────┴──────────────────────┐
+│      Ferro Desktop App              │
+│  ┌───────────────────────────────┐  │
+│  │   Sync Coordinator            │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+```
+
+### Implementation Details
+
+1. **Finder Sync Extension**: A separate process that communicates with Finder via the SyncExtension protocol
+2. **Badge Rendering**: Uses `FIFinderSyncProtocol` to set badge images on monitored paths
+3. **Context Menu Items**: Adds "Sync Now", "View in Ferro", and "Share" options to Finder's context menu
+4. **Toolbar Button**: Optional Finder toolbar button for quick sync operations
+
+### Configuration
+
+```rust
+FinderSyncConfig {
+    enable_badges: true,
+    enable_context_menu: true,
+    watched_paths: vec!["~/Documents".to_string()],
+    badge_style: BadgeStyle::Dot,  // Dot, Checkmark, Sync, or Cloud
+    show_progress: true,
+    enable_toolbar: false,
+    notifications: FinderNotificationConfig {
+        notify_on_sync_complete: true,
+        notify_on_error: true,
+        notify_on_share: true,
+        notification_sound: None,
+    },
+}
+```
+
+### Badge Styles
+
+- **Dot**: Simple colored indicator (green=synced, yellow=syncing, red=error)
+- **Checkmark**: Checkmark icon for fully synced items
+- **Sync**: Animated sync arrows during synchronization
+- **Cloud**: Cloud icon showing cloud sync status
+
+## Windows Explorer Overlay
+
+### Architecture
+
+The Windows integration uses a COM shell extension implementing the `IOverlayIdentifier` interface.
+
+```
+┌─────────────────────────────────────┐
+│         Explorer.exe                │
+│  ┌───────────────────────────────┐  │
+│  │   Shell Extension (COM)       │  │
+│  │   IOverlayIdentifier          │  │
+│  └───────────┬───────────────────┘  │
+└──────────────┼──────────────────────┘
+               │ COM / Named Pipes
+┌──────────────┴──────────────────────┐
+│      Ferro Desktop App              │
+│  ┌───────────────────────────────┐  │
+│  │   Sync Coordinator            │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+```
+
+### Implementation Details
+
+1. **Shell Extension DLL**: Registered in Windows Registry under `HKCR\CLSID`
+2. **Overlay Icons**: Custom `.ico` files displayed as overlays on file icons
+3. **Column Handler**: Adds sync status column to Explorer details view
+4. **Property Sheet**: Adds sync information tab to file properties
+
+### Configuration
+
+```rust
+ExplorerOverlayConfig {
+    enable_overlays: true,
+    enable_column_handler: true,
+    enable_property_sheet: true,
+    monitored_paths: vec![],
+    icon_set: OverlayIconSet {
+        synced_icon: "%LOCALAPPDATA%\\Ferro\\icons\\synced.ico".to_string(),
+        syncing_icon: "%LOCALAPPDATA%\\Ferro\\icons\\syncing.ico".to_string(),
+        error_icon: "%LOCALAPPDATA%\\Ferro\\icons\\error.ico".to_string(),
+        pending_icon: "%LOCALAPPDATA%\\Ferro\\icons\\pending.ico".to_string(),
+        shared_icon: "%LOCALAPPDATA%\\Ferro\\icons\\shared.ico".to_string(),
+    },
+    max_overlay_icons: 4,  // Windows limit is typically 15
+    enable_context_menu: true,
+    auto_start: true,
+    notify_explorer_restart: false,
+}
+```
+
+### Windows Limitations
+
+- Maximum 15 overlay icons can be registered system-wide
+- Overlay icons must be registered in `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers`
+- Explorer must be restarted for changes to take effect
+
+## Linux File Manager Integration
+
+### Architecture
+
+Linux integration uses D-Bus for file manager communication and standard icon themes.
+
+```
+┌─────────────────────────────────────┐
+│   Nautilus / Dolphin / Thunar       │
+│  ┌───────────────────────────────┐  │
+│  │   D-Bus Interface             │  │
+│  └───────────┬───────────────────┘  │
+└──────────────┼──────────────────────┘
+               │ D-Bus
+┌──────────────┴──────────────────────┐
+│      Ferro Desktop App              │
+│  ┌───────────────────────────────┐  │
+│  │   D-Bus Service               │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+```
+
+### Implementation Details
+
+1. **D-Bus Service**: Registers as `com.ferro.DesktopSync` on the session bus
+2. **Nautilus Extension**: Python/C extension for GNOME Files
+3. **Dolphin Service**: KDE service for Dolphin file manager
+4. **Thunar Actions**: Custom actions for XFCE file manager
+5. **Icon Theme**: Standard `ferro-sync` icon theme with overlay icons
+
+### Configuration
+
+```rust
+LinuxFilemanagerConfig {
+    enable_dbus_service: true,
+    enable_nautilus_extension: true,
+    enable_dolphin_service: true,
+    enable_thunar_actions: false,
+    icon_theme_name: "ferro-sync".to_string(),
+    watched_paths: vec![],
+    dbus_service_name: "com.ferro.DesktopSync".to_string(),
+    enable_notifications: true,
+}
+```
+
+### Supported File Managers
+
+| File Manager | Desktop Environment | Integration Method |
+|--------------|---------------------|-------------------|
+| Nautilus | GNOME | Nautilus Extension (Python) |
+| Dolphin | KDE | KDE Service (D-Bus) |
+| Thunar | XFCE | Custom Actions |
+| Nemo | Cinnamon | Nautilus Extension (fork) |
+| Caja | MATE | Nautilus Extension (fork) |
+
+## Configuration Options
+
+### Global Settings
+
+```rust
+OverlayGlobalConfig {
+    auto_enable: true,           // Enable overlay on first run
+    synced_only: true,           // Only show for synced folders
+    min_update_interval_ms: 500, // Prevent icon flicker
+    debug_logging: false,        // Log overlay operations
+}
+```
+
+### Sync Status Badges
+
+The overlay system displays the following sync states:
+
+| Status | Description | Badge |
+|--------|-------------|-------|
+| Synced | File is fully synchronized | Green checkmark |
+| Syncing | File is currently syncing | Yellow arrows |
+| Conflict | File has sync conflicts | Red warning |
+| Error | Sync error occurred | Red X |
+| Pending | File is queued for sync | Gray clock |
+| Excluded | File is not being synced | No badge |
+
+## Platform-Specific Implementation Notes
+
+### macOS
+
+- Requires `com.apple.developer.filesync` entitlement for Finder Sync Extension
+- Extension runs in a separate process sandbox
+- Badge images must be provided as `NSImage` resources
+- XPC used for inter-process communication
+
+### Windows
+
+- Shell extension must be registered in both 32-bit and 64-bit registry views
+- Overlay icons should be 16x16 or 32x32 pixels
+- COM apartment threading model must be `Both`
+- Consider using `IShellFolderOverlay` for folder-specific overlays
+
+### Linux
+
+- D-Bus service must be registered in `~/.local/share/dbus-1/services/`
+- Icon theme must be installed in `~/.local/share/icons/`
+- Nautilus extension requires Python 3 and `gi.repository.Nautilus`
+- Consider using `org.freedesktop.Notifications` for user notifications
+
+## Future Enhancements
+
+1. **Real-time Sync Progress**: Show detailed sync progress in overlay
+2. **Conflict Resolution UI**: Quick conflict resolution from file manager
+3. **Version History**: Quick access to file version history
+4. **Share Management**: Manage sharing permissions from overlay
+5. **Storage Usage**: Display storage quota usage in overlay

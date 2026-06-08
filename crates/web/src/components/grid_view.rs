@@ -1,7 +1,7 @@
 use leptos::*;
 
 use crate::api::{FileEntry, LockInfo};
-use crate::components::file_icon::{FileIcon, FileType, file_type_from_extension};
+use crate::components::thumbnail::Thumbnail;
 use crate::t;
 use ferro_common::format::format_size;
 
@@ -23,16 +23,11 @@ pub fn GridCard(
     #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
+    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(String, bool)>,
     #[prop(default = false)] is_locked: bool,
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
 ) -> impl IntoView {
-    let file_type = if entry.is_collection {
-        FileType::Folder
-    } else {
-        file_type_from_extension(&entry.name)
-    };
-
     let size_str = if entry.is_collection {
         "--".to_string()
     } else {
@@ -53,18 +48,17 @@ pub fn GridCard(
     let path_for_move = entry.path.clone();
     let path_for_rename = entry.path.clone();
     let path_for_delete = entry.path.clone();
-    let path_for_thumbnail = entry.path.clone();
     let name_for_actions = entry.name.clone();
-    let name_for_thumb = entry.name.clone();
     let entry_name = entry.name.clone();
     let entry_is_collection = entry.is_collection;
     let entry_index = index;
-    let show_thumb = !entry_is_collection && file_type == FileType::Image;
 
     let path_for_click = entry.path.clone();
     let path_for_keydown = entry.path.clone();
     let path_for_preview_click = entry.path.clone();
     let path_for_preview_keydown = entry.path.clone();
+    let drag_path = entry.path.clone();
+    let folder_drop_path = entry.path.clone();
 
     let handle_click = move |_: ev::MouseEvent| {
         if entry_is_collection {
@@ -133,6 +127,61 @@ pub fn GridCard(
         on_delete.call(path_for_delete.clone());
     };
 
+    // Drag-and-drop handlers for inter-folder moves
+    let handle_drag_start = move |ev: ev::DragEvent| {
+        ev.stop_propagation();
+        if let Some(data_transfer) = ev.data_transfer() {
+            let _ = data_transfer.set_data("text/plain", &drag_path);
+            let _ = data_transfer.set_data(
+                "application/x-ferro-file",
+                &serde_json::json!({
+                    "path": drag_path,
+                    "is_collection": entry_is_collection,
+                }).to_string(),
+            );
+            data_transfer.set_drop_effect("move");
+        }
+    };
+
+    let (folder_hovering, set_folder_hovering) = create_signal(false);
+
+    let handle_folder_drag_over = move |ev: ev::DragEvent| {
+        if !entry_is_collection || is_locked {
+            return;
+        }
+        ev.prevent_default();
+        ev.stop_propagation();
+        if let Some(dt) = ev.data_transfer() {
+            dt.set_drop_effect(if ev.ctrl_key() { "copy" } else { "move" });
+        }
+        set_folder_hovering.set(true);
+    };
+
+    let handle_folder_drag_leave = move |ev: ev::DragEvent| {
+        ev.stop_propagation();
+        set_folder_hovering.set(false);
+    };
+
+    let handle_folder_drop = move |ev: ev::DragEvent| {
+        ev.prevent_default();
+        ev.stop_propagation();
+        set_folder_hovering.set(false);
+        if !entry_is_collection || is_locked {
+            return;
+        }
+        let is_copy = ev.ctrl_key();
+        if let Some(dt) = ev.data_transfer()
+            && let Ok(source) = dt.get_data("text/plain")
+            && !source.is_empty() && source != folder_drop_path
+        {
+            on_drop_on_folder.call((source, is_copy));
+        }
+    };
+
+    let handle_folder_drag_end = move |_: ev::DragEvent| {
+        set_folder_hovering.set(false);
+    };
+
     let lock_tooltip = if is_locked && !lock_owner.is_empty() {
         format!("Locked by {} until {}", lock_owner, lock_expires)
     } else if is_locked {
@@ -143,15 +192,49 @@ pub fn GridCard(
 
     view! {
         <div
-            class=move || format!(
-                "group relative surface brutal-border rounded-xl p-3 sm:p-4 cursor-pointer transition-all duration-200 hover:shadow-xl hover:border-blue-400 {}",
-                if is_selected { "border-blue-500 dark:border-blue-400 ring-2 ring-200" } else { "" }
-            )
+            class=move || {
+                let base = format!(
+                    "group relative surface brutal-border rounded-xl p-3 sm:p-4 cursor-pointer transition-all duration-200 hover:shadow-xl hover:border-blue-400 {}",
+                    if is_selected { "border-blue-500 dark:border-blue-400 ring-2 ring-200" } else { "" }
+                );
+                if entry_is_collection && folder_hovering.get() {
+                    format!("{} ring-2 ring-blue-400 border-blue-400 bg-blue-50 dark:bg-blue-900/30 scale-[1.02]", base)
+                } else if entry_is_collection {
+                    format!("{} hover:ring-1 hover:ring-blue-200", base)
+                } else {
+                    base
+                }
+            }
+            class=("ring-2", move || entry_is_collection && folder_hovering.get())
+            class=("ring-blue-400", move || entry_is_collection && folder_hovering.get())
+            class=("border-blue-400", move || entry_is_collection && folder_hovering.get())
             role="gridcell"
             tabindex="0"
+            draggable=move || !entry_is_collection && !is_locked
+            on:dragstart=move |ev| {
+                if !entry_is_collection && !is_locked {
+                    handle_drag_start(ev);
+                }
+            }
             on:click=handle_click
             on:keydown=handle_keydown
             on:contextmenu=handle_context_menu
+            on:dragover=move |ev| {
+                if entry_is_collection {
+                    handle_folder_drag_over(ev);
+                }
+            }
+            on:dragleave=move |ev| {
+                if entry_is_collection {
+                    handle_folder_drag_leave(ev);
+                }
+            }
+            on:drop=move |ev| {
+                if entry_is_collection {
+                    handle_folder_drop(ev);
+                }
+            }
+            on:dragend=handle_folder_drag_end
         >
             {show_checkbox.then(|| view! {
                 <div class="absolute top-2 left-2 z-10">
@@ -179,14 +262,11 @@ pub fn GridCard(
 
             <div class="flex flex-col items-center text-center pt-2 sm:pt-4 pb-2">
                 <div class="relative mb-2 sm:mb-3">
-                    <Show when=move || show_thumb fallback=move || view! { <FileIcon file_type=file_type large=true /> }>
-                        <img
-                            class="w-10 h-10 rounded object-cover"
-                            src=format!("/api/thumbnail{}", path_for_thumbnail)
-                            alt=name_for_thumb.clone()
-                            loading="lazy"
-                        />
-                    </Show>
+                    <Thumbnail
+                        path=entry.path.clone()
+                        name=entry.name.clone()
+                        size=40
+                    />
                     {is_locked.then(|| view! {
                         <span class="absolute -bottom-1 -right-1">
                             <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" title=lock_tooltip.clone()>
@@ -299,6 +379,7 @@ pub fn GridView(
     on_copy: Callback<String>,
     on_move: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
+    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(String, bool)>,
     locks: ReadSignal<std::collections::HashMap<String, LockInfo>>,
 ) -> impl IntoView {
     let entries_for_each = entries;
@@ -362,6 +443,7 @@ pub fn GridView(
                             on_copy=on_copy
                             on_move=on_move
                             on_rename=on_rename
+                            on_drop_on_folder=on_drop_on_folder
                             is_locked=li().0
                             lock_owner=li().1
                             lock_expires=li().2

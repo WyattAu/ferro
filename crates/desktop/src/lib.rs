@@ -3,6 +3,7 @@ pub mod config;
 #[cfg(target_os = "macos")]
 pub mod macos_integration;
 pub mod mount;
+pub mod overlay;
 pub mod rclone;
 pub mod shell_integration;
 pub mod tauri_commands;

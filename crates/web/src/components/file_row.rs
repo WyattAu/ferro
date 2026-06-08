@@ -21,6 +21,7 @@ pub fn FileRow(
     #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
+    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(String, bool)>,
     #[prop(default = false)] is_locked: bool,
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
@@ -54,6 +55,9 @@ pub fn FileRow(
     let path_for_copy = entry.path.clone();
     let path_for_move = entry.path.clone();
     let path_for_rename = entry.path.clone();
+    let drag_path_row = entry.path.clone();
+    let folder_drop_path_row = entry.path.clone();
+    let path_for_click = entry.path.clone();
     let name_for_download = entry.name.clone();
     let name_for_share = entry.name.clone();
     let name_for_delete = entry.name.clone();
@@ -63,7 +67,7 @@ pub fn FileRow(
 
     let handle_click = move |_: ev::MouseEvent| {
         if entry.is_collection {
-            on_navigate.call(entry.path.clone());
+            on_navigate.call(path_for_click.clone());
         } else {
             on_preview.call(path_for_preview.clone());
         }
@@ -91,6 +95,61 @@ pub fn FileRow(
     let entry_size = size.clone();
     let entry_is_collection = entry.is_collection;
 
+    // Drag-and-drop handlers
+    let (folder_hovering, set_folder_hovering) = create_signal(false);
+
+    let handle_drag_start = move |ev: ev::DragEvent| {
+        ev.stop_propagation();
+        if let Some(data_transfer) = ev.data_transfer() {
+            let _ = data_transfer.set_data("text/plain", &drag_path_row);
+            let _ = data_transfer.set_data(
+                "application/x-ferro-file",
+                &serde_json::json!({
+                    "path": drag_path_row,
+                    "is_collection": entry_is_collection,
+                }).to_string(),
+            );
+            data_transfer.set_drop_effect("move");
+        }
+    };
+
+    let handle_folder_drag_over = move |ev: ev::DragEvent| {
+        if !entry_is_collection || is_locked {
+            return;
+        }
+        ev.prevent_default();
+        ev.stop_propagation();
+        if let Some(dt) = ev.data_transfer() {
+            dt.set_drop_effect(if ev.ctrl_key() { "copy" } else { "move" });
+        }
+        set_folder_hovering.set(true);
+    };
+
+    let handle_folder_drag_leave = move |ev: ev::DragEvent| {
+        ev.stop_propagation();
+        set_folder_hovering.set(false);
+    };
+
+    let handle_folder_drop = move |ev: ev::DragEvent| {
+        ev.prevent_default();
+        ev.stop_propagation();
+        set_folder_hovering.set(false);
+        if !entry_is_collection || is_locked {
+            return;
+        }
+        let is_copy = ev.ctrl_key();
+        if let Some(dt) = ev.data_transfer()
+            && let Ok(source) = dt.get_data("text/plain")
+            && !source.is_empty() && source != folder_drop_path_row
+        {
+            on_drop_on_folder.call((source, is_copy));
+        }
+    };
+
+    let handle_drag_end = move |_: ev::DragEvent| {
+        set_folder_hovering.set(false);
+    };
+
     let lock_tooltip = if is_locked && !lock_owner.is_empty() {
         format!("Locked by {} until {}", lock_owner, lock_expires)
     } else if is_locked {
@@ -102,11 +161,34 @@ pub fn FileRow(
     view! {
         <tr
             class=move || format!(
-                "border-b border-gray-100 md:group cursor-pointer transition-colors {} {} block md:table-row mb-2 md:mb-0 px-3 py-2 md:px-0 md:py-0 rounded md:rounded-none mx-2 md:mx-0 md:border-0 md:first:border-t-0",
+                "border-b border-gray-100 md:group cursor-pointer transition-colors {} {} block md:table-row mb-2 md:mb-0 px-3 py-2 md:px-0 md:py-0 rounded md:rounded-none mx-2 md:mx-0 md:border-0 md:first:border-t-0 {}",
                 if is_selected { "bg-blue-50 dark:bg-blue-900/20" } else { "hover:bg-gray-50 md:hover:bg-gray-50" },
-                if show_checkbox { "select-none" } else { "" }
+                if show_checkbox { "select-none" } else { "" },
+                if entry_is_collection && folder_hovering.get() { "ring-2 ring-blue-400 border-blue-400 bg-blue-50 dark:bg-blue-900/30" } else { "" }
             )
             role="row"
+            draggable=move || !entry_is_collection && !is_locked
+            on:dragstart=move |ev| {
+                if !entry_is_collection && !is_locked {
+                    handle_drag_start(ev);
+                }
+            }
+            on:dragover=move |ev| {
+                if entry_is_collection {
+                    handle_folder_drag_over(ev);
+                }
+            }
+            on:dragleave=move |ev| {
+                if entry_is_collection {
+                    handle_folder_drag_leave(ev);
+                }
+            }
+            on:drop=move |ev| {
+                if entry_is_collection {
+                    handle_folder_drop(ev);
+                }
+            }
+            on:dragend=handle_drag_end
             on:click=handle_click
         >
             <td class="hidden md:table-cell px-4 py-2.5" role="gridcell" hidden=move || !show_checkbox>

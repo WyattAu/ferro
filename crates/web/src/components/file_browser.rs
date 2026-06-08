@@ -1018,6 +1018,40 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let on_created = Callback::new(move |_: ()| reload());
     let on_uploaded = Callback::new(move |_: ()| reload());
 
+    // Handle drag-and-drop file move/copy between folders
+    let do_drop_on_folder = move |(source_path, is_copy): (String, bool)| {
+        let file_name = source_path.rsplit('/').next().unwrap_or("").to_string();
+        let dest_path = current_path.get();
+        let dest = if dest_path == "/" {
+            format!("/{}", file_name)
+        } else {
+            format!("{}/{}", dest_path, file_name)
+        };
+        if is_copy {
+            let s = source_path.clone();
+            spawn_local(async move {
+                match api::copy_file(&s, &dest).await {
+                    Ok(()) => {
+                        ToastContext::success(format!("Copied {} to {}", file_name, dest));
+                        reload();
+                    }
+                    Err(e) => ToastContext::error(format!("Copy failed: {}", e)),
+                }
+            });
+        } else {
+            let s = source_path;
+            spawn_local(async move {
+                match api::move_file(&s, &dest).await {
+                    Ok(()) => {
+                        ToastContext::success(format!("Moved {} to {}", file_name, dest));
+                        reload();
+                    }
+                    Err(e) => ToastContext::error(format!("Move failed: {}", e)),
+                }
+            });
+        }
+    };
+
     let grid_cb_navigate = Callback::new(navigate);
     let grid_cb_delete = Callback::new(do_delete);
     let grid_cb_download = Callback::new(do_download);
@@ -1032,6 +1066,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let grid_cb_copy = Callback::new(do_copy);
     let grid_cb_move = Callback::new(do_move);
     let grid_cb_rename = Callback::new(do_rename);
+    let grid_cb_drop = Callback::new(do_drop_on_folder);
 
     view! {
        <div
@@ -1340,6 +1375,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                                     on_copy=Callback::new(do_copy)
                                                     on_move=Callback::new(do_move)
                                                     on_rename=Callback::new(do_rename)
+                                                    on_drop_on_folder=Callback::new(do_drop_on_folder)
                                                     is_locked=lk
                                                     lock_owner=lo
                                                     lock_expires=le
@@ -1395,7 +1431,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                        {
                                            let entry_path = entry.path.clone();
                                            let (lk, lo, le) = get_lock_info(&entry_path);
-                                            view! {
+                                             view! {
                                                 <FileRow
                                                     entry=entry
                                                     on_navigate=Callback::new(navigate)
@@ -1411,6 +1447,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                                     on_copy=Callback::new(do_copy)
                                                     on_move=Callback::new(do_move)
                                                     on_rename=Callback::new(do_rename)
+                                                    on_drop_on_folder=Callback::new(do_drop_on_folder)
                                                     is_locked=lk
                                                     lock_owner=lo
                                                     lock_expires=le
@@ -1456,6 +1493,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                 on_copy=grid_cb_copy
                                 on_move=grid_cb_move
                                 on_rename=grid_cb_rename
+                                on_drop_on_folder=grid_cb_drop
                                 locks=locks_state
                             />
                        </div>
@@ -1510,6 +1548,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                                     on_copy=Callback::new(do_copy)
                                                     on_move=Callback::new(do_move)
                                                     on_rename=Callback::new(do_rename)
+                                                    on_drop_on_folder=Callback::new(do_drop_on_folder)
                                                     is_locked=lk
                                                     lock_owner=lo
                                                     lock_expires=le
