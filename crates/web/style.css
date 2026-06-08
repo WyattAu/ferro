@@ -747,6 +747,56 @@ html.dark, .dark {
     .dark .hidden\:md\:table-header-group { display: table-header-group !important; }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   THEME TRANSITIONS
+   ═══════════════════════════════════════════════════════════ */
+html, body, #app {
+    color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+    html:not(.light), html:not(.light) body, html:not(.light) #app {
+        color-scheme: dark;
+    }
+}
+html.dark, html.dark body, html.dark #app {
+    color-scheme: dark;
+}
+
+html,
+html body,
+html #app,
+.surface,
+.surface-dark,
+.brutal-block,
+.brutal-border,
+input[type="text"],
+input[type="password"],
+select,
+th,
+td,
+button {
+    transition:
+        background-color 0.3s ease,
+        color 0.3s ease,
+        border-color 0.3s ease,
+        box-shadow 0.3s ease;
+}
+
+/* ── Progress bar animation for toast ── */
+@keyframes toast-progress {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+.toast-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: currentColor;
+    opacity: 0.4;
+    animation: toast-progress 5s linear forwards;
+}
+
 /* ── Reduced Motion ── */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -754,5 +804,9 @@ html.dark, .dark {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+    .toast-progress-bar {
+        animation: none;
+        width: 0%;
     }
 }

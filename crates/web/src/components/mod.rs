@@ -14,6 +14,7 @@ pub mod file_row;
 pub mod focus_trap;
 pub mod grid_view;
 pub mod header;
+pub mod keyboard_shortcuts;
 pub mod new_folder_dialog;
 pub mod onboarding;
 pub mod path_dialog;

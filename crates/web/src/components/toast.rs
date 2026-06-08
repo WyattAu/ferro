@@ -91,9 +91,23 @@ pub fn ProvideToastContext(children: Children) -> impl IntoView {
         });
     });
 
+    #[cfg(target_arch = "wasm32")]
+    {
+        let dismiss_clone = dismiss;
+        let toasts_clone = toasts;
+        leptos::ev::document_event_listener(leptos::ev::keydown, move |ev: web_sys::KeyboardEvent| {
+            if ev.key() == "Escape" {
+                let current = toasts_clone.get();
+                if let Some(last) = current.last() {
+                    dismiss_clone.call(last.id);
+                }
+            }
+        });
+    }
+
     view! {
         {children()}
-        <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none" role="region" aria-label={t!("toast.aria_notifications")}>
+        <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none" role="status" aria-label={t!("toast.aria_notifications")}>
             <For
                 each=move || toasts.get()
                 key=|t| t.id
@@ -183,10 +197,24 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
         }
     });
 
+    #[cfg(target_arch = "wasm32")]
+    {
+        let on_dismiss_esc = on_dismiss;
+        let dismissed_esc = set_dismissed;
+        let visible_esc = set_visible;
+        leptos::ev::document_event_listener(leptos::ev::keydown, move |ev: web_sys::KeyboardEvent| {
+            if ev.key() == "Escape" {
+                dismissed_esc.set(true);
+                visible_esc.set(false);
+                on_dismiss_esc.call(());
+            }
+        });
+    }
+
     view! {
         <div
             class=move || format!(
-                "pointer-events-auto brutal-border surface shadow-iron px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-in-out rounded-sm {} {}",
+                "pointer-events-auto brutal-border surface shadow-iron px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-in-out rounded-sm relative overflow-hidden {} {}",
                 bg_class,
                 if dismissed.get() { "opacity-0 -translate-x-full scale-95" } else { "opacity-100 translate-x-0 scale-100" }
             )
@@ -205,6 +233,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
+            <div class="toast-progress-bar" aria-hidden="true"></div>
         </div>
     }
 }
