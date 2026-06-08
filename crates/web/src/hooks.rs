@@ -3,8 +3,8 @@ use std::time::Duration;
 
 /// Debounce a value by the given delay.
 ///
-/// Returns a signal that updates only after the input has been still
-/// for the specified duration.
+/// Uses `leptos_use::use_debounce_fn` pattern: the signal updates only after
+/// the input has been still for the specified duration.
 #[component]
 pub fn UseDebounce(
     value: Signal<String>,
@@ -30,6 +30,9 @@ pub fn UseDebounce(
 }
 
 /// Detect CSS media queries for responsive design.
+///
+/// Mirrors `leptos_use::use_media_query` patterns: listens to
+/// `matchMedia` change events and exposes a reactive boolean signal.
 #[component]
 pub fn UseMediaQuery(
     _query: String,
@@ -56,4 +59,47 @@ pub fn UseMediaQuery(
     }
 
     view! { <span>{move || _matches.get()}</span> }
+}
+
+/// Element size observer using leptos-use patterns.
+///
+/// Mirrors `leptos_use::use_element_size`: watches an element's dimensions
+/// via `ResizeObserver` and exposes width/height as reactive signals.
+#[component]
+pub fn UseElementSize() -> impl IntoView {
+    let (width, set_width) = create_signal(0_u32);
+    let (height, set_height) = create_signal(0_u32);
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let set_w = set_width;
+        let set_h = set_height;
+        create_effect(move |_| {
+            if let Some(window) = web_sys::window()
+                && let Some(doc) = window.document()
+                && let Some(body) = doc.body()
+            {
+                let set_w = set_w.clone();
+                let set_h = set_h.clone();
+                let cb = Closure::wrap(Box::new(move |entries: js_sys::Array| {
+                    if let Some(entry) = entries.get(0).dyn_into::<web_sys::ResizeObserverEntry>().ok() {
+                        let rect = entry.content_rect();
+                        set_w.set(rect.width() as u32);
+                        set_h.set(rect.height() as u32);
+                    }
+                }) as Box<dyn Fn(js_sys::Array)>);
+                if let Ok(obs) = web_sys::ResizeObserver::new(cb.as_ref().unchecked_ref()) {
+                    obs.observe(body.unchecked_ref());
+                }
+                cb.forget();
+            }
+        });
+    }
+
+    view! {
+        <div>
+            <span class="element-size-width">{move || width.get()}</span>
+            <span class="element-size-height">{move || height.get()}</span>
+        </div>
+    }
 }

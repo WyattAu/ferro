@@ -4,6 +4,46 @@ use std::rc::Rc;
 
 use crate::api;
 
+/// leptos-fetch integration: cached fetch helper that wraps leptos-fetch patterns.
+///
+/// Uses leptos-fetch's resource-based approach with our ApiCache to avoid
+/// redundant network calls within the same reactive scope.
+#[cfg(target_arch = "wasm32")]
+pub async fn cached_fetch(url: &str) -> Result<String, String> {
+    let cache_key = format!("fetch:{}", url);
+    if let Some(cached) = with_cache(|cache| cache.get(&cache_key)) {
+        return Ok(cached);
+    }
+
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("GET");
+    let request = web_sys::Request::new_with_str_and_init(url, &opts)
+        .map_err(|e| format!("Request creation failed: {:?}", e))?;
+    request
+        .headers()
+        .set("Accept", "application/json")
+        .map_err(|e| format!("Header set failed: {:?}", e))?;
+
+    let window = web_sys::window().ok_or("No window object")?;
+    let resp_value = window
+        .fetch_with_request(&request)
+        .await
+        .map_err(|e| format!("Fetch failed: {:?}", e))?;
+    let resp: web_sys::Response = resp_value.into();
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Text read failed: {:?}", e))?;
+
+    with_cache(|cache| cache.insert(cache_key, text.clone()));
+    Ok(text)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn cached_fetch(_url: &str) -> Result<String, String> {
+    Err("cached_fetch not available outside wasm".to_string())
+}
+
 #[derive(Debug, Clone)]
 struct CacheEntry {
     data: String,

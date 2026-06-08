@@ -76,6 +76,7 @@ zeroize = "1"
 x25519-dalek = "2"
 tonic = "0.14"
 prost = "0.14"
+kuchikiki = "=0.8.8-speedreader"
 
 [profile.release]
 strip = true

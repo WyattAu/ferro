@@ -4,6 +4,7 @@ use leptos::*;
 ///
 /// Follows the leptix pattern: wraps a native `<button>` with consistent
 /// styling, focus management, and accessibility attributes.
+/// See: https://docs.rs/leptix for the upstream component library patterns.
 #[component]
 pub fn Button(
     /// Button variant.
@@ -104,6 +105,7 @@ pub enum ButtonSize {
 ///
 /// Wraps a native `<input>` with a visually hidden or visible `<label>`,
 /// proper `id`/`for` association, and error/description support.
+/// Pattern inspired by leptix's `<TextField>` and `<NumberField>` primitives.
 #[component]
 pub fn Input(
     /// Unique ID for the input (used to associate label).

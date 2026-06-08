@@ -5,6 +5,18 @@ use crate::components::badge::{Badge, BadgeVariant};
 use crate::components::modal::Modal;
 use crate::state::format_timestamp;
 
+/// User row type for leptos-struct-table integration.
+///
+/// When migrating to leptos-struct-table, derive `TableRow` on this struct
+/// and use `<Table rows=users />` instead of manual `<table>` rendering.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct UserRow {
+    pub username: String,
+    pub role: String,
+    pub created_at: String,
+    pub last_login: String,
+}
+
 #[component]
 pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
     let (users, set_users) = create_signal(Vec::<serde_json::Value>::new());
@@ -118,6 +130,9 @@ pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
                 {move || loading.get().then(|| view! { <div class="loading" role="status">"Loading users..."</div> })}
             </div>
 
+            // NOTE: When leptos-struct-table is wired up, replace the manual
+            // <table> below with: `<Table rows=filtered_users columns=columns />`
+            // using leptos_struct_table::Table and derive(TableRow) on UserRow.
             <div class="table-wrapper">
                 <table class="data-table" aria-label="User management table">
                     <thead><tr><th scope="col">"Username"</th><th scope="col">"Role"</th><th scope="col">"Created"</th><th scope="col">"Last Login"</th><th scope="col">"Actions"</th></tr></thead>

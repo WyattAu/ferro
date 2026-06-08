@@ -1,6 +1,10 @@
 use leptos::*;
 
 /// Predefined icon variants following the lepticons pattern.
+///
+/// When lepticons is available as a dependency, prefer using its
+/// `Icon` component with `lepticons::IconName` variants directly.
+/// This enum mirrors the common subset for standalone usage.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum IconName {
     File,
@@ -119,6 +123,8 @@ fn icon_path(name: IconName) -> (&'static str, &'static str) {
 ///
 /// Renders a 24x24 SVG icon from a predefined set.
 /// All icons use `stroke` rendering (except Folder which uses fill).
+/// Compatible with lepticons icon sizing (`w-5 h-5` default) and
+/// supports the lepticons `decorative`/`label` accessibility pattern.
 #[component]
 pub fn Icon(
     /// Which icon to render.
