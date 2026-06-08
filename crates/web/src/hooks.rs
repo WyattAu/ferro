@@ -67,7 +67,9 @@ pub fn UseMediaQuery(
 /// via `ResizeObserver` and exposes width/height as reactive signals.
 #[component]
 pub fn UseElementSize() -> impl IntoView {
+    #[allow(unused_variables)]
     let (width, set_width) = create_signal(0_u32);
+    #[allow(unused_variables)]
     let (height, set_height) = create_signal(0_u32);
 
     #[cfg(target_arch = "wasm32")]

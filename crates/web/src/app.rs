@@ -5,6 +5,7 @@ use crate::api::BrandingConfig;
 use crate::auth;
 use crate::components::error_boundary::ErrorBoundary;
 use crate::components::onboarding::OnboardingOverlay;
+use crate::components::setup_wizard::SetupWizard;
 use crate::components::toast::ProvideToastContext;
 use crate::i18n::{I18nCtx, Locale};
 use crate::pages::admin::AdminPage;
@@ -115,6 +116,7 @@ pub fn App() -> impl IntoView {
                 </Router>
             </ProvideToastContext>
             <OnboardingOverlay />
+            <SetupWizard />
         </ErrorBoundary>
     }
 }

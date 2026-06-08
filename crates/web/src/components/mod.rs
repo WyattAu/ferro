@@ -23,6 +23,8 @@ pub mod keyboard_shortcuts;
 pub mod new_folder_dialog;
 pub mod onboarding;
 pub mod path_dialog;
+pub mod sample_files;
+pub mod setup_wizard;
 pub mod primitives;
 pub mod scroll_sentinel;
 pub mod share_dialog;

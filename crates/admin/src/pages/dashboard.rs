@@ -2,7 +2,7 @@ use leptos::*;
 
 use crate::api::ApiState;
 use crate::components::badge::{Badge, BadgeVariant};
-use crate::components::chart::BarChart;
+use crate::components::chart::{BarChart, LineChart, PieChart};
 use crate::components::stats_card::StatsCard;
 use crate::state::{format_bytes, format_timestamp, format_uptime};
 
@@ -14,6 +14,7 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
     let (health, set_health) = create_signal(None::<serde_json::Value>);
     let (error, set_error) = create_signal(None::<String>);
     let (loading, set_loading) = create_signal(true);
+    let (users, set_users) = create_signal(Vec::<serde_json::Value>::new());
 
     create_effect(move |_| {
         let api_clone = api.get_untracked();
@@ -34,6 +35,9 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
             }
             if let Ok(h) = api_clone.server_health().await {
                 set_health.set(Some(h))
+            }
+            if let Ok(u) = api_clone.list_users().await {
+                set_users.set(u);
             }
             set_loading.set(false);
         });
@@ -71,20 +75,51 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
 
             {move || {
                 let s = storage.get()?;
+                let total_bytes = s.get("total_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+                let total_capacity = s.get("total_capacity").and_then(|v| v.as_u64()).unwrap_or(0);
+                let free_bytes = total_capacity.saturating_sub(total_bytes);
+
+                let pie_data = vec![
+                    ("Used".to_string(), total_bytes as f64),
+                    ("Free".to_string(), free_bytes as f64),
+                ];
+
                 let recent = s.get("recent_files").and_then(|f| f.as_array()).cloned().unwrap_or_default();
-                let mut chart_data: Vec<(String, f64)> = recent.iter().take(8).map(|f| {
-                    let name = f.get("path").and_then(|p| p.as_str()).unwrap_or("?").rsplit('/').next().unwrap_or("?").chars().take(12).collect();
+
+                let mut file_type_map: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+                for f in &recent {
+                    let path = f.get("path").and_then(|p| p.as_str()).unwrap_or("");
                     let size = f.get("size").and_then(|sz| sz.as_f64()).unwrap_or(0.0);
-                    (name, size)
-                }).collect();
-                chart_data.reverse();
+                    let ext = path.rsplit('.').next().unwrap_or("other").to_uppercase();
+                    let category = match ext.as_str() {
+                        "PDF" | "DOC" | "DOCX" | "TXT" | "CSV" | "XLS" | "XLSX" | "PPT" | "PPTX" => "Documents",
+                        "JPG" | "JPEG" | "PNG" | "GIF" | "RAW" | "HEIC" | "SVG" => "Images",
+                        "MP4" | "MOV" | "AVI" | "MKV" | "WEBM" => "Video",
+                        "MP3" | "FLAC" | "WAV" | "OGG" | "AAC" => "Audio",
+                        "ZIP" | "TAR" | "GZ" | "7Z" | "RAR" => "Archives",
+                        _ => "Other",
+                    };
+                    *file_type_map.entry(category.to_string()).or_insert(0.0) += size;
+                }
+                let mut type_data: Vec<(String, f64)> = file_type_map.into_iter().collect();
+                type_data.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                type_data.truncate(6);
+
                 Some(view! {
                     <div class="dashboard-panels">
+                        // Storage usage pie chart
                         <div class="panel surface">
-                            <h2 class="panel-title font-display">"Storage by Recent Files"</h2>
-                            <BarChart data=chart_data title="".to_string() color="#E85D04".to_string() />
+                            <h2 class="panel-title font-display">"Storage Usage"</h2>
+                            <PieChart data=pie_data title="Used vs Free".to_string() />
                         </div>
 
+                        // File type distribution
+                        <div class="panel surface">
+                            <h2 class="panel-title font-display">"File Types"</h2>
+                            <BarChart data=type_data title="Storage by Type".to_string() color="#E85D04".to_string() />
+                        </div>
+
+                        // Activity line chart
                         <div class="panel surface">
                             <h2 class="panel-title font-display">"Recent Activity"</h2>
                             <div class="activity-list" aria-label="Recent activity list">
@@ -110,6 +145,113 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
                                     }
                                 }).collect::<Vec<_>>()}
                             </div>
+                        </div>
+
+                        // Upload/download activity line chart
+                        <div class="panel surface">
+                            <h2 class="panel-title font-display">"Activity Over Time"</h2>
+                            {move || {
+                                let entries = audit_entries.get();
+                                let mut uploads: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+                                let mut downloads: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+
+                                for entry in &entries {
+                                    let action = entry.get("action").and_then(|a| a.as_str()).unwrap_or("");
+                                    let timestamp = entry.get("timestamp").and_then(|t| t.as_str()).unwrap_or("");
+                                    let day = if timestamp.len() >= 10 {
+                                        &timestamp[..10]
+                                    } else {
+                                        "unknown"
+                                    };
+                                    match action {
+                                        "upload" | "create" => {
+                                            *uploads.entry(day.to_string()).or_insert(0.0) += 1.0;
+                                        }
+                                        "download" | "read" => {
+                                            *downloads.entry(day.to_string()).or_insert(0.0) += 1.0;
+                                        }
+                                        _ => {}
+                                    }
+                                }
+
+                                let mut all_days: Vec<String> = uploads.keys().chain(downloads.keys()).cloned().collect();
+                                all_days.sort();
+                                all_days.dedup();
+
+                                let upload_data: Vec<(String, f64)> = all_days.iter().map(|d| {
+                                    (d[5..].to_string(), uploads.get(d).copied().unwrap_or(0.0))
+                                }).collect();
+                                let download_data: Vec<(String, f64)> = all_days.iter().map(|d| {
+                                    (d[5..].to_string(), downloads.get(d).copied().unwrap_or(0.0))
+                                }).collect();
+
+                                if upload_data.is_empty() && download_data.is_empty() {
+                                    view! {
+                                        <div class="text-sm text-center py-8" style="color: var(--text-secondary)">"No activity data yet"</div>
+                                    }.into_view()
+                                } else {
+                                    view! {
+                                        <div class="space-y-2">
+                                            <div>
+                                                <div class="text-xs font-mono mb-1" style="color: var(--text-secondary)">"Uploads"</div>
+                                                <LineChart data=upload_data title="".to_string() color="#16a34a".to_string() />
+                                            </div>
+                                            <div>
+                                                <div class="text-xs font-mono mb-1" style="color: var(--text-secondary)">"Downloads"</div>
+                                                <LineChart data=download_data title="".to_string() color="#2563eb".to_string() />
+                                            </div>
+                                        </div>
+                                    }.into_view()
+                                }
+                            }}
+                        </div>
+
+                        // User growth chart
+                        <div class="panel surface">
+                            <h2 class="panel-title font-display">"Users"</h2>
+                            {move || {
+                                let user_list = users.get();
+                                let total_users = user_list.len();
+                                let mut role_counts: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+                                for u in &user_list {
+                                    let role = u.get("role").and_then(|r| r.as_str()).unwrap_or("user").to_string();
+                                    *role_counts.entry(role).or_insert(0.0) += 1.0;
+                                }
+                                let role_data: Vec<(String, f64)> = role_counts.into_iter().collect();
+                                if role_data.is_empty() {
+                                    view! {
+                                        <div class="text-sm text-center py-8" style="color: var(--text-secondary)">
+                                            {format!("{} users total", total_users)}
+                                        </div>
+                                    }.into_view()
+                                } else {
+                                    view! {
+                                        <BarChart data=role_data title=format!("{} Total Users", total_users) color="#E85D04".to_string() />
+                                    }.into_view()
+                                }
+                            }}
+                        </div>
+
+                        // File size line chart from recent files
+                        <div class="panel surface">
+                            <h2 class="panel-title font-display">"Recent Uploads"</h2>
+                            {move || {
+                                let s = storage.get()?;
+                                let recent = s.get("recent_files").and_then(|f| f.as_array()).cloned().unwrap_or_default();
+                                let mut chart_data: Vec<(String, f64)> = recent.iter().take(12).map(|f| {
+                                    let name = f.get("path").and_then(|p| p.as_str()).unwrap_or("?").rsplit('/').next().unwrap_or("?").chars().take(10).collect();
+                                    let size = f.get("size").and_then(|sz| sz.as_f64()).unwrap_or(0.0);
+                                    (name, size)
+                                }).collect();
+                                chart_data.reverse();
+                                if chart_data.is_empty() {
+                                    None
+                                } else {
+                                    Some(view! {
+                                        <LineChart data=chart_data title="File Size (bytes)".to_string() color="#E85D04".to_string() />
+                                    })
+                                }
+                            }}
                         </div>
                     </div>
                 })

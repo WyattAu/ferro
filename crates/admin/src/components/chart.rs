@@ -49,7 +49,98 @@ pub fn BarChart(
                 {bars}
             </svg>
         </div>
+    }.into_view()
+}
+
+#[component]
+pub fn LineChart(
+    data: Vec<(String, f64)>,
+    title: String,
+    #[prop(default = "#E85D04".to_string())] color: String,
+) -> impl IntoView {
+    if data.is_empty() {
+        return view! {
+            <div class="chart-container">
+                <h3 class="chart-title font-display">{title}</h3>
+                <div class="text-sm text-center py-8" style="color: var(--text-secondary)">No data available</div>
+            </div>
+        }.into_view();
     }
+
+    let max_val = data.iter().map(|(_, v)| *v).fold(0.0_f64, f64::max).max(1.0);
+    let point_count = data.len().max(2);
+    let usable_width = 90.0;
+    let usable_height = 70.0;
+    let padding_x = 5.0;
+    let padding_y = 5.0;
+
+    let points: Vec<(f64, f64)> = data
+        .iter()
+        .enumerate()
+        .map(|(i, (_, val))| {
+            let x = padding_x + (i as f64 / (point_count - 1) as f64) * usable_width;
+            let y = padding_y + usable_height - (*val / max_val) * usable_height;
+            (x, y)
+        })
+        .collect();
+
+    let polyline: String = points
+        .iter()
+        .map(|(x, y)| format!("{:.2},{:.2}", x, y))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let area_path = if points.len() > 1 {
+        let first_x = points.first().map(|(x, _)| *x).unwrap_or(0.0);
+        let last_x = points.last().map(|(x, _)| *x).unwrap_or(0.0);
+        let bottom_y = padding_y + usable_height;
+        let mut d = format!("M{:.2},{:.2}", first_x, bottom_y);
+        for (x, y) in &points {
+            d.push_str(&format!(" L{:.2},{:.2}", x, y));
+        }
+        d.push_str(&format!(" L{:.2},{:.2} Z", last_x, bottom_y));
+        Some(d)
+    } else {
+        None
+    };
+
+    let labels: Vec<_> = data
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i == 0 || *i == data.len() - 1 || data.len() <= 8 || i % ((data.len() / 6).max(1)) == 0)
+        .map(|(i, (label, _))| {
+            let x = padding_x + (i as f64 / (point_count - 1) as f64) * usable_width;
+            (x, label.clone())
+        })
+        .collect();
+
+    let aria_label = format!("Line chart: {}", title);
+
+    view! {
+        <div class="chart-container">
+            <h3 class="chart-title font-display">{title}</h3>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="bar-chart" role="img" aria-label=aria_label aria-hidden="true">
+                {area_path.map(|d| view! {
+                    <path d=d fill=color.clone() opacity="0.15" />
+                })}
+                <polyline
+                    points=polyline
+                    fill="none"
+                    stroke=color.clone()
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    opacity="0.9"
+                />
+                {points.iter().map(|(x, y)| view! {
+                    <circle cx=format!("{:.2}", x) cy=format!("{:.2}", y) r="2" fill="white" stroke=color.clone() stroke-width="1" />
+                }).collect::<Vec<_>>()}
+                {labels.into_iter().map(|(x, label)| view! {
+                    <text x=format!("{:.2}", x) y="96" text-anchor="middle" font-size="4.5" fill="var(--text-secondary)">{label}</text>
+                }).collect::<Vec<_>>()}
+            </svg>
+        </div>
+    }.into_view()
 }
 
 #[component]

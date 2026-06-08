@@ -1,0 +1,442 @@
+use leptos::*;
+
+use super::sample_files;
+
+const _SETUP_WIZARD_KEY: &str = "ferro_setup_wizard_completed";
+
+pub fn is_setup_completed() -> bool {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                if let Ok(Some(val)) = storage.get_item(SETUP_WIZARD_KEY) {
+                    return val == "true";
+                }
+            }
+        }
+    }
+    false
+}
+
+pub fn complete_setup() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                let _ = storage.set_item(SETUP_WIZARD_KEY, "true");
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SetupStep {
+    Welcome,
+    AdminAccount,
+    StorageBackend,
+    AuthSetup,
+    SampleFiles,
+    QuickStart,
+}
+
+impl SetupStep {
+    fn index(&self) -> usize {
+        match self {
+            SetupStep::Welcome => 0,
+            SetupStep::AdminAccount => 1,
+            SetupStep::StorageBackend => 2,
+            SetupStep::AuthSetup => 3,
+            SetupStep::SampleFiles => 4,
+            SetupStep::QuickStart => 5,
+        }
+    }
+
+    fn total() -> usize {
+        6
+    }
+}
+
+#[component]
+pub fn SetupWizard() -> impl IntoView {
+    let (visible, set_visible) = create_signal(is_setup_completed());
+    let (step, set_step) = create_signal(SetupStep::Welcome);
+    let (admin_username, set_admin_username) = create_signal(String::new());
+    let (admin_email, set_admin_email) = create_signal(String::new());
+    let (admin_password, set_admin_password) = create_signal(String::new());
+    let (storage_backend, set_storage_backend) = create_signal("local".to_string());
+    let (auth_enabled, set_auth_enabled) = create_signal(false);
+    let (create_samples, set_create_samples) = create_signal(true);
+    let (_current_step_val, set_current_step_val) = create_signal(SetupStep::Welcome);
+    let (progress, set_progress) = create_signal(0u32);
+
+    create_effect(move |_| {
+        set_visible.set(is_setup_completed());
+    });
+
+    let advance = move |next: SetupStep| {
+        set_step.set(next);
+        set_current_step_val.set(next);
+        let pct = ((next.index() + 1) as f64 / SetupStep::total() as f64 * 100.0) as u32;
+        set_progress.set(pct);
+    };
+
+    let finish_setup = move |_: ev::MouseEvent| {
+        complete_setup();
+        set_visible.set(false);
+    };
+
+    let skip = move |_: ev::MouseEvent| {
+        complete_setup();
+        set_visible.set(false);
+    };
+
+    view! {
+        {move || (!visible.get() && !is_setup_completed()).then(|| view! {
+            <div class="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+                <div
+                    class="relative bg-white dark:bg-gray-900 rounded-lg shadow-2xl w-full sm:w-[560px] max-h-[90vh] overflow-y-auto"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Ferro Setup Wizard"
+                >
+                    <div class="p-6 sm:p-8">
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-8 h-8 text-orange-600" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                                </svg>
+                                <span class="font-bold text-lg font-mono text-gray-900 dark:text-white">Ferro Setup</span>
+                            </div>
+                            <button
+                                class="text-sm text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 rounded px-2 py-1 font-mono"
+                                on:click=skip
+                            >
+                                "Skip setup"
+                            </button>
+                        </div>
+
+                        // Progress bar
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded h-2 mb-6">
+                            <div
+                                class="bg-orange-600 h-2 rounded transition-all duration-300"
+                                style=move || format!("width: {}%", progress.get())
+                            ></div>
+                        </div>
+
+                        {move || {
+                            let s = step.get();
+                            match s {
+                                SetupStep::Welcome => view! {
+                                    <div class="text-center py-4">
+                                        <svg class="w-16 h-16 text-orange-600 mx-auto mb-4" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                                        </svg>
+                                        <h2 class="text-2xl font-bold font-mono text-gray-900 dark:text-white mb-2">
+                                            "Welcome to Ferro"
+                                        </h2>
+                                        <p class="text-gray-600 dark:text-gray-400 font-mono text-sm mb-6 leading-relaxed">
+                                            "Your personal distributed storage solution. This wizard will help you get started in just a few steps."
+                                        </p>
+                                        <div class="grid grid-cols-3 gap-4 mb-6 text-left">
+                                            <div class="p-3 rounded bg-gray-50 dark:bg-gray-800">
+                                                <div class="text-orange-600 font-bold font-mono text-sm">"Step 1"</div>
+                                                <div class="text-xs text-gray-500 font-mono">"Admin account"</div>
+                                            </div>
+                                            <div class="p-3 rounded bg-gray-50 dark:bg-gray-800">
+                                                <div class="text-orange-600 font-bold font-mono text-sm">"Step 2"</div>
+                                                <div class="text-xs text-gray-500 font-mono">"Storage backend"</div>
+                                            </div>
+                                            <div class="p-3 rounded bg-gray-50 dark:bg-gray-800">
+                                                <div class="text-orange-600 font-bold font-mono text-sm">"Step 3"</div>
+                                                <div class="text-xs text-gray-500 font-mono">"Authentication"</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }.into_any(),
+
+                                SetupStep::AdminAccount => view! {
+                                    <div class="py-4">
+                                        <div class="text-center mb-6">
+                                            <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
+                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Create Admin Account"</h3>
+                                            <p class="text-sm text-gray-500 font-mono mt-1">"Set up your administrator credentials"</p>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label class="block text-sm font-mono text-gray-700 dark:text-gray-300 mb-1">"Username"</label>
+                                                <input
+                                                    type="text"
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    placeholder="admin"
+                                                    prop:value=move || admin_username.get()
+                                                    on:input=move |ev| set_admin_username.set(event_target_value(&ev))
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-mono text-gray-700 dark:text-gray-300 mb-1">"Email"</label>
+                                                <input
+                                                    type="email"
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    placeholder="admin@example.com"
+                                                    prop:value=move || admin_email.get()
+                                                    on:input=move |ev| set_admin_email.set(event_target_value(&ev))
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-mono text-gray-700 dark:text-gray-300 mb-1">"Password"</label>
+                                                <input
+                                                    type="password"
+                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    placeholder="Enter a strong password"
+                                                    prop:value=move || admin_password.get()
+                                                    on:input=move |ev| set_admin_password.set(event_target_value(&ev))
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                }.into_any(),
+
+                                SetupStep::StorageBackend => view! {
+                                    <div class="py-4">
+                                        <div class="text-center mb-6">
+                                            <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                                            </svg>
+                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Storage Backend"</h3>
+                                            <p class="text-sm text-gray-500 font-mono mt-1">"Choose where to store your files"</p>
+                                        </div>
+                                        <div class="space-y-3">
+                                            {[
+                                                ("local", "Local Filesystem", "Store files on this machine's disk"),
+                                                ("s3", "AWS S3 / Compatible", "Use S3-compatible object storage"),
+                                            ].into_iter().map(|(key, name, desc)| {
+                                                let k = key.to_string();
+                                                let n = name.to_string();
+                                                let d = desc.to_string();
+                                                let k_for_class = k.clone();
+                                                view! {
+                                                    <button
+                                                        class=move || format!(
+                                                            "w-full p-4 text-left rounded-lg border-2 transition-all font-mono {}",
+                                                            if storage_backend.get() == k_for_class { "border-orange-500 bg-orange-50 dark:bg-orange-900/20" } else { "border-gray-200 dark:border-gray-700 hover:border-gray-300" }
+                                                        )
+                                                        on:click=move |_| set_storage_backend.set(k.clone())
+                                                    >
+                                                        <div class="font-bold text-sm text-gray-900 dark:text-white">{n}</div>
+                                                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{d}</div>
+                                                    </button>
+                                                }
+                                            }).collect::<Vec<_>>()}
+                                        </div>
+                                    </div>
+                                }.into_any(),
+
+                                SetupStep::AuthSetup => view! {
+                                    <div class="py-4">
+                                        <div class="text-center mb-6">
+                                            <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Authentication"</h3>
+                                            <p class="text-sm text-gray-500 font-mono mt-1">"Optionally require login for file access"</p>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <label class="flex items-center gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    class="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                                                    prop:checked=move || auth_enabled.get()
+                                                    on:change=move |ev| set_auth_enabled.set(event_target_checked(&ev))
+                                                />
+                                                <div>
+                                                    <div class="font-mono text-sm font-bold text-gray-900 dark:text-white">"Enable authentication"</div>
+                                                    <div class="font-mono text-xs text-gray-500 mt-0.5">"Require users to log in before accessing files"</div>
+                                                </div>
+                                            </label>
+                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800 font-mono text-xs text-gray-600 dark:text-gray-400">
+                                                {move || if auth_enabled.get() {
+                                                    "Authentication will be configured. You can add users from the admin panel after setup."
+                                                } else {
+                                                    "No authentication. All files will be publicly accessible on this network."
+                                                }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                }.into_any(),
+
+                                SetupStep::SampleFiles => view! {
+                                    <div class="py-4">
+                                        <div class="text-center mb-6">
+                                            <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                            </svg>
+                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Sample Folders"</h3>
+                                            <p class="text-sm text-gray-500 font-mono mt-1">"Create a starter folder structure"</p>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <label class="flex items-center gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    class="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                                                    prop:checked=move || create_samples.get()
+                                                    on:change=move |ev| set_create_samples.set(event_target_checked(&ev))
+                                                />
+                                                <div>
+                                                    <div class="font-mono text-sm font-bold text-gray-900 dark:text-white">"Create sample folders"</div>
+                                                    <div class="font-mono text-xs text-gray-500 mt-0.5">"Adds Documents, Photos, Videos, Music, Shared with README files"</div>
+                                                </div>
+                                            </label>
+                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                                <div class="font-mono text-xs text-gray-500 mb-2">"Folders that will be created:"</div>
+                                                <div class="grid grid-cols-2 gap-2 font-mono text-xs">
+                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                        <svg class="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                                                        "Documents"
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                        <svg class="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                                                        "Photos"
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                        <svg class="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                                                        "Videos"
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                        <svg class="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                                                        "Music"
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                        <svg class="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                                                        "Shared"
+                                                    </div>
+                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                        <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/></svg>
+                                                        "Welcome.txt"
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }.into_any(),
+
+                                SetupStep::QuickStart => view! {
+                                    <div class="py-4">
+                                        <div class="text-center mb-6">
+                                            <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Quick Start Guide"</h3>
+                                            <p class="text-sm text-gray-500 font-mono mt-1">"You're all set! Here's how to get started."</p>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                                <div class="font-mono text-sm font-bold text-orange-600 mb-2">"Upload Files"</div>
+                                                <p class="font-mono text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                    "Drag and drop files onto the browser window, or use the upload button in the toolbar. Files are uploaded directly to your configured storage backend."
+                                                </p>
+                                            </div>
+                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                                <div class="font-mono text-sm font-bold text-orange-600 mb-2">"Organize with Folders"</div>
+                                                <p class="font-mono text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                    "Create folders using the new folder button. Navigate between folders by clicking or using the breadcrumb trail at the top."
+                                                </p>
+                                            </div>
+                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                                <div class="font-mono text-sm font-bold text-orange-600 mb-2">"Admin Dashboard"</div>
+                                                <p class="font-mono text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                    "Access the admin panel at /ui/admin to monitor storage, manage users, and configure server settings."
+                                                </p>
+                                            </div>
+                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                                <div class="font-mono text-sm font-bold text-orange-600 mb-2">"Keyboard Shortcuts"</div>
+                                                <p class="font-mono text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                    "Press ? to view all available keyboard shortcuts. Navigate with arrow keys, select with Space, and delete with Del."
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }.into_any(),
+                            }
+                        }}
+
+                        // Navigation buttons
+                        <div class="flex items-center justify-between gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <button
+                                class=move || format!(
+                                    "px-4 py-2 text-sm rounded font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 {}",
+                                    if step.get() == SetupStep::Welcome { "invisible" } else { "text-gray-600 dark:text-gray-400 hover:text-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800" }
+                                )
+                                on:click=move |_| {
+                                    let s = step.get();
+                                    let idx = s.index();
+                                    if idx > 0 {
+                                        let steps = [
+                                            SetupStep::Welcome,
+                                            SetupStep::AdminAccount,
+                                            SetupStep::StorageBackend,
+                                            SetupStep::AuthSetup,
+                                            SetupStep::SampleFiles,
+                                            SetupStep::QuickStart,
+                                        ];
+                                        advance(steps[idx - 1]);
+                                    }
+                                }
+                            >
+                                "Back"
+                            </button>
+
+                            <div class="flex gap-1.5">
+                                {(0..SetupStep::total()).map(|i| view! {
+                                    <div
+                                        class=move || format!(
+                                            "w-2 h-2 rounded-full transition-colors {}",
+                                            if i == step.get().index() { "bg-orange-500" } else { "bg-gray-300 dark:bg-gray-600" }
+                                        )
+                                    ></div>
+                                }).collect::<Vec<_>>()}
+                            </div>
+
+                            <button
+                                class=move || format!(
+                                    "px-5 py-2 text-sm font-medium font-mono rounded transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 {}",
+                                    if step.get() == SetupStep::QuickStart {
+                                        "bg-green-600 text-white hover:bg-green-700"
+                                    } else {
+                                        "bg-orange-600 text-white hover:bg-orange-700"
+                                    }
+                                )
+                                on:click=move |ev| {
+                                    let s = step.get();
+                                    if s == SetupStep::QuickStart {
+                                        if create_samples.get() {
+                                            sample_files::create_sample_folders();
+                                        }
+                                        finish_setup(ev);
+                                    } else {
+                                        let idx = s.index();
+                                        let steps = [
+                                            SetupStep::Welcome,
+                                            SetupStep::AdminAccount,
+                                            SetupStep::StorageBackend,
+                                            SetupStep::AuthSetup,
+                                            SetupStep::SampleFiles,
+                                            SetupStep::QuickStart,
+                                        ];
+                                        if idx + 1 < steps.len() {
+                                            advance(steps[idx + 1]);
+                                        }
+                                    }
+                                }
+                            >
+                                {move || if step.get() == SetupStep::QuickStart { "Get Started" } else { "Next" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        })}
+    }
+}
