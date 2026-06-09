@@ -15,33 +15,33 @@ frameworks and provides guidance for achieving formal certifications.
 | **CC1.2 – Board Oversight** | N/A | — | Document governance structure (if applicable) |
 | **CC1.3 – Management Oversight** | Partial | Role definitions | Define security officer role, escalation paths |
 | **CC1.4 – Commitment to Competence** | Partial | Training records | Implement security awareness training program |
-| **CC1.5 – Accountability** | ✅ | — | Audit log with hash chain (AU-013) |
+| **CC1.5 – Accountability** | Yes | — | Audit log with hash chain (AU-013) |
 | **CC2.1 – Internal Communication** | Partial | — | Document incident response procedures |
-| **CC2.2 – External Communication** | ✅ | — | Security advisory process (SECURITY.md) |
+| **CC2.2 – External Communication** | Yes | — | Security advisory process (SECURITY.md) |
 | **CC3.1 – Risk Assessment** | Partial | Formal risk register | Create risk register, document threat model |
-| **CC3.2 – Fraud Risk** | ✅ | — | Ransomware detection, tamper-evident audit |
+| **CC3.2 – Fraud Risk** | Yes | — | Ransomware detection, tamper-evident audit |
 | **CC3.3 – Change Management** | Partial | Change log | Document deployment procedures, approval workflow |
-| **CC4.1 – Monitoring Activities** | ✅ | — | Prometheus metrics, request logging, audit trail |
+| **CC4.1 – Monitoring Activities** | Yes | — | Prometheus metrics, request logging, audit trail |
 | **CC4.2 – Deficiency Remediation** | Partial | — | Document remediation tracking process |
-| **CC5.1 – Logical Access Controls** | ✅ | — | OIDC, LDAP, Cedar policy engine, TOTP/WebAuthn |
-| **CC5.2 – Role-Based Access** | ✅ | — | Cedar RBAC, admin/user/guest roles |
-| **CC5.3 – Access Revocation** | ✅ | — | User deletion, session invalidation, guest expiry |
-| **CC6.1 – Authentication** | ✅ | — | Multi-factor (TOTP, WebAuthn), OIDC, LDAP |
-| **CC6.2 – Prior to System Access** | ✅ | — | Authentication middleware enforced on all routes |
-| **CC6.3 – Role-Based Authorization** | ✅ | — | Cedar policy engine with fine-grained permissions |
-| **CC6.4 – Access Restrictions** | ✅ | — | Path traversal prevention, WORM policies |
-| **CC6.5 – Privileged Access** | ✅ | — | Admin-only endpoints, default password enforcement |
-| **CC6.6 – Authentication Credentials** | ✅ | — | bcrypt (cost 12), HMAC tokens, constant-time comparison |
-| **CC6.7 – Restriction of Data** | ✅ | — | E2E encryption (age/X25519), at-rest encryption |
-| **CC7.1 – Vulnerability Management** | ✅ | — | Weekly `cargo audit`, dependency review |
+| **CC5.1 – Logical Access Controls** | Yes | — | OIDC, LDAP, Cedar policy engine, TOTP/WebAuthn |
+| **CC5.2 – Role-Based Access** | Yes | — | Cedar RBAC, admin/user/guest roles |
+| **CC5.3 – Access Revocation** | Yes | — | User deletion, session invalidation, guest expiry |
+| **CC6.1 – Authentication** | Yes | — | Multi-factor (TOTP, WebAuthn), OIDC, LDAP |
+| **CC6.2 – Prior to System Access** | Yes | — | Authentication middleware enforced on all routes |
+| **CC6.3 – Role-Based Authorization** | Yes | — | Cedar policy engine with fine-grained permissions |
+| **CC6.4 – Access Restrictions** | Yes | — | Path traversal prevention, WORM policies |
+| **CC6.5 – Privileged Access** | Yes | — | Admin-only endpoints, default password enforcement |
+| **CC6.6 – Authentication Credentials** | Yes | — | bcrypt (cost 12), HMAC tokens, constant-time comparison |
+| **CC6.7 – Restriction of Data** | Yes | — | E2E encryption (age/X25519), at-rest encryption |
+| **CC7.1 – Vulnerability Management** | Yes | — | Weekly `cargo audit`, dependency review |
 | **CC7.2 – Anomaly Detection** | Partial | — | Rate limiting exists; add anomaly alerting |
 | **CC7.3 – Incident Response** | Partial | Formal IR plan | Document IR procedures, test annually |
 | **CC8.1 – Change Authorization** | Partial | — | Document change approval process |
-| **CC9.1 – Risk Mitigation** | ✅ | — | Container hardening, non-root, cap-drop ALL |
+| **CC9.1 – Risk Mitigation** | Yes | — | Container hardening, non-root, cap-drop ALL |
 | **CC9.2 – Vendor Risk** | Partial | — | Document third-party risk assessment process |
 | **CC10.1 – Data Classification** | Partial | — | Define data classification scheme |
-| **CC10.2 – Data Disposal** | ✅ | — | GDPR erasure, trash purge, WORM retention |
-| **CC10.3 – Data Retention** | ✅ | — | Retention policies with auto-execution daemon |
+| **CC10.2 – Data Disposal** | Yes | — | GDPR erasure, trash purge, WORM retention |
+| **CC10.3 – Data Retention** | Yes | — | Retention policies with auto-execution daemon |
 
 ### Readiness Assessment
 
@@ -95,7 +95,7 @@ ISO 27001:2022 Annex A controls mapped to Ferro capabilities:
 |---------|-------------|-------------|
 | A.5.1 | Policies for info security | Partial – SECURITY.md exists; formal policy needed |
 | A.5.2 | Info security roles | Partial – define CISO/owner role |
-| A.5.3 | Segregation of duties | ✅ Cedar policies enforce separation |
+| A.5.3 | Segregation of duties | Yes Cedar policies enforce separation |
 | A.5.4 | Management responsibilities | Partial – document management commitment |
 | A.5.5 | Contact with authorities | Partial – define regulatory contacts |
 | A.5.6 | Threat intelligence | Partial – cargo audit, CVE tracking |
@@ -106,27 +106,27 @@ ISO 27001:2022 Annex A controls mapped to Ferro capabilities:
 | A.5.11 | Return of assets | N/A for software; applicable for managed deployments |
 | A.5.12 | Classification of info | Partial – implement data classification labels |
 | A.5.13 | Labelling of info | Partial – MIME type tagging exists |
-| A.5.14 | Asset transfer | ✅ Remote mount proxy with auth |
-| A.5.15 | Access control | ✅ OIDC, LDAP, Cedar, TOTP, WebAuthn |
-| A.5.16 | Identity management | ✅ User store with role-based access |
-| A.5.17 | Authentication info | ✅ bcrypt cost 12, password rotation |
-| A.5.18 | Access rights | ✅ Cedar RBAC with per-resource policies |
+| A.5.14 | Asset transfer | Yes Remote mount proxy with auth |
+| A.5.15 | Access control | Yes OIDC, LDAP, Cedar, TOTP, WebAuthn |
+| A.5.16 | Identity management | Yes User store with role-based access |
+| A.5.17 | Authentication info | Yes bcrypt cost 12, password rotation |
+| A.5.18 | Access rights | Yes Cedar RBAC with per-resource policies |
 | A.5.19 | Supplier relationships | Partial – document vendor assessment |
 | A.5.20 | Addressing info security in supplier agreements | Partial – document SLA requirements |
 | A.5.21 | Managing info security in ICT supply chain | Partial – supply chain security policy |
 | A.5.22 | Monitoring of supplier services | Partial – health checks, metrics |
 | A.5.23 | Info security for cloud services | Partial – document cloud provider requirements |
 | A.5.24 | Info security incident management planning | Partial – write IR plan |
-| A.5.25 | Assessment of info security events | ✅ Structured audit logging with hash chain |
+| A.5.25 | Assessment of info security events | Yes Structured audit logging with hash chain |
 | A.5.26 | Response to info security incidents | Partial – document response procedures |
 | A.5.27 | Learning from info security incidents | Partial – document post-incident review |
-| A.5.28 | Collection of evidence | ✅ Tamper-evident audit log, Prometheus metrics |
+| A.5.28 | Collection of evidence | Yes Tamper-evident audit log, Prometheus metrics |
 | A.5.29 | Information security during disruption | Partial – maintenance mode, graceful shutdown |
-| A.5.30 | ICT readiness for business continuity | ✅ Backup/restore, snapshots, CAS integrity check |
+| A.5.30 | ICT readiness for business continuity | Yes Backup/restore, snapshots, CAS integrity check |
 | A.5.31 | Legal requirements | Partial – GDPR module, document legal obligations |
 | A.5.32 | Intellectual property rights | N/A for Ferro itself |
-| A.5.33 | Protection of records | ✅ WORM policies, data retention |
-| A.5.34 | Privacy and PII protection | ✅ GDPR data export/erasure, PII in audit logs |
+| A.5.33 | Protection of records | Yes WORM policies, data retention |
+| A.5.34 | Privacy and PII protection | Yes GDPR data export/erasure, PII in audit logs |
 | A.5.35 | Independent review of info security | Partial – schedule periodic reviews |
 | A.5.36 | Compliance with policies and standards | Partial – document compliance checks |
 | A.5.37 | Documented operating procedures | Partial – document ops procedures |
@@ -141,8 +141,8 @@ ISO 27001:2022 Annex A controls mapped to Ferro capabilities:
 | A.6.4 | Disciplinary process | N/A for software |
 | A.6.5 | Responsibilities after termination | N/A for software |
 | A.6.6 | Confidentiality or NDA | Partial – document NDA requirements |
-| A.6.7 | Remote working | ✅ Offline-first mode, federation |
-| A.6.8 | Information security event reporting | ✅ Webhook notifications, email alerts |
+| A.6.7 | Remote working | Yes Offline-first mode, federation |
+| A.6.8 | Information security event reporting | Yes Webhook notifications, email alerts |
 
 ### Physical Controls (A.7) – Operator Responsibility
 
@@ -156,36 +156,36 @@ ISO 27001:2022 Annex A controls mapped to Ferro capabilities:
 | Control | Description | Ferro Status |
 |---------|-------------|-------------|
 | A.8.1 | User endpoint devices | N/A – server-side software |
-| A.8.2 | Privileged access rights | ✅ Admin-only endpoints, Cedar policies |
-| A.8.3 | Information access restriction | ✅ Cedar RBAC, path traversal prevention |
-| A.8.4 | Access to source code | ✅ Open source, cargo audit |
-| A.8.5 | Secure authentication | ✅ OIDC, LDAP, TOTP, WebAuthn, bcrypt |
-| A.8.6 | Capacity management | ✅ Storage quota, rate limiting, Prometheus |
+| A.8.2 | Privileged access rights | Yes Admin-only endpoints, Cedar policies |
+| A.8.3 | Information access restriction | Yes Cedar RBAC, path traversal prevention |
+| A.8.4 | Access to source code | Yes Open source, cargo audit |
+| A.8.5 | Secure authentication | Yes OIDC, LDAP, TOTP, WebAuthn, bcrypt |
+| A.8.6 | Capacity management | Yes Storage quota, rate limiting, Prometheus |
 | A.8.7 | Protection against malware | Partial – ClamAV integration (feature flag) |
-| A.8.8 | Management of technical vulnerabilities | ✅ Weekly cargo audit, CVE tracking |
-| A.8.9 | Configuration management | ✅ TOML config, --validate-config flag |
-| A.8.10 | Information deletion | ✅ GDPR erasure, trash purge, retention policies |
+| A.8.8 | Management of technical vulnerabilities | Yes Weekly cargo audit, CVE tracking |
+| A.8.9 | Configuration management | Yes TOML config, --validate-config flag |
+| A.8.10 | Information deletion | Yes GDPR erasure, trash purge, retention policies |
 | A.8.11 | Data masking | Partial – implement data masking for non-prod |
 | A.8.12 | Data leakage prevention | Partial – implement DLP controls |
-| A.8.13 | Information backup | ✅ Backup/restore, snapshots, offsite support |
-| A.8.14 | Redundancy of information processing facilities | ✅ Horizontal scaling, Docker replicas |
-| A.8.15 | Logging | ✅ Structured JSON logging, audit trail, Prometheus |
-| A.8.16 | Monitoring activities | ✅ Prometheus metrics, health checks, alerting |
-| A.8.17 | Clock synchronization | ✅ Chrono UTC timestamps, NTP (operator) |
+| A.8.13 | Information backup | Yes Backup/restore, snapshots, offsite support |
+| A.8.14 | Redundancy of information processing facilities | Yes Horizontal scaling, Docker replicas |
+| A.8.15 | Logging | Yes Structured JSON logging, audit trail, Prometheus |
+| A.8.16 | Monitoring activities | Yes Prometheus metrics, health checks, alerting |
+| A.8.17 | Clock synchronization | Yes Chrono UTC timestamps, NTP (operator) |
 | A.8.18 | Use of privileged utility programs | N/A – Ferro is the privileged program |
-| A.8.19 | Installation of software on operational systems | ✅ WASM sandboxing, plugin permissions |
-| A.8.20 | Networks security | ✅ TLS 1.3, CORS, rate limiting |
-| A.8.21 | Security of network services | ✅ WebDAV, CalDAV, CardDAV with auth |
+| A.8.19 | Installation of software on operational systems | Yes WASM sandboxing, plugin permissions |
+| A.8.20 | Networks security | Yes TLS 1.3, CORS, rate limiting |
+| A.8.21 | Security of network services | Yes WebDAV, CalDAV, CardDAV with auth |
 | A.8.22 | Segregation of networks | Partial – document network segmentation |
 | A.8.23 | Web filtering | Partial – document URL filtering requirements |
-| A.8.24 | Use of cryptography | ✅ age/X25519, ChaCha20-Poly1305, bcrypt, HMAC |
+| A.8.24 | Use of cryptography | Yes age/X25519, ChaCha20-Poly1305, bcrypt, HMAC |
 | A.8.25 | Secure development lifecycle | Partial – document SDL |
-| A.8.26 | Application security requirements | ✅ Path traversal prevention, input validation |
-| A.8.27 | Secure system architecture | ✅ Defense in depth, container hardening |
-| A.8.28 | Secure coding | ✅ Rust memory safety, cargo clippy, deny.toml |
-| A.8.29 | Security testing in development | ✅ Unit tests, integration tests, fuzz testing |
+| A.8.26 | Application security requirements | Yes Path traversal prevention, input validation |
+| A.8.27 | Secure system architecture | Yes Defense in depth, container hardening |
+| A.8.28 | Secure coding | Yes Rust memory safety, cargo clippy, deny.toml |
+| A.8.29 | Security testing in development | Yes Unit tests, integration tests, fuzz testing |
 | A.8.30 | Outsourced development | Partial – document oversight process |
-| A.8.31 | Separation of development/test/production | ✅ Docker environments, feature flags |
+| A.8.31 | Separation of development/test/production | Yes Docker environments, feature flags |
 | A.8.32 | Change management | Partial – document change approval process |
 | A.8.33 | Test information | Partial – document test data management |
 | A.8.34 | Protection of information systems during audit testing | Partial – document audit controls |
@@ -206,14 +206,14 @@ ISO 27001:2022 Annex A controls mapped to Ferro capabilities:
 
 | Requirement | Ferro Capability | Status |
 |-------------|-----------------|--------|
-| **Access Control (§164.312(a))** | OIDC, LDAP, Cedar RBAC, TOTP, WebAuthn | ✅ |
-| **Audit Controls (§164.312(b))** | Tamper-evident audit log with SHA-256 hash chain | ✅ |
-| **Integrity Controls (§164.312(c))** | CAS content hashing (SHA-256), startup integrity check | ✅ |
-| **Transmission Security (§164.312(e))** | TLS 1.3 (rustls), HTTPS enforcement | ✅ |
-| **Person or Entity Auth (§164.312(d))** | Multi-factor auth (TOTP, WebAuthn), OIDC | ✅ |
-| **Emergency Access (§164.312(a)(2)(ii))** | Admin bypass, maintenance mode controls | ✅ |
-| **Automatic Logoff (§164.312(a)(2)(iii))** | Session expiry via OIDC tokens | ✅ |
-| **Encryption (§164.312(a)(2)(iv))** | E2E encryption (age/X25519), at-rest encryption | ✅ |
+| **Access Control (§164.312(a))** | OIDC, LDAP, Cedar RBAC, TOTP, WebAuthn | Yes |
+| **Audit Controls (§164.312(b))** | Tamper-evident audit log with SHA-256 hash chain | Yes |
+| **Integrity Controls (§164.312(c))** | CAS content hashing (SHA-256), startup integrity check | Yes |
+| **Transmission Security (§164.312(e))** | TLS 1.3 (rustls), HTTPS enforcement | Yes |
+| **Person or Entity Auth (§164.312(d))** | Multi-factor auth (TOTP, WebAuthn), OIDC | Yes |
+| **Emergency Access (§164.312(a)(2)(ii))** | Admin bypass, maintenance mode controls | Yes |
+| **Automatic Logoff (§164.312(a)(2)(iii))** | Session expiry via OIDC tokens | Yes |
+| **Encryption (§164.312(a)(2)(iv))** | E2E encryption (age/X25519), at-rest encryption | Yes |
 
 ### Administrative Safeguards (45 CFR § 164.308)
 
@@ -222,10 +222,10 @@ ISO 27001:2022 Annex A controls mapped to Ferro capabilities:
 | **Risk Analysis** | Threat model documented (SECURITY.md) | Partial |
 | **Risk Management** | Security features, hardening guide | Partial |
 | **Workforce Training** | N/A – operator responsibility | Partial |
-| **Information System Activity Review** | Audit log, Prometheus metrics | ✅ |
+| **Information System Activity Review** | Audit log, Prometheus metrics | Yes |
 | **Security Incident Procedures** | Webhook notifications, email alerts | Partial |
-| **Contingency Plan** | Backup/restore, snapshots, HA support | ✅ |
-| **Evaluation** | Weekly cargo audit, pen testing guide | ✅ |
+| **Contingency Plan** | Backup/restore, snapshots, HA support | Yes |
+| **Evaluation** | Weekly cargo audit, pen testing guide | Yes |
 | **Business Associate Contract** | BAA template required | Must create |
 
 ### Physical Safeguards (45 CFR § 164.310)
@@ -234,7 +234,7 @@ ISO 27001:2022 Annex A controls mapped to Ferro capabilities:
 |-------------|-----------------|--------|
 | **Facility Access Controls** | N/A – operator data center controls | Operator |
 | **Workstation Use** | N/A – server-side software | Operator |
-| **Device and Media Controls** | Backup/restore, WORM policies | ✅ |
+| **Device and Media Controls** | Backup/restore, WORM policies | Yes |
 
 ### HIPAA Readiness Summary
 
