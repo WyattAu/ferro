@@ -476,6 +476,7 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline
 
 /* ── Group hover ── */
 .group:hover .group-hover\:opacity-100 { opacity: 1; }
+.group:focus-within .group-focus-within\:opacity-100 { opacity: 1; }
 .opacity-0 { opacity: 0; }
 .opacity-50 { opacity: 0.5; }
 
