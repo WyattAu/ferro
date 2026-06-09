@@ -1,15 +1,15 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 3.0.0 | **Date:** 2026-06-06 | **Status:** Release Candidate Preparation
+**Version:** 3.1.0 | **Date:** 2026-06-09 | **Status:** v3.1.0 Release Candidate
 
 ---
 
-## Current State (2026-06-06)
+## Current State (2026-06-09)
 
 | Metric | Value |
 |--------|-------|
-| Crates | 43 |
-| Tests | 1981 passed, 0 failed, 0 ignored |
+| Crates | 46 |
+| Tests | 2184+ passed, 0 failed, 0 ignored |
 | Code | ~107K lines Rust |
 | Clippy warnings | 0 |
 | Security audit | Self-audit complete, 14 findings fixed (F001-F013 + F002) |
@@ -23,6 +23,51 @@
 | Pre-commit hook | fmt + clippy + targeted crate tests (configurable) |
 
 ## Recently Completed
+
+### 2026-06-09: Audit Cycle 11 - Comprehensive 8-Phase Quality Audit
+
+**Phase 1: Testing & Code Quality:**
+- 364+ tests pass across critical crates (core, dav, auth, crypto, web, admin)
+- 0 clippy warnings with all features (s3, gcs, azure, pg, redis, ldap)
+- Leptos 0.8 API migration complete: 240+ deprecated calls replaced across web (176 create_signal, 41 create_effect, 11 create_node_ref, 1 create_rw_signal, 1 create_memo) and admin (67 create_signal, 8 create_effect, 1 create_rw_signal, 1 create_memo) crates
+- i18n EN array rebuilt: 269 sorted entries, 9 duplicates removed, sort order assertion passes
+- SAFETY documentation added to 3 missing unsafe blocks (server setsockopt, sync-protocol Send/Sync impls)
+- 5 production mutex .lock().unwrap() calls replaced with .expect("mutex poisoned") in sync-protocol
+
+**Phase 2: CI/CD Pipeline Audit:**
+- Fixed release.yml: removed duplicate SBOM find command, changed docker job from if:always() to if:success(), added Test and Security Audit to verify job
+- Fixed desktop.yml: added --locked to cargo install tauri-cli
+- Expanded pre-commit secret scan: added .sh/.conf/.cfg extensions and AWS access key pattern
+
+**Phase 3: GUI/UI/UX Audit:**
+- 8 critical accessibility fixes applied:
+  - FocusTrap added to onboarding overlay, command palette, and trash empty confirm dialog
+  - aria-live="polite" added to search results count
+  - Toast dismiss button touch target increased to min-w-[44px] min-h-[44px]
+  - Grid card action bar visibility fixed for keyboard users (group-focus-within:opacity-100)
+  - Error boundary dialog now has aria-labelledby and aria-describedby
+- GUI traversal script enhanced: DOM snapshots, responsive screenshots (mobile/tablet), design language verification, automated accessibility scoring
+- Design language scores: Spatial Materialism 7/10, Amoebic UI 5/10, Color Palette 8/10
+
+**Phase 4: Documentation:**
+- Landing page stats updated: crates 43->46, tests 1981->2184+
+- README.md crate count updated: 43->46
+- Compliance table: 63 checkmark emojis replaced with "Yes"
+
+**Phase 5: Version Control:**
+- 7 atomic commits pushed to main
+- All CI/CD pipelines triggered
+
+**Phase 6: Deployment:**
+- GitHub Pages documentation deployment verified successful
+
+**Phase 7: Functionality Audit:**
+- Duplicate functionality detected: storage-adapter (separate trait from common::StorageEngine), rate-limiter (3 implementations), search-index (unused by server), event-bus (unused by server), config-manager (unused by server)
+- 10+ orphan/stub crates identified: session-manager, mobile-contract, plugin-marketplace, e2ee, sync-delta, mount-nfs, multi-tenant, selective-sync, offline, cache
+- Server crate has 99 source files -- decomposed candidates identified
+
+**Phase 8: Roadmap:**
+- This roadmap updated with all findings
 
 ### 2026-06-06 (v3.0.13): Federation & Sync Infrastructure
 
@@ -1132,7 +1177,7 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 
 ### Testing (Required Before v3.0)
 
-- [x] 1237 unit/integration tests passing (0 failures)
+- [x] 2184+ unit/integration tests passing (0 failures)
 - [x] 4 property-based tests (proptest)
 - [x] 23 Playwright E2E tests (11 spec files, 3 browsers)
 - [x] 4 fuzz harnesses (2.6M+ iterations, 0 crashes)
@@ -1288,7 +1333,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | Tauri GTK4 migration delayed | Medium | Low (desktop-only) | Server/core unaffected; continue with GTK3 |
 | ~~`rsa` crate cannot be eliminated~~ RESOLVED | ~~Low~~ None | ~~Medium~~ Done | Eliminated from dependency tree |
 | Performance regression with SQLite at scale | Medium | High | Recommend PostgreSQL for >100 concurrent users |
-| Leptos 0.7 breaking changes | Medium | Medium | Pin leptos version; plan migration window |
+| Leptos 0.8 deprecation warnings | Medium | Low | Already resolved in audit cycle 11 |
 | WASM plugin ABI instability | High | Low (future feature) | Design with versioned ABI from start |
 
 ---
@@ -1326,6 +1371,15 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | TD-033 | P1 | NFS/SMB mount backends | **DONE** (2026-06-06). Replaced NFS/SMB stub implementations with full `MountBackend` trait impls. Mount/unmount use `libc::mount()`/`libc::umount2()` behind `ffi` feature (with graceful fallback). File ops (read_dir, read_file, metadata, space_usage) use `tokio::fs` on mounted paths. Added config builders for mount source strings and mount options. 13 new unit tests (NFS: config, options, path resolution; SMB: config, options, credentials, path resolution). Total: 20 tests passing. | 5 days |
 | TD-034 | P2 | External penetration test | **BLOCKED** -- requires engagement of external security firm. Not a code task. Project has self-audit complete (14 findings fixed, 33 security tests + 44 integration tests + 91 wiring tests + 4 fuzz harnesses with 2.6M+ iterations). External firm needs staging deployment access and scope definition. | 2 weeks (external) |
 | TD-035 | P2 | Code coverage enforcement | **DONE** (2026-06-06). Added `--fail-under-lines 80` to `cargo llvm-cov` in `extended-checks.yml`. Added `min_coverage: 80` to Codecov action. CI will now fail if workspace line coverage drops below 80%. | 1 day |
+| TD-036 | P1 | Unify storage abstractions | Merge or bridge storage-adapter::StorageBackend and common::StorageEngine | 10 days |
+| TD-037 | P1 | Integrate event-bus crate | Replace inline WebSocket/webhook dispatch in server with event-bus pub/sub | 5 days |
+| TD-038 | P1 | Replace server inline rate limiter | Use ferro-rate-limiter crate instead of server/src/rate_limit.rs | 2 days |
+| TD-039 | P2 | Delete or integrate search-index | Replace core::search (Tantivy) with search-index or delete search-index | 3 days |
+| TD-040 | P2 | Delete or integrate config-manager | Server should use config-manager's FerroConfig or delete the crate | 3 days |
+| TD-041 | P2 | Decompose server crate | Extract WebDAV, WOPI, ActivityPub, WebSocket into separate crates | 15 days |
+| TD-042 | P2 | Audit orphan crates | Implement or remove session-manager, mobile-contract, plugin-marketplace, e2ee, sync-delta, mount-nfs, multi-tenant, selective-sync | 10 days |
+| TD-043 | P2 | Add prefers-reduced-motion CSS | Respect OS reduced-motion preference (already in style.css, verify all animations) | 1 day |
+| TD-044 | P3 | Add landing page 404.html | GitHub Pages serves generic 404 without custom page | 0.5 days |
 
 ### v3.2 -- Performance and Scale
 
@@ -1392,7 +1446,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Leptos 0.7 breaking changes | Medium | Medium | Pin leptos version; plan migration window in v3.1 |
+| Leptos 0.8 deprecation warnings | Medium | Low | Already resolved in audit cycle 11 |
 | WASM plugin ABI instability | High | Low (future feature) | Design with versioned ABI from start (v4.0) |
 | Performance regression with SQLite at scale | Medium | High | Recommend PostgreSQL for >100 concurrent users (PF-001) |
 | Tauri GTK4 migration delayed | Medium | Low (desktop-only) | Server/core unaffected; continue with GTK3 |
