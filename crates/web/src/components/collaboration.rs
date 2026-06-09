@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use leptos::*;
+use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
 use crate::t;
@@ -91,8 +91,8 @@ impl CollabStateHandle {
         let new_version = doc.version;
         drop(doc);
 
-        self.set_version.call(new_version);
-        self.set_text.call(self.document.borrow().get_text());
+        self.set_version.run(new_version);
+        self.set_text.run(self.document.borrow().get_text());
 
         if !all_ops.is_empty() {
             self.send_ops(&all_ops);
@@ -106,8 +106,8 @@ impl CollabStateHandle {
         let new_text = doc.get_text();
         drop(doc);
 
-        self.set_version.call(new_version);
-        self.set_text.call(new_text);
+        self.set_version.run(new_version);
+        self.set_text.run(new_text);
     }
 
     fn send_ops(&self, ops: &[TextOperation]) {
@@ -251,7 +251,7 @@ pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoV
             let onopen_closure = wasm_bindgen::closure::Closure::<dyn Fn()>::new(move || {
                 handle_onopen
                     .set_connection_state
-                    .call(CollabConnectionState::Connected);
+                    .run(CollabConnectionState::Connected);
                 if let Ok(payload) = serde_json::to_string(&join_msg) {
                     let _ = ws_for_open.send_with_str(&payload);
                 }
@@ -278,7 +278,7 @@ pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoV
                                             name: p.name.clone(),
                                         })
                                         .collect();
-                                    handle_onmessage.set_remote_participants.call(infos);
+                                    handle_onmessage.set_remote_participants.run(infos);
                                 }
                                 SyncMessage::Hello { .. } => {}
                                 SyncMessage::Join { .. } => {}
@@ -295,7 +295,7 @@ pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoV
                 move |_ev: web_sys::Event| {
                     handle_onerror
                         .set_connection_state
-                        .call(CollabConnectionState::ReadOnly);
+                        .run(CollabConnectionState::ReadOnly);
                 },
             );
             ws.set_onerror(Some(onerror_closure.as_ref().unchecked_ref()));
@@ -307,7 +307,7 @@ pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoV
                     move |_ev: web_sys::CloseEvent| {
                         handle_onclose
                             .set_connection_state
-                            .call(CollabConnectionState::Disconnected);
+                            .run(CollabConnectionState::Disconnected);
                     },
                 );
             ws.set_onclose(Some(onclose_closure.as_ref().unchecked_ref()));

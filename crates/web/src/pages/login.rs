@@ -1,5 +1,6 @@
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
+use leptos::ev;
+use leptos_router::components::*;
 
 use crate::auth;
 use crate::components::theme_toggle::{ThemeToggle, provide_theme_state};
@@ -39,7 +40,7 @@ pub fn LoginPage() -> impl IntoView {
 
                 <A
                     href="/"
-                    class="block mt-4 text-sm text-muted font-mono hover:text-gray-700 no-underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded text-label"
+                    attr:class="block mt-4 text-sm text-muted font-mono hover:text-gray-700 no-underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 rounded text-label"
                 >
                     {t!("common.skip_for_now")}
                 </A>

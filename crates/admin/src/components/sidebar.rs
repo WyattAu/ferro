@@ -1,5 +1,6 @@
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
+use leptos_router::components::*;
+use leptos_router::hooks::use_location;
 
 use crate::api::ApiState;
 
@@ -55,9 +56,10 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
                 }
             };
             let ac = active;
+            let icon_svg = svg_icon(&icon);
             view! {
-                <A href=path class=nav_class attr:aria-current=move || if ac.get() { Some("page") } else { None }>
-                    <span class="nav-icon" aria-hidden="true">{svg_icon(&icon)}</span>
+                <A href=path attr:class=nav_class attr:aria-current=move || if ac.get() { Some("page") } else { None }>
+                    <span class="nav-icon" aria-hidden="true">{icon_svg}</span>
                     <span class="nav-label font-display">{label}</span>
                 </A>
             }
@@ -85,7 +87,7 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
                         {move || if is_connected() { "Connected" } else { "Disconnected" }}
                     </span>
                 </div>
-                <button class="sidebar-disconnect" on:click=move |_| disconnect.call(()) disabled=!conn aria-label="Disconnect from server">
+                <button class="sidebar-disconnect" on:click=move |_| disconnect.run(()) disabled=!conn aria-label="Disconnect from server">
                     "Disconnect"
                 </button>
             </div>
@@ -93,7 +95,7 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
     }
 }
 
-fn svg_icon(name: &str) -> impl IntoView {
+fn svg_icon(name: &str) -> AnyView {
     let d = match name {
         "dashboard" => "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
         "users" => {
@@ -117,5 +119,5 @@ fn svg_icon(name: &str) -> impl IntoView {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d=d/>
         </svg>
-    }
+    }.into_any()
 }

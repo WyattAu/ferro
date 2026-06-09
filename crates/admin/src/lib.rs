@@ -11,7 +11,7 @@ pub use app::App;
 #[wasm_bindgen]
 pub fn run() {
     console_error_panic_hook::set_once();
-    leptos::mount_to_body(App);
+    leptos::mount::mount_to_body(|| leptos::view! { <App/> });
 }
 
 #[cfg(test)]

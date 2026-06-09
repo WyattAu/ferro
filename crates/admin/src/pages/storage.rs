@@ -1,4 +1,6 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
 
 use crate::api::ApiState;
 use crate::components::chart::{BarChart, PieChart};
@@ -136,15 +138,15 @@ pub fn StoragePage(api: RwSignal<ApiState>) -> impl IntoView {
                                     <thead><tr><th scope="col">"Path"</th><th scope="col">"Size"</th><th scope="col">"Modified"</th></tr></thead>
                                     <tbody>
                                         {if file_rows.is_empty() {
-                                            vec![view! { <tr><td colspan="3" class="table-empty">"No files found"</td></tr> }]
+                                            vec![view! { <tr><td colspan="3" class="table-empty">"No files found"</td></tr> }.into_any()]
                                         } else {
                                             file_rows.iter().map(|(path, size, modified)| view! {
                                                 <tr>
-                                                    <td class="mono">{path}</td>
-                                                    <td>{size}</td>
+                                                    <td class="mono">{path.clone()}</td>
+                                                    <td>{size.clone()}</td>
                                                     <td>{format_timestamp(modified)}</td>
                                                 </tr>
-                                            }).collect::<Vec<_>>()
+                                            }.into_any()).collect::<Vec<_>>()
                                         }}
                                     </tbody>
                                 </table>

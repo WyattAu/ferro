@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 /// Predefined icon variants following the lepticons pattern.
 ///
@@ -153,9 +153,9 @@ pub fn Icon(
             <span class="inline-flex items-center" role="img" aria-label=label_text>
                 {svg}
             </span>
-        }.into_view()
+        }.into_any()
     } else {
-        svg.into_view()
+        svg.into_any()
     }
 }
 

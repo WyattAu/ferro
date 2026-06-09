@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 use crate::components::clipboard::use_clipboard_state;
 use crate::components::command_palette::use_command_palette_state;

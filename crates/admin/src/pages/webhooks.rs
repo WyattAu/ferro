@@ -1,4 +1,6 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
 
 use crate::api::ApiState;
 use crate::components::badge::{Badge, BadgeVariant};
@@ -119,7 +121,7 @@ pub fn WebhooksPage(api: RwSignal<ApiState>) -> impl IntoView {
                         {move || {
                             let hooks = webhooks.get();
                             if hooks.is_empty() {
-                                vec![view! { <tr><td colspan="5" class="table-empty">"No webhooks configured"</td></tr> }]
+                                vec![view! { <tr><td colspan="5" class="table-empty">"No webhooks configured"</td></tr> }.into_any()]
                             } else {
                                 hooks.iter().map(|wh| {
                                     let url = wh.get("url").and_then(|u| u.as_str()).unwrap_or("-").to_string();
@@ -142,7 +144,7 @@ pub fn WebhooksPage(api: RwSignal<ApiState>) -> impl IntoView {
                                                 <button class="btn btn-danger btn-sm" on:click=move |_| { set_delete_id.set(wid.clone()); set_show_delete.set(true); }>"Delete"</button>
                                             </td>
                                         </tr>
-                                    }
+                                    }.into_any()
                                 }).collect::<Vec<_>>()
                             }
                         }}

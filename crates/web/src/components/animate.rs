@@ -1,7 +1,13 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::html;
 use wasm_bindgen::JsCast;
 
-/// Check if the user prefers reduced motion via `prefers-reduced-motion` media query.
+fn set_css(el: &web_sys::Element, prop: &str, val: &str) {
+    if let Ok(html_el) = el.clone().dyn_into::<web_sys::HtmlElement>() {
+        let _ = html_el.style().set_property(prop, val);
+    }
+}
+
 fn prefers_reduced_motion() -> bool {
     web_sys::window()
         .and_then(|w| w.match_media("(prefers-reduced-motion: reduce)").ok())
@@ -10,20 +16,14 @@ fn prefers_reduced_motion() -> bool {
         .unwrap_or(false)
 }
 
-/// Fade-in animation wrapper. Children fade from transparent to opaque.
-/// Respects `prefers-reduced-motion` by skipping the animation when enabled.
 #[component]
 pub fn FadeIn(
-    /// Duration in milliseconds.
     #[prop(default = 300)]
     duration_ms: u32,
-    /// Delay in milliseconds before animation starts.
     #[prop(default = 0)]
     delay_ms: u32,
-    /// CSS easing function.
     #[prop(default = "ease-out".to_string())]
     easing: String,
-    /// Whether the animation is enabled.
     #[prop(default = true)]
     enabled: bool,
     children: Children,
@@ -35,43 +35,35 @@ pub fn FadeIn(
         if let Some(el) = container_ref.get() {
             if effective_enabled {
                 let transition = format!("opacity {}ms {} {}ms", duration_ms, easing, delay_ms);
-                let el = el
-                    .style("opacity", "0")
-                    .style("transition", transition)
-                    .style("will-change", "opacity");
+                set_css(&el, "opacity", "0");
+                set_css(&el, "transition", &transition);
+                set_css(&el, "will-change", "opacity");
                 request_animation_frame(move || {
-                    let _ = el.style("opacity", "1");
+                    set_css(&el, "opacity", "1");
                 });
             } else {
-                let _ = el.style("opacity", "1");
+                set_css(&el, "opacity", "1");
             }
         }
     });
 
     view! {
-        <div _ref=container_ref>
+        <div node_ref=container_ref>
             {children()}
         </div>
     }
 }
 
-/// Fade-out animation wrapper. Children fade from opaque to transparent and are removed.
-/// Respects `prefers-reduced-motion`.
 #[component]
 pub fn FadeOut(
-    /// Duration in milliseconds.
     #[prop(default = 300)]
     duration_ms: u32,
-    /// Delay in milliseconds before animation starts.
     #[prop(default = 0)]
     delay_ms: u32,
-    /// CSS easing function.
     #[prop(default = "ease-in".to_string())]
     easing: String,
-    /// Whether the animation is enabled.
     #[prop(default = true)]
     enabled: bool,
-    /// Signal that triggers the fade-out when set to true.
     active: Signal<bool>,
     children: Children,
 ) -> impl IntoView {
@@ -82,21 +74,20 @@ pub fn FadeOut(
         if let Some(el) = container_ref.get() {
             if active.get() && effective_enabled {
                 let transition = format!("opacity {}ms {} {}ms", duration_ms, easing, delay_ms);
-                let el = el
-                    .style("opacity", "1")
-                    .style("transition", transition)
-                    .style("will-change", "opacity");
+                set_css(&el, "opacity", "1");
+                set_css(&el, "transition", &transition);
+                set_css(&el, "will-change", "opacity");
                 request_animation_frame(move || {
-                    let _ = el.style("opacity", "0");
+                    set_css(&el, "opacity", "0");
                 });
             } else if !active.get() {
-                let _ = el.style("opacity", "1");
+                set_css(&el, "opacity", "1");
             }
         }
     });
 
     view! {
-        <div _ref=container_ref style=move || if active.get() && effective_enabled {
+        <div node_ref=container_ref style=move || if active.get() && effective_enabled {
             "pointer-events: none"
         } else {
             ""
@@ -106,26 +97,18 @@ pub fn FadeOut(
     }
 }
 
-/// Slide-in animation wrapper. Children slide in from a direction.
-/// Respects `prefers-reduced-motion` by skipping the animation when enabled.
 #[component]
 pub fn SlideIn(
-    /// Direction to slide from.
     #[prop(default = SlideDirection::Bottom)]
     direction: SlideDirection,
-    /// Distance in pixels.
     #[prop(default = 20)]
     distance_px: i32,
-    /// Duration in milliseconds.
     #[prop(default = 300)]
     duration_ms: u32,
-    /// Delay in milliseconds.
     #[prop(default = 0)]
     delay_ms: u32,
-    /// CSS easing function.
     #[prop(default = "ease-out".to_string())]
     easing: String,
-    /// Whether the animation is enabled.
     #[prop(default = true)]
     enabled: bool,
     children: Children,
@@ -147,54 +130,42 @@ pub fn SlideIn(
                     "transform {}ms {}, opacity {}ms {} {}ms",
                     duration_ms, easing, duration_ms, easing, delay_ms
                 );
-                let el = el
-                    .style("transform", initial)
-                    .style("opacity", "0")
-                    .style("transition", transition)
-                    .style("will-change", "transform, opacity");
+                set_css(&el, "transform", &initial);
+                set_css(&el, "opacity", "0");
+                set_css(&el, "transition", &transition);
+                set_css(&el, "will-change", "transform, opacity");
                 request_animation_frame(move || {
-                    let _ = el
-                        .style("transform", "translate(0px, 0px)")
-                        .style("opacity", "1");
+                    set_css(&el, "transform", "translate(0px, 0px)");
+                    set_css(&el, "opacity", "1");
                 });
             } else {
-                let _ = el
-                    .style("transform", "translate(0px, 0px)")
-                    .style("opacity", "1");
+                set_css(&el, "transform", "translate(0px, 0px)");
+                set_css(&el, "opacity", "1");
             }
         }
     });
 
     view! {
-        <div _ref=container_ref>
+        <div node_ref=container_ref>
             {children()}
         </div>
     }
 }
 
-/// Slide-out animation wrapper. Children slide out in a direction and become hidden.
-/// Respects `prefers-reduced-motion`.
 #[component]
 pub fn SlideOut(
-    /// Direction to slide toward.
     #[prop(default = SlideDirection::Bottom)]
     direction: SlideDirection,
-    /// Distance in pixels.
     #[prop(default = 20)]
     distance_px: i32,
-    /// Duration in milliseconds.
     #[prop(default = 300)]
     duration_ms: u32,
-    /// Delay in milliseconds.
     #[prop(default = 0)]
     delay_ms: u32,
-    /// CSS easing function.
     #[prop(default = "ease-in".to_string())]
     easing: String,
-    /// Whether the animation is enabled.
     #[prop(default = true)]
     enabled: bool,
-    /// Signal that triggers the slide-out when set to true.
     active: Signal<bool>,
     children: Children,
 ) -> impl IntoView {
@@ -215,25 +186,22 @@ pub fn SlideOut(
                     "transform {}ms {}, opacity {}ms {} {}ms",
                     duration_ms, easing, duration_ms, easing, delay_ms
                 );
-                let el = el
-                    .style("transform", "translate(0px, 0px)")
-                    .style("opacity", "1")
-                    .style("transition", transition);
+                set_css(&el, "transform", "translate(0px, 0px)");
+                set_css(&el, "opacity", "1");
+                set_css(&el, "transition", &transition);
                 request_animation_frame(move || {
-                    let _ = el
-                        .style("transform", target)
-                        .style("opacity", "0");
+                    set_css(&el, "transform", &target);
+                    set_css(&el, "opacity", "0");
                 });
             } else if !active.get() {
-                let _ = el
-                    .style("transform", "translate(0px, 0px)")
-                    .style("opacity", "1");
+                set_css(&el, "transform", "translate(0px, 0px)");
+                set_css(&el, "opacity", "1");
             }
         }
     });
 
     view! {
-        <div _ref=container_ref style=move || if active.get() && effective_enabled {
+        <div node_ref=container_ref style=move || if active.get() && effective_enabled {
             "pointer-events: none"
         } else {
             ""
@@ -243,7 +211,6 @@ pub fn SlideOut(
     }
 }
 
-/// Direction for slide animations.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SlideDirection {
     Top,
@@ -252,23 +219,16 @@ pub enum SlideDirection {
     Right,
 }
 
-/// Scale-in animation wrapper. Children scale up from a smaller size.
-/// Respects `prefers-reduced-motion` by skipping the animation when enabled.
 #[component]
 pub fn ScaleIn(
-    /// Initial scale factor (0.0 to 1.0).
     #[prop(default = 0.95)]
     from_scale: f64,
-    /// Duration in milliseconds.
     #[prop(default = 200)]
     duration_ms: u32,
-    /// Delay in milliseconds.
     #[prop(default = 0)]
     delay_ms: u32,
-    /// CSS easing function.
     #[prop(default = "ease-out".to_string())]
     easing: String,
-    /// Whether the animation is enabled.
     #[prop(default = true)]
     enabled: bool,
     children: Children,
@@ -284,52 +244,41 @@ pub fn ScaleIn(
                     "transform {}ms {}, opacity {}ms {} {}ms",
                     duration_ms, easing, duration_ms, easing, delay_ms
                 );
-                let el = el
-                    .style("transform", initial)
-                    .style("opacity", "0")
-                    .style("transform-origin", "center")
-                    .style("transition", transition)
-                    .style("will-change", "transform, opacity");
+                set_css(&el, "transform", &initial);
+                set_css(&el, "opacity", "0");
+                set_css(&el, "transform-origin", "center");
+                set_css(&el, "transition", &transition);
+                set_css(&el, "will-change", "transform, opacity");
                 request_animation_frame(move || {
-                    let _ = el
-                        .style("transform", "scale(1)")
-                        .style("opacity", "1");
+                    set_css(&el, "transform", "scale(1)");
+                    set_css(&el, "opacity", "1");
                 });
             } else {
-                let _ = el
-                    .style("transform", "scale(1)")
-                    .style("opacity", "1");
+                set_css(&el, "transform", "scale(1)");
+                set_css(&el, "opacity", "1");
             }
         }
     });
 
     view! {
-        <div _ref=container_ref>
+        <div node_ref=container_ref>
             {children()}
         </div>
     }
 }
 
-/// Scale-out animation wrapper. Children scale down and become hidden.
-/// Respects `prefers-reduced-motion`.
 #[component]
 pub fn ScaleOut(
-    /// Target scale factor (0.0 to 1.0). Children scale to this size.
     #[prop(default = 0.95)]
     to_scale: f64,
-    /// Duration in milliseconds.
     #[prop(default = 200)]
     duration_ms: u32,
-    /// Delay in milliseconds.
     #[prop(default = 0)]
     delay_ms: u32,
-    /// CSS easing function.
     #[prop(default = "ease-in".to_string())]
     easing: String,
-    /// Whether the animation is enabled.
     #[prop(default = true)]
     enabled: bool,
-    /// Signal that triggers the scale-out when set to true.
     active: Signal<bool>,
     children: Children,
 ) -> impl IntoView {
@@ -344,26 +293,23 @@ pub fn ScaleOut(
                     "transform {}ms {}, opacity {}ms {} {}ms",
                     duration_ms, easing, duration_ms, easing, delay_ms
                 );
-                let el = el
-                    .style("transform", "scale(1)")
-                    .style("opacity", "1")
-                    .style("transform-origin", "center")
-                    .style("transition", transition);
+                set_css(&el, "transform", "scale(1)");
+                set_css(&el, "opacity", "1");
+                set_css(&el, "transform-origin", "center");
+                set_css(&el, "transition", &transition);
                 request_animation_frame(move || {
-                    let _ = el
-                        .style("transform", target)
-                        .style("opacity", "0");
+                    set_css(&el, "transform", &target);
+                    set_css(&el, "opacity", "0");
                 });
             } else if !active.get() {
-                let _ = el
-                    .style("transform", "scale(1)")
-                    .style("opacity", "1");
+                set_css(&el, "transform", "scale(1)");
+                set_css(&el, "opacity", "1");
             }
         }
     });
 
     view! {
-        <div _ref=container_ref style=move || if active.get() && effective_enabled {
+        <div node_ref=container_ref style=move || if active.get() && effective_enabled {
             "pointer-events: none"
         } else {
             ""
@@ -373,21 +319,12 @@ pub fn ScaleOut(
     }
 }
 
-/// Staggered children animation container.
-///
-/// Wraps children and applies a stagger delay via CSS custom property.
-/// Each direct child gets an increasing `animation-delay` based on its index.
-/// Use with CSS `animation` on children, or combine with FadeIn/SlideIn/ScaleIn.
-/// Respects `prefers-reduced-motion`.
 #[component]
 pub fn StaggerChildren(
-    /// Delay between each child in milliseconds.
     #[prop(default = 50)]
     stagger_ms: u32,
-    /// Duration of each child's animation in milliseconds.
     #[prop(default = 300)]
     duration_ms: u32,
-    /// Whether the animation is enabled.
     #[prop(default = true)]
     enabled: bool,
     children: Children,
@@ -396,19 +333,17 @@ pub fn StaggerChildren(
     let effective_enabled = enabled && !prefers_reduced_motion();
 
     create_effect(move |_| {
-        if let Some(el) = container_ref.get()
-            && effective_enabled
-        {
-            // Set CSS custom properties on the container for stagger timing
-            let _ = el
-                .style("--stagger-duration", format!("{}ms", duration_ms))
-                .style("--stagger-step", format!("{}ms", stagger_ms));
+        if let Some(el) = container_ref.get() {
+            if effective_enabled {
+                set_css(&el, "--stagger-duration", &format!("{}ms", duration_ms));
+                set_css(&el, "--stagger-step", &format!("{}ms", stagger_ms));
+            }
         }
     });
 
     view! {
         <div
-            _ref=container_ref
+            node_ref=container_ref
             class="stagger-children"
             style="display: contents;"
         >
@@ -417,7 +352,6 @@ pub fn StaggerChildren(
     }
 }
 
-/// Type of stagger animation.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StaggerAnimation {
     Fade,
@@ -425,7 +359,6 @@ pub enum StaggerAnimation {
     Scale,
 }
 
-/// Helper to schedule a callback on the next animation frame.
 fn request_animation_frame(f: impl FnOnce() + 'static) {
     use std::cell::RefCell;
     use std::rc::Rc;

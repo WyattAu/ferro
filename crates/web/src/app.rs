@@ -1,5 +1,8 @@
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos_router::components::*;
+use leptos_router::hooks::*;
+use leptos_router::path;
 
 use crate::api::BrandingConfig;
 use crate::auth;
@@ -102,16 +105,16 @@ pub fn App() -> impl IntoView {
     view! {
         <ErrorBoundary>
             <ProvideToastContext>
-                <Router>
-                    <Routes base="/ui".to_string()>
-                        <Route path="/" view=RootView />
-                        <Route path="/files/" view=RootView />
-                        <Route path="/files/*path" view=FileViewRoute />
-                        <Route path="/trash" view=TrashPage />
-                        <Route path="/settings" view=SettingsPage />
-                        <Route path="/admin" view=AdminPage />
-                        <Route path="/auth/callback" view=AuthCallbackPage />
-                        <Route path="/auth/login" view=LoginPage />
+                <Router base="/ui".to_string()>
+                    <Routes fallback=|| "Not found">
+                        <Route path=path!("/") view=RootView />
+                        <Route path=path!("/files/") view=RootView />
+                        <Route path=path!("/files/*path") view=FileViewRoute />
+                        <Route path=path!("/trash") view=TrashPage />
+                        <Route path=path!("/settings") view=SettingsPage />
+                        <Route path=path!("/admin") view=AdminPage />
+                        <Route path=path!("/auth/callback") view=AuthCallbackPage />
+                        <Route path=path!("/auth/login") view=LoginPage />
                     </Routes>
                 </Router>
             </ProvideToastContext>

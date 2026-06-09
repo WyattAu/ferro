@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 use crate::t;
 
@@ -26,7 +26,7 @@ pub fn EmptyState(
                     <div class="text-sm text-gray-400 mt-1 mb-4">{t!("empty.folder_hint")}</div>
                     <button
                         class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                        on:click=move |_| on_upload.call(())
+                        on:click=move |_| on_upload.run(())
                     >
     {t!("empty.folder_upload_btn")}
                     </button>

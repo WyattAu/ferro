@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::html;
 use crate::components::file_icon::{FileIcon, file_type_from_extension};
 
 fn is_previewable_image(name: &str) -> bool {
@@ -31,19 +32,21 @@ pub fn Thumbnail(
             return;
         }
         use wasm_bindgen::JsCast;
-        let callback = wasm_bindgen::closure::Closure::wrap(Box::new(
-            move |entries: js_sys::Array, _: web_sys::IntersectionObserver| {
-                for i in 0..entries.length() {
-                    if let Ok(entry) = entries
-                        .get(i)
-                        .dyn_into::<web_sys::IntersectionObserverEntry>()
-                        && entry.is_intersecting()
-                    {
-                        set_in_view.set(true);
+
+        let callback: wasm_bindgen::closure::Closure<dyn Fn(js_sys::Array, web_sys::IntersectionObserver)> =
+            wasm_bindgen::closure::Closure::new(
+                move |entries: js_sys::Array, _: web_sys::IntersectionObserver| {
+                    for i in 0..entries.length() {
+                        if let Ok(entry) = entries
+                            .get(i)
+                            .dyn_into::<web_sys::IntersectionObserverEntry>()
+                            && entry.is_intersecting()
+                        {
+                            set_in_view.set(true);
+                        }
                     }
-                }
-            },
-        ) as Box<dyn Fn(js_sys::Array, web_sys::IntersectionObserver)>);
+                },
+            );
         let callback_fn: &js_sys::Function = callback.as_ref().unchecked_ref();
         let opts = web_sys::IntersectionObserverInit::new();
         opts.set_root_margin("100px");
@@ -52,9 +55,10 @@ pub fn Thumbnail(
         if let Some(el) = el {
             observer.observe(el.unchecked_ref());
         }
-        leptos::on_cleanup(move || {
+        // Leak callback to avoid Send/Sync issues (safe in WASM single-threaded env)
+        std::mem::forget(callback);
+        on_cleanup(move || {
             observer.disconnect();
-            drop(callback);
         });
     });
 
@@ -63,7 +67,7 @@ pub fn Thumbnail(
     let size_val = size as f32;
 
     view! {
-        <div class=container_class _ref=wrapper_ref>
+        <div class=container_class node_ref=wrapper_ref>
             {move || {
                 if !show_image || load_error.get() {
                     view! { <span><FileIcon file_type=file_type size=size /></span> }.into_any()

@@ -13,7 +13,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen(start)]
 pub fn run() {
     console_error_panic_hook::set_once();
-    leptos::mount_to_body(app::App);
+    leptos::mount::mount_to_body(|| leptos::view! { <app::App/> });
 }
 
 #[cfg(test)]

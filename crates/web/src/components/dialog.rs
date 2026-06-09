@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 use crate::components::focus_trap::FocusTrap;
 
@@ -114,14 +115,14 @@ pub fn DialogFooter(
         <div class="flex justify-end gap-2 mt-6">
             <button
                 class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
-                on:click=move |ev| on_cancel.call(ev)
+                on:click=move |ev| on_cancel.run(ev)
             >
                 {cancel_label}
             </button>
             <button
                 class=confirm_class
                 disabled=confirm_disabled
-                on:click=move |ev| on_confirm.call(ev)
+                on:click=move |ev| on_confirm.run(ev)
             >
                 {confirm_label}
             </button>

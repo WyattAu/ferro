@@ -1,5 +1,6 @@
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
+use leptos_router::components::*;
+use leptos_router::path;
 
 use crate::components::header::Header;
 use crate::components::sidebar::Sidebar;
@@ -30,22 +31,22 @@ pub fn App() -> impl IntoView {
                         <main class="main-content" id="main-content" aria-label="Main content">
                             <Header api=api/>
                             <div class="page-content surface" aria-live="polite">
-                                <Routes>
-                                    <Route path="/" view=move || {
+                                <Routes fallback=|| "Not found">
+                                    <Route path=path!("/") view=move || {
                                         if connected {
-                                            view! { <DashboardPage api=api/> }
+                                            view! { <DashboardPage api=api/> }.into_any()
                                         } else {
-                                            view! { <LoginPage api=api/> }
+                                            view! { <LoginPage api=api/> }.into_any()
                                         }
                                     }/>
-                                    <Route path="/login" view=move || view! { <LoginPage api=api/> }/>
-                                    <Route path="/users" view=move || view! { <UsersPage api=api/> }/>
-                                    <Route path="/storage" view=move || view! { <StoragePage api=api/> }/>
-                                    <Route path="/monitoring" view=move || view! { <MonitoringPage api=api/> }/>
-                                    <Route path="/settings" view=move || view! { <SettingsPage api=api/> }/>
-                                    <Route path="/federation" view=move || view! { <FederationPage api=api/> }/>
-                                    <Route path="/webhooks" view=move || view! { <WebhooksPage api=api/> }/>
-                                    <Route path="/audit" view=move || view! { <AuditPage api=api/> }/>
+                                    <Route path=path!("/login") view=move || view! { <LoginPage api=api/> }/>
+                                    <Route path=path!("/users") view=move || view! { <UsersPage api=api/> }/>
+                                    <Route path=path!("/storage") view=move || view! { <StoragePage api=api/> }/>
+                                    <Route path=path!("/monitoring") view=move || view! { <MonitoringPage api=api/> }/>
+                                    <Route path=path!("/settings") view=move || view! { <SettingsPage api=api/> }/>
+                                    <Route path=path!("/federation") view=move || view! { <FederationPage api=api/> }/>
+                                    <Route path=path!("/webhooks") view=move || view! { <WebhooksPage api=api/> }/>
+                                    <Route path=path!("/audit") view=move || view! { <AuditPage api=api/> }/>
                                 </Routes>
                             </div>
                         </main>

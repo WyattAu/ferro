@@ -1,4 +1,6 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
 
 use crate::api::ApiState;
 use crate::components::badge::{Badge, BadgeVariant};
@@ -140,7 +142,7 @@ pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
                         {move || {
                             let filtered = filtered_users();
                             if filtered.is_empty() {
-                                vec![view! { <tr><td colspan="5" class="table-empty">"No users found"</td></tr> }]
+                                vec![view! { <tr><td colspan="5" class="table-empty">"No users found"</td></tr> }.into_any()]
                             } else {
                                 filtered.iter().map(|user| {
                                     let username = user.get("username").and_then(|v| v.as_str()).unwrap_or("-").to_string();
@@ -159,7 +161,7 @@ pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
                                                 <button class="btn btn-danger btn-sm" on:click=move |_| { set_delete_target.set(uname.clone()); set_show_delete_confirm.set(true); }>"Delete"</button>
                                             </td>
                                         </tr>
-                                    }
+                                    }.into_any()
                                 }).collect::<Vec<_>>()
                             }
                         }}

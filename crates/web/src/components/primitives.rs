@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 /// Accessible button component with proper ARIA attributes and minimum touch target.
 ///
@@ -63,7 +64,7 @@ pub fn Button(
             aria-disabled=disabled || loading
             aria-busy=loading
             aria-label=aria_label
-            on:click=move |ev| on_click.call(ev)
+            on:click=move |ev| on_click.run(ev)
         >
             {move || {
                 if loading {
@@ -73,9 +74,9 @@ pub fn Button(
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                         </svg>
                         <span class="sr-only">"Loading..."</span>
-                    }.into_view()
+                    }.into_any()
                 } else {
-                    view! {}.into_view()
+                    view! {}.into_any()
                 }
             }}
             {children()}
@@ -208,9 +209,9 @@ pub fn Input(
                 aria-describedby=described_by
                 on:input=move |ev| {
                     let val = event_target_value(&ev);
-                    on_input.call(val);
+                    on_input.run(val);
                 }
-                on:blur=move |ev| on_blur.call(ev)
+                on:blur=move |ev| on_blur.run(ev)
             />
             {error.map(|err| view! {
                 <p id=error_id class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
@@ -301,7 +302,7 @@ pub fn Select(
                 aria-describedby=if has_error { Some(error_id.clone()) } else { None }
                 on:change=move |ev| {
                     let val = event_target_value(&ev);
-                    on_change.call(val);
+                    on_change.run(val);
                 }
             >
                 {options.into_iter().map(|opt| view! {
@@ -397,7 +398,7 @@ pub fn Checkbox(
                     aria-invalid=error.is_some()
                     on:change=move |ev| {
                         let checked = event_target_checked(&ev);
-                        on_change.call(checked);
+                        on_change.run(checked);
                     }
                 />
             </div>

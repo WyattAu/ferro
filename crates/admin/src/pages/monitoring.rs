@@ -1,4 +1,6 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
 
 use crate::api::ApiState;
 use crate::state::format_uptime;
@@ -110,9 +112,9 @@ pub fn MonitoringPage(api: RwSignal<ApiState>) -> impl IntoView {
                 {move || {
                     let url = grafana_url.get();
                     if !url.is_empty() {
-                        view! { <div class="mt-2"><a href=url target="_blank" class="btn btn-secondary">"Open Grafana Dashboard"</a></div> }
+                        view! { <div class="mt-2"><a href=url target="_blank" class="btn btn-secondary">"Open Grafana Dashboard"</a></div> }.into_any()
                     } else {
-                        view! { <div class="mt-2 text-secondary-placeholder">"Configure a Grafana URL above to view dashboards"</div> }
+                        view! { <div class="mt-2 text-secondary-placeholder">"Configure a Grafana URL above to view dashboards"</div> }.into_any()
                     }
                 }}
             </div>

@@ -1,5 +1,7 @@
-use leptos::*;
-use leptos_router::A;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
+use leptos_router::components::A;
 
 use crate::api::{self, UserPreferences};
 use crate::components::onboarding::reset_onboarding;
@@ -82,7 +84,7 @@ pub fn SettingsPage() -> impl IntoView {
             <header class="surface brutal-border border-b px-6 py-3 shadow-concrete">
                 <div class="flex items-center justify-between max-w-7xl mx-auto">
                     <div class="flex items-center gap-3">
-                        <A href="/ui/" class="flex items-center gap-2 no-underline">
+                        <A href="/ui/" attr:class="flex items-center gap-2 no-underline">
                             <div class="w-8 h-8 bg-transparent brutal-border rounded flex items-center justify-center font-display text-accent">
                                 <span class="font-bold text-sm">{t!("brand.name")}</span>
                             </div>
@@ -94,7 +96,7 @@ pub fn SettingsPage() -> impl IntoView {
                     </div>
                     <A
                         href="/ui/"
-                        class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        attr:class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                         {t!("nav.back_to_files")}
                     </A>

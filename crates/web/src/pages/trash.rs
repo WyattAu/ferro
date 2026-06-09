@@ -1,5 +1,7 @@
-use leptos::*;
-use leptos_router::A;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
+use leptos_router::components::A;
 
 use crate::api;
 use crate::api::TrashedEntry;
@@ -88,7 +90,7 @@ pub fn TrashPage() -> impl IntoView {
             <header class="surface brutal-border border-b px-6 py-3 shadow-concrete">
                 <div class="flex items-center justify-between max-w-7xl mx-auto">
                     <div class="flex items-center gap-3">
-                        <A href="/ui/" class="flex items-center gap-2 no-underline">
+                        <A href="/ui/" attr:class="flex items-center gap-2 no-underline">
                             <div class="w-8 h-8 bg-transparent brutal-border rounded flex items-center justify-center font-display text-accent">
                                 <span class="font-bold text-sm">{t!("brand.name")}</span>
                             </div>
@@ -101,7 +103,7 @@ pub fn TrashPage() -> impl IntoView {
                     <div class="flex items-center gap-2">
                         <A
                             href="/ui/"
-                            class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            attr:class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             {t!("nav.back_to_files")}
                         </A>
@@ -204,10 +206,10 @@ pub fn TrashPage() -> impl IntoView {
                                             view! {
                                                 <tr class="hover:bg-gray-50 border-b border-gray-100 transition-colors" role="row">
                                                     <td class="px-4 py-2.5 text-gray-700 text-sm" role="rowheader">
-                                                        {&entry.original_path}
+                                                        {entry.original_path.clone()}
                                                     </td>
                                                     <td class="px-4 py-2.5 text-gray-500 text-sm" role="gridcell">
-                                                        {&entry.deleted_at}
+                                                        {entry.deleted_at.clone()}
                                                     </td>
                                                     <td class="px-4 py-2.5 text-gray-500 text-sm tabular-nums" role="gridcell">
                                                         {format_size(entry.size)}

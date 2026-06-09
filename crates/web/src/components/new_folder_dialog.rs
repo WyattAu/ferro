@@ -1,4 +1,6 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
 
 use crate::api;
 use crate::components::focus_trap::FocusTrap;
@@ -37,7 +39,7 @@ pub fn NewFolderDialog(
                     set_open.set(false);
                     set_folder_name.set(String::new());
                     ToastContext::success(t!("toast.folder_created"));
-                    on_created.call(());
+                    on_created.run(());
                 }
                 Err(e) => {
                     ToastContext::error(format!("Failed to create folder: {}", e));

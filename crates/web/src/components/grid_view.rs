@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 use crate::api::{FileEntry, LockInfo};
 use crate::components::thumbnail::Thumbnail;
@@ -62,9 +63,9 @@ pub fn GridCard(
 
     let handle_click = move |_: ev::MouseEvent| {
         if entry_is_collection {
-            on_navigate.call(path_for_click.clone());
+            on_navigate.run(path_for_click.clone());
         } else {
-            on_preview.call(path_for_preview_click.clone());
+            on_preview.run(path_for_preview_click.clone());
         }
     };
 
@@ -72,9 +73,9 @@ pub fn GridCard(
         if ev.key() == "Enter" || ev.key() == " " {
             ev.prevent_default();
             if entry_is_collection {
-                on_navigate.call(path_for_keydown.clone());
+                on_navigate.run(path_for_keydown.clone());
             } else {
-                on_preview.call(path_for_preview_keydown.clone());
+                on_preview.run(path_for_preview_keydown.clone());
             }
         }
     };
@@ -85,7 +86,7 @@ pub fn GridCard(
 
     let handle_favorite_click = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
-        on_toggle_favorite.call(path_for_favorite.clone());
+        on_toggle_favorite.run(path_for_favorite.clone());
     };
 
     let handle_checkbox_click = move |ev: ev::MouseEvent| {
@@ -94,37 +95,37 @@ pub fn GridCard(
         let is_ctrl = ev.ctrl_key() || ev.meta_key();
         let p = path_for_select.clone();
         let idx = entry_index;
-        on_toggle_select.call((p, idx, is_shift, is_ctrl));
+        on_toggle_select.run((p, idx, is_shift, is_ctrl));
     };
 
     let handle_download_click = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
-        on_download.call(path_for_download.clone());
+        on_download.run(path_for_download.clone());
     };
 
     let handle_share_click = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
-        on_share.call(path_for_share.clone());
+        on_share.run(path_for_share.clone());
     };
 
     let handle_copy_click = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
-        on_copy.call(path_for_copy.clone());
+        on_copy.run(path_for_copy.clone());
     };
 
     let handle_move_click = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
-        on_move.call(path_for_move.clone());
+        on_move.run(path_for_move.clone());
     };
 
     let handle_rename_click = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
-        on_rename.call(path_for_rename.clone());
+        on_rename.run(path_for_rename.clone());
     };
 
     let handle_delete_click = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
-        on_delete.call(path_for_delete.clone());
+        on_delete.run(path_for_delete.clone());
     };
 
     // Drag-and-drop handlers for inter-folder moves
@@ -174,7 +175,7 @@ pub fn GridCard(
             && let Ok(source) = dt.get_data("text/plain")
             && !source.is_empty() && source != folder_drop_path
         {
-            on_drop_on_folder.call((source, is_copy));
+            on_drop_on_folder.run((source, is_copy));
         }
     };
 
@@ -249,8 +250,11 @@ pub fn GridCard(
             })}
 
             <button
-                class="absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                class=move || if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 opacity-0 group-hover:opacity-100" }
+                class=move || {
+                    let base = "absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500";
+                    let color = if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 opacity-0 group-hover:opacity-100" };
+                    format!("{} {}", base, color)
+                }
                 attr:aria-label=format!("{} {}", if is_favorited { t!("fav.unfavorite") } else { t!("fav.favorite") }, name_for_actions)
                 title=if is_favorited { t!("fav.remove") } else { t!("fav.add") }
                 on:click=handle_favorite_click
@@ -277,16 +281,19 @@ pub fn GridCard(
                 </div>
 
                 <div class="w-full min-h-[2.5rem] flex items-center justify-center">
-                    <span class="text-xs sm:text-sm font-medium text-gray-900 truncate max-w-full px-1"
-                        class=move || if entry_is_collection { "font-semibold" } else { "font-medium" }
+                    <span class=move || {
+                        let base = "text-xs sm:text-sm font-medium text-gray-900 truncate max-w-full px-1";
+                        let weight = if entry_is_collection { "font-semibold" } else { "font-medium" };
+                        format!("{} {}", base, weight)
+                    }
                         title=entry_name.clone()
                     >
-                        {&entry_name}
+                        {entry_name.clone()}
                     </span>
                 </div>
 
-                <span class="text-[10px] sm:text-xs text-gray-500">{&size_str}</span>
-                <span class="text-[10px] text-gray-400 hidden sm:block">{&modified_display}</span>
+                <span class="text-[10px] sm:text-xs text-gray-500">{size_str.clone()}</span>
+                <span class="text-[10px] text-gray-400 hidden sm:block">{modified_display.clone()}</span>
             </div>
 
             <div class="flex items-center justify-center gap-1 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn BarChart(
@@ -34,7 +34,7 @@ pub fn BarChart(
                 <>
                     <rect x={format!("{}", x)} y={format!("{}", y)} width={format!("{}", w)} height={format!("{}", height)} fill=c rx="2" opacity="0.85" />
                     <text x={format!("{}", x + w / 2.0)} y={format!("{}", y - 2.0)} text-anchor="middle" font-size="5" fill="var(--text-secondary)">{display_val}</text>
-                    <text x={format!("{}", x + w / 2.0)} y="96" text-anchor="middle" font-size="5" fill="var(--text-secondary)">{label}</text>
+                    <text x={format!("{}", x + w / 2.0)} y="96" text-anchor="middle" font-size="5" fill="var(--text-secondary)">{label.clone()}</text>
                 </>
             }
         })
@@ -64,7 +64,7 @@ pub fn LineChart(
                 <h3 class="chart-title font-display">{title}</h3>
                 <div class="text-sm text-center py-8" style="color: var(--text-secondary)">No data available</div>
             </div>
-        }.into_view();
+        }.into_any();
     }
 
     let max_val = data.iter().map(|(_, v)| *v).fold(0.0_f64, f64::max).max(1.0);
@@ -140,7 +140,7 @@ pub fn LineChart(
                 }).collect::<Vec<_>>()}
             </svg>
         </div>
-    }.into_view()
+    }.into_any()
 }
 
 #[component]
@@ -200,7 +200,7 @@ pub fn PieChart(data: Vec<(String, f64)>, title: String) -> impl IntoView {
             view! {
                 <div class="legend-item" role="listitem">
                     <span class="legend-color" style={format!("background: {}", c)} aria-hidden="true"></span>
-                    <span class="legend-label">{label}</span>
+                    <span class="legend-label">{label.clone()}</span>
                     <span class="legend-value font-display">{pct}</span>
                 </div>
             }

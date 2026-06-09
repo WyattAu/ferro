@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 use crate::components::icons::{Icon, IconName};
 
@@ -116,9 +117,10 @@ pub fn DataTable(
 
     let is_empty = total_rows == 0;
     let columns_count = columns.len();
+    let aria_label_for_div = aria_label.clone();
 
     view! {
-        <div class="w-full" role="region" aria-label=aria_label.clone() tabindex="0">
+        <div class="w-full" role="region" aria-label=aria_label_for_div tabindex="0">
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left" role="grid" aria-label=aria_label>
                     <thead>
@@ -129,7 +131,7 @@ pub fn DataTable(
                                     class="rounded border text-blue-600 focus:ring-blue-500"
                                     prop:checked=all_selected
                                     aria-label="Select all rows"
-                                    on:click=move |_| on_toggle_select_all.call(())
+                                    on:click=move |_| on_toggle_select_all.run(())
                                 />
                             </th>
                             <For
@@ -140,6 +142,7 @@ pub fn DataTable(
                                 {
                                     let col_key = col.key.clone();
                                     let col_label = col.label.clone();
+                                    let col_label_for_aria = col.label.clone();
                                     let col_sortable = col.sortable;
                                     let col_class = col.class.clone();
                                     let sort_by_sig = sort_by;
@@ -161,7 +164,7 @@ pub fn DataTable(
                                                 view! {
                                                     <button
                                                         class="flex items-center gap-1 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded min-h-[44px] px-1"
-                                                        aria-label=format!("Sort by {}", col_label)
+                                                        aria-label=format!("Sort by {}", col_label_for_aria)
                                                         on:click=move |_| {
                                                             let sb = sort_by_sig.get();
                                                             let sd = sort_dir_sig.get().unwrap_or(SortDir::Asc);
@@ -173,27 +176,27 @@ pub fn DataTable(
                                                             } else {
                                                                 SortDir::Asc
                                                             };
-                                                            on_sort_cb.call((col_key.clone(), new_dir));
+                                                            on_sort_cb.run((col_key.clone(), new_dir));
                                                         }
                                                     >
                                                         {col_label}
-                                                        <span class="text-gray-400">
+                                                            <span class="text-gray-400">
                                                             {move || match current_sort() {
                                                                 Some(SortDir::Asc) => view! {
                                                                     <Icon name=IconName::ArrowUp class="w-3 h-3".to_string() />
-                                                                }.into_view(),
+                                                                }.into_any(),
                                                                 Some(SortDir::Desc) => view! {
                                                                     <Icon name=IconName::ArrowDown class="w-3 h-3".to_string() />
-                                                                }.into_view(),
+                                                                }.into_any(),
                                                                 None => view! {
                                                                     <span class="w-3 h-3 inline-block"></span>
-                                                                }.into_view(),
+                                                                }.into_any(),
                                                             }}
                                                         </span>
                                                     </button>
-                                                }.into_view()
+                                                }.into_any()
                                             } else {
-                                                view! { <span>{col_label}</span> }.into_view()
+                                                view! { <span>{col_label}</span> }.into_any()
                                             }}
                                         </th>
                                     }
@@ -211,18 +214,22 @@ pub fn DataTable(
                                             {es()}
                                         </td>
                                     </tr>
-                                }.into_view())
-                                .unwrap_or_else(|| view! {
-                                    <tr>
-                                        <td class="px-4 py-16 text-center text-gray-400" colspan=columns_count + 2>
-                                            <Icon name=IconName::File class="w-12 h-12 mx-auto mb-3 text-gray-300".to_string() />
-                                            <div class="text-lg font-medium">"No data"</div>
-                                            <div class="text-sm">"No records to display."</div>
-                                        </td>
-                                    </tr>
-                                }.into_view())
+                                }.into_any())
+                                .unwrap_or_else(|| {
+                                    view! {
+                                        <tr>
+                                            <td class="px-4 py-16 text-center text-gray-400" colspan=columns_count + 2>
+                                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                <div class="text-lg font-medium">"No data"</div>
+                                                <div class="text-sm">"No records to display."</div>
+                                            </td>
+                                        </tr>
+                                    }.into_any()
+                                })
                         } else {
-                            children().into_view()
+                            children().into_view().into_any()
                         }}
                     </tbody>
                 </table>
@@ -318,7 +325,7 @@ pub fn TableRow(
                     class="rounded border text-blue-600 focus:ring-blue-500"
                     prop:checked=move || is_selected.get()
                     attr:aria-label=format!("Select row {}", row_key)
-                    on:click=move |_| on_toggle_select.call(key_clone.clone())
+                    on:click=move |_| on_toggle_select.run(key_clone.clone())
                 />
             </td>
             {children()}

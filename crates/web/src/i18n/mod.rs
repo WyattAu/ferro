@@ -1,3 +1,5 @@
+use leptos::prelude::*;
+
 mod en;
 
 pub use en::EN;
@@ -43,12 +45,12 @@ pub struct I18nCtx {
 impl I18nCtx {
     /// Provide the i18n context to the component tree.
     pub fn provide(locale: Locale) {
-        leptos::provide_context(Self { locale });
+        provide_context(Self { locale });
     }
 
     /// Read the i18n context from the nearest provider.
     pub fn expect() -> Self {
-        leptos::expect_context::<Self>()
+        expect_context::<Self>()
     }
 
     /// Translate a key using the current locale.

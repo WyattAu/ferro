@@ -1,4 +1,6 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
 
 use crate::api::FileEntry;
 
@@ -98,12 +100,12 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
 
     let handle_keydown = move |ev: ev::KeyboardEvent| {
         if ev.key() == "Escape" {
-            on_close.call(());
+            on_close.run(());
         }
     };
 
     let close = move |_: ev::MouseEvent| {
-        on_close.call(());
+        on_close.run(());
     };
 
     view! {

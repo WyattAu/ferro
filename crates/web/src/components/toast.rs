@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 use crate::t;
 
@@ -26,7 +27,7 @@ static TOAST_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::ne
 
 impl ToastContext {
     fn push(&self, msg: ToastMessage) {
-        self.push.call(msg);
+        self.push.run(msg);
     }
 
     pub fn success(message: impl Into<String>) {
@@ -99,7 +100,7 @@ pub fn ProvideToastContext(children: Children) -> impl IntoView {
             if ev.key() == "Escape" {
                 let current = toasts_clone.get();
                 if let Some(last) = current.last() {
-                    dismiss_clone.call(last.id);
+                    dismiss_clone.run(last.id);
                 }
             }
         });
@@ -116,7 +117,7 @@ pub fn ProvideToastContext(children: Children) -> impl IntoView {
                 {
                     let toast_id = toast.id;
                     view! {
-                        <ToastItem toast=toast on_dismiss=Callback::new(move |()| dismiss.call(toast_id)) />
+                        <ToastItem toast=toast on_dismiss=Callback::new(move |()| dismiss.run(toast_id)) />
                     }
                 }
             </For>
@@ -179,7 +180,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
     let handle_dismiss = move |_| {
         set_dismissed.set(true);
         set_visible.set(false);
-        on_dismiss.call(());
+        on_dismiss.run(());
     };
 
     create_effect(move |_| {
@@ -206,7 +207,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
             if ev.key() == "Escape" {
                 dismissed_esc.set(true);
                 visible_esc.set(false);
-                on_dismiss_esc.call(());
+                on_dismiss_esc.run(());
             }
         });
     }

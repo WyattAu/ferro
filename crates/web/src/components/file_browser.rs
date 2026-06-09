@@ -1,6 +1,9 @@
 use crate::t;
-use leptos::*;
-use leptos_router::A;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::html;
+use leptos::ev;
+use leptos_router::components::A;
 
 use crate::api;
 use crate::components::activity_sidebar::ActivitySidebar;
@@ -193,11 +196,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         create_effect(move |_| {
             let sentinel = scroll_sentinel_ref.get()?;
             use wasm_bindgen::JsCast;
-            let callback = {
-                let all_entries = all_entries;
-                let display_count = display_count;
-                let set_display_count = set_display_count;
-                wasm_bindgen::closure::Closure::wrap(Box::new(
+
+            let callback: wasm_bindgen::closure::Closure<dyn Fn(js_sys::Array, web_sys::IntersectionObserver)> =
+                wasm_bindgen::closure::Closure::new(
                     move |entries: js_sys::Array, _: web_sys::IntersectionObserver| {
                         for i in 0..entries.length() {
                             if let Ok(entry) = entries
@@ -213,13 +214,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                             }
                         }
                     },
-                )
-                    as Box<dyn Fn(js_sys::Array, web_sys::IntersectionObserver)>)
-            };
+                );
             let callback_fn: &js_sys::Function = callback.as_ref().unchecked_ref();
 
-            // Build options with root set to the scroll container.
-            // Falls back to viewport (null root) if container not found.
             let options = scroll_container_ref
                 .get()
                 .map(|el| {
@@ -232,9 +229,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             let observer =
                 web_sys::IntersectionObserver::new_with_options(callback_fn, &options).unwrap();
             observer.observe(&sentinel);
-            leptos::on_cleanup(move || {
+            // Leak callback to avoid Send/Sync issues (safe in WASM single-threaded env)
+            std::mem::forget(callback);
+            on_cleanup(move || {
                 observer.disconnect();
-                drop(callback);
             });
             Some(())
         });
@@ -474,7 +472,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 load_locks();
             }
         });
-        leptos::on_cleanup(move || {
+        on_cleanup(move || {
             set_alive.set(false);
         });
     });
@@ -1070,7 +1068,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
     view! {
        <div
-           _ref=scroll_container_ref
+           node_ref=scroll_container_ref
            role="region"
             aria-label=t!("file_list.aria")
            on:dragover=handle_drag_over
@@ -1126,16 +1124,22 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
                    <div class="flex items-center gap-1 sm:gap-2 flex-wrap justify-end shrink-0">
                        <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded p-0.5">
-                           <button
-                               class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               class=move || if active_tab.get() == BrowserTab::Files { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
-                                on:click=move |_| switch_tab(BrowserTab::Files)
+                            <button
+                                class=move || {
+                                    let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500";
+                                    let active = if active_tab.get() == BrowserTab::Files { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" };
+                                    format!("{} {}", base, active)
+                                }
+                                 on:click=move |_| switch_tab(BrowserTab::Files)
                             >
                                 {t!("nav.files")}
                            </button>
                            <button
-                               class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               class=move || if active_tab.get() == BrowserTab::Favorites { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
+                               class=move || {
+                                   let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500";
+                                   let active = if active_tab.get() == BrowserTab::Favorites { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" };
+                                   format!("{} {}", base, active)
+                               }
                                on:click=move |_| switch_tab(BrowserTab::Favorites)
                                aria-label=move || t!("nav.favorites")
                            >
@@ -1143,8 +1147,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
                            </button>
                            <button
-                               class="px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               class=move || if active_tab.get() == BrowserTab::Recent { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" }
+                               class=move || {
+                                   let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500";
+                                   let active = if active_tab.get() == BrowserTab::Recent { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-gray-500 hover:text-gray-700" };
+                                   format!("{} {}", base, active)
+                               }
                                on:click=move |_| switch_tab(BrowserTab::Recent)
                                aria-label=move || t!("nav.recent")
                            >
@@ -1195,9 +1202,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                            <span class="hidden sm:inline">{t!("dialog.new_folder.title")}</span>
                        </button>
                        <A
-                           href="/ui/trash"
-                           class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100 transition-colors no-underline flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
-                            attr:aria-label=t!("toolbar.aria_trash")
+                            href="/ui/trash"
+                            attr:class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100 transition-colors no-underline flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                             attr:aria-label=t!("toolbar.aria_trash")
                        >
                            <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

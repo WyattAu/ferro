@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 use crate::api::ApiState;
 use crate::components::badge::{Badge, BadgeVariant};
@@ -188,7 +189,7 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
                                 if upload_data.is_empty() && download_data.is_empty() {
                                     view! {
                                         <div class="text-sm text-center py-8" style="color: var(--text-secondary)">"No activity data yet"</div>
-                                    }.into_view()
+                                    }.into_any()
                                 } else {
                                     view! {
                                         <div class="space-y-2">
@@ -201,7 +202,7 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
                                                 <LineChart data=download_data title="".to_string() color="#2563eb".to_string() />
                                             </div>
                                         </div>
-                                    }.into_view()
+                                    }.into_any()
                                 }
                             }}
                         </div>
@@ -223,11 +224,11 @@ pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
                                         <div class="text-sm text-center py-8" style="color: var(--text-secondary)">
                                             {format!("{} users total", total_users)}
                                         </div>
-                                    }.into_view()
+                                    }.into_any()
                                 } else {
                                     view! {
                                         <BarChart data=role_data title=format!("{} Total Users", total_users) color="#E85D04".to_string() />
-                                    }.into_view()
+                                    }.into_any()
                                 }
                             }}
                         </div>

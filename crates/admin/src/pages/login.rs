@@ -1,4 +1,7 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
+use leptos_router::hooks::use_navigate;
 
 use crate::api::ApiState;
 use crate::state::save_connection;
@@ -39,7 +42,8 @@ pub fn LoginPage(api: RwSignal<ApiState>) -> impl IntoView {
                     });
                     api.update(|a| a.connect(url_val, token_val));
                     set_error.set(None);
-                    let navigate = leptos_router::use_navigate();
+                    use leptos_router::hooks::use_navigate;
+                    let navigate = use_navigate();
                     navigate("/", Default::default());
                 }
                 Err(e) => set_error.set(Some(format!("Connection failed: {}", e))),
@@ -77,7 +81,7 @@ pub fn LoginPage(api: RwSignal<ApiState>) -> impl IntoView {
                     </button>
                     {has_saved.then(|| view! {
                         <button type="button" class="btn btn-secondary btn-block" on:click=move |_| {
-                            let navigate = leptos_router::use_navigate();
+                            let navigate = use_navigate();
                             navigate("/", Default::default());
                         } aria-label="Go to dashboard">"Go to Dashboard"</button>
                     })}

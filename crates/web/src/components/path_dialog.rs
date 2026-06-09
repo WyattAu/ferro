@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 use crate::components::focus_trap::FocusTrap;
 use crate::components::toast::ToastContext;
@@ -31,7 +32,7 @@ pub fn PathDialog(
             ToastContext::error(t!("error.destination_empty"));
             return;
         }
-        on_confirm.call((source, dest));
+        on_confirm.run((source, dest));
     };
 
     view! {

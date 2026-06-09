@@ -1,4 +1,6 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
 
 use crate::api;
 use crate::components::focus_trap::FocusTrap;
@@ -42,7 +44,7 @@ pub fn UploadDialog(
                                 "Upload Complete",
                                 &format!("{} uploaded successfully", file_name),
                             );
-                            on_uploaded.call(());
+                            on_uploaded.run(());
                         }
                         Err(e) => {
                             ToastContext::error(format!("Upload failed: {}", e));

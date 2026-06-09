@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 use crate::api;
 use crate::components::theme_toggle::{ThemeToggle, provide_theme_state};

@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 use crate::t;
 
@@ -147,7 +148,7 @@ pub fn CommandPalette() -> impl IntoView {
             if let Some(cmd) = cmds.iter().find(|c| c.id == current) {
                 let cmd = cmd.clone();
                 state.close();
-                cmd.action.call(());
+                cmd.action.run(());
             }
         }
         "Escape" => {
@@ -223,7 +224,7 @@ pub fn CommandPalette() -> impl IntoView {
                                                     aria_selected=move || hl_id.get() == cmd_id_aria
                                                     on:click=move |_| {
                                                         pal_state.close();
-                                                        cmd_action.call(());
+                                                        cmd_action.run(());
                                                     }
                                                     on:mouseenter=move |_| set_hl.set(cmd_id.clone())
                                                 >

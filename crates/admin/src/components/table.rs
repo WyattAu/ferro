@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 #[derive(Clone)]
 pub struct Column {
@@ -15,7 +15,7 @@ pub fn DataTable(columns: Vec<Column>, rows: Vec<serde_json::Value>) -> impl Int
             <table class="data-table" aria-label="Data table">
                 <thead>
                     <tr>
-                        {columns.iter().map(|c| view! { <th scope="col">{&c.label}</th> }).collect::<Vec<_>>()}
+                        {columns.iter().map(|c| view! { <th scope="col">{c.label.clone()}</th> }).collect::<Vec<_>>()}
                     </tr>
                 </thead>
                 <tbody>
@@ -28,7 +28,7 @@ pub fn DataTable(columns: Vec<Column>, rows: Vec<serde_json::Value>) -> impl Int
                                         view! { <td>{val}</td> }
                                     }).collect::<Vec<_>>()}
                                 </tr>
-                            }
+                            }.into_any()
                         }).collect::<Vec<_>>()
                     } else {
                         vec![view! {
@@ -37,7 +37,7 @@ pub fn DataTable(columns: Vec<Column>, rows: Vec<serde_json::Value>) -> impl Int
                                     "No data available"
                                 </td>
                             </tr>
-                        }]
+                        }.into_any()]
                     }}
                 </tbody>
             </table>

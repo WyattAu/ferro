@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 use crate::api::FileEntry;
 use crate::t;
@@ -26,18 +27,15 @@ pub fn FileRow(
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
 ) -> impl IntoView {
-    let icon = if entry.is_collection {
-        view! {
-            <svg class="w-5 h-5 text-yellow-500" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-            </svg>
-        }
-    } else {
-        view! {
-            <svg class="w-5 h-5 text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-        }
+    let folder_icon = view! {
+        <svg class="w-5 h-5 text-yellow-500" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+        </svg>
+    };
+    let file_icon = view! {
+        <svg class="w-5 h-5 text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
     };
 
     let size = if entry.is_collection {
@@ -67,9 +65,9 @@ pub fn FileRow(
 
     let handle_click = move |_: ev::MouseEvent| {
         if entry.is_collection {
-            on_navigate.call(path_for_click.clone());
+            on_navigate.run(path_for_click.clone());
         } else {
-            on_preview.call(path_for_preview.clone());
+            on_preview.run(path_for_preview.clone());
         }
     };
 
@@ -80,14 +78,14 @@ pub fn FileRow(
         let is_shift = ev.shift_key();
         let is_ctrl = ev.ctrl_key() || ev.meta_key();
         let p = path_for_select.clone();
-        on_toggle_select.call((p, 0, is_shift, is_ctrl));
+        on_toggle_select.run((p, 0, is_shift, is_ctrl));
     };
     let handle_checkbox_click_mobile = move |ev: ev::MouseEvent| {
         ev.stop_propagation();
         let is_shift = ev.shift_key();
         let is_ctrl = ev.ctrl_key() || ev.meta_key();
         let p = path_for_select_cb.clone();
-        on_toggle_select_cb.call((p, 0, is_shift, is_ctrl));
+        on_toggle_select_cb.run((p, 0, is_shift, is_ctrl));
     };
 
     let entry_name = entry.name.clone();
@@ -142,7 +140,7 @@ pub fn FileRow(
             && let Ok(source) = dt.get_data("text/plain")
             && !source.is_empty() && source != folder_drop_path_row
         {
-            on_drop_on_folder.call((source, is_copy));
+            on_drop_on_folder.run((source, is_copy));
         }
     };
 
@@ -202,7 +200,7 @@ pub fn FileRow(
             </td>
             <td class="hidden md:table-cell px-4 py-2.5" role="gridcell">
                 <div class="flex items-center gap-1">
-                    {icon.clone()}
+                    {if entry.is_collection { folder_icon.into_any() } else { file_icon.into_any() }}
                     {is_locked.then(|| view! {
                         <span class="text-xs" title=lock_tooltip.clone()>
                             <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" title=lock_tooltip.clone()>
@@ -215,7 +213,19 @@ pub fn FileRow(
             <td class="px-0 py-0 md:px-4 md:py-2.5" role="rowheader">
                 <div class="flex md:table-cell items-center gap-3 px-1 py-2 md:px-0 md:py-0 min-h-[44px]">
                     <span class="md:hidden shrink-0 flex items-center gap-1">
-                        {icon}
+                        {if entry.is_collection {
+                            view! {
+                                <svg class="w-5 h-5 text-yellow-500" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                </svg>
+                            }.into_any()
+                        } else {
+                            view! {
+                                <svg class="w-5 h-5 text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            }.into_any()
+                        }}
                         {is_locked.then(|| view! {
                             <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -223,7 +233,7 @@ pub fn FileRow(
                         })}
                     </span>
                     <span class={if entry_is_collection { "font-semibold font-mono text-gray-900 truncate" } else { "text-gray-700 truncate" }}>
-                        {&entry_name}
+                        {entry_name.clone()}
                     </span>
                     {is_locked.then(|| view! {
                         <span class="text-xs text-red-500 font-medium">{t!("common.locked")}</span>
@@ -231,10 +241,10 @@ pub fn FileRow(
                 </div>
             </td>
             <td class="px-1 py-0 md:px-4 md:py-2.5 text-gray-500 text-sm font-mono tabular-nums md:table-cell block" role="gridcell">
-                <span class="md:hidden text-xs">{&entry_size}</span>
-                <span class="hidden md:inline">{&entry_size}</span>
+                <span class="md:hidden text-xs">{entry_size.clone()}</span>
+                <span class="hidden md:inline">{entry_size.clone()}</span>
             </td>
-            <td class="px-1 py-0 md:px-4 md:py-2.5 text-gray-500 text-sm font-mono tabular-nums hidden lg:table-cell" role="gridcell">{&entry_modified}</td>
+            <td class="px-1 py-0 md:px-4 md:py-2.5 text-gray-500 text-sm font-mono tabular-nums hidden lg:table-cell" role="gridcell">{entry_modified.clone()}</td>
             <td class="px-1 py-1 md:px-4 md:py-2.5 text-right md:table-cell block" role="gridcell">
                 <div class="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     {show_checkbox.then(|| view! {
@@ -249,13 +259,16 @@ pub fn FileRow(
                         </div>
                     })}
                     <button
-                        class="p-2 md:p-1.5 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-                        class=move || if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50" }
+                        class=move || {
+                            let base = "p-2 md:p-1.5 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center";
+                            let color = if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50" };
+                            format!("{} {}", base, color)
+                        }
                         attr:aria-label=format!("{} {}", if is_favorited { t!("fav.unfavorite") } else { t!("fav.favorite") }, name_for_favorite)
                         title=if is_favorited { t!("fav.remove") } else { t!("fav.add") }
                         on:click=move |ev| {
                             ev.stop_propagation();
-                            on_toggle_favorite.call(path_for_favorite.clone());
+                            on_toggle_favorite.run(path_for_favorite.clone());
                         }
                     >
                         <svg class="w-4 h-4" aria-hidden="true" fill=move || if is_favorited { "currentColor" } else { "none" } stroke="currentColor" viewBox="0 0 24 24">
@@ -269,7 +282,7 @@ pub fn FileRow(
                             title=t!("common.download")
                             on:click=move |ev| {
                                 ev.stop_propagation();
-                                on_download.call(path_for_download.clone());
+                                on_download.run(path_for_download.clone());
                             }
                         >
                             <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -284,7 +297,7 @@ pub fn FileRow(
                             title=t!("common.share")
                             on:click=move |ev| {
                                 ev.stop_propagation();
-                                on_share.call(path_for_share.clone());
+                                on_share.run(path_for_share.clone());
                             }
                         >
                             <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -298,7 +311,7 @@ pub fn FileRow(
                         title=t!("common.copy")
                         on:click=move |ev| {
                             ev.stop_propagation();
-                            on_copy.call(path_for_copy.clone());
+                            on_copy.run(path_for_copy.clone());
                         }
                     >
                         <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,7 +324,7 @@ pub fn FileRow(
                         title=t!("common.move")
                         on:click=move |ev| {
                             ev.stop_propagation();
-                            on_move.call(path_for_move.clone());
+                            on_move.run(path_for_move.clone());
                         }
                     >
                         <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,7 +338,7 @@ pub fn FileRow(
                             title=t!("common.rename")
                             on:click=move |ev| {
                                 ev.stop_propagation();
-                                on_rename.call(path_for_rename.clone());
+                                on_rename.run(path_for_rename.clone());
                             }
                         >
                             <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -343,7 +356,7 @@ pub fn FileRow(
                             title=t!("common.delete")
                             on:click=move |ev| {
                                 ev.stop_propagation();
-                                on_delete.call(path_for_delete.clone());
+                                on_delete.run(path_for_delete.clone());
                             }
                         >
                             <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">

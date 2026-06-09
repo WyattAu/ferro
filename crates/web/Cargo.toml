@@ -15,8 +15,8 @@ crate-type = ["cdylib", "rlib"]
 ferro-common = { path = "../common" }
 ferro-crdt = { path = "../crdt", features = ["wasm"] }
 leptos = { workspace = true }
-leptos_meta = { version = "0.6" }
-leptos_router = { version = "0.6", features = ["csr"] }
+leptos_meta = { version = "0.8" }
+leptos_router = { version = "0.8" }
 serde = { workspace = true }
 serde_json = "1"
 wasm-bindgen = "0.2"
@@ -26,10 +26,10 @@ web-sys = { version = "0.3", features = ["Window", "Document", "HtmlElement", "H
 chrono = { version = "0.4", features = ["serde"] }
 console_error_panic_hook = "0.1"
 uuid = { version = "1", features = ["v4", "js"] }
-leptos-fetch = "0.4"
-leptos-use = "0.18"
-leptix = "0.1"
-lepticons = "0.12"
+leptos-fetch = "0.4.10"
+leptos-use = "0.18.3"
+leptix = "0.1.2"
+lepticons = "0.12.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

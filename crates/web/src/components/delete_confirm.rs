@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::ev;
 
 use crate::components::focus_trap::FocusTrap;
 use crate::t;
@@ -46,7 +47,7 @@ pub fn DeleteConfirmDialog(
                             class="px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
                             on:click=move |ev| {
                                 set_open.set(false);
-                                on_confirm.call(ev);
+                                on_confirm.run(ev);
                             }
                         >
                             {t!("common.delete")}

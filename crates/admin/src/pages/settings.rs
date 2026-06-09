@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 use crate::api::ApiState;
 use crate::state::{format_bytes, format_uptime};

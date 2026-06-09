@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use std::time::Duration;
 
 /// Debounce a value by the given delay.

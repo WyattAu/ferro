@@ -1,11 +1,13 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
 
 use crate::api::{SearchFilters, SearchResultEntry};
 use crate::auth;
 use crate::components::theme_toggle::ThemeToggle;
 use crate::t;
 use ferro_common::format::format_size;
-use leptos_router::A;
+use leptos_router::components::A;
 
 #[derive(Clone, Copy)]
 pub struct HeaderState {
@@ -15,7 +17,7 @@ pub struct HeaderState {
 
 impl HeaderState {
     pub fn open_search(&self) {
-        self.open_search.call(());
+        self.open_search.run(());
     }
 }
 
@@ -243,7 +245,7 @@ pub fn Header() -> impl IntoView {
         <header class="fixed top-0 left-0 right-0 w-full z-30 surface border-b px-4 sm:px-6 py-3 shadow-concrete">
             <div class="flex items-center justify-between max-w-7xl mx-auto">
                 <div class="flex items-center gap-3">
-                    <A href="/" class="flex items-center gap-3 no-underline">
+                    <A href="/" attr:class="flex items-center gap-3 no-underline">
                         {move || {
                             if let Some(url) = branding
                                 .and_then(|s| s.get())
@@ -294,7 +296,7 @@ pub fn Header() -> impl IntoView {
 
                     <A
                         href="/ui/settings"
-                        class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
+                        attr:class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
                         attr:aria-label=t!("aria.settings")
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum BadgeVariant {

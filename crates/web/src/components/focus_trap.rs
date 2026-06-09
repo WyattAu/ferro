@@ -1,4 +1,6 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::html;
+use leptos::ev;
 
 /// Reusable focus trap wrapper for modal dialogs.
 ///
@@ -112,7 +114,7 @@ pub fn FocusTrap(children: Children) -> impl IntoView {
     });
 
     view! {
-        <div _ref=container_ref on:keydown=on_keydown>
+        <div node_ref=container_ref on:keydown=on_keydown>
             {children()}
         </div>
     }

@@ -1,4 +1,6 @@
-use leptos::*;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
+use leptos::ev;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
@@ -127,7 +129,7 @@ pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
                                     && (action_filter.is_empty() || a.contains(&action_filter))
                             }).collect();
                             if filtered.is_empty() {
-                                vec![view! { <tr><td colspan="5" class="table-empty">"No audit entries found"</td></tr> }]
+                                vec![view! { <tr><td colspan="5" class="table-empty">"No audit entries found"</td></tr> }.into_any()]
                             } else {
                                 filtered.iter().map(|entry| {
                                     let ts = entry.get("timestamp").and_then(|t| t.as_str()).unwrap_or("-").to_string();
@@ -144,7 +146,7 @@ pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
                                             <td class="mono">{resource}</td>
                                             <td><Badge text=status variant=bv/></td>
                                         </tr>
-                                    }
+                                    }.into_any()
                                 }).collect::<Vec<_>>()
                             }
                         }}

@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 /// A bar chart rendered entirely with SVG.
 ///
@@ -46,11 +46,14 @@ pub fn BarChart(
         0.0
     };
 
+    let aria_label_for_chart = aria_label.clone();
+    let aria_label_for_chart_caption = aria_label.clone();
+
     view! {
         <div
             class="w-full overflow-hidden"
             role="img"
-            aria-label=aria_label.clone()
+            aria-label=aria_label_for_chart
         >
             <svg
                 viewBox=format!("0 0 {} {}", chart_width, height)
@@ -91,9 +94,9 @@ pub fn BarChart(
                                     >
                                         {point.value}
                                     </text>
-                                }.into_view()
+                                }.into_any()
                             } else {
-                                view! {}.into_view()
+                                view! {}.into_any()
                             }}
                         </g>
                     }
@@ -101,7 +104,7 @@ pub fn BarChart(
             </svg>
             // Screen reader accessible data table
             <table class="sr-only">
-                <caption>{aria_label}</caption>
+                <caption>{aria_label_for_chart_caption}</caption>
                 <thead>
                     <tr>
                         <th>"Label"</th>
@@ -111,7 +114,7 @@ pub fn BarChart(
                 <tbody>
                     {display_data.iter().map(|point| view! {
                         <tr>
-                            <td>{&point.label}</td>
+                            <td>{point.label.clone()}</td>
                             <td>{point.value}</td>
                         </tr>
                     }).collect_view()}
@@ -202,11 +205,14 @@ pub fn LineChart(
         }
     });
 
+    let aria_label_for_line = aria_label.clone();
+    let aria_label_for_line_caption = aria_label.clone();
+
     view! {
         <div
             class="w-full overflow-hidden"
             role="img"
-            aria-label=aria_label.clone()
+            aria-label=aria_label_for_line
         >
             <svg
                 viewBox=format!("0 0 {} {}", chart_width, height)
@@ -227,9 +233,9 @@ pub fn LineChart(
                             stroke-linecap="round"
                             stroke-linejoin="round"
                         />
-                    }.into_view()
+                    }.into_any()
                 } else {
-                    view! {}.into_view()
+                    view! {}.into_any()
                 }}
                 {if show_dots {
                     display_data.iter().enumerate().map(|(i, point)| {
@@ -248,14 +254,14 @@ pub fn LineChart(
                                 aria-label=aria_text
                             />
                         }
-                    }).collect_view()
+                    }).collect_view().into_any()
                 } else {
-                    view! {}.into_view()
+                    view! {}.into_any()
                 }}
             </svg>
             // Screen reader accessible data table
             <table class="sr-only">
-                <caption>{aria_label}</caption>
+                <caption>{aria_label_for_line_caption}</caption>
                 <thead>
                     <tr>
                         <th>"Label"</th>
@@ -265,7 +271,7 @@ pub fn LineChart(
                 <tbody>
                     {display_data.iter().map(|point| view! {
                         <tr>
-                            <td>{&point.label}</td>
+                            <td>{point.label.clone()}</td>
                             <td>{point.value}</td>
                         </tr>
                     }).collect_view()}

@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 use crate::t;
 
@@ -25,14 +25,14 @@ pub fn BulkActionBar(
                  <div class="flex items-center gap-2">
                      <button
                          class="px-3 py-1.5 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[44px]"
-                         on:click=move |_| on_delete.call(())
+                         on:click=move |_| on_delete.run(())
                          aria-label=t!("bulk.aria_delete")
                      >
                          {t!("common.delete")}
                      </button>
                      <button
                          class="px-3 py-1.5 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]"
-                         on:click=move |_| on_download.call(())
+                         on:click=move |_| on_download.run(())
                          aria-label=t!("bulk.aria_download")
                      >
                          <span class="hidden sm:inline">{t!("common.download")}</span>
@@ -40,7 +40,7 @@ pub fn BulkActionBar(
                      </button>
                      <button
                          class="px-3 py-1.5 text-sm bg-gray-600 dark:bg-gray-300 text-white dark:text-gray-900 brutal-border rounded-sm font-bold uppercase hover:bg-gray-500 dark:hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 min-h-[44px]"
-                         on:click=move |_| on_clear.call(())
+                         on:click=move |_| on_clear.run(())
                          aria-label=t!("bulk.aria_clear")
                      >
                          {t!("common.clear")}
