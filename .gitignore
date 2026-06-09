@@ -76,3 +76,4 @@ load-test-results.json
 .specs/
 fuzz/corpus/
 fuzz/artifacts/
+__pycache__/
