@@ -22,7 +22,7 @@ pub mod dedup;
 pub mod e2ee;
 pub mod email;
 pub mod encryption;
-pub mod erasure_storage;
+pub use ferro_distributed::erasure_storage;
 pub mod error;
 pub mod events;
 pub mod favorites;
@@ -320,6 +320,14 @@ pub struct AppState {
         Option<Arc<tokio::sync::RwLock<push_notifications::PushNotificationStore>>>,
     /// Push notification configuration (FCM/APNS keys).
     pub push_notification_config: push_notifications::PushNotificationConfig,
+    /// NFS/SMB mount backend (from ferro-mount-nfs crate).
+    pub mount_backend: Option<Arc<dyn ferro_mount_nfs::traits::MountBackend>>,
+    /// Multi-tenant organization store.
+    pub organization_store: Arc<dyn ferro_multi_tenant::organization::OrganizationStore>,
+    /// Multi-tenant tenant store.
+    pub tenant_store: Arc<dyn ferro_multi_tenant::tenant::TenantStore>,
+    /// General-purpose timed cache for metadata and responses (from ferro-cache crate).
+    pub metadata_cache: Option<Arc<ferro_cache::TimedCache<String, Vec<u8>>>>,
 }
 
 impl AppState {
@@ -417,6 +425,12 @@ impl AppState {
             api_key_store: Arc::new(InMemoryApiKeyStore::new()),
             push_notification_store: None,
             push_notification_config: push_notifications::PushNotificationConfig::default(),
+            mount_backend: None,
+            organization_store: Arc::new(
+                ferro_multi_tenant::organization::InMemoryOrganizationStore::new(),
+            ),
+            tenant_store: Arc::new(ferro_multi_tenant::tenant::InMemoryTenantStore::new()),
+            metadata_cache: None,
         }
     }
 
@@ -673,6 +687,35 @@ impl AppState {
     ) -> Self {
         self.push_notification_store = Some(Arc::new(tokio::sync::RwLock::new(store)));
         self.push_notification_config = config;
+        self
+    }
+
+    pub fn with_mount_backend(
+        mut self,
+        backend: Arc<dyn ferro_mount_nfs::traits::MountBackend>,
+    ) -> Self {
+        self.mount_backend = Some(backend);
+        self
+    }
+
+    pub fn with_organization_store(
+        mut self,
+        store: Arc<dyn ferro_multi_tenant::organization::OrganizationStore>,
+    ) -> Self {
+        self.organization_store = store;
+        self
+    }
+
+    pub fn with_tenant_store(
+        mut self,
+        store: Arc<dyn ferro_multi_tenant::tenant::TenantStore>,
+    ) -> Self {
+        self.tenant_store = store;
+        self
+    }
+
+    pub fn with_metadata_cache(mut self, cache: ferro_cache::TimedCache<String, Vec<u8>>) -> Self {
+        self.metadata_cache = Some(Arc::new(cache));
         self
     }
 

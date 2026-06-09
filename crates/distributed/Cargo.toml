@@ -9,6 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
+common = { package = "ferro-common", path = "../common" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros", "rt", "net", "io-util"] }
@@ -21,6 +22,9 @@ bytes = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 serde_json = { workspace = true }
 reed-solomon-erasure = "6"
+tracing = "0.1"
+hex = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
+tempfile = "3"

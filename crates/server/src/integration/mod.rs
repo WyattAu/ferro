@@ -3,14 +3,12 @@ pub mod cache_layer;
 pub mod config_integration;
 pub mod crdt_integration;
 pub mod distributed_integration;
-pub mod e2ee_integration;
 pub mod event_dispatch;
 pub mod health_integration;
 pub mod multi_tenant_integration;
 pub mod offline_integration;
 pub mod rate_limit;
 pub mod search;
-pub mod session_integration;
 pub mod storage_integration;
 pub mod webhook_integration;
 

@@ -10,8 +10,6 @@ publish = false
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
-ferro-selective-sync = { path = "../selective-sync" }
-ferro-sync-delta = { path = "../sync-delta" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

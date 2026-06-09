@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
+use crate::erasure::{ErasureCoder, ErasureConfig, ReedSolomonErasureCoder, Shard};
 use async_trait::async_trait;
 use bytes::Bytes;
 use common::error::{FerroError, Result};
 use common::metadata::{ContentHash, FileMetadata};
 use common::storage::StorageEngine;
-use ferro_distributed::erasure::{ErasureCoder, ErasureConfig, ReedSolomonErasureCoder, Shard};
 use tracing::{debug, info, warn};
 
 const METADATA_SUFFIX: &str = ".erasure.meta.json";
@@ -353,7 +353,114 @@ impl StorageEngine for ErasureStorageEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::InMemoryStorageEngine;
+    use std::collections::HashMap;
+    use tokio::sync::RwLock;
+
+    struct MockStorageEngine {
+        data: Arc<RwLock<HashMap<String, Bytes>>>,
+        metadata: Arc<RwLock<HashMap<String, FileMetadata>>>,
+    }
+
+    impl MockStorageEngine {
+        fn new() -> Self {
+            Self {
+                data: Arc::new(RwLock::new(HashMap::new())),
+                metadata: Arc::new(RwLock::new(HashMap::new())),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl StorageEngine for MockStorageEngine {
+        async fn head(&self, path: &str) -> Result<FileMetadata> {
+            self.metadata
+                .read()
+                .await
+                .get(path)
+                .cloned()
+                .ok_or_else(|| FerroError::NotFound(path.to_string()))
+        }
+
+        async fn get(&self, path: &str) -> Result<Bytes> {
+            self.data
+                .read()
+                .await
+                .get(path)
+                .cloned()
+                .ok_or_else(|| FerroError::NotFound(path.to_string()))
+        }
+
+        async fn put(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata> {
+            let hash = ContentHash::compute(&content);
+            let meta = FileMetadata::new(
+                path.to_string(),
+                hash,
+                content.len() as u64,
+                owner.to_string(),
+            );
+            self.data.write().await.insert(path.to_string(), content);
+            self.metadata
+                .write()
+                .await
+                .insert(path.to_string(), meta.clone());
+            Ok(meta)
+        }
+
+        async fn delete(&self, path: &str) -> Result<()> {
+            self.data.write().await.remove(path);
+            self.metadata.write().await.remove(path);
+            Ok(())
+        }
+
+        async fn list(&self, path: &str) -> Result<Vec<FileMetadata>> {
+            let prefix = if path.ends_with('/') {
+                path.to_string()
+            } else {
+                format!("{}/", path)
+            };
+            let meta = self.metadata.read().await;
+            Ok(meta
+                .keys()
+                .filter(|k| k.starts_with(&prefix))
+                .filter_map(|k| meta.get(k).cloned())
+                .collect())
+        }
+
+        async fn copy(&self, from: &str, to: &str) -> Result<()> {
+            let data = self.get(from).await?;
+            let meta = self.head(from).await?;
+            self.put(to, data, &meta.owner).await?;
+            Ok(())
+        }
+
+        async fn move_path(&self, from: &str, to: &str) -> Result<()> {
+            self.copy(from, to).await?;
+            self.delete(from).await?;
+            Ok(())
+        }
+
+        async fn exists(&self, path: &str) -> Result<bool> {
+            Ok(self.data.read().await.contains_key(path))
+        }
+
+        async fn create_collection(&self, path: &str, owner: &str) -> Result<FileMetadata> {
+            let meta = FileMetadata::new(
+                path.to_string(),
+                ContentHash::compute(&[]),
+                0,
+                owner.to_string(),
+            );
+            self.metadata
+                .write()
+                .await
+                .insert(path.to_string(), meta.clone());
+            Ok(meta)
+        }
+
+        async fn list_all(&self, path: &str, _max_depth: u32) -> Result<Vec<FileMetadata>> {
+            self.list(path).await
+        }
+    }
 
     fn test_config() -> ErasureStorageConfig {
         let dir = tempfile::tempdir().unwrap();
@@ -366,7 +473,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_erasure_put_and_get() {
-        let inner = Arc::new(InMemoryStorageEngine::new());
+        let inner = Arc::new(MockStorageEngine::new());
         let config = test_config();
         let engine = ErasureStorageEngine::new(inner, config);
 
@@ -382,7 +489,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_erasure_delete() {
-        let inner = Arc::new(InMemoryStorageEngine::new());
+        let inner = Arc::new(MockStorageEngine::new());
         let config = test_config();
         let engine = ErasureStorageEngine::new(inner, config);
 
@@ -398,7 +505,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_erasure_list_filters_metadata() {
-        let inner = Arc::new(InMemoryStorageEngine::new());
+        let inner = Arc::new(MockStorageEngine::new());
         let config = test_config();
         let engine = ErasureStorageEngine::new(inner.clone(), config);
 

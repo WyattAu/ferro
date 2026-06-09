@@ -4,11 +4,8 @@
 //! to minimize data transfer and resolve conflicts during reconnection.
 
 use crate::change_queue::QueuedOperation;
-use ferro_selective_sync::conflict::ConflictDetector;
-use ferro_selective_sync::conflict::{ConflictType, SyncConflict};
-use ferro_sync_delta::chunker::ChunkInfo;
-use ferro_sync_delta::diff::compute_block_diff;
-use ferro_sync_delta::diff::{BlockDiffRequest, BlockDiffResult};
+use common::chunk::{BlockDiffRequest, BlockDiffResult, ChunkInfo, compute_block_diff};
+use common::conflict::{ConflictDetector, ConflictType, SyncConflict};
 use serde::{Deserialize, Serialize};
 
 /// Result of a reconciliation pass.

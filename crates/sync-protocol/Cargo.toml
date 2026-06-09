@@ -10,8 +10,6 @@ publish = false
 
 [dependencies]
 ferro-common = { path = "../common" }
-ferro-sync-delta = { path = "../sync-delta" }
-ferro-selective-sync = { path = "../selective-sync" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

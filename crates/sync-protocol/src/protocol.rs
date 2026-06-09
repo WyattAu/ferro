@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use ferro_sync_delta::chunker::ChunkInfo;
+use ferro_common::chunk::ChunkInfo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

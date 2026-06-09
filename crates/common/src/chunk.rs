@@ -1,6 +1,13 @@
-use crate::chunker::ChunkInfo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChunkInfo {
+    pub hash: [u8; 32],
+    pub offset: u64,
+    pub size: u32,
+    pub index: u32,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockDiffRequest {

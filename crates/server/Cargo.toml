@@ -83,8 +83,8 @@ lettre = { version = "0.11", default-features = false, features = ["smtp-transpo
 ferro-rate-limiter = { path = "../rate-limiter" }
 ferro-cache = { path = "../cache" }
 ferro-health = { path = "../health" }
-ferro-session-manager = { path = "../session-manager" }
 ferro-multi-tenant = { path = "../multi-tenant" }
+ferro-mount-nfs = { path = "../mount-nfs" }
 ferro-event-bus = { path = "../event-bus" }
 ferro-audit-log = { path = "../audit-log" }
 ferro-webhook = { path = "../webhook" }
@@ -93,7 +93,6 @@ ferro-ai = { path = "../ai" }
 ferro-backend-router = { path = "../backend-router" }
 ferro-storage-adapter = { path = "../storage-adapter" }
 ferro-config-manager = { path = "../config-manager" }
-ferro-e2ee = { path = "../e2ee" }
 ferro-crdt = { path = "../crdt" }
 ferro-distributed = { path = "../distributed" }
 ferro-offline = { path = "../offline" }
