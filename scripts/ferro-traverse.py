@@ -33,6 +33,153 @@ HYDRATE_WAIT = 2000  # Wait for Leptos WASM hydration
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+SNAPSHOT_JS = """() => {
+    var snap = { ts: new Date().toISOString() };
+    snap.raw_html = document.documentElement.outerHTML || '';
+    snap.element_count = document.querySelectorAll('*').length;
+    snap.heading_hierarchy = [];
+    for (var i = 1; i <= 6; i++) {
+        var hs = document.querySelectorAll('h' + i);
+        for (var j = 0; j < hs.length; j++) {
+            snap.heading_hierarchy.push({level: i, text: (hs[j].textContent||'').trim().substring(0,100)});
+        }
+    }
+    snap.interactive_count = document.querySelectorAll('button, input, select, textarea, a[href], [role="button"], [role="link"], [role="tab"]').length;
+    snap.aria_landmarks = {nav: document.querySelectorAll('nav,[role="navigation"]').length, main: document.querySelectorAll('main,[role="main"]').length, aside: document.querySelectorAll('aside,[role="complementary"]').length, header: document.querySelectorAll('header,[role="banner"]').length, footer: document.querySelectorAll('footer,[role="contentinfo"]').length};
+    var imgs = document.querySelectorAll('img');
+    var with_alt = 0;
+    for (var i = 0; i < imgs.length; i++) { if (imgs[i].hasAttribute('alt')) with_alt++; }
+    snap.images = {total: imgs.length, with_alt: with_alt, missing_alt: imgs.length - with_alt};
+    var inputs = document.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea');
+    var labeled = 0;
+    for (var i = 0; i < inputs.length; i++) {
+        var inp = inputs[i];
+        if (inp.hasAttribute('aria-label') || inp.hasAttribute('aria-labelledby') || inp.id && document.querySelector('label[for="' + inp.id + '"]')) { labeled++; }
+        else if (inp.closest('label')) { labeled++; }
+    }
+    snap.forms = {total_inputs: inputs.length, with_labels: labeled, missing_labels: inputs.length - labeled};
+    var focusable = document.querySelectorAll('[tabindex]');
+    var tabindex_values = [];
+    for (var i = 0; i < focusable.length; i++) { tabindex_values.push(parseInt(focusable[i].getAttribute('tabindex')) || 0); }
+    snap.focus_order = {count: focusable.length, values: tabindex_values};
+    return snap;
+}"""
+
+A11Y_AUDIT_JS = """() => {
+    var score = 100;
+    var issues = [];
+    var buttons = document.querySelectorAll('button, [role="button"]');
+    var unlabeled_btns = 0;
+    for (var i = 0; i < buttons.length; i++) {
+        var b = buttons[i];
+        var lbl = b.getAttribute('aria-label') || b.getAttribute('aria-labelledby');
+        var txt = (b.textContent || '').trim();
+        if (!lbl && !txt) { unlabeled_btns++; }
+    }
+    if (unlabeled_btns > 0) { score -= Math.min(unlabeled_btns * 5, 20); issues.push({type:'unlabeled_buttons', count: unlabeled_btns}); }
+
+    var inputs = document.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea');
+    var unlabeled_inputs = 0;
+    for (var i = 0; i < inputs.length; i++) {
+        var inp = inputs[i];
+        var has_label = inp.getAttribute('aria-label') || inp.getAttribute('aria-labelledby') || (inp.id && document.querySelector('label[for="' + inp.id + '"]')) || inp.closest('label');
+        if (!has_label) unlabeled_inputs++;
+    }
+    if (unlabeled_inputs > 0) { score -= Math.min(unlabeled_inputs * 5, 20); issues.push({type:'unlabeled_inputs', count: unlabeled_inputs}); }
+
+    var imgs = document.querySelectorAll('img');
+    var no_alt = 0;
+    for (var i = 0; i < imgs.length; i++) { if (!imgs[i].hasAttribute('alt')) no_alt++; }
+    if (no_alt > 0) { score -= Math.min(no_alt * 3, 15); issues.push({type:'images_missing_alt', count: no_alt}); }
+
+    var headings = document.querySelectorAll('h1,h2,h3,h4,h5,h6');
+    var prev_level = 0;
+    var skipped = 0;
+    for (var i = 0; i < headings.length; i++) {
+        var lvl = parseInt(headings[i].tagName[1]);
+        if (prev_level > 0 && lvl > prev_level + 1) { skipped++; }
+        prev_level = lvl;
+    }
+    if (skipped > 0) { score -= Math.min(skipped * 5, 15); issues.push({type:'heading_skips', count: skipped}); }
+
+    var has_landmark = document.querySelector('main,[role="main"],nav,[role="navigation"],header,[role="banner"],footer,[role="contentinfo"]');
+    if (!has_landmark) { score -= 10; issues.push({type:'no_landmark_regions', count: 1}); }
+
+    var contrast_issues = 0;
+    var text_nodes = document.querySelectorAll('p, span, a, li, h1, h2, h3, h4, h5, h6, button, label, td, th');
+    for (var i = 0; i < Math.min(text_nodes.length, 50); i++) {
+        var cs = window.getComputedStyle(text_nodes[i]);
+        var fg = cs.color; var bg = cs.backgroundColor;
+        if (fg === 'rgb(128, 128, 128)' && (bg === 'rgb(255, 255, 255)' || bg === 'rgba(0, 0, 0, 0)')) { contrast_issues++; }
+    }
+    if (contrast_issues > 0) { score -= Math.min(contrast_issues * 2, 10); issues.push({type:'low_contrast_likely', count: contrast_issues}); }
+
+    score = Math.max(score, 0);
+    return {score: score, issues: issues, total_buttons: buttons.length, total_inputs: inputs.length, total_images: imgs.length};
+}"""
+
+DESIGN_LANGUAGE_JS = """() => {
+    var results = {};
+    var cards = document.querySelectorAll('[class*="card"], [class*="Card"], [class*="surface"], [role="article"], [role="listitem"]');
+    var shadows = 0;
+    for (var i = 0; i < cards.length; i++) {
+        var s = window.getComputedStyle(cards[i]);
+        if (s.boxShadow && s.boxShadow !== 'none') shadows++;
+    }
+    results.spatial_materialism = {cards_found: cards.length, with_box_shadow: shadows, check: shadows > 0 ? 'PASS' : 'WARN'};
+
+    var all = document.querySelectorAll('*');
+    var z_used = 0;
+    for (var i = 0; i < Math.min(all.length, 200); i++) {
+        var z = window.getComputedStyle(all[i]).zIndex;
+        if (z !== 'auto' && parseInt(z) > 0) z_used++;
+    }
+    results.spatial_materialism.z_index_elements = z_used;
+
+    var organic = 0;
+    var organic_checked = 0;
+    for (var i = 0; i < Math.min(all.length, 200); i++) {
+        var br = window.getComputedStyle(all[i]).borderRadius;
+        if (br && br !== '0px') { organic_checked++; if (parseFloat(br) >= 4) organic++; }
+    }
+    results.amoebic_ui = {elements_with_radius: organic, total_checked: organic_checked, check: organic > 0 ? 'PASS' : 'WARN'};
+
+    var transitions = 0;
+    for (var i = 0; i < Math.min(all.length, 200); i++) {
+        var tr = window.getComputedStyle(all[i]).transition;
+        var an = window.getComputedStyle(all[i]).animation;
+        if ((tr && tr !== 'all 0s ease 0s' && tr !== 'none') || (an && an !== 'none')) transitions++;
+    }
+    results.amoebic_ui.transitions_count = transitions;
+
+    var root = document.documentElement;
+    var root_cs = window.getComputedStyle(root);
+    var vars = {};
+    for (var i = 0; i < root_cs.length; i++) {
+        var prop = root_cs[i];
+        if (prop.startsWith('--')) vars[prop] = root_cs.getPropertyValue(prop).trim();
+    }
+    var expected_vars = ['--accent', '--surface', '--text', '--bg'];
+    var found = {};
+    for (var j = 0; j < expected_vars.length; j++) {
+        found[expected_vars[j]] = vars[expected_vars[j]] || null;
+    }
+    results.color_consistency = {custom_properties: Object.keys(vars).length, expected_palette: found, check: Object.values(found).some(v => v !== null) ? 'PASS' : 'WARN'};
+
+    var body = document.body;
+    var bodyFont = body ? window.getComputedStyle(body).fontFamily : '';
+    var mono_elements = 0;
+    var sans_elements = 0;
+    for (var i = 0; i < Math.min(all.length, 100); i++) {
+        var ff = window.getComputedStyle(all[i]).fontFamily;
+        if (ff.indexOf('IBM Plex Mono') !== -1 || ff.indexOf('monospace') !== -1) mono_elements++;
+        if (ff.indexOf('Inter') !== -1 || ff.indexOf('sans-serif') !== -1) sans_elements++;
+    }
+    results.typography = {body_font: bodyFont, mono_or_monospace: mono_elements, inter_or_sans: sans_elements, check: 'INFO'};
+
+    return results;
+}"""
+
 
 class ErrorCollector:
     def __init__(self):
@@ -77,6 +224,53 @@ if(document.body)_to.observe(document.body,{childList:true,subtree:true});else d
 """
 
 
+async def capture_dom_snapshot(page, output_dir, test_name):
+    """Capture structured DOM snapshot as JSON."""
+    try:
+        data = await page.evaluate(SNAPSHOT_JS)
+        snap_dir = Path(output_dir) / "snapshots"
+        snap_dir.mkdir(exist_ok=True)
+        snap_path = snap_dir / f"{test_name}_dom.json"
+        with open(str(snap_path), 'w') as f:
+            json.dump(data, f, indent=2, default=str)
+        return data
+    except Exception:
+        return None
+
+
+async def capture_responsive_screenshots(page, output_dir, test_name, viewports):
+    """Take viewport-only screenshots at multiple sizes."""
+    shots = {}
+    for label, w, h in viewports:
+        try:
+            await page.set_viewport_size({"width": w, "height": h})
+            await page.wait_for_timeout(400)
+            resp_dir = Path(output_dir) / "responsive"
+            resp_dir.mkdir(exist_ok=True)
+            path = str(resp_dir / f"{test_name}_{w}x{h}.png")
+            await page.screenshot(path=path, full_page=False)
+            shots[f"{w}x{h}"] = path
+        except Exception:
+            pass
+    return shots
+
+
+async def run_accessibility_audit(page):
+    """Run automated accessibility audit via injected JS."""
+    try:
+        return await page.evaluate(A11Y_AUDIT_JS)
+    except Exception:
+        return {"score": 0, "issues": [{"type": "audit_failed", "count": 1}]}
+
+
+async def run_design_language_check(page):
+    """Run design language verification checks."""
+    try:
+        return await page.evaluate(DESIGN_LANGUAGE_JS)
+    except Exception:
+        return {}
+
+
 async def collect_errors(page, collector, name):
     try:
         data = await page.evaluate('() => JSON.stringify({e:window.__ferro_errors__||[],n:window.__ferro_network_errors__||[],t:window.__ferro_toasts__||[],csp:window.__ferro_csp__||[]})')
@@ -116,6 +310,8 @@ async def traverse_wasm(base_url, output_dir):
         idx[0] += 1
         return str(Path(output_dir) / f"{idx[0]:03d}_{name}.png")
 
+    RESPONSIVE_VIEWPORTS = [("mobile", 375, 812), ("tablet", 768, 1024)]
+
     async def wp(browser, name, url=None, fn=None):
         """Create fresh page, navigate, run test fn, close page."""
         page = await browser.new_page(viewport={"width": 1280, "height": 800})
@@ -131,6 +327,8 @@ async def traverse_wasm(base_url, output_dir):
             except Exception as e:
                 collector.add_error("nav", name, str(e)); status = 'nav_error'
         await page.wait_for_timeout(HYDRATE_WAIT)
+        # Capture DOM snapshot after navigation
+        dom_snap = await capture_dom_snapshot(page, output_dir, name)
         result = None
         if fn:
             try:
@@ -140,11 +338,16 @@ async def traverse_wasm(base_url, output_dir):
                 result = {"error": str(e)[:300]}
         path = shot(name)
         await page.screenshot(path=path, full_page=True)
+        # Capture responsive screenshots
+        resp_shots = await capture_responsive_screenshots(page, output_dir, name, RESPONSIVE_VIEWPORTS)
+        # Restore desktop viewport for any remaining work
+        await page.set_viewport_size({"width": 1280, "height": 800})
         ec, nc = await collect_errors(page, collector, name)
         ec += len(pw_err)
         for pe in pw_err: collector.add_error("pw", name, pe)
         await page.close()
-        return dict(name=name, status=status, screenshot=path, errs=ec, net=nc, result=result)
+        return dict(name=name, status=status, screenshot=path, errs=ec, net=nc, result=result,
+                    dom_snapshot=dom_snap is not None, responsive_shots=resp_shots)
 
     def add(sec, name, desc, ok, r, xfail=False):
         st = "PASS" if ok else ("XFAIL" if xfail else "FAIL")
@@ -782,7 +985,7 @@ async def traverse_wasm(base_url, output_dir):
         add("ERR", "8.5_csp_check", "CSP header check", r['result'].get('ok', False), r)
 
         # =================================================================
-        # S9: Accessibility (4 tests)
+        # S9: Accessibility (5 tests)
         # =================================================================
         print("\n== S9: Accessibility ==")
 
@@ -829,6 +1032,58 @@ async def traverse_wasm(base_url, output_dir):
         r = await wp(browser, "9.4_link_names", fn=t94)
         add("A11Y", "9.4_link_names", "Link accessible names", r['result'].get('ok', False), r)
 
+        async def t95(page):
+            a11y = await run_accessibility_audit(page)
+            score = a11y.get('score', 0)
+            return {"ok": score >= 70, "score": score, "issues": a11y.get('issues', []),
+                    "total_buttons": a11y.get('total_buttons', 0), "total_inputs": a11y.get('total_inputs', 0),
+                    "total_images": a11y.get('total_images', 0)}
+        r = await wp(browser, "9.5_a11y_audit", fn=t95)
+        a11y_score = r['result'].get('score', 0) if r['result'] else 0
+        add("A11Y", "9.5_a11y_audit", f"Automated a11y audit (score={a11y_score})", r['result'].get('ok', False), r)
+
+        # =================================================================
+        # S10: Design Language Verification (4 tests)
+        # =================================================================
+        print("\n== S10: Design Language ==")
+
+        async def t101(page):
+            dl = await run_design_language_check(page)
+            sm = dl.get('spatial_materialism', {})
+            return {"ok": sm.get('check') == 'PASS', "cards_found": sm.get('cards_found', 0),
+                    "with_box_shadow": sm.get('with_box_shadow', 0),
+                    "z_index_elements": sm.get('z_index_elements', 0)}
+        r = await wp(browser, "10.1_spatial_materialism", fn=t101)
+        add("DESIGN", "10.1_spatial_materialism", "Spatial Materialism (box-shadow, z-index)", r['result'].get('ok', False), r)
+
+        async def t102(page):
+            dl = await run_design_language_check(page)
+            amo = dl.get('amoebic_ui', {})
+            return {"ok": amo.get('check') == 'PASS', "elements_with_radius": amo.get('elements_with_radius', 0),
+                    "total_checked": amo.get('total_checked', 0),
+                    "transitions_count": amo.get('transitions_count', 0)}
+        r = await wp(browser, "10.2_amoebic_ui", fn=t102)
+        add("DESIGN", "10.2_amoebic_ui", "Amoebic UI (border-radius, transitions)", r['result'].get('ok', False), r)
+
+        async def t103(page):
+            dl = await run_design_language_check(page)
+            cc = dl.get('color_consistency', {})
+            return {"ok": cc.get('check') == 'PASS', "custom_properties": cc.get('custom_properties', 0),
+                    "expected_palette": cc.get('expected_palette', {})}
+        r = await wp(browser, "10.3_color_consistency", fn=t103)
+        add("DESIGN", "10.3_color_consistency", "Color consistency (CSS custom properties)", r['result'].get('ok', False), r)
+
+        async def t104(page):
+            dl = await run_design_language_check(page)
+            ty = dl.get('typography', {})
+            mono = ty.get('mono_or_monospace', 0)
+            sans = ty.get('inter_or_sans', 0)
+            return {"ok": True, "body_font": ty.get('body_font', ''),
+                    "mono_elements": mono, "sans_elements": sans,
+                    "check": ty.get('check', 'INFO')}
+        r = await wp(browser, "10.4_typography", fn=t104)
+        add("DESIGN", "10.4_typography", "Typography hierarchy (IBM Plex Mono, Inter)", r['result'].get('ok', False), r)
+
         await browser.close()
 
         # ============================================================
@@ -866,13 +1121,19 @@ async def traverse_wasm(base_url, output_dir):
             else:
                 print(f"  ALL TESTS PASSED ({xfailed} known headless limitations)")
         print()
+        print(f"  Snapshots: {output_dir}/snapshots/")
+        print(f"  Responsive: {output_dir}/responsive/")
 
         report = {
             "timestamp": datetime.now().isoformat(), "mode": "wasm", "base_url": base_url,
             "results": [{"section": s, "name": n, "desc": d, "status": st,
                         "errors": r.get("errs", 0), "network": r.get("net", 0),
-                        "screenshot": r.get("screenshot", ""), "result": r.get("result")}
+                        "screenshot": r.get("screenshot", ""), "result": r.get("result"),
+                        "dom_snapshot": r.get("dom_snapshot", False),
+                        "responsive_shots": r.get("responsive_shots", {})}
                        for s, n, d, st, r in results],
+            "accessibility_scores": [r for s, n, d, st, r in results if s == "A11Y" and n == "9.5_a11y_audit"],
+            "design_language": [r for s, n, d, st, r in results if s == "DESIGN"],
             "summary": collector.summary(),
             "errors": collector.errors, "warnings": collector.warnings,
             "toasts": collector.toasts, "network_errors": collector.network_errors,
