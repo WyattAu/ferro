@@ -74,8 +74,9 @@ if [ "${SKIP_SECRET_SCAN:-0}" != "1" ]; then
       'PRIVATE KEY' \
       'BEGIN RSA' \
       'BEGIN EC PRIVATE' \
+      'AKIA[0-9A-Z]{16}' \
     ; do
-      MATCHES=$(echo "$STAGED_FILES" | grep -E '\.(rs|toml|yaml|yml|json|env)$' | xargs grep -l "$PATTERN" 2>/dev/null || true)
+      MATCHES=$(echo "$STAGED_FILES" | grep -E '\.(rs|toml|yaml|yml|json|env|sh|conf|cfg)$' | xargs grep -l "$PATTERN" 2>/dev/null || true)
       if [ -n "$MATCHES" ]; then
         for F in $MATCHES; do
           # Skip test files and example configs
