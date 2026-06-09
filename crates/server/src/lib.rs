@@ -1588,7 +1588,7 @@ pub fn build_router_with_static(
         .route("/fed/outbox", axum::routing::get(federation::list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
         .route(
-            "/fed/files/{*path}",
+            "/fed/files/*path",
             axum::routing::get(api_federation::get_fed_file)
                 .put(api_federation::put_fed_file)
                 .delete(api_federation::delete_fed_file),
