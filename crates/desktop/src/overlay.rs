@@ -638,14 +638,19 @@ mod tests {
     fn test_stub_overlay_manager() {
         let mut manager = StubOverlayManager;
         assert!(manager.initialize().is_ok());
-        assert!(manager
-            .update_badge("/test", OverlayBadge {
-                status: SyncStatus::Synced,
-                progress: None,
-                last_sync: None,
-                conflict_info: None,
-            })
-            .is_ok());
+        assert!(
+            manager
+                .update_badge(
+                    "/test",
+                    OverlayBadge {
+                        status: SyncStatus::Synced,
+                        progress: None,
+                        last_sync: None,
+                        conflict_info: None,
+                    }
+                )
+                .is_ok()
+        );
         assert!(manager.remove_badge("/test").is_ok());
         assert!(manager.refresh_all().is_ok());
         assert!(manager.shutdown().is_ok());

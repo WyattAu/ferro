@@ -36,7 +36,8 @@ impl ConsistentHashBackend {
     /// Higher weight means more virtual nodes on the ring, receiving
     /// proportionally more traffic.
     pub fn add_node(&mut self, node_id: String, backend_id: BackendId, weight: Option<f64>) {
-        self.ring.add_node(node_id.clone(), weight, backend_id.clone());
+        self.ring
+            .add_node(node_id.clone(), weight, backend_id.clone());
         self.node_addresses.insert(node_id, backend_id);
     }
 
@@ -123,7 +124,10 @@ mod tests {
 
         let s3_count = counts.get(&BackendId::S3).unwrap_or(&0);
         let local_count = counts.get(&BackendId::Local).unwrap_or(&0);
-        assert!(s3_count > local_count, "S3 with weight 3.0 should get more traffic");
+        assert!(
+            s3_count > local_count,
+            "S3 with weight 3.0 should get more traffic"
+        );
     }
 
     #[test]

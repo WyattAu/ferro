@@ -840,6 +840,9 @@ fn test_notification_payload_roundtrip() {
     for payload in payloads {
         let json = serde_json::to_string(&payload).unwrap();
         let de: NotificationPayload = serde_json::from_str(&json).unwrap();
-        assert_eq!(format!("{:?}", payload.event_type), format!("{:?}", de.event_type));
+        assert_eq!(
+            format!("{:?}", payload.event_type),
+            format!("{:?}", de.event_type)
+        );
     }
 }
