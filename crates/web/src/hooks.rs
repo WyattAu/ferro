@@ -6,13 +6,10 @@ use std::time::Duration;
 /// Uses `leptos_use::use_debounce_fn` pattern: the signal updates only after
 /// the input has been still for the specified duration.
 #[component]
-pub fn UseDebounce(
-    value: Signal<String>,
-    delay_ms: u32,
-) -> impl IntoView {
-    let (debounced, set_debounced) = create_signal(String::new());
+pub fn UseDebounce(value: Signal<String>, delay_ms: u32) -> impl IntoView {
+    let (debounced, set_debounced) = signal(String::new());
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let new_val = value.get();
         let set_clone = set_debounced;
         let handle = set_timeout_with_handle(
@@ -34,17 +31,15 @@ pub fn UseDebounce(
 /// Mirrors `leptos_use::use_media_query` patterns: listens to
 /// `matchMedia` change events and exposes a reactive boolean signal.
 #[component]
-pub fn UseMediaQuery(
-    _query: String,
-) -> impl IntoView {
-    let (_matches, _set_matches) = create_signal(false);
+pub fn UseMediaQuery(_query: String) -> impl IntoView {
+    let (_matches, _set_matches) = signal(false);
 
     #[cfg(target_arch = "wasm32")]
     {
         let query_clone = _query.clone();
         let set_matches_clone = set_matches;
 
-        create_effect(move |_| {
+        Effect::new(move |_| {
             if let Some(window) = web_sys::window()
                 && let Some(mql) = window.match_media(&query_clone).ok().flatten()
             {
@@ -52,7 +47,8 @@ pub fn UseMediaQuery(
                 let closure = Closure::wrap(Box::new(move |_: web_sys::MediaQueryListEvent| {
                     set_matches_clone.set(mql.matches());
                 }) as Box<dyn Fn(_)>);
-                let _ = mql.add_event_listener_with_callback("change", closure.as_ref().unchecked_ref());
+                let _ = mql
+                    .add_event_listener_with_callback("change", closure.as_ref().unchecked_ref());
                 closure.forget();
             }
         });
@@ -68,15 +64,15 @@ pub fn UseMediaQuery(
 #[component]
 pub fn UseElementSize() -> impl IntoView {
     #[allow(unused_variables)]
-    let (width, set_width) = create_signal(0_u32);
+    let (width, set_width) = signal(0_u32);
     #[allow(unused_variables)]
-    let (height, set_height) = create_signal(0_u32);
+    let (height, set_height) = signal(0_u32);
 
     #[cfg(target_arch = "wasm32")]
     {
         let set_w = set_width;
         let set_h = set_height;
-        create_effect(move |_| {
+        Effect::new(move |_| {
             if let Some(window) = web_sys::window()
                 && let Some(doc) = window.document()
                 && let Some(body) = doc.body()
@@ -84,7 +80,11 @@ pub fn UseElementSize() -> impl IntoView {
                 let set_w = set_w.clone();
                 let set_h = set_h.clone();
                 let cb = Closure::wrap(Box::new(move |entries: js_sys::Array| {
-                    if let Some(entry) = entries.get(0).dyn_into::<web_sys::ResizeObserverEntry>().ok() {
+                    if let Some(entry) = entries
+                        .get(0)
+                        .dyn_into::<web_sys::ResizeObserverEntry>()
+                        .ok()
+                    {
                         let rect = entry.content_rect();
                         set_w.set(rect.width() as u32);
                         set_h.set(rect.height() as u32);

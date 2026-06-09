@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::api;
@@ -179,7 +179,8 @@ pub async fn list_files_cached(path: &str) -> Result<api::ListingResponse, Strin
     let cache_key = format!("list:{}", path);
 
     if let Some(cached) = with_cache(|cache| cache.get(&cache_key)) {
-        return serde_json::from_str(&cached).map_err(|e| format!("Cache deserialization failed: {}", e));
+        return serde_json::from_str(&cached)
+            .map_err(|e| format!("Cache deserialization failed: {}", e));
     }
 
     let result = api::list_files(path).await?;

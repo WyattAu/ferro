@@ -1,6 +1,7 @@
-use leptos::prelude::*;
 use leptos::ev;
+use leptos::prelude::*;
 
+use crate::components::focus_trap::FocusTrap;
 use crate::t;
 
 #[derive(Clone)]
@@ -43,8 +44,8 @@ impl CommandPaletteState {
 }
 
 pub fn provide_command_palette_state() -> CommandPaletteState {
-    let (is_open, set_is_open) = create_signal(false);
-    let (commands, set_commands) = create_signal(Vec::<Command>::new());
+    let (is_open, set_is_open) = signal(false);
+    let (commands, set_commands) = signal(Vec::<Command>::new());
 
     let state = CommandPaletteState {
         is_open,
@@ -64,8 +65,8 @@ pub fn use_command_palette_state() -> CommandPaletteState {
 #[component]
 pub fn CommandPalette() -> impl IntoView {
     let state = use_command_palette_state();
-    let (search, set_search) = create_signal(String::new());
-    let (highlighted_id, set_highlighted_id) = create_signal(String::new());
+    let (search, set_search) = signal(String::new());
+    let (highlighted_id, set_highlighted_id) = signal(String::new());
 
     let filtered_commands = move || {
         let query = search.get().to_lowercase();
@@ -79,7 +80,7 @@ pub fn CommandPalette() -> impl IntoView {
         }
     };
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         search.get();
         let cmds = filtered_commands();
         if let Some(first) = cmds.first() {
@@ -109,7 +110,7 @@ pub fn CommandPalette() -> impl IntoView {
                 std::time::Duration::from_millis(50),
             );
         };
-        create_effect(move |_| {
+        Effect::new(move |_| {
             if state.is_open.get() {
                 focus_input();
             }
@@ -170,6 +171,7 @@ pub fn CommandPalette() -> impl IntoView {
                     on:click=move |ev| ev.stop_propagation()
                     on:keydown=handle_keydown
                 >
+                <FocusTrap>
                     <div class="flex items-center border-b border-gray-200 px-4">
                         <svg class="w-5 h-5 text-accent mr-3 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -241,6 +243,7 @@ pub fn CommandPalette() -> impl IntoView {
                             }
                         }}
                     </div>
+                </FocusTrap>
                 </div>
             </div>
         })}

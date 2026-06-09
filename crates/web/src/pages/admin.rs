@@ -40,10 +40,10 @@ pub fn AdminPage() -> impl IntoView {
 
 #[component]
 fn StorageStatsCard() -> impl IntoView {
-    let (stats, set_stats) = create_signal(None::<serde_json::Value>);
-    let (loading, set_loading) = create_signal(true);
+    let (stats, set_stats) = signal(None::<serde_json::Value>);
+    let (loading, set_loading) = signal(true);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         spawn_local(async move {
             match api::fetch_json("/api/storage/stats").await {
                 Ok(data) => {
@@ -88,10 +88,10 @@ fn StorageStatsCard() -> impl IntoView {
 
 #[component]
 fn ShareLinksCard() -> impl IntoView {
-    let (shares, set_shares) = create_signal(vec![]);
-    let (loading, set_loading) = create_signal(true);
+    let (shares, set_shares) = signal(vec![]);
+    let (loading, set_loading) = signal(true);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         spawn_local(async move {
             match api::fetch_json("/api/shares").await {
                 Ok(data) => {
@@ -138,10 +138,10 @@ fn ShareLinksCard() -> impl IntoView {
 
 #[component]
 fn AuditLogCard() -> impl IntoView {
-    let (entries, set_entries) = create_signal(vec![]);
-    let (loading, set_loading) = create_signal(true);
+    let (entries, set_entries) = signal(vec![]);
+    let (loading, set_loading) = signal(true);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         spawn_local(async move {
             match api::fetch_json("/api/audit").await {
                 Ok(data) => {

@@ -1,6 +1,5 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 
 use crate::api::ApiState;
 use crate::components::badge::{Badge, BadgeVariant};
@@ -9,17 +8,17 @@ use crate::state::format_timestamp;
 
 #[component]
 pub fn WebhooksPage(api: RwSignal<ApiState>) -> impl IntoView {
-    let (webhooks, set_webhooks) = create_signal(Vec::<serde_json::Value>::new());
-    let (error, set_error) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(true);
-    let (msg, set_msg) = create_signal(None::<String>);
-    let (show_create, set_show_create) = create_signal(false);
-    let (show_delete, set_show_delete) = create_signal(false);
-    let (delete_id, set_delete_id) = create_signal(String::new());
-    let (form_error, set_form_error) = create_signal(None::<String>);
-    let (new_url, set_new_url) = create_signal(String::new());
-    let (new_secret, set_new_secret) = create_signal(String::new());
-    let (selected_events, set_selected_events) = create_signal(Vec::<String>::new());
+    let (webhooks, set_webhooks) = signal(Vec::<serde_json::Value>::new());
+    let (error, set_error) = signal(None::<String>);
+    let (loading, set_loading) = signal(true);
+    let (msg, set_msg) = signal(None::<String>);
+    let (show_create, set_show_create) = signal(false);
+    let (show_delete, set_show_delete) = signal(false);
+    let (delete_id, set_delete_id) = signal(String::new());
+    let (form_error, set_form_error) = signal(None::<String>);
+    let (new_url, set_new_url) = signal(String::new());
+    let (new_secret, set_new_secret) = signal(String::new());
+    let (selected_events, set_selected_events) = signal(Vec::<String>::new());
 
     let event_options = [
         "file.created",
@@ -44,7 +43,7 @@ pub fn WebhooksPage(api: RwSignal<ApiState>) -> impl IntoView {
         });
     };
 
-    create_effect(move |_| load_webhooks());
+    Effect::new(move |_| load_webhooks());
 
     let toggle_event = move |ev: String| {
         set_selected_events.update(|events| {

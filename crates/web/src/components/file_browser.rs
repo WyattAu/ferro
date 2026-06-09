@@ -1,8 +1,8 @@
 use crate::t;
+use leptos::ev;
+use leptos::html;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::html;
-use leptos::ev;
 use leptos_router::components::A;
 
 use crate::api;
@@ -58,55 +58,54 @@ impl ViewMode {
 #[component]
 pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let initial = initial_path.clone();
-    let (current_path, set_current_path) = create_signal(initial_path);
-    let (all_entries, set_all_entries) = create_signal(vec![]);
-    let (display_count, set_display_count) = create_signal(50usize);
-    let (loading, set_loading) = create_signal(false);
-    let (error, set_error) = create_signal(None::<String>);
-    let (show_new_folder, set_show_new_folder) = create_signal(false);
-    let (show_upload, set_show_upload) = create_signal(false);
-    let (upload_drag, set_upload_drag) = create_signal(false);
-    let (show_share_dialog, set_show_share_dialog) = create_signal(false);
-    let (preview_file, set_preview_file) = create_signal(None::<api::FileEntry>);
-    let (active_tab, set_active_tab) = create_signal(BrowserTab::Files);
-    let (favorites, set_favorites) = create_signal::<Vec<String>>(vec![]);
-    let (recent_files, set_recent_files) = create_signal::<Vec<api::FileEntry>>(vec![]);
-    let (favorites_loading, set_favorites_loading) = create_signal(false);
-    let (recent_loading, set_recent_loading) = create_signal(false);
+    let (current_path, set_current_path) = signal(initial_path);
+    let (all_entries, set_all_entries) = signal(vec![]);
+    let (display_count, set_display_count) = signal(50usize);
+    let (loading, set_loading) = signal(false);
+    let (error, set_error) = signal(None::<String>);
+    let (show_new_folder, set_show_new_folder) = signal(false);
+    let (show_upload, set_show_upload) = signal(false);
+    let (upload_drag, set_upload_drag) = signal(false);
+    let (show_share_dialog, set_show_share_dialog) = signal(false);
+    let (preview_file, set_preview_file) = signal(None::<api::FileEntry>);
+    let (active_tab, set_active_tab) = signal(BrowserTab::Files);
+    let (favorites, set_favorites) = signal::<Vec<String>>(vec![]);
+    let (recent_files, set_recent_files) = signal::<Vec<api::FileEntry>>(vec![]);
+    let (favorites_loading, set_favorites_loading) = signal(false);
+    let (recent_loading, set_recent_loading) = signal(false);
 
-    let (selected_paths, set_selected_paths) =
-        create_signal(std::collections::HashSet::<String>::new());
+    let (selected_paths, set_selected_paths) = signal(std::collections::HashSet::<String>::new());
     let selected_paths_signal = selected_paths;
     let favorites_signal = favorites;
-    let (select_mode, set_select_mode) = create_signal(false);
-    let (last_clicked_index, set_last_clicked_index) = create_signal(None::<usize>);
+    let (select_mode, set_select_mode) = signal(false);
+    let (last_clicked_index, set_last_clicked_index) = signal(None::<usize>);
 
-    let (show_activity, set_show_activity) = create_signal(false);
-    let (show_delete_confirm, set_show_delete_confirm) = create_signal(false);
+    let (show_activity, set_show_activity) = signal(false);
+    let (show_delete_confirm, set_show_delete_confirm) = signal(false);
     // Move dialog signals (owned here, passed to PathDialog)
-    let (show_move_dialog, set_show_move_dialog) = create_signal(false);
-    let (move_source, set_move_source) = create_signal(String::new());
-    let (move_dest, set_move_dest) = create_signal(String::new());
+    let (show_move_dialog, set_show_move_dialog) = signal(false);
+    let (move_source, set_move_source) = signal(String::new());
+    let (move_dest, set_move_dest) = signal(String::new());
     // Copy dialog signals (owned here, passed to PathDialog)
-    let (show_copy_dialog, set_show_copy_dialog) = create_signal(false);
-    let (copy_source, set_copy_source) = create_signal(String::new());
-    let (copy_dest, set_copy_dest) = create_signal(String::new());
+    let (show_copy_dialog, set_show_copy_dialog) = signal(false);
+    let (copy_source, set_copy_source) = signal(String::new());
+    let (copy_dest, set_copy_dest) = signal(String::new());
 
-    let (view_mode, set_view_mode) = create_signal(ViewMode::List);
+    let (view_mode, set_view_mode) = signal(ViewMode::List);
 
     let (locks_state, set_locks_state) =
-        create_signal(std::collections::HashMap::<String, api::LockInfo>::new());
+        signal(std::collections::HashMap::<String, api::LockInfo>::new());
 
     let clipboard_state = use_clipboard_state();
     let palette_state = use_command_palette_state();
     let theme_state = use_theme_state();
     let header_state = use_header_state();
 
-    let (show_rename_dialog, set_show_rename_dialog) = create_signal(false);
-    let (rename_source, set_rename_source) = create_signal(String::new());
-    let (rename_new_name, set_rename_new_name) = create_signal(String::new());
+    let (show_rename_dialog, set_show_rename_dialog) = signal(false);
+    let (rename_source, set_rename_source) = signal(String::new());
+    let (rename_new_name, set_rename_new_name) = signal(String::new());
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         spawn_local(async move {
             if let Ok(prefs) = api::get_preferences().await {
                 set_view_mode.set(ViewMode::from_str(&prefs.view_mode));
@@ -170,7 +169,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     };
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         load_favorites();
         load_recent();
     });
@@ -190,31 +189,32 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     // and scroll events do not bubble, so the delegated listener never fires.
     // We set root to the scroll container so intersection is computed
     // relative to the scrollable area, not the viewport.
-    let scroll_sentinel_ref = create_node_ref::<html::Div>();
-    let scroll_container_ref = create_node_ref::<html::Div>();
+    let scroll_sentinel_ref = NodeRef::<html::Div>::new();
+    let scroll_container_ref = NodeRef::<html::Div>::new();
     {
-        create_effect(move |_| {
+        Effect::new(move |_| {
             let sentinel = scroll_sentinel_ref.get()?;
             use wasm_bindgen::JsCast;
 
-            let callback: wasm_bindgen::closure::Closure<dyn Fn(js_sys::Array, web_sys::IntersectionObserver)> =
-                wasm_bindgen::closure::Closure::new(
-                    move |entries: js_sys::Array, _: web_sys::IntersectionObserver| {
-                        for i in 0..entries.length() {
-                            if let Ok(entry) = entries
-                                .get(i)
-                                .dyn_into::<web_sys::IntersectionObserverEntry>()
-                                && entry.is_intersecting()
-                            {
-                                let total = all_entries.with(Vec::len);
-                                let displayed = display_count.get();
-                                if displayed < total {
-                                    set_display_count.set(displayed + 50);
-                                }
+            let callback: wasm_bindgen::closure::Closure<
+                dyn Fn(js_sys::Array, web_sys::IntersectionObserver),
+            > = wasm_bindgen::closure::Closure::new(
+                move |entries: js_sys::Array, _: web_sys::IntersectionObserver| {
+                    for i in 0..entries.length() {
+                        if let Ok(entry) = entries
+                            .get(i)
+                            .dyn_into::<web_sys::IntersectionObserverEntry>()
+                            && entry.is_intersecting()
+                        {
+                            let total = all_entries.with(Vec::len);
+                            let displayed = display_count.get();
+                            if displayed < total {
+                                set_display_count.set(displayed + 50);
                             }
                         }
-                    },
-                );
+                    }
+                },
+            );
             let callback_fn: &js_sys::Function = callback.as_ref().unchecked_ref();
 
             let options = scroll_container_ref
@@ -268,7 +268,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     };
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         load_directory(initial.clone());
     });
 
@@ -449,13 +449,13 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     };
 
     // Alive flag for polling loop cleanup on component unmount
-    let (alive, set_alive) = create_signal(true);
+    let (alive, set_alive) = signal(true);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         load_locks();
     });
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         spawn_local(async move {
             loop {
                 // Check if component is still mounted
@@ -686,7 +686,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         set_show_activity.update(|v| *v = !*v);
     };
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let ts = theme_state.clone();
         let commands = vec![
             Command {

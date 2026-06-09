@@ -84,7 +84,7 @@ pub fn provide_api_state() -> RwSignal<ApiState> {
         },
         None => ApiState::new(),
     };
-    let state = create_rw_signal(initial);
+    let state = RwSignal::new(initial);
     provide_context(state);
     state
 }

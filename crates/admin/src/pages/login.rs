@@ -1,6 +1,5 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 use leptos_router::hooks::use_navigate;
 
 use crate::api::ApiState;
@@ -8,10 +7,10 @@ use crate::state::save_connection;
 
 #[component]
 pub fn LoginPage(api: RwSignal<ApiState>) -> impl IntoView {
-    let (server_url, set_server_url) = create_signal(String::new());
-    let (token, set_token) = create_signal(String::new());
-    let (error, set_error) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(false);
+    let (server_url, set_server_url) = signal(String::new());
+    let (token, set_token) = signal(String::new());
+    let (error, set_error) = signal(None::<String>);
+    let (loading, set_loading) = signal(false);
     let has_saved = api.with(|a| a.is_connected());
 
     let _handle_connect = move |_: leptos::ev::MouseEvent| {

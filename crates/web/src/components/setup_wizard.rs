@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use leptos::ev;
+use leptos::prelude::*;
 
 use super::sample_files;
 
@@ -59,18 +59,18 @@ impl SetupStep {
 
 #[component]
 pub fn SetupWizard() -> impl IntoView {
-    let (visible, set_visible) = create_signal(is_setup_completed());
-    let (step, set_step) = create_signal(SetupStep::Welcome);
-    let (admin_username, set_admin_username) = create_signal(String::new());
-    let (admin_email, set_admin_email) = create_signal(String::new());
-    let (admin_password, set_admin_password) = create_signal(String::new());
-    let (storage_backend, set_storage_backend) = create_signal("local".to_string());
-    let (auth_enabled, set_auth_enabled) = create_signal(false);
-    let (create_samples, set_create_samples) = create_signal(true);
-    let (_current_step_val, set_current_step_val) = create_signal(SetupStep::Welcome);
-    let (progress, set_progress) = create_signal(0u32);
+    let (visible, set_visible) = signal(is_setup_completed());
+    let (step, set_step) = signal(SetupStep::Welcome);
+    let (admin_username, set_admin_username) = signal(String::new());
+    let (admin_email, set_admin_email) = signal(String::new());
+    let (admin_password, set_admin_password) = signal(String::new());
+    let (storage_backend, set_storage_backend) = signal("local".to_string());
+    let (auth_enabled, set_auth_enabled) = signal(false);
+    let (create_samples, set_create_samples) = signal(true);
+    let (_current_step_val, set_current_step_val) = signal(SetupStep::Welcome);
+    let (progress, set_progress) = signal(0u32);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         set_visible.set(is_setup_completed());
     });
 

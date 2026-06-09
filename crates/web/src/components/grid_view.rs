@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use leptos::ev;
+use leptos::prelude::*;
 
 use crate::api::{FileEntry, LockInfo};
 use crate::components::thumbnail::Thumbnail;
@@ -24,7 +24,10 @@ pub fn GridCard(
     #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
-    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(String, bool)>,
+    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(
+        String,
+        bool,
+    )>,
     #[prop(default = false)] is_locked: bool,
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
@@ -138,13 +141,14 @@ pub fn GridCard(
                 &serde_json::json!({
                     "path": drag_path,
                     "is_collection": entry_is_collection,
-                }).to_string(),
+                })
+                .to_string(),
             );
             data_transfer.set_drop_effect("move");
         }
     };
 
-    let (folder_hovering, set_folder_hovering) = create_signal(false);
+    let (folder_hovering, set_folder_hovering) = signal(false);
 
     let handle_folder_drag_over = move |ev: ev::DragEvent| {
         if !entry_is_collection || is_locked {
@@ -173,7 +177,8 @@ pub fn GridCard(
         let is_copy = ev.ctrl_key();
         if let Some(dt) = ev.data_transfer()
             && let Ok(source) = dt.get_data("text/plain")
-            && !source.is_empty() && source != folder_drop_path
+            && !source.is_empty()
+            && source != folder_drop_path
         {
             on_drop_on_folder.run((source, is_copy));
         }
@@ -296,7 +301,7 @@ pub fn GridCard(
                 <span class="text-[10px] text-gray-400 hidden sm:block">{modified_display.clone()}</span>
             </div>
 
-            <div class="flex items-center justify-center gap-1 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div class="flex items-center justify-center gap-1 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
                         class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -386,7 +391,10 @@ pub fn GridView(
     on_copy: Callback<String>,
     on_move: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
-    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(String, bool)>,
+    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(
+        String,
+        bool,
+    )>,
     locks: ReadSignal<std::collections::HashMap<String, LockInfo>>,
 ) -> impl IntoView {
     let entries_for_each = entries;

@@ -13,7 +13,7 @@ pub fn ActivitySidebar(
     /// Setter for sidebar visibility.
     set_open: WriteSignal<bool>,
 ) -> impl IntoView {
-    let (entries, set_entries) = create_signal(Vec::<api::ActivityEntry>::new());
+    let (entries, set_entries) = signal(Vec::<api::ActivityEntry>::new());
 
     let load_activity = move || {
         spawn_local(async move {
@@ -25,7 +25,7 @@ pub fn ActivitySidebar(
     };
 
     // Reload activity whenever the sidebar opens.
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if open.get() {
             load_activity();
         }

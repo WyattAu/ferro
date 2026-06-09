@@ -6,16 +6,16 @@ use crate::components::badge::{Badge, BadgeVariant};
 
 #[component]
 pub fn FederationPage(api: RwSignal<ApiState>) -> impl IntoView {
-    let (followers, set_followers) = create_signal(Vec::<serde_json::Value>::new());
-    let (following, set_following) = create_signal(Vec::<serde_json::Value>::new());
-    let (inbox, set_inbox) = create_signal(Vec::<serde_json::Value>::new());
-    let (outbox, set_outbox) = create_signal(Vec::<serde_json::Value>::new());
-    let (nodeinfo, set_nodeinfo) = create_signal(None::<serde_json::Value>);
-    let (error, set_error) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(true);
-    let (active_tab, set_active_tab) = create_signal(String::from("followers"));
+    let (followers, set_followers) = signal(Vec::<serde_json::Value>::new());
+    let (following, set_following) = signal(Vec::<serde_json::Value>::new());
+    let (inbox, set_inbox) = signal(Vec::<serde_json::Value>::new());
+    let (outbox, set_outbox) = signal(Vec::<serde_json::Value>::new());
+    let (nodeinfo, set_nodeinfo) = signal(None::<serde_json::Value>);
+    let (error, set_error) = signal(None::<String>);
+    let (loading, set_loading) = signal(true);
+    let (active_tab, set_active_tab) = signal(String::from("followers"));
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let api_clone = api.get_untracked();
         spawn_local(async move {
             set_loading.set(true);

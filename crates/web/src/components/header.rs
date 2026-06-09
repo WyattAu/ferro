@@ -1,6 +1,6 @@
+use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 
 use crate::api::{SearchFilters, SearchResultEntry};
 use crate::auth;
@@ -22,7 +22,7 @@ impl HeaderState {
 }
 
 pub fn provide_header_state() -> HeaderState {
-    let (trigger_search, set_trigger_search) = create_signal(0u32);
+    let (trigger_search, set_trigger_search) = signal(0u32);
     let open_search = Callback::new(move |_| {
         set_trigger_search.update(|v| *v += 1);
     });
@@ -43,16 +43,16 @@ pub fn Header() -> impl IntoView {
     let auth_state = auth::use_auth_state();
     let header_state = use_header_state();
     let branding: Option<ReadSignal<Option<crate::api::BrandingConfig>>> = use_context();
-    let (show_search, set_show_search) = create_signal(false);
-    let (search_query, set_search_query) = create_signal(String::new());
-    let (search_results, set_search_results) = create_signal::<Vec<SearchResultEntry>>(vec![]);
-    let (searching, set_searching) = create_signal(false);
-    let (search_total, set_search_total) = create_signal(0usize);
-    let (filter_type, set_filter_type) = create_signal(String::new());
-    let (filter_sort, set_filter_sort) = create_signal(String::new());
-    let (quota_info, set_quota_info) = create_signal(None::<crate::api::QuotaInfo>);
+    let (show_search, set_show_search) = signal(false);
+    let (search_query, set_search_query) = signal(String::new());
+    let (search_results, set_search_results) = signal::<Vec<SearchResultEntry>>(vec![]);
+    let (searching, set_searching) = signal(false);
+    let (search_total, set_search_total) = signal(0usize);
+    let (filter_type, set_filter_type) = signal(String::new());
+    let (filter_sort, set_filter_sort) = signal(String::new());
+    let (quota_info, set_quota_info) = signal(None::<crate::api::QuotaInfo>);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         spawn_local(async move {
             match crate::api::get_quota().await {
                 Ok(info) => {
@@ -74,7 +74,7 @@ pub fn Header() -> impl IntoView {
     };
 
     if let Some(hs) = header_state {
-        create_effect(move |_| {
+        Effect::new(move |_| {
             let _ = hs.trigger_search.get();
             set_show_search.set(true);
             #[cfg(target_arch = "wasm32")]
@@ -410,7 +410,7 @@ pub fn Header() -> impl IntoView {
                         <div class="text-sm font-mono text-gray-500">{t!("common.searching")}</div>
                     })}
                     {move || has_searched().then(|| view! {
-                        <div class="text-xs font-mono text-gray-400 mb-1" style="letter-spacing: 0.05em;">
+                        <div class="text-xs font-mono text-gray-400 mb-1" style="letter-spacing: 0.05em;" aria-live="polite">
                             {move || format!("{} result(s)", search_total.get())}
                         </div>
                     })}

@@ -1,6 +1,7 @@
-use leptos::prelude::*;
 use leptos::ev;
+use leptos::prelude::*;
 
+use crate::components::focus_trap::FocusTrap;
 use crate::t;
 
 #[allow(dead_code)] // Used by WASM runtime
@@ -105,10 +106,10 @@ pub fn complete_onboarding() {
 
 #[component]
 pub fn OnboardingOverlay() -> impl IntoView {
-    let (step, set_step) = create_signal(OnboardingStep::Welcome);
-    let (visible, set_visible) = create_signal(false);
+    let (step, set_step) = signal(OnboardingStep::Welcome);
+    let (visible, set_visible) = signal(false);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         set_visible.set(!is_onboarding_completed());
     });
 
@@ -203,7 +204,8 @@ pub fn OnboardingOverlay() -> impl IntoView {
         {move || visible.get().then(|| view! {
             <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" on:click=handle_skip></div>
-                <div class="relative brutal-block rounded shadow-2xl w-[calc(100%-2rem)] sm:w-[480px] max-h-[90vh] overflow-y-auto transition-all duration-200 scale-100 opacity-100" role="dialog" aria-modal="true" aria-label=t!("onboarding.aria")>
+                <FocusTrap>
+                <div class="relative brutal-block rounded shadow-2xl w-[calc(100%-2rem)] sm:w-[480px] max-h-[90vh] overflow-y-auto transition-all duration-200 scale-100 opacity-100" role="dialog" aria-modal="true" aria-label=t!("onboarding.aria") tabindex="-1">
                     <div class="p-6 sm:p-8">
                         <div class="flex justify-end mb-2">
                             <button
@@ -270,6 +272,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
                         </div>
                     </div>
                 </div>
+                </FocusTrap>
             </div>
         })}
     }

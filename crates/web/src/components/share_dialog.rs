@@ -1,6 +1,6 @@
+use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 
 use crate::api;
 use crate::components::focus_trap::FocusTrap;
@@ -16,13 +16,13 @@ pub fn ShareDialog(
     /// Setter for dialog visibility.
     set_open: WriteSignal<bool>,
 ) -> impl IntoView {
-    let (share_path, set_share_path) = create_signal(String::new());
-    let (share_password, set_share_password) = create_signal(String::new());
-    let (share_expires, set_share_expires) = create_signal(String::from("168"));
-    let (share_url, set_share_url) = create_signal(String::new());
-    let (share_creating, set_share_creating) = create_signal(false);
-    let (share_error, set_share_error) = create_signal(String::new());
-    let (share_copied, set_share_copied) = create_signal(false);
+    let (share_path, set_share_path) = signal(String::new());
+    let (share_password, set_share_password) = signal(String::new());
+    let (share_expires, set_share_expires) = signal(String::from("168"));
+    let (share_url, set_share_url) = signal(String::new());
+    let (share_creating, set_share_creating) = signal(false);
+    let (share_error, set_share_error) = signal(String::new());
+    let (share_copied, set_share_copied) = signal(false);
 
     // Public API: open the dialog for a given path.
     // Provided via Leptos context so parent components can call it.

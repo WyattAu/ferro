@@ -37,12 +37,12 @@ fn urlencoding_decode(s: &str) -> String {
 
 #[component]
 pub fn AuthCallbackPage() -> impl IntoView {
-    let (error, set_error) = create_signal(None::<String>);
-    let (processing, set_processing) = create_signal(true);
+    let (error, set_error) = signal(None::<String>);
+    let (processing, set_processing) = signal(true);
 
     let state = auth::use_auth_state();
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let search = web_sys::window()
             .and_then(|w| {
                 let loc = w.location();

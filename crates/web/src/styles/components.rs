@@ -11,11 +11,9 @@ pub mod button {
 
     pub const VARIANT_PRIMARY: &str =
         "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500";
-    pub const VARIANT_SECONDARY: &str =
-        "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 focus:ring-gray-500";
+    pub const VARIANT_SECONDARY: &str = "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 focus:ring-gray-500";
     pub const VARIANT_DANGER: &str = "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500";
-    pub const VARIANT_GHOST: &str =
-        "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-gray-500";
+    pub const VARIANT_GHOST: &str = "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-gray-500";
 
     pub const SIZE_SM: &str = "px-3 py-1.5 text-sm rounded min-h-[44px]";
     pub const SIZE_MD: &str = "px-4 py-2 text-sm rounded-md min-h-[44px]";
@@ -31,7 +29,8 @@ pub mod input {
         disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed min-h-[44px]";
 
     pub const DEFAULT: &str = "border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800";
-    pub const ERROR: &str = "border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500";
+    pub const ERROR: &str =
+        "border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500";
 }
 
 /// Dialog component styles.
@@ -79,7 +78,8 @@ pub mod checkbox {
         disabled:cursor-not-allowed dark:bg-gray-800 min-w-[44px] min-h-[44px] \
         flex items-center justify-center cursor-pointer";
 
-    pub const LABEL: &str = "text-sm text-gray-700 dark:text-gray-300 select-none cursor-pointer pt-0.5";
+    pub const LABEL: &str =
+        "text-sm text-gray-700 dark:text-gray-300 select-none cursor-pointer pt-0.5";
 }
 
 /// Select component styles.
@@ -90,7 +90,8 @@ pub mod select {
         disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed min-h-[44px]";
 
     pub const DEFAULT: &str = "border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800";
-    pub const ERROR: &str = "border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500";
+    pub const ERROR: &str =
+        "border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500";
 }
 
 /// Skeleton loading component styles.

@@ -6,16 +6,16 @@ use crate::state::{format_bytes, format_uptime};
 
 #[component]
 pub fn SettingsPage(api: RwSignal<ApiState>) -> impl IntoView {
-    let (stats, set_stats) = create_signal(None::<serde_json::Value>);
-    let (error, set_error) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(true);
-    let (msg, set_msg) = create_signal(None::<String>);
-    let (cors_origins, set_cors_origins) = create_signal(String::new());
-    let (session_timeout, set_session_timeout) = create_signal(String::from("3600"));
-    let (rate_limit, set_rate_limit) = create_signal(String::from("10000"));
-    let (max_file_size, set_max_file_size) = create_signal(String::from("1073741824"));
+    let (stats, set_stats) = signal(None::<serde_json::Value>);
+    let (error, set_error) = signal(None::<String>);
+    let (loading, set_loading) = signal(true);
+    let (msg, set_msg) = signal(None::<String>);
+    let (cors_origins, set_cors_origins) = signal(String::new());
+    let (session_timeout, set_session_timeout) = signal(String::from("3600"));
+    let (rate_limit, set_rate_limit) = signal(String::from("10000"));
+    let (max_file_size, set_max_file_size) = signal(String::from("1073741824"));
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let api_clone = api.get_untracked();
         spawn_local(async move {
             set_loading.set(true);

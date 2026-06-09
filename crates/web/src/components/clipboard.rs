@@ -54,8 +54,8 @@ impl ClipboardState {
 }
 
 pub fn provide_clipboard_state() -> ClipboardState {
-    let (files, set_files) = create_signal(Vec::<String>::new());
-    let (action, set_action) = create_signal(None::<ClipboardAction>);
+    let (files, set_files) = signal(Vec::<String>::new());
+    let (action, set_action) = signal(None::<ClipboardAction>);
 
     let state = ClipboardState {
         files,

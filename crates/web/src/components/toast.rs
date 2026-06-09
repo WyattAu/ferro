@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-use leptos::ev;
 
 use crate::t;
 
@@ -73,7 +72,7 @@ impl ToastContext {
 
 #[component]
 pub fn ProvideToastContext(children: Children) -> impl IntoView {
-    let (toasts, set_toasts) = create_signal::<Vec<ToastMessage>>(vec![]);
+    let (toasts, set_toasts) = signal::<Vec<ToastMessage>>(vec![]);
 
     let push = Callback::new(move |msg: ToastMessage| {
         set_toasts.update(|t| {
@@ -96,14 +95,17 @@ pub fn ProvideToastContext(children: Children) -> impl IntoView {
     {
         let dismiss_clone = dismiss;
         let toasts_clone = toasts;
-        leptos::ev::document_event_listener(leptos::ev::keydown, move |ev: web_sys::KeyboardEvent| {
-            if ev.key() == "Escape" {
-                let current = toasts_clone.get();
-                if let Some(last) = current.last() {
-                    dismiss_clone.run(last.id);
+        leptos::ev::document_event_listener(
+            leptos::ev::keydown,
+            move |ev: web_sys::KeyboardEvent| {
+                if ev.key() == "Escape" {
+                    let current = toasts_clone.get();
+                    if let Some(last) = current.last() {
+                        dismiss_clone.run(last.id);
+                    }
                 }
-            }
-        });
+            },
+        );
     }
 
     view! {
@@ -127,8 +129,8 @@ pub fn ProvideToastContext(children: Children) -> impl IntoView {
 
 #[component]
 fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
-    let (visible, set_visible) = create_signal(true);
-    let (dismissed, set_dismissed) = create_signal(false);
+    let (visible, set_visible) = signal(true);
+    let (dismissed, set_dismissed) = signal(false);
 
     let bg_class = match toast.toast_type {
         ToastType::Success => {
@@ -183,7 +185,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
         on_dismiss.run(());
     };
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let dismiss_handle = set_timeout_with_handle(
             move || {
                 set_dismissed.set(true);
@@ -203,13 +205,16 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
         let on_dismiss_esc = on_dismiss;
         let dismissed_esc = set_dismissed;
         let visible_esc = set_visible;
-        leptos::ev::document_event_listener(leptos::ev::keydown, move |ev: web_sys::KeyboardEvent| {
-            if ev.key() == "Escape" {
-                dismissed_esc.set(true);
-                visible_esc.set(false);
-                on_dismiss_esc.run(());
-            }
-        });
+        leptos::ev::document_event_listener(
+            leptos::ev::keydown,
+            move |ev: web_sys::KeyboardEvent| {
+                if ev.key() == "Escape" {
+                    dismissed_esc.set(true);
+                    visible_esc.set(false);
+                    on_dismiss_esc.run(());
+                }
+            },
+        );
     }
 
     view! {
@@ -226,7 +231,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
             <span class={icon_class} aria-hidden="true">{icon}</span>
             <p class="flex-1 text-sm font-medium">{message_text}</p>
             <button
-                class="p-0.5 rounded-sm opacity-60 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-current font-mono"
+                class="min-w-[44px] min-h-[44px] flex items-center justify-center p-0.5 rounded-sm opacity-60 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-current font-mono"
                 aria-label=t!("toast.aria_dismiss")
                 on:click=handle_dismiss
             >

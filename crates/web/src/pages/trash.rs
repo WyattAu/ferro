@@ -1,19 +1,20 @@
+use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 use leptos_router::components::A;
 
 use crate::api;
 use crate::api::TrashedEntry;
+use crate::components::focus_trap::FocusTrap;
 use crate::components::toast::ToastContext;
 use crate::t;
 use ferro_common::format::format_size;
 
 #[component]
 pub fn TrashPage() -> impl IntoView {
-    let (entries, set_entries) = create_signal::<Vec<TrashedEntry>>(vec![]);
-    let (loading, set_loading) = create_signal(false);
-    let (show_confirm_empty, set_show_confirm_empty) = create_signal(false);
+    let (entries, set_entries) = signal::<Vec<TrashedEntry>>(vec![]);
+    let (loading, set_loading) = signal(false);
+    let (show_confirm_empty, set_show_confirm_empty) = signal(false);
 
     let load_trash = move || {
         set_loading.set(true);
@@ -26,7 +27,7 @@ pub fn TrashPage() -> impl IntoView {
         });
     };
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         load_trash();
     });
 
@@ -128,6 +129,7 @@ pub fn TrashPage() -> impl IntoView {
                         }
                     }
                 >
+                    <FocusTrap>
                     <div class="brutal-block rounded shadow-xl p-6 w-96"
                         role="alertdialog"
                         aria-modal="true"
@@ -154,6 +156,7 @@ pub fn TrashPage() -> impl IntoView {
                             </button>
                         </div>
                     </div>
+                    </FocusTrap>
                 </div>
             })}
 

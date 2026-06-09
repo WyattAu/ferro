@@ -67,7 +67,11 @@ pub fn LineChart(
         }.into_any();
     }
 
-    let max_val = data.iter().map(|(_, v)| *v).fold(0.0_f64, f64::max).max(1.0);
+    let max_val = data
+        .iter()
+        .map(|(_, v)| *v)
+        .fold(0.0_f64, f64::max)
+        .max(1.0);
     let point_count = data.len().max(2);
     let usable_width = 90.0;
     let usable_height = 70.0;
@@ -107,7 +111,9 @@ pub fn LineChart(
     let labels: Vec<_> = data
         .iter()
         .enumerate()
-        .filter(|(i, _)| *i == 0 || *i == data.len() - 1 || data.len() <= 8 || i % ((data.len() / 6).max(1)) == 0)
+        .filter(|(i, _)| {
+            *i == 0 || *i == data.len() - 1 || data.len() <= 8 || i % ((data.len() / 6).max(1)) == 0
+        })
         .map(|(i, (label, _))| {
             let x = padding_x + (i as f64 / (point_count - 1) as f64) * usable_width;
             (x, label.clone())

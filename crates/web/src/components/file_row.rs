@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use leptos::ev;
+use leptos::prelude::*;
 
 use crate::api::FileEntry;
 use crate::t;
@@ -22,7 +22,10 @@ pub fn FileRow(
     #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
-    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(String, bool)>,
+    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(
+        String,
+        bool,
+    )>,
     #[prop(default = false)] is_locked: bool,
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
@@ -94,7 +97,7 @@ pub fn FileRow(
     let entry_is_collection = entry.is_collection;
 
     // Drag-and-drop handlers
-    let (folder_hovering, set_folder_hovering) = create_signal(false);
+    let (folder_hovering, set_folder_hovering) = signal(false);
 
     let handle_drag_start = move |ev: ev::DragEvent| {
         ev.stop_propagation();
@@ -105,7 +108,8 @@ pub fn FileRow(
                 &serde_json::json!({
                     "path": drag_path_row,
                     "is_collection": entry_is_collection,
-                }).to_string(),
+                })
+                .to_string(),
             );
             data_transfer.set_drop_effect("move");
         }
@@ -138,7 +142,8 @@ pub fn FileRow(
         let is_copy = ev.ctrl_key();
         if let Some(dt) = ev.data_transfer()
             && let Ok(source) = dt.get_data("text/plain")
-            && !source.is_empty() && source != folder_drop_path_row
+            && !source.is_empty()
+            && source != folder_drop_path_row
         {
             on_drop_on_folder.run((source, is_copy));
         }

@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use leptos::html;
+use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
 fn set_css(el: &web_sys::Element, prop: &str, val: &str) {
@@ -18,20 +18,16 @@ fn prefers_reduced_motion() -> bool {
 
 #[component]
 pub fn FadeIn(
-    #[prop(default = 300)]
-    duration_ms: u32,
-    #[prop(default = 0)]
-    delay_ms: u32,
-    #[prop(default = "ease-out".to_string())]
-    easing: String,
-    #[prop(default = true)]
-    enabled: bool,
+    #[prop(default = 300)] duration_ms: u32,
+    #[prop(default = 0)] delay_ms: u32,
+    #[prop(default = "ease-out".to_string())] easing: String,
+    #[prop(default = true)] enabled: bool,
     children: Children,
 ) -> impl IntoView {
-    let container_ref = create_node_ref::<html::Div>();
+    let container_ref = NodeRef::<html::Div>::new();
     let effective_enabled = enabled && !prefers_reduced_motion();
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(el) = container_ref.get() {
             if effective_enabled {
                 let transition = format!("opacity {}ms {} {}ms", duration_ms, easing, delay_ms);
@@ -56,21 +52,17 @@ pub fn FadeIn(
 
 #[component]
 pub fn FadeOut(
-    #[prop(default = 300)]
-    duration_ms: u32,
-    #[prop(default = 0)]
-    delay_ms: u32,
-    #[prop(default = "ease-in".to_string())]
-    easing: String,
-    #[prop(default = true)]
-    enabled: bool,
+    #[prop(default = 300)] duration_ms: u32,
+    #[prop(default = 0)] delay_ms: u32,
+    #[prop(default = "ease-in".to_string())] easing: String,
+    #[prop(default = true)] enabled: bool,
     active: Signal<bool>,
     children: Children,
 ) -> impl IntoView {
-    let container_ref = create_node_ref::<html::Div>();
+    let container_ref = NodeRef::<html::Div>::new();
     let effective_enabled = enabled && !prefers_reduced_motion();
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(el) = container_ref.get() {
             if active.get() && effective_enabled {
                 let transition = format!("opacity {}ms {} {}ms", duration_ms, easing, delay_ms);
@@ -99,24 +91,18 @@ pub fn FadeOut(
 
 #[component]
 pub fn SlideIn(
-    #[prop(default = SlideDirection::Bottom)]
-    direction: SlideDirection,
-    #[prop(default = 20)]
-    distance_px: i32,
-    #[prop(default = 300)]
-    duration_ms: u32,
-    #[prop(default = 0)]
-    delay_ms: u32,
-    #[prop(default = "ease-out".to_string())]
-    easing: String,
-    #[prop(default = true)]
-    enabled: bool,
+    #[prop(default = SlideDirection::Bottom)] direction: SlideDirection,
+    #[prop(default = 20)] distance_px: i32,
+    #[prop(default = 300)] duration_ms: u32,
+    #[prop(default = 0)] delay_ms: u32,
+    #[prop(default = "ease-out".to_string())] easing: String,
+    #[prop(default = true)] enabled: bool,
     children: Children,
 ) -> impl IntoView {
-    let container_ref = create_node_ref::<html::Div>();
+    let container_ref = NodeRef::<html::Div>::new();
     let effective_enabled = enabled && !prefers_reduced_motion();
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(el) = container_ref.get() {
             if effective_enabled {
                 let (ix, iy) = match direction {
@@ -154,25 +140,19 @@ pub fn SlideIn(
 
 #[component]
 pub fn SlideOut(
-    #[prop(default = SlideDirection::Bottom)]
-    direction: SlideDirection,
-    #[prop(default = 20)]
-    distance_px: i32,
-    #[prop(default = 300)]
-    duration_ms: u32,
-    #[prop(default = 0)]
-    delay_ms: u32,
-    #[prop(default = "ease-in".to_string())]
-    easing: String,
-    #[prop(default = true)]
-    enabled: bool,
+    #[prop(default = SlideDirection::Bottom)] direction: SlideDirection,
+    #[prop(default = 20)] distance_px: i32,
+    #[prop(default = 300)] duration_ms: u32,
+    #[prop(default = 0)] delay_ms: u32,
+    #[prop(default = "ease-in".to_string())] easing: String,
+    #[prop(default = true)] enabled: bool,
     active: Signal<bool>,
     children: Children,
 ) -> impl IntoView {
-    let container_ref = create_node_ref::<html::Div>();
+    let container_ref = NodeRef::<html::Div>::new();
     let effective_enabled = enabled && !prefers_reduced_motion();
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(el) = container_ref.get() {
             if active.get() && effective_enabled {
                 let (tx, ty) = match direction {
@@ -221,22 +201,17 @@ pub enum SlideDirection {
 
 #[component]
 pub fn ScaleIn(
-    #[prop(default = 0.95)]
-    from_scale: f64,
-    #[prop(default = 200)]
-    duration_ms: u32,
-    #[prop(default = 0)]
-    delay_ms: u32,
-    #[prop(default = "ease-out".to_string())]
-    easing: String,
-    #[prop(default = true)]
-    enabled: bool,
+    #[prop(default = 0.95)] from_scale: f64,
+    #[prop(default = 200)] duration_ms: u32,
+    #[prop(default = 0)] delay_ms: u32,
+    #[prop(default = "ease-out".to_string())] easing: String,
+    #[prop(default = true)] enabled: bool,
     children: Children,
 ) -> impl IntoView {
-    let container_ref = create_node_ref::<html::Div>();
+    let container_ref = NodeRef::<html::Div>::new();
     let effective_enabled = enabled && !prefers_reduced_motion();
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(el) = container_ref.get() {
             if effective_enabled {
                 let initial = format!("scale({})", from_scale);
@@ -269,23 +244,18 @@ pub fn ScaleIn(
 
 #[component]
 pub fn ScaleOut(
-    #[prop(default = 0.95)]
-    to_scale: f64,
-    #[prop(default = 200)]
-    duration_ms: u32,
-    #[prop(default = 0)]
-    delay_ms: u32,
-    #[prop(default = "ease-in".to_string())]
-    easing: String,
-    #[prop(default = true)]
-    enabled: bool,
+    #[prop(default = 0.95)] to_scale: f64,
+    #[prop(default = 200)] duration_ms: u32,
+    #[prop(default = 0)] delay_ms: u32,
+    #[prop(default = "ease-in".to_string())] easing: String,
+    #[prop(default = true)] enabled: bool,
     active: Signal<bool>,
     children: Children,
 ) -> impl IntoView {
-    let container_ref = create_node_ref::<html::Div>();
+    let container_ref = NodeRef::<html::Div>::new();
     let effective_enabled = enabled && !prefers_reduced_motion();
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(el) = container_ref.get() {
             if active.get() && effective_enabled {
                 let target = format!("scale({})", to_scale);
@@ -321,23 +291,20 @@ pub fn ScaleOut(
 
 #[component]
 pub fn StaggerChildren(
-    #[prop(default = 50)]
-    stagger_ms: u32,
-    #[prop(default = 300)]
-    duration_ms: u32,
-    #[prop(default = true)]
-    enabled: bool,
+    #[prop(default = 50)] stagger_ms: u32,
+    #[prop(default = 300)] duration_ms: u32,
+    #[prop(default = true)] enabled: bool,
     children: Children,
 ) -> impl IntoView {
-    let container_ref = create_node_ref::<html::Div>();
+    let container_ref = NodeRef::<html::Div>::new();
     let effective_enabled = enabled && !prefers_reduced_motion();
 
-    create_effect(move |_| {
-        if let Some(el) = container_ref.get() {
-            if effective_enabled {
-                set_css(&el, "--stagger-duration", &format!("{}ms", duration_ms));
-                set_css(&el, "--stagger-step", &format!("{}ms", stagger_ms));
-            }
+    Effect::new(move |_| {
+        if let Some(el) = container_ref.get()
+            && effective_enabled
+        {
+            set_css(&el, "--stagger-duration", &format!("{}ms", duration_ms));
+            set_css(&el, "--stagger-step", &format!("{}ms", stagger_ms));
         }
     });
 

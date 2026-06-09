@@ -9,15 +9,15 @@ use crate::state::{format_bytes, format_timestamp, format_uptime};
 
 #[component]
 pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {
-    let (stats, set_stats) = create_signal(None::<serde_json::Value>);
-    let (storage, set_storage) = create_signal(None::<serde_json::Value>);
-    let (audit_entries, set_audit_entries) = create_signal(Vec::<serde_json::Value>::new());
-    let (health, set_health) = create_signal(None::<serde_json::Value>);
-    let (error, set_error) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(true);
-    let (users, set_users) = create_signal(Vec::<serde_json::Value>::new());
+    let (stats, set_stats) = signal(None::<serde_json::Value>);
+    let (storage, set_storage) = signal(None::<serde_json::Value>);
+    let (audit_entries, set_audit_entries) = signal(Vec::<serde_json::Value>::new());
+    let (health, set_health) = signal(None::<serde_json::Value>);
+    let (error, set_error) = signal(None::<String>);
+    let (loading, set_loading) = signal(true);
+    let (users, set_users) = signal(Vec::<serde_json::Value>::new());
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let api_clone = api.get_untracked();
         spawn_local(async move {
             set_loading.set(true);

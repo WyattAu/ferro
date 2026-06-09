@@ -1,6 +1,5 @@
-use leptos::prelude::*;
-use leptos::task::spawn_local;
 use leptos::ev;
+use leptos::prelude::*;
 
 use crate::t;
 
@@ -50,7 +49,7 @@ impl ThemeState {
 }
 
 pub fn provide_theme_state() -> ThemeState {
-    let (theme, set_theme) = create_signal(Theme::default());
+    let (theme, set_theme) = signal(Theme::default());
 
     let state = ThemeState { theme, set_theme };
     provide_context(state.clone());
@@ -58,7 +57,7 @@ pub fn provide_theme_state() -> ThemeState {
     #[cfg(target_arch = "wasm32")]
     {
         let init_state = state.clone();
-        create_effect(move |_| {
+        Effect::new(move |_| {
             let window = web_sys::window();
             let document = window.as_ref().and_then(|w| w.document());
 
@@ -129,7 +128,7 @@ pub fn provide_theme_state() -> ThemeState {
     #[cfg(target_arch = "wasm32")]
     {
         let sync_state = state.clone();
-        create_effect(move |_| {
+        Effect::new(move |_| {
             let current = sync_state.theme.get();
             if let Some(window) = web_sys::window() {
                 if let Some(document) = window.document() {

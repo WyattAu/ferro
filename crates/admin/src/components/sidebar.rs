@@ -40,7 +40,7 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
         .map(|(path, label, icon)| {
             let pathname = move || location.pathname.get();
             let p = path.clone();
-            let active = create_memo(move |_| {
+            let active = Memo::new(move |_| {
                 let current = pathname();
                 if p == "/" {
                     current == "/"

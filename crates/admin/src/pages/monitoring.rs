@@ -1,20 +1,19 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 
 use crate::api::ApiState;
 use crate::state::format_uptime;
 
 #[component]
 pub fn MonitoringPage(api: RwSignal<ApiState>) -> impl IntoView {
-    let (stats, set_stats) = create_signal(None::<serde_json::Value>);
-    let (metrics_text, set_metrics_text) = create_signal(String::new());
-    let (error, set_error) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(true);
-    let (metrics_loading, set_metrics_loading) = create_signal(false);
-    let (grafana_url, set_grafana_url) = create_signal(String::new());
+    let (stats, set_stats) = signal(None::<serde_json::Value>);
+    let (metrics_text, set_metrics_text) = signal(String::new());
+    let (error, set_error) = signal(None::<String>);
+    let (loading, set_loading) = signal(true);
+    let (metrics_loading, set_metrics_loading) = signal(false);
+    let (grafana_url, set_grafana_url) = signal(String::new());
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let api_clone = api.get_untracked();
         spawn_local(async move {
             set_loading.set(true);

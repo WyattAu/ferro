@@ -1,12 +1,11 @@
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 
 use crate::t;
 
 #[component]
 pub fn ErrorBoundary(children: Children) -> impl IntoView {
     #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]
-    let (error_msg, set_error_msg) = create_signal(None::<String>);
+    let (error_msg, set_error_msg) = signal(None::<String>);
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -48,13 +47,13 @@ pub fn ErrorBoundary(children: Children) -> impl IntoView {
 
     view! {
         {move || error_msg.get().map(|msg| view! {
-            <div class="fixed inset-0 z-[9999] bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4" role="alertdialog" aria-modal="true">
+            <div class="fixed inset-0 z-[9999] bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-labelledby="error-boundary-title" aria-describedby="error-boundary-desc">
                 <div class="max-w-md w-full text-center">
                     <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.832c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
-                    <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t!("error_boundary.title")}</h1>
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                    <h1 id="error-boundary-title" class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t!("error_boundary.title")}</h1>
+                    <p id="error-boundary-desc" class="text-sm text-gray-600 dark:text-gray-400 mb-6">
                         {t!("error_boundary.description")}
                     </p>
                     <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6 text-left">

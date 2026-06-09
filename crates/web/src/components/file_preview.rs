@@ -1,6 +1,6 @@
+use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 
 use crate::api::FileEntry;
 
@@ -59,9 +59,9 @@ fn file_category(name: &str) -> &'static str {
 
 #[component]
 pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
-    let (content, set_content) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(false);
-    let (error, set_error) = create_signal(None::<String>);
+    let (content, set_content) = signal(None::<String>);
+    let (loading, set_loading) = signal(false);
+    let (error, set_error) = signal(None::<String>);
 
     let category = file_category(&file.name);
     let name = file.name.clone();

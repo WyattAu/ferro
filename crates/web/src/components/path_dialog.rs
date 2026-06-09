@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use leptos::ev;
+use leptos::prelude::*;
 
 use crate::components::focus_trap::FocusTrap;
 use crate::components::toast::ToastContext;

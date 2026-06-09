@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -75,10 +74,10 @@ impl AuthState {
 }
 
 pub fn provide_auth_state() -> AuthState {
-    let (access_token, set_access_token) = create_signal(None);
-    let (user, set_user) = create_signal(None);
-    let (auth_enabled, set_auth_enabled) = create_signal(false);
-    let (loading, set_loading) = create_signal(true);
+    let (access_token, set_access_token) = signal(None);
+    let (user, set_user) = signal(None);
+    let (auth_enabled, set_auth_enabled) = signal(false);
+    let (loading, set_loading) = signal(true);
 
     let state = AuthState::new(
         access_token,

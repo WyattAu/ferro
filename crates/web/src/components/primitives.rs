@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use leptos::ev;
+use leptos::prelude::*;
 
 /// Accessible button component with proper ARIA attributes and minimum touch target.
 ///
@@ -43,7 +43,9 @@ pub fn Button(
         ButtonVariant::Ghost => {
             "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-gray-500"
         }
-        ButtonVariant::Link => "text-blue-600 hover:underline focus:ring-blue-500 p-0 min-w-0 min-h-0",
+        ButtonVariant::Link => {
+            "text-blue-600 hover:underline focus:ring-blue-500 p-0 min-w-0 min-h-0"
+        }
     };
 
     let size_class = match size {
@@ -76,7 +78,7 @@ pub fn Button(
                         <span class="sr-only">"Loading..."</span>
                     }.into_any()
                 } else {
-                    view! {}.into_any()
+                    ().into_any()
                 }
             }}
             {children()}

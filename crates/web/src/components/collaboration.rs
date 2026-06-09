@@ -194,12 +194,10 @@ fn ws_url_for_document(document_id: &str) -> String {
 
 #[component]
 pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoView {
-    let (text, set_text) = create_signal(String::new());
-    let (version, set_version) = create_signal(0u64);
-    let (connection_state, set_connection_state) =
-        create_signal(CollabConnectionState::Disconnected);
-    let (remote_participants, set_remote_participants) =
-        create_signal::<Vec<ParticipantInfo>>(vec![]);
+    let (text, set_text) = signal(String::new());
+    let (version, set_version) = signal(0u64);
+    let (connection_state, set_connection_state) = signal(CollabConnectionState::Disconnected);
+    let (remote_participants, set_remote_participants) = signal::<Vec<ParticipantInfo>>(vec![]);
 
     let doc_id = DocumentId(document_id.clone());
     let participant_id = ParticipantId(js_sys::Math::random() as u32 * 1000000 + 1);

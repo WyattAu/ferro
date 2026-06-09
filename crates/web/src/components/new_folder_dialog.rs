@@ -1,6 +1,6 @@
+use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 
 use crate::api;
 use crate::components::focus_trap::FocusTrap;
@@ -19,7 +19,7 @@ pub fn NewFolderDialog(
     /// Callback invoked after successful creation.
     on_created: Callback<()>,
 ) -> impl IntoView {
-    let (folder_name, set_folder_name) = create_signal(String::new());
+    let (folder_name, set_folder_name) = signal(String::new());
 
     let do_create = move |_: ev::MouseEvent| {
         let name = folder_name.get();

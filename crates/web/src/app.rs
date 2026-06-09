@@ -22,14 +22,14 @@ use crate::pages::trash::TrashPage;
 pub fn App() -> impl IntoView {
     I18nCtx::provide(Locale::default());
     let auth_state = auth::provide_auth_state();
-    let (branding, set_branding) = create_signal(None::<BrandingConfig>);
+    let (branding, set_branding) = signal(None::<BrandingConfig>);
     provide_context(branding);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         auth::init_auth(&auth_state);
     });
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         spawn_local(async move {
             if let Ok(config) = crate::api::fetch_branding().await {
                 set_branding.set(Some(config));
@@ -37,7 +37,7 @@ pub fn App() -> impl IntoView {
         });
     });
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let b = branding.get();
         if let Some(ref config) = b {
             #[cfg(target_arch = "wasm32")]

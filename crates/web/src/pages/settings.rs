@@ -1,6 +1,6 @@
+use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 use leptos_router::components::A;
 
 use crate::api::{self, UserPreferences};
@@ -10,7 +10,7 @@ use crate::t;
 
 #[component]
 pub fn SettingsPage() -> impl IntoView {
-    let (prefs, set_prefs) = create_signal(UserPreferences {
+    let (prefs, set_prefs) = signal(UserPreferences {
         theme: "dark".to_string(),
         view_mode: "list".to_string(),
         sort_by: "name".to_string(),
@@ -19,10 +19,10 @@ pub fn SettingsPage() -> impl IntoView {
         show_hidden_files: false,
         language: "en".to_string(),
     });
-    let (loading, set_loading) = create_signal(true);
-    let (saving, set_saving) = create_signal(false);
+    let (loading, set_loading) = signal(true);
+    let (saving, set_saving) = signal(false);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         spawn_local(async move {
             if let Ok(p) = api::get_preferences().await {
                 set_prefs.set(p);

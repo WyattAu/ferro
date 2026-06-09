@@ -1,6 +1,5 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 
 use crate::api::ApiState;
 use crate::components::chart::{BarChart, PieChart};
@@ -8,12 +7,12 @@ use crate::state::{format_bytes, format_timestamp};
 
 #[component]
 pub fn StoragePage(api: RwSignal<ApiState>) -> impl IntoView {
-    let (storage, set_storage) = create_signal(None::<serde_json::Value>);
-    let (error, set_error) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(true);
-    let (msg, set_msg) = create_signal(None::<String>);
+    let (storage, set_storage) = signal(None::<serde_json::Value>);
+    let (error, set_error) = signal(None::<String>);
+    let (loading, set_loading) = signal(true);
+    let (msg, set_msg) = signal(None::<String>);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let api_clone = api.get_untracked();
         spawn_local(async move {
             set_loading.set(true);

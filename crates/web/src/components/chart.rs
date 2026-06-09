@@ -39,7 +39,11 @@ pub fn BarChart(
 
     let chart_width = 100.0; // percentage-based
     let bar_count = display_data.len() as f64;
-    let bar_gap = if bar_count > 0.0 { 2.0 / bar_count } else { 0.0 };
+    let bar_gap = if bar_count > 0.0 {
+        2.0 / bar_count
+    } else {
+        0.0
+    };
     let bar_width = if bar_count > 0.0 {
         (chart_width - bar_gap * (bar_count + 1.0)) / bar_count
     } else {
@@ -96,7 +100,7 @@ pub fn BarChart(
                                     </text>
                                 }.into_any()
                             } else {
-                                view! {}.into_any()
+                    ().into_any()
                             }}
                         </g>
                     }
@@ -235,7 +239,7 @@ pub fn LineChart(
                         />
                     }.into_any()
                 } else {
-                    view! {}.into_any()
+                    ().into_any()
                 }}
                 {if show_dots {
                     display_data.iter().enumerate().map(|(i, point)| {
@@ -256,7 +260,7 @@ pub fn LineChart(
                         }
                     }).collect_view().into_any()
                 } else {
-                    view! {}.into_any()
+                    ().into_any()
                 }}
             </svg>
             // Screen reader accessible data table

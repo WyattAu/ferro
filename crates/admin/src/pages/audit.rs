@@ -1,6 +1,5 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
@@ -10,13 +9,13 @@ use crate::state::format_timestamp;
 
 #[component]
 pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
-    let (entries, set_entries) = create_signal(Vec::<serde_json::Value>::new());
-    let (total, set_total) = create_signal(0_usize);
-    let (error, set_error) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(true);
-    let (page, set_page) = create_signal(0_usize);
-    let (filter_user, set_filter_user) = create_signal(String::new());
-    let (filter_action, set_filter_action) = create_signal(String::new());
+    let (entries, set_entries) = signal(Vec::<serde_json::Value>::new());
+    let (total, set_total) = signal(0_usize);
+    let (error, set_error) = signal(None::<String>);
+    let (loading, set_loading) = signal(true);
+    let (page, set_page) = signal(0_usize);
+    let (filter_user, set_filter_user) = signal(String::new());
+    let (filter_action, set_filter_action) = signal(String::new());
     let page_size: usize = 50;
 
     let load_audit = move || {
@@ -40,7 +39,7 @@ pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
         });
     };
 
-    create_effect(move |_| load_audit());
+    Effect::new(move |_| load_audit());
 
     let current_page = page.get();
     let total_pages = total.get().div_ceil(page_size);

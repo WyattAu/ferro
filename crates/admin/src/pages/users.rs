@@ -1,6 +1,5 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use leptos::ev;
 
 use crate::api::ApiState;
 use crate::components::badge::{Badge, BadgeVariant};
@@ -21,18 +20,18 @@ pub struct UserRow {
 
 #[component]
 pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
-    let (users, set_users) = create_signal(Vec::<serde_json::Value>::new());
-    let (error, set_error) = create_signal(None::<String>);
-    let (loading, set_loading) = create_signal(true);
-    let (search, set_search) = create_signal(String::new());
-    let (show_create, set_show_create) = create_signal(false);
-    let (show_delete_confirm, set_show_delete_confirm) = create_signal(false);
-    let (delete_target, set_delete_target) = create_signal(String::new());
-    let (form_error, set_form_error) = create_signal(None::<String>);
-    let (msg, set_msg) = create_signal(None::<String>);
-    let (new_username, set_new_username) = create_signal(String::new());
-    let (new_password, set_new_password) = create_signal(String::new());
-    let (new_role, set_new_role) = create_signal(String::from("viewer"));
+    let (users, set_users) = signal(Vec::<serde_json::Value>::new());
+    let (error, set_error) = signal(None::<String>);
+    let (loading, set_loading) = signal(true);
+    let (search, set_search) = signal(String::new());
+    let (show_create, set_show_create) = signal(false);
+    let (show_delete_confirm, set_show_delete_confirm) = signal(false);
+    let (delete_target, set_delete_target) = signal(String::new());
+    let (form_error, set_form_error) = signal(None::<String>);
+    let (msg, set_msg) = signal(None::<String>);
+    let (new_username, set_new_username) = signal(String::new());
+    let (new_password, set_new_password) = signal(String::new());
+    let (new_role, set_new_role) = signal(String::from("viewer"));
 
     let load_users = move || {
         let api_clone = api.get_untracked();
@@ -47,7 +46,7 @@ pub fn UsersPage(api: RwSignal<ApiState>) -> impl IntoView {
         });
     };
 
-    create_effect(move |_| load_users());
+    Effect::new(move |_| load_users());
 
     let filtered_users = move || {
         let query = search.get().to_lowercase();

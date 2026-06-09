@@ -1,6 +1,6 @@
-use leptos::prelude::*;
-use leptos::html;
 use leptos::ev;
+use leptos::html;
+use leptos::prelude::*;
 
 /// Reusable focus trap wrapper for modal dialogs.
 ///
@@ -10,8 +10,8 @@ use leptos::ev;
 /// 3. On unmount, restores focus to the previously focused element
 #[component]
 pub fn FocusTrap(children: Children) -> impl IntoView {
-    let container_ref = create_node_ref::<html::Div>();
-    let (prev_focus, set_prev_focus) = create_signal(None::<web_sys::Element>);
+    let container_ref = NodeRef::<html::Div>::new();
+    let (prev_focus, set_prev_focus) = signal(None::<web_sys::Element>);
 
     let focusable_selector = "a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex='-1']),[contenteditable='true']";
 
@@ -26,7 +26,7 @@ pub fn FocusTrap(children: Children) -> impl IntoView {
     }
 
     // On mount: save previous focus and auto-focus first focusable element
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let Some(el) = container_ref.get() else {
             return;
         };
