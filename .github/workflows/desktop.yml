@@ -197,7 +197,7 @@ jobs:
           java-version: 17
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@fc7031f7ea55dc1e51e1e804f7d3e2257c4f0b0e # v3
+        uses: android-actions/setup-android@v3
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked --version "^2"

@@ -399,12 +399,6 @@ pub async fn add_peer(
 pub fn routes() -> axum::Router<AppState> {
     axum::Router::new()
         .route("/fed/exchange-token", axum::routing::post(exchange_token))
-        .route(
-            "/fed/files/{*path}",
-            axum::routing::get(get_fed_file)
-                .put(put_fed_file)
-                .delete(delete_fed_file),
-        )
         .route("/fed/search", axum::routing::get(federated_search))
         .route("/fed/peers", axum::routing::get(list_peers).post(add_peer))
 }
