@@ -3252,6 +3252,7 @@ mod tests {
                     .method("PUT")
                     .uri("/test-file.txt")
                     .header("Content-Type", "text/plain")
+                    .header("Content-Length", "12")
                     .body(Body::from("hello offline"))
                     .unwrap(),
             )
@@ -3334,6 +3335,7 @@ mod tests {
                     .method("PUT")
                     .uri("/cache-me.txt")
                     .header("Content-Type", "text/plain")
+                    .header("Content-Length", "14")
                     .body(Body::from("online content"))
                     .unwrap(),
             )

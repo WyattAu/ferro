@@ -4,7 +4,7 @@ use axum::response::{IntoResponse, Response};
 
 use crate::AppState;
 use crate::api_error::ApiError;
-use crate::users::UserInfo;
+use crate::users::{UserInfo, UserRole};
 use ferro_auth::api_keys::ApiKeyStoreTrait;
 use ferro_auth::api_keys::{ApiKeyPermission, CreateApiKeyRequest};
 
@@ -74,6 +74,13 @@ pub async fn create_api_key(
     axum::Extension(user_info): axum::Extension<UserInfo>,
     axum::Json(body): axum::Json<CreateApiKeyBody>,
 ) -> Response {
+    if user_info.role == UserRole::ReadOnly {
+        return ApiError::forbidden(
+            ApiError::ADMIN_REQUIRED,
+            "Read-only users cannot create API keys",
+        );
+    }
+
     if body.name.trim().is_empty() {
         return ApiError::bad_request(ApiError::INVALID_INPUT, "API key name is required");
     }

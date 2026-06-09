@@ -10,7 +10,7 @@ pub type DbHandle = Arc<std::sync::Mutex<Connection>>;
 use std::sync::Arc;
 
 #[cfg(test)]
-const SCHEMA_VERSION: i64 = 9;
+const SCHEMA_VERSION: i64 = 11;
 
 const MIGRATIONS: &[(&str, &str)] = &[
     (
