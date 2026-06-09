@@ -69,6 +69,8 @@ pub struct SyncStateManager {
     conn: std::sync::Mutex<Connection>,
 }
 
+// SAFETY: SyncStateManager wraps a Connection in a Mutex. Mutex<Connection> is
+// Send and Sync when Connection is Send (which it is), so these impls are sound.
 unsafe impl Send for SyncStateManager {}
 unsafe impl Sync for SyncStateManager {}
 
@@ -93,7 +95,7 @@ impl SyncStateManager {
     }
 
     fn ensure_schema(&self) -> Result<(), SyncStateError> {
-        self.conn.lock().unwrap().execute_batch(
+        self.conn.lock().expect("mutex poisoned").execute_batch(
             "CREATE TABLE IF NOT EXISTS sync_peer_state (
                 node_id       TEXT PRIMARY KEY,
                 status        TEXT NOT NULL DEFAULT 'idle',
@@ -123,7 +125,7 @@ impl SyncStateManager {
 
     /// Get the sync state for a peer, creating a default if it doesn't exist.
     pub fn get_or_create(&self, node_id: &str) -> Result<PeerSyncState, SyncStateError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("mutex poisoned");
         let mut stmt = conn.prepare(
             "SELECT node_id, status, last_sync_clock, last_sync_at,
                     last_attempt_at, consecutive_failures, last_error,
@@ -193,7 +195,7 @@ impl SyncStateManager {
         let last_sync_at = state.last_sync_at.map(|dt| dt.to_rfc3339());
         let last_attempt_at = state.last_attempt_at.map(|dt| dt.to_rfc3339());
 
-        self.conn.lock().unwrap().execute(
+        self.conn.lock().expect("mutex poisoned").execute(
             "INSERT OR REPLACE INTO sync_peer_state
              (node_id, status, last_sync_clock, last_sync_at,
               last_attempt_at, consecutive_failures, last_error,
@@ -270,7 +272,7 @@ impl SyncStateManager {
         error_message: Option<&str>,
     ) -> Result<(), SyncStateError> {
         let now = Utc::now().to_rfc3339();
-        self.conn.lock().unwrap().execute(
+        self.conn.lock().expect("mutex poisoned").execute(
             "INSERT INTO sync_log
              (node_id, direction, status, file_count, error_message, started_at, completed_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
@@ -281,7 +283,7 @@ impl SyncStateManager {
 
     /// List all known peer states.
     pub fn list_peers(&self) -> Result<Vec<PeerSyncState>, SyncStateError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("mutex poisoned");
         let mut stmt = conn.prepare(
             "SELECT node_id, status, last_sync_clock, last_sync_at,
                     last_attempt_at, consecutive_failures, last_error,

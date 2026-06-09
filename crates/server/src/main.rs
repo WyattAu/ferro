@@ -1110,6 +1110,10 @@ async fn main() -> anyhow::Result<()> {
         let idle: libc::c_int = 30;
         let intvl: libc::c_int = 10;
         let cnt: libc::c_int = 3;
+        // SAFETY: setsockopt is called with a valid file descriptor from
+        // as_raw_fd(), valid SOL_SOCKET/IPPROTO_TCP level constants, valid
+        // option name/value pointers, and correct size parameters. All
+        // variables (`on`, `idle`, `intvl`, `cnt`) outlive the unsafe block.
         unsafe {
             libc::setsockopt(
                 raw_fd,
