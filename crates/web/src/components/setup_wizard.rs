@@ -3,7 +3,8 @@ use leptos::prelude::*;
 
 use super::sample_files;
 
-const _SETUP_WIZARD_KEY: &str = "ferro_setup_wizard_completed";
+#[cfg(target_arch = "wasm32")]
+const SETUP_WIZARD_KEY: &str = "ferro_setup_wizard_completed";
 
 pub fn is_setup_completed() -> bool {
     #[cfg(target_arch = "wasm32")]

@@ -181,8 +181,8 @@ pub fn Header() -> impl IntoView {
         if let Some(window) = web_sys::window() {
             if let Some(document) = window.document() {
                 use wasm_bindgen::JsCast;
-                let handler =
-                    wasm_bindgen::closure::Closure::<dyn Fn(ev::KeyboardEvent)>::new(move |ev| {
+                let handler = wasm_bindgen::closure::Closure::<dyn Fn(ev::KeyboardEvent)>::new(
+                    move |ev: web_sys::KeyboardEvent| {
                         let input: Option<web_sys::HtmlInputElement> = ev
                             .target()
                             .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
@@ -207,22 +207,11 @@ pub fn Header() -> impl IntoView {
                                 *debounce_timer.borrow_mut() = Some(handle);
                             }
                         }
-                    });
+                    },
+                );
                 let _ = document
                     .add_event_listener_with_callback("input", handler.as_ref().unchecked_ref());
-                on_cleanup(move || {
-                    let _ = document.remove_event_listener_with_callback(
-                        "input",
-                        handler.as_ref().unchecked_ref(),
-                    );
-                    // Clear pending debounce timer
-                    if let Some(handle) = *debounce_timer.borrow() {
-                        let _ = web_sys::window()
-                            .expect("window must exist in browser context")
-                            .clear_timeout_with_handle(handle);
-                    }
-                    drop(handler);
-                });
+                std::mem::forget(handler);
             }
         }
     }

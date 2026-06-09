@@ -1,4 +1,6 @@
 use leptos::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

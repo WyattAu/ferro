@@ -1,5 +1,9 @@
 use leptos::prelude::*;
 use std::time::Duration;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::closure::Closure;
 
 /// Debounce a value by the given delay.
 ///
@@ -32,7 +36,8 @@ pub fn UseDebounce(value: Signal<String>, delay_ms: u32) -> impl IntoView {
 /// `matchMedia` change events and exposes a reactive boolean signal.
 #[component]
 pub fn UseMediaQuery(_query: String) -> impl IntoView {
-    let (_matches, _set_matches) = signal(false);
+    #[allow(unused_variables)]
+    let (_matches, set_matches) = signal(false);
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -43,9 +48,11 @@ pub fn UseMediaQuery(_query: String) -> impl IntoView {
             if let Some(window) = web_sys::window()
                 && let Some(mql) = window.match_media(&query_clone).ok().flatten()
             {
+                let mql = std::rc::Rc::new(mql);
                 set_matches_clone.set(mql.matches());
+                let mql_ref = mql.clone();
                 let closure = Closure::wrap(Box::new(move |_: web_sys::MediaQueryListEvent| {
-                    set_matches_clone.set(mql.matches());
+                    set_matches_clone.set(mql_ref.matches());
                 }) as Box<dyn Fn(_)>);
                 let _ = mql
                     .add_event_listener_with_callback("change", closure.as_ref().unchecked_ref());

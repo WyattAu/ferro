@@ -1,4 +1,6 @@
 use leptos::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
 
 use crate::t;
 
@@ -95,17 +97,24 @@ pub fn ProvideToastContext(children: Children) -> impl IntoView {
     {
         let dismiss_clone = dismiss;
         let toasts_clone = toasts;
-        leptos::ev::document_event_listener(
-            leptos::ev::keydown,
-            move |ev: web_sys::KeyboardEvent| {
-                if ev.key() == "Escape" {
-                    let current = toasts_clone.get();
-                    if let Some(last) = current.last() {
-                        dismiss_clone.run(last.id);
-                    }
-                }
-            },
-        );
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
+                    move |ev: web_sys::KeyboardEvent| {
+                        if ev.key() == "Escape" {
+                            let current = toasts_clone.get();
+                            if let Some(last) = current.last() {
+                                dismiss_clone.run(last.id);
+                            }
+                        }
+                    },
+                )
+                    as Box<dyn Fn(web_sys::KeyboardEvent)>);
+                let _ = document
+                    .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+                std::mem::forget(cb);
+            }
+        }
     }
 
     view! {
@@ -205,16 +214,23 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
         let on_dismiss_esc = on_dismiss;
         let dismissed_esc = set_dismissed;
         let visible_esc = set_visible;
-        leptos::ev::document_event_listener(
-            leptos::ev::keydown,
-            move |ev: web_sys::KeyboardEvent| {
-                if ev.key() == "Escape" {
-                    dismissed_esc.set(true);
-                    visible_esc.set(false);
-                    on_dismiss_esc.run(());
-                }
-            },
-        );
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
+                    move |ev: web_sys::KeyboardEvent| {
+                        if ev.key() == "Escape" {
+                            dismissed_esc.set(true);
+                            visible_esc.set(false);
+                            on_dismiss_esc.run(());
+                        }
+                    },
+                )
+                    as Box<dyn Fn(web_sys::KeyboardEvent)>);
+                let _ = document
+                    .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+                std::mem::forget(cb);
+            }
+        }
     }
 
     view! {

@@ -25,15 +25,20 @@ pub async fn cached_fetch(url: &str) -> Result<String, String> {
         .map_err(|e| format!("Header set failed: {:?}", e))?;
 
     let window = web_sys::window().ok_or("No window object")?;
-    let resp_value = window
-        .fetch_with_request(&request)
+    let promise = window.fetch_with_request(&request);
+    let resp_value = wasm_bindgen_futures::JsFuture::from(promise)
         .await
         .map_err(|e| format!("Fetch failed: {:?}", e))?;
     let resp: web_sys::Response = resp_value.into();
-    let text = resp
+    let text_promise = resp
         .text()
+        .map_err(|e| format!("Text read failed: {:?}", e))?;
+    let text = wasm_bindgen_futures::JsFuture::from(text_promise)
         .await
         .map_err(|e| format!("Text read failed: {:?}", e))?;
+    let text = text
+        .as_string()
+        .ok_or_else(|| "Text conversion failed".to_string())?;
 
     with_cache(|cache| cache.insert(cache_key, text.clone()));
     Ok(text)

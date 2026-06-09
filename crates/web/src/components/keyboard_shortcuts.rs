@@ -1,4 +1,6 @@
 use leptos::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
 
 use crate::components::clipboard::use_clipboard_state;
 use crate::components::command_palette::use_command_palette_state;
@@ -67,114 +69,125 @@ pub fn KeyboardShortcuts() -> impl IntoView {
 
     #[cfg(target_arch = "wasm32")]
     {
-        let toggle_help = set_show_help;
         let cmd_palette = _cmd_palette;
 
-        leptos::ev::document_event_listener(
-            leptos::ev::keydown,
-            move |ev: web_sys::KeyboardEvent| {
-                let key = ev.key();
-                let ctrl = ev.ctrl_key() || ev.meta_key();
-                let shift = ev.shift_key();
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
+                    move |ev: web_sys::KeyboardEvent| {
+                        let key = ev.key();
+                        let ctrl = ev.ctrl_key() || ev.meta_key();
+                        let shift = ev.shift_key();
 
-                if key == "?" && !shift {
-                    toggle_help.update(|v| *v = !*v);
-                    return;
-                }
+                        if key == "?" && !shift {
+                            set_show_help.update(|v| *v = !*v);
+                            return;
+                        }
 
-                if key == "Escape" {
-                    if toggle_help.get() {
-                        toggle_help.set(false);
-                    }
-                    return;
-                }
+                        if key == "Escape" {
+                            if show_help.get() {
+                                set_show_help.set(false);
+                            }
+                            return;
+                        }
 
-                if ctrl {
-                    match key.as_str() {
-                        "k" | "K" => {
-                            ev.prevent_default();
-                            cmd_palette.toggle();
+                        if ctrl {
+                            match key.as_str() {
+                                "k" | "K" => {
+                                    ev.prevent_default();
+                                    cmd_palette.toggle();
+                                }
+                                "n" | "N" => {
+                                    ev.prevent_default();
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.dispatch_event(
+                                            &web_sys::Event::new("ferro:new-folder").unwrap(),
+                                        );
+                                    }
+                                }
+                                "u" | "U" => {
+                                    ev.prevent_default();
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.dispatch_event(
+                                            &web_sys::Event::new("ferro:upload").unwrap(),
+                                        );
+                                    }
+                                }
+                                "a" | "A" => {
+                                    ev.prevent_default();
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.dispatch_event(
+                                            &web_sys::Event::new("ferro:select-all").unwrap(),
+                                        );
+                                    }
+                                }
+                                "f" | "F" => {
+                                    ev.prevent_default();
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.dispatch_event(
+                                            &web_sys::Event::new("ferro:search").unwrap(),
+                                        );
+                                    }
+                                }
+                                "c" | "C" => {
+                                    if is_input_focused() {
+                                        return;
+                                    }
+                                    ev.prevent_default();
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.dispatch_event(
+                                            &web_sys::Event::new("ferro:copy").unwrap(),
+                                        );
+                                    }
+                                }
+                                "x" | "X" => {
+                                    if is_input_focused() {
+                                        return;
+                                    }
+                                    ev.prevent_default();
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.dispatch_event(
+                                            &web_sys::Event::new("ferro:cut").unwrap(),
+                                        );
+                                    }
+                                }
+                                "v" | "V" => {
+                                    if is_input_focused() {
+                                        return;
+                                    }
+                                    ev.prevent_default();
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.dispatch_event(
+                                            &web_sys::Event::new("ferro:paste").unwrap(),
+                                        );
+                                    }
+                                }
+                                _ => {}
+                            }
+                            return;
                         }
-                        "n" | "N" => {
-                            ev.prevent_default();
-                            if let Some(window) = web_sys::window() {
-                                let _ = window.dispatch_event(
-                                    &web_sys::Event::new("ferro:new-folder").unwrap(),
-                                );
-                            }
-                        }
-                        "u" | "U" => {
-                            ev.prevent_default();
-                            if let Some(window) = web_sys::window() {
-                                let _ = window
-                                    .dispatch_event(&web_sys::Event::new("ferro:upload").unwrap());
-                            }
-                        }
-                        "a" | "A" => {
-                            ev.prevent_default();
-                            if let Some(window) = web_sys::window() {
-                                let _ = window.dispatch_event(
-                                    &web_sys::Event::new("ferro:select-all").unwrap(),
-                                );
-                            }
-                        }
-                        "f" | "F" => {
-                            ev.prevent_default();
-                            if let Some(window) = web_sys::window() {
-                                let _ = window
-                                    .dispatch_event(&web_sys::Event::new("ferro:search").unwrap());
-                            }
-                        }
-                        "c" | "C" => {
-                            if is_input_focused() {
-                                return;
-                            }
-                            ev.prevent_default();
-                            if let Some(window) = web_sys::window() {
-                                let _ = window
-                                    .dispatch_event(&web_sys::Event::new("ferro:copy").unwrap());
-                            }
-                        }
-                        "x" | "X" => {
-                            if is_input_focused() {
-                                return;
-                            }
-                            ev.prevent_default();
-                            if let Some(window) = web_sys::window() {
-                                let _ = window
-                                    .dispatch_event(&web_sys::Event::new("ferro:cut").unwrap());
-                            }
-                        }
-                        "v" | "V" => {
-                            if is_input_focused() {
-                                return;
-                            }
-                            ev.prevent_default();
-                            if let Some(window) = web_sys::window() {
-                                let _ = window
-                                    .dispatch_event(&web_sys::Event::new("ferro:paste").unwrap());
-                            }
-                        }
-                        _ => {}
-                    }
-                    return;
-                }
 
-                match key.as_str() {
-                    "Delete" => {
-                        if !is_input_focused() {
-                            ev.prevent_default();
-                            if let Some(window) = web_sys::window() {
-                                let _ = window.dispatch_event(
-                                    &web_sys::Event::new("ferro:delete-selected").unwrap(),
-                                );
+                        match key.as_str() {
+                            "Delete" => {
+                                if !is_input_focused() {
+                                    ev.prevent_default();
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.dispatch_event(
+                                            &web_sys::Event::new("ferro:delete-selected").unwrap(),
+                                        );
+                                    }
+                                }
                             }
+                            _ => {}
                         }
-                    }
-                    _ => {}
-                }
-            },
-        );
+                    },
+                )
+                    as Box<dyn Fn(web_sys::KeyboardEvent)>);
+                let _ = document
+                    .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+                std::mem::forget(cb);
+            }
+        }
     }
 
     let close_help = set_show_help;

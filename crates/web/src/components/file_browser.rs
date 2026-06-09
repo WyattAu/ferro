@@ -931,13 +931,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     as Box<dyn Fn(web_sys::KeyboardEvent)>);
                 let _ = document
                     .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
-                on_cleanup(move || {
-                    let _ = document.remove_event_listener_with_callback(
-                        "keydown",
-                        cb.as_ref().unchecked_ref(),
-                    );
-                    drop(cb);
-                });
+                std::mem::forget(cb);
             }
         }
     }

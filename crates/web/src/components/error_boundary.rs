@@ -1,4 +1,6 @@
 use leptos::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use leptos::task::spawn_local;
 
 use crate::t;
 
