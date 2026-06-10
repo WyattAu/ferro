@@ -1,6 +1,5 @@
 pub mod audit_integration;
 pub mod cache_layer;
-pub mod config_integration;
 pub mod crdt_integration;
 pub mod distributed_integration;
 pub mod event_dispatch;
@@ -8,7 +7,6 @@ pub mod health_integration;
 pub mod multi_tenant_integration;
 pub mod offline_integration;
 pub mod rate_limit;
-pub mod search;
 pub mod storage_integration;
 pub mod webhook_integration;
 
@@ -30,22 +28,6 @@ mod tests {
     fn test_cache_key_generation() {
         let key = cache_layer::cache_key("GET", "/files/test.txt", "type=json");
         assert_eq!(key, "GET:/files/test.txt:type=json");
-    }
-
-    #[test]
-    fn test_search_index_create_and_search() {
-        let index = search::create_file_search_index();
-        search::index_file(
-            &index,
-            "doc-1",
-            "report.pdf",
-            "/docs/report.pdf",
-            "application/pdf",
-            1024,
-        );
-        let results = search::search_files(&index, "report", 10);
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].document_id, "doc-1");
     }
 
     #[test]

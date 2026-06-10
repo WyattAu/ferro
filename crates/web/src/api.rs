@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::auth::UserInfo;
+use crate::utils::{percent_decode, percent_encode};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthCallbackResponse {
@@ -80,12 +81,7 @@ pub struct LockInfo {
 
 #[allow(dead_code)] // Used by WASM runtime
 fn urlencoding(s: &str) -> String {
-    s.chars()
-        .flat_map(|c| match c {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => vec![c],
-            _ => format!("%{:02X}", c as u32).chars().collect(),
-        })
-        .collect()
+    percent_encode(s)
 }
 
 fn decode_xml_entities(s: &str) -> String {
@@ -94,25 +90,6 @@ fn decode_xml_entities(s: &str) -> String {
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&apos;", "'")
-}
-
-fn percent_decode(s: &str) -> String {
-    let mut result = Vec::new();
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%'
-            && i + 2 < bytes.len()
-            && let Ok(byte) = u8::from_str_radix(&s[i + 1..i + 3], 16)
-        {
-            result.push(byte);
-            i += 3;
-            continue;
-        }
-        result.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8(result).unwrap_or_default()
 }
 
 #[allow(dead_code)] // Used by WASM runtime

@@ -13,6 +13,7 @@ pub mod branding;
 pub mod bulk;
 #[cfg(unix)]
 pub mod clamav;
+pub mod collab_ws;
 pub mod comments;
 pub mod config;
 pub mod conflict;
@@ -133,7 +134,6 @@ pub mod push_notifications;
 pub mod quota;
 pub mod range_get;
 pub mod ransomware;
-pub mod rate_limit;
 pub mod read_cache;
 #[cfg(feature = "redis")]
 pub mod redis_lock;
@@ -278,6 +278,7 @@ pub struct AppState {
     pub idempotency_store: Arc<idempotency::IdempotencyStore>,
     pub storage_health: Arc<storage_health::StorageHealthMonitor>,
     pub ws_manager: Arc<ws::WsManager>,
+    pub collab_rooms: collab_ws::CollabRoomManager,
     pub db: Option<DbHandle>,
     pub upload_store: upload::UploadStore,
     pub auth_attempt_tracker: Arc<security::AuthAttemptTracker>,
@@ -328,6 +329,8 @@ pub struct AppState {
     pub tenant_store: Arc<dyn ferro_multi_tenant::tenant::TenantStore>,
     /// General-purpose timed cache for metadata and responses (from ferro-cache crate).
     pub metadata_cache: Option<Arc<ferro_cache::TimedCache<String, Vec<u8>>>>,
+    /// Event bus for pub/sub event dispatch (from ferro-event-bus crate).
+    pub event_bus: Arc<ferro_event_bus::EventBus>,
 }
 
 impl AppState {
@@ -394,6 +397,7 @@ impl AppState {
             idempotency_store: Arc::new(idempotency::IdempotencyStore::new()),
             storage_health: Arc::new(storage_health::StorageHealthMonitor::new()),
             ws_manager: Arc::new(ws::WsManager::new()),
+            collab_rooms: collab_ws::CollabRoomManager::new(),
             db: None,
             upload_store: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
             auth_attempt_tracker: Arc::new(security::AuthAttemptTracker::default()),
@@ -431,6 +435,7 @@ impl AppState {
             ),
             tenant_store: Arc::new(ferro_multi_tenant::tenant::InMemoryTenantStore::new()),
             metadata_cache: None,
+            event_bus: Arc::new(ferro_event_bus::EventBus::new()),
         }
     }
 
@@ -1095,6 +1100,18 @@ fn api_routes(
             axum::routing::delete(backup::delete_backup),
         )
         .route("/admin/backup", axum::routing::post(backup::create_backup))
+        .route(
+            "/admin/backup/latest",
+            axum::routing::get(backup::get_latest_backup),
+        )
+        .route(
+            "/admin/backup/download",
+            axum::routing::get(backup::download_backup),
+        )
+        .route(
+            "/admin/backup/restore",
+            axum::routing::post(backup::restore_from_archive),
+        )
         .route("/admin/backups", axum::routing::get(backup::list_backups))
         .route(
             "/admin/integrity",
@@ -1281,6 +1298,10 @@ fn api_routes(
             axum::routing::get(sync::blocks::get_block),
         )
         .route("/ws", axum::routing::get(ws::ws_handler))
+        .route(
+            "/ws/collab/{document_id}",
+            axum::routing::get(collab_ws::collab_ws_handler),
+        )
         .route("/upload/init", axum::routing::post(upload::init_upload))
         .route(
             "/upload/:upload_id/chunk/:chunk_index",
@@ -1490,11 +1511,10 @@ pub fn build_router_with_static(
         }
     });
 
-    let rate_limiter = Arc::new(rate_limit::RateLimiter::new(
-        rate_limit::RateLimiterConfig {
-            max_requests: 10_000,
-            window: std::time::Duration::from_secs(60),
-        },
+    let rate_limiter = Arc::new(ferro_rate_limiter::TokenBucketLimiter::new(
+        10_000,
+        166,
+        std::time::Duration::from_secs(1),
     ));
     let rate_limit_layer =
         axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
@@ -1508,13 +1528,13 @@ pub fn build_router_with_static(
                     .map(|s: &str| s.trim().to_string())
                     .unwrap_or_else(|| "unknown".to_string());
 
-                if limiter.check(&client_ip).await {
-                    next.run(req).await
-                } else {
-                    api_error::ApiError::too_many_requests(
+                use ferro_rate_limiter::RateLimiter;
+                match limiter.check(&client_ip).await {
+                    Ok(result) if result.allowed => next.run(req).await,
+                    _ => api_error::ApiError::too_many_requests(
                         api_error::ApiError::RATE_LIMITED,
                         "Rate limit exceeded",
-                    )
+                    ),
                 }
             }
         });

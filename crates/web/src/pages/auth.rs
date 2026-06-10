@@ -2,6 +2,7 @@ use leptos::prelude::*;
 
 use crate::auth;
 use crate::t;
+use crate::utils::urlencoding_decode;
 
 fn parse_query_string(search: &str) -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
@@ -12,27 +13,6 @@ fn parse_query_string(search: &str) -> std::collections::HashMap<String, String>
         }
     }
     map
-}
-
-fn urlencoding_decode(s: &str) -> String {
-    let mut result = String::new();
-    let mut chars = s.chars();
-    while let Some(c) = chars.next() {
-        if c == '%' {
-            let hex: String = chars.by_ref().take(2).collect();
-            if let Ok(byte) = u8::from_str_radix(&hex, 16) {
-                result.push(byte as char);
-            } else {
-                result.push('%');
-                result.push_str(&hex);
-            }
-        } else if c == '+' {
-            result.push(' ');
-        } else {
-            result.push(c);
-        }
-    }
-    result
 }
 
 #[component]

@@ -60,49 +60,43 @@ async fn test_cors_wildcard_warning_logged() {
 
 #[tokio::test]
 async fn test_rate_limiter_rejects_excess_requests() {
-    use ferro_server::rate_limit::{RateLimiter, RateLimiterConfig};
+    use ferro_rate_limiter::{RateLimiter, TokenBucketLimiter};
     use std::time::Duration;
 
-    let limiter = RateLimiter::new(RateLimiterConfig {
-        max_requests: 5,
-        window: Duration::from_secs(60),
-    });
+    let limiter = TokenBucketLimiter::new(5, 0, Duration::from_secs(60));
 
     for i in 0..5 {
         assert!(
-            limiter.check("192.168.1.1").await,
+            limiter.check("192.168.1.1").await.unwrap().allowed,
             "Request {} should pass",
             i + 1
         );
     }
     assert!(
-        !limiter.check("192.168.1.1").await,
+        !limiter.check("192.168.1.1").await.unwrap().allowed,
         "6th request should be rejected"
     );
 
     assert!(
-        limiter.check("192.168.1.2").await,
+        limiter.check("192.168.1.2").await.unwrap().allowed,
         "Different IP should not be affected"
     );
 }
 
 #[tokio::test]
 async fn test_rate_limiter_recovery_after_window() {
-    use ferro_server::rate_limit::{RateLimiter, RateLimiterConfig};
+    use ferro_rate_limiter::{RateLimiter, TokenBucketLimiter};
     use std::time::Duration;
 
-    let limiter = RateLimiter::new(RateLimiterConfig {
-        max_requests: 3,
-        window: Duration::from_millis(200),
-    });
+    let limiter = TokenBucketLimiter::new(3, 3, Duration::from_millis(200));
 
     for _ in 0..3 {
-        limiter.check("recovery-client").await;
+        limiter.check("recovery-client").await.unwrap();
     }
-    assert!(!limiter.check("recovery-client").await);
+    assert!(!limiter.check("recovery-client").await.unwrap().allowed);
 
     tokio::time::sleep(Duration::from_millis(300)).await;
-    assert!(limiter.check("recovery-client").await);
+    assert!(limiter.check("recovery-client").await.unwrap().allowed);
 }
 
 #[tokio::test]

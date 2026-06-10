@@ -1,14 +1,14 @@
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerConfig {
+pub struct AdminConnectionConfig {
     pub url: String,
     pub token: String,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct ApiState {
-    pub config: Option<ServerConfig>,
+    pub config: Option<AdminConnectionConfig>,
 }
 
 impl ApiState {
@@ -17,7 +17,7 @@ impl ApiState {
     }
 
     pub fn connect(&mut self, url: String, token: String) {
-        self.config = Some(ServerConfig { url, token });
+        self.config = Some(AdminConnectionConfig { url, token });
     }
 
     pub fn disconnect(&mut self) {
@@ -321,13 +321,13 @@ mod tests {
     }
 
     #[test]
-    fn test_server_config_serde() {
-        let config = ServerConfig {
+    fn test_admin_connection_config_serde() {
+        let config = AdminConnectionConfig {
             url: "http://localhost:8080".to_string(),
             token: "secret123".to_string(),
         };
         let json = serde_json::to_string(&config).unwrap();
-        let parsed: ServerConfig = serde_json::from_str(&json).unwrap();
+        let parsed: AdminConnectionConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.url, "http://localhost:8080");
         assert_eq!(parsed.token, "secret123");
     }

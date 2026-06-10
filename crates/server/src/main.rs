@@ -1018,6 +1018,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let lock_manager = state.lock_manager.clone();
+    ferro_server::integration::event_dispatch::setup_event_handlers(&state);
     let app = build_router_with_static(
         state.clone(),
         cli.static_dir.as_deref(),

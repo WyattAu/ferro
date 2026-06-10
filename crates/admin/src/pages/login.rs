@@ -35,7 +35,7 @@ pub fn LoginPage(api: RwSignal<ApiState>) -> impl IntoView {
             test_api.connect(u, t);
             match test_api.test_connection().await {
                 Ok(_) => {
-                    save_connection(&crate::api::ServerConfig {
+                    save_connection(&crate::api::AdminConnectionConfig {
                         url: url_val.clone(),
                         token: token_val.clone(),
                     });

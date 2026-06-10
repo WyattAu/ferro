@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::api::{ApiState, ServerConfig};
+use crate::api::{AdminConnectionConfig, ApiState};
 
 pub fn format_bytes(bytes: u64) -> String {
     const KB: u64 = 1024;
@@ -46,7 +46,7 @@ pub fn format_timestamp(ts: &str) -> String {
     }
 }
 
-pub fn save_connection(config: &ServerConfig) {
+pub fn save_connection(config: &AdminConnectionConfig) {
     if let Some(window) = web_sys::window()
         && let Ok(Some(storage)) = window.local_storage()
     {
@@ -55,14 +55,14 @@ pub fn save_connection(config: &ServerConfig) {
     }
 }
 
-pub fn load_connection() -> Option<ServerConfig> {
+pub fn load_connection() -> Option<AdminConnectionConfig> {
     if let Some(window) = web_sys::window()
         && let Ok(Some(storage)) = window.local_storage()
     {
         let url = storage.get_item("ferro_admin_url").ok()??;
         let token = storage.get_item("ferro_admin_token").ok()??;
         if !url.is_empty() && !token.is_empty() {
-            return Some(ServerConfig { url, token });
+            return Some(AdminConnectionConfig { url, token });
         }
     }
     None

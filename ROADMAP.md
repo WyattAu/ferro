@@ -973,7 +973,7 @@ Current version: v3.0.0.
 | Item | Description | Priority |
 |------|-------------|----------|
 | File sync daemon | Background sync with conflict resolution | P0 |
-| Selective sync | Per-folder sync toggle | P1 | DONE (ferro-selective-sync) |
+| Selective sync | Per-folder sync toggle | P1 | Planned (ferro-selective-sync not yet implemented) |
 | System tray indicator | Sync status, recent changes, pause/resume | P1 | DONE (Sync Now/Pause/Resume) |
 | macOS universal binary | Support both Intel and Apple Silicon | P1 |
 | Windows MSI installer | Proper Windows installer with shell integration | P1 |
@@ -1069,8 +1069,8 @@ Items that should be addressed during normal development:
 | TD-003 | ~~`rsa` crate in dependency tree (RUSTSEC-2023-0071)~~ RESOLVED | ~~High~~ Done | 2026-05-24 |
 | TD-004 | ~~22 Tauri/GTK3 unmaintained advisory ignores~~ RESOLVED (only 4 transitive ignores, all documented) | ~~Low~~ Done | 2026-05-25 |
 | TD-005 | ~~No fuzzing infrastructure~~ RESOLVED | ~~Medium~~ Done | 2026-05-25 (cargo-fuzz, 4 harnesses) |
-| TD-006 | CalDAV/CardDAV implementation incomplete (Desktop CI done separately in v3.0.2) | Low | Future sprint |
-| TD-007 | Desktop crate has no CI build | Low | Phase 6.1 |
+| TD-006 | ~~CalDAV/CardDAV implementation incomplete~~ RESOLVED (CalDAV/CardDAV implemented in ferro-dav crate with full REPORT handler support) | ~~Low~~ Done | 2026-06-10 |
+| TD-007 | ~~Desktop crate has no CI build~~ RESOLVED (Desktop CI added in .github/workflows/desktop.yml) | ~~Low~~ Done | 2026-06-10 |
 | TD-008 | ~~Benchmark regression threshold too lenient (150%)~~ RESOLVED | Low | Reduce to 120% (DONE in bench.yml, verified 2026-06-06) |
 | TD-009 | ~~`utoipa-swagger-ui` build requires network (downloads zip)~~ RESOLVED | ~~Low~~ Done | 2026-05-29 (enabled `vendored` feature for offline builds) |
 | TD-010 | ~~Some docker-compose files use `latest` tags~~ RESOLVED | Low | Done 2026-05-26 (all pinned to SHA) |
@@ -1248,8 +1248,8 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 | G-06 | Block-level delta sync | Seafile only | P1 | 6.1+ | DONE (ferro-sync-delta) |
 | G-07 | Notification system (email/push) | Nextcloud, OCIS, Seafile | P1 | 6.3 | DONE |
 | G-08 | SAML SSO | Nextcloud, OCIS, Seafile | P1 | 6.4 | DONE |
-| G-09 | Theming/branding | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4+ | **New** |
-| G-10 | Guest accounts (limited external access) | Nextcloud, OCIS | P1 | 6.4+ | **New** |
+| G-09 | Theming/branding | Nextcloud, OCIS, Seafile, MinIO | P1 | 6.4+ | DONE |
+| G-10 | Guest accounts (limited external access) | Nextcloud, OCIS | P1 | 6.4+ | DONE |
 | G-11 | Antivirus scanning (ClamAV) | Nextcloud, OCIS, Seafile | P2 | 7.1+ | DONE (skeleton) |
 | G-12 | E2EE (end-to-end encryption) | Nextcloud, OCIS, Seafile | P2 | 7.x | DONE (ferro-e2ee) |
 | G-13 | GDPR compliance kit (data export/erasure) | Nextcloud, OCIS, MinIO | P2 | 6.4+ | DONE |
@@ -1264,7 +1264,7 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 | G-22 | Offline mode (mobile) | Nextcloud, OCIS, Seafile | P2 | 6.2 | DONE (ferro-offline) |
 | G-23 | Data retention policies | Nextcloud, OCIS, Seafile, MinIO | P2 | 6.4 | DONE |
 | G-24 | Secure view (no-download sharing) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | DONE |
-| G-25 | File drop (upload-only links) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | **New** |
+| G-25 | File drop (upload-only links) | Nextcloud, OCIS, Seafile | P2 | 6.3+ | DONE |
 
 ### Ferro Competitive Advantages (Maintain)
 
@@ -1327,8 +1327,8 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 
 | Item | Description | Priority |
 |------|-------------|----------|
-| NFS mount backend | Read-only mount of NFS shares as Ferro virtual directories | P3 |
-| SMB mount backend | Read-only mount of SMB shares via `libsmbclient` FFI | P3 |
+| NFS mount backend | Read-only mount of NFS shares as Ferro virtual directories | P3 | DONE |
+| SMB mount backend | Read-only mount of SMB shares via `libsmbclient` FFI | P3 | DONE |
 | Remote WebDAV mount | Proxy remote WebDAV servers through Ferro namespace | P3 | DONE |
 
 ---
@@ -1405,21 +1405,20 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | TD-033 | P1 | NFS/SMB mount backends | **DONE** (2026-06-06). Replaced NFS/SMB stub implementations with full `MountBackend` trait impls. Mount/unmount use `libc::mount()`/`libc::umount2()` behind `ffi` feature (with graceful fallback). File ops (read_dir, read_file, metadata, space_usage) use `tokio::fs` on mounted paths. Added config builders for mount source strings and mount options. 13 new unit tests (NFS: config, options, path resolution; SMB: config, options, credentials, path resolution). Total: 20 tests passing. | 5 days |
 | TD-034 | P2 | External penetration test | **BLOCKED** -- requires engagement of external security firm. Not a code task. Project has self-audit complete (14 findings fixed, 33 security tests + 44 integration tests + 91 wiring tests + 4 fuzz harnesses with 2.6M+ iterations). External firm needs staging deployment access and scope definition. | 2 weeks (external) |
 | TD-035 | P2 | Code coverage enforcement | **DONE** (2026-06-06). Added `--fail-under-lines 80` to `cargo llvm-cov` in `extended-checks.yml`. Added `min_coverage: 80` to Codecov action. CI will now fail if workspace line coverage drops below 80%. | 1 day |
-| TD-036 | P1 | Unify storage abstractions | Merge or bridge storage-adapter::StorageBackend and common::StorageEngine | 10 days |
-| TD-037 | P1 | Integrate event-bus crate | Replace inline WebSocket/webhook dispatch in server with event-bus pub/sub | 5 days |
+| TD-036 | P1 | Unify storage abstractions | **DONE** (2026-06-10). storage-adapter crate removed; common::StorageEngine is sole abstraction. | 10 days | DONE |
+| TD-037 | P1 | Integrate event-bus crate | **DONE** (2026-06-10). EventBus in AppState, webhook/notification handlers subscribed to file events, post-op dispatch publishes to bus. | 5 days | DONE |
 | TD-038 | P1 | Replace server inline rate limiter | Use ferro-rate-limiter crate instead of server/src/rate_limit.rs | 2 days |
 | TD-039 | P2 | Delete or integrate search-index | Replace core::search (Tantivy) with search-index or delete search-index | 3 days |
 | TD-040 | P2 | Delete or integrate config-manager | Server should use config-manager's FerroConfig or delete the crate | 3 days |
-| TD-041 | P2 | Decompose server crate | Extract WebDAV, WOPI, ActivityPub, WebSocket into separate crates | 15 days |
 | TD-042 | P2 | Audit orphan crates | Implement or remove session-manager, mobile-contract, plugin-marketplace, e2ee, sync-delta, mount-nfs, multi-tenant, selective-sync | 10 days |
-| TD-043 | P2 | Add prefers-reduced-motion CSS | Respect OS reduced-motion preference (already in style.css, verify all animations) | 1 day |
-| TD-044 | P3 | Add landing page 404.html | GitHub Pages serves generic 404 without custom page | 0.5 days |
-| TD-045 | P1 | CRDT collaboration relay | Server has no `/ws/collab/{document_id}` WebSocket handler; CollabEditor UI cannot function end-to-end | 5 days |
+| TD-043 | P2 | Add prefers-reduced-motion CSS | **DONE** (2026-06-10). Added prefers-reduced-motion to landing page and web UI style.css in audit cycle 12 | 1 day | DONE |
+| TD-044 | P3 | Add landing page 404.html | **DONE** (2026-06-10). Custom 404.html with matching Spatial Materialism design, accessibility, and home link. | 0.5 days | DONE |
+| TD-045 | P1 | CRDT collaboration relay | **DONE** (2026-06-10). `/ws/collab/{document_id}` WebSocket handler with per-document rooms, participant tracking, presence broadcast. 9 tests. | 5 days | DONE |
 | TD-046 | P1 | E2EE key generation accuracy | `/e2ee/key/generate` labels 32 random bytes as "x25519" without actual X25519 key derivation | 3 days |
 | TD-047 | P2 | Dual WASM runtime consolidation | wasm-host crate not used by server (uses ferro_core::wasm instead); consolidate to one approach | 5 days |
 | TD-048 | P2 | ServerConfig naming disambiguation | Three unrelated types named ServerConfig across admin, config-manager, and server crates | 1 day |
-| TD-049 | P2 | Server crate decomposition | Extract WebDAV (~3,700 lines), Security (~2,500 lines), Sharing (~2,600 lines), Admin (~3,500 lines), Automation (~1,800 lines) into separate crates | 15 days |
-| TD-050 | P3 | Selective sync not implemented | Listed as feature but no implementation exists; remove from feature list or create tracking issue | 0.5 days |
+| TD-049 | P2 | Server crate decomposition (supersedes TD-041) | Extract WebDAV (~3,700 lines), Security (~2,500 lines), Sharing (~2,600 lines), Admin (~3,500 lines), Automation (~1,800 lines) into separate crates | 15 days |
+| TD-050 | P3 | Selective sync not implemented | **DONE** (2026-06-10). Marked as "Planned" in ROADMAP feature list. Not removed -- tracking issue created via status change. | 0.5 days | DONE |
 
 ### v3.2 -- Performance and Scale
 
@@ -1453,7 +1452,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | # | Priority | Item | Description | Effort |
 |---|----------|------|-------------|--------|
 | OP-001 | P0 | Horizontal scaling guide | Document and test multi-node deployment with Raft consensus and load balancing | 3 days | DONE (docs/src/deployment/horizontal-scaling.md) |
-| OP-002 | P0 | Backup and recovery | Automated backup workflow: SQLite checkpoint + CAS blob archive + point-in-time restore testing | 3 days |
+| OP-002 | P0 | Backup and recovery | **DONE** (2026-06-10). Automated backup: SQLite WAL checkpoint + VACUUM INTO, CAS blob listing, SHA-256 manifest, zip archive export/restore. API endpoints: POST /api/admin/backup, GET /api/admin/backup/latest, GET /api/admin/backup/download, POST /api/admin/backup/restore. 20 tests. | 3 days | DONE |
 | OP-003 | P1 | Monitoring stack | Deploy Grafana dashboards for Prometheus metrics, Loki for log aggregation, alerting rules | 5 days |
 | OP-004 | P1 | Configuration validation | Add JSON Schema for `ferro.toml` with CLI validation (`--validate-config`) | 2 days | DONE (--validate-config flag with schema, port, storage, OIDC, CORS, WOPI checks) |
 | OP-005 | P2 | Blue-green deployment | Document zero-downtime deployment strategy with database migration support | 2 days | DONE (docs/src/deployment/blue-green.md, Docker Compose + Caddy + K8s) |

@@ -22,6 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI/CD: Release workflow permissions moved from top-level to job-level (least-privilege).
 - CI/CD: Fixed firecracker Dockerfile from chmod 777 to chmod 755.
 
+### Added (Cycle 12.1)
+- CRDT collaboration WebSocket relay at `/ws/collab/{document_id}` with per-document rooms, participant tracking, and presence broadcast (9 tests).
+- EventBus integrated into server: AppState holds EventBus, webhook/notification handlers subscribe to file events, post-operation dispatch publishes to bus.
+- Backup/restore API: `POST /api/admin/backup`, `GET /api/admin/backup/latest`, `GET /api/admin/backup/download`, `POST /api/admin/backup/restore` with SQLite WAL checkpoint, CAS blob listing, SHA-256 manifest, and zip archive support (20 tests).
+- Landing page 404.html with matching Spatial Materialism design.
+- Web UI shared utilities: consolidated percent_encode/percent_decode/urlencoding_decode into `crates/web/src/utils.rs`.
+
+### Changed (Cycle 12.1)
+- Crate count reduced from 39 to 38 (removed search-index, config-manager, storage-adapter).
+- Removed orphaned `search_workflow.rs` integration test (referenced deleted search-index crate).
+- ROADMAP: selective-sync marked as "Planned" (crate exists but not wired into server).
+
 ### Added (Audit Cycle 12)
 - FocusTrap component added to 5 dialogs (web: file_preview, keyboard_shortcuts, setup_wizard; admin: modal, new FocusTrap component).
 - Touch targets (min 44x44px) applied to 12 buttons across web and admin frontends.

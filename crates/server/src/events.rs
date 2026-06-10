@@ -1,3 +1,5 @@
+use ferro_event_bus::event::FileEvent as BusFileEvent;
+
 use crate::AppState;
 
 #[derive(Clone, Debug)]
@@ -148,4 +150,29 @@ pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
             .await;
         });
     }
+
+    // Publish to event bus as additional dispatch path
+    let bus_event_type = match event.op_type {
+        "put" | "mkcol" if !event.already_existed => "file.created",
+        "put" if event.already_existed => "file.modified",
+        "delete" => "file.deleted",
+        "move" => "file.modified",
+        "copy" => "file.created",
+        _ => return,
+    };
+    let mut bus_event = BusFileEvent::new(bus_event_type, &event.path, &event.owner);
+    bus_event.size = event.size;
+    bus_event.content_type = event.mime_type.map(|s| s.to_string());
+    if let Some(ref new_path) = event.new_path {
+        bus_event
+            .metadata
+            .insert("new_path".to_string(), new_path.clone());
+    }
+    if let Some(ref etag) = event.etag {
+        bus_event.metadata.insert("etag".to_string(), etag.clone());
+    }
+    let bus = state.event_bus.clone();
+    tokio::spawn(async move {
+        bus.publish(bus_event).await;
+    });
 }

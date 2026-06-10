@@ -84,15 +84,15 @@ pub struct E2eeKeyGenerateResponse {
 }
 
 pub async fn e2ee_key_generate() -> Response {
-    let mut key_bytes = [0u8; 32];
-    rand::rng().fill_bytes(&mut key_bytes);
-    let public_key = hex::encode(key_bytes);
+    let mut secret_bytes = [0u8; 32];
+    rand::rng().fill_bytes(&mut secret_bytes);
+    let secret = x25519_dalek::StaticSecret::from(secret_bytes);
+    let public_key = x25519_dalek::PublicKey::from(&secret);
+    let public_key_bytes = public_key.as_bytes();
+    let public_key_hex = hex::encode(public_key_bytes);
 
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
-    public_key.hash(&mut hasher);
-    let key_id = format!("{:016x}", hasher.finish());
+    use sha2::{Digest, Sha256};
+    let key_id = hex::encode(Sha256::digest(public_key_bytes));
 
     let created_at = chrono::Utc::now().timestamp();
 
@@ -100,10 +100,8 @@ pub async fn e2ee_key_generate() -> Response {
         StatusCode::OK,
         axum::Json(E2eeKeyGenerateResponse {
             key_id,
-            public_key,
-            // Placeholder: these are random bytes, not a true X25519 keypair.
-            // TODO: replace with actual X25519 key generation.
-            algorithm: "random-32-byte".to_string(),
+            public_key: public_key_hex,
+            algorithm: "x25519".to_string(),
             created_at,
         }),
     )
@@ -196,11 +194,12 @@ mod tests {
         let body = resp.into_body().collect().await.unwrap().to_bytes();
         let key_resp: E2eeKeyGenerateResponse = serde_json::from_slice(&body).unwrap();
 
-        assert_eq!(key_resp.algorithm, "random-32-byte");
+        assert_eq!(key_resp.algorithm, "x25519");
         assert!(!key_resp.key_id.is_empty());
         assert!(!key_resp.public_key.is_empty());
         assert!(key_resp.created_at > 0);
         assert_eq!(key_resp.public_key.len(), 64);
+        assert_eq!(key_resp.key_id.len(), 64);
     }
 
     #[tokio::test]

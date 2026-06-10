@@ -7,6 +7,7 @@ pub mod hooks;
 pub mod i18n;
 pub mod pages;
 pub mod styles;
+pub mod utils;
 
 use wasm_bindgen::prelude::*;
 

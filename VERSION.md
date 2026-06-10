@@ -3,14 +3,14 @@
 ## Current Status
 - **Phase:** v3.1.0 Release Candidate
 - **Version:** 3.1.0-rc.1
-- **Crates:** 41
-- **Tests:** 2184+ test functions passed, 0 failed, 0 clippy warnings
+- **Crates:** 38
+- **Tests:** 2200+ test functions passed, 0 failed, 0 clippy warnings
 - **E2E:** 14 Playwright spec files + DOM snapshot + screenshot infrastructure
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
 - **Load Testing:** 1h soak test passed (18,828 requests, 0 failures, P50=6ms, P95=28ms, P99=52ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
-- **Status:** v3.1.0-rc.1 release candidate. ALL 14 competitive gaps closed. 41 crates, 2184+ tests.
-- **Last Updated:** 2026-06-10 (Audit Cycle 12: code quality fixes, CI/CD hardening, accessibility, documentation accuracy)
+- **Status:** v3.1.0-rc.1 release candidate. ALL 14 competitive gaps closed. 38 crates, 2200+ tests.
+- **Last Updated:** 2026-06-10 (Cycle 12.1: CRDT collab WS, event-bus integration, backup/restore API, UI utils, crate cleanup)
 
 ## Phase Progress
 | Phase | Status | Completion |

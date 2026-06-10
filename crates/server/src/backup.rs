@@ -2,6 +2,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::AppState;
 use crate::api_error::ApiError;
@@ -12,6 +13,8 @@ pub struct BackupManifest {
     pub id: String,
     pub created_at: String,
     pub files: Vec<BackupEntry>,
+    pub cas_blobs: Vec<CasBlobEntry>,
+    pub metadata_snapshot: MetadataSnapshot,
     pub total_bytes: u64,
 }
 
@@ -22,6 +25,25 @@ pub struct BackupEntry {
     pub size: u64,
     pub etag: String,
     pub content_hash: String,
+    /// SHA-256 checksum computed from the actual backup file bytes.
+    pub sha256: String,
+}
+
+/// A CAS blob entry within a backup manifest.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CasBlobEntry {
+    pub hash: String,
+    pub size: u64,
+}
+
+/// Snapshot of server metadata at backup time.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetadataSnapshot {
+    pub file_count: u64,
+    pub total_bytes: u64,
+    pub cas_blob_count: usize,
+    pub db_checkpoint: bool,
+    pub server_version: String,
 }
 
 /// Summary info returned when listing or creating backups.
@@ -39,7 +61,24 @@ pub struct RestoreRequest {
     pub backup_id: String,
 }
 
+/// Report returned after restoring from a backup archive.
+#[derive(Debug, Serialize)]
+pub struct RestoreReport {
+    pub backup_id: String,
+    pub files_restored: usize,
+    pub files_skipped: usize,
+    pub files_failed: usize,
+    pub total_files: usize,
+    pub cas_blobs_restored: usize,
+    pub integrity_verified: bool,
+    pub errors: Vec<String>,
+}
+
 /// POST /api/admin/backup — create a new backup.
+///
+/// Performs a WAL checkpoint, lists all CAS blobs, creates a manifest with
+/// SHA-256 checksums for each file, and optionally backs up the SQLite
+/// database via VACUUM INTO.
 pub async fn create_backup(State(state): State<AppState>) -> Response {
     let data_dir = match &state.data_dir {
         Some(d) => d.clone(),
@@ -74,10 +113,79 @@ pub async fn create_backup(State(state): State<AppState>) -> Response {
         );
     }
 
+    let mut db_checkpointed = false;
+
+    if let Some(ref db) = state.db
+        && let Ok(conn) = db.lock()
+    {
+        if conn
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+            .is_ok()
+        {
+            tracing::info!("SQLite WAL checkpoint completed before backup");
+        }
+
+        let db_backup_path = backup_dir.join("ferro.db");
+        match conn.execute_batch(&format!(
+            "VACUUM INTO '{}';",
+            db_backup_path.to_string_lossy()
+        )) {
+            Ok(()) => {
+                tracing::info!("SQLite database backed up to {}", db_backup_path.display());
+                db_checkpointed = true;
+            }
+            Err(e) => {
+                tracing::warn!("Failed to back up SQLite database: {}", e);
+            }
+        }
+    }
+
+    let mut cas_blobs = Vec::new();
+    if let Some(ref cas_store) = state.cas_store {
+        if let Ok(all_files) = state.storage.list_all("/", 10000).await {
+            let mut seen_hashes = std::collections::HashSet::new();
+            for meta in &all_files {
+                if meta.is_collection {
+                    continue;
+                }
+                let hash = meta.content_hash.as_str().to_string();
+                if seen_hashes.insert(hash.clone()) {
+                    cas_blobs.push(CasBlobEntry {
+                        hash,
+                        size: meta.size,
+                    });
+                }
+            }
+        }
+        let cas_count = cas_store.content_count().await;
+        tracing::info!(
+            "CAS blob listing: {} unique hashes from files, {} total in CAS store",
+            cas_blobs.len(),
+            cas_count,
+        );
+    }
+
+    let mut file_count = 0u64;
+    let mut total_bytes = 0u64;
+    for meta in &entries {
+        if !meta.is_collection {
+            file_count += 1;
+            total_bytes += meta.size;
+        }
+    }
+
     let mut manifest = BackupManifest {
         id: backup_id.clone(),
         created_at: now.to_rfc3339(),
         files: Vec::new(),
+        cas_blobs,
+        metadata_snapshot: MetadataSnapshot {
+            file_count,
+            total_bytes,
+            cas_blob_count: manifest_cas_count(&state).await,
+            db_checkpoint: db_checkpointed,
+            server_version: env!("CARGO_PKG_VERSION").to_string(),
+        },
         total_bytes: 0,
     };
 
@@ -96,12 +204,14 @@ pub async fn create_backup(State(state): State<AppState>) -> Response {
                     continue;
                 }
 
+                let sha256 = hex::encode(Sha256::digest(&content));
                 manifest.total_bytes += meta.size;
                 manifest.files.push(BackupEntry {
                     path: meta.path.clone(),
                     size: meta.size,
                     etag: meta.etag.clone(),
                     content_hash: meta.content_hash.as_str().to_string(),
+                    sha256,
                 });
             }
             Err(e) => {
@@ -128,24 +238,6 @@ pub async fn create_backup(State(state): State<AppState>) -> Response {
         }
     }
 
-    // Also back up the SQLite database if persistence is configured
-    if let Some(ref db) = state.db {
-        let db_backup_path = backup_dir.join("ferro.db");
-        if let Ok(conn) = db.lock() {
-            match conn.execute_batch(&format!(
-                "VACUUM INTO '{}';",
-                db_backup_path.to_string_lossy()
-            )) {
-                Ok(()) => {
-                    tracing::info!("SQLite database backed up to {}", db_backup_path.display());
-                }
-                Err(e) => {
-                    tracing::warn!("Failed to back up SQLite database: {}", e);
-                }
-            }
-        }
-    }
-
     let info = BackupInfo {
         id: backup_id,
         created_at: now.to_rfc3339(),
@@ -154,6 +246,162 @@ pub async fn create_backup(State(state): State<AppState>) -> Response {
     };
 
     (StatusCode::CREATED, axum::Json(info)).into_response()
+}
+
+async fn manifest_cas_count(state: &AppState) -> usize {
+    match &state.cas_store {
+        Some(cas) => cas.content_count().await,
+        None => 0,
+    }
+}
+
+/// GET /api/admin/backup/latest — get the latest backup manifest.
+pub async fn get_latest_backup(State(state): State<AppState>) -> Response {
+    let data_dir = match &state.data_dir {
+        Some(d) => d.clone(),
+        None => {
+            return ApiError::not_found(ApiError::NOT_FOUND, "No backups available");
+        }
+    };
+
+    let latest = match find_latest_manifest(&data_dir) {
+        Some(m) => m,
+        None => {
+            return ApiError::not_found(ApiError::NOT_FOUND, "No backups found");
+        }
+    };
+
+    (StatusCode::OK, axum::Json(latest)).into_response()
+}
+
+/// GET /api/admin/backup/download — download latest backup as a zip archive.
+pub async fn download_backup(State(state): State<AppState>) -> Response {
+    let data_dir = match &state.data_dir {
+        Some(d) => d.clone(),
+        None => {
+            return ApiError::not_found(ApiError::NOT_FOUND, "No backups available");
+        }
+    };
+
+    let manifest = match find_latest_manifest(&data_dir) {
+        Some(m) => m,
+        None => {
+            return ApiError::not_found(ApiError::NOT_FOUND, "No backups found");
+        }
+    };
+
+    let backup_dir = std::path::Path::new(&data_dir)
+        .join("backups")
+        .join(&manifest.id);
+
+    match build_archive(&backup_dir, &manifest) {
+        Ok(bytes) => (
+            StatusCode::OK,
+            [
+                ("content-type", "application/zip"),
+                (
+                    "content-disposition",
+                    &format!("attachment; filename=\"{}.zip\"", manifest.id),
+                ),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Err(e) => ApiError::internal(
+            ApiError::INTERNAL_ERROR,
+            format!("Failed to create backup archive: {}", e),
+        ),
+    }
+}
+
+/// POST /api/admin/backup/restore — restore from an uploaded backup archive.
+///
+/// Accepts a zip archive containing a manifest and file data. Validates
+/// SHA-256 checksums and restores files to storage.
+pub async fn restore_from_archive(
+    State(state): State<AppState>,
+    body: axum::body::Bytes,
+) -> Response {
+    let manifest: BackupManifest = match extract_manifest_from_archive(&body) {
+        Ok(m) => m,
+        Err(e) => {
+            return ApiError::bad_request(
+                ApiError::BAD_REQUEST,
+                format!("Invalid backup archive: {}", e),
+            );
+        }
+    };
+
+    let mut report = RestoreReport {
+        backup_id: manifest.id.clone(),
+        files_restored: 0,
+        files_skipped: 0,
+        files_failed: 0,
+        total_files: manifest.files.len(),
+        cas_blobs_restored: 0,
+        integrity_verified: true,
+        errors: Vec::new(),
+    };
+
+    let archive_files = match extract_all_from_archive(&body) {
+        Ok(f) => f,
+        Err(e) => {
+            return ApiError::internal(
+                ApiError::INTERNAL_ERROR,
+                format!("Failed to read backup archive: {}", e),
+            );
+        }
+    };
+
+    for entry in &manifest.files {
+        let archive_key = entry.path.trim_start_matches('/').replace('/', "_");
+
+        let already_exists = state.storage.exists(&entry.path).await.unwrap_or(false);
+        if already_exists {
+            report.files_skipped += 1;
+            continue;
+        }
+
+        let Some(content) = archive_files.get(&archive_key) else {
+            report.files_failed += 1;
+            report
+                .errors
+                .push(format!("Missing file data for {}", entry.path));
+            report.integrity_verified = false;
+            continue;
+        };
+
+        let computed = hex::encode(Sha256::digest(content));
+        if computed != entry.sha256 {
+            report.files_failed += 1;
+            report.integrity_verified = false;
+            report.errors.push(format!(
+                "Checksum mismatch for {}: expected {}, got {}",
+                entry.path, entry.sha256, computed
+            ));
+            continue;
+        }
+
+        match state
+            .storage
+            .put(
+                &entry.path,
+                bytes::Bytes::from(content.clone()),
+                "backup-restore",
+            )
+            .await
+        {
+            Ok(_) => report.files_restored += 1,
+            Err(e) => {
+                report.files_failed += 1;
+                report
+                    .errors
+                    .push(format!("Failed to restore {}: {}", entry.path, e));
+            }
+        }
+    }
+
+    (StatusCode::OK, axum::Json(report)).into_response()
 }
 
 /// GET /api/admin/backups — list available backups.
@@ -195,7 +443,7 @@ pub async fn list_backups(State(state): State<AppState>) -> Response {
     (StatusCode::OK, axum::Json(backups)).into_response()
 }
 
-/// POST /api/admin/restore — restore from a backup.
+/// POST /api/admin/restore — restore from a backup (by backup_id).
 pub async fn restore_backup(
     State(state): State<AppState>,
     axum::Json(input): axum::Json<RestoreRequest>,
@@ -243,6 +491,17 @@ pub async fn restore_backup(
 
         match std::fs::read(&file_path) {
             Ok(content) => {
+                let computed = hex::encode(Sha256::digest(&content));
+                if computed != entry.sha256 {
+                    tracing::warn!(
+                        "Checksum mismatch for {}: expected {}, got {}",
+                        entry.path,
+                        entry.sha256,
+                        computed
+                    );
+                    continue;
+                }
+
                 if let Err(e) = state
                     .storage
                     .put(&entry.path, bytes::Bytes::from(content), "backup-restore")
@@ -283,13 +542,9 @@ pub struct IntegrityCheckResult {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum IntegrityStatus {
-    /// Computed hash matches stored hash.
     Ok,
-    /// Computed hash differs from stored hash (data corruption).
     Mismatch,
-    /// File could not be read for verification.
     Unreadable,
-    /// Stored hash is missing or invalid.
     InvalidHash,
 }
 
@@ -306,10 +561,6 @@ pub struct IntegrityAuditReport {
 }
 
 /// GET /api/admin/integrity — audit all stored files for hash integrity.
-///
-/// Reads every file from storage, recomputes its SHA-256 digest, and compares
-/// it against the stored `content_hash`. Returns a report of all mismatches,
-/// unreadable files, and invalid stored hashes.
 pub async fn audit_integrity(State(state): State<AppState>) -> Response {
     let entries = match state.storage.list_all("/", 10000).await {
         Ok(e) => e,
@@ -339,7 +590,6 @@ pub async fn audit_integrity(State(state): State<AppState>) -> Response {
         report.total_files += 1;
         let stored_hash = meta.content_hash.as_str().to_string();
 
-        // Validate stored hash is proper 64-char hex
         if stored_hash.len() != 64 || stored_hash.chars().any(|c| !c.is_ascii_hexdigit()) {
             report.invalid_hashes += 1;
             report.findings.push(IntegrityCheckResult {
@@ -351,10 +601,8 @@ pub async fn audit_integrity(State(state): State<AppState>) -> Response {
             continue;
         }
 
-        // Read file and recompute hash
         match state.storage.get(&meta.path).await {
             Ok(content) => {
-                use sha2::{Digest, Sha256};
                 let computed = hex::encode(Sha256::digest(&content));
 
                 if computed == stored_hash {
@@ -385,10 +633,6 @@ pub async fn audit_integrity(State(state): State<AppState>) -> Response {
 }
 
 /// GET /api/admin/audit-chain — verify audit log chain hash integrity.
-///
-/// Reads all persisted audit entries, recomputes the SHA-256 chain hash for
-/// each entry, and reports any mismatches. Returns 200 with a verification
-/// report. Returns 503 if persistence is not configured (in-memory-only mode).
 pub async fn audit_chain_verify(State(state): State<AppState>) -> Response {
     match state.audit_log.verify_chain().await {
         Some(report) => (StatusCode::OK, axum::Json(report)).into_response(),
@@ -427,6 +671,114 @@ pub async fn delete_backup(State(state): State<AppState>, Path(id): Path<String>
     (StatusCode::NO_CONTENT, "").into_response()
 }
 
+fn find_latest_manifest(data_dir: &str) -> Option<BackupManifest> {
+    let backups_dir = std::path::Path::new(data_dir).join("backups");
+    let mut latest: Option<(String, BackupManifest)> = None;
+
+    if let Ok(entries) = std::fs::read_dir(&backups_dir) {
+        for entry in entries.flatten() {
+            let manifest_path = entry.path().join("manifest.json");
+            if !manifest_path.exists() {
+                continue;
+            }
+            if let Ok(content) = std::fs::read_to_string(&manifest_path)
+                && let Ok(manifest) = serde_json::from_str::<BackupManifest>(&content)
+            {
+                match &latest {
+                    Some((current_ts, _)) if &manifest.created_at <= current_ts => {}
+                    _ => {
+                        latest = Some((manifest.created_at.clone(), manifest));
+                    }
+                }
+            }
+        }
+    }
+
+    latest.map(|(_, m)| m)
+}
+
+fn build_archive(
+    backup_dir: &std::path::Path,
+    manifest: &BackupManifest,
+) -> std::io::Result<Vec<u8>> {
+    use std::io::Write;
+
+    let buf = std::io::Cursor::new(Vec::new());
+    let mut writer = zip::ZipWriter::new(buf);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    let manifest_json = serde_json::to_string_pretty(manifest)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+    writer.start_file("manifest.json", options)?;
+    writer.write_all(manifest_json.as_bytes())?;
+
+    for entry in &manifest.files {
+        let safe_path = entry.path.trim_start_matches('/').replace('/', "_");
+        let file_path = backup_dir.join(&safe_path);
+        if file_path.exists() {
+            let data = std::fs::read(&file_path)?;
+            writer.start_file(&safe_path, options)?;
+            writer.write_all(&data)?;
+        }
+    }
+
+    let db_path = backup_dir.join("ferro.db");
+    if db_path.exists() {
+        let data = std::fs::read(&db_path)?;
+        writer.start_file("ferro.db", options)?;
+        writer.write_all(&data)?;
+    }
+
+    let result = writer.finish()?;
+    Ok(result.into_inner())
+}
+
+fn extract_manifest_from_archive(data: &[u8]) -> std::io::Result<BackupManifest> {
+    use std::io::Read;
+
+    let reader = std::io::Cursor::new(data);
+    let mut archive = zip::ZipArchive::new(reader)?;
+
+    let mut manifest_file = archive.by_name("manifest.json")?;
+    let mut manifest_str = String::new();
+    manifest_file.read_to_string(&mut manifest_str)?;
+
+    serde_json::from_str(&manifest_str).map_err(|e| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("Invalid manifest: {}", e),
+        )
+    })
+}
+
+fn extract_all_from_archive(
+    data: &[u8],
+) -> std::io::Result<std::collections::HashMap<String, Vec<u8>>> {
+    use std::io::Read;
+
+    let reader = std::io::Cursor::new(data);
+    let mut archive = zip::ZipArchive::new(reader)?;
+    let mut files = std::collections::HashMap::new();
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let name = file.name().to_string();
+        if name == "manifest.json" || name == "ferro.db" {
+            continue;
+        }
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        files.insert(name, buf);
+    }
+
+    Ok(files)
+}
+
+pub fn compute_sha256(data: &[u8]) -> String {
+    hex::encode(Sha256::digest(data))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -445,6 +797,122 @@ mod tests {
         let data_dir = dir.path().to_string_lossy().to_string();
         let state = AppState::in_memory().with_data_dir(data_dir);
         (build_router(state), dir)
+    }
+
+    #[test]
+    fn test_compute_sha256_known_input() {
+        let data = b"hello world";
+        let hash = compute_sha256(data);
+        assert_eq!(
+            hash,
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        );
+    }
+
+    #[test]
+    fn test_compute_sha256_empty() {
+        let hash = compute_sha256(b"");
+        assert_eq!(
+            hash,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn test_backup_manifest_serialization() {
+        let manifest = BackupManifest {
+            id: "backup-20260101-000000".to_string(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            files: vec![BackupEntry {
+                path: "/test/file.txt".to_string(),
+                size: 12,
+                etag: "\"abc123\"".to_string(),
+                content_hash: "a".repeat(64),
+                sha256: "b".repeat(64),
+            }],
+            cas_blobs: vec![CasBlobEntry {
+                hash: "c".repeat(64),
+                size: 100,
+            }],
+            metadata_snapshot: MetadataSnapshot {
+                file_count: 1,
+                total_bytes: 12,
+                cas_blob_count: 1,
+                db_checkpoint: true,
+                server_version: "1.0.0".to_string(),
+            },
+            total_bytes: 12,
+        };
+
+        let json = serde_json::to_string(&manifest).unwrap();
+        let deserialized: BackupManifest = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, manifest.id);
+        assert_eq!(deserialized.files.len(), 1);
+        assert_eq!(deserialized.files[0].sha256, "b".repeat(64));
+        assert_eq!(deserialized.cas_blobs.len(), 1);
+        assert_eq!(deserialized.metadata_snapshot.db_checkpoint, true);
+    }
+
+    #[test]
+    fn test_backup_entry_sha256_field() {
+        let entry = BackupEntry {
+            path: "/foo/bar.txt".to_string(),
+            size: 5,
+            etag: "\"etag\"".to_string(),
+            content_hash: "a".repeat(64),
+            sha256: compute_sha256(b"hello"),
+        };
+        assert_eq!(
+            entry.sha256,
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
+    }
+
+    #[test]
+    fn test_restore_report_serialization() {
+        let report = RestoreReport {
+            backup_id: "backup-test".to_string(),
+            files_restored: 5,
+            files_skipped: 2,
+            files_failed: 1,
+            total_files: 8,
+            cas_blobs_restored: 3,
+            integrity_verified: true,
+            errors: vec!["file X read error".to_string()],
+        };
+        let json = serde_json::to_string(&report).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["files_restored"], 5);
+        assert_eq!(parsed["files_failed"], 1);
+        assert_eq!(parsed["integrity_verified"], true);
+        assert_eq!(parsed["errors"][0], "file X read error");
+    }
+
+    #[test]
+    fn test_metadata_snapshot_defaults() {
+        let snapshot = MetadataSnapshot {
+            file_count: 0,
+            total_bytes: 0,
+            cas_blob_count: 0,
+            db_checkpoint: false,
+            server_version: "0.1.0".to_string(),
+        };
+        let json = serde_json::to_string(&snapshot).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["file_count"], 0);
+        assert_eq!(parsed["db_checkpoint"], false);
+    }
+
+    #[test]
+    fn test_cas_blob_entry_serialization() {
+        let entry = CasBlobEntry {
+            hash: "a".repeat(64),
+            size: 4096,
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        let parsed: CasBlobEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.hash, "a".repeat(64));
+        assert_eq!(parsed.size, 4096);
     }
 
     #[tokio::test]
@@ -541,6 +1009,193 @@ mod tests {
         let restore_json = body_json(restore_resp).await;
         assert_eq!(restore_json["restored_files"], 2);
         assert_eq!(restore_json["total_files"], 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_latest_backup() {
+        let (app, _dir) = backup_test_app();
+
+        let latest_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/admin/backup/latest")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(latest_resp.status(), StatusCode::NOT_FOUND);
+
+        app.clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("PUT")
+                    .uri("/latest-test/file.txt")
+                    .body(axum::body::Body::from("data"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        app.clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/admin/backup")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let latest_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/admin/backup/latest")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(latest_resp.status(), StatusCode::OK);
+        let json = body_json(latest_resp).await;
+        assert!(json["id"].as_str().unwrap().starts_with("backup-"));
+        assert_eq!(json["files"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_download_backup() {
+        let (app, _dir) = backup_test_app();
+
+        app.clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("PUT")
+                    .uri("/dl-test/file.txt")
+                    .body(axum::body::Body::from("download me"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        app.clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/admin/backup")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let download_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/admin/backup/download")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(download_resp.status(), StatusCode::OK);
+        let ct = download_resp
+            .headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert_eq!(ct, "application/zip");
+
+        let body = download_resp
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes();
+        let reader = std::io::Cursor::new(&body[..]);
+        let archive = zip::ZipArchive::new(reader).unwrap();
+        let names: Vec<String> = archive.file_names().map(|s| s.to_string()).collect();
+        assert!(names.contains(&"manifest.json".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_restore_from_archive() {
+        let (app, _dir) = backup_test_app();
+
+        app.clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("PUT")
+                    .uri("/archive-test/file.txt")
+                    .body(axum::body::Body::from("archive content"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        app.clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/admin/backup")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let download_resp = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/admin/backup/download")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let archive_bytes = download_resp
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes();
+
+        app.clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("DELETE")
+                    .uri("/archive-test/file.txt")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let restore_resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/admin/backup/restore")
+                    .header("Content-Type", "application/zip")
+                    .body(axum::body::Body::from(archive_bytes.to_vec()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(restore_resp.status(), StatusCode::OK);
+        let json = body_json(restore_resp).await;
+        assert_eq!(json["files_restored"], 1);
+        assert_eq!(json["integrity_verified"], true);
     }
 
     #[tokio::test]
@@ -677,7 +1332,6 @@ mod tests {
     async fn test_integrity_audit_all_ok() {
         let (app, _dir) = backup_test_app();
 
-        // Store two files
         let files_to_store: Vec<(&str, &[u8])> = vec![
             ("/integrity-ok/a.txt", b"hello integrity"),
             ("/integrity-ok/b.bin", &[0xDE_u8, 0xAD, 0xBE, 0xEF]),
@@ -763,8 +1417,110 @@ mod tests {
             .unwrap();
 
         let json = body_json(resp).await;
-        // scanned_at should be a valid ISO 8601 timestamp
         let scanned_at = json["scanned_at"].as_str().unwrap();
         assert!(scanned_at.parse::<chrono::DateTime<chrono::Utc>>().is_ok());
+    }
+
+    #[test]
+    fn test_find_latest_manifest_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let data_dir = dir.path().to_string_lossy().to_string();
+        let result = find_latest_manifest(&data_dir);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_find_latest_manifest_picks_newest() {
+        let dir = tempfile::tempdir().unwrap();
+        let data_dir = dir.path().to_string_lossy().to_string();
+        let backups = dir.path().join("backups");
+
+        let old_dir = backups.join("backup-old");
+        std::fs::create_dir_all(&old_dir).unwrap();
+        let old_manifest = BackupManifest {
+            id: "backup-old".to_string(),
+            created_at: "2025-01-01T00:00:00Z".to_string(),
+            files: vec![],
+            cas_blobs: vec![],
+            metadata_snapshot: MetadataSnapshot {
+                file_count: 0,
+                total_bytes: 0,
+                cas_blob_count: 0,
+                db_checkpoint: false,
+                server_version: "1.0.0".to_string(),
+            },
+            total_bytes: 0,
+        };
+        std::fs::write(
+            old_dir.join("manifest.json"),
+            serde_json::to_string(&old_manifest).unwrap(),
+        )
+        .unwrap();
+
+        let new_dir = backups.join("backup-new");
+        std::fs::create_dir_all(&new_dir).unwrap();
+        let new_manifest = BackupManifest {
+            id: "backup-new".to_string(),
+            created_at: "2026-06-10T00:00:00Z".to_string(),
+            files: vec![],
+            cas_blobs: vec![],
+            metadata_snapshot: MetadataSnapshot {
+                file_count: 0,
+                total_bytes: 0,
+                cas_blob_count: 0,
+                db_checkpoint: false,
+                server_version: "1.0.0".to_string(),
+            },
+            total_bytes: 0,
+        };
+        std::fs::write(
+            new_dir.join("manifest.json"),
+            serde_json::to_string(&new_manifest).unwrap(),
+        )
+        .unwrap();
+
+        let result = find_latest_manifest(&data_dir).unwrap();
+        assert_eq!(result.id, "backup-new");
+    }
+
+    #[test]
+    fn test_build_and_extract_archive() {
+        let dir = tempfile::tempdir().unwrap();
+        let backup_dir = dir.path().join("backup-test");
+        std::fs::create_dir_all(&backup_dir).unwrap();
+
+        let content = b"test file content";
+        std::fs::write(backup_dir.join("test_file.txt"), content).unwrap();
+
+        let sha = compute_sha256(content);
+        let manifest = BackupManifest {
+            id: "backup-test".to_string(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            files: vec![BackupEntry {
+                path: "/test/file.txt".to_string(),
+                size: content.len() as u64,
+                etag: "\"etag\"".to_string(),
+                content_hash: "a".repeat(64),
+                sha256: sha.clone(),
+            }],
+            cas_blobs: vec![],
+            metadata_snapshot: MetadataSnapshot {
+                file_count: 1,
+                total_bytes: content.len() as u64,
+                cas_blob_count: 0,
+                db_checkpoint: false,
+                server_version: "1.0.0".to_string(),
+            },
+            total_bytes: content.len() as u64,
+        };
+
+        let archive = build_archive(&backup_dir, &manifest).unwrap();
+
+        let extracted_manifest = extract_manifest_from_archive(&archive).unwrap();
+        assert_eq!(extracted_manifest.id, "backup-test");
+        assert_eq!(extracted_manifest.files[0].sha256, sha);
+
+        let files = extract_all_from_archive(&archive).unwrap();
+        assert_eq!(files.get("test_file.txt").unwrap(), content);
     }
 }
