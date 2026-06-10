@@ -7,7 +7,6 @@ use async_trait::async_trait;
 use chrono::Utc;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tracing::warn;
 
@@ -133,9 +132,7 @@ impl QueuedOperation {
 
     /// Compute SHA-256 hash of content bytes.
     pub fn hash_content(data: &[u8]) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(data);
-        hex::encode(hasher.finalize())
+        crate::crypto::hash_content(data)
     }
 }
 

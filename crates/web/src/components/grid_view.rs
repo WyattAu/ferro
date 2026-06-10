@@ -298,7 +298,7 @@ pub fn GridCard(
                 </div>
 
                 <span class="text-[10px] sm:text-xs text-gray-500">{size_str.clone()}</span>
-                <span class="text-[10px] text-gray-400 hidden sm:block">{modified_display.clone()}</span>
+                <span class="text-[10px] text-gray-500 hidden sm:block">{modified_display.clone()}</span>
             </div>
 
             <div class="flex items-center justify-center gap-1 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">

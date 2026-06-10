@@ -143,7 +143,7 @@ pub fn TrashPage() -> impl IntoView {
                         </p>
                         <div class="flex justify-end gap-2">
                             <button
-                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
                                 on:click=move |_| set_show_confirm_empty.set(false)
                             >
                                 {t!("common.cancel")}

@@ -285,7 +285,12 @@ impl DiskSpaceProbe {
             Ok(p) => p,
             Err(_) => return (HealthStatus::Unknown, 0),
         };
+        // SAFETY: `std::mem::zeroed()` is safe for `libc::statvfs` which is a plain C struct
+        // with no Rust validity invariants beyond being fully initialized. All fields are
+        // primitive integer types that default to zero.
         let mut statvfs: libc::statvfs = unsafe { std::mem::zeroed() };
+        // SAFETY: `c_path` is a valid null-terminated C string (verified by CString::new above),
+        // and `statvfs` is a valid, writable pointer to an initialized `statvfs` struct.
         let ret = unsafe { libc::statvfs(c_path.as_ptr(), &mut statvfs) };
         if ret != 0 {
             return (HealthStatus::Unknown, 0);

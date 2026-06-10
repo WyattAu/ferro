@@ -103,7 +103,7 @@ pub fn ShareDialog(
                     <div class="flex items-center justify-between mb-4">
                         <h3 id="share-title" class="text-lg font-semibold text-gray-900">{t!("dialog.share.title")}</h3>
                         <button
-                            class="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                            class="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
                             aria-label=t!("aria.close_dialog")
                             on:click=move |_| set_open.set(false)
                         >
@@ -121,8 +121,9 @@ pub fn ShareDialog(
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.password_label")}</label>
+                        <label for="share-password" class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.password_label")}</label>
                         <input
+                            id="share-password"
                             type="password"
                             placeholder=t!("dialog.share.password_placeholder")
                             class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -132,8 +133,9 @@ pub fn ShareDialog(
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.expires_label")}</label>
+                        <label for="share-expires" class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.expires_label")}</label>
                         <select
+                            id="share-expires"
                             class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                             on:change=move |ev| set_share_expires.set(event_target_value(&ev))
                         >
@@ -172,7 +174,7 @@ pub fn ShareDialog(
 
                     <div class="flex justify-end gap-2">
                         <button
-                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
                             on:click=move |_| set_open.set(false)
                         >
                             {t!("common.close")}

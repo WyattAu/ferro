@@ -40,21 +40,22 @@ impl ThumbnailCache {
             DEFAULT_MAX_ENTRIES
         };
 
+        let capacity = NonZeroUsize::new(caps).unwrap_or_else(|| {
+            NonZeroUsize::new(DEFAULT_MAX_ENTRIES).expect("DEFAULT_MAX_ENTRIES > 0")
+        });
+
         Self {
             dir,
-            lru: Arc::new(Mutex::new(lru::LruCache::new(
-                NonZeroUsize::new(caps).unwrap(),
-            ))),
+            lru: Arc::new(Mutex::new(lru::LruCache::new(capacity))),
             max_entries: caps,
         }
     }
 
     pub fn noop() -> Self {
+        let capacity = NonZeroUsize::new(1).expect("1 is non-zero");
         Self {
             dir: PathBuf::new(),
-            lru: Arc::new(Mutex::new(lru::LruCache::new(
-                NonZeroUsize::new(1).unwrap(),
-            ))),
+            lru: Arc::new(Mutex::new(lru::LruCache::new(capacity))),
             max_entries: 0,
         }
     }

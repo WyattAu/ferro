@@ -882,7 +882,10 @@ fn parse_authenticator_data(auth_data: &[u8]) -> Result<AuthenticatorData, WebAu
 
     let rp_id_hash = auth_data[..32].to_vec();
     let flags = auth_data[32];
-    let sign_count = u32::from_be_bytes(auth_data[33..37].try_into().unwrap());
+    let sign_count =
+        u32::from_be_bytes(auth_data[33..37].try_into().map_err(|_| {
+            WebAuthnError::VerificationFailed("sign count bytes invalid".to_string())
+        })?);
 
     let mut offset = 37;
     let mut credential_id = None;

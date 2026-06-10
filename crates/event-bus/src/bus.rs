@@ -320,7 +320,10 @@ impl EventBus {
             let event_type = stored.event_type.clone();
             if let Some(handlers) = self.handlers.get(&event_type) {
                 for handler in handlers.iter() {
-                    let _ = handler.handle_erased(&stored.event_json, &event_type).await;
+                    let _ = handler.handle_erased(&stored.event_json, &event_type).await.map_err(|e| {
+                        tracing::warn!(event_type = %event_type, error = %e, "event replay handler failed");
+                        e
+                    });
                 }
             }
         }

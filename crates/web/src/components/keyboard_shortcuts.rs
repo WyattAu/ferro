@@ -4,6 +4,7 @@ use wasm_bindgen::JsCast;
 
 use crate::components::clipboard::use_clipboard_state;
 use crate::components::command_palette::use_command_palette_state;
+use crate::components::focus_trap::FocusTrap;
 use crate::t;
 
 #[derive(Debug, Clone)]
@@ -198,12 +199,15 @@ pub fn KeyboardShortcuts() -> impl IntoView {
             view! {
                 <div
                     class="fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center backdrop-blur-sm"
-                    role="dialog"
-                    aria-label=t!("shortcuts.title")
                     on:click=move |_| close_help.set(false)
                 >
+                    <FocusTrap>
                     <div
                         class="brutal-block rounded shadow-2xl w-[calc(100%-2rem)] sm:w-full sm:max-w-md mx-auto overflow-hidden surface"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label=t!("shortcuts.title")
+                        tabindex="-1"
                         on:click=move |ev| ev.stop_propagation()
                         on:keydown=move |ev: web_sys::KeyboardEvent| {
                             if ev.key() == "Escape" {
@@ -214,7 +218,7 @@ pub fn KeyboardShortcuts() -> impl IntoView {
                         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
                             <h2 class="text-section">{t!("shortcuts.title")}</h2>
                             <button
-                                class="p-1 rounded-sm opacity-60 hover:opacity-100 transition-opacity font-mono"
+                                class="p-1 rounded-sm opacity-60 hover:opacity-100 transition-opacity font-mono min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 aria-label=t!("aria.close_dialog")
                                 on:click=move |_| close_help.set(false)
                             >
@@ -234,6 +238,7 @@ pub fn KeyboardShortcuts() -> impl IntoView {
                             }).collect::<Vec<_>>()}
                         </div>
                     </div>
+                    </FocusTrap>
                 </div>
             }
         })}

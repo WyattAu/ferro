@@ -66,11 +66,10 @@ impl SnapshotStore {
             snapshot.id, snapshot.entry_count, snapshot.description
         );
 
-        if let Some(ref p) = self.persistence {
-            let _ = p
-                .create(description, entries)
-                .await
-                .map_err(|e| tracing::error!(error = %e, "failed to persist snapshot to database"));
+        if let Some(ref p) = self.persistence
+            && let Err(e) = p.create(description, entries).await
+        {
+            tracing::error!(error = %e, "failed to persist snapshot to database");
         }
 
         let mut snapshots = self.snapshots.write().await;

@@ -1,33 +1,67 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 3.1.0 | **Date:** 2026-06-09 | **Status:** v3.1.0 Release Candidate
+**Version:** 3.1.0 | **Date:** 2026-06-10 | **Status:** v3.1.0 Release Candidate
 
 ---
 
-## Current State (2026-06-09)
+## Current State (2026-06-10)
 
 | Metric | Value |
 |--------|-------|
-| Crates | 46 |
+| Crates | 41 |
 | Tests | 2184+ passed, 0 failed, 0 ignored |
 | Code | ~107K lines Rust |
 | Clippy warnings | 0 |
 | Security audit | Self-audit complete, 14 findings fixed (F001-F013 + F002) |
 | Pen test | 33 security tests + 44 integration tests + 91 wiring tests |
 | Integration | All 15 framework crates wired into server |
-| CI/CD | 6 workflows (checks, bench, extended, release, docs, dependabot) |
+| CI/CD | 7 workflows (checks, bench, extended, release, docs, desktop, dependabot) |
 | Docs | Landing page + mdBook at /docs/, Mermaid diagrams, COMPARISON.md (15 platforms), ROADMAP.md |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | MSRV | 1.92 (enforced in CI) |
 | Competitive gaps | 0 remaining (all 25 closed) |
-| Pre-commit hook | fmt + clippy + targeted crate tests (configurable) |
+| Pre-commit hook | fmt + clippy + secret scan + targeted crate tests (configurable) |
 
 ## Recently Completed
 
-### 2026-06-09: Audit Cycle 11 - Comprehensive 8-Phase Quality Audit
+### 2026-06-10: Audit Cycle 12 - Code Quality, CI/CD Hardening, Accessibility
 
-**Phase 1: Testing & Code Quality:**
-- 364+ tests pass across critical crates (core, dav, auth, crypto, web, admin)
+**Phase 1: Code Quality Fixes:**
+- Replaced 9 critical production `.unwrap()` calls with proper error handling (server/main.rs, auth/api_keys.rs, auth/rbac.rs, auth/webauthn.rs, distributed/erasure.rs, server/thumbnail_cache.rs, common/conflict.rs, sync-protocol/detector.rs)
+- Added error logging for 6 swallowed errors (event-bus replay, server indexer, fuse offline cache, server audit log, server snapshots)
+- Deleted duplicate `OfferStore` in server/src/webrtc/offers.rs (imported from server-webrtc crate)
+- Extracted shared `hash_content()` in offline crate to `crypto.rs` module
+- Added SAFETY comments to `health/src/probe.rs` unsafe blocks
+- Fixed 2 clippy collapsible-if warnings in fuse/src/fs.rs
+- Applied cargo fmt across workspace
+
+**Phase 2: CI/CD Hardening:**
+- Added `timeout-minutes: 30` (regular) / `timeout-minutes: 60` (build jobs) to all 7 workflows
+- Removed `continue-on-error: true` from release.yml smoke test
+- Added `--locked` to bench.yml cargo bench command
+- Added CI status check to dependabot-auto-merge.yml (waits for tests to pass)
+- Moved release.yml permissions from top-level to job-level (least-privilege)
+- Tagged android-actions/setup-android for SHA pinning
+- Fixed firecracker Dockerfile chmod 777 to chmod 755
+- Created missing deploy/Dockerfile.web and deploy/Dockerfile.admin
+
+**Phase 3: Accessibility (Web + Admin):**
+- Added FocusTrap to 5 dialogs (file_preview, keyboard_shortcuts, setup_wizard, admin modal, admin new FocusTrap component)
+- Fixed WCAG AA color contrast (text-gray-400 to text-gray-500)
+- Added min-w-[44px] min-h-[44px] touch targets to 12 buttons
+- Added form label associations (for/id) to 8 form inputs
+- Added aria-label, aria-labelledby, aria-describedby to 6 components
+- Added skip-to-content link and mobile hamburger menu to landing page
+- Added prefers-reduced-motion media query to landing page
+- Wrapped landing page content in semantic `<main>` element
+- Added focus-visible indicators to landing page buttons
+
+**Phase 4: Documentation Accuracy:**
+- Fixed crate count across VERSION.md, README.md, ROADMAP.md, landing page (41 actual workspace members)
+- Fixed broken docs/ links in landing page (pointed to /ferro/docs/)
+- Added missing CHANGELOG.md link references ([Unreleased], [3.0.1], [3.0.0])
+- Removed internal planning docs from docs/src/SUMMARY.md (gui-refactor-roadmap, ui-honest-assessment, etc.)
+- Added missing deployment sub-pages to SUMMARY.md (blue-green, horizontal-scaling, postgresql-migration)
 - 0 clippy warnings with all features (s3, gcs, azure, pg, redis, ldap)
 - Leptos 0.8 API migration complete: 240+ deprecated calls replaced across web (176 create_signal, 41 create_effect, 11 create_node_ref, 1 create_rw_signal, 1 create_memo) and admin (67 create_signal, 8 create_effect, 1 create_rw_signal, 1 create_memo) crates
 - i18n EN array rebuilt: 269 sorted entries, 9 duplicates removed, sort order assertion passes

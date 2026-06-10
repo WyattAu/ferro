@@ -134,11 +134,16 @@ permit (
 /// Get the system role preset for a given UserRole.
 pub fn role_preset_for(role: &UserRole) -> RolePreset {
     let roles = system_roles();
-    match role {
-        UserRole::Admin => roles.into_iter().find(|r| r.id == "Admin").unwrap(),
-        UserRole::User => roles.into_iter().find(|r| r.id == "User").unwrap(),
-        UserRole::ReadOnly => roles.into_iter().find(|r| r.id == "ReadOnly").unwrap(),
-    }
+    let role_id = match role {
+        UserRole::Admin => "Admin",
+        UserRole::User => "User",
+        UserRole::ReadOnly => "ReadOnly",
+    };
+    roles
+        .into_iter()
+        .find(|r| r.id == role_id)
+        .ok_or_else(|| format!("system role '{role_id}' not found"))
+        .expect("system roles must include Admin, User, and ReadOnly presets")
 }
 
 /// Parse a role name string into a UserRole.

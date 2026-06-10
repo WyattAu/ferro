@@ -3,7 +3,6 @@
 //! Stores file content locally using SHA-256 keyed storage,
 //! enabling read access while offline.
 
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use tracing::warn;
 
@@ -54,9 +53,7 @@ impl ContentCache {
 
     /// Compute SHA-256 hash of content.
     pub fn hash_content(data: &[u8]) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(data);
-        hex::encode(hasher.finalize())
+        crate::crypto::hash_content(data)
     }
 
     /// Store content in the cache, keyed by path.

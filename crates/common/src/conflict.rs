@@ -112,11 +112,11 @@ impl ConflictDetector {
                             ConflictType::EditEdit,
                         ));
                     }
-                    (Some(_), None) => {
+                    (Some(local_ts), None) => {
                         let now = Utc::now();
                         conflicts.push(SyncConflict::new(
                             path.clone(),
-                            *local_ts_opt.as_ref().unwrap(),
+                            *local_ts,
                             now,
                             ConflictType::EditDelete,
                         ));

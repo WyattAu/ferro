@@ -269,8 +269,10 @@ impl FerroFs {
         let data = resp.bytes().await?;
 
         #[cfg(feature = "offline-cache")]
-        if let Some(ref oc) = self.offline_cache {
-            let _ = oc.put(path, &data, None).await;
+        if let Some(ref oc) = self.offline_cache
+            && let Err(e) = oc.put(path, &data, None).await
+        {
+            warn!(error = %e, path = %path, "offline cache write failed during GET");
         }
 
         if data.len() < 10 * 1024 * 1024 {
@@ -298,7 +300,9 @@ impl FerroFs {
             Err(e) => {
                 #[cfg(feature = "offline-cache")]
                 if let Some(ref oc) = self.offline_cache {
-                    let _ = oc.queue_write(path, data).await;
+                    if let Err(qe) = oc.queue_write(path, data).await {
+                        warn!(error = %qe, path = %path, "offline queue write failed during PUT send error");
+                    }
                     return Ok(());
                 }
                 return Err(e.into());
@@ -307,7 +311,9 @@ impl FerroFs {
         if !resp.status().is_success() && resp.status().as_u16() != 204 {
             #[cfg(feature = "offline-cache")]
             if let Some(ref oc) = self.offline_cache {
-                let _ = oc.queue_write(path, data).await;
+                if let Err(qe) = oc.queue_write(path, data).await {
+                    warn!(error = %qe, path = %path, "offline queue write failed during PUT error response");
+                }
                 return Ok(());
             }
             anyhow::bail!("PUT {} failed: {}", url, resp.status());
@@ -319,8 +325,10 @@ impl FerroFs {
         }
 
         #[cfg(feature = "offline-cache")]
-        if let Some(ref oc) = self.offline_cache {
-            let _ = oc.put(path, data, None).await;
+        if let Some(ref oc) = self.offline_cache
+            && let Err(e) = oc.put(path, data, None).await
+        {
+            warn!(error = %e, path = %path, "offline cache write failed during PUT");
         }
 
         Ok(())

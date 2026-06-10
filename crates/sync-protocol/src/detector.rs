@@ -115,7 +115,9 @@ impl ChangeDetector {
     pub fn new_passive(sync_root: PathBuf, node_id: NodeId) -> Self {
         let (_, rx) = mpsc::channel();
         Self {
-            _watcher: RecommendedWatcher::new(|_| {}, notify::Config::default()).unwrap(),
+            _watcher: RecommendedWatcher::new(|_| {}, notify::Config::default())
+                .map_err(|e| DetectorError::Notify(e.to_string()))
+                .expect("failed to create passive file watcher"),
             rx,
             sync_root,
             file_state: HashMap::new(),

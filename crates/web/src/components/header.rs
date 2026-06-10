@@ -317,7 +317,7 @@ pub fn Header() -> impl IntoView {
                                     </div>
                                     <span class="font-mono font-medium text-sm hidden sm:inline" style="color: var(--text-primary);">{display_name}</span>
                                     <button
-                                        class="text-xs text-label hover:text-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                                        class="text-xs text-label hover:text-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
                                         style="text-transform: uppercase; letter-spacing: 0.08em;"
                                         on:click=move |_| auth::logout(&auth_st)
                                     >
@@ -359,7 +359,7 @@ pub fn Header() -> impl IntoView {
                             </svg>
                         </div>
                         <button
-                            class="p-2 text-gray-500 hover:text-blue-600 rounded transition-colors"
+                            class="p-2 text-gray-500 hover:text-blue-600 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                             on:click=close_search
                             aria-label=t!("search.aria_close")
                         >

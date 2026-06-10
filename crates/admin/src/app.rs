@@ -408,7 +408,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px; height: 32px;
+    min-width: 44px; min-height: 44px;
     border: 2px solid var(--border-color);
     border-radius: var(--radius);
     background: var(--bg-primary);
@@ -927,7 +927,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px; height: 28px;
+    min-width: 44px; min-height: 44px;
     border: none;
     border-radius: var(--radius);
     background: transparent;

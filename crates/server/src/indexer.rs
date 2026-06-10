@@ -88,7 +88,9 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
         let ocr_text = crate::ocr::extract_text(content, &metadata.mime_type);
         if !ocr_text.is_empty() {
             let truncated = &ocr_text[..ocr_text.len().min(1_000_000)];
-            let _ = engine.index_content(metadata, truncated);
+            if let Err(e) = engine.index_content(metadata, truncated) {
+                warn!(error = %e, path = %metadata.path, "OCR content indexing failed");
+            }
         }
     }
 

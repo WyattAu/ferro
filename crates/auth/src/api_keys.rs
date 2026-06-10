@@ -481,7 +481,8 @@ impl ApiKeyStoreTrait for InMemoryApiKeyStore {
         }
         key.touch();
         self.keys.insert(id.clone(), key.clone());
-        self.update_last_used_in_db(&id, &key.last_used_at.unwrap().to_rfc3339());
+        let last_used = key.last_used_at.map(|t| t.to_rfc3339()).unwrap_or_default();
+        self.update_last_used_in_db(&id, &last_used);
         Ok(key)
     }
 

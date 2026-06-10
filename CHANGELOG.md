@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Audit Cycle 12)
+- Replaced 9 critical production `.unwrap()` calls with proper error handling across server, auth, distributed, sync-protocol crates.
+- Added error logging for 6 silently swallowed errors (event-bus replay, server indexer, fuse offline cache, server audit/snapshots).
+- Deleted duplicate `OfferStore` implementation (server/src/webrtc/offers.rs), now imports from ferro-server-webrtc crate.
+- Extracted shared `hash_content()` function in offline crate to avoid duplication.
+- Added SAFETY documentation comments to health/src/probe.rs unsafe blocks.
+
+### Changed (Audit Cycle 12)
+- CI/CD: Added timeout-minutes to all 7 workflows (30 min regular, 60 min build jobs).
+- CI/CD: Release smoke test no longer has continue-on-error; failing tests block the release.
+- CI/CD: Bench workflow now uses --locked for reproducible builds.
+- CI/CD: Dependabot auto-merge now waits for CI checks to pass before merging.
+- CI/CD: Release workflow permissions moved from top-level to job-level (least-privilege).
+- CI/CD: Fixed firecracker Dockerfile from chmod 777 to chmod 755.
+
+### Added (Audit Cycle 12)
+- FocusTrap component added to 5 dialogs (web: file_preview, keyboard_shortcuts, setup_wizard; admin: modal, new FocusTrap component).
+- Touch targets (min 44x44px) applied to 12 buttons across web and admin frontends.
+- Form label associations (for/id) added to 8 form inputs across web frontend.
+- ARIA attributes (aria-label, aria-labelledby, aria-describedby) added to 6 components.
+- Skip-to-content link, mobile hamburger menu, and prefers-reduced-motion added to landing page.
+- Semantic `<main>` element and focus-visible indicators added to landing page.
+- deploy/Dockerfile.web and deploy/Dockerfile.admin created for ecosystem deployment.
+
+### Removed (Audit Cycle 12)
+- Internal planning documents removed from user-facing docs (gui-refactor-roadmap, ui-honest-assessment, ui-improvement-roadmap, deferred-items-analysis).
+
 ### Added (Audit Cycle 6 - Feature Expansion)
 - `ferro-crdt` crate: RGA (Replicated Growable Array) text CRDT for real-time collaborative editing. 16 tests.
 - `ferro-sync-delta` crate: Content-defined chunking (Buzhash rolling hash), block-level diff computation, sync protocol messages. 9 tests.
@@ -197,6 +224,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Webhooks
 - Multi-user with roles (admin/editor/viewer)
 
+[Unreleased]: https://github.com/WyattAu/ferro/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/WyattAu/ferro/compare/v3.0.0...v3.0.1
+[3.0.0]: https://github.com/WyattAu/ferro/releases/tag/v3.0.0
 [2.5.1]: https://github.com/WyattAu/ferro/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/WyattAu/ferro/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/WyattAu/ferro/compare/v2.3.0...v2.4.0

@@ -20,6 +20,7 @@
 
 pub mod cache;
 pub mod change_queue;
+pub mod crypto;
 pub mod error;
 pub mod monitor;
 pub mod reconciler;

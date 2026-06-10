@@ -927,9 +927,9 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // Spawn reconnection listener: when ConnectionMonitor detects online, sync queued changes
-    if state.offline_queue.is_some() {
+    if let Some(ref offline_queue) = state.offline_queue {
         let monitor = state.connection_monitor.clone();
-        let queue = state.offline_queue.clone().unwrap();
+        let queue = offline_queue.clone();
         let storage = state.storage.clone();
         let reconcile_cancel = shutdown_token.clone();
         tokio::spawn(async move {

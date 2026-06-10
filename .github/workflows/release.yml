@@ -7,14 +7,13 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-permissions:
-  contents: write
-  packages: write
-
 jobs:
   verify:
     name: Verify CI Passes on Main
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Check CI status on main
@@ -66,6 +65,9 @@ jobs:
             artifact: ferro-server.exe
             binary: ferro-server.exe
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
@@ -90,7 +92,6 @@ jobs:
         run: cargo build --locked --release -p ferro-server --target ${{ matrix.target }} --features "s3,gcs,azure"
       - name: Smoke test (Linux/macOS)
         if: runner.os != 'Windows'
-        continue-on-error: true
         run: |
           BINARY="target/${{ matrix.target }}/release/${{ matrix.binary }}"
           timeout 15 "$BINARY" --host 127.0.0.1 --port 9876 --data-dir /tmp/ferro-smoke 2>/dev/null &
@@ -117,6 +118,7 @@ jobs:
 
   sbom:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -139,6 +141,7 @@ jobs:
   release:
     needs: [build, sbom]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -156,6 +159,7 @@ jobs:
     needs: build
     if: success()
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write

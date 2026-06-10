@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
+use tracing::warn;
 
 use axum::body::Body;
 use axum::extract::State;
@@ -71,8 +72,8 @@ impl AuditLog {
             }
         }
 
-        if let Some(ref p) = self.persistence {
-            let _ = p
+        if let Some(ref p) = self.persistence
+            && let Err(e) = p
                 .log(ferro_core::persistence::PersistedAuditEntry {
                     id: 0,
                     timestamp: entry.timestamp.clone(),
@@ -85,7 +86,9 @@ impl AuditLog {
                     content_length: entry.content_length,
                     chain_hash: None, // Computed by persistence layer
                 })
-                .await;
+                .await
+        {
+            warn!(error = %e, "audit log persistence failed");
         }
     }
 

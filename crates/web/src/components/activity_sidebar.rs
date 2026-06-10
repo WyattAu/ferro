@@ -37,11 +37,11 @@ pub fn ActivitySidebar(
                 <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                     <h3 class="text-label font-mono text-gray-900">{t!("aria.activity_heading")}</h3>
                     <button
-                        class="p-1 text-gray-400 hover:text-gray-600 rounded"
+                        class="p-1 text-gray-400 hover:text-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         on:click=move |_| set_open.set(false)
                         aria-label=t!("aria.close_activity")
                     >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
                 <div class="p-4 space-y-3">
@@ -58,7 +58,7 @@ pub fn ActivitySidebar(
                             let ts_display = if entry_ts.len() >= 19 { entry_ts[..19].to_string() } else { entry_ts };
                             view! {
                                 <div class="flex items-start gap-2">
-                                    <span class="text-base mt-0.5 shrink-0 font-mono">
+                                    <span class="text-base mt-0.5 shrink-0 font-mono" aria-hidden="true">
                                         {match action.as_str() {
                                             "upload" => "\u{2191}",
                                             "delete" => "\u{2715}",

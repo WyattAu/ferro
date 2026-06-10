@@ -37,6 +37,9 @@
   - [Podman](./deployment/podman.md)
   - [Firecracker](./deployment/firecracker.md)
   - [Terraform](./deployment/terraform.md)
+  - [Blue-Green Deployments](./deployment/blue-green.md)
+  - [Horizontal Scaling](./deployment/horizontal-scaling.md)
+  - [PostgreSQL Migration](./deployment/postgresql-migration.md)
   - [Production Guide](./deployment/production.md)
 
 ---
@@ -49,10 +52,6 @@
   - [Federation Setup](./guides/federation.md)
   - [Office Suite Integration](./guides/office-suite.md)
   - [Platform Integration](./guides/platform-integration.md)
-  - [GUI Refactor Roadmap](./guides/gui-refactor-roadmap.md)
-  - [Deferred Items Analysis](./guides/deferred-items-analysis.md)
-  - [UI Honest Assessment](./guides/ui-honest-assessment.md)
-  - [UI Improvement Roadmap](./guides/ui-improvement-roadmap.md)
   - [Upgrade Guide](./guides/upgrade.md)
 
 ---

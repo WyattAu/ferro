@@ -145,7 +145,9 @@ impl ErasureCoder for XorErasureCoder {
             let parity_shard = shards
                 .iter()
                 .find_map(|s| s.as_ref().filter(|s| s.is_parity))
-                .unwrap();
+                .ok_or(DistributedError::DecodingFailed {
+                    reason: "parity shard not found despite parity_found flag".into(),
+                })?;
 
             let mut data_shards_map: Vec<(u8, &Shard)> = Vec::new();
             for s in shards {
@@ -213,7 +215,9 @@ impl ErasureCoder for XorErasureCoder {
             return Ok(None);
         }
 
-        let parity = parity_opt.unwrap();
+        let parity = parity_opt.ok_or(DistributedError::DecodingFailed {
+            reason: "parity shard not found".into(),
+        })?;
         let mut missing_index: Option<u8> = None;
         let present: HashSet<u8> = data_indices.iter().copied().collect();
         for i in 0..self.config.data_shards as u8 {

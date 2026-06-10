@@ -65,9 +65,9 @@ pub fn NewFolderDialog(
                     tabindex="-1"
                 >
                     <h3 id="new-folder-title" class="text-section font-mono text-gray-900 mb-4">{t!("dialog.new_folder.title")}</h3>
-                    <label class="block mb-4">
+                    <label for="new-folder-name" class="block mb-4">
                         <span class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.new_folder.name_label")}</span>
-                        <input
+                        <input id="new-folder-name"
                             type="text"
                             placeholder=t!("dialog.new_folder.name_placeholder")
                             class="w-full px-3 py-2 border rounded bg-white dark:bg-gray-800 font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -77,7 +77,7 @@ pub fn NewFolderDialog(
                     </label>
                     <div class="flex justify-end gap-2">
                         <button
-                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
                             on:click=move |_| set_open.set(false)
                         >
                             {t!("common.cancel")}

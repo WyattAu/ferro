@@ -54,6 +54,29 @@
             overflow-x: hidden;
         }
 
+        /* ── Skip to content (accessibility) ── */
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent);
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            text-decoration: none;
+            z-index: 1000;
+            border: 2px solid var(--accent);
+            transition: top 0.2s;
+        }
+        .skip-link:focus {
+            top: 0.5rem;
+        }
+
         /* ── Amoebic Blobs ── */
         .blob {
             position: absolute;
@@ -150,6 +173,24 @@
         }
         .nav-links a:hover { color: var(--text-primary); }
 
+        /* ── Mobile hamburger ── */
+        .nav-toggle {
+            display: none;
+            background: none;
+            border: 2px solid var(--border-strong);
+            padding: 0.5rem;
+            cursor: pointer;
+            min-width: 44px;
+            min-height: 44px;
+            align-items: center;
+            justify-content: center;
+        }
+        .nav-toggle svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--text-primary);
+        }
+
         /* ── Hero ── */
         .hero {
             position: relative;
@@ -214,6 +255,7 @@
             padding: 0.875rem 2rem;
             border: 2px solid transparent;
             transition: all 0.2s;
+            min-height: 44px;
         }
         .btn-primary {
             background: var(--accent);
@@ -234,6 +276,17 @@
         .btn-secondary:hover {
             background: var(--surface-alt);
             transform: translateY(-1px);
+        }
+
+        /* ── Focus indicators (accessibility) ── */
+        .btn:focus-visible,
+        .nav-links a:focus-visible,
+        .nav-logo:focus-visible,
+        .protocol-badge:focus-visible,
+        .footer-links a:focus-visible,
+        .nav-toggle:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 2px;
         }
 
         /* ── Stats Bar ── */
@@ -479,7 +532,30 @@
             .stats { grid-template-columns: repeat(2, 1fr); }
             .stat:nth-child(2) { border-right: none; }
             .arch-visual { grid-template-columns: 1fr; }
-            .nav-links { display: none; }
+            .nav-toggle { display: flex; }
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 64px;
+                left: 0;
+                right: 0;
+                flex-direction: column;
+                background: rgba(245, 240, 235, 0.98);
+                backdrop-filter: blur(12px);
+                border-bottom: 2px solid var(--border);
+                padding: 1rem 2rem;
+                gap: 0;
+            }
+            .nav-links.open { display: flex; }
+            .nav-links li { border-bottom: 1px solid var(--border); }
+            .nav-links li:last-child { border-bottom: none; }
+            .nav-links a {
+                display: block;
+                padding: 0.875rem 0;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+            }
             .hero-actions { flex-direction: column; }
             .hero-actions .btn { text-align: center; justify-content: center; }
         }
@@ -488,22 +564,36 @@
             .stat { border-right: none; border-bottom: 2px solid var(--border); }
             .stat:last-child { border-bottom: none; }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            .blob, .blob-2, .blob-3 { animation: none !important; }
+            * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+        }
     </style>
 </head>
 <body>
+    <!-- Skip to content (accessibility) -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
     <!-- Navigation -->
-    <nav>
+    <nav aria-label="Main navigation">
         <div class="container">
             <a href="/" class="nav-logo">ferro<span>.</span></a>
+            <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" onclick="document.querySelector('.nav-links').classList.toggle('open'); this.setAttribute('aria-expanded', this.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
             <ul class="nav-links">
                 <li><a href="#features">Features</a></li>
                 <li><a href="#architecture">Architecture</a></li>
-                <li><a href="docs/">Documentation</a></li>
+                    <li><a href="/ferro/docs/">Documentation</a></li>
                 <li><a href="https://github.com/WyattAu/ferro" target="_blank" rel="noopener">Source</a></li>
             </ul>
         </div>
     </nav>
 
+    <main id="main-content">
     <!-- Hero -->
     <section class="hero">
         <div class="blob blob-1"></div>
@@ -519,12 +609,12 @@
                     WebDAV, CalDAV, CardDAV, WOPI, ActivityPub, end-to-end encryption, CRDT co-editing, and federated sync. Built in Rust, deployed in a single binary.
                 </p>
                 <div class="hero-actions">
-                    <a href="docs/" class="btn btn-primary">Read the docs</a>
+                    <a href="/ferro/docs/" class="btn btn-primary">Read the docs</a>
                     <a href="https://github.com/WyattAu/ferro" class="btn btn-secondary" target="_blank" rel="noopener">View source</a>
                 </div>
                 <div class="stats">
                     <div class="stat">
-                        <div class="stat-value">46</div>
+                        <div class="stat-value">41</div>
                         <div class="stat-label">Crates</div>
                     </div>
                     <div class="stat">
@@ -555,12 +645,12 @@
                 </p>
             </div>
             <div class="feature-grid">
-                <div class="feature-card">
+                <article class="feature-card">
                     <div class="feature-icon">[01]</div>
-                    <div class="feature-name">Multi-Protocol Server</div>
-                    <div class="feature-desc">
+                    <h3 class="feature-name">Multi-Protocol Server</h3>
+                    <p class="feature-desc">
                         Full WebDAV (Class 1-3), CalDAV (RFC 4791), CardDAV (RFC 6352), WOPI for office document editing, and a REST + GraphQL API for custom integrations.
-                    </div>
+                    </p>
                     <div class="protocol-row">
                         <span class="protocol-badge">WebDAV</span>
                         <span class="protocol-badge">CalDAV</span>
@@ -569,62 +659,62 @@
                         <span class="protocol-badge">REST</span>
                         <span class="protocol-badge">GraphQL</span>
                     </div>
-                </div>
-                <div class="feature-card">
+                </article>
+                <article class="feature-card">
                     <div class="feature-icon">[02]</div>
-                    <div class="feature-name">Storage Backends</div>
-                    <div class="feature-desc">
+                    <h3 class="feature-name">Storage Backends</h3>
+                    <p class="feature-desc">
                         Pluggable storage: in-memory for testing, local filesystem for homelabs, S3/GCS/Azure Blob for production. Switch backends without changing any client-facing code.
-                    </div>
-                </div>
-                <div class="feature-card">
+                    </p>
+                </article>
+                <article class="feature-card">
                     <div class="feature-icon">[03]</div>
-                    <div class="feature-name">Authentication &amp; Authorization</div>
-                    <div class="feature-desc">
+                    <h3 class="feature-name">Authentication &amp; Authorization</h3>
+                    <p class="feature-desc">
                         Simple password auth for quick starts, OIDC (PKCE) for enterprise, Cedar policy engine for fine-grained authorization. RBAC with deny-by-default semantics.
-                    </div>
-                </div>
-                <div class="feature-card">
+                    </p>
+                </article>
+                <article class="feature-card">
                     <div class="feature-icon">[04]</div>
-                    <div class="feature-name">End-to-End Encryption</div>
-                    <div class="feature-desc">
+                    <h3 class="feature-name">End-to-End Encryption</h3>
+                    <p class="feature-desc">
                         Client-side encryption with per-file keys derived from a master key. AES-256-GCM with metadata encryption. The server never sees plaintext.
-                    </div>
-                </div>
-                <div class="feature-card">
+                    </p>
+                </article>
+                <article class="feature-card">
                     <div class="feature-icon">[05]</div>
-                    <div class="feature-name">CRDT Co-Editing</div>
-                    <div class="feature-desc">
+                    <h3 class="feature-name">CRDT Co-Editing</h3>
+                    <p class="feature-desc">
                         Real-time collaborative text editing using CRDTs (Conflict-free Replicated Data Types). Multiple users edit the same document simultaneously without locks.
-                    </div>
-                </div>
-                <div class="feature-card">
+                    </p>
+                </article>
+                <article class="feature-card">
                     <div class="feature-icon">[06]</div>
-                    <div class="feature-name">Federation &amp; ActivityPub</div>
-                    <div class="feature-desc">
+                    <h3 class="feature-name">Federation &amp; ActivityPub</h3>
+                    <p class="feature-desc">
                         Interoperate with the fediverse. Follow remote storage instances, receive files from trusted actors, and federate calendars and contacts across servers.
-                    </div>
-                </div>
-                <div class="feature-card">
+                    </p>
+                </article>
+                <article class="feature-card">
                     <div class="feature-icon">[07]</div>
-                    <div class="feature-name">Block-Level Sync</div>
-                    <div class="feature-desc">
+                    <h3 class="feature-name">Block-Level Sync</h3>
+                    <p class="feature-desc">
                         Delta sync at the block level, not file level. Only changed chunks transfer over the wire. Supports offline mode with conflict resolution on reconnect.
-                    </div>
-                </div>
-                <div class="feature-card">
+                    </p>
+                </article>
+                <article class="feature-card">
                     <div class="feature-icon">[08]</div>
-                    <div class="feature-name">Multi-Tenancy &amp; Scaling</div>
-                    <div class="feature-desc">
+                    <h3 class="feature-name">Multi-Tenancy &amp; Scaling</h3>
+                    <p class="feature-desc">
                         Tenant isolation with per-tenant storage, quotas, and rate limits. Sharded search index. Distributed consensus with Raft for multi-node deployments.
-                    </div>
-                </div>
-                <div class="feature-card">
+                    </p>
+                </article>
+                <article class="feature-card">
                     <div class="feature-icon">[09]</div>
-                    <div class="feature-name">Client Ecosystem</div>
-                    <div class="feature-desc">
+                    <h3 class="feature-name">Client Ecosystem</h3>
+                    <p class="feature-desc">
                         Native FUSE mount (Linux), Tauri desktop app, Leptos WASM web UI, async WebDAV client SDK, and an admin CLI. Mobile bindings via C-FFI.
-                    </div>
+                    </p>
                     <div class="protocol-row">
                         <span class="protocol-badge">FUSE</span>
                         <span class="protocol-badge">Web UI</span>
@@ -632,7 +722,7 @@
                         <span class="protocol-badge">CLI</span>
                         <span class="protocol-badge">Mobile</span>
                     </div>
-                </div>
+                </article>
             </div>
         </div>
     </section>
@@ -692,13 +782,15 @@
         </div>
     </section>
 
+    </main>
+
     <!-- Footer -->
     <footer>
         <div class="container">
             <div class="footer-content">
                 <div class="footer-copy">AGPL-3.0-or-later -- Ferro v3.0.0</div>
                 <ul class="footer-links">
-                    <li><a href="docs/">Documentation</a></li>
+                <li><a href="/ferro/docs/">Documentation</a></li>
                     <li><a href="https://github.com/WyattAu/ferro" target="_blank" rel="noopener">GitHub</a></li>
                     <li><a href="https://github.com/WyattAu/ferro/security" target="_blank" rel="noopener">Security</a></li>
                 </ul>

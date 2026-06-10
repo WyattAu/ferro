@@ -3,6 +3,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 
 use crate::api::FileEntry;
+use crate::components::focus_trap::FocusTrap;
 
 use crate::t;
 
@@ -111,28 +112,31 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
     view! {
         <div
             class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-label=t!("preview.aria")
-            tabindex="-1"
             on:keydown=handle_keydown
         >
-            <div class="brutal-block rounded shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <FocusTrap>
+            <div
+                class="brutal-block rounded shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="preview-title"
+                tabindex="-1"
+            >
                 // Header
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <div class="min-w-0 flex-1">
-                        <h2 class="text-section font-mono text-gray-900 truncate">{name}</h2>
+                        <h2 id="preview-title" class="text-section font-mono text-gray-900 truncate">{name}</h2>
                         <div class="flex items-center gap-4 mt-1 text-sm text-gray-500 font-mono">
                             <span>{size_str}</span>
                             <span>{modified}</span>
                         </div>
                     </div>
                     <button
-                        class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded surface shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ml-4"
+                        class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded surface shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ml-4 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         aria-label=t!("preview.aria_close")
                         on:click=close
                     >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
@@ -174,7 +178,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                 }.into_any(),
                                 "video" => view! {
                                     <div class="flex items-center justify-center">
-                                        <video controls class="max-w-full max-h-[60vh] rounded-lg">
+                                        <video controls class="max-w-full max-h-[60vh] rounded-lg" aria-label={format!("Video: {}", n)}>
                                             <source src={p} type="video/mp4" />
                                             {t!("preview.no_video")}
                                         </video>
@@ -182,7 +186,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                 }.into_any(),
                                 "audio" => view! {
                                     <div class="flex items-center justify-center py-8">
-                                        <audio controls>
+                                        <audio controls aria-label={format!("Audio: {}", n)}>
                                             <source src={p} type="audio/mpeg" />
                                             {t!("preview.no_audio")}
                                         </audio>
@@ -197,12 +201,12 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                 }.into_any(),
                                 _ => view! {
                                     <div class="flex flex-col items-center justify-center py-12 text-center">
-                                        <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-16 h-16 text-gray-300 mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
                                         <p class="text-gray-500 mb-4">{t!("preview.not_available")}</p>
                                         <button
-                                            class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                            class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
                                             on:click=move |_| {
                                                 let path = p.clone();
                                                 spawn_local(async move {
@@ -219,6 +223,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                     })}
                 </div>
             </div>
+            </FocusTrap>
         </div>
     }
 }

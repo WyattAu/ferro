@@ -31,10 +31,19 @@ web-sys = { version = "0.3", features = [
     "HtmlInputElement",
     "HtmlSelectElement",
     "HtmlTextAreaElement",
+    "HtmlElement",
+    "Element",
     "Document",
+    "Node",
+    "Event",
+    "EventTarget",
+    "MouseEvent",
+    "KeyboardEvent",
     "Blob",
     "Url",
     "HtmlAnchorElement",
+    "HtmlDivElement",
+    "NodeList",
 ] }
 gloo-timers = "0.3"
 gloo-net = "0.5"

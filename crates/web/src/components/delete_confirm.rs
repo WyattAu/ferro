@@ -29,11 +29,11 @@ pub fn DeleteConfirmDialog(
                 <div class="brutal-block rounded shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto transition-all duration-200"
                     role="dialog"
                     aria-modal="true"
-                    aria-labelledby="delete-confirm-title"
+                    aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-desc"
                     tabindex="-1"
                 >
                     <h3 id="delete-confirm-title" class="text-lg font-semibold text-gray-900 mb-2">{t!("dialog.delete_confirm.title")}</h3>
-                    <p class="text-sm text-gray-600 mb-6">
+                    <p id="delete-confirm-desc" class="text-sm text-gray-600 mb-6">
                         {move || format!("Are you sure you want to delete {} file(s)? This action cannot be undone.", count.get())}
                     </p>
                     <div class="flex justify-end gap-2">
