@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 /// - Sync status in the Finder toolbar
 /// - Badge overlays showing sync state
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FinderSyncConfig {
+pub struct FinderExtensionConfig {
     /// Bundle identifier for the Finder Sync Extension (e.g., "com.ferro.app.FinderSync").
     pub bundle_id: String,
     /// Path to the synced directory root.
@@ -45,7 +45,7 @@ pub struct BadgeImages {
     pub pending: String,
 }
 
-impl Default for FinderSyncConfig {
+impl Default for FinderExtensionConfig {
     fn default() -> Self {
         Self {
             bundle_id: "com.ferro.app.FinderSync".to_string(),
@@ -62,7 +62,7 @@ impl Default for FinderSyncConfig {
     }
 }
 
-impl FinderSyncConfig {
+impl FinderExtensionConfig {
     /// Generate the Info.plist content for the Finder Sync Extension.
     pub fn info_plist(&self) -> String {
         format!(
@@ -510,9 +510,9 @@ impl DmgConfig {
 // Integration: Wire into AppState
 // ---------------------------------------------------------------------------
 
-/// Create a `FinderSyncConfig` with the given synced folder.
-pub fn finder_sync_config(synced_folder: &str) -> FinderSyncConfig {
-    let mut config = FinderSyncConfig::default();
+/// Create a `FinderExtensionConfig` with the given synced folder.
+pub fn finder_sync_config(synced_folder: &str) -> FinderExtensionConfig {
+    let mut config = FinderExtensionConfig::default();
     config.synced_folder_path = synced_folder.to_string();
     config
 }
@@ -535,7 +535,7 @@ mod tests {
 
     #[test]
     fn test_finder_sync_info_plist() {
-        let config = FinderSyncConfig {
+        let config = FinderExtensionConfig {
             synced_folder_path: "/Users/test/Documents".to_string(),
             ..Default::default()
         };
@@ -546,7 +546,7 @@ mod tests {
 
     #[test]
     fn test_finder_sync_swift_stub() {
-        let config = FinderSyncConfig {
+        let config = FinderExtensionConfig {
             synced_folder_path: "/Users/test/Documents".to_string(),
             ..Default::default()
         };

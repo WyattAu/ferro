@@ -101,7 +101,9 @@ pub async fn e2ee_key_generate() -> Response {
         axum::Json(E2eeKeyGenerateResponse {
             key_id,
             public_key,
-            algorithm: "x25519".to_string(),
+            // Placeholder: these are random bytes, not a true X25519 keypair.
+            // TODO: replace with actual X25519 key generation.
+            algorithm: "random-32-byte".to_string(),
             created_at,
         }),
     )
@@ -194,7 +196,7 @@ mod tests {
         let body = resp.into_body().collect().await.unwrap().to_bytes();
         let key_resp: E2eeKeyGenerateResponse = serde_json::from_slice(&body).unwrap();
 
-        assert_eq!(key_resp.algorithm, "x25519");
+        assert_eq!(key_resp.algorithm, "random-32-byte");
         assert!(!key_resp.key_id.is_empty());
         assert!(!key_resp.public_key.is_empty());
         assert!(key_resp.created_at > 0);

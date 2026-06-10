@@ -251,32 +251,6 @@ impl OidcValidator {
     }
 }
 
-/// Decode JWT claims without signature verification (for development/testing).
-#[cfg(test)]
-fn decode_claims_unsafe(token: &str) -> Result<Claims> {
-    use base64::Engine;
-    let parts: Vec<&str> = token.split('.').collect();
-    if parts.len() != 3 {
-        return Err(FerroError::Unauthorized);
-    }
-
-    let _header = decode_header(token).map_err(|_| FerroError::Unauthorized)?;
-
-    let payload_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(parts[1])
-        .map_err(|_| FerroError::Unauthorized)?;
-
-    let claims: Claims =
-        serde_json::from_slice(&payload_bytes).map_err(|_| FerroError::Unauthorized)?;
-
-    let now = jsonwebtoken::get_current_timestamp();
-    if claims.exp != 0 && claims.exp < now {
-        return Err(FerroError::Unauthorized);
-    }
-
-    Ok(claims)
-}
-
 /// Optional auth middleware: if OIDC is configured, validates the Bearer token.
 /// If not configured, allows all requests through with anonymous claims.
 /// The resulting Claims are inserted as a request Extension.
@@ -354,6 +328,9 @@ pub async fn auth_middleware(
     );
     next.run(request).await
 }
+
+#[cfg(test)]
+use ferro_auth::oidc::decode_claims_unsafe;
 
 #[cfg(test)]
 mod tests {

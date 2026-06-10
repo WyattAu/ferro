@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 /// └─────────────────────────────────────┘
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FinderSyncConfig {
+pub struct OverlaySyncConfig {
     /// Enable Finder badge icons for sync status
     pub enable_badges: bool,
     /// Enable context menu items in Finder
@@ -96,7 +96,7 @@ impl Default for FinderNotificationConfig {
     }
 }
 
-impl Default for FinderSyncConfig {
+impl Default for OverlaySyncConfig {
     fn default() -> Self {
         Self {
             enable_badges: true,
@@ -262,7 +262,7 @@ pub struct OverlayConfig {
     pub enabled: bool,
     /// macOS Finder Sync configuration
     #[cfg(target_os = "macos")]
-    pub macos: FinderSyncConfig,
+    pub macos: OverlaySyncConfig,
     /// Windows Explorer overlay configuration
     #[cfg(target_os = "windows")]
     pub windows: ExplorerOverlayConfig,
@@ -302,7 +302,7 @@ impl Default for OverlayConfig {
         Self {
             enabled: true,
             #[cfg(target_os = "macos")]
-            macos: FinderSyncConfig::default(),
+            macos: OverlaySyncConfig::default(),
             #[cfg(target_os = "windows")]
             windows: ExplorerOverlayConfig::default(),
             #[cfg(target_os = "linux")]
@@ -449,13 +449,13 @@ pub fn create_overlay_manager(config: &OverlayConfig) -> Box<dyn OverlayManager>
 
 #[cfg(target_os = "macos")]
 pub struct MacosOverlayManager {
-    config: FinderSyncConfig,
+    config: OverlaySyncConfig,
     initialized: bool,
 }
 
 #[cfg(target_os = "macos")]
 impl MacosOverlayManager {
-    pub fn new(config: &FinderSyncConfig) -> Self {
+    pub fn new(config: &OverlaySyncConfig) -> Self {
         Self {
             config: config.clone(),
             initialized: false,
@@ -606,7 +606,7 @@ mod tests {
 
     #[test]
     fn test_finder_sync_config_default() {
-        let config = FinderSyncConfig::default();
+        let config = OverlaySyncConfig::default();
         assert!(config.enable_badges);
         assert!(config.enable_context_menu);
         assert!(config.watched_paths.is_empty());

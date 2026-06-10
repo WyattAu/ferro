@@ -91,7 +91,6 @@ ferro-webhook = { path = "../webhook" }
 ferro-search-index = { path = "../search-index" }
 ferro-ai = { path = "../ai" }
 ferro-backend-router = { path = "../backend-router" }
-ferro-storage-adapter = { path = "../storage-adapter" }
 ferro-config-manager = { path = "../config-manager" }
 ferro-crdt = { path = "../crdt" }
 ferro-distributed = { path = "../distributed" }

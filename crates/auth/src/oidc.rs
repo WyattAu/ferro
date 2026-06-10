@@ -306,7 +306,7 @@ impl OidcValidator {
 }
 
 #[cfg(test)]
-fn decode_claims_unsafe(token: &str) -> Result<Claims> {
+pub fn decode_claims_unsafe(token: &str) -> Result<Claims> {
     use base64::Engine;
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
