@@ -1414,6 +1414,12 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | TD-042 | P2 | Audit orphan crates | Implement or remove session-manager, mobile-contract, plugin-marketplace, e2ee, sync-delta, mount-nfs, multi-tenant, selective-sync | 10 days |
 | TD-043 | P2 | Add prefers-reduced-motion CSS | Respect OS reduced-motion preference (already in style.css, verify all animations) | 1 day |
 | TD-044 | P3 | Add landing page 404.html | GitHub Pages serves generic 404 without custom page | 0.5 days |
+| TD-045 | P1 | CRDT collaboration relay | Server has no `/ws/collab/{document_id}` WebSocket handler; CollabEditor UI cannot function end-to-end | 5 days |
+| TD-046 | P1 | E2EE key generation accuracy | `/e2ee/key/generate` labels 32 random bytes as "x25519" without actual X25519 key derivation | 3 days |
+| TD-047 | P2 | Dual WASM runtime consolidation | wasm-host crate not used by server (uses ferro_core::wasm instead); consolidate to one approach | 5 days |
+| TD-048 | P2 | ServerConfig naming disambiguation | Three unrelated types named ServerConfig across admin, config-manager, and server crates | 1 day |
+| TD-049 | P2 | Server crate decomposition | Extract WebDAV (~3,700 lines), Security (~2,500 lines), Sharing (~2,600 lines), Admin (~3,500 lines), Automation (~1,800 lines) into separate crates | 15 days |
+| TD-050 | P3 | Selective sync not implemented | Listed as feature but no implementation exists; remove from feature list or create tracking issue | 0.5 days |
 
 ### v3.2 -- Performance and Scale
 

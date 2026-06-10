@@ -3565,7 +3565,6 @@ dependencies = [
  "ferro-server-versioning",
  "ferro-server-webrtc",
  "ferro-server-wopi",
- "ferro-storage-adapter",
  "ferro-sync-protocol",
  "ferro-webdav-handler",
  "ferro-webhook",
