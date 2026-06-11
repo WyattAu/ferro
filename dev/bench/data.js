@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781146865712,
+  "lastUpdate": 1781150103997,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -20261,6 +20261,444 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 752,
             "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "53503bd6cef758e249510354c903b42b6eed0a1a",
+          "message": "feat: production stack, Nextcloud migration, WebDAV compliance, soak tests\n\nCycle 13 - Production Readiness (PR-001..PR-008):\n\nPR-001: docker-compose.production.yml - 7-service production stack\n(Ferro + PostgreSQL + Redis + Caddy + Prometheus + Grafana + Alertmanager)\nwith auto-provisioned dashboards, health checks, Caddyfile, .env.example\n\nPR-002: ferro-migrate crate - Nextcloud-to-Ferro migration tool\nWebDAV file streaming, SQLite DB reader (users/shares/tags/favorites),\nprogress tracking, CLI: ferro migrate nextcloud\n\nPR-003: WebDAV RFC 4918 compliance suite - 22 tests (Class 1/2/3)\nWebDavCompliance tracker with pass/fail per class\n\nPR-004: Soak test harness - configurable 1h-24h, 50 concurrent users\nmixed workload (PUT/GET/PROPFIND/DELETE/MOVE/COPY), latency tracking\n\nPR-005: Multi-user scenario tests - 24 tests\nsharing, concurrent edits, permissions, stress, guest access\n\nPR-006: Disaster recovery drill - 13 tests\nfull backup/restore cycle, integrity verification, fresh server restore\n\nPR-007: Enhanced rclone E2E - 9 new tests\nsync, move, check, large files, special chars, concurrent ops\n\nPR-008: OP-003 monitoring stack - Grafana + Prometheus + Alertmanager\nauto-provisioned in production compose with alert rules\n\n43 crates, 2400+ tests, 0 clippy warnings",
+          "timestamp": "2026-06-11T04:39:30+01:00",
+          "tree_id": "a834744a8c2119c4a16cc23594c38a8319b2f71c",
+          "url": "https://github.com/WyattAu/ferro/commit/53503bd6cef758e249510354c903b42b6eed0a1a"
+        },
+        "date": 1781150103119,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267145912,
+            "range": "± 829136",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267202484,
+            "range": "± 1827967",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 28709,
+            "range": "± 2692",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 27943,
+            "range": "± 2395",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 8723,
+            "range": "± 75",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 5199,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1283,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 975,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2848,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1KB",
+            "value": 2263,
+            "range": "± 95931",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1KB",
+            "value": 2404,
+            "range": "± 102310",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10KB",
+            "value": 8070,
+            "range": "± 109336",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10KB",
+            "value": 8168,
+            "range": "± 89",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/100KB",
+            "value": 66028,
+            "range": "± 145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/100KB",
+            "value": 66144,
+            "range": "± 281",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1MB",
+            "value": 662630,
+            "range": "± 1235",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1MB",
+            "value": 662688,
+            "range": "± 5137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10MB",
+            "value": 6599800,
+            "range": "± 8298",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10MB",
+            "value": 6600043,
+            "range": "± 7810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1KB",
+            "value": 93,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1KB",
+            "value": 187,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10KB",
+            "value": 93,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10KB",
+            "value": 187,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/100KB",
+            "value": 93,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/100KB",
+            "value": 187,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1MB",
+            "value": 94,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1MB",
+            "value": 190,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10MB",
+            "value": 95,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10MB",
+            "value": 189,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/10",
+            "value": 83299,
+            "range": "± 849",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/10",
+            "value": 30841,
+            "range": "± 1060",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/10",
+            "value": 84925,
+            "range": "± 773",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/50",
+            "value": 213540,
+            "range": "± 4713",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/50",
+            "value": 39523,
+            "range": "± 484",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/50",
+            "value": 225059,
+            "range": "± 5688",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/100",
+            "value": 374489,
+            "range": "± 11328",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/100",
+            "value": 55671,
+            "range": "± 543",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/100",
+            "value": 396799,
+            "range": "± 11685",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/100_entries",
+            "value": 107400,
+            "range": "± 488",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/100_entries",
+            "value": 18635,
+            "range": "± 78",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/100_entries",
+            "value": 21008,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/100_entries",
+            "value": 176,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/1000_entries",
+            "value": 1040321,
+            "range": "± 3681",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/1000_entries",
+            "value": 196396,
+            "range": "± 711",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/1000_entries",
+            "value": 219394,
+            "range": "± 762",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/1000_entries",
+            "value": 176,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/10000_entries",
+            "value": 10303901,
+            "range": "± 178509",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/10000_entries",
+            "value": 1963427,
+            "range": "± 34965",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/10000_entries",
+            "value": 2208372,
+            "range": "± 36943",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/10000_entries",
+            "value": 175,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/single_file_sync_cycle",
+            "value": 7900,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/batch_sync_50_files",
+            "value": 211299,
+            "range": "± 1837",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/rename_and_move",
+            "value": 731,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/concurrent_sync_10_clients",
+            "value": 475839,
+            "range": "± 4219",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/delete_cascade",
+            "value": 170227,
+            "range": "± 2333",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1328,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 7308,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 66485,
+            "range": "± 139",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 87,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 18774,
+            "range": "± 366",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 876,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 68,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 153,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 176,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 185,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 912,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 850,
+            "range": "± 9",
             "unit": "ns/iter"
           },
           {
