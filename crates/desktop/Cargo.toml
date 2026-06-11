@@ -27,6 +27,7 @@ tauri = [
 ]
 mobile = [
     "dep:tauri",
+    "dep:tauri-build",
     "dep:tauri-plugin-shell",
     "dep:tauri-plugin-dialog",
     "dep:tauri-plugin-fs",

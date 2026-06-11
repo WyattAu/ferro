@@ -63,7 +63,7 @@
         "section": "utils"
       },
       "rpm": {
-        "requires": ["gtk3", "webkit2gtk4.1", "libayatana-appindicator-gtk3"]
+        "depends": ["gtk3", "webkit2gtk4.1", "libayatana-appindicator-gtk3"]
       }
     },
     "windows": {
@@ -71,15 +71,16 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": "",
       "nsis": {
-        "installMode": "both",
-        "language": null,
-        "headerImage": null,
-        "sidebarImage": null,
-        "installerIcon": null,
-        "displayLanguageSelector": false,
-        "bannerImage": null
+        "installMode": "both"
       },
       "wix": null
+    },
+    "iOS": {
+      "developmentTeam": "",
+      "minimumSystemVersion": "14.0"
+    },
+    "android": {
+      "minSdkVersion": 24
     }
   },
   "plugins": {

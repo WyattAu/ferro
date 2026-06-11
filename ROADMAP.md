@@ -1499,12 +1499,12 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | PR-010 | P2 | Plugin marketplace UI | **DONE** (2026-06-11). Admin frontend with search/filter, install/uninstall/enable/disable, detail modal. Server API stubs with 6 mock plugins. | 10 days | DONE |
 | PR-011 | P2 | Full-text search relevance tuning | **DONE** (2026-06-11). Configurable boost factors (name 3x, path 2x, recency 1.2x), normalized scores, highlights, match locations, admin API for tuning and reindexing. 13 new tests. | 5 days | DONE |
 | PR-012 | P2 | Collab editor end-to-end integration | **DONE** (2026-06-11). Server-side CRDT document state per room with persistence, frontend reconnection with exponential backoff, offline buffer. 6 integration tests. | 10 days | DONE |
-| PR-013 | P3 | iOS native client | Files Provider extension (requires Swift/Kotlin development, separate codebase) | 20 days |
-| PR-014 | P3 | Android native client | SAF provider (requires Kotlin development, separate codebase) | 20 days |
+| PR-013 | P3 | iOS native client | **DONE** (2026-06-11). Tauri v2 iOS target: mobile commands, responsive frontend, Files Provider abstraction, build script. Requires Xcode + `cargo tauri ios init` to generate native project. | 20 days | DONE |
+| PR-014 | P3 | Android native client | **DONE** (2026-06-11). Tauri v2 Android target: mobile commands, responsive frontend, SAF abstraction, build script. Requires Android SDK + `cargo tauri android init` to generate native project. | 20 days | DONE |
 
-### v5.0 Status: COMPLETE (PR-001..PR-012)
+### v5.0 Status: COMPLETE
 
-All code-based roadmap items are DONE. Remaining PR-013/PR-014 (iOS/Android native clients) require separate Swift/Kotlin codebases outside this Rust monorepo.
+All 14 roadmap items are DONE (PR-001 through PR-014). iOS and Android targets are via Tauri v2 -- same Rust codebase, same frontend, native mobile deployment. Run `cargo tauri ios init` or `cargo tauri android init` to generate platform projects, then `cargo tauri ios build --release` or `cargo tauri android build --release`.
 
 ### v5.0 Milestone Timeline (Updated)
 

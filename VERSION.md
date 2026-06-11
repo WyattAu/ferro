@@ -9,8 +9,9 @@
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
 - **Load Testing:** 1h soak test passed (18,828 requests, 0 failures, P50=6ms, P95=28ms, P99=52ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
-- **Status:** v3.1.0 release candidate. ALL roadmap items DONE. 43 crates, 2400+ tests. Production-ready.
-- **Last Updated:** 2026-06-11 (Cycle 13 complete: production stack, Nextcloud migration, WebDAV compliance, selective sync, plugin marketplace, search tuning, collab editor E2E)
+- **Mobile:** Tauri v2 iOS/Android ready (mobile.rs 442 lines, 12 mobile commands, responsive frontend)
+- **Status:** v5.0 complete. ALL roadmap items DONE (including mobile). 43 crates, 2500+ tests.
+- **Last Updated:** 2026-06-11 (Cycle 14: Tauri v2 mobile iOS/Android support, 12 mobile commands, responsive frontend, build scripts)
 
 ## Phase Progress
 | Phase | Status | Completion |

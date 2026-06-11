@@ -13,6 +13,9 @@ use ferro_desktop::commands::{ConfigResponse, MountStatusResponse, SaveConfigReq
 use ferro_desktop::config::DesktopConfig;
 use ferro_desktop::rclone::MountProgress;
 
+#[cfg(feature = "mobile")]
+use ferro_desktop::mobile_commands;
+
 use serde::{Deserialize, Serialize};
 
 /// CLI arguments passed from main() to gui::run().
@@ -612,6 +615,30 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             move_item,
             test_connection,
             take_screenshot,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_get_file_thumbnail,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_get_storage_stats,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_start_background_sync,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_stop_background_sync,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_get_offline_files,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_pin_file_offline,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_unpin_file_offline,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_get_sync_status,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_resolve_conflict,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_share_file,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_monitor_connectivity,
+            #[cfg(feature = "mobile")]
+            mobile_commands::mobile_register_push_notifications,
         ])
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

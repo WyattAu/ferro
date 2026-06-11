@@ -1,0 +1,16 @@
+{
+  "identifier": "mobile",
+  "description": "Permissions for mobile (iOS/Android) views",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "dialog:allow-ask",
+    "dialog:allow-confirm",
+    "dialog:allow-message",
+    "dialog:allow-save",
+    "dialog:allow-open",
+    "fs:default",
+    "notification:default"
+  ]
+}

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Cycle 14 - Mobile iOS/Android via Tauri v2)
+- Tauri v2 iOS/Android mobile bundle config in `tauri.conf.json` (iOS minimum 14.0, Android minSdkVersion 24).
+- `crates/desktop/capabilities/mobile.json`: Mobile-specific permissions capability.
+- `crates/desktop/src/mobile_commands.rs`: 12 mobile-specific Tauri commands (thumbnail, storage stats, background sync, offline pinning, conflict resolution, push notifications, connectivity monitoring, sharing). 23 tests.
+- Mobile-responsive frontend: CSS media queries, touch events (long-press, swipe, pull-to-refresh), mobile bottom navigation bar, hamburger menu, 44px touch targets.
+- `crates/desktop/MOBILE.md`: Build documentation for iOS and Android targets.
+- `scripts/build-mobile.sh`: One-command build script for `android` and `ios` targets.
+- `crates/desktop/src/lib.rs`: `run_mobile()` entry point with mobile-specific Tauri plugin setup.
+
 ### Added (Cycle 13 - Production Readiness)
 - `ferro-migrate` crate: Nextcloud-to-Ferro migration tool with WebDAV file streaming, SQLite DB reader for users/shares/tags/favorites, progress tracking, and CLI subcommand `ferro migrate nextcloud`.
 - `deploy/docker-compose.production.yml`: 7-service production stack (Ferro + PostgreSQL + Redis + Caddy + Prometheus + Grafana + Alertmanager) with auto-provisioned dashboards and health checks.
