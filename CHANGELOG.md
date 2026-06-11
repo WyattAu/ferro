@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Cycle 13 - Production Readiness)
+- `ferro-migrate` crate: Nextcloud-to-Ferro migration tool with WebDAV file streaming, SQLite DB reader for users/shares/tags/favorites, progress tracking, and CLI subcommand `ferro migrate nextcloud`.
+- `deploy/docker-compose.production.yml`: 7-service production stack (Ferro + PostgreSQL + Redis + Caddy + Prometheus + Grafana + Alertmanager) with auto-provisioned dashboards and health checks.
+- `deploy/Caddyfile`: Reverse proxy with TLS, compression, security headers, WebSocket support.
+- `deploy/.env.example`: All configurable variables for production deployment.
+- `crates/server/tests/soak_test.rs`: Configurable-duration soak test with 50 concurrent users, mixed workload (PUT/GET/PROPFIND/DELETE/MOVE/COPY), latency percentiles, and JSON results output.
+- `scripts/soak-test.sh`: One-command soak test runner (default 1h, configurable to 24h).
+- `crates/server/tests/webdav_litmus.rs`: WebDAV RFC 4918 compliance test suite (22 tests across Class 1/2/3).
+- `crates/server/tests/multi_user.rs`: Multi-user scenario tests (24 tests) covering sharing, concurrent edits, permission enforcement, stress testing.
+- `crates/server/tests/disaster_recovery.rs`: Backup/restore disaster recovery drill (13 tests) with full cycle verification.
+- Enhanced `rclone_e2e.rs` with 9 new tests: sync, move, check, large files, special characters, concurrent operations.
+
 ### Added (Cycle 12.2 - Server Decomposition)
 - `ferro-server-webdav` crate: WebDAV handler, locking, MOVE/COPY, range GET extracted from server (14 tests).
 - `ferro-server-security` crate: Security module, ClamAV, ransomware detection, encryption, E2EE, API keys, TOTP, WebAuthn (58 tests).

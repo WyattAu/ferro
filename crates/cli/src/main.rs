@@ -61,6 +61,9 @@ enum Commands {
     #[command(subcommand)]
     Backup(BackupCommands),
 
+    #[command(subcommand)]
+    Migrate(MigrateCommands),
+
     Info,
 }
 
@@ -155,6 +158,65 @@ enum BackupCommands {
     Delete { id: String },
 }
 
+#[derive(Subcommand, Debug)]
+enum MigrateCommands {
+    /// Migrate from a Nextcloud instance to Ferro
+    #[command(name = "nextcloud")]
+    Nextcloud {
+        /// Nextcloud instance URL (e.g. https://nextcloud.example.com)
+        #[arg(long, env = "NC_SOURCE_URL")]
+        source_url: String,
+
+        /// Nextcloud admin username
+        #[arg(long, env = "NC_SOURCE_USER")]
+        source_user: String,
+
+        /// Nextcloud admin password
+        #[arg(long, env = "NC_SOURCE_PASS")]
+        source_pass: String,
+
+        /// Path to Nextcloud SQLite database file (for metadata migration)
+        #[arg(long)]
+        source_db: Option<String>,
+
+        /// Ferro target server URL
+        #[arg(long, env = "FERRO_URL", default_value = "http://localhost:8080")]
+        target_url: String,
+
+        /// Ferro admin API token
+        #[arg(long, env = "FERRO_TOKEN")]
+        target_token: String,
+
+        /// Skip file migration
+        #[arg(long)]
+        skip_files: bool,
+
+        /// Skip user migration
+        #[arg(long)]
+        skip_users: bool,
+
+        /// Skip share migration
+        #[arg(long)]
+        skip_shares: bool,
+
+        /// Skip tag migration
+        #[arg(long)]
+        skip_tags: bool,
+
+        /// Skip favorite migration
+        #[arg(long)]
+        skip_favorites: bool,
+
+        /// Maximum file size to migrate in bytes (0 = unlimited)
+        #[arg(long, default_value = "0")]
+        max_file_size: u64,
+
+        /// Number of files per batch
+        #[arg(long, default_value = "50")]
+        batch_size: usize,
+    },
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -195,6 +257,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Share(cmd) => handle_share(cmd, &ferro_client).await,
         Commands::Snapshot(cmd) => handle_snapshot(cmd, &ferro_client).await,
         Commands::Backup(ref cmd) => cmd_backup(&ferro_client, cmd).await,
+        Commands::Migrate(cmd) => cmd_migrate(cmd).await,
         Commands::Info => cmd_info(&ferro_client).await,
     }
 }
@@ -487,6 +550,80 @@ async fn handle_snapshot(
             println!("Restoring snapshot {}...", id);
             client.restore_snapshot(&id).await?;
             println!("Snapshot {} restored", id);
+        }
+    }
+    Ok(())
+}
+
+async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
+    match cmd {
+        MigrateCommands::Nextcloud {
+            source_url,
+            source_user,
+            source_pass,
+            source_db,
+            target_url,
+            target_token,
+            skip_files,
+            skip_users,
+            skip_shares,
+            skip_tags,
+            skip_favorites,
+            max_file_size,
+            batch_size,
+        } => {
+            let config = ferro_migrate::MigrationConfig {
+                source: ferro_migrate::NextcloudSource {
+                    url: source_url,
+                    username: source_user,
+                    password: source_pass,
+                    db_path: source_db,
+                },
+                target: ferro_migrate::FerroTargetConfig {
+                    url: target_url,
+                    admin_token: target_token,
+                },
+                options: ferro_migrate::MigrationOptions {
+                    skip_files,
+                    skip_users,
+                    skip_shares,
+                    skip_tags,
+                    skip_favorites,
+                    batch_size,
+                    max_file_size,
+                },
+            };
+
+            println!("Starting Nextcloud -> Ferro migration...");
+            let report = ferro_migrate::run_migration(config).await?;
+
+            println!();
+            println!("Migration Report");
+            println!("================");
+            println!(
+                "Users:      {} migrated, {} skipped",
+                report.users_migrated, report.users_skipped
+            );
+            println!(
+                "Files:      {} migrated, {} skipped, {} failed",
+                report.files_migrated, report.files_skipped, report.files_failed
+            );
+            println!("Shares:     {} migrated", report.shares_migrated);
+            println!("Tags:       {} migrated", report.tags_migrated);
+            println!("Favorites:  {} migrated", report.favorites_migrated);
+            println!(
+                "Total data: {:.2} MB",
+                report.total_bytes as f64 / 1_048_576.0
+            );
+            println!("Duration:   {:.1}s", report.duration_secs);
+
+            if !report.errors.is_empty() {
+                println!();
+                println!("Errors ({}):", report.errors.len());
+                for err in &report.errors {
+                    println!("  - {}", err);
+                }
+            }
         }
     }
     Ok(())

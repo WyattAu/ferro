@@ -41,7 +41,7 @@ members = [
     "crates/server-security",
     "crates/server-webdav",
     "crates/server-sharing",
-    "crates/server-webdav",
+    "crates/migrate",
 ]
 resolver = "2"
 

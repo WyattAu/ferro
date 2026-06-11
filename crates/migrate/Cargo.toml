@@ -1,0 +1,23 @@
+[package]
+name = "ferro-migrate"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Migration tool for importing data from Nextcloud into Ferro"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rusqlite = { workspace = true }
+chrono = { workspace = true }
+url = "2"
+anyhow = "1"
+tracing = "0.1"
+indicatif = "0.17"
+quick-xml = { version = "0.37", features = ["serialize"] }
+base64 = "0.22"

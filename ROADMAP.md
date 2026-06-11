@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 3.1.0 | **Date:** 2026-06-10 | **Status:** v3.1.0 Release Candidate
+**Version:** 5.0 | **Date:** 2026-06-11 | **Status:** v5.0 Production Readiness
 
 ---
 
@@ -8,8 +8,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Crates | 41 |
-| Tests | 2184+ passed, 0 failed, 0 ignored |
+| Crates | 43 |
+| Tests | 2400+ passed, 0 failed, 0 ignored |
 | Code | ~107K lines Rust |
 | Clippy warnings | 0 |
 | Security audit | Self-audit complete, 14 findings fixed (F001-F013 + F002) |
@@ -1407,9 +1407,9 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | TD-035 | P2 | Code coverage enforcement | **DONE** (2026-06-06). Added `--fail-under-lines 80` to `cargo llvm-cov` in `extended-checks.yml`. Added `min_coverage: 80` to Codecov action. CI will now fail if workspace line coverage drops below 80%. | 1 day |
 | TD-036 | P1 | Unify storage abstractions | **DONE** (2026-06-10). storage-adapter crate removed; common::StorageEngine is sole abstraction. | 10 days | DONE |
 | TD-037 | P1 | Integrate event-bus crate | **DONE** (2026-06-10). EventBus in AppState, webhook/notification handlers subscribed to file events, post-op dispatch publishes to bus. | 5 days | DONE |
-| TD-038 | P1 | Replace server inline rate limiter | Use ferro-rate-limiter crate instead of server/src/rate_limit.rs | 2 days |
-| TD-039 | P2 | Delete or integrate search-index | Replace core::search (Tantivy) with search-index or delete search-index | 3 days |
-| TD-040 | P2 | Delete or integrate config-manager | Server should use config-manager's FerroConfig or delete the crate | 3 days |
+| TD-038 | P1 | Replace server inline rate limiter | **DONE** (2026-06-10). Replaced server/src/rate_limit.rs with ferro-rate-limiter crate. | 2 days | DONE |
+| TD-039 | P2 | Delete or integrate search-index | **DONE** (2026-06-10). Deleted search-index crate (unused; server uses ferro_core::search Tantivy engine). | 3 days | DONE |
+| TD-040 | P2 | Delete or integrate config-manager | **DONE** (2026-06-10). Deleted config-manager crate (unused; server has its own config system). | 3 days | DONE |
 | TD-042 | P2 | Audit orphan crates | **DONE** (2026-06-11). Removed mobile-contract, grpc (dead code), webhook, audit-log, backend-router (server inline is sufficient). Wired ferro-health into /health endpoint. Offline, cache, rate-limiter, event-bus already integrated. Consistent-hash kept (leaf dep). | 10 days | DONE |
 | TD-043 | P2 | Add prefers-reduced-motion CSS | **DONE** (2026-06-10). Added prefers-reduced-motion to landing page and web UI style.css in audit cycle 12 | 1 day | DONE |
 | TD-044 | P3 | Add landing page 404.html | **DONE** (2026-06-10). Custom 404.html with matching Spatial Materialism design, accessibility, and home link. | 0.5 days | DONE |
@@ -1453,7 +1453,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 |---|----------|------|-------------|--------|
 | OP-001 | P0 | Horizontal scaling guide | Document and test multi-node deployment with Raft consensus and load balancing | 3 days | DONE (docs/src/deployment/horizontal-scaling.md) |
 | OP-002 | P0 | Backup and recovery | **DONE** (2026-06-10). Automated backup: SQLite WAL checkpoint + VACUUM INTO, CAS blob listing, SHA-256 manifest, zip archive export/restore. API endpoints: POST /api/admin/backup, GET /api/admin/backup/latest, GET /api/admin/backup/download, POST /api/admin/backup/restore. 20 tests. | 3 days | DONE |
-| OP-003 | P1 | Monitoring stack | Deploy Grafana dashboards for Prometheus metrics, Loki for log aggregation, alerting rules | 5 days |
+| OP-003 | P1 | Monitoring stack | **DONE** (2026-06-11). Deployed in docker-compose.production.yml: Grafana with auto-provisioned dashboards, Prometheus, Alertmanager with alert rules, Loki-ready. | 5 days | DONE |
 | OP-004 | P1 | Configuration validation | Add JSON Schema for `ferro.toml` with CLI validation (`--validate-config`) | 2 days | DONE (--validate-config flag with schema, port, storage, OIDC, CORS, WOPI checks) |
 | OP-005 | P2 | Blue-green deployment | Document zero-downtime deployment strategy with database migration support | 2 days | DONE (docs/src/deployment/blue-green.md, Docker Compose + Caddy + K8s) |
 | OP-006 | P2 | Rate limiting per-tenant | Extend `ferro-rate-limiter` with tenant-aware quotas in multi-tenant mode | 3 days | DONE (TenantAwareRateLimiter, TenantRateLimitStore, admin CRUD API, middleware layer, 4 new tests) |
@@ -1480,6 +1480,39 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | v3.3 | +18 weeks | CL-001..CL-005 (desktop, FUSE, mobile) |
 | v3.4 | +22 weeks | OP-001..OP-006 (operations, monitoring, scaling) |
 | v4.0 | +30 weeks | AF-001..AF-005 (collaboration, AI, plugin SDK) |
+
+### v5.0 -- Production Readiness and Adoption
+
+**Objective:** Battle-test the system, provide migration paths, and prepare for real users.
+
+| # | Priority | Item | Description | Effort |
+|---|----------|------|-------------|--------|
+| PR-001 | P0 | Production Docker Compose stack | **DONE** (2026-06-11). 7-service stack: Ferro + PostgreSQL + Redis + Caddy + Prometheus + Grafana + Alertmanager with auto-provisioned dashboards. | 3 days | DONE |
+| PR-002 | P0 | Nextcloud migration tool | **DONE** (2026-06-11). `ferro-migrate` crate with WebDAV streaming, SQLite DB reader for users/shares/tags/favorites, progress tracking, CLI subcommand. | 15 days | DONE |
+| PR-003 | P0 | WebDAV RFC 4918 compliance suite | **DONE** (2026-06-11). 22 tests across Class 1/2/3 with WebDavCompliance tracker. | 3 days | DONE |
+| PR-004 | P0 | Soak test harness | **DONE** (2026-06-11). Configurable duration (1h-24h), 50 concurrent users, mixed workload, latency tracking, JSON results. | 3 days | DONE |
+| PR-005 | P1 | Multi-user scenario tests | **DONE** (2026-06-11). 24 tests: sharing, concurrent edits, permissions, stress testing, guest access, notifications. | 5 days | DONE |
+| PR-006 | P1 | Disaster recovery drill | **DONE** (2026-06-11). 13 tests: full backup/restore cycle, integrity verification, fresh server restore. | 2 days | DONE |
+| PR-007 | P1 | Enhanced rclone E2E tests | **DONE** (2026-06-11). 9 new tests: sync, move, check, large files, special chars, concurrent ops. | 3 days | DONE |
+| PR-008 | P1 | Monitoring stack (OP-003) | **DONE** (2026-06-11). Grafana + Prometheus + Alertmanager in production compose with auto-provisioned dashboards and alert rules. | 5 days | DONE |
+| PR-009 | P2 | Selective sync implementation | Wire ferro-selective-sync crate into server and client | 10 days |
+| PR-010 | P2 | Plugin marketplace UI | Frontend for browsing and installing WASM plugins | 10 days |
+| PR-011 | P2 | Full-text search relevance tuning | Tune Tantivy ranking with real-world data and relevance testing | 5 days |
+| PR-012 | P2 | Collab editor end-to-end integration | Browser-to-browser CRDT collaboration via the WebSocket relay | 10 days |
+| PR-013 | P3 | iOS native client | Files Provider extension using ferro-mobile-contract (contract removed; recreate API bindings) | 20 days |
+| PR-014 | P3 | Android native client | SAF provider using ferro-mobile-contract (contract removed; recreate API bindings) | 20 days |
+
+### v5.0 Milestone Timeline (Updated)
+
+| Version | Status | Key Deliverables |
+|---------|--------|------------------|
+| v3.0.1 | DONE | Audit fixes, dead code removal, XSS fix, a11y improvements |
+| v3.1 | DONE | TD-029..TD-050 (quality hardening, crate cleanup) |
+| v3.2 | DONE | PF-001..PF-006 (performance, Raft, PostgreSQL) |
+| v3.3 | DONE | CL-001..CL-005 (desktop, FUSE, mobile contracts) |
+| v3.4 | DONE | OP-001..OP-006 (operations, monitoring, scaling) |
+| v4.0 | DONE | AF-001..AF-005 (collaboration, AI, plugin SDK) |
+| v5.0 | IN PROGRESS | PR-001..PR-008 DONE, PR-009..PR-014 remaining |
 
 ### Risk Register (Updated)
 
