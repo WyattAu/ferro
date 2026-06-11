@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Cycle 12.2 - Server Decomposition)
+- `ferro-server-webdav` crate: WebDAV handler, locking, MOVE/COPY, range GET extracted from server (14 tests).
+- `ferro-server-security` crate: Security module, ClamAV, ransomware detection, encryption, E2EE, API keys, TOTP, WebAuthn (58 tests).
+- `ferro-server-sharing` crate: Shares, public links, guests, comments, tags, favorites, federation sync (50 tests).
+- `ferro-server-admin` crate: Admin API, user management, branding, tenant rate limiting, GDPR, LDAP, backup, metrics, quota (8 tests).
+- `ferro-server-automation` crate: Event triggers, webhooks, push notifications, retention, WORM, batch ops, OCR (13 tests).
+- `GET /health` endpoint wired to ferro-health HealthChecker with memory probe.
+- ferro-health HealthChecker added to AppState.
+
+### Changed (Cycle 12.2)
+- Server crate decomposed from 115 files into 5 focused sub-crates + server core.
+- Crate count: 38 -> 42 (net +4 after removing 4 dead crates, adding 5 new sub-crates, removing 3 integration-only crates).
+- Webhook/audit-log/backend-router crates removed from server deps (server inline implementations are more complete).
+- ROADMAP: TD-046, TD-047, TD-048 marked DONE.
+
+### Removed (Cycle 12.2)
+- `ferro-mobile-contract` crate: zero workspace consumers.
+- `ferro-grpc` crate: zero workspace consumers.
+- `ferro-webhook` crate: server inline webhooks.rs is more complete.
+- `ferro-audit-log` crate: server inline audit.rs covers needs.
+- `ferro-backend-router` crate: incompatible with current storage architecture.
+- `crates/server/tests/search_workflow.rs`: referenced deleted search-index crate.
+
 ### Fixed (Audit Cycle 12)
 - Replaced 9 critical production `.unwrap()` calls with proper error handling across server, auth, distributed, sync-protocol crates.
 - Added error logging for 6 silently swallowed errors (event-bus replay, server indexer, fuse offline cache, server audit/snapshots).

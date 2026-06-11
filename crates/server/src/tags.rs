@@ -23,7 +23,7 @@ pub struct FileTags {
 
 #[derive(Debug, Clone)]
 pub struct TagStore {
-    pub(crate) entries: Arc<DashMap<String, HashSet<String>>>,
+    pub entries: Arc<DashMap<String, HashSet<String>>>,
     db: Option<DbHandle>,
 }
 

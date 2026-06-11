@@ -1,0 +1,33 @@
+[package]
+name = "ferro-server-webdav"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Ferro WebDAV server handler"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+ferro-core = { path = "../core", features = ["sqlite", "search", "wasm", "object_store"] }
+ferro-webdav-handler = { path = "../webdav-handler" }
+ferro-server-versioning = { path = "../server-versioning" }
+ferro-offline = { path = "../offline" }
+tokio = { workspace = true }
+axum = { workspace = true, features = ["macros", "multipart", "ws"] }
+serde = { workspace = true }
+serde_json = "1"
+bytes = "1"
+chrono = "0.4"
+async-trait = "0.1"
+dashmap = "6"
+tracing = "0.1"
+http-body-util = "0.1"
+tokio-util = { version = "0.7", features = ["io", "rt"] }
+url = "2"
+mime_guess = "2"
+futures = "0.3"
+rusqlite = { version = "0.32", features = ["bundled", "trace"] }
+quick-xml = { version = "0.37", features = ["serialize"] }
+anyhow = "1"

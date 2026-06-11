@@ -314,7 +314,7 @@ pub struct AppState {
     /// Reconciler for syncing queued changes on reconnection.
     pub offline_reconciler: Arc<ferro_offline::reconciler::Reconciler>,
     /// In-memory API key store for service-to-service and CLI authentication.
-    pub api_key_store: Arc<InMemoryApiKeyStore>,
+    pub api_key_store: Arc<dyn ferro_auth::api_keys::ApiKeyStoreTrait>,
     /// Federation token store for cross-instance API federation.
     /// Push notification store (SQLite-backed, optional).
     pub push_notification_store:
@@ -331,6 +331,8 @@ pub struct AppState {
     pub metadata_cache: Option<Arc<ferro_cache::TimedCache<String, Vec<u8>>>>,
     /// Event bus for pub/sub event dispatch (from ferro-event-bus crate).
     pub event_bus: Arc<ferro_event_bus::EventBus>,
+    /// Structured health checker with configurable probes (from ferro-health crate).
+    pub health_checker: Arc<ferro_health::HealthChecker>,
 }
 
 impl AppState {
@@ -426,7 +428,8 @@ impl AppState {
                 ferro_offline::cache::ContentCache::unlimited(),
             )),
             offline_reconciler: Arc::new(ferro_offline::reconciler::Reconciler::new()),
-            api_key_store: Arc::new(InMemoryApiKeyStore::new()),
+            api_key_store: Arc::new(InMemoryApiKeyStore::new())
+                as Arc<dyn ferro_auth::api_keys::ApiKeyStoreTrait>,
             push_notification_store: None,
             push_notification_config: push_notifications::PushNotificationConfig::default(),
             mount_backend: None,
@@ -436,6 +439,11 @@ impl AppState {
             tenant_store: Arc::new(ferro_multi_tenant::tenant::InMemoryTenantStore::new()),
             metadata_cache: None,
             event_bus: Arc::new(ferro_event_bus::EventBus::new()),
+            health_checker: {
+                let checker = ferro_health::HealthChecker::new(env!("CARGO_PKG_VERSION"));
+                let _ = checker.register(Box::new(ferro_health::MemoryProbe::new(90.0)));
+                Arc::new(checker)
+            },
         }
     }
 
@@ -863,6 +871,45 @@ impl AppState {
     }
 }
 
+impl ferro_server_security::SecurityAppState for AppState {
+    fn auth_attempt_tracker(&self) -> &std::sync::Arc<ferro_server_security::AuthAttemptTracker> {
+        &self.auth_attempt_tracker
+    }
+
+    fn login_rate_limiter(&self) -> &std::sync::Arc<ferro_server_security::LoginRateLimiter> {
+        &self.login_rate_limiter
+    }
+
+    fn storage(&self) -> &Arc<dyn common::storage::StorageEngine> {
+        &self.storage
+    }
+
+    fn api_key_store(&self) -> &Arc<dyn ferro_auth::api_keys::ApiKeyStoreTrait> {
+        &self.api_key_store
+    }
+
+    fn admin_user(&self) -> &Option<String> {
+        &self.admin_user
+    }
+
+    fn admin_password(&self) -> &Option<String> {
+        &self.admin_password
+    }
+
+    fn user_store(&self) -> &Arc<dyn ferro_auth::users::UserStoreTrait> {
+        &self.user_store
+    }
+
+    fn db(&self) -> &Option<ferro_server_security::DbHandle> {
+        &self.db
+    }
+
+    #[cfg(feature = "webauthn")]
+    fn webauthn_store(&self) -> &Arc<tokio::sync::RwLock<ferro_auth::webauthn::WebAuthnStore>> {
+        &self.webauthn_store
+    }
+}
+
 pub fn make_app() -> Router {
     let state = AppState::in_memory()
         .with_wopi_token_secret("test-wopi-secret-for-integration".to_string());
@@ -892,19 +939,19 @@ fn api_routes(
         // TOTP two-factor authentication
         .route(
             "/auth/totp/setup",
-            axum::routing::post(totp_api::totp_setup),
+            axum::routing::post(totp_api::totp_setup::<AppState>),
         )
         .route(
             "/auth/totp/enable",
-            axum::routing::post(totp_api::totp_enable),
+            axum::routing::post(totp_api::totp_enable::<AppState>),
         )
         .route(
             "/auth/totp/disable",
-            axum::routing::post(totp_api::totp_disable),
+            axum::routing::post(totp_api::totp_disable::<AppState>),
         )
         .route(
             "/auth/totp/status",
-            axum::routing::get(totp_api::totp_status),
+            axum::routing::get(totp_api::totp_status::<AppState>),
         )
         // WebAuthn/FIDO2 authentication (G-04)
         .merge({
@@ -913,19 +960,19 @@ fn api_routes(
                 axum::Router::new()
                     .route(
                         "/auth/webauthn/register/begin",
-                        axum::routing::post(webauthn_api::webauthn_register_begin),
+                        axum::routing::post(webauthn_api::webauthn_register_begin::<AppState>),
                     )
                     .route(
                         "/auth/webauthn/register/finish",
-                        axum::routing::post(webauthn_api::webauthn_register_finish),
+                        axum::routing::post(webauthn_api::webauthn_register_finish::<AppState>),
                     )
                     .route(
                         "/auth/webauthn/login/begin",
-                        axum::routing::post(webauthn_api::webauthn_login_begin),
+                        axum::routing::post(webauthn_api::webauthn_login_begin::<AppState>),
                     )
                     .route(
                         "/auth/webauthn/login/finish",
-                        axum::routing::post(webauthn_api::webauthn_login_finish),
+                        axum::routing::post(webauthn_api::webauthn_login_finish::<AppState>),
                     )
             }
             #[cfg(not(feature = "webauthn"))]
@@ -1018,11 +1065,11 @@ fn api_routes(
         .merge(api_federation::routes())
         .route(
             "/files/encrypt",
-            axum::routing::post(encryption::encrypt_file),
+            axum::routing::post(encryption::encrypt_file::<AppState>),
         )
         .route(
             "/files/decrypt",
-            axum::routing::post(encryption::decrypt_file),
+            axum::routing::post(encryption::decrypt_file::<AppState>),
         )
         .route("/e2ee/encrypt", axum::routing::post(e2ee::e2ee_encrypt))
         .route(
@@ -1319,12 +1366,12 @@ fn api_routes(
         // API key management
         .route(
             "/api-keys",
-            axum::routing::get(api_keys_routes::list_api_keys)
-                .post(api_keys_routes::create_api_key),
+            axum::routing::get(api_keys_routes::list_api_keys::<AppState>)
+                .post(api_keys_routes::create_api_key::<AppState>),
         )
         .route(
             "/api-keys/:id",
-            axum::routing::delete(api_keys_routes::delete_api_key),
+            axum::routing::delete(api_keys_routes::delete_api_key::<AppState>),
         )
         // Push notification endpoints
         .route(
@@ -1569,6 +1616,7 @@ pub fn build_router_with_static(
         .route("/", any(webdav::handle_any))
         .route("/.well-known/ferro", axum::routing::get(health_check))
         .route("/healthz", axum::routing::get(liveness))
+        .route("/health", axum::routing::get(health_endpoint))
         .route("/readyz", axum::routing::get(readiness))
         .route("/startupz", axum::routing::get(startup))
         .route(
@@ -1900,6 +1948,23 @@ pub fn build_router_with_static(
 
 pub async fn liveness() -> impl IntoResponse {
     (StatusCode::OK, "ok")
+}
+
+pub async fn health_endpoint(State(state): State<AppState>) -> Response {
+    let response = state.health_checker.check_liveness().await;
+    let status = match response.status {
+        ferro_health::HealthStatus::Healthy => StatusCode::OK,
+        ferro_health::HealthStatus::Degraded => StatusCode::OK,
+        ferro_health::HealthStatus::Unhealthy => StatusCode::SERVICE_UNAVAILABLE,
+        ferro_health::HealthStatus::Unknown => StatusCode::OK,
+    };
+    let body = serde_json::json!({
+        "status": serde_json::to_value(response.status).unwrap_or_default(),
+        "version": response.version,
+        "uptime_seconds": response.uptime.as_secs(),
+        "checks": response.checks,
+    });
+    (status, axum::Json(body)).into_response()
 }
 
 /// GET /startupz — Kubernetes-style startup probe.

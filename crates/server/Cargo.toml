@@ -87,13 +87,12 @@ ferro-health = { path = "../health" }
 ferro-multi-tenant = { path = "../multi-tenant" }
 ferro-mount-nfs = { path = "../mount-nfs" }
 ferro-event-bus = { path = "../event-bus" }
-ferro-audit-log = { path = "../audit-log" }
-ferro-webhook = { path = "../webhook" }
 ferro-ai = { path = "../ai" }
-ferro-backend-router = { path = "../backend-router" }
 ferro-crdt = { path = "../crdt" }
 ferro-distributed = { path = "../distributed" }
 ferro-offline = { path = "../offline" }
+ferro-server-security = { path = "../server-security" }
+ferro-server-automation = { path = "../server-automation" }
 ferro-sync-protocol = { path = "../sync-protocol" }
 
 [dev-dependencies]

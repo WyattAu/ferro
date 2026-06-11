@@ -25,7 +25,6 @@ members = [
     "crates/multi-tenant",
     "crates/distributed",
     "crates/ai",
-    "crates/mobile-contract",
     "crates/offline",
     "crates/backend-router",
     "crates/rate-limiter",
@@ -35,9 +34,14 @@ members = [
     "crates/health",
     "crates/cache",
     "crates/wasm-host",
-    "crates/grpc",
+    "crates/server-admin",
     "crates/sync-protocol",
     "crates/consistent-hash",
+    "crates/server-automation",
+    "crates/server-security",
+    "crates/server-webdav",
+    "crates/server-sharing",
+    "crates/server-webdav",
 ]
 resolver = "2"
 

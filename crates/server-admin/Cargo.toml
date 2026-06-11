@@ -1,0 +1,38 @@
+[package]
+name = "ferro-server-admin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Ferro server admin API endpoints"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[features]
+default = []
+ldap = ["dep:ldap3"]
+
+[dependencies]
+ferro-server = { path = "../server" }
+tokio = { workspace = true }
+axum = { workspace = true, features = ["macros", "multipart", "ws"] }
+serde = { workspace = true }
+serde_json = "1"
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+bytes = "1"
+hex = "0.4"
+sha2 = "0.11"
+rusqlite = { version = "0.32", features = ["bundled"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+tempfile = "3"
+utoipa = { version = "5", features = ["axum_extras"] }
+ferro-rate-limiter = { path = "../rate-limiter" }
+ferro-core = { path = "../core" }
+tracing = "0.1"
+ldap3 = { version = "0.12", optional = true }
+
+[dev-dependencies]
+base64 = "0.22"
+http-body-util = "0.1"
+tower = "0.5"

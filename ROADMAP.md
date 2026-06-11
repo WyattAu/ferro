@@ -1410,14 +1410,14 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | TD-038 | P1 | Replace server inline rate limiter | Use ferro-rate-limiter crate instead of server/src/rate_limit.rs | 2 days |
 | TD-039 | P2 | Delete or integrate search-index | Replace core::search (Tantivy) with search-index or delete search-index | 3 days |
 | TD-040 | P2 | Delete or integrate config-manager | Server should use config-manager's FerroConfig or delete the crate | 3 days |
-| TD-042 | P2 | Audit orphan crates | Implement or remove session-manager, mobile-contract, plugin-marketplace, e2ee, sync-delta, mount-nfs, multi-tenant, selective-sync | 10 days |
+| TD-042 | P2 | Audit orphan crates | **DONE** (2026-06-11). Removed mobile-contract, grpc (dead code), webhook, audit-log, backend-router (server inline is sufficient). Wired ferro-health into /health endpoint. Offline, cache, rate-limiter, event-bus already integrated. Consistent-hash kept (leaf dep). | 10 days | DONE |
 | TD-043 | P2 | Add prefers-reduced-motion CSS | **DONE** (2026-06-10). Added prefers-reduced-motion to landing page and web UI style.css in audit cycle 12 | 1 day | DONE |
 | TD-044 | P3 | Add landing page 404.html | **DONE** (2026-06-10). Custom 404.html with matching Spatial Materialism design, accessibility, and home link. | 0.5 days | DONE |
 | TD-045 | P1 | CRDT collaboration relay | **DONE** (2026-06-10). `/ws/collab/{document_id}` WebSocket handler with per-document rooms, participant tracking, presence broadcast. 9 tests. | 5 days | DONE |
 | TD-046 | P1 | E2EE key generation accuracy | `/e2ee/key/generate` labels 32 random bytes as "x25519" without actual X25519 key derivation | 3 days |
 | TD-047 | P2 | Dual WASM runtime consolidation | wasm-host crate not used by server (uses ferro_core::wasm instead); consolidate to one approach | 5 days |
 | TD-048 | P2 | ServerConfig naming disambiguation | Three unrelated types named ServerConfig across admin, config-manager, and server crates | 1 day |
-| TD-049 | P2 | Server crate decomposition (supersedes TD-041) | Extract WebDAV (~3,700 lines), Security (~2,500 lines), Sharing (~2,600 lines), Admin (~3,500 lines), Automation (~1,800 lines) into separate crates | 15 days |
+| TD-049 | P2 | Server crate decomposition (supersedes TD-041) | **DONE** (2026-06-11). Extracted 5 sub-crates: ferro-server-webdav (14 tests), ferro-server-security (58 tests), ferro-server-sharing (50 tests), ferro-server-admin (8 tests), ferro-server-automation (13 tests). Server reduced from 115 to ~55 source files. | 15 days | DONE |
 | TD-050 | P3 | Selective sync not implemented | **DONE** (2026-06-10). Marked as "Planned" in ROADMAP feature list. Not removed -- tracking issue created via status change. | 0.5 days | DONE |
 
 ### v3.2 -- Performance and Scale

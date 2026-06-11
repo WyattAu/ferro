@@ -1,0 +1,38 @@
+[package]
+name = "ferro-server-security"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Security modules for the Ferro server"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[features]
+default = []
+webauthn = []
+
+[dependencies]
+ferro-auth = { path = "../auth" }
+ferro-common = { path = "../common" }
+axum = { workspace = true, features = ["macros", "multipart"] }
+serde = { workspace = true }
+serde_json = "1"
+tokio = { workspace = true }
+chrono = "0.4"
+dashmap = "6"
+rand = "0.9"
+base64 = "0.22"
+subtle = "2"
+hex = "0.4"
+age = { version = "0.11", features = ["armor"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+x25519-dalek = { workspace = true }
+sha2 = "0.11"
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+
+[dev-dependencies]
+http-body-util = "0.1"
+tower = "0.5"

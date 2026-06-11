@@ -1,4 +1,3 @@
-pub mod audit_integration;
 pub mod cache_layer;
 pub mod crdt_integration;
 pub mod distributed_integration;
@@ -7,8 +6,6 @@ pub mod health_integration;
 pub mod multi_tenant_integration;
 pub mod offline_integration;
 pub mod rate_limit;
-pub mod storage_integration;
-pub mod webhook_integration;
 
 #[cfg(test)]
 mod tests {
@@ -28,12 +25,6 @@ mod tests {
     fn test_cache_key_generation() {
         let key = cache_layer::cache_key("GET", "/files/test.txt", "type=json");
         assert_eq!(key, "GET:/files/test.txt:type=json");
-    }
-
-    #[test]
-    fn test_audit_log_create_and_record() {
-        let log = audit_integration::create_audit_log();
-        assert!(log.count().is_ok());
     }
 
     #[test]
