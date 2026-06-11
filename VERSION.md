@@ -4,13 +4,13 @@
 - **Phase:** v3.1.0 Release Candidate
 - **Version:** 3.1.0-rc.1
 - **Crates:** 43
-- **Tests:** 2400+ test functions passed, 0 failed, 0 clippy warnings
+- **Tests:** 2500+ test functions passed, 0 failed, 0 clippy warnings
 - **E2E:** 14 Playwright spec files + DOM snapshot + screenshot infrastructure
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
 - **Load Testing:** 1h soak test passed (18,828 requests, 0 failures, P50=6ms, P95=28ms, P99=52ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
 - **Status:** v3.1.0 release candidate. ALL roadmap items DONE. 43 crates, 2400+ tests. Production-ready.
-- **Last Updated:** 2026-06-11 (Cycle 13: production stack, Nextcloud migration, WebDAV compliance, soak test, multi-user tests)
+- **Last Updated:** 2026-06-11 (Cycle 13 complete: production stack, Nextcloud migration, WebDAV compliance, selective sync, plugin marketplace, search tuning, collab editor E2E)
 
 ## Phase Progress
 | Phase | Status | Completion |

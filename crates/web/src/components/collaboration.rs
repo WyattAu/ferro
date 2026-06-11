@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use leptos::prelude::*;
@@ -41,14 +41,15 @@ impl CollabContext {
 
 #[derive(Clone)]
 pub struct CollabStateHandle {
-    document: Rc<RefCell<CrdtDocument>>,
-    participant_id: ParticipantId,
-    pending_ops: Rc<RefCell<Vec<TextOperation>>>,
-    set_text: Callback<String>,
-    set_version: Callback<u64>,
-    set_remote_participants: Callback<Vec<ParticipantInfo>>,
-    set_connection_state: Callback<CollabConnectionState>,
-    ws: Rc<RefCell<Option<web_sys::WebSocket>>>,
+    pub document: Rc<RefCell<CrdtDocument>>,
+    pub participant_id: ParticipantId,
+    pub participant_name: String,
+    pub pending_ops: Rc<RefCell<Vec<TextOperation>>>,
+    pub set_text: Callback<String>,
+    pub set_version: Callback<u64>,
+    pub set_remote_participants: Callback<Vec<ParticipantInfo>>,
+    pub set_connection_state: Callback<CollabConnectionState>,
+    pub ws: Rc<RefCell<Option<web_sys::WebSocket>>>,
 }
 
 impl CollabStateHandle {
@@ -152,6 +153,7 @@ impl CollabStateHandle {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum SyncMessage {
     Join {
         document_id: String,
@@ -170,6 +172,10 @@ pub enum SyncMessage {
     },
     Hello {
         participant_id: u32,
+    },
+    DocumentState {
+        document_id: String,
+        serialized_state: String,
     },
 }
 
@@ -192,6 +198,156 @@ fn ws_url_for_document(document_id: &str) -> String {
     format!("{protocol}//{host}/ws/collab/{document_id}")
 }
 
+struct ReconnectData {
+    handle: CollabStateHandle,
+    ws_url: String,
+    document_id: String,
+    participant_id: ParticipantId,
+    participant_name: String,
+    backoff_ms: Cell<u32>,
+}
+
+fn setup_websocket(data: &Rc<ReconnectData>) {
+    match web_sys::WebSocket::new(&data.ws_url) {
+        Ok(ws) => {
+            *data.handle.ws.borrow_mut() = Some(ws.clone());
+            data.handle
+                .set_connection_state
+                .run(CollabConnectionState::Connecting);
+
+            let d = data.clone();
+            let ws_for_open = ws.clone();
+            let onopen_closure = wasm_bindgen::closure::Closure::<dyn Fn()>::new(move || {
+                d.handle
+                    .set_connection_state
+                    .run(CollabConnectionState::Connected);
+                d.backoff_ms.set(1000);
+
+                let join_msg = SyncMessage::Join {
+                    document_id: d.document_id.clone(),
+                    participant_id: d.participant_id.0,
+                    name: d.participant_name.clone(),
+                };
+                if let Ok(payload) = serde_json::to_string(&join_msg) {
+                    let _ = ws_for_open.send_with_str(&payload);
+                }
+                d.handle.flush_pending();
+            });
+            ws.set_onopen(Some(onopen_closure.as_ref().unchecked_ref()));
+            onopen_closure.forget();
+
+            let d = data.clone();
+            let onmessage_closure =
+                wasm_bindgen::closure::Closure::<dyn Fn(web_sys::MessageEvent)>::new(
+                    move |ev: web_sys::MessageEvent| {
+                        let data_str = ev.data().as_string().unwrap_or_default();
+                        if let Ok(msg) = serde_json::from_str::<SyncMessage>(&data_str) {
+                            match msg {
+                                SyncMessage::Operations { ops } => {
+                                    let my_site = d.handle.participant_id.0;
+                                    let remote_ops: Vec<_> = ops
+                                        .into_iter()
+                                        .filter(|op| match op {
+                                            TextOperation::Insert { id, .. } => {
+                                                id.site_id != my_site
+                                            }
+                                            TextOperation::Delete { id, .. } => {
+                                                id.site_id != my_site
+                                            }
+                                        })
+                                        .collect();
+                                    if !remote_ops.is_empty() {
+                                        d.handle.apply_remote_ops(&remote_ops);
+                                    }
+                                }
+                                SyncMessage::DocumentState {
+                                    serialized_state, ..
+                                } => {
+                                    if let Ok(server_doc) =
+                                        serde_json::from_str::<CrdtDocument>(&serialized_state)
+                                    {
+                                        let mut local_doc = d.handle.document.borrow_mut();
+                                        *local_doc = server_doc;
+                                        local_doc.join(
+                                            d.handle.participant_id,
+                                            &d.handle.participant_name,
+                                        );
+                                        let text = local_doc.get_text();
+                                        let version = local_doc.version;
+                                        drop(local_doc);
+                                        d.handle.set_text.run(text);
+                                        d.handle.set_version.run(version);
+                                    }
+                                }
+                                SyncMessage::Participants { participants } => {
+                                    let infos: Vec<ParticipantInfo> = participants
+                                        .iter()
+                                        .map(|p| ParticipantInfo {
+                                            id: ParticipantId(p.participant_id),
+                                            name: p.name.clone(),
+                                        })
+                                        .collect();
+                                    d.handle.set_remote_participants.run(infos);
+                                }
+                                SyncMessage::Hello { .. } => {}
+                                SyncMessage::Join { .. } => {}
+                                SyncMessage::State { .. } => {}
+                            }
+                        }
+                    },
+                );
+            ws.set_onmessage(Some(onmessage_closure.as_ref().unchecked_ref()));
+            onmessage_closure.forget();
+
+            let d = data.clone();
+            let onerror_closure = wasm_bindgen::closure::Closure::<dyn Fn(web_sys::Event)>::new(
+                move |_ev: web_sys::Event| {
+                    d.handle
+                        .set_connection_state
+                        .run(CollabConnectionState::Disconnected);
+                    schedule_reconnect(&d);
+                },
+            );
+            ws.set_onerror(Some(onerror_closure.as_ref().unchecked_ref()));
+            onerror_closure.forget();
+
+            let d = data.clone();
+            let onclose_closure =
+                wasm_bindgen::closure::Closure::<dyn Fn(web_sys::CloseEvent)>::new(
+                    move |_ev: web_sys::CloseEvent| {
+                        d.handle
+                            .set_connection_state
+                            .run(CollabConnectionState::Disconnected);
+                        schedule_reconnect(&d);
+                    },
+                );
+            ws.set_onclose(Some(onclose_closure.as_ref().unchecked_ref()));
+            onclose_closure.forget();
+        }
+        Err(_) => {
+            schedule_reconnect(data);
+        }
+    }
+}
+
+fn schedule_reconnect(data: &Rc<ReconnectData>) {
+    let delay = data.backoff_ms.get();
+    data.backoff_ms.set((delay * 2).min(30000));
+
+    let d = data.clone();
+    let timer_closure = wasm_bindgen::closure::Closure::<dyn Fn()>::new(move || {
+        setup_websocket(&d);
+    });
+
+    let _ = web_sys::window()
+        .expect("window")
+        .set_timeout_with_callback_and_timeout_and_arguments_0(
+            timer_closure.as_ref().unchecked_ref(),
+            delay as i32,
+        );
+    timer_closure.forget();
+}
+
 #[component]
 pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoView {
     let (text, set_text) = signal(String::new());
@@ -209,6 +365,7 @@ pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoV
     let state_handle = CollabStateHandle {
         document: Rc::new(RefCell::new(doc)),
         participant_id,
+        participant_name: participant_name.clone(),
         pending_ops: Rc::new(RefCell::new(Vec::new())),
         set_text: Callback::new(move |v: String| set_text.set(v)),
         set_version: Callback::new(move |v: u64| set_version.set(v)),
@@ -225,96 +382,17 @@ pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoV
     set_text.set(initial_text);
 
     let ws_url = ws_url_for_document(&document_id);
-    let handle_for_ws = handle.clone();
-    let document_id_for_ws = document_id.clone();
-    let pid_for_ws = participant_id;
 
-    set_connection_state.set(CollabConnectionState::Connecting);
+    let reconnect_data = Rc::new(ReconnectData {
+        handle: state_handle.clone(),
+        ws_url,
+        document_id: document_id.clone(),
+        participant_id,
+        participant_name: participant_name.clone(),
+        backoff_ms: Cell::new(1000),
+    });
 
-    let ws_result = web_sys::WebSocket::new(&ws_url);
-    match ws_result {
-        Ok(ws) => {
-            {
-                let mut ws_cell = handle_for_ws.ws.borrow_mut();
-                *ws_cell = Some(ws.clone());
-            }
-
-            let handle_onopen = handle_for_ws.clone();
-            let ws_for_open = ws.clone();
-            let join_msg = SyncMessage::Join {
-                document_id: document_id_for_ws,
-                participant_id: pid_for_ws.0,
-                name: participant_name.clone(),
-            };
-            let onopen_closure = wasm_bindgen::closure::Closure::<dyn Fn()>::new(move || {
-                handle_onopen
-                    .set_connection_state
-                    .run(CollabConnectionState::Connected);
-                if let Ok(payload) = serde_json::to_string(&join_msg) {
-                    let _ = ws_for_open.send_with_str(&payload);
-                }
-                handle_onopen.flush_pending();
-            });
-            ws.set_onopen(Some(onopen_closure.as_ref().unchecked_ref()));
-            onopen_closure.forget();
-
-            let handle_onmessage = handle_for_ws.clone();
-            let onmessage_closure =
-                wasm_bindgen::closure::Closure::<dyn Fn(web_sys::MessageEvent)>::new(
-                    move |ev: web_sys::MessageEvent| {
-                        let data_str = ev.data().as_string().unwrap_or_default();
-                        if let Ok(msg) = serde_json::from_str::<SyncMessage>(&data_str) {
-                            match msg {
-                                SyncMessage::Operations { ops } => {
-                                    handle_onmessage.apply_remote_ops(&ops);
-                                }
-                                SyncMessage::Participants { participants } => {
-                                    let infos: Vec<ParticipantInfo> = participants
-                                        .iter()
-                                        .map(|p| ParticipantInfo {
-                                            id: ParticipantId(p.participant_id),
-                                            name: p.name.clone(),
-                                        })
-                                        .collect();
-                                    handle_onmessage.set_remote_participants.run(infos);
-                                }
-                                SyncMessage::Hello { .. } => {}
-                                SyncMessage::Join { .. } => {}
-                                SyncMessage::State { .. } => {}
-                            }
-                        }
-                    },
-                );
-            ws.set_onmessage(Some(onmessage_closure.as_ref().unchecked_ref()));
-            onmessage_closure.forget();
-
-            let handle_onerror = handle_for_ws.clone();
-            let onerror_closure = wasm_bindgen::closure::Closure::<dyn Fn(web_sys::Event)>::new(
-                move |_ev: web_sys::Event| {
-                    handle_onerror
-                        .set_connection_state
-                        .run(CollabConnectionState::ReadOnly);
-                },
-            );
-            ws.set_onerror(Some(onerror_closure.as_ref().unchecked_ref()));
-            onerror_closure.forget();
-
-            let handle_onclose = handle_for_ws.clone();
-            let onclose_closure =
-                wasm_bindgen::closure::Closure::<dyn Fn(web_sys::CloseEvent)>::new(
-                    move |_ev: web_sys::CloseEvent| {
-                        handle_onclose
-                            .set_connection_state
-                            .run(CollabConnectionState::Disconnected);
-                    },
-                );
-            ws.set_onclose(Some(onclose_closure.as_ref().unchecked_ref()));
-            onclose_closure.forget();
-        }
-        Err(_) => {
-            set_connection_state.set(CollabConnectionState::ReadOnly);
-        }
-    }
+    setup_websocket(&reconnect_data);
 
     let context = CollabContext {
         document_id: doc_id,

@@ -27,4 +27,8 @@ pub mod ffi;
 
 pub use client::FerroClient;
 pub use error::ClientError;
+pub use ferro_selective_sync::profile::{
+    ConflictInfo, ConflictResolution, FilterPreviewRequest, FilterPreviewResponse, RuleDirection,
+    SyncProfile, SyncRule,
+};
 pub use types::{DirectoryInfo, FileEntry, UploadProgress};

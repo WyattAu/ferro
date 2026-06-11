@@ -18,6 +18,7 @@ pub fn Header(api: RwSignal<ApiState>) -> impl IntoView {
             "/settings" => "Settings",
             "/federation" => "Federation",
             "/webhooks" => "Webhooks",
+            "/plugins" => "Plugin Marketplace",
             "/audit" => "Audit Log",
             "/login" => "Connect to Server",
             _ => "Ferro Admin",

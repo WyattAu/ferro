@@ -3055,6 +3055,7 @@ version = "3.0.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "ferro-selective-sync",
  "reqwest 0.12.28",
  "roxmltree 0.18.1",
  "serde",
@@ -3386,6 +3387,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-selective-sync"
+version = "3.0.0"
+dependencies = [
+ "chrono",
+ "glob",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ferro-server"
 version = "3.0.0"
 dependencies = [
@@ -3418,6 +3434,7 @@ dependencies = [
  "ferro-multi-tenant",
  "ferro-offline",
  "ferro-rate-limiter",
+ "ferro-selective-sync",
  "ferro-server-activitypub",
  "ferro-server-automation",
  "ferro-server-security",
@@ -3454,6 +3471,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-tungstenite",
  "tokio-util",
  "toml 0.8.2",
  "tower",

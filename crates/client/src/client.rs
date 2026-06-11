@@ -1,5 +1,6 @@
 use crate::error::ClientError;
 use crate::types::{DirectoryInfo, FileEntry, ServerInfo};
+use ferro_selective_sync::profile::{FilterPreviewRequest, SyncProfile, SyncRule};
 use reqwest::header::CONTENT_TYPE;
 use roxmltree::Document;
 
@@ -252,6 +253,204 @@ impl FerroClient {
             Ok(_) => Ok(true),
             Err(ClientError::NotFound(_)) => Ok(false),
             Err(e) => Err(e),
+        }
+    }
+
+    pub async fn list_sync_profiles(&self) -> Result<Vec<SyncProfile>, ClientError> {
+        let url = format!("{}/api/v1/sync/profiles", self.base_url);
+        let response = self.http.get(&url).bearer_auth(&self.token).send().await?;
+
+        match response.status().as_u16() {
+            200 => {
+                let body: serde_json::Value =
+                    response.json().await.map_err(ClientError::Network)?;
+                let profiles: Vec<SyncProfile> = serde_json::from_value(
+                    body.get("profiles")
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Array(vec![])),
+                )
+                .map_err(|e| {
+                    ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                })?;
+                Ok(profiles)
+            }
+            status => {
+                let body = response.text().await.unwrap_or_default();
+                Err(ClientError::Http { status, body })
+            }
+        }
+    }
+
+    pub async fn create_sync_profile(
+        &self,
+        name: &str,
+        rules: Vec<SyncRule>,
+        path_prefix: Option<&str>,
+    ) -> Result<SyncProfile, ClientError> {
+        let url = format!("{}/api/v1/sync/profiles", self.base_url);
+        let rules_json: Vec<serde_json::Value> = rules
+            .iter()
+            .map(|r| {
+                serde_json::json!({
+                    "pattern": r.pattern,
+                    "direction": match r.direction {
+                        ferro_selective_sync::profile::RuleDirection::Include => "include",
+                        ferro_selective_sync::profile::RuleDirection::Exclude => "exclude",
+                    },
+                })
+            })
+            .collect();
+        let mut body = serde_json::json!({
+            "name": name,
+            "rules": rules_json,
+        });
+        if let Some(prefix) = path_prefix {
+            body["path_prefix"] = serde_json::Value::String(prefix.to_string());
+        }
+
+        let response = self
+            .http
+            .post(&url)
+            .bearer_auth(&self.token)
+            .json(&body)
+            .send()
+            .await?;
+
+        match response.status().as_u16() {
+            201 => {
+                let resp_body: serde_json::Value =
+                    response.json().await.map_err(ClientError::Network)?;
+                let profile: SyncProfile =
+                    serde_json::from_value(resp_body.get("profile").cloned().unwrap_or_default())
+                        .map_err(|e| {
+                        ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                    })?;
+                Ok(profile)
+            }
+            status => {
+                let body = response.text().await.unwrap_or_default();
+                Err(ClientError::Http { status, body })
+            }
+        }
+    }
+
+    pub async fn update_sync_profile(
+        &self,
+        id: &str,
+        name: Option<&str>,
+        rules: Option<Vec<SyncRule>>,
+        enabled: Option<bool>,
+    ) -> Result<SyncProfile, ClientError> {
+        let url = format!("{}/api/v1/sync/profiles/{}", self.base_url, id);
+        let mut body = serde_json::json!({});
+        if let Some(n) = name {
+            body["name"] = serde_json::Value::String(n.to_string());
+        }
+        if let Some(r) = rules {
+            let rules_json: Vec<serde_json::Value> = r
+                .iter()
+                .map(|rule| {
+                    serde_json::json!({
+                        "pattern": rule.pattern,
+                        "direction": match rule.direction {
+                            ferro_selective_sync::profile::RuleDirection::Include => "include",
+                            ferro_selective_sync::profile::RuleDirection::Exclude => "exclude",
+                        },
+                    })
+                })
+                .collect();
+            body["rules"] = serde_json::Value::Array(rules_json);
+        }
+        if let Some(e) = enabled {
+            body["enabled"] = serde_json::Value::Bool(e);
+        }
+
+        let response = self
+            .http
+            .put(&url)
+            .bearer_auth(&self.token)
+            .json(&body)
+            .send()
+            .await?;
+
+        match response.status().as_u16() {
+            200 => {
+                let resp_body: serde_json::Value =
+                    response.json().await.map_err(ClientError::Network)?;
+                let profile: SyncProfile =
+                    serde_json::from_value(resp_body.get("profile").cloned().unwrap_or_default())
+                        .map_err(|e| {
+                        ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                    })?;
+                Ok(profile)
+            }
+            status => {
+                let body = response.text().await.unwrap_or_default();
+                Err(ClientError::Http { status, body })
+            }
+        }
+    }
+
+    pub async fn delete_sync_profile(&self, id: &str) -> Result<(), ClientError> {
+        let url = format!("{}/api/v1/sync/profiles/{}", self.base_url, id);
+        let response = self
+            .http
+            .delete(&url)
+            .bearer_auth(&self.token)
+            .send()
+            .await?;
+
+        match response.status().as_u16() {
+            200 => Ok(()),
+            404 => Err(ClientError::NotFound(url)),
+            status => {
+                let body = response.text().await.unwrap_or_default();
+                Err(ClientError::Http { status, body })
+            }
+        }
+    }
+
+    pub async fn filter_preview(
+        &self,
+        rules: Vec<SyncRule>,
+        paths: Vec<String>,
+    ) -> Result<FilterPreviewRequest, ClientError> {
+        let url = format!("{}/api/v1/sync/filter-preview", self.base_url);
+        let rules_json: Vec<serde_json::Value> = rules
+            .iter()
+            .map(|r| {
+                serde_json::json!({
+                    "pattern": r.pattern,
+                    "direction": match r.direction {
+                        ferro_selective_sync::profile::RuleDirection::Include => "include",
+                        ferro_selective_sync::profile::RuleDirection::Exclude => "exclude",
+                    },
+                })
+            })
+            .collect();
+        let body = serde_json::json!({
+            "rules": rules_json,
+            "paths": paths,
+        });
+
+        let response = self
+            .http
+            .post(&url)
+            .bearer_auth(&self.token)
+            .json(&body)
+            .send()
+            .await?;
+
+        match response.status().as_u16() {
+            200 => {
+                let resp_body: FilterPreviewRequest =
+                    response.json().await.map_err(ClientError::Network)?;
+                Ok(resp_body)
+            }
+            status => {
+                let body = response.text().await.unwrap_or_default();
+                Err(ClientError::Http { status, body })
+            }
         }
     }
 

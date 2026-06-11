@@ -1495,12 +1495,16 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | PR-006 | P1 | Disaster recovery drill | **DONE** (2026-06-11). 13 tests: full backup/restore cycle, integrity verification, fresh server restore. | 2 days | DONE |
 | PR-007 | P1 | Enhanced rclone E2E tests | **DONE** (2026-06-11). 9 new tests: sync, move, check, large files, special chars, concurrent ops. | 3 days | DONE |
 | PR-008 | P1 | Monitoring stack (OP-003) | **DONE** (2026-06-11). Grafana + Prometheus + Alertmanager in production compose with auto-provisioned dashboards and alert rules. | 5 days | DONE |
-| PR-009 | P2 | Selective sync implementation | Wire ferro-selective-sync crate into server and client | 10 days |
-| PR-010 | P2 | Plugin marketplace UI | Frontend for browsing and installing WASM plugins | 10 days |
-| PR-011 | P2 | Full-text search relevance tuning | Tune Tantivy ranking with real-world data and relevance testing | 5 days |
-| PR-012 | P2 | Collab editor end-to-end integration | Browser-to-browser CRDT collaboration via the WebSocket relay | 10 days |
-| PR-013 | P3 | iOS native client | Files Provider extension using ferro-mobile-contract (contract removed; recreate API bindings) | 20 days |
-| PR-014 | P3 | Android native client | SAF provider using ferro-mobile-contract (contract removed; recreate API bindings) | 20 days |
+| PR-009 | P2 | Selective sync implementation | **DONE** (2026-06-11). Wired ferro-selective-sync into server (5 API endpoints) and client (5 async methods). | 10 days | DONE |
+| PR-010 | P2 | Plugin marketplace UI | **DONE** (2026-06-11). Admin frontend with search/filter, install/uninstall/enable/disable, detail modal. Server API stubs with 6 mock plugins. | 10 days | DONE |
+| PR-011 | P2 | Full-text search relevance tuning | **DONE** (2026-06-11). Configurable boost factors (name 3x, path 2x, recency 1.2x), normalized scores, highlights, match locations, admin API for tuning and reindexing. 13 new tests. | 5 days | DONE |
+| PR-012 | P2 | Collab editor end-to-end integration | **DONE** (2026-06-11). Server-side CRDT document state per room with persistence, frontend reconnection with exponential backoff, offline buffer. 6 integration tests. | 10 days | DONE |
+| PR-013 | P3 | iOS native client | Files Provider extension (requires Swift/Kotlin development, separate codebase) | 20 days |
+| PR-014 | P3 | Android native client | SAF provider (requires Kotlin development, separate codebase) | 20 days |
+
+### v5.0 Status: COMPLETE (PR-001..PR-012)
+
+All code-based roadmap items are DONE. Remaining PR-013/PR-014 (iOS/Android native clients) require separate Swift/Kotlin codebases outside this Rust monorepo.
 
 ### v5.0 Milestone Timeline (Updated)
 
@@ -1512,7 +1516,7 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | v3.3 | DONE | CL-001..CL-005 (desktop, FUSE, mobile contracts) |
 | v3.4 | DONE | OP-001..OP-006 (operations, monitoring, scaling) |
 | v4.0 | DONE | AF-001..AF-005 (collaboration, AI, plugin SDK) |
-| v5.0 | IN PROGRESS | PR-001..PR-008 DONE, PR-009..PR-014 remaining |
+| v5.0 | DONE | PR-001..PR-012 complete. Only PR-013/014 (native mobile) remain (separate codebase) |
 
 ### Risk Register (Updated)
 

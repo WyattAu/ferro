@@ -18,14 +18,18 @@ pub async fn handle_search(
     let limit = params.limit.unwrap_or(50).min(100);
     let offset = params.offset.unwrap_or(0);
 
-    // Collect text search results
+    let ranking_config = {
+        let cfg = state.search_ranking_config.read().await;
+        cfg.clone()
+    };
+
     let mut text_results: Vec<serde_json::Value> = Vec::new();
     let mut search_configured = false;
 
     if let Some(ref search_lock) = state.search {
         search_configured = true;
         let engine = search_lock.read().await;
-        match engine.search(&params.q, limit + offset) {
+        match engine.search_with_config(&params.q, limit + offset, &ranking_config) {
             Ok(results) => {
                 text_results = results
                     .into_iter()
@@ -36,8 +40,15 @@ pub async fn handle_search(
                         serde_json::json!({
                             "path": r.path,
                             "name": name,
-                            "score": r.score,
+                            "score": r.normalized_score,
+                            "raw_score": r.score,
                             "snippet": r.snippet,
+                            "highlights": r.highlights,
+                            "match_locations": r.match_locations.to_vec().iter().map(|l| match l {
+                                ferro_core::search::MatchLocation::Name => "name",
+                                ferro_core::search::MatchLocation::Path => "path",
+                                ferro_core::search::MatchLocation::Content => "content",
+                            }).collect::<Vec<_>>(),
                             "source": "text",
                         })
                     })
@@ -49,7 +60,6 @@ pub async fn handle_search(
         }
     }
 
-    // Run semantic search if AI bridge is available
     let mut semantic_used = false;
     let mut semantic_results: Vec<serde_json::Value> = Vec::new();
 
@@ -79,7 +89,6 @@ pub async fn handle_search(
         }
     }
 
-    // Merge results: boost documents appearing in both text and semantic results
     let mut merged: Vec<serde_json::Value> = if semantic_used && !semantic_results.is_empty() {
         let mut score_map: std::collections::HashMap<String, serde_json::Value> =
             std::collections::HashMap::new();
@@ -115,7 +124,6 @@ pub async fn handle_search(
         text_results
     };
 
-    // Apply post-search filters
     if let Some(ref sort) = params.sort {
         match sort.as_str() {
             "name" => {
@@ -162,6 +170,15 @@ pub async fn handle_search(
         "size_max": params.size_max,
     });
 
+    let ranking_info = serde_json::json!({
+        "file_name_boost": ranking_config.file_name_boost,
+        "path_boost": ranking_config.path_boost,
+        "content_boost": ranking_config.content_boost,
+        "recent_file_boost": ranking_config.recent_file_boost,
+        "recent_file_threshold_days": ranking_config.recent_file_threshold_days,
+        "document_type_boost": ranking_config.document_type_boost,
+    });
+
     let body = serde_json::json!({
         "query": params.q,
         "results": paginated,
@@ -170,6 +187,7 @@ pub async fn handle_search(
         "offset": offset,
         "filters_applied": filters_applied,
         "semantic_search": semantic_used,
+        "ranking": ranking_info,
     });
 
     if !search_configured && !semantic_used {
@@ -186,6 +204,66 @@ pub async fn handle_search(
         (StatusCode::OK, axum::Json(body)).into_response()
     } else {
         (StatusCode::OK, axum::Json(body)).into_response()
+    }
+}
+
+pub async fn handle_get_search_config(State(state): State<AppState>) -> Response {
+    let config = state.search_ranking_config.read().await;
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::to_value(&*config).unwrap_or_default()),
+    )
+        .into_response()
+}
+
+pub async fn handle_update_search_config(
+    State(state): State<AppState>,
+    axum::Json(body): axum::Json<serde_json::Value>,
+) -> Response {
+    let mut config = state.search_ranking_config.write().await;
+    if let Some(v) = body.get("file_name_boost").and_then(|v| v.as_f64()) {
+        config.file_name_boost = v;
+    }
+    if let Some(v) = body.get("path_boost").and_then(|v| v.as_f64()) {
+        config.path_boost = v;
+    }
+    if let Some(v) = body.get("content_boost").and_then(|v| v.as_f64()) {
+        config.content_boost = v;
+    }
+    if let Some(v) = body.get("recent_file_boost").and_then(|v| v.as_f64()) {
+        config.recent_file_boost = v;
+    }
+    if let Some(v) = body
+        .get("recent_file_threshold_days")
+        .and_then(|v| v.as_u64())
+    {
+        config.recent_file_threshold_days = v;
+    }
+    if let Some(v) = body.get("document_type_boost").and_then(|v| v.as_f64()) {
+        config.document_type_boost = v;
+    }
+    let response = serde_json::to_value(&*config).unwrap_or_default();
+    (StatusCode::OK, axum::Json(response)).into_response()
+}
+
+pub async fn handle_reindex(State(state): State<AppState>) -> Response {
+    if let Some(ref search_lock) = state.search {
+        let mut engine = search_lock.write().await;
+        match engine.commit() {
+            Ok(()) => (
+                StatusCode::OK,
+                axum::Json(serde_json::json!({
+                    "reindexed": true,
+                    "message": "Search index committed and reader reloaded"
+                })),
+            )
+                .into_response(),
+            Err(e) => {
+                ApiError::internal(ApiError::INTERNAL_ERROR, format!("Reindex failed: {}", e))
+            }
+        }
+    } else {
+        ApiError::bad_request(ApiError::BAD_REQUEST, "Search engine not configured")
     }
 }
 

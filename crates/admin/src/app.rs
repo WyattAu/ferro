@@ -9,6 +9,7 @@ use crate::pages::dashboard::DashboardPage;
 use crate::pages::federation::FederationPage;
 use crate::pages::login::LoginPage;
 use crate::pages::monitoring::MonitoringPage;
+use crate::pages::plugin_marketplace::PluginMarketplacePage;
 use crate::pages::settings::SettingsPage;
 use crate::pages::storage::StoragePage;
 use crate::pages::users::UsersPage;
@@ -46,6 +47,7 @@ pub fn App() -> impl IntoView {
                                     <Route path=path!("/settings") view=move || view! { <SettingsPage api=api/> }/>
                                     <Route path=path!("/federation") view=move || view! { <FederationPage api=api/> }/>
                                     <Route path=path!("/webhooks") view=move || view! { <WebhooksPage api=api/> }/>
+                                    <Route path=path!("/plugins") view=move || view! { <PluginMarketplacePage api=api/> }/>
                                     <Route path=path!("/audit") view=move || view! { <AuditPage api=api/> }/>
                                 </Routes>
                             </div>

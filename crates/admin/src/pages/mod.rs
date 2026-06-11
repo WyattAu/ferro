@@ -3,6 +3,7 @@ pub mod dashboard;
 pub mod federation;
 pub mod login;
 pub mod monitoring;
+pub mod plugin_marketplace;
 pub mod settings;
 pub mod storage;
 pub mod users;

@@ -246,7 +246,9 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
                         let ferro_tags = mapper::map_tags(&tags, &mapped_mappings);
                         progress.set_tag_total(ferro_tags.len() as u64);
                         for tag in &ferro_tags {
-                            if let Err(e) = ferro.apply_tags("/", std::slice::from_ref(&tag.name)).await {
+                            if let Err(e) =
+                                ferro.apply_tags("/", std::slice::from_ref(&tag.name)).await
+                            {
                                 tracing::warn!("Tag migration failed: {}", e);
                             } else {
                                 report.tags_migrated += 1;

@@ -94,11 +94,13 @@ ferro-offline = { path = "../offline" }
 ferro-server-security = { path = "../server-security" }
 ferro-server-automation = { path = "../server-automation" }
 ferro-sync-protocol = { path = "../sync-protocol" }
+ferro-selective-sync = { path = "../selective-sync" }
 
 [dev-dependencies]
 http-body-util = "0.1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tokio = { workspace = true }
+tokio-tungstenite = "0.24"
 criterion = { version = "0.8", features = ["async_tokio"] }
 proptest = "1"
 ferro-event-bus = { path = "../event-bus" }

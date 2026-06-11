@@ -32,6 +32,7 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
             "federation".into(),
         ),
         ("/webhooks".into(), "Webhooks".into(), "webhooks".into()),
+        ("/plugins".into(), "Plugins".into(), "plugins".into()),
         ("/audit".into(), "Audit Log".into(), "audit".into()),
     ];
 
@@ -112,6 +113,7 @@ fn svg_icon(name: &str) -> AnyView {
         "webhooks" => {
             "M18 5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM6 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM18 19a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM15.5 6.5L8.5 11M8.5 13l7 4.5"
         }
+        "plugins" => "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
         "audit" => "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M8 13h8M8 17h4",
         _ => "",
     };

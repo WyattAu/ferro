@@ -125,6 +125,7 @@ pub mod offline_wiring;
 pub mod openapi;
 #[cfg(feature = "pg")]
 pub mod pg_state;
+pub mod plugin_marketplace_api;
 pub mod plugin_permissions;
 pub mod policies;
 pub mod preferences;
@@ -146,6 +147,7 @@ pub mod retention;
 pub mod search;
 pub mod security;
 pub mod security_headers;
+pub mod selective_sync_api;
 pub mod shares;
 pub mod shares_ext;
 pub mod simple_auth;
@@ -196,6 +198,7 @@ use auth::api_keys::InMemoryApiKeyStore;
 use auth::cedar::CedarAuthorizer;
 use auth::oidc::OidcValidator;
 use ferro_core::search::SearchEngine;
+use ferro_core::search::SearchRankingConfig;
 use ferro_core::wasm::WasmWorkerRuntime;
 
 use audit::AuditLog;
@@ -205,6 +208,7 @@ use users::{InMemoryUserStore, UserStoreTrait};
 
 use db::DbHandle;
 use favorites::FavoriteStore;
+use ferro_selective_sync::persistence::ProfileStore as SelectiveSyncProfileStore;
 use search::PreferenceStore;
 use shares::ShareStoreTrait;
 use sync::ops::SyncStore;
@@ -216,6 +220,7 @@ pub struct AppState {
     pub oidc: Option<Arc<OidcValidator>>,
     pub cedar: Option<Arc<CedarAuthorizer>>,
     pub search: Option<Arc<tokio::sync::RwLock<SearchEngine>>>,
+    pub search_ranking_config: Arc<tokio::sync::RwLock<SearchRankingConfig>>,
     pub ai_search: Option<Arc<ai_search::AiSearchBridge>>,
     pub wasm_runtime: Option<Arc<WasmWorkerRuntime>>,
     pub workers_dir: Option<std::path::PathBuf>,
@@ -333,6 +338,8 @@ pub struct AppState {
     pub event_bus: Arc<ferro_event_bus::EventBus>,
     /// Structured health checker with configurable probes (from ferro-health crate).
     pub health_checker: Arc<ferro_health::HealthChecker>,
+    /// Selective sync profile store (SQLite-backed, optional).
+    pub selective_sync_store: Option<Arc<ferro_selective_sync::ProfileStore>>,
 }
 
 impl AppState {
@@ -343,6 +350,9 @@ impl AppState {
             oidc: None,
             cedar: None,
             search: None,
+            search_ranking_config: Arc::new(tokio::sync::RwLock::new(
+                SearchRankingConfig::default(),
+            )),
             ai_search: None,
             wasm_runtime: None,
             workers_dir: None,
@@ -444,6 +454,7 @@ impl AppState {
                 let _ = checker.register(Box::new(ferro_health::MemoryProbe::new(90.0)));
                 Arc::new(checker)
             },
+            selective_sync_store: None,
         }
     }
 
@@ -655,6 +666,26 @@ impl AppState {
         }
         self.remote_mounts = Arc::new(remote_mounts);
 
+        let selective_sync_path = match &self.data_dir {
+            Some(dir) => format!("{}/selective_sync.db", dir),
+            None => ":memory:".to_string(),
+        };
+        let selective_sync_conn = match rusqlite::Connection::open(&selective_sync_path) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(error = %e, "failed to open selective sync database");
+                return self;
+            }
+        };
+        match SelectiveSyncProfileStore::new(selective_sync_conn) {
+            Ok(store) => {
+                self.selective_sync_store = Some(Arc::new(store));
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "failed to initialize selective sync store");
+            }
+        }
+
         self
     }
 
@@ -736,6 +767,11 @@ impl AppState {
         self.offline_cache = Arc::new(tokio::sync::RwLock::new(
             ferro_offline::cache::ContentCache::new(max_size),
         ));
+        self
+    }
+
+    pub fn with_selective_sync_store(mut self, store: Arc<SelectiveSyncProfileStore>) -> Self {
+        self.selective_sync_store = Some(store);
         self
     }
 
@@ -1000,6 +1036,26 @@ fn api_routes(
         .route(
             "/plugins",
             axum::routing::get(plugin_permissions::list_plugins),
+        )
+        .route(
+            "/admin/plugins/marketplace",
+            axum::routing::get(plugin_marketplace_api::list_marketplace_plugins),
+        )
+        .route(
+            "/admin/plugins/{id}/install",
+            axum::routing::post(plugin_marketplace_api::install_plugin),
+        )
+        .route(
+            "/admin/plugins/{id}/uninstall",
+            axum::routing::post(plugin_marketplace_api::uninstall_plugin),
+        )
+        .route(
+            "/admin/plugins/{id}/enable",
+            axum::routing::post(plugin_marketplace_api::enable_plugin),
+        )
+        .route(
+            "/admin/plugins/{id}/disable",
+            axum::routing::post(plugin_marketplace_api::disable_plugin),
         )
         .route(
             "/policies",
@@ -1283,6 +1339,15 @@ fn api_routes(
             "/admin/tenants/{id}/rate-limit/status",
             axum::routing::get(tenant_rate_limit_api::get_tenant_rate_limit_status),
         )
+        .route(
+            "/admin/search/config",
+            axum::routing::get(search::handle_get_search_config)
+                .put(search::handle_update_search_config),
+        )
+        .route(
+            "/admin/search/reindex",
+            axum::routing::post(search::handle_reindex),
+        )
         // Extended shares (G-24, G-25)
         .route(
             "/shares/ext",
@@ -1344,11 +1409,22 @@ fn api_routes(
             "/sync/blocks/{hash}",
             axum::routing::get(sync::blocks::get_block),
         )
-        .route("/ws", axum::routing::get(ws::ws_handler))
+        // Selective sync profiles
         .route(
-            "/ws/collab/{document_id}",
-            axum::routing::get(collab_ws::collab_ws_handler),
+            "/sync/profiles",
+            axum::routing::get(selective_sync_api::list_profiles)
+                .post(selective_sync_api::create_profile),
         )
+        .route(
+            "/sync/profiles/{id}",
+            axum::routing::put(selective_sync_api::update_profile)
+                .delete(selective_sync_api::delete_profile),
+        )
+        .route(
+            "/sync/filter-preview",
+            axum::routing::post(selective_sync_api::filter_preview),
+        )
+        .route("/ws", axum::routing::get(ws::ws_handler))
         .route("/upload/init", axum::routing::post(upload::init_upload))
         .route(
             "/upload/:upload_id/chunk/:chunk_index",
@@ -1711,6 +1787,10 @@ pub fn build_router_with_static(
         .nest(
             "/api",
             api_routes(&state, state.webrtc_offers.clone()).layer(deprecation_layer),
+        )
+        .route(
+            "/ws/collab/:document_id",
+            axum::routing::get(collab_ws::collab_ws_handler),
         )
         // CalDAV and CardDAV routes (registered before /*path catch-all)
         .route("/dav/cal", axum::routing::options(dav::caldav_options))

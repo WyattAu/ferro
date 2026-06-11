@@ -17,7 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `crates/server/tests/webdav_litmus.rs`: WebDAV RFC 4918 compliance test suite (22 tests across Class 1/2/3).
 - `crates/server/tests/multi_user.rs`: Multi-user scenario tests (24 tests) covering sharing, concurrent edits, permission enforcement, stress testing.
 - `crates/server/tests/disaster_recovery.rs`: Backup/restore disaster recovery drill (13 tests) with full cycle verification.
+- `crates/server/tests/collab_integration.rs`: CRDT collab E2E tests (6 tests) covering two-client relay, concurrent convergence, state persistence.
 - Enhanced `rclone_e2e.rs` with 9 new tests: sync, move, check, large files, special characters, concurrent operations.
+- Selective sync wired into server: 5 API endpoints (GET/POST/PUT/DELETE /sync/profiles, POST /sync/filter-preview) and client methods.
+- Plugin marketplace admin frontend: Leptos 0.8 component with search/filter, install/uninstall/enable/disable, detail modal. Server API stubs with mock plugins.
+- Search relevance tuning: configurable boost factors (file name 3x, path 2x, recency 1.2x), normalized 0-100 scores, highlights, match locations, admin API for tuning and reindexing.
+- Collab editor E2E: server-side CRDT document state per room, periodic persistence, frontend reconnection with exponential backoff, offline buffer.
 
 ### Added (Cycle 12.2 - Server Decomposition)
 - `ferro-server-webdav` crate: WebDAV handler, locking, MOVE/COPY, range GET extracted from server (14 tests).
