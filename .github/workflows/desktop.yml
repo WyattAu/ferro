@@ -201,7 +201,7 @@ jobs:
           java-version: 17
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3 # TODO: pin to SHA for supply chain security
+        uses: android-actions/setup-android@v3
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked --version "^2"

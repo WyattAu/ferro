@@ -383,30 +383,100 @@ See [deploy/README-ecosystem.md](deploy/README-ecosystem.md) for all deployment 
 
 ## Architecture
 
-Ferro is built as a Rust workspace with 41 crates:
+Ferro is built as a Rust workspace with 43 crates:
+
+**Core**
 
 | Crate | Description |
 |-------|-------------|
 | `ferro-common` | Shared types, StorageEngine trait, error handling |
 | `ferro-core` | Storage backends, search engine, WASM runtime, CAS dedup |
-| `ferro-server` | Axum web server, WebDAV, REST API, admin endpoints |
-| `ferro-dav` | WebDAV protocol implementation (RFC 4918) |
-| `ferro-webdav-handler` | WebDAV XML request/response parsing |
-| `ferro-auth` | Authentication (OIDC, simple auth) and Cedar authorization |
 | `ferro-crypto` | Cryptographic primitives (SHA, HMAC, password hashing) |
-| `ferro-observability` | Metrics, health checks, Prometheus export |
-| `ferro-web` | Leptos WASM web frontend |
-| `ferro-cli` | Admin CLI tool |
-| `ferro-desktop` | Tauri desktop application |
-| `ferro-fuse` | FUSE filesystem mount |
-| `ferro-client` | Rust client SDK with C-FFI |
-| `ferro-admin` | Admin dashboard (Leptos) |
-| `ferro-graphql` | GraphQL API layer |
-| `ferro-server-versioning` | File versioning and auto-versioning |
+| `ferro-auth` | Authentication (OIDC, simple auth) and Cedar authorization |
+| `ferro-dav` | WebDAV protocol implementation (RFC 4918) |
+
+**Server**
+
+| Crate | Description |
+|-------|-------------|
+| `ferro-server` | Axum web server, WebDAV, REST API, admin endpoints |
 | `ferro-server-activitypub` | ActivityPub federation |
 | `ferro-server-webrtc` | WebRTC signaling |
 | `ferro-server-wopi` | WOPI protocol (Office Online) |
+| `ferro-server-versioning` | File versioning and auto-versioning |
+
+**Server Sub-crates**
+
+| Crate | Description |
+|-------|-------------|
+| `ferro-server-admin` | Server-side admin API handlers |
+| `ferro-server-automation` | Server automation and workflow engine |
+| `ferro-server-security` | Server security policies and enforcement |
+| `ferro-server-sharing` | File and folder sharing logic |
+| `ferro-server-webdav` | Server-side WebDAV handler integration |
+
+**Web & Admin**
+
+| Crate | Description |
+|-------|-------------|
+| `ferro-web` | Leptos WASM web frontend |
+| `ferro-admin` | Admin dashboard (Leptos) |
+
+**Desktop & Mobile**
+
+| Crate | Description |
+|-------|-------------|
+| `ferro-desktop` | Tauri desktop application |
+| `ferro-client` | Rust client SDK with C-FFI |
+| `ferro-fuse` | FUSE filesystem mount |
+| `ferro-mount-nfs` | NFS mount support |
+
+**Sync & Collab**
+
+| Crate | Description |
+|-------|-------------|
+| `ferro-crdt` | CRDT-based collaborative data structures |
+| `ferro-sync-protocol` | Sync protocol for multi-node replication |
+| `ferro-offline` | Offline-first sync and local queue |
+| `ferro-selective-sync` | Selective file sync policies |
+
+**Infrastructure**
+
+| Crate | Description |
+|-------|-------------|
+| `ferro-observability` | Metrics, health checks, Prometheus export |
+| `ferro-event-bus` | Internal event bus for decoupled messaging |
+| `ferro-rate-limiter` | Per-IP token-bucket rate limiting |
+| `ferro-cache` | Caching layer for metadata and content |
+| `ferro-health` | Health check and readiness probes |
+| `ferro-audit-log` | Audit logging for file operations |
+| `ferro-webhook` | Outgoing webhook delivery |
+| `ferro-backend-router` | Storage backend routing and selection |
+| `ferro-consistent-hash` | Consistent hashing for distributed nodes |
+| `ferro-wasm-host` | WASM runtime host for file processing |
+
+**AI & Graph**
+
+| Crate | Description |
+|-------|-------------|
+| `ferro-ai` | AI integration and smart features |
+| `ferro-graphql` | GraphQL API layer |
+
+**Distributed**
+
+| Crate | Description |
+|-------|-------------|
+| `ferro-distributed` | Distributed storage and consensus |
+| `ferro-multi-tenant` | Multi-tenant isolation and management |
+
+**Tools**
+
+| Crate | Description |
+|-------|-------------|
+| `ferro-cli` | Admin CLI tool |
 | `ferro-benchmarks` | Criterion benchmark suite |
+| `ferro-migrate` | Data migration utilities |
+| `ferro-webdav-handler` | WebDAV XML request/response parsing |
 
 ## Documentation
 
