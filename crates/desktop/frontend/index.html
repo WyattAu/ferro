@@ -27,6 +27,8 @@
             --danger: #cc3333;
             --danger-hover: #b52a2a;
             --success: #1a8c1a;
+            --surface: #f6f6f6;
+            --text-primary: #1a1a1a;
             --toolbar-h: 44px;
             --status-h: 28px;
             --sidebar-w: 200px;
@@ -52,6 +54,8 @@
                 --danger: #f44747;
                 --danger-hover: #ff6b6b;
                 --success: #89d185;
+                --surface: #252526;
+                --text-primary: #cccccc;
             }
         }
 
@@ -403,6 +407,56 @@
             transition: transform 0.2s ease;
         }
 
+        /* === View Panels (Settings, Recent, Favorites) === */
+        .view-panel {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--bg);
+        }
+        .view-panel.hidden { display: none; }
+        .view-panel-content {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px 16px;
+        }
+        .view-panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .view-panel .form-group { margin-bottom: 14px; }
+        .view-panel .form-group label {
+            display: block; font-size: 12px; font-weight: 500;
+            color: var(--text-secondary); margin-bottom: 4px;
+        }
+        .view-panel .form-group input,
+        .view-panel .form-group select {
+            width: 100%; padding: 6px 10px;
+            border: 1px solid var(--border); border-radius: var(--radius);
+            background: var(--bg); color: var(--text); font-size: 13px;
+        }
+        .view-panel .form-group input[type="range"] {
+            padding: 0; border: none; background: none;
+        }
+        .view-panel .dialog-actions {
+            display: flex; gap: 8px; margin-top: 20px;
+        }
+        .view-panel .file-list .file-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .view-panel .empty-state {
+            color: var(--text-tertiary); font-size: 13px;
+            padding: 20px 0; text-align: center;
+        }
+        .fav-remove {
+            margin-left: auto; padding: 4px 8px; color: var(--danger);
+            cursor: pointer; font-size: 12px;
+        }
+        .fav-remove:hover { background: var(--bg-hover); border-radius: var(--radius); }
+
         /* === Pull to Refresh Indicator === */
         .pull-indicator {
             position: absolute; top: -40px; left: 50%;
@@ -531,8 +585,60 @@
                     </button>
                     <div class="path-bar">
                         <div id="breadcrumbs" class="breadcrumbs"></div>
+                </div>
+
+                <!-- Settings View -->
+                <div id="settings-view" class="view-panel hidden">
+                    <div class="view-panel-content">
+                        <h3 class="view-panel-title">Settings</h3>
+                        <div class="form-group">
+                            <label>Server URL</label>
+                            <input type="text" id="settings-server-url" placeholder="http://localhost:8080" spellcheck="false">
+                        </div>
+                        <div class="form-group">
+                            <label>Auth Token</label>
+                            <input type="password" id="settings-auth-token" placeholder="Bearer token">
+                        </div>
+                        <div class="form-group">
+                            <label>Mount Point</label>
+                            <input type="text" id="settings-mount-point" placeholder="/mnt/ferro" spellcheck="false">
+                        </div>
+                        <div class="form-group">
+                            <label>Sync Interval (seconds)</label>
+                            <input type="range" id="settings-sync-interval" min="0" max="3600" step="30" value="0">
+                            <span id="settings-sync-interval-label">0 (disabled)</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Theme</label>
+                            <select id="settings-theme">
+                                <option value="system">System</option>
+                                <option value="light">Light</option>
+                                <option value="dark">Dark</option>
+                            </select>
+                        </div>
+                        <div class="dialog-actions">
+                            <button id="settings-save" class="btn btn-primary">Save</button>
+                            <button id="settings-disconnect" class="btn btn-danger">Disconnect</button>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Recent Files View -->
+                <div id="recent-view" class="view-panel hidden">
+                    <div class="view-panel-content">
+                        <h3 class="view-panel-title">Recent Files</h3>
+                        <div id="recent-file-list" class="file-list"></div>
+                    </div>
+                </div>
+
+                <!-- Favorites View -->
+                <div id="favorites-view" class="view-panel hidden">
+                    <div class="view-panel-content">
+                        <h3 class="view-panel-title">Favorites</h3>
+                        <div id="favorites-list" class="file-list"></div>
+                    </div>
+                </div>
+            </div>
                 <div class="toolbar-group">
                     <button class="toolbar-btn" id="btn-upload" title="Upload Files">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -597,6 +703,8 @@
             <div class="context-item" data-action="rename">Rename</div>
             <div class="context-sep"></div>
             <div class="context-item danger" data-action="delete">Delete</div>
+            <div class="context-sep"></div>
+            <div class="context-item" data-action="favorite">Add to Favorites</div>
         </div>
 
         <!-- Mobile Navigation -->
@@ -627,7 +735,7 @@
             console.log('[ferro] __TAURI__ exists:', typeof window.__TAURI__ !== 'undefined');
             console.log('[ferro] __TAURI_INTERNALS__ exists:', typeof window.__TAURI_INTERNALS__ !== 'undefined');
             if (typeof window.__TAURI__ !== 'undefined') {
-                console.log('[fero] __TAURI__ keys:', Object.keys(window.__TAURI__));
+                console.log('[ferro] __TAURI__ keys:', Object.keys(window.__TAURI__));
                 console.log('[ferro] __TAURI__.core keys:', Object.keys(window.__TAURI__.core || {}));
             }
             console.log('[ferro] DOMContentLoaded fired');
@@ -801,21 +909,33 @@
 
         async function loadTree() {
             try {
-                const json = await invoke('list_directory', { url: serverUrl, token: authToken, path: '/', depth: 'infinity' });
-                const allEntries = JSON.parse(json);
+                const json = await invoke('list_directory', { url: serverUrl, token: authToken, path: '/', depth: '1' });
+                const entries = JSON.parse(json);
                 treeData = {};
-                for (const entry of allEntries) {
+                for (const entry of entries) {
                     if (!entry.isDir) continue;
                     const p = entry.path.replace(/\/$/, '');
-                    const parent = parentPath(p);
-                    if (!treeData[parent]) treeData[parent] = [];
-                    treeData[parent].push(entry);
+                    if (!treeData['/']) treeData['/'] = [];
+                    treeData['/'].push(entry);
                 }
-                for (const key in treeData) {
-                    treeData[key].sort((a, b) => a.name.localeCompare(b.name));
+                if (treeData['/']) {
+                    treeData['/'].sort((a, b) => a.name.localeCompare(b.name));
                 }
                 renderTree();
             } catch { /* tree loading is best-effort */ }
+        }
+
+        async function loadTreeLevel(dirPath) {
+            const normalizedPath = dirPath.replace(/\/$/, '');
+            if (treeData[normalizedPath] && treeData[normalizedPath].length > 0) return;
+            try {
+                const json = await invoke('list_directory', { url: serverUrl, token: authToken, path: normalizedPath || '/', depth: '1' });
+                const entries = JSON.parse(json);
+                const dirs = entries.filter(e => e.isDir);
+                dirs.sort((a, b) => a.name.localeCompare(b.name));
+                treeData[normalizedPath] = dirs;
+                renderTree();
+            } catch { /* lazy load is best-effort */ }
         }
 
         function goBack() {
@@ -1100,9 +1220,11 @@
             const path = item.dataset.path;
             const p = path.replace(/\/$/, '');
 
-            /* Toggle expand if it has children */
-            if (treeData[p] && treeData[p].length > 0) {
-                if (expandedPaths.has(p)) { expandedPaths.delete(p); } else { expandedPaths.add(p); }
+            if (expandedPaths.has(p)) {
+                expandedPaths.delete(p);
+            } else {
+                expandedPaths.add(p);
+                loadTreeLevel(p);
             }
             navigate(p);
         });
@@ -1136,6 +1258,8 @@
                 showRenameDialog(contextTarget);
             } else if (action === 'delete') {
                 showDeleteConfirm(contextTarget);
+            } else if (action === 'favorite') {
+                if (contextTarget) addFavorite(contextTarget.path, contextTarget.name);
             }
             contextMenu.classList.add('hidden');
         });
@@ -1309,23 +1433,31 @@
                 connectError.textContent = `Auto-connect failed: ${err}`;
             }
 
-            // Priority 2: saved localStorage (no test_connection -- best-effort)
+            // Priority 2: saved localStorage (validate connection before navigating)
             if (!autoConnected) {
                 const saved = localStorage.getItem('ferro_connection');
                 if (saved) {
                     try {
                         const conn = JSON.parse(saved);
                         if (conn.url) {
-                            debugLog_add('info', `Restoring saved connection to ${conn.url}`);
+                            debugLog_add('info', `Validating saved connection to ${conn.url}`);
                             connectUrl.value = conn.url || '';
                             connectToken.value = conn.token || '';
-                            serverUrl = conn.url;
-                            authToken = conn.token || '';
-                            mainEl.classList.remove('hidden');
-                            connectOverlay.classList.add('hidden');
-                            await navigate('/');
-                            await loadTree();
-                            updateConnectionStatus(true);
+                            try {
+                                const info = await debugInvoke('test_connection', { url: conn.url, token: conn.token || '' });
+                                serverUrl = conn.url;
+                                authToken = conn.token || '';
+                                mainEl.classList.remove('hidden');
+                                connectOverlay.classList.add('hidden');
+                                await navigate('/');
+                                await loadTree();
+                                updateConnectionStatus(true, info.serverName);
+                                autoConnected = true;
+                                debugLog_add('info', 'Restored saved connection successfully');
+                            } catch (e) {
+                                debugLog_add('warn', `Saved connection invalid: ${e}`);
+                                localStorage.removeItem('ferro_connection');
+                            }
                         }
                     } catch { /* ignore parse errors */ }
                 }
@@ -1392,6 +1524,25 @@
 
         /* === Mobile Navigation === */
         const mobileNav = $id('mobileNav');
+        const viewPanels = ['settings-view', 'recent-view', 'favorites-view'];
+        const fileListView = $id('file-list-container');
+
+        function showView(viewName) {
+            viewPanels.forEach(id => $id(id).classList.add('hidden'));
+            if (viewName === 'files') {
+                fileListView.classList.remove('hidden');
+            } else {
+                fileListView.classList.add('hidden');
+                const panel = $id(viewName + '-view');
+                if (panel) {
+                    panel.classList.remove('hidden');
+                    if (viewName === 'settings') loadSettings();
+                    if (viewName === 'recent') loadRecentFiles();
+                    if (viewName === 'favorites') loadFavorites();
+                }
+            }
+        }
+
         if (mobileNav) {
             mobileNav.addEventListener('click', e => {
                 const btn = e.target.closest('.nav-btn');
@@ -1399,7 +1550,155 @@
                 mobileNav.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 const view = btn.dataset.view;
-                if (view === 'files') { navigate('/'); }
+                showView(view);
+            });
+        }
+
+        /* === Settings View === */
+        async function loadSettings() {
+            try {
+                const config = await invoke('cmd_get_config');
+                $id('settings-server-url').value = config.serverUrl || '';
+                $id('settings-mount-point').value = config.mountPoint || '';
+                $id('settings-sync-interval').value = config.syncIntervalSecs || 0;
+                updateSyncIntervalLabel(config.syncIntervalSecs || 0);
+            } catch { /* best effort */ }
+            $id('settings-auth-token').value = authToken || '';
+            const savedTheme = localStorage.getItem('ferro_theme') || 'system';
+            $id('settings-theme').value = savedTheme;
+        }
+
+        function updateSyncIntervalLabel(val) {
+            const label = $id('settings-sync-interval-label');
+            if (val == 0) label.textContent = '0 (disabled)';
+            else label.textContent = val + ' seconds';
+        }
+
+        $id('settings-sync-interval').addEventListener('input', e => {
+            updateSyncIntervalLabel(e.target.value);
+        });
+
+        $id('settings-save').addEventListener('click', async () => {
+            try {
+                await invoke('cmd_save_config', {
+                    request: {
+                        serverUrl: $id('settings-server-url').value || undefined,
+                        mountPoint: $id('settings-mount-point').value || undefined,
+                        syncIntervalSecs: parseInt($id('settings-sync-interval').value) || 0,
+                    }
+                });
+                localStorage.setItem('ferro_theme', $id('settings-theme').value);
+                applyTheme($id('settings-theme').value);
+                showError('Settings saved');
+            } catch (err) {
+                showError('Save failed: ' + err);
+            }
+        });
+
+        $id('settings-disconnect').addEventListener('click', disconnect);
+
+        $id('settings-theme').addEventListener('change', e => {
+            applyTheme(e.target.value);
+        });
+
+        function applyTheme(theme) {
+            const root = document.documentElement;
+            root.removeAttribute('data-theme');
+            if (theme === 'light') root.setAttribute('data-theme', 'light');
+            else if (theme === 'dark') root.setAttribute('data-theme', 'dark');
+        }
+
+        /* === Recent Files View === */
+        async function loadRecentFiles() {
+            const container = $id('recent-file-list');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            try {
+                const json = await invoke('list_directory', { url: serverUrl, token: authToken, path: '/', depth: '1' });
+                const entries = JSON.parse(json);
+                const files = entries
+                    .filter(e => !e.isDir)
+                    .sort((a, b) => {
+                        const da = new Date(a.modified || 0);
+                        const db = new Date(b.modified || 0);
+                        return db - da;
+                    })
+                    .slice(0, 50);
+                if (files.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No recent files</div>';
+                    return;
+                }
+                container.innerHTML = files.map(f => `
+                    <div class="file-entry" data-path="${escapeHtml(f.path)}" data-is-dir="false" data-name="${escapeHtml(f.name)}">
+                        <span class="file-icon">${ICO.file}</span>
+                        <span class="file-name">${escapeHtml(f.name)}</span>
+                        <span class="file-size">${formatSize(f.size)}</span>
+                        <span class="file-modified">${formatDate(f.modified)}</span>
+                    </div>
+                `).join('');
+                container.querySelectorAll('.file-entry').forEach(el => {
+                    el.addEventListener('click', () => {
+                        const parentDir = parentPath(el.dataset.path);
+                        mobileNav.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                        mobileNav.querySelector('[data-view="files"]').classList.add('active');
+                        showView('files');
+                        navigate(parentDir);
+                    });
+                });
+            } catch {
+                container.innerHTML = '<div class="empty-state">Failed to load recent files</div>';
+            }
+        }
+
+        /* === Favorites View === */
+        function getFavorites() {
+            try { return JSON.parse(localStorage.getItem('ferro_favorites') || '[]'); }
+            catch { return []; }
+        }
+
+        function saveFavorites(favs) {
+            localStorage.setItem('ferro_favorites', JSON.stringify(favs));
+        }
+
+        function addFavorite(path, name) {
+            const favs = getFavorites();
+            if (!favs.find(f => f.path === path)) {
+                favs.push({ path, name });
+                saveFavorites(favs);
+            }
+        }
+
+        function removeFavorite(path) {
+            const favs = getFavorites().filter(f => f.path !== path);
+            saveFavorites(favs);
+            loadFavorites();
+        }
+
+        function loadFavorites() {
+            const container = $id('favorites-list');
+            const favs = getFavorites();
+            if (favs.length === 0) {
+                container.innerHTML = '<div class="empty-state">No favorites yet. Right-click files to add favorites.</div>';
+                return;
+            }
+            container.innerHTML = favs.map(f => `
+                <div class="file-entry" data-path="${escapeHtml(f.path)}" data-name="${escapeHtml(f.name)}">
+                    <span class="file-icon">${ICO.folder}</span>
+                    <span class="file-name">${escapeHtml(f.name)}</span>
+                    <span class="fav-remove" data-path="${escapeHtml(f.path)}">Remove</span>
+                </div>
+            `).join('');
+            container.querySelectorAll('.file-entry').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('fav-remove')) {
+                        removeFavorite(e.target.dataset.path);
+                        return;
+                    }
+                    const parentDir = parentPath(el.dataset.path);
+                    mobileNav.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                    mobileNav.querySelector('[data-view="files"]').classList.add('active');
+                    showView('files');
+                    navigate(parentDir);
+                });
             });
         }
 

@@ -9,9 +9,9 @@
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
 - **Load Testing:** 1h soak test passed (18,828 requests, 0 failures, P50=6ms, P95=28ms, P99=52ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
-- **Mobile:** Tauri v2 iOS/Android ready (mobile.rs 442 lines, 12 mobile commands, responsive frontend)
+- **Mobile:** Tauri v2 iOS/Android: 12 mobile commands fully implemented (WebDAV sync, offline pinning, thumbnails, push notifications, connectivity monitoring, conflict resolution). Responsive frontend with touch gestures. Config persisted to disk.
 - **Status:** v5.0 complete. ALL roadmap items DONE (including mobile). 43 crates, 2500+ tests.
-- **Last Updated:** 2026-06-11 (Cycle 14: Tauri v2 mobile iOS/Android support, 12 mobile commands, responsive frontend, build scripts)
+- **Last Updated:** 2026-06-11 (Cycle 15: Full Tauri app implementation -- all stubs replaced, config persistence, real mobile commands, Settings/Recent/Favorites views, all platforms verified)
 
 ## Phase Progress
 | Phase | Status | Completion |

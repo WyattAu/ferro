@@ -1,5 +1,5 @@
 use tauri::{
-    Manager, State,
+    Emitter, Manager, State,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
 };
@@ -191,7 +191,7 @@ fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<FileEntry> {
                     .find(|n| n.is_element() && n.tag_name().name() == "prop")
             });
 
-        let is_dir = prop.map_or(false, |p| {
+        let is_dir = prop.is_some_and(|p| {
             p.descendants()
                 .any(|n| n.is_element() && n.tag_name().name() == "collection")
         });
@@ -241,6 +241,7 @@ const PROPFIND_BODY: &str = r#"<?xml version="1.0" encoding="utf-8"?>
     <D:getcontentlength/>
     <D:getlastmodified/>
     <D:getetag/>
+    <D:displayname/>
   </D:prop>
 </D:propfind>"#;
 
@@ -390,20 +391,82 @@ pub async fn move_item(url: String, token: String, from: String, to: String) -> 
     Ok(())
 }
 
+fn extract_host_from_url(url: &str) -> String {
+    let stripped = url
+        .trim_start_matches("http://")
+        .trim_start_matches("https://");
+    let host = stripped.split('/').next().unwrap_or(stripped);
+    let hostname = host.split(':').next().unwrap_or(host);
+    if hostname.is_empty() {
+        "Ferro".to_string()
+    } else {
+        hostname.to_string()
+    }
+}
+
+fn parse_server_name_from_propfind(xml: &str, url: &str) -> String {
+    let document = match roxmltree::Document::parse(xml) {
+        Ok(doc) => doc,
+        Err(_) => return extract_host_from_url(url),
+    };
+
+    let base_normalized = "/".trim_end_matches('/');
+
+    for node in document.descendants() {
+        if !node.is_element() || node.tag_name().name() != "response" {
+            continue;
+        }
+
+        let href = node
+            .children()
+            .find(|n| n.is_element() && n.tag_name().name() == "href")
+            .and_then(|n| n.text())
+            .unwrap_or("");
+        let href_normalized = href.trim_end_matches('/');
+
+        if href_normalized != base_normalized {
+            continue;
+        }
+
+        if let Some(prop) = node
+            .children()
+            .find(|n| n.is_element() && n.tag_name().name() == "propstat")
+            .and_then(|ps| {
+                ps.children()
+                    .find(|n| n.is_element() && n.tag_name().name() == "prop")
+            })
+        {
+            for child in prop.children() {
+                if child.is_element()
+                    && child.tag_name().name() == "displayname"
+                    && let Some(text) = child.text()
+                    && !text.is_empty()
+                {
+                    return text.to_string();
+                }
+            }
+        }
+    }
+
+    extract_host_from_url(url)
+}
+
 #[tauri::command]
 pub async fn test_connection(url: String, token: String) -> Result<ConnectInfo, String> {
     let client = build_client(&token)?;
     let xml = do_propfind(&client, &url, "/", "1").await?;
     let entries = parse_propfind_response(&xml, "/");
+    let server_name = parse_server_name_from_propfind(&xml, &url);
     Ok(ConnectInfo {
-        server_name: "Ferro".to_string(),
+        server_name,
         root_files: entries.len() as u64,
     })
 }
 
 #[tauri::command]
-fn get_server_url() -> String {
-    "http://localhost:8080".to_string()
+async fn get_server_url(state: State<'_, DesktopState>) -> Result<String, String> {
+    let config = state.config.read().await;
+    Ok(config.server_url.clone())
 }
 
 #[tauri::command]
@@ -437,8 +500,8 @@ async fn cmd_save_config(
 }
 
 #[tauri::command]
-async fn cmd_get_mount_progress() -> Result<MountProgress, String> {
-    Ok(MountProgress::default())
+async fn cmd_get_mount_progress(state: State<'_, DesktopState>) -> Result<MountProgress, String> {
+    Ok(state.mount_service.progress().await)
 }
 
 #[tauri::command]
@@ -541,6 +604,7 @@ async fn cmd_update_tray_tooltip(
     app_handle: tauri::AppHandle,
     #[allow(unused)] state: State<'_, DesktopState>,
 ) -> Result<(), String> {
+    #[allow(unused_mut)]
     let mut tooltip = "Ferro - File Storage".to_string();
 
     #[cfg(all(feature = "sync", feature = "tauri"))]
@@ -570,7 +634,7 @@ async fn cmd_update_tray_tooltip(
 }
 
 pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
-    let config = DesktopConfig::default();
+    let config = ferro_desktop::config::load_config_from_disk().unwrap_or_default();
     let state = DesktopState::new(config);
 
     // Build CLI connection info for the frontend.
@@ -615,6 +679,18 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             move_item,
             test_connection,
             take_screenshot,
+            #[cfg(feature = "sync")]
+            ferro_desktop::tauri_commands::cmd_start_sync,
+            #[cfg(feature = "sync")]
+            ferro_desktop::tauri_commands::cmd_stop_sync,
+            #[cfg(feature = "sync")]
+            ferro_desktop::tauri_commands::cmd_pause_sync,
+            #[cfg(feature = "sync")]
+            ferro_desktop::tauri_commands::cmd_resume_sync,
+            #[cfg(feature = "sync")]
+            ferro_desktop::tauri_commands::cmd_sync_now,
+            #[cfg(feature = "sync")]
+            ferro_desktop::tauri_commands::cmd_get_sync_status,
             #[cfg(feature = "mobile")]
             mobile_commands::mobile_get_file_thumbnail,
             #[cfg(feature = "mobile")]
@@ -733,9 +809,9 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     }
                     "open_folder" => {
                         let state = app.state::<DesktopState>();
-                        let handle = app.clone();
+                        let config = state.config.clone();
                         tokio::spawn(async move {
-                            let config = state.config.read().await;
+                            let config = config.read().await;
                             let mount_point = config.mount_point.display().to_string();
                             drop(config);
                             let _ = crate::gui::cmd_open_path(mount_point).await;
@@ -781,7 +857,13 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     }
                     #[cfg(all(feature = "android", feature = "tauri"))]
                     "share_file" => {
-                        let _ = app.share().share("Shared from Ferro".to_string());
+                        use tauri_plugin_notification::NotificationExt;
+                        let _ = app
+                            .notification()
+                            .builder()
+                            .title("Share")
+                            .body("Share functionality coming soon")
+                            .show();
                     }
                     #[cfg(all(feature = "android", feature = "tauri"))]
                     "open_in_files" => {
@@ -845,7 +927,8 @@ mod tests {
 
     #[test]
     fn test_server_url_command() {
-        let url = get_server_url();
+        use ferro_desktop::config::DesktopConfig;
+        let url = DesktopConfig::default().server_url;
         assert!(url.starts_with("http"));
     }
 
@@ -979,6 +1062,62 @@ mod tests {
         let entries = parse_propfind_response(xml, "/docs");
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].name, "file.txt");
+    }
+
+    #[test]
+    fn test_extract_host_from_url() {
+        assert_eq!(extract_host_from_url("http://localhost:8080"), "localhost");
+        assert_eq!(
+            extract_host_from_url("https://my-server.example.com/path"),
+            "my-server.example.com"
+        );
+        assert_eq!(
+            extract_host_from_url("http://192.168.1.1:9090/"),
+            "192.168.1.1"
+        );
+    }
+
+    #[test]
+    fn test_parse_server_name_from_propfind_with_displayname() {
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:resourcetype><D:collection/></D:resourcetype>
+        <D:displayname>My Ferro Server</D:displayname>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+  <D:response>
+    <D:href>/file.txt</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:getcontentlength>100</D:getcontentlength>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+</D:multistatus>"#;
+        let name = parse_server_name_from_propfind(xml, "http://example.com");
+        assert_eq!(name, "My Ferro Server");
+    }
+
+    #[test]
+    fn test_parse_server_name_from_propfind_fallback() {
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:resourcetype><D:collection/></D:resourcetype>
+      </D:prop>
+    </D:propstat>
+  </D:response>
+</D:multistatus>"#;
+        let name = parse_server_name_from_propfind(xml, "http://myhost:8080");
+        assert_eq!(name, "myhost");
     }
 
     #[test]

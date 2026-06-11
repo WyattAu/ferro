@@ -18,7 +18,7 @@ pub mod mobile;
 #[cfg(feature = "mobile")]
 pub mod mobile_commands;
 
-#[cfg(feature = "mobile")]
+#[cfg(all(feature = "mobile", not(feature = "tauri")))]
 mod mobile_app {
     use crate::commands::DesktopState;
     use crate::config::DesktopConfig;
@@ -73,7 +73,7 @@ mod mobile_app {
     }
 
     pub fn build_app() -> Result<(), Box<dyn std::error::Error>> {
-        let config = DesktopConfig::default();
+        let config = crate::config::load_config_from_disk().unwrap_or_default();
         let state = DesktopState::new(config);
         let cli_conn = CliConnection {
             server_url: None,
@@ -127,7 +127,7 @@ mod mobile_app {
     }
 }
 
-#[cfg(feature = "mobile")]
+#[cfg(all(feature = "mobile", not(feature = "tauri")))]
 pub fn run_mobile() {
     tracing_subscriber::fmt()
         .with_env_filter(

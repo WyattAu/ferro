@@ -77,7 +77,8 @@ uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
-walkdir = { version = "2", optional = true }
+ walkdir = { version = "2", optional = true }
+dirs = "5"
 sha2 = { version = "0.10", optional = true }
 hex = { version = "0.4", optional = true }
 base64 = { version = "0.22", optional = true }

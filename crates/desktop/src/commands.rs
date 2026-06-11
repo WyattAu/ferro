@@ -162,6 +162,7 @@ impl DesktopState {
         if let Some(si) = request.sync_interval_secs {
             config.sync_interval_secs = si;
         }
+        crate::config::save_config_to_disk(&config)?;
         Ok(())
     }
 

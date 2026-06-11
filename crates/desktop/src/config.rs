@@ -1,6 +1,28 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+pub fn config_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("ferro")
+        .join("desktop.json")
+}
+
+pub fn load_config_from_disk() -> Option<DesktopConfig> {
+    let path = config_path();
+    let data = std::fs::read_to_string(&path).ok()?;
+    serde_json::from_str(&data).ok()
+}
+
+pub fn save_config_to_disk(config: &DesktopConfig) -> Result<(), String> {
+    let path = config_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let data = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesktopConfig {
     /// Ferro server URL

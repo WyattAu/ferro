@@ -1,5 +1,5 @@
 use crate::config::DesktopConfig;
-use crate::rclone::RcloneManager;
+use crate::rclone::{MountProgress, RcloneManager};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -35,5 +35,9 @@ impl MountService {
 
     pub fn rclone_manager(&self) -> &RcloneManager {
         &self.rclone
+    }
+
+    pub async fn progress(&self) -> MountProgress {
+        self.rclone.progress().await
     }
 }

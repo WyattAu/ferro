@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (Cycle 15 - Full Tauri App Implementation)
+- All 12 mobile commands fully implemented with real WebDAV/REST API calls (previously all stubs):
+  mobile_get_file_thumbnail (image preview), mobile_get_storage_stats (real quota),
+  mobile_start/stop_background_sync (tokio task with 5-min interval), mobile_get_offline_files
+  (cache scan), mobile_pin/unpin_file_offline (download + manifest), mobile_get_sync_status
+  (state tracking), mobile_resolve_conflict (KeepLocal/KeepRemote/KeepBoth), mobile_share_file
+  (server share API), mobile_monitor_connectivity (HEAD polling), mobile_register_push_notifications
+  (server registration).
+- Config persistence: DesktopConfig saved to `~/.config/ferro/desktop.json` (Linux),
+  `~/Library/Application Support/ferro/desktop.json` (macOS), `%APPDATA%\ferro\desktop.json` (Windows).
+  Loaded on startup if no CLI args provided.
+- IosFilesProvider and AndroidSAFProvider now use real HEAD/PROPFIND requests instead of empty data.
+- Frontend: localStorage restore validates connection before navigating (prevents broken UI on server down).
+- Frontend: Added Settings view (server URL, auth token, mount point, sync interval, theme toggle).
+- Frontend: Added Recent files view (sorted by mtime) and Favorites view (localStorage + context menu).
+- Frontend: loadTree() changed from Depth:infinity to lazy loading (Depth:1 + expand on click).
+- test_connection now parses actual server name from PROPFIND XML.
+- get_server_url returns real stored URL instead of hardcoded localhost.
+- cmd_get_mount_progress now returns real progress from RcloneManager.
+- Sync commands (start/stop/pause/resume/sync_now/get_status) registered in invoke_handler.
+- Fixed app.share() compile error for android+tauri feature combination.
+- Removed dead duplicate commands from tauri_commands.rs (kept only sync commands).
+- Fixed CSS variable references, console.log typo, mobile nav button wiring.
+
 ### Added (Cycle 14 - Mobile iOS/Android via Tauri v2)
 - Tauri v2 iOS/Android mobile bundle config in `tauri.conf.json` (iOS minimum 14.0, Android minSdkVersion 24).
 - `crates/desktop/capabilities/mobile.json`: Mobile-specific permissions capability.
