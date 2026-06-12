@@ -4,15 +4,17 @@ use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use crate::error::{MigrationError, Result as MigrateResult};
 use crate::webdav::{DavEntry, parse_propfind};
 
-pub struct NextcloudClient {
+pub struct OcisClient {
     http: reqwest::Client,
     url: String,
+    #[allow(dead_code)]
     username: String,
     #[allow(dead_code)]
     password: String,
+    webdav_base: String,
 }
 
-impl NextcloudClient {
+impl OcisClient {
     pub fn new(url: &str, username: &str, password: &str) -> MigrateResult<Self> {
         let mut headers = HeaderMap::new();
         let credentials = format!("{}:{}", username, password);
@@ -32,20 +34,27 @@ impl NextcloudClient {
             url: url.trim_end_matches('/').to_string(),
             username: username.to_string(),
             password: password.to_string(),
+            webdav_base: "/dav/files".to_string(),
         })
+    }
+
+    pub fn with_webdav_base(mut self, base: &str) -> Self {
+        self.webdav_base = base.trim_end_matches('/').to_string();
+        self
     }
 
     fn webdav_url(&self, user: &str, path: &str) -> String {
         format!(
-            "{}/remote.php/dav/files/{}/{}",
+            "{}/{}/{}/{}",
             self.url,
+            self.webdav_base,
             user,
             path.trim_start_matches('/')
         )
     }
 
     pub async fn validate(&self, user: &str) -> MigrateResult<()> {
-        let url = format!("{}/remote.php/dav/files/{}/", self.url, user);
+        let url = format!("{}/{}/{}/", self.url, self.webdav_base, user);
         let resp = self
             .http
             .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
@@ -55,13 +64,13 @@ impl NextcloudClient {
 
         if resp.status().as_u16() == 401 {
             return Err(MigrationError::authentication(
-                "Nextcloud authentication failed: invalid credentials",
+                "oCIS authentication failed: invalid credentials",
             ));
         }
 
         if !resp.status().is_success() && resp.status().as_u16() != 207 {
             return Err(MigrationError::connection(format!(
-                "Nextcloud WebDAV not reachable at {} (status: {})",
+                "oCIS WebDAV not reachable at {} (status: {})",
                 self.url,
                 resp.status()
             )));

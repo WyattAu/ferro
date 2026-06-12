@@ -3,6 +3,7 @@ pub mod error;
 pub mod ferro_target;
 pub mod mapper;
 pub mod nextcloud;
+pub mod ocis;
 pub mod progress;
 pub mod webdav;
 
@@ -12,14 +13,21 @@ use error::{MigrationError, Result as MigrateResult};
 use ferro_target::FerroTarget;
 use mapper::{map_share, map_user, nc_path_to_ferro};
 use nextcloud::NextcloudClient;
+use ocis::OcisClient;
 use progress::ProgressTracker;
-use webdav::WebDavPipeline;
+use webdav::{WebDavPipeline, WebDavSource};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationConfig {
-    pub source: NextcloudSource,
+    pub source: MigrationSource,
     pub target: FerroTargetConfig,
     pub options: MigrationOptions,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MigrationSource {
+    Nextcloud(NextcloudSource),
+    Ocis(OcisSource),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +36,19 @@ pub struct NextcloudSource {
     pub username: String,
     pub password: String,
     pub db_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OcisSource {
+    pub url: String,
+    pub username: String,
+    pub password: String,
+    #[serde(default = "default_ocis_webdav_base")]
+    pub webdav_base: String,
+}
+
+fn default_ocis_webdav_base() -> String {
+    "/dav/files".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,17 +124,6 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
         errors: Vec::new(),
     };
 
-    let nc = NextcloudClient::new(
-        &config.source.url,
-        &config.source.username,
-        &config.source.password,
-    )?;
-
-    tracing::info!("Validating Nextcloud connection...");
-    nc.validate()
-        .await
-        .map_err(|e| MigrationError::connection(format!("Cannot connect to Nextcloud: {}", e)))?;
-
     let ferro = FerroTarget::new(&config.target.url, &config.target.admin_token)?;
 
     tracing::info!("Validating Ferro target connection...");
@@ -123,7 +133,40 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
 
     let progress = ProgressTracker::new();
 
-    let db = match &config.source.db_path {
+    match config.source {
+        MigrationSource::Nextcloud(source) => {
+            run_nextcloud_migration(&source, &ferro, &config.options, &progress, &mut report)
+                .await?;
+        }
+        MigrationSource::Ocis(source) => {
+            run_ocis_migration(&source, &ferro, &config.options, &progress, &mut report).await?;
+        }
+    }
+
+    progress.finish();
+    report.duration_secs = start.elapsed().as_secs_f64();
+
+    tracing::info!("Migration completed in {:.1}s", report.duration_secs);
+
+    Ok(report)
+}
+
+async fn run_nextcloud_migration(
+    source: &NextcloudSource,
+    ferro: &FerroTarget,
+    options: &MigrationOptions,
+    progress: &ProgressTracker,
+    report: &mut MigrationReport,
+) -> MigrateResult<()> {
+    let nc = NextcloudClient::new(&source.url, &source.username, &source.password)?;
+    let webdav_source = WebDavSource::Nextcloud(nc);
+
+    tracing::info!("Validating Nextcloud connection...");
+    webdav_source.validate(&source.username).await.map_err(|e| {
+        MigrationError::connection(format!("Cannot connect to Nextcloud: {}", e))
+    })?;
+
+    let db = match &source.db_path {
         Some(path) => Some(db::NextcloudDb::open(path)?),
         None => {
             tracing::warn!("No database path provided; metadata migration will be skipped");
@@ -131,7 +174,7 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
         }
     };
 
-    if !config.options.skip_users {
+    if !options.skip_users {
         if let Some(ref db) = db {
             tracing::info!("Migrating users...");
             match db.read_users() {
@@ -162,16 +205,16 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
         tracing::info!("Skipping user migration");
     }
 
-    if !config.options.skip_files {
+    if !options.skip_files {
         tracing::info!("Migrating files...");
         let pipeline = WebDavPipeline::new(
-            &nc,
-            &ferro,
-            config.options.max_file_size,
-            config.options.batch_size,
+            &webdav_source,
+            ferro,
+            options.max_file_size,
+            options.batch_size,
         );
         match pipeline
-            .copy_all_files(&config.source.username, &progress)
+            .copy_all_files(&source.username, progress)
             .await
         {
             Ok(stats) => {
@@ -189,7 +232,7 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
         tracing::info!("Skipping file migration");
     }
 
-    if !config.options.skip_shares {
+    if !options.skip_shares {
         if let Some(ref db) = db {
             tracing::info!("Migrating shares...");
             match db.read_shares() {
@@ -233,7 +276,7 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
         tracing::info!("Skipping share migration");
     }
 
-    if !config.options.skip_tags {
+    if !options.skip_tags {
         if let Some(ref db) = db {
             tracing::info!("Migrating tags...");
             match db.read_system_tags() {
@@ -271,7 +314,7 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
         tracing::info!("Skipping tag migration");
     }
 
-    if !config.options.skip_favorites {
+    if !options.skip_favorites {
         if let Some(ref db) = db {
             tracing::info!("Migrating favorites...");
             match db.read_filecache() {
@@ -279,7 +322,7 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
                     let favorites: Vec<_> = files.iter().filter(|f| f.favorite).collect();
                     progress.set_favorite_total(favorites.len() as u64);
                     for file in &favorites {
-                        let path = nc_path_to_ferro(&file.path, &config.source.username);
+                        let path = nc_path_to_ferro(&file.path, &source.username);
                         if let Err(e) = ferro.set_favorite(&path, true).await {
                             tracing::warn!("Favorite migration failed for {}: {}", path, e);
                         } else {
@@ -298,10 +341,79 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
         tracing::info!("Skipping favorite migration");
     }
 
-    progress.finish();
-    report.duration_secs = start.elapsed().as_secs_f64();
+    Ok(())
+}
 
-    tracing::info!("Migration completed in {:.1}s", report.duration_secs);
+async fn run_ocis_migration(
+    source: &OcisSource,
+    ferro: &FerroTarget,
+    options: &MigrationOptions,
+    progress: &ProgressTracker,
+    report: &mut MigrationReport,
+) -> MigrateResult<()> {
+    let ocis = OcisClient::new(&source.url, &source.username, &source.password)?
+        .with_webdav_base(&source.webdav_base);
+    let webdav_source = WebDavSource::Ocis(ocis);
 
-    Ok(report)
+    tracing::info!("Validating oCIS connection...");
+    webdav_source.validate(&source.username).await.map_err(|e| {
+        MigrationError::connection(format!("Cannot connect to oCIS: {}", e))
+    })?;
+
+    if !options.skip_users {
+        tracing::info!("oCIS user migration via WebDAV is not supported (no database access)");
+        tracing::info!("Skipping user migration (oCIS users must be created manually or via oCIS API)");
+    } else {
+        tracing::info!("Skipping user migration");
+    }
+
+    if !options.skip_files {
+        tracing::info!("Migrating files from oCIS...");
+        let pipeline = WebDavPipeline::new(
+            &webdav_source,
+            ferro,
+            options.max_file_size,
+            options.batch_size,
+        );
+        match pipeline
+            .copy_all_files(&source.username, progress)
+            .await
+        {
+            Ok(stats) => {
+                report.files_migrated = stats.migrated;
+                report.files_skipped = stats.skipped;
+                report.files_failed = stats.failed;
+                report.total_bytes = stats.total_bytes;
+            }
+            Err(e) => {
+                tracing::error!("File migration failed: {}", e);
+                report.errors.push(format!("file migration: {}", e));
+            }
+        }
+    } else {
+        tracing::info!("Skipping file migration");
+    }
+
+    if !options.skip_shares {
+        tracing::info!("oCIS share migration via WebDAV is not supported");
+        tracing::info!("Skipping share migration");
+    } else {
+        tracing::info!("Skipping share migration");
+    }
+
+    if !options.skip_tags {
+        tracing::info!("oCIS tag migration via WebDAV is not supported");
+        tracing::info!("Skipping tag migration");
+    } else {
+        tracing::info!("Skipping tag migration");
+    }
+
+    if !options.skip_favorites {
+        tracing::info!("oCIS favorites migration via WebDAV is not supported");
+        tracing::info!("Skipping favorite migration");
+    } else {
+        tracing::info!("Skipping favorite migration");
+    }
+
+    Ok(())
 }
