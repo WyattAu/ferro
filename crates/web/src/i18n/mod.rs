@@ -49,8 +49,12 @@ impl I18nCtx {
     }
 
     /// Read the i18n context from the nearest provider.
+    /// Falls back to the default locale if no context is found,
+    /// avoiding panics when called outside a provided scope.
     pub fn expect() -> Self {
-        expect_context::<Self>()
+        use_context::<Self>().unwrap_or(Self {
+            locale: Locale::default(),
+        })
     }
 
     /// Translate a key using the current locale.

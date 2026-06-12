@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_router::components::A;
 
 use crate::api;
 use crate::components::theme_toggle::{ThemeToggle, provide_theme_state};
@@ -14,7 +15,15 @@ pub fn AdminPage() -> impl IntoView {
             <div class="max-w-7xl mx-auto py-8">
                 <div class="flex items-center justify-between mb-6">
                     <h1 class="text-2xl font-bold font-mono text-gray-900 tracking-tight">{t!("admin.title")}</h1>
-                    <ThemeToggle />
+                    <nav aria-label=t!("nav.back_to_files") class="flex items-center gap-2">
+                        <A
+                            href="/ui/"
+                            attr:class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {t!("nav.back_to_files")}
+                        </A>
+                        <ThemeToggle />
+                    </nav>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

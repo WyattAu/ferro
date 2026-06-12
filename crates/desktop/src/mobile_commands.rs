@@ -80,7 +80,8 @@ struct MobileSyncStateInner {
 }
 
 static MOBILE_STATE: StdMutex<Option<MobileSyncStateInner>> = StdMutex::new(None);
-static CONNECTIVITY_MONITOR: StdMutex<Option<tokio::task::JoinHandle<()>>> = StdMutex::new(None);
+static CONNECTIVITY_MONITOR: StdMutex<Option<tokio::task::JoinHandle<()>>> =
+    StdMutex::new(None);
 
 // -- Helper functions --
 
@@ -518,7 +519,7 @@ pub async fn mobile_start_background_sync(
                 if cancel_clone.load(Ordering::Relaxed) {
                     break;
                 }
-                if let Err(e) = run_sync_cycle(&client, &config_clone).await {
+                    if let Err(e) = run_sync_cycle(&client, &config_clone).await {
                     tracing::warn!("mobile sync cycle error: {}", e);
                     if let Ok(mut state) = MOBILE_STATE.lock()
                         && let Some(ref mut inner) = *state
@@ -534,7 +535,8 @@ pub async fn mobile_start_background_sync(
 
     let mut state = MOBILE_STATE
         .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+        .map_err(|e| format!("Lock error: {}", e))
+        ?;
     *state = Some(MobileSyncStateInner {
         config,
         cancel,
@@ -829,7 +831,7 @@ pub async fn mobile_monitor_connectivity(app: tauri::AppHandle) -> Result<(), St
             if connected != last_connected {
                 let state = ConnectivityState {
                     connected,
-                    wifi: connected,
+                    wifi: true,
                 };
                 let _ = app_clone.emit("connectivity-change", &state);
                 last_connected = connected;
@@ -838,7 +840,7 @@ pub async fn mobile_monitor_connectivity(app: tauri::AppHandle) -> Result<(), St
     });
 
     {
-        let mut monitor = CONNECTIVITY_MONITOR.lock().map_err(|e| e.to_string())?;
+        let mut monitor = CONNECTIVITY_MONITOR.lock().expect("mutex poisoned");
         *monitor = Some(handle);
     }
 

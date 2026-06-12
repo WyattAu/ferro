@@ -21,7 +21,6 @@ pub mod mobile_commands;
 #[cfg(all(feature = "mobile", not(feature = "tauri")))]
 mod mobile_app {
     use crate::commands::DesktopState;
-    use crate::config::DesktopConfig;
     use tauri::State;
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

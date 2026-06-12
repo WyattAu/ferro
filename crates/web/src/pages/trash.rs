@@ -101,7 +101,7 @@ pub fn TrashPage() -> impl IntoView {
                             </div>
                         </A>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <nav aria-label=t!("nav.back_to_files") class="flex items-center gap-2">
                         <A
                             href="/ui/"
                             attr:class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -110,13 +110,13 @@ pub fn TrashPage() -> impl IntoView {
                         </A>
                         {move || (!entries.with(Vec::is_empty)).then(|| view! {
                             <button
-                                class="px-3 py-1.5 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                class="px-3 py-1.5 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
                                 on:click=move |_| set_show_confirm_empty.set(true)
                             >
                                 {t!("trash.empty_btn")}
                             </button>
                         })}
-                    </div>
+                    </nav>
                 </div>
             </header>
 
@@ -149,7 +149,7 @@ pub fn TrashPage() -> impl IntoView {
                                 {t!("common.cancel")}
                             </button>
                             <button
-                                class="px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                class="px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
                                 on:click=do_empty
                             >
                                 {t!("trash.empty_btn")}

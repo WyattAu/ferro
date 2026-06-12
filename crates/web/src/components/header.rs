@@ -343,12 +343,13 @@ pub fn Header() -> impl IntoView {
             {move || show_search.get().then(|| view! {
                 <div class="border-t bg-gray-50 dark:bg-gray-900 px-6 py-3 max-w-7xl mx-auto slide-up">
                     <div class="flex items-center gap-2 mb-2">
+                        <label for="header-search-input" class="sr-only">{t!("search.aria_label")}</label>
                         <div class="relative flex-1">
                             <input
                                 type="text"
                                 id="header-search-input"
                                 placeholder=t!("search.placeholder")
-                                attr:aria-label=t!("search.aria_label")
+                                aria-label=t!("search.aria_label")
                                 class="w-full px-4 py-2 pl-10 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                                 prop:value=search_query
                                 on:input=on_search_input
@@ -370,29 +371,33 @@ pub fn Header() -> impl IntoView {
                     </div>
 
                     {move || show_search.get().then(|| view! {
-                        <div class="flex items-center gap-2 mb-2">
-                            <select
-                                class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-                                style="letter-spacing: 0.05em;"
-                                attr:aria-label=t!("search.filter_type")
-                                on:change=on_type_change
-                            >
-                                <option value="" selected=move || filter_type.get().is_empty()>{t!("search.filter_all")}</option>
-                                <option value="file" selected=move || filter_type.get() == "file">{t!("search.filter_files")}</option>
-                                <option value="folder" selected=move || filter_type.get() == "folder">{t!("search.filter_folders")}</option>
-                            </select>
-                            <select
-                                class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-                                style="letter-spacing: 0.05em;"
-                                attr:aria-label=t!("search.sort_by")
-                                on:change=on_sort_change
-                            >
-                                <option value="" selected=move || filter_sort.get().is_empty()>{t!("search.sort_relevance")}</option>
-                                <option value="name" selected=move || filter_sort.get() == "name">{t!("search.sort_name")}</option>
-                                <option value="date" selected=move || filter_sort.get() == "date">{t!("search.sort_date")}</option>
-                                <option value="size" selected=move || filter_sort.get() == "size">{t!("search.sort_size")}</option>
-                            </select>
-                        </div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <label for="search-filter-type" class="sr-only">{t!("search.filter_type")}</label>
+                        <select
+                            id="search-filter-type"
+                            class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                            style="letter-spacing: 0.05em;"
+                            aria-label=t!("search.filter_type")
+                            on:change=on_type_change
+                        >
+                            <option value="" selected=move || filter_type.get().is_empty()>{t!("search.filter_all")}</option>
+                            <option value="file" selected=move || filter_type.get() == "file">{t!("search.filter_files")}</option>
+                            <option value="folder" selected=move || filter_type.get() == "folder">{t!("search.filter_folders")}</option>
+                        </select>
+                        <label for="search-filter-sort" class="sr-only">{t!("search.sort_by")}</label>
+                        <select
+                            id="search-filter-sort"
+                            class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                            style="letter-spacing: 0.05em;"
+                            aria-label=t!("search.sort_by")
+                            on:change=on_sort_change
+                        >
+                            <option value="" selected=move || filter_sort.get().is_empty()>{t!("search.sort_relevance")}</option>
+                            <option value="name" selected=move || filter_sort.get() == "name">{t!("search.sort_name")}</option>
+                            <option value="date" selected=move || filter_sort.get() == "date">{t!("search.sort_date")}</option>
+                            <option value="size" selected=move || filter_sort.get() == "size">{t!("search.sort_size")}</option>
+                        </select>
+                    </div>
                     })}
 
                     {move || searching.get().then(|| view! {

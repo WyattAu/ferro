@@ -142,6 +142,8 @@ fn build_client(token: &str) -> Result<reqwest::Client, String> {
     headers.insert(reqwest::header::AUTHORIZATION, value);
     reqwest::Client::builder()
         .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))
 }
@@ -453,6 +455,21 @@ fn parse_server_name_from_propfind(xml: &str, url: &str) -> String {
 
 #[tauri::command]
 pub async fn test_connection(url: String, token: String) -> Result<ConnectInfo, String> {
+    if url.starts_with("http://") {
+        let host_part = url
+            .trim_start_matches("http://")
+            .split('/')
+            .next()
+            .unwrap_or("");
+        let hostname = host_part.split(':').next().unwrap_or(host_part);
+        if hostname != "localhost" && hostname != "127.0.0.1" && hostname != "::1" {
+            return Err(
+                "HTTPS recommended for non-localhost connections. Use https:// instead of http://."
+                    .to_string(),
+            );
+        }
+    }
+
     let client = build_client(&token)?;
     let xml = do_propfind(&client, &url, "/", "1").await?;
     let entries = parse_propfind_response(&xml, "/");

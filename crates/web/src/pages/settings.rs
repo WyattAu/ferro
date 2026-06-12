@@ -94,12 +94,14 @@ pub fn SettingsPage() -> impl IntoView {
                             </div>
                         </A>
                     </div>
-                    <A
-                        href="/ui/"
-                        attr:class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        {t!("nav.back_to_files")}
-                    </A>
+                    <nav aria-label=t!("nav.back_to_files") class="flex items-center gap-2">
+                        <A
+                            href="/ui/"
+                            attr:class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {t!("nav.back_to_files")}
+                        </A>
+                    </nav>
                 </div>
             </header>
 

@@ -349,7 +349,7 @@ tbody tr:hover {
 }
 
 /* ── Buttons ── */
-button {
+button, [role="button"], a[role="button"] {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -363,6 +363,8 @@ button {
     font-weight: 600;
     letter-spacing: 0.01em;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 44px;
+    min-height: 44px;
 }
 button:active:not(:disabled) {
     transform: translateY(1px);

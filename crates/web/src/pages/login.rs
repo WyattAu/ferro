@@ -32,7 +32,7 @@ pub fn LoginPage() -> impl IntoView {
                 <p class="text-muted font-mono mb-6">{t!("login.description")}</p>
 
                 <button
-                    class="w-full bg-blue-600 text-white px-4 py-3 rounded-sm hover:bg-blue-700 transition-colors font-bold uppercase tracking-widest brutal-border shadow-iron focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    class="w-full bg-blue-600 text-white px-4 py-3 rounded-sm hover:bg-blue-700 transition-colors font-bold uppercase tracking-widest brutal-border shadow-iron focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
                     on:click=on_login
                 >
                     {t!("common.sign_in")}

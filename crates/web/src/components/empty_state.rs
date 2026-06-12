@@ -27,6 +27,7 @@ pub fn EmptyState(
                     <button
                         class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                         on:click=move |_| on_upload.run(())
+                        aria-label=t!("empty.folder_upload_btn")
                     >
     {t!("empty.folder_upload_btn")}
                     </button>

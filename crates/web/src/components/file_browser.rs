@@ -1125,6 +1125,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                     format!("{} {}", base, active)
                                 }
                                  on:click=move |_| switch_tab(BrowserTab::Files)
+                                 aria-label=move || t!("nav.files")
                             >
                                 {t!("nav.files")}
                            </button>
