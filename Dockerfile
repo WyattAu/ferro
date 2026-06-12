@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ==============================================================================
 # Stage 1: Build (official Rust image for reliable C compilation)
 #
@@ -5,7 +6,8 @@
 # wolfi's GCC versions have compatibility issues with libdeflate-sys (trunk dep).
 # The final stage uses scratch for minimal attack surface.
 # ==============================================================================
-FROM rust:1.95-bookworm AS builder
+ARG RUST_BUILDER_DIGEST=sha256:PLACEHOLDER
+FROM rust:1.95-bookworm@${RUST_BUILDER_DIGEST} AS builder
 
 ARG BUILD_FEATURES=""
 
@@ -68,7 +70,8 @@ COPY --from=builder /app/target/release/ferro-cli /ferro-cli
 COPY --from=builder /app/crates/web/dist /ui
 
 # Copy health-shim (TCP probe, no curl needed)
-COPY --from=ghcr.io/wyattau/evergreenshim/cache-shim:latest /shim /shim
+ARG SHIM_DIGEST=sha256:PLACEHOLDER
+COPY --from=ghcr.io/wyattau/evergreenshim/cache-shim@${SHIM_DIGEST} /shim /shim
 
 # Non-root user (OpenShift nonroot range)
 USER 65532:65532
@@ -80,9 +83,12 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
 # Expose port
 EXPOSE 8080
 
+# Entrypoint wrapper for UID/GID remapping (e.g. OpenShift)
+COPY --chmod=755 deploy/entrypoint.sh /entrypoint.sh
+
 # Entrypoint with shim for graceful lifecycle management
 # Data directory must be mounted at runtime: -v /path/to/data:/data
-ENTRYPOINT ["/shim", "run", "-c", "/ferro-server", "--host", "0.0.0.0", "--port", "8080", "--data-dir", "/data"]
+ENTRYPOINT ["/entrypoint.sh", "/shim", "run", "-c", "/ferro-server", "--host", "0.0.0.0", "--port", "8080", "--data-dir", "/data"]
 
 # Graceful shutdown signal
 STOPSIGNAL SIGTERM

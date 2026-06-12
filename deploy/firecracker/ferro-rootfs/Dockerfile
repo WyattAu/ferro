@@ -8,7 +8,8 @@
 # - Health: wget probe
 # - Build type: repack
 
-FROM cgr.dev/chainguard/wolfi-base
+ARG WOLFI_DIGEST=sha256:PLACEHOLDER
+FROM cgr.dev/chainguard/wolfi-base@${WOLFI_DIGEST}
 
 LABEL org.opencontainers.image.title="Ferro Rootfs" \
       org.opencontainers.image.description="Ferro rootfs for Firecracker microVMs" \
@@ -26,9 +27,10 @@ LABEL org.opencontainers.image.title="Ferro Rootfs" \
 RUN apk add --no-cache ca-certificates wget
 
 # Copy binaries from official Ferro image
-COPY --from=ghcr.io/wyattau/ferro:latest /app/ferro-server /usr/local/bin/ferro-server
-COPY --from=ghcr.io/wyattau/ferro:latest /app/ferro-cli /usr/local/bin/ferro-cli
-COPY --from=ghcr.io/wyattau/ferro:latest /app/ui /usr/local/share/ferro/ui
+ARG FERRO_DIGEST=sha256:PLACEHOLDER
+COPY --from=ghcr.io/wyattau/ferro@${FERRO_DIGEST} /app/ferro-server /usr/local/bin/ferro-server
+COPY --from=ghcr.io/wyattau/ferro@${FERRO_DIGEST} /app/ferro-cli /usr/local/bin/ferro-cli
+COPY --from=ghcr.io/wyattau/ferro@${FERRO_DIGEST} /app/ui /usr/local/share/ferro/ui
 
 # Create data directory with correct ownership
 RUN mkdir -p /data && chown 65532:65532 /data

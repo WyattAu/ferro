@@ -223,6 +223,38 @@
 
 ---
 
+## Updated Compliance Score (After Fixes)
+
+| Category | Max Score | Before | After |
+|----------|-----------|--------|-------|
+| Security (C001-C019) | 20 | 2 | 18 |
+| Reliability (probes, signals) | 5 | 1 | 5 |
+| Configuration (labels, UID) | 5 | 0 | 5 |
+| Documentation (READMEs) | 5 | 0 | 0 |
+| Structural (multi-stage, scratch) | 5 | 3 | 5 |
+| **Total** | **40** | **6 (15%)** | **36 (90%)** |
+
+### Remaining Items (P1-P2)
+
+| Item | Priority | Status |
+|------|----------|--------|
+| FROM digest pinning | P0 | DONE (ARG-based, placeholders) |
+| Non-root USER 65532 | P0 | DONE |
+| OCI Labels | P0 | DONE |
+| HEALTHCHECK | P0 | DONE |
+| Distroless/scratch base | P0 | DONE |
+| CGO_ENABLED=0 | P0 | DONE |
+| Health-shim/wget | P0 | DONE |
+| APP_UID/APP_GID wrapper | P1 | DONE |
+| Trivy scanning | P1 | DONE (CI/CD) |
+| Cosign signing | P1 | DONE (CI/CD) |
+| SBOM generation | P1 | DONE (CI/CD) |
+| Nightly security scan | P1 | DONE (workflow) |
+| Per-image READMEs | P2 | PENDING |
+| Image size optimization | P2 | PENDING |
+
+---
+
 ## Recommended New Dockerfiles
 
 ### Main Server (scratch-based)
