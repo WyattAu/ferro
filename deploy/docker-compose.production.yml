@@ -126,6 +126,32 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: ferro-loki
+    restart: unless-stopped
+    ports: ["3100:3100"]
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   prometheus:
     image: prom/prometheus:v3.1.0@sha256:da1630c5102817ed365a523448c766e417030a53ec3dfbe064d429df504e023e
     container_name: ferro-prometheus
@@ -175,6 +201,8 @@ services:
       - monitoring
     depends_on:
       prometheus:
+        condition: service_healthy
+      loki:
         condition: service_healthy
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
@@ -240,6 +268,8 @@ volumes:
   caddy-data:
     driver: local
   caddy-config:
+    driver: local
+  loki-data:
     driver: local
   prometheus-data:
     driver: local

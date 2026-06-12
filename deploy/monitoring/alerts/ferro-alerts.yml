@@ -1,0 +1,28 @@
+groups:
+  - name: ferro
+    rules:
+      - alert: FerroHighErrorRate
+        expr: rate(http_requests_total{job="ferro",status=~"5.."}[5m]) / rate(http_requests_total{job="ferro"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on Ferro server"
+
+      - alert: FerroHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="ferro"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+
+      - alert: FerroDown
+        expr: up{job="ferro"} == 0
+        for: 1m
+        labels:
+          severity: critical
+
+      - alert: FerroHighMemory
+        expr: process_resident_memory_bytes{job="ferro"} / 1024 / 1024 > 512
+        for: 5m
+        labels:
+          severity: warning

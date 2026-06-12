@@ -76,6 +76,8 @@ prost = "0.14"
 kuchikiki = "=0.8.8-speedreader"
 
 [profile.release]
-strip = true
+opt-level = "z"
 lto = true
 codegen-units = 1
+strip = true
+panic = "abort"

@@ -1,14 +1,17 @@
 # Summary
 
 - [Introduction](./introduction.md)
+- [Getting Started](./getting-started.md)
 - [Quick Start](./quickstart.md)
 - [Installation](./installation.md)
 - [Configuration](./configuration.md)
 - [Architecture](./architecture.md)
+- [Architecture Overview](./architecture-overview.md)
 
 ---
 
-- [API Reference](./api/SUMMARY.md)
+- [API Reference](./api-reference.md)
+- [API Reference (detailed)](./api/SUMMARY.md)
   - [WebDAV](./api/webdav.md)
   - [REST API](./api/rest.md)
   - [Admin API](./api/admin.md)
