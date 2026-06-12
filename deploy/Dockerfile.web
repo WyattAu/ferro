@@ -1,12 +1,37 @@
-FROM rust:1.92 AS builder
+FROM cgr.dev/chainguard/wolfi-base AS builder
+
+RUN apk add --no-cache cargo rustup ca-certificates && \
+    rustup default stable && \
+    rustup target add wasm32-unknown-unknown && \
+    cargo install trunk --locked --version 0.21.1
+
 WORKDIR /app
-RUN cargo install trunk --locked --version 0.21.1
 COPY . .
 WORKDIR /app/crates/web
 RUN trunk build --release
 
-FROM nginx:alpine
+FROM cgr.dev/chainguard/wolfi-base
+
+LABEL org.opencontainers.image.title="Ferro Web" \
+      org.opencontainers.image.description="Ferro web frontend" \
+      org.opencontainers.image.vendor="Ferro" \
+      evergreen.image.tier="standard" \
+      evergreen.base.image="wolfi" \
+      evergreen.constraint.nonroot="true" \
+      evergreen.build.type="source-build"
+
+RUN apk add --no-cache nginx ca-certificates && \
+    ln -sf /dev/stdout /var/log/nginx/access.log && \
+    ln -sf /dev/stderr /var/log/nginx/error.log
+
 COPY --from=builder /app/crates/web/dist /usr/share/nginx/html
 COPY deploy/nginx-web.conf /etc/nginx/conf.d/default.conf
+
+USER 65532:65532
+
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
+    CMD wget -q --spider http://localhost:80/ || exit 1
+
+ENTRYPOINT ["nginx", "-g", "daemon off;"]

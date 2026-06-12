@@ -1,61 +1,88 @@
-ARG RUST_VERSION=1.95
-FROM rust:${RUST_VERSION}-bookworm AS builder
+# ==============================================================================
+# Stage 1: Build (official Rust image for reliable C compilation)
+#
+# Note: The builder uses rust:1.95-bookworm (Debian full, not slim) because
+# wolfi's GCC versions have compatibility issues with libdeflate-sys (trunk dep).
+# The final stage uses scratch for minimal attack surface.
+# ==============================================================================
+FROM rust:1.95-bookworm AS builder
 
 ARG BUILD_FEATURES=""
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
+    binaryen \
     && rm -rf /var/lib/apt/lists/*
 
 # Add wasm32 target for WASM frontend build
 RUN rustup target add wasm32-unknown-unknown
 
+# Install trunk for WASM frontend build
+RUN cargo install trunk --version 0.21.14 --locked
+
 WORKDIR /app
 
+# Copy manifests first for dependency caching
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY migrations/ migrations/
 
-# Install trunk for WASM build
-RUN cargo install trunk --version 0.21.14 --locked
-
 # Build WASM frontend first (trunk needs wasm32 target)
+# For BuildKit, add cache mounts: --mount=type=cache,target=/usr/local/cargo/registry
 WORKDIR /app/crates/web
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    trunk build --release --dist dist
-WORKDIR /app
-
-# Build server and CLI binaries
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    cargo build --release --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}"
-
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libssl3 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN groupadd --gid 1000 ferro && useradd --uid 1000 --gid ferro --create-home ferro
+RUN trunk build --release --dist dist
 
 WORKDIR /app
 
-COPY --from=builder --chown=ferro:ferro /app/target/release/ferro-server /app/ferro-server
-COPY --from=builder --chown=ferro:ferro /app/target/release/ferro-cli   /app/ferro-cli
-COPY --from=builder --chown=ferro:ferro /app/crates/web/dist           /app/ui
+# Build server and CLI binaries with static linking
+ENV CGO_ENABLED=0
+RUN cargo build --release --locked --package ferro-server --package ferro-cli --features "${BUILD_FEATURES}"
 
-RUN mkdir -p /data && chown ferro:ferro /data
+# ==============================================================================
+# Stage 2: Final (scratch - minimal attack surface)
+# ==============================================================================
+FROM scratch
 
-USER ferro
+# EvergreenImageRegistry v30.0.0 OCI labels
+LABEL org.opencontainers.image.title="Ferro" \
+      org.opencontainers.image.description="Self-hosted file sync server" \
+      org.opencontainers.image.vendor="Ferro" \
+      org.opencontainers.image.source="https://github.com/WyattAu/ferro" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      evergreen.image.tier="standard" \
+      evergreen.base.image="scratch" \
+      evergreen.constraint.nonroot="true" \
+      evergreen.constraint.scratch="true" \
+      evergreen.build.type="source-build" \
+      evergreen.security.cap-drop="ALL" \
+      evergreen.security.no-new-privileges="true" \
+      evergreen.security.read-only-rootfs="true"
 
+# Copy CA certificates from builder (scratch has none)
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# Copy application binaries
+COPY --from=builder /app/target/release/ferro-server /ferro-server
+COPY --from=builder /app/target/release/ferro-cli /ferro-cli
+COPY --from=builder /app/crates/web/dist /ui
+
+# Copy health-shim (TCP probe, no curl needed)
+COPY --from=ghcr.io/wyattau/evergreenshim/cache-shim:latest /shim /shim
+
+# Non-root user (OpenShift nonroot range)
+USER 65532:65532
+
+# Health check via health-shim TCP probe
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
+    CMD ["/shim", "healthcheck", "--tcp", "127.0.0.1:8080"]
+
+# Expose port
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD curl -sf http://localhost:8080/.well-known/ferro > /dev/null || exit 1
+# Entrypoint with shim for graceful lifecycle management
+# Data directory must be mounted at runtime: -v /path/to/data:/data
+ENTRYPOINT ["/shim", "run", "-c", "/ferro-server", "--host", "0.0.0.0", "--port", "8080", "--data-dir", "/data"]
 
-ENTRYPOINT ["/app/ferro-server"]
-CMD ["--host", "0.0.0.0", "--port", "8080", "--data-dir", "/data"]
+# Graceful shutdown signal
+STOPSIGNAL SIGTERM
