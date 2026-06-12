@@ -363,8 +363,8 @@ button, [role="button"], a[role="button"] {
     font-weight: 600;
     letter-spacing: 0.01em;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 44px !important;
+    min-height: 44px !important;
 }
 button:active:not(:disabled) {
     transform: translateY(1px);

@@ -1627,8 +1627,9 @@
                 }
             } catch (err) {
                 debugLog_add('error', `CLI auto-connect failed: ${err}`);
-                // Show debug panel on failure so errors are visible
-                document.getElementById('debug-panel').classList.remove('hidden');
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    document.getElementById('debug-panel').classList.remove('hidden');
+                }
                 connectError.textContent = `Auto-connect failed: ${err}`;
             }
 
@@ -1679,13 +1680,15 @@
                 navigator.clipboard.writeText(text);
             });
 
-            // Toggle debug panel: Ctrl+Shift+D or F12
-            document.addEventListener('keydown', e => {
-                if ((e.ctrlKey && e.shiftKey && e.key === 'D') || e.key === 'F12') {
-                    e.preventDefault();
-                    debugPanel.classList.toggle('hidden');
-                }
-            });
+            // Toggle debug panel: Ctrl+Shift+D or F12 (dev only)
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                document.addEventListener('keydown', e => {
+                    if ((e.ctrlKey && e.shiftKey && e.key === 'D') || e.key === 'F12') {
+                        e.preventDefault();
+                        debugPanel.classList.toggle('hidden');
+                    }
+                });
+            }
 
             debugLog_add('info', 'Init complete');
             debugLog_add('info', 'Press Ctrl+Shift+D to toggle debug log');

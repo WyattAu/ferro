@@ -95,6 +95,7 @@ pub fn UploadDialog(
                             type="file"
                             class="hidden"
                             multiple
+                            aria-label="Upload files"
                             aria-describedby="upload-file-hint"
                             on:change=handle_file_input
                         />

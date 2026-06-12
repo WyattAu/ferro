@@ -159,6 +159,7 @@ pub fn ShareDialog(
                                 <input
                                     type="text"
                                     readonly
+                                    aria-label="Share URL"
                                     class="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900 border rounded text-sm text-gray-600 font-mono"
                                     prop:value=share_url
                                 />

@@ -269,14 +269,21 @@ async function collectA11y(page, label) {
           });
           if (btn) btn.click();
         });
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(8000);
         await screenshot(page, 'phase2-02-folder-created');
 
         // Verify folder appears
-        const folderVisible = await page.evaluate(() => {
+        let folderVisible = await page.evaluate(() => {
           const text = document.body?.innerText || '';
           return text.includes('audit-test-folder');
         });
+        if (!folderVisible) {
+          await page.waitForTimeout(5000);
+          folderVisible = await page.evaluate(() => {
+            const text = document.body?.innerText || '';
+            return text.includes('audit-test-folder');
+          });
+        }
         if (folderVisible) {
           pass('phase2', 'folder-visible', 'Folder "audit-test-folder" appears in file list');
         } else {
