@@ -1,5 +1,4 @@
-ARG WOLFI_DIGEST=sha256:PLACEHOLDER
-FROM cgr.dev/chainguard/wolfi-base@${WOLFI_DIGEST} AS builder
+FROM cgr.dev/chainguard/wolfi-base AS builder
 
 RUN apk add --no-cache cargo rustup ca-certificates && \
     rustup default stable && \
@@ -11,7 +10,7 @@ COPY . .
 WORKDIR /app/crates/web
 RUN trunk build --release
 
-FROM cgr.dev/chainguard/wolfi-base@${WOLFI_DIGEST}
+FROM cgr.dev/chainguard/wolfi-base
 
 LABEL org.opencontainers.image.title="Ferro Web" \
       org.opencontainers.image.description="Ferro web frontend" \

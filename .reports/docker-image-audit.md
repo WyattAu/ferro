@@ -255,7 +255,65 @@
 
 ---
 
-## Recommended New Dockerfiles
+## Functionality Test Results
+
+**Date:** 2026-06-12
+**Server:** ferro-server (debug build) with --static-dir crates/web/dist
+**Results:** 27 PASS / 0 FAIL / 28 TOTAL
+
+### Health & Discovery (3/3)
+| Test | Status |
+|------|--------|
+| Health endpoint (/.well-known/ferro) | PASS |
+| Healthz endpoint (/healthz) | PASS |
+| Status "ok" | PASS |
+
+### Static File Serving (4/4)
+| Test | Status |
+|------|--------|
+| Root serves HTML (200) | PASS |
+| /ui/ serves content (308 redirect, correct) | PASS |
+| CSS file serves (200) | PASS |
+| WASM binary serves (200) | PASS |
+
+### WebDAV Operations (11/11)
+| Test | Status |
+|------|--------|
+| OPTIONS (DAV header) | PASS |
+| MKCOL create folder | PASS |
+| PUT upload file | PASS |
+| GET download file | PASS |
+| MOVE rename file | PASS |
+| GET old name returns 404 | PASS |
+| GET renamed file | PASS |
+| COPY file | PASS |
+| DELETE file | PASS |
+| DELETE folder | PASS |
+| GET after delete returns 404 | PASS |
+
+### API Endpoints (8/8)
+| Test | Status |
+|------|--------|
+| GET /api/config | PASS |
+| GET /api/branding | PASS |
+| GET /api/quota | PASS |
+| GET /api/preferences | PASS |
+| GET /api/favorites | PASS |
+| GET /api/recent | PASS |
+| GET /api/locks | PASS |
+| GET /api/search?q=test | PASS |
+
+### Large File Operations (3/3)
+| Test | Status |
+|------|--------|
+| PUT 10MB file | PASS |
+| GET 10MB file (correct size) | PASS |
+| DELETE 10MB file | PASS |
+
+### Security (1/1)
+| Test | Status |
+|------|--------|
+| No shell access (/bin/sh -> 404) | PASS |
 
 ### Main Server (scratch-based)
 

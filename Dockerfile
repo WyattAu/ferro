@@ -5,9 +5,12 @@
 # Note: The builder uses rust:1.95-bookworm (Debian full, not slim) because
 # wolfi's GCC versions have compatibility issues with libdeflate-sys (trunk dep).
 # The final stage uses scratch for minimal attack surface.
+#
+# EvergreenImageRegistry Compliance:
+# - Pin FROM to @sha256:<digest> for reproducibility
+# - To pin: replace tags with digest from `docker inspect --format='{{index .RepoDigests 0}}'`
 # ==============================================================================
-ARG RUST_BUILDER_DIGEST=sha256:PLACEHOLDER
-FROM rust:1.95-bookworm@${RUST_BUILDER_DIGEST} AS builder
+FROM rust:1.95-bookworm AS builder
 
 ARG BUILD_FEATURES=""
 
@@ -70,8 +73,7 @@ COPY --from=builder /app/target/release/ferro-cli /ferro-cli
 COPY --from=builder /app/crates/web/dist /ui
 
 # Copy health-shim (TCP probe, no curl needed)
-ARG SHIM_DIGEST=sha256:PLACEHOLDER
-COPY --from=ghcr.io/wyattau/evergreenshim/cache-shim@${SHIM_DIGEST} /shim /shim
+COPY --from=ghcr.io/wyattau/evergreenshim/cache-shim:latest /shim /shim
 
 # Non-root user (OpenShift nonroot range)
 USER 65532:65532
