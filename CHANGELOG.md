@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (Cycle 16 - WASM Frontend & Static Serving)
+- Fixed static file serving: WebDAV catch-all route at `/` was intercepting requests before static files could be served. Now skips WebDAV catch-all when `--static-dir` is set.
+- SPA middleware correctly handles `/` (serve index.html), `/ui/*` (static files with SPA fallback), and falls through to API/WebDAV for other paths.
+- Rebuilt Leptos WASM frontend with `trunk build` (16MB debug binary).
+- Added `e2e/quick-capture.js` Playwright script for viewport traversal.
+- Added `scripts/traverse.sh` for one-command server + traversal execution.
+
+### Verified (Cycle 16 - Playwright DOM/Screenshot Traversal)
+- Desktop (1280x720): 165 elements, 17 buttons, 3 inputs, 0 console errors. Full file browser UI.
+- Mobile (390x844): 165 elements, same UI with touch-friendly layout.
+- Tablet (768x1024): 165 elements, same UI with tablet layout.
+- All API endpoints exercised: /api/config, /api/branding, /api/quota, /api/preferences, /api/favorites, /api/locks, /api/recent.
+- 0 accessibility issues (no unlabeled buttons, no images without alt).
+
 ### Changed (Cycle 15 - Full Tauri App Implementation)
 - All 12 mobile commands fully implemented with real WebDAV/REST API calls (previously all stubs):
   mobile_get_file_thumbnail (image preview), mobile_get_storage_stats (real quota),

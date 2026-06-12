@@ -10,8 +10,10 @@
 - **Load Testing:** 1h soak test passed (18,828 requests, 0 failures, P50=6ms, P95=28ms, P99=52ms)
 - **Security:** cargo-deny clean, 18/18 internal pen test checks passed
 - **Mobile:** Tauri v2 iOS/Android: 12 mobile commands fully implemented (WebDAV sync, offline pinning, thumbnails, push notifications, connectivity monitoring, conflict resolution). Responsive frontend with touch gestures. Config persisted to disk.
+- **Web Frontend:** Leptos WASM frontend fully functional at /ui/ -- 165 DOM elements, 17 buttons, 3 inputs, 0 console errors. Verified across Desktop (1280x720), Mobile (390x844), Tablet (768x1024) viewports via Playwright.
+- **Static Serving:** Fixed --static-dir priority so WebDAV handler no longer intercepts root path. Server serves index.html at /, WASM/JS/CSS at /ui/*.
 - **Status:** v5.0 complete. ALL roadmap items DONE (including mobile). 43 crates, 2500+ tests.
-- **Last Updated:** 2026-06-11 (Cycle 15: Full Tauri app implementation -- all stubs replaced, config persistence, real mobile commands, Settings/Recent/Favorites views, all platforms verified)
+- **Last Updated:** 2026-06-12 (Cycle 16: WASM frontend rebuilt, static serving fixed, Playwright traversal verified all 3 viewports -- 165 elements, 17 buttons, 0 errors)
 
 ## Phase Progress
 | Phase | Status | Completion |

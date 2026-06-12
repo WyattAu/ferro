@@ -1688,8 +1688,13 @@ pub fn build_router_with_static(
         },
     );
 
-    let router = Router::new()
-        .route("/", any(webdav::handle_any))
+    let mut router_builder = Router::new();
+    // When --static-dir is set, don't register WebDAV catch-all at /
+    // so that static file serving can handle requests to / and common extensions
+    if static_dir.is_none() {
+        router_builder = router_builder.route("/", any(webdav::handle_any));
+    }
+    let router = router_builder
         .route("/.well-known/ferro", axum::routing::get(health_check))
         .route("/healthz", axum::routing::get(liveness))
         .route("/health", axum::routing::get(health_endpoint))
@@ -1975,34 +1980,77 @@ pub fn build_router_with_static(
         let static_dir_path = std::path::PathBuf::from(dir);
         tracing::info!("Serving static web assets from {:?}", static_dir_path);
 
-        // SPA middleware: intercepts /ui* requests, redirects /ui/ to /ui,
-        // serves static files, falls back to index.html for SPA routing.
+        // SPA middleware: intercepts requests for static assets.
+        // - / serves index.html (SPA entry point)
+        // - /*.html, /*.css, /*.js, /*.wasm serve static files
+        // - /ui* paths serve static files with index.html fallback for SPA routing
+        // - All other paths fall through to API/WebDAV handlers
         let spa_middleware = axum::middleware::from_fn(
             move |req: axum::http::Request<axum::body::Body>, next: axum::middleware::Next| {
                 let path = req.uri().path().to_owned();
                 let static_dir_path = static_dir_path.clone();
                 async move {
+                    // Helper to serve a file from static_dir
+                    let serve_file = |rel: &str| {
+                        let static_dir_path = static_dir_path.clone();
+                        let rel = rel.to_string();
+                        async move {
+                            let file_path = std::path::Path::new(&static_dir_path).join(&rel);
+                            if file_path.is_file() {
+                                match tokio::fs::read(&file_path).await {
+                                    Ok(content) => {
+                                        let ct = mime_guess(&rel);
+                                        Some(
+                                            (
+                                                StatusCode::OK,
+                                                [(axum::http::header::CONTENT_TYPE, ct)],
+                                                content,
+                                            )
+                                                .into_response(),
+                                        )
+                                    }
+                                    Err(_) => None,
+                                }
+                            } else {
+                                None
+                            }
+                        }
+                    };
+
+                    // Root path: serve index.html
+                    if path == "/" {
+                        if let Some(resp) = serve_file("index.html").await {
+                            return resp;
+                        }
+                        return (StatusCode::NOT_FOUND, "Not found").into_response();
+                    }
+
+                    // Check for common static file extensions
+                    let has_static_ext = path.ends_with(".html")
+                        || path.ends_with(".css")
+                        || path.ends_with(".js")
+                        || path.ends_with(".wasm");
+
+                    if has_static_ext {
+                        // Strip leading slash to get relative path
+                        let rel = path.trim_start_matches('/');
+                        if let Some(resp) = serve_file(rel).await {
+                            return resp;
+                        }
+                        // File not found - fall through to next handler
+                    }
+
                     // Redirect /ui/ to /ui -- Leptos Router path="/" fails to match
                     // when browser URL has trailing slash after base "/ui".
                     if path == "/ui/" {
                         return axum::response::Redirect::permanent("/ui").into_response();
                     }
+
+                    // /ui and /ui/* paths: serve static files with SPA fallback
                     if path == "/ui" || path.starts_with("/ui/") {
                         let rel = path.trim_start_matches("/ui/");
-                        let file_path = static_dir_path.join(rel);
-                        if file_path.is_file() {
-                            return match tokio::fs::read(&file_path).await {
-                                Ok(content) => {
-                                    let ct = mime_guess(rel);
-                                    (
-                                        StatusCode::OK,
-                                        [(axum::http::header::CONTENT_TYPE, ct)],
-                                        content,
-                                    )
-                                        .into_response()
-                                }
-                                Err(_) => (StatusCode::NOT_FOUND, "Not found").into_response(),
-                            };
+                        if let Some(resp) = serve_file(rel).await {
+                            return resp;
                         }
                         // Serve index.html for SPA client-side routing
                         return match tokio::fs::read(static_dir_path.join("index.html")).await {
@@ -2015,7 +2063,8 @@ pub fn build_router_with_static(
                             Err(_) => (StatusCode::NOT_FOUND, "Not found").into_response(),
                         };
                     }
-                    // Not a /ui path, pass to next handler
+
+                    // Not a static file path, pass to next handler (API/WebDAV)
                     next.run(req).await
                 }
             },
