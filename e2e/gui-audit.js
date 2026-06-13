@@ -20,7 +20,7 @@ async function waitForServer(maxWait = 30000) {
 
 async function capture(name, page, outDir) {
   fs.mkdirSync(outDir, { recursive: true });
-  try { await page.screenshot({ path: path.join(outDir, `${name}.png`), fullPage: true, timeout: 10000 }); } catch (e) {}
+  await page.screenshot({ path: path.join(outDir, `${name}.png`), fullPage: true, timeout: 10000 });
   const html = await page.content();
   fs.writeFileSync(path.join(outDir, `${name}.html`), html);
   return await page.evaluate(() => ({
@@ -63,7 +63,7 @@ async function runViewport(browser, name, w, h) {
   const info = await capture(`${name}-home`, page, path.join(OUT, name));
   const a11y = await auditA11y(page);
   
-  console.log(`${name}: ${info.elements} elem, ${info.buttons} btns, ${info.inputs} inputs, ${errors.length} errors, a11y=${a11y.score}/100`);
+  console.log(`${name}: ${info.elements} elem, ${info.buttons} btns, ${info.inputs} inputs, ${errors.length} errors, a11y=${a11y.score}/100, issues=${a11y.issues}`);
   if (a11y.issues > 0) console.log(`  Issues: ${a11y.issues}`);
   
   await ctx.close();
