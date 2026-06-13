@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.ferro.fileprovider">
+
+    <application
+        android:label="Ferro"
+        android:supportsRtl="true">
+        
+        <provider
+            android:name=".FerroDocumentsProvider"
+            android:authorities="com.ferro.fileprovider.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
+        
+    </application>
+</manifest>

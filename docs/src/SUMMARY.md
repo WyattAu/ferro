@@ -49,6 +49,7 @@
 
 - [Guides](./guides/SUMMARY.md)
   - [Desktop App](./guides/desktop-app.md)
+  - [Mobile Build](../crates/desktop/mobile/BUILD.md)
   - [FUSE Mount](./guides/fuse-mount.md)
   - [CalDAV Clients](./guides/caldav-clients.md)
   - [Encryption](./guides/encryption.md)
