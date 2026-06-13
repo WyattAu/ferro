@@ -3050,6 +3050,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-caldav"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "bytes",
+ "chrono",
+ "dashmap",
+ "ferro-dav",
+ "quick-xml 0.37.5",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ferro-cli"
 version = "3.0.0"
 dependencies = [

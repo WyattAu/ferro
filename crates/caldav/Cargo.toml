@@ -1,0 +1,27 @@
+[package]
+name = "ferro-caldav"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "CalDAV protocol implementation for Ferro calendar synchronization"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+ferro-dav = { path = "../dav" }
+axum = { workspace = true, features = ["macros"] }
+bytes = { workspace = true }
+chrono = { workspace = true }
+quick-xml = { version = "0.37", features = ["serialize"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+dashmap = "6"
+async-trait = "0.1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

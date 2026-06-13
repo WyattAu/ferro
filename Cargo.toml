@@ -43,6 +43,7 @@ members = [
     "crates/server-sharing",
     "crates/migrate",
     "crates/selective-sync",
+    "crates/caldav",
 ]
 resolver = "2"
 

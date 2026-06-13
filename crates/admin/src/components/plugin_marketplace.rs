@@ -14,6 +14,20 @@ pub enum PluginStatus {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum SortBy {
+    Name,
+    Rating,
+    Downloads,
+    Recent,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ViewTab {
+    Browse,
+    Installed,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MarketplacePlugin {
     pub id: String,
     pub name: String,
@@ -139,6 +153,15 @@ fn status_text(status: &PluginStatus) -> String {
     }
 }
 
+fn sort_plugins(plugins: &mut [MarketplacePlugin], sort_by: &SortBy) {
+    match sort_by {
+        SortBy::Name => plugins.sort_by(|a, b| a.name.cmp(&b.name)),
+        SortBy::Rating => plugins.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap_or(std::cmp::Ordering::Equal)),
+        SortBy::Downloads => plugins.sort_by(|a, b| b.downloads.cmp(&a.downloads)),
+        SortBy::Recent => plugins.reverse(),
+    }
+}
+
 #[component]
 pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
     let (plugins, set_plugins) = signal(mock_plugins());
@@ -146,8 +169,12 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
     let (loading, set_loading) = signal(true);
     let (search_query, set_search_query) = signal(String::new());
     let (category_filter, set_category_filter) = signal(None::<String>);
+    let (sort_by, set_sort_by) = signal(SortBy::Downloads);
+    let (active_tab, set_active_tab) = signal(ViewTab::Browse);
     let (detail_plugin, set_detail_plugin) = signal(None::<MarketplacePlugin>);
     let (action_loading, set_action_loading) = signal(None::<String>);
+    let (update_checking, set_update_checking) = signal(false);
+    let (update_results, set_update_results) = signal(None::<Vec<String>>);
 
     let load_plugins = move || {
         let api_clone = api.get_untracked();
@@ -172,7 +199,7 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
     let filtered_plugins = Memo::new(move |_| {
         let query = search_query.get().to_lowercase();
         let cat = category_filter.get();
-        plugins
+        let mut items: Vec<MarketplacePlugin> = plugins
             .get()
             .iter()
             .filter(|p| {
@@ -184,7 +211,20 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
                 matches_search && matches_cat
             })
             .cloned()
-            .collect::<Vec<_>>()
+            .collect();
+        sort_plugins(&mut items, &sort_by.get());
+        items
+    });
+
+    let installed_plugins = Memo::new(move |_| {
+        let mut items: Vec<MarketplacePlugin> = plugins
+            .get()
+            .iter()
+            .filter(|p| matches!(p.status, PluginStatus::Installed | PluginStatus::Enabled))
+            .cloned()
+            .collect();
+        sort_plugins(&mut items, &sort_by.get());
+        items
     });
 
     let categories = Memo::new(move |_| all_categories(&plugins.get()));
@@ -263,6 +303,34 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
         });
     };
 
+    let check_updates = move || {
+        let api_clone = api.get_untracked();
+        set_update_checking.set(true);
+        set_update_results.set(None);
+        spawn_local(async move {
+            match api_clone
+                .get::<MarketplaceResponse>("/api/v1/admin/plugins/marketplace")
+                .await
+            {
+                Ok(resp) => {
+                    let mut updates = Vec::new();
+                    for plugin in &resp.plugins {
+                        if matches!(plugin.status, PluginStatus::Installed | PluginStatus::Enabled) {
+                            if let Some(local) = plugins.get_untracked().iter().find(|p| p.id == plugin.id) {
+                                if plugin.version != local.version {
+                                    updates.push(format!("{}: {} -> {}", plugin.name, local.version, plugin.version));
+                                }
+                            }
+                        }
+                    }
+                    set_update_results.set(Some(updates));
+                }
+                Err(e) => set_error.set(Some(format!("Update check failed: {}", e))),
+            }
+            set_update_checking.set(false);
+        });
+    };
+
     let categories_list = categories;
 
     view! {
@@ -274,6 +342,25 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
             </div>
 
             {move || error.get().map(|e| view! { <div class="error-banner" role="alert">{e}</div> })}
+
+            <div class="tab-bar" role="tablist">
+                <button
+                    class=move || format!("tab {}", if active_tab.get() == ViewTab::Browse { "tab-active" } else { "" })
+                    role="tab"
+                    aria-selected=move || active_tab.get() == ViewTab::Browse
+                    on:click=move |_| set_active_tab.set(ViewTab::Browse)
+                >
+                    "Browse"
+                </button>
+                <button
+                    class=move || format!("tab {}", if active_tab.get() == ViewTab::Installed { "tab-active" } else { "" })
+                    role="tab"
+                    aria-selected=move || active_tab.get() == ViewTab::Installed
+                    on:click=move |_| set_active_tab.set(ViewTab::Installed)
+                >
+                    "Installed"
+                </button>
+            </div>
 
             <div class="page-header" style="margin-bottom:16px">
                 <div class="page-header-left">
@@ -301,15 +388,78 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
                             view! { <option value=c_val>{c_label}</option> }
                         }).collect::<Vec<_>>()}
                     </select>
+                    <select
+                        class="form-input"
+                        style="width:auto;min-width:140px"
+                        on:change=move |ev| {
+                            let val = event_target_value(&ev);
+                            match val.as_str() {
+                                "name" => set_sort_by.set(SortBy::Name),
+                                "rating" => set_sort_by.set(SortBy::Rating),
+                                "downloads" => set_sort_by.set(SortBy::Downloads),
+                                "recent" => set_sort_by.set(SortBy::Recent),
+                                _ => {}
+                            }
+                        }
+                        aria-label="Sort by"
+                    >
+                        <option value="downloads">"Most Popular"</option>
+                        <option value="rating">"Highest Rated"</option>
+                        <option value="name">"Name A-Z"</option>
+                        <option value="recent">"Recently Added"</option>
+                    </select>
+                </div>
+                <div class="page-header-right">
+                    {move || if active_tab.get() == ViewTab::Installed {
+                        view! {
+                            <button
+                                class="btn btn-secondary btn-sm"
+                                disabled=move || update_checking.get()
+                                on:click=move |_| check_updates()
+                            >
+                                {move || if update_checking.get() { "Checking..." } else { "Check for Updates" }}
+                            </button>
+                        }.into_any()
+                    } else {
+                        view! { <span/> }.into_any()
+                    }}
                 </div>
             </div>
+
+            {move || update_results.get().map(|updates| {
+                if updates.is_empty() {
+                    view! { <div class="success-banner">"All installed plugins are up to date."</div> }.into_any()
+                } else {
+                    view! {
+                        <div class="panel" style="margin-bottom:16px">
+                            <div class="panel-title">"Available Updates"</div>
+                            <div class="activity-list">
+                                {updates.iter().map(|u| view! {
+                                    <div class="activity-item">
+                                        <span class="activity-action">{u.clone()}</span>
+                                    </div>
+                                }).collect::<Vec<_>>()}
+                            </div>
+                        </div>
+                    }.into_any()
+                }
+            })}
 
             {move || if loading.get() {
                 view! { <div class="loading">"Loading plugins..."</div> }.into_any()
             } else {
-                let items = filtered_plugins.get();
+                let items = if active_tab.get() == ViewTab::Installed {
+                    installed_plugins.get()
+                } else {
+                    filtered_plugins.get()
+                };
                 if items.is_empty() {
-                    view! { <div class="empty-state">"No plugins found matching your search."</div> }.into_any()
+                    let msg = if active_tab.get() == ViewTab::Installed {
+                        "No plugins installed yet."
+                    } else {
+                        "No plugins found matching your search."
+                    };
+                    view! { <div class="empty-state">{msg}</div> }.into_any()
                 } else {
                     view! {
                         <div class="plugin-grid">
@@ -512,6 +662,12 @@ const PLUGIN_MARKETPLACE_CSS: &str = r#"
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
     gap: 16px;
+}
+
+@media (max-width: 480px) {
+    .plugin-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .plugin-card {
