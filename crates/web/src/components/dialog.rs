@@ -2,6 +2,7 @@ use leptos::ev;
 use leptos::prelude::*;
 
 use crate::components::focus_trap::FocusTrap;
+use crate::t;
 
 /// Accessible dialog component following the leptix pattern.
 ///
@@ -70,7 +71,7 @@ pub fn Dialog(
                             </h3>
                             <button
                                 class="p-1 rounded-sm text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                                aria-label="Close dialog"
+                                aria-label=t!("aria.close_dialog")
                                 on:click=close
                             >
                                 <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">

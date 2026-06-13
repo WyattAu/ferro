@@ -183,7 +183,7 @@ pub fn CommandPalette() -> impl IntoView {
                             placeholder=t!("command_palette.placeholder")
                             prop:value=search
                             on:input=move |ev| set_search.set(event_target_value(&ev))
-                            aria-label="Search commands"
+                            aria-label=t!("command_palette.aria")
                         />
                         <kbd class="hidden sm:inline-block px-2 py-0.5 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-sm brutal-border ml-2 shrink-0 font-mono">{t!("command_palette.esc")}</kbd>
                     </div>

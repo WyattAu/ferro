@@ -1161,12 +1161,13 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                 ClipboardAction::Copy => t!("clipboard.copy"),
                                 ClipboardAction::Cut => t!("clipboard.cut"),
                            }).unwrap_or_default();
-                           view! {
-                               <button
-                                   class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-green-600 text-white rounded-sm brutal-border font-bold uppercase hover:bg-green-700 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
-                                   on:click=move |_| clipboard_paste()
-                                   title=move || format!("{} file(s) on clipboard ({})", count, al)
-                               >
+                            view! {
+                                <button
+                                    class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-green-600 text-white rounded-sm brutal-border font-bold uppercase hover:bg-green-700 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                                    on:click=move |_| clipboard_paste()
+                                    title=move || format!("{} file(s) on clipboard ({})", count, al)
+                                    aria-label=move || format!("Paste {} file(s)", count)
+                                >
                                    <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                    </svg>
