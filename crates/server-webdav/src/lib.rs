@@ -5,6 +5,7 @@ pub mod range_get;
 pub mod xml_util;
 
 pub use handler::handle_any;
+pub use handler::sanitize_path;
 pub use lock::DbHandle;
 pub use lock::LockManager;
 pub use range_get::*;

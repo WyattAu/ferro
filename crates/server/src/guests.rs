@@ -12,6 +12,7 @@ use tracing::info;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use ferro_server_sharing::guests::validate_guest_expiry;
 
 // ---------------------------------------------------------------------------
 // Guest Accounts (G-10)
@@ -296,17 +297,6 @@ pub async fn delete_retention_policy(
 // ---------------------------------------------------------------------------
 // Guest expiry check (called periodically and during authentication)
 // ---------------------------------------------------------------------------
-
-/// Validate a single guest account's expiry time.
-///
-/// Returns `true` if the guest's `guest_expires_at` is in the past (expired).
-/// Should be called during authentication for guest users.
-pub fn validate_guest_expiry(guest_expires_at: &str) -> bool {
-    match chrono::DateTime::parse_from_rfc3339(guest_expires_at) {
-        Ok(expires_at) => expires_at < Utc::now(),
-        Err(_) => false,
-    }
-}
 
 /// Check and disable expired guest accounts.
 /// Returns the number of expired guests that were disabled.

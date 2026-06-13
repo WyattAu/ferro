@@ -12,6 +12,7 @@ use common::error::Result;
 use common::path::normalize_path;
 use common::webdav::LockDepth;
 use ferro_offline::change_queue::ChangeQueueStore;
+use ferro_server_webdav::sanitize_path;
 use http_body_util::BodyExt;
 use tokio::io::AsyncReadExt;
 use tracing::{debug, info, warn};
@@ -19,33 +20,6 @@ use tracing::{debug, info, warn};
 /// Maximum recursion depth for PROPFIND depth:infinity to prevent DoS.
 const MAX_PROPFIND_DEPTH: u32 = 100;
 const MAX_RECENTLY_PROCESSED: usize = 10_000;
-
-fn sanitize_path(path: &str) -> Result<String> {
-    if path.contains('\0') {
-        return Err(FerroError::InvalidArgument(
-            "Path contains null bytes".to_string(),
-        ));
-    }
-
-    for component in std::path::Path::new(path).components() {
-        match component {
-            std::path::Component::ParentDir => {
-                return Err(FerroError::InvalidArgument(
-                    "Path traversal detected: '..' not allowed".to_string(),
-                ));
-            }
-            std::path::Component::CurDir => {
-                return Err(FerroError::InvalidArgument(
-                    "Path contains '.' component".to_string(),
-                ));
-            }
-            _ => {}
-        }
-    }
-
-    let normalized = normalize_path(path);
-    Ok(normalized)
-}
 
 /// Strip the scheme and authority from a WebDAV Destination URI, returning
 /// just the path component. Per RFC 4918 §10.4, the Destination header is

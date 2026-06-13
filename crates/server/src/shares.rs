@@ -14,6 +14,7 @@ use tracing::warn;
 use crate::AppState;
 use crate::api_error::ApiError;
 use crate::db::DbHandle;
+use ferro_server_sharing::shares::{hash_share_password, verify_share_password};
 
 const MAX_SHARE_LINKS: usize = 10_000;
 /// Maximum failed password attempts per share token before temporary lockout.
@@ -521,22 +522,6 @@ pub async fn serve_share(
     let body = axum::body::Body::from_stream(stream);
 
     (StatusCode::OK, headers, body).into_response()
-}
-
-fn constant_time_eq(a: &str, b: &str) -> bool {
-    use subtle::ConstantTimeEq;
-    a.as_bytes().ct_eq(b.as_bytes()).into()
-}
-
-pub fn hash_share_password(password: &str) -> String {
-    use sha2::{Digest, Sha256};
-    let hash = Sha256::digest(password.as_bytes());
-    hex::encode(hash)
-}
-
-pub fn verify_share_password(provided: &str, stored_hash: &str) -> bool {
-    let provided_hash = hash_share_password(provided);
-    constant_time_eq(&provided_hash, stored_hash)
 }
 
 /// `POST /s/:token` -- Upload a file to a file-drop (upload-only) share via multipart form.

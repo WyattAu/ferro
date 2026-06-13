@@ -7,6 +7,7 @@ use crate::webdav::{DavEntry, parse_propfind};
 pub struct NextcloudClient {
     http: reqwest::Client,
     url: String,
+    #[allow(dead_code)]
     username: String,
     #[allow(dead_code)]
     password: String,

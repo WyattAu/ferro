@@ -95,6 +95,8 @@ ferro-server-security = { path = "../server-security" }
 ferro-server-automation = { path = "../server-automation" }
 ferro-sync-protocol = { path = "../sync-protocol" }
 ferro-selective-sync = { path = "../selective-sync" }
+ferro-server-sharing = { path = "../server-sharing" }
+ferro-server-webdav = { path = "../server-webdav" }
 
 [dev-dependencies]
 http-body-util = "0.1"

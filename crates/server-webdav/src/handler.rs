@@ -20,7 +20,7 @@ use tracing::{debug, info, warn};
 
 const MAX_PROPFIND_DEPTH: u32 = 100;
 
-fn sanitize_path(path: &str) -> Result<String> {
+pub fn sanitize_path(path: &str) -> Result<String> {
     if path.contains('\0') {
         return Err(FerroError::InvalidArgument(
             "Path contains null bytes".to_string(),
