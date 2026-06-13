@@ -402,7 +402,7 @@ pub fn Header() -> impl IntoView {
                 })}
                 {move || has_searched().then(|| view! {
                     <div class="text-xs font-mono text-gray-400 mb-1" style="letter-spacing: 0.05em;" aria-live="polite">
-                        {move || format!("{} result(s)", search_total.get())}
+                        {move || format!("{}", t!("common.results"), search_total.get())}
                     </div>
                 })}
                 <SearchResultsList results=search_results query=search_query />
@@ -479,7 +479,7 @@ fn SearchResultsList(
                             view! {
                                 <a
                                     class="block w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-0 cursor-pointer no-underline text-inherit transition-colors"
-                                    href=format!("/files{}", parent)
+                                    href=format!("/ui/files{}", parent)
                                 >
                                     <div class="flex items-center gap-2">
                                         <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

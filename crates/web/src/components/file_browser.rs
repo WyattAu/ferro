@@ -318,8 +318,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     reload();
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Delete failed: {}", e)));
-                    ToastContext::error(format!("Delete failed: {}", e));
+                    set_error.set(Some(format!(t!("error.delete_failed"), e)));
+                    ToastContext::error(format!(t!("error.delete_failed"), e));
                 }
             }
         });
@@ -358,15 +358,15 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     uint8.copy_to(&mut bytes);
                     match api::upload_file(&file_path, &bytes).await {
                         Ok(()) => {
-                            ToastContext::success(format!("File uploaded: {}", file_name));
+                            ToastContext::success(format!(t!("toast.file_uploaded"), file_name));
                             api::show_notification(
                                 t!("toast.upload_complete"),
-                                &format!("{} uploaded successfully", file_name),
+                                &format!(t!("toast.upload_success"), file_name),
                             );
                             reload();
                         }
                         Err(e) => {
-                            ToastContext::error(format!("Upload failed: {}", e));
+                            ToastContext::error(format!(t!("error.upload_failed"), e));
                         }
                     }
                 }
@@ -593,15 +593,15 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     let succeeded = resp.succeeded.len();
                     let failed = resp.failed.len();
                     if failed == 0 {
-                        ToastContext::success(format!("Deleted {} file(s)", succeeded));
+                        ToastContext::success(format!(t!("toast.bulk_deleted"), succeeded));
                     } else {
-                        ToastContext::warning(format!("Deleted {}, {} failed", succeeded, failed));
+                        ToastContext::warning(format!(t!("toast.bulk_deleted_partial"), succeeded, failed));
                     }
                     set_selected_paths.set(std::collections::HashSet::new());
                     reload();
                 }
                 Err(e) => {
-                    ToastContext::error(format!("Bulk delete failed: {}", e));
+                    ToastContext::error(format!(t!("error.bulk_delete_failed"), e));
                 }
             }
         });
@@ -621,14 +621,14 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let paths: Vec<String> = selected_paths.get().into_iter().collect();
         let count = paths.len();
         clipboard_state.copy_files(paths);
-        ToastContext::info(format!("{} file(s) copied to clipboard", count));
+        ToastContext::info(format!(t!("toast.files_copied_clipboard"), count));
     };
 
     let clipboard_cut_selected = move || {
         let paths: Vec<String> = selected_paths.get().into_iter().collect();
         let count = paths.len();
         clipboard_state.cut_files(paths);
-        ToastContext::info(format!("{} file(s) cut to clipboard", count));
+        ToastContext::info(format!(t!("toast.files_cut_clipboard"), count));
     };
 
     let clipboard_paste = move || {
@@ -667,9 +667,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             };
 
             if failed == 0 {
-                ToastContext::success(format!("{} file(s) {}", succeeded, action_str));
+                ToastContext::success(format!(t!("toast.bulk_action_success"), succeeded, action_str));
             } else {
-                ToastContext::warning(format!("{} {}, {} failed", succeeded, action_str, failed));
+                ToastContext::warning(format!(t!("toast.bulk_action_partial"), succeeded, action_str, failed));
             }
 
             clipboard_state.clear();
@@ -968,10 +968,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             match api::move_file(&s, &d).await {
                 Ok(()) => {
                     set_show_rename_dialog.set(false);
-                    ToastContext::success(format!("Renamed to {}", new_name));
+                    ToastContext::success(format!(t!("toast.renamed"), new_name));
                     reload();
                 }
-                Err(e) => ToastContext::error(format!("Rename failed: {}", e)),
+                Err(e) => ToastContext::error(format!(t!("error.rename_failed"), e)),
             }
         });
     });
@@ -984,10 +984,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             match api::move_file(&s, &d).await {
                 Ok(()) => {
                     set_show_move_dialog.set(false);
-                    ToastContext::success(format!("Moved {} to {}", s, d));
+                    ToastContext::success(format!(t!("toast.moved_success"), s, d));
                     reload();
                 }
-                Err(e) => ToastContext::error(format!("Move failed: {}", e)),
+                Err(e) => ToastContext::error(format!(t!("error.move_failed"), e)),
             }
         });
     });
@@ -999,10 +999,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             match api::copy_file(&s, &d).await {
                 Ok(()) => {
                     set_show_copy_dialog.set(false);
-                    ToastContext::success(format!("Copied {} to {}", s, d));
+                    ToastContext::success(format!("{}", t!("toast.copied_success"), s, d));
                     reload();
                 }
-                Err(e) => ToastContext::error(format!("Copy failed: {}", e)),
+                Err(e) => ToastContext::error(format!("{}", t!("error.copy_failed"), e)),
             }
         });
     });
@@ -1024,10 +1024,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             spawn_local(async move {
                 match api::copy_file(&s, &dest).await {
                     Ok(()) => {
-                        ToastContext::success(format!("Copied {} to {}", file_name, dest));
+                        ToastContext::success(format!("{}", t!("toast.copied_success"), file_name, dest));
                         reload();
                     }
-                    Err(e) => ToastContext::error(format!("Copy failed: {}", e)),
+                    Err(e) => ToastContext::error(format!("{}", t!("error.copy_failed"), e)),
                 }
             });
         } else {
@@ -1035,10 +1035,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             spawn_local(async move {
                 match api::move_file(&s, &dest).await {
                     Ok(()) => {
-                        ToastContext::success(format!("Moved {} to {}", file_name, dest));
+                        ToastContext::success(format!("{}", t!("toast.moved_success"), file_name, dest));
                         reload();
                     }
-                    Err(e) => ToastContext::error(format!("Move failed: {}", e)),
+                    Err(e) => ToastContext::error(format!("{}", t!("error.move_failed"), e)),
                 }
             });
         }

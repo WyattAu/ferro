@@ -11,6 +11,7 @@ use crate::components::onboarding::OnboardingOverlay;
 use crate::components::setup_wizard::SetupWizard;
 use crate::components::toast::ProvideToastContext;
 use crate::i18n::{I18nCtx, Locale};
+use crate::t;
 use crate::pages::admin::AdminPage;
 use crate::pages::auth::AuthCallbackPage;
 use crate::pages::home::HomePage;
@@ -106,7 +107,7 @@ pub fn App() -> impl IntoView {
         <ErrorBoundary>
             <ProvideToastContext>
                 <Router base="/ui".to_string()>
-                    <Routes fallback=|| "Not found">
+                    <Routes fallback=|| t!("common.not_found")>
                         <Route path=path!("/") view=RootView />
                         <Route path=path!("/files/") view=RootView />
                         <Route path=path!("/files/*path") view=FileViewRoute />
