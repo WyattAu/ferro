@@ -97,16 +97,6 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(feature = "tauri")]
 fn main() {
-    // Force X11 backend on Linux/Wayland.
-    // wry (Tauri's webview engine) depends on gdkx11 and webkit2gtk, which
-    // require X11. On native Wayland sessions, GTK3 tries the Wayland backend
-    // but WebKitGTK can't render into it, causing the window to not appear.
-    // Setting GDK_BACKEND=x11 forces X11 via XWayland.
-    #[cfg(target_os = "linux")]
-    if std::env::var("GDK_BACKEND").is_err() {
-        unsafe { std::env::set_var("GDK_BACKEND", "x11") };
-    }
-
     // Disable WebKitGTK DMA-BUF renderer on Linux.
     // Some GPU drivers (especially in VMs or older hardware) fail to create
     // GBM buffers, causing the webview to render a blank window despite
