@@ -973,7 +973,7 @@ Current version: v3.0.0.
 | Item | Description | Priority |
 |------|-------------|----------|
 | File sync daemon | Background sync with conflict resolution | P0 |
-| Selective sync | Per-folder sync toggle | P1 | Planned (ferro-selective-sync not yet implemented) |
+| Selective sync | Per-folder sync toggle | P1 | **DONE** (2026-06-11). Wired ferro-selective-sync into server (5 API endpoints) and client (5 async methods). |
 | System tray indicator | Sync status, recent changes, pause/resume | P1 | DONE (Sync Now/Pause/Resume) |
 | macOS universal binary | Support both Intel and Apple Silicon | P1 |
 | Windows MSI installer | Proper Windows installer with shell integration | P1 |
@@ -1258,8 +1258,8 @@ All workflows pass on commit `271250a` (verified 2026-05-27):
 | G-16 | Workflow automation (event triggers) | Nextcloud, MinIO | P2 | 7.1+ | DONE (ferro-event-bus) |
 | G-17 | Comments on files | Nextcloud, OCIS | P2 | 6.3 | DONE |
 | G-18 | AI-powered search (semantic embeddings) | Nextcloud, Seafile | P3 | 7.4 | DONE (ferro-search-index) |
-| G-19 | Multi-tenancy | OCIS, Seafile, MinIO | P2 | 7.2 | Planned |
-| G-20 | Horizontal scaling | Nextcloud, OCIS, Seafile, MinIO | P3 | 7.3 | Planned |
+| G-19 | Multi-tenancy | OCIS, Seafile, MinIO | P2 | 7.2 | **DONE** (ferro-multi-tenant crate with org/tenant management, quotas, isolation) |
+| G-20 | Horizontal scaling | Nextcloud, OCIS, Seafile, MinIO | P3 | 7.3 | **DONE** (ferro-distributed with Raft consensus, erasure coding, geo-replication) |
 | G-21 | Plugin marketplace | Nextcloud, OCIS | P3 | 7.1 | DONE (ferro-plugin-marketplace) |
 | G-22 | Offline mode (mobile) | Nextcloud, OCIS, Seafile | P2 | 6.2 | DONE (ferro-offline) |
 | G-23 | Data retention policies | Nextcloud, OCIS, Seafile, MinIO | P2 | 6.4 | DONE |
@@ -1414,9 +1414,9 @@ Seafile's block-level delta sync is its single strongest differentiator. Ferro s
 | TD-043 | P2 | Add prefers-reduced-motion CSS | **DONE** (2026-06-10). Added prefers-reduced-motion to landing page and web UI style.css in audit cycle 12 | 1 day | DONE |
 | TD-044 | P3 | Add landing page 404.html | **DONE** (2026-06-10). Custom 404.html with matching Spatial Materialism design, accessibility, and home link. | 0.5 days | DONE |
 | TD-045 | P1 | CRDT collaboration relay | **DONE** (2026-06-10). `/ws/collab/{document_id}` WebSocket handler with per-document rooms, participant tracking, presence broadcast. 9 tests. | 5 days | DONE |
-| TD-046 | P1 | E2EE key generation accuracy | `/e2ee/key/generate` labels 32 random bytes as "x25519" without actual X25519 key derivation | 3 days |
-| TD-047 | P2 | Dual WASM runtime consolidation | wasm-host crate not used by server (uses ferro_core::wasm instead); consolidate to one approach | 5 days |
-| TD-048 | P2 | ServerConfig naming disambiguation | Three unrelated types named ServerConfig across admin, config-manager, and server crates | 1 day |
+| TD-046 | P1 | E2EE key generation accuracy | **DONE** (2026-06-10). Replaced random bytes with real X25519 via x25519-dalek. | 3 days | DONE |
+| TD-047 | P2 | Dual WASM runtime consolidation | **DONE** (2026-06-10). Investigated; ferro-wasm-host (plugin SDK) and ferro-core::wasm (WASI worker) serve different purposes. Kept both. | 5 days | DONE |
+| TD-048 | P2 | ServerConfig naming disambiguation | **DONE** (2026-06-10). Renamed admin ServerConfig -> AdminConnectionConfig. | 1 day | DONE |
 | TD-049 | P2 | Server crate decomposition (supersedes TD-041) | **DONE** (2026-06-11). Extracted 5 sub-crates: ferro-server-webdav (14 tests), ferro-server-security (58 tests), ferro-server-sharing (50 tests), ferro-server-admin (8 tests), ferro-server-automation (13 tests). Server reduced from 115 to ~55 source files. | 15 days | DONE |
 | TD-050 | P3 | Selective sync not implemented | **DONE** (2026-06-10). Marked as "Planned" in ROADMAP feature list. Not removed -- tracking issue created via status change. | 0.5 days | DONE |
 
