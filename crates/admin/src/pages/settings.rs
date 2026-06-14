@@ -2,7 +2,8 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 
 use crate::api::ApiState;
-use crate::state::{format_bytes, format_uptime};
+use crate::state::format_uptime;
+use ferro_common::format::format_size as format_bytes;
 
 #[component]
 pub fn SettingsPage(api: RwSignal<ApiState>) -> impl IntoView {

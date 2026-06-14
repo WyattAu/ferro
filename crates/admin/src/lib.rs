@@ -47,12 +47,13 @@ mod tests {
 
     #[test]
     fn test_format_bytes_various_sizes() {
-        assert_eq!(crate::state::format_bytes(0), "0 B");
-        assert_eq!(crate::state::format_bytes(1), "1 B");
-        assert!(crate::state::format_bytes(1024).contains("KB"));
-        assert!(crate::state::format_bytes(1024 * 1024).contains("MB"));
-        assert!(crate::state::format_bytes(1024 * 1024 * 1024).contains("GB"));
-        assert!(crate::state::format_bytes(1024 * 1024 * 1024 * 1024).contains("TB"));
+        use ferro_common::format::format_size;
+        assert_eq!(format_size(0), "0 B");
+        assert_eq!(format_size(1), "1 B");
+        assert!(format_size(1024).contains("KB"));
+        assert!(format_size(1024 * 1024).contains("MB"));
+        assert!(format_size(1024 * 1024 * 1024).contains("GB"));
+        assert!(format_size(1024 * 1024 * 1024 * 1024).contains("TB"));
     }
 
     #[test]

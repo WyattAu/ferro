@@ -5,7 +5,8 @@ use crate::api::ApiState;
 use crate::components::badge::{Badge, BadgeVariant};
 use crate::components::chart::{BarChart, LineChart, PieChart};
 use crate::components::stats_card::StatsCard;
-use crate::state::{format_bytes, format_timestamp, format_uptime};
+use crate::state::{format_timestamp, format_uptime};
+use ferro_common::format::format_size as format_bytes;
 
 #[component]
 pub fn DashboardPage(api: RwSignal<ApiState>) -> impl IntoView {

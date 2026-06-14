@@ -2937,6 +2937,7 @@ version = "3.0.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
+ "ferro-common",
  "gloo-net 0.5.0",
  "gloo-timers",
  "js-sys",

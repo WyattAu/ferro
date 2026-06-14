@@ -2,25 +2,6 @@ use leptos::prelude::*;
 
 use crate::api::{AdminConnectionConfig, ApiState};
 
-pub fn format_bytes(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = 1024 * KB;
-    const GB: u64 = 1024 * MB;
-    const TB: u64 = 1024 * GB;
-
-    if bytes >= TB {
-        format!("{:.1} TB", bytes as f64 / TB as f64)
-    } else if bytes >= GB {
-        format!("{:.1} GB", bytes as f64 / GB as f64)
-    } else if bytes >= MB {
-        format!("{:.1} MB", bytes as f64 / MB as f64)
-    } else if bytes >= KB {
-        format!("{:.1} KB", bytes as f64 / KB as f64)
-    } else {
-        format!("{} B", bytes)
-    }
-}
-
 pub fn format_uptime(seconds: u64) -> String {
     let days = seconds / 86400;
     let hours = (seconds % 86400) / 3600;
@@ -92,49 +73,6 @@ pub fn provide_api_state() -> RwSignal<ApiState> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_format_bytes_zero() {
-        assert_eq!(format_bytes(0), "0 B");
-    }
-
-    #[test]
-    fn test_format_bytes_small() {
-        assert_eq!(format_bytes(512), "512 B");
-        assert_eq!(format_bytes(1023), "1023 B");
-    }
-
-    #[test]
-    fn test_format_bytes_kilobytes() {
-        assert_eq!(format_bytes(1024), "1.0 KB");
-        assert_eq!(format_bytes(1536), "1.5 KB");
-        assert_eq!(format_bytes(1048575), "1024.0 KB");
-    }
-
-    #[test]
-    fn test_format_bytes_megabytes() {
-        assert_eq!(format_bytes(1_048_576), "1.0 MB");
-        assert_eq!(format_bytes(5_242_880), "5.0 MB");
-    }
-
-    #[test]
-    fn test_format_bytes_gigabytes() {
-        assert_eq!(format_bytes(1_073_741_824), "1.0 GB");
-        assert_eq!(format_bytes(2_147_483_648), "2.0 GB");
-    }
-
-    #[test]
-    fn test_format_bytes_terabytes() {
-        assert_eq!(format_bytes(1_099_511_627_776), "1.0 TB");
-    }
-
-    #[test]
-    fn test_format_bytes_exact_boundary() {
-        assert_eq!(format_bytes(1024), "1.0 KB");
-        assert_eq!(format_bytes(1024 * 1024), "1.0 MB");
-        assert_eq!(format_bytes(1024 * 1024 * 1024), "1.0 GB");
-        assert_eq!(format_bytes(1024 * 1024 * 1024 * 1024), "1.0 TB");
-    }
 
     #[test]
     fn test_format_uptime_zero() {

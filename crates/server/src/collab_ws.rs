@@ -179,7 +179,7 @@ async fn idle_save_loop(room: Arc<Room>, storage: Arc<dyn StorageEngine>, docume
             break;
         }
         if room.dirty.swap(false, Ordering::SeqCst) {
-            let data = serde_json::to_vec(&*room.document.read().unwrap()).ok();
+            let data = serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
             if let Some(data) = data {
                 save_crdt_state(&*storage, &document_id, &data).await;
             }
@@ -196,7 +196,7 @@ async fn handle_collab_socket(
     let room = manager.get_or_create_room(&document_id);
 
     let should_load = {
-        let mut guard = room.load_state.lock().unwrap();
+        let mut guard = room.load_state.lock().unwrap_or_else(|e| e.into_inner());
         if *guard {
             false
         } else {
@@ -208,7 +208,7 @@ async fn handle_collab_socket(
         if let Some(bytes) = load_crdt_bytes(&*storage, &document_id).await
             && let Ok(doc) = serde_json::from_slice(&bytes)
         {
-            *room.document.write().unwrap() = doc;
+            *room.document.write().unwrap_or_else(|e| e.into_inner()) = doc;
         }
         let _ = storage.create_collection(".ferro-collab", "system").await;
         let idle_room = room.clone();
@@ -251,13 +251,13 @@ async fn handle_collab_socket(
                                     .participants
                                     .insert(participant_id, name.clone());
                                 {
-                                    let mut doc = room_for_recv.document.write().unwrap();
+                                    let mut doc = room_for_recv.document.write().unwrap_or_else(|e| e.into_inner());
                                     doc.join(ParticipantId(participant_id), &name);
                                 }
-                                *pid_for_cleanup.lock().unwrap() = Some(participant_id);
+                                *pid_for_cleanup.lock().unwrap_or_else(|e| e.into_inner()) = Some(participant_id);
 
                                 let serialized = {
-                                    let doc = room_for_recv.document.read().unwrap();
+                                    let doc = room_for_recv.document.read().unwrap_or_else(|e| e.into_inner());
                                     serde_json::to_string(&*doc).unwrap_or_default()
                                 };
                                 let state_msg = CollabMessage::DocumentState {
@@ -273,7 +273,7 @@ async fn handle_collab_socket(
                             }
                             CollabMessage::Operations { ops } => {
                                 {
-                                    let mut doc = room_for_recv.document.write().unwrap();
+                                    let mut doc = room_for_recv.document.write().unwrap_or_else(|e| e.into_inner());
                                     doc.apply_ops(&ops);
                                 }
                                 room_for_recv.dirty.store(true, Ordering::SeqCst);
@@ -321,13 +321,13 @@ async fn handle_collab_socket(
         _ = send_task => {},
     }
 
-    if let Some(pid) = *my_participant_id.lock().unwrap() {
+    if let Some(pid) = *my_participant_id.lock().unwrap_or_else(|e| e.into_inner()) {
         room.participants.remove(&pid);
         room.broadcast_participants();
     }
 
     if room.dirty.swap(false, Ordering::SeqCst) {
-        let data = serde_json::to_vec(&*room.document.read().unwrap()).ok();
+        let data = serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
         if let Some(data) = data {
             save_crdt_state(&*storage, &document_id, &data).await;
         }

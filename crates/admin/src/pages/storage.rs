@@ -3,7 +3,8 @@ use leptos::task::spawn_local;
 
 use crate::api::ApiState;
 use crate::components::chart::{BarChart, PieChart};
-use crate::state::{format_bytes, format_timestamp};
+use crate::state::format_timestamp;
+use ferro_common::format::format_size as format_bytes;
 
 #[component]
 pub fn StoragePage(api: RwSignal<ApiState>) -> impl IntoView {

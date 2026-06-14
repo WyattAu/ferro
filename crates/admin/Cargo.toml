@@ -49,6 +49,7 @@ gloo-timers = "0.3"
 gloo-net = "0.5"
 console_error_panic_hook = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
+ferro-common = { path = "../common" }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
