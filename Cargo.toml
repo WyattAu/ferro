@@ -44,6 +44,7 @@ members = [
     "crates/migrate",
     "crates/selective-sync",
     "crates/caldav",
+    "crates/scim",
 ]
 resolver = "2"
 
@@ -75,6 +76,8 @@ x25519-dalek = "2"
 tonic = "0.14"
 prost = "0.14"
 kuchikiki = "=0.8.8-speedreader"
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
 
 [profile.release]
 opt-level = "z"

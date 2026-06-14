@@ -3428,6 +3428,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-scim"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "dashmap",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ferro-selective-sync"
 version = "3.0.0"
 dependencies = [
