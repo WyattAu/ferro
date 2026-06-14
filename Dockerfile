@@ -10,7 +10,7 @@
 # - Pin FROM to @sha256:<digest> for reproducibility
 # - To pin: replace tags with digest from `docker inspect --format='{{index .RepoDigests 0}}'`
 # ==============================================================================
-FROM rust:1.95-bookworm AS builder
+FROM rust:1.96-bookworm AS builder
 
 ARG BUILD_FEATURES=""
 
