@@ -77,12 +77,10 @@
     },
     "iOS": {
       "developmentTeam": "",
-      "minimumSystemVersion": "14.0",
-      "domains": ["fs"]
+      "minimumSystemVersion": "14.0"
     },
     "android": {
-      "minSdkVersion": 24,
-      "allowDowngrades": false
+      "minSdkVersion": 24
     }
   },
   "plugins": {

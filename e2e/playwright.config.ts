@@ -28,10 +28,10 @@ const config = {
 if (!process.env.CI) {
   (config as any).webServer = {
     command:
-      "cargo run -p ferro-server -- --admin-user test --admin-password test --data-dir /tmp/ferro-e2e --storage local:/tmp/ferro-e2e-data",
+      "target/debug/ferro-server --host 127.0.0.1 --port 8080 --static-dir crates/web/dist",
     url: "http://localhost:8080/.well-known/ferro",
     reuseExistingServer: true,
-    timeout: 300_000,
+    timeout: 30_000,
   };
 }
 
