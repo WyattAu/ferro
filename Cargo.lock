@@ -3060,7 +3060,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "ferro-dav",
- "quick-xml 0.37.5",
+ "quick-xml 0.39.4",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -3080,7 +3080,7 @@ dependencies = [
  "ferro-common",
  "ferro-migrate",
  "hex",
- "quick-xml 0.37.5",
+ "quick-xml 0.39.4",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -3195,7 +3195,7 @@ dependencies = [
  "axum",
  "chrono",
  "dashmap",
- "quick-xml 0.37.5",
+ "quick-xml 0.39.4",
  "rusqlite",
  "serde",
  "serde_json",
@@ -3345,7 +3345,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "indicatif",
- "quick-xml 0.37.5",
+ "quick-xml 0.39.4",
  "reqwest 0.12.28",
  "rusqlite",
  "serde",
@@ -3515,7 +3515,7 @@ dependencies = [
  "object_store",
  "pdf",
  "proptest",
- "quick-xml 0.37.5",
+ "quick-xml 0.39.4",
  "rand 0.9.4",
  "rcgen",
  "redis",
@@ -3717,7 +3717,7 @@ dependencies = [
  "futures",
  "http-body-util",
  "mime_guess",
- "quick-xml 0.37.5",
+ "quick-xml 0.39.4",
  "rusqlite",
  "serde",
  "serde_json",
@@ -3801,7 +3801,7 @@ version = "3.0.0"
 dependencies = [
  "bytes",
  "ferro-common",
- "quick-xml 0.37.5",
+ "quick-xml 0.39.4",
 ]
 
 [[package]]
@@ -7989,6 +7989,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdcc8dd4e2f670d309a5f0e83fe36dfdc05af317008fea29144da1a2ac858e5e"
 dependencies = [
  "memchr",
+ "serde",
 ]
 
 [[package]]

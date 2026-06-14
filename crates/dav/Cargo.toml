@@ -32,7 +32,7 @@ tracing = "0.1"
 thiserror = "2"
 tokio = { workspace = true }
 dashmap = "6"
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { version = "0.39", features = ["serialize"] }
 urlencoding = "2"
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 
