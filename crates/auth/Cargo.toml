@@ -19,7 +19,7 @@ uuid = { version = "1", features = ["v4"] }
 jsonwebtoken = "9"
 cedar-policy = "4"
 base64 = "0.22"
-axum = { version = "0.7", features = ["macros"], optional = true }
+axum = { version = "0.8", features = ["macros"], optional = true }
 dashmap = "6"
 bcrypt = "0.19"
 rusqlite = { version = "0.32", features = ["bundled"] }
