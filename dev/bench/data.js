@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781367344068,
+  "lastUpdate": 1781402709017,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -26392,6 +26392,444 @@ window.BENCHMARK_DATA = {
           {
             "name": "metadata_deserialize",
             "value": 1404,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 19,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "ea92f7e1af357b7fab8fb0d6df234bec9acf7dd6",
+          "message": "feat: SCIM provisioning, performance benchmarks, deployment checklist\n\nSCIM 2.0 Provisioning (ferro-scim):\n- crates/scim/: New crate with SCIM 2.0 endpoints\n- ScimUser, ScimGroup, ScimMeta types\n- CRUD handlers for Users and Groups\n- ServiceProviderConfig, Schemas, ResourceTypes endpoints\n- Error handling with HTTP status mapping\n- In-memory GroupStore with DashMap\n\nPerformance Benchmarks:\n- scripts/http-benchmark.sh: HTTP throughput benchmark\n- .reports/performance-report.md: Detailed results\n- Debug build: PUT 900ms, GET 452ms, DELETE 392ms\n\nProduction Docker Stack:\n- deploy/CHECKLIST.md: Pre-deployment checklist\n- All 3 Docker Compose configs validate\n- Dockerfiles compliant with EvergreenImageRegistry\n\n45 crates, 2510+ tests, 0 clippy warnings",
+          "timestamp": "2026-06-14T02:49:14+01:00",
+          "tree_id": "bdfa030a01e1dfdca4b54c736d28084018feaea5",
+          "url": "https://github.com/WyattAu/ferro/commit/ea92f7e1af357b7fab8fb0d6df234bec9acf7dd6"
+        },
+        "date": 1781402708391,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 302741123,
+            "range": "± 1258362",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 302624444,
+            "range": "± 329791",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 25188,
+            "range": "± 909",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 24598,
+            "range": "± 2688",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 15394,
+            "range": "± 88",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 9846,
+            "range": "± 65",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1882,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 1438,
+            "range": "± 72",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 3624,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1KB",
+            "value": 3270,
+            "range": "± 158493",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1KB",
+            "value": 3627,
+            "range": "± 166268",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10KB",
+            "value": 9853,
+            "range": "± 145209",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10KB",
+            "value": 10153,
+            "range": "± 135",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/100KB",
+            "value": 75573,
+            "range": "± 148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/100KB",
+            "value": 75757,
+            "range": "± 253",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1MB",
+            "value": 750760,
+            "range": "± 1623",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1MB",
+            "value": 750831,
+            "range": "± 1749",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10MB",
+            "value": 7457306,
+            "range": "± 6319",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10MB",
+            "value": 7463942,
+            "range": "± 81884",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1KB",
+            "value": 160,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1KB",
+            "value": 305,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10KB",
+            "value": 154,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10KB",
+            "value": 302,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/100KB",
+            "value": 154,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/100KB",
+            "value": 302,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1MB",
+            "value": 153,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1MB",
+            "value": 302,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10MB",
+            "value": 169,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10MB",
+            "value": 306,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/10",
+            "value": 84620,
+            "range": "± 725",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/10",
+            "value": 26480,
+            "range": "± 1069",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/10",
+            "value": 86652,
+            "range": "± 2974",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/50",
+            "value": 247648,
+            "range": "± 6526",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/50",
+            "value": 44863,
+            "range": "± 809",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/50",
+            "value": 271163,
+            "range": "± 7202",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/100",
+            "value": 471497,
+            "range": "± 16307",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/100",
+            "value": 60270,
+            "range": "± 697",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/100",
+            "value": 499579,
+            "range": "± 23259",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/100_entries",
+            "value": 144186,
+            "range": "± 331",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/100_entries",
+            "value": 23088,
+            "range": "± 75",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/100_entries",
+            "value": 25052,
+            "range": "± 92",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/100_entries",
+            "value": 270,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/1000_entries",
+            "value": 1412896,
+            "range": "± 4050",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/1000_entries",
+            "value": 237798,
+            "range": "± 7654",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/1000_entries",
+            "value": 260960,
+            "range": "± 1355",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/1000_entries",
+            "value": 272,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/10000_entries",
+            "value": 13863649,
+            "range": "± 55873",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/10000_entries",
+            "value": 2390294,
+            "range": "± 86091",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/10000_entries",
+            "value": 2722316,
+            "range": "± 32541",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/10000_entries",
+            "value": 271,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/single_file_sync_cycle",
+            "value": 9482,
+            "range": "± 138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/batch_sync_50_files",
+            "value": 269959,
+            "range": "± 1105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/rename_and_move",
+            "value": 1171,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/concurrent_sync_10_clients",
+            "value": 607314,
+            "range": "± 8517",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/delete_cascade",
+            "value": 259247,
+            "range": "± 1695",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1796,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8782,
+            "range": "± 148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 75536,
+            "range": "± 151",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 141,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 22380,
+            "range": "± 104",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 1440,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 121,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 112,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 227,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 173,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 184,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 2166,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 1407,
             "range": "± 9",
             "unit": "ns/iter"
           },
