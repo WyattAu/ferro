@@ -87,4 +87,4 @@ strip = true
 panic = "abort"
 
 [patch.crates-io]
-wry = { path = "../wry" }
+wry = { path = "../wry", features = ["gtk4-window"] }
