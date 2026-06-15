@@ -179,7 +179,8 @@ async fn idle_save_loop(room: Arc<Room>, storage: Arc<dyn StorageEngine>, docume
             break;
         }
         if room.dirty.swap(false, Ordering::SeqCst) {
-            let data = serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
+            let data =
+                serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
             if let Some(data) = data {
                 save_crdt_state(&*storage, &document_id, &data).await;
             }
@@ -251,13 +252,20 @@ async fn handle_collab_socket(
                                     .participants
                                     .insert(participant_id, name.clone());
                                 {
-                                    let mut doc = room_for_recv.document.write().unwrap_or_else(|e| e.into_inner());
+                                    let mut doc = room_for_recv
+                                        .document
+                                        .write()
+                                        .unwrap_or_else(|e| e.into_inner());
                                     doc.join(ParticipantId(participant_id), &name);
                                 }
-                                *pid_for_cleanup.lock().unwrap_or_else(|e| e.into_inner()) = Some(participant_id);
+                                *pid_for_cleanup.lock().unwrap_or_else(|e| e.into_inner()) =
+                                    Some(participant_id);
 
                                 let serialized = {
-                                    let doc = room_for_recv.document.read().unwrap_or_else(|e| e.into_inner());
+                                    let doc = room_for_recv
+                                        .document
+                                        .read()
+                                        .unwrap_or_else(|e| e.into_inner());
                                     serde_json::to_string(&*doc).unwrap_or_default()
                                 };
                                 let state_msg = CollabMessage::DocumentState {
@@ -273,7 +281,10 @@ async fn handle_collab_socket(
                             }
                             CollabMessage::Operations { ops } => {
                                 {
-                                    let mut doc = room_for_recv.document.write().unwrap_or_else(|e| e.into_inner());
+                                    let mut doc = room_for_recv
+                                        .document
+                                        .write()
+                                        .unwrap_or_else(|e| e.into_inner());
                                     doc.apply_ops(&ops);
                                 }
                                 room_for_recv.dirty.store(true, Ordering::SeqCst);
@@ -327,7 +338,8 @@ async fn handle_collab_socket(
     }
 
     if room.dirty.swap(false, Ordering::SeqCst) {
-        let data = serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
+        let data =
+            serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
         if let Some(data) = data {
             save_crdt_state(&*storage, &document_id, &data).await;
         }

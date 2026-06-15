@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use ferro_dav::store::{CalendarInfo, CalFilter, DynCalendarStore, EventInfo};
+use ferro_dav::store::{CalFilter, CalendarInfo, DynCalendarStore, EventInfo};
 
 use crate::error::{CalDavError, Result};
 use crate::ical::{self, CalendarEvent};
@@ -66,11 +66,14 @@ impl CalendarManager {
     }
 
     pub async fn get_calendar(&self, principal: &str, calendar_id: &str) -> Option<Calendar> {
-        self.store.get_calendar(principal, calendar_id).await.map(|info| {
-            let mut cal = Calendar::from(info.clone());
-            cal.uid = info.id;
-            cal
-        })
+        self.store
+            .get_calendar(principal, calendar_id)
+            .await
+            .map(|info| {
+                let mut cal = Calendar::from(info.clone());
+                cal.uid = info.id;
+                cal
+            })
     }
 
     pub async fn create_calendar(
@@ -109,11 +112,7 @@ impl CalendarManager {
             .map(CalendarItem::from)
     }
 
-    pub async fn create_event(
-        &self,
-        calendar_id: &str,
-        ical_data: &str,
-    ) -> Result<CalendarItem> {
+    pub async fn create_event(&self, calendar_id: &str, ical_data: &str) -> Result<CalendarItem> {
         self.store
             .create_event(calendar_id, ical_data)
             .await

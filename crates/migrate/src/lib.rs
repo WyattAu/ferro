@@ -162,9 +162,10 @@ async fn run_nextcloud_migration(
     let webdav_source = WebDavSource::Nextcloud(nc);
 
     tracing::info!("Validating Nextcloud connection...");
-    webdav_source.validate(&source.username).await.map_err(|e| {
-        MigrationError::connection(format!("Cannot connect to Nextcloud: {}", e))
-    })?;
+    webdav_source
+        .validate(&source.username)
+        .await
+        .map_err(|e| MigrationError::connection(format!("Cannot connect to Nextcloud: {}", e)))?;
 
     let db = match &source.db_path {
         Some(path) => Some(db::NextcloudDb::open(path)?),
@@ -213,10 +214,7 @@ async fn run_nextcloud_migration(
             options.max_file_size,
             options.batch_size,
         );
-        match pipeline
-            .copy_all_files(&source.username, progress)
-            .await
-        {
+        match pipeline.copy_all_files(&source.username, progress).await {
             Ok(stats) => {
                 report.files_migrated = stats.migrated;
                 report.files_skipped = stats.skipped;
@@ -356,13 +354,16 @@ async fn run_ocis_migration(
     let webdav_source = WebDavSource::Ocis(ocis);
 
     tracing::info!("Validating oCIS connection...");
-    webdav_source.validate(&source.username).await.map_err(|e| {
-        MigrationError::connection(format!("Cannot connect to oCIS: {}", e))
-    })?;
+    webdav_source
+        .validate(&source.username)
+        .await
+        .map_err(|e| MigrationError::connection(format!("Cannot connect to oCIS: {}", e)))?;
 
     if !options.skip_users {
         tracing::info!("oCIS user migration via WebDAV is not supported (no database access)");
-        tracing::info!("Skipping user migration (oCIS users must be created manually or via oCIS API)");
+        tracing::info!(
+            "Skipping user migration (oCIS users must be created manually or via oCIS API)"
+        );
     } else {
         tracing::info!("Skipping user migration");
     }
@@ -375,10 +376,7 @@ async fn run_ocis_migration(
             options.max_file_size,
             options.batch_size,
         );
-        match pipeline
-            .copy_all_files(&source.username, progress)
-            .await
-        {
+        match pipeline.copy_all_files(&source.username, progress).await {
             Ok(stats) => {
                 report.files_migrated = stats.migrated;
                 report.files_skipped = stats.skipped;

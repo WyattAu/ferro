@@ -1,67 +1,31 @@
-# Wayland Fix Plan — Fork Tauri for Native Wayland Support
+# Tauri Wayland Fix Plan: SUPERSEDED
 
-**Date:** 2026-06-14
-**Status:** Implementation Ready
+**Status:** SUPERSEDED by wayland-support-analysis.md (2026-06-15)
 
 ---
 
-## The Problem
+## Summary
 
-The Tauri desktop app doesn't show a window on Wayland because:
-1. tao creates a GTK3 window
-2. wry creates a WebKitGTK webview inside the window
-3. WebKitGTK (GTK3-based) can't render on Wayland
-4. The window exists but has no visible content
+The original fix plan (2026-06-14) proposed creating GTK4 window integration for Wayland
+support. This is no longer needed. Upstream Tauri v2.11.2 with wry 0.55.1 works natively
+on Wayland without any modifications.
 
-## The Fix
+## What Was Proposed (No Longer Needed)
 
-Three approaches, recommended: **Approach A + C Combo**
+1. ~~Fork wry with GTK4 window support~~ - NOT NEEDED
+2. ~~Fork tauri-runtime-wry to use GTK4 window~~ - NOT NEEDED
+3. ~~Create webkit2gtk-4.1-sys crate~~ - NOT NEEDED
+4. ~~Integrate GTK4 and GTK3 event loops~~ - NOT NEEDED
 
-### Approach A: Force XWayland (1-2 days)
-- In `tao`, detect Wayland and set `GDK_BACKEND=x11` before GTK init
-- Pros: Minimal code change, guaranteed to work
-- Cons: Not native Wayland, requires XWayland
+## Why It Was Superseded
 
-### Approach C: WebKitGTK Wayland Patch (1-2 weeks)
-- Patch `wry`'s `webkit2gtk` integration to use `webkit2gtk-4.1` Wayland backend
-- Patch `tao` to properly initialize GDK for Wayland
-- Pros: Smaller change than GTK4, actual Wayland support
-- Cons: Still GTK3-based, may have edge cases
+Testing with WAYLAND_DEBUG protocol logging proved that:
+- Upstream Tauri creates xdg_toplevel surfaces correctly on Wayland
+- WebKitGTK 2.52.4 renders natively on Wayland
+- The original "no window" observation was due to testing errors
+  (wrong feature flags, xdotool limitation)
 
-### Approach B: GTK4 Migration (4-6 weeks)
-- Replace `webkit2gtk` with `webkit2gtk4` (GTK4-based) in `wry`
-- Replace `gtk` with `gtk4` in `tao` and `tauri-runtime-wry`
-- Pros: Native Wayland, better performance, future-proof
-- Cons: Large API changes, may break plugins
+## Lesson Learned
 
-## Repos to Fork
-
-| # | Repo | Version | Purpose |
-|---|------|---------|---------|
-| 1 | tao | 0.35.3 | Window creation, GTK init |
-| 2 | wry | 0.55.1 | WebView creation, WebKitGTK |
-| 3 | tauri-runtime-wry | 2.11.2 | Bridge between Tauri and wry |
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `tao/src/platform/unix/window.rs` | GDK backend selection for Wayland |
-| `wry/src/webview/webkitgtk/mod.rs` | WebView creation for Wayland |
-| `tauri-runtime-wry/src/lib.rs` | Ensure `build_gtk()` is used correctly |
-
-## Testing Plan
-
-- KDE Plasma (Wayland) — primary target
-- GNOME (Wayland) — secondary
-- Sway (Wayland) — tiling compositor
-- X11 — regression testing
-
-## Timeline
-
-| Phase | Task | Effort |
-|-------|------|--------|
-| 1 | Fork repos, add GDK_BACKEND=x11 fallback | 1 day |
-| 2 | Patch wry for Wayland | 1-2 weeks |
-| 3 | Test on Wayland compositors | 1-2 weeks |
-| **Total** | | **3-5 weeks** |
+Always verify window visibility through Wayland protocol logging (WAYLAND_DEBUG=1)
+rather than relying on X11 tools (xdotool) when testing on Wayland.

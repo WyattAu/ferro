@@ -29,7 +29,9 @@ impl IntoResponse for ScimError {
     fn into_response(self) -> Response {
         let (status, detail, scim_type) = match &self {
             ScimError::NotFound => (StatusCode::NOT_FOUND, self.to_string(), None),
-            ScimError::Conflict(d) => (StatusCode::CONFLICT, d.clone(), Some("invalidValue".into())),
+            ScimError::Conflict(d) => {
+                (StatusCode::CONFLICT, d.clone(), Some("invalidValue".into()))
+            }
             ScimError::BadRequest(d) => (StatusCode::BAD_REQUEST, d.clone(), None),
             ScimError::Unauthorized => (StatusCode::UNAUTHORIZED, self.to_string(), None),
             ScimError::Internal(d) => (StatusCode::INTERNAL_SERVER_ERROR, d.clone(), None),

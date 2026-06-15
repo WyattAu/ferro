@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 
 pub use ferro_dav::ical::{
-    get_all_props, get_first_prop, parse_ical, serialize_ical, IcalComponent, IcalProperty,
+    IcalComponent, IcalProperty, get_all_props, get_first_prop, parse_ical, serialize_ical,
 };
 
 use crate::error::{CalDavError, Result};
@@ -37,7 +37,10 @@ pub struct CalendarEvent {
     pub status: EventStatus,
 }
 
-pub fn parse_ical_datetime(value: &str, params: &std::collections::HashMap<String, String>) -> Option<DateTime<Utc>> {
+pub fn parse_ical_datetime(
+    value: &str,
+    params: &std::collections::HashMap<String, String>,
+) -> Option<DateTime<Utc>> {
     let is_date = params.get("VALUE").map(|v| v.as_str()) == Some("DATE");
     let cleaned = value.trim();
 
@@ -87,7 +90,8 @@ pub fn extract_event_from_ical(ical: &str) -> Result<CalendarEvent> {
         }
     });
 
-    let vevent = vevent.ok_or_else(|| CalDavError::InvalidData("No VEVENT or VTODO found".to_string()))?;
+    let vevent =
+        vevent.ok_or_else(|| CalDavError::InvalidData("No VEVENT or VTODO found".to_string()))?;
 
     let uid = get_first_prop(vevent, "UID")
         .map(|p| p.value.clone())
@@ -97,26 +101,23 @@ pub fn extract_event_from_ical(ical: &str) -> Result<CalendarEvent> {
         .map(|p| p.value.clone())
         .unwrap_or_default();
 
-    let description = get_first_prop(vevent, "DESCRIPTION")
-        .map(|p| p.value.clone());
+    let description = get_first_prop(vevent, "DESCRIPTION").map(|p| p.value.clone());
 
-    let location = get_first_prop(vevent, "LOCATION")
-        .map(|p| p.value.clone());
+    let location = get_first_prop(vevent, "LOCATION").map(|p| p.value.clone());
 
     let start = get_first_prop(vevent, "DTSTART")
         .and_then(|p| parse_ical_datetime(&p.value, &p.params))
         .unwrap_or_else(Utc::now);
 
-    let end = get_first_prop(vevent, "DTEND")
-        .and_then(|p| parse_ical_datetime(&p.value, &p.params));
+    let end =
+        get_first_prop(vevent, "DTEND").and_then(|p| parse_ical_datetime(&p.value, &p.params));
 
     let attendees = get_all_props(vevent, "ATTENDEE")
         .iter()
         .map(|p| p.value.clone())
         .collect();
 
-    let recurrence = get_first_prop(vevent, "RRULE")
-        .map(|p| p.value.clone());
+    let recurrence = get_first_prop(vevent, "RRULE").map(|p| p.value.clone());
 
     let status = get_first_prop(vevent, "STATUS")
         .map(|p| EventStatus::parse(&p.value))
@@ -136,7 +137,8 @@ pub fn extract_event_from_ical(ical: &str) -> Result<CalendarEvent> {
 }
 
 pub fn generate_ical_event(event: &CalendarEvent) -> String {
-    let mut ical = String::from("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Ferro//CalDAV Server//EN\r\n");
+    let mut ical =
+        String::from("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Ferro//CalDAV Server//EN\r\n");
 
     ical.push_str("BEGIN:VEVENT\r\n");
     ical.push_str(&format!("UID:{}\r\n", event.uid));
@@ -192,10 +194,22 @@ mod tests {
 
     #[test]
     fn test_event_status_from_str() {
-        assert!(matches!(EventStatus::parse("TENTATIVE"), EventStatus::Tentative));
-        assert!(matches!(EventStatus::parse("CONFIRMED"), EventStatus::Confirmed));
-        assert!(matches!(EventStatus::parse("CANCELLED"), EventStatus::Cancelled));
-        assert!(matches!(EventStatus::parse("UNKNOWN"), EventStatus::Confirmed));
+        assert!(matches!(
+            EventStatus::parse("TENTATIVE"),
+            EventStatus::Tentative
+        ));
+        assert!(matches!(
+            EventStatus::parse("CONFIRMED"),
+            EventStatus::Confirmed
+        ));
+        assert!(matches!(
+            EventStatus::parse("CANCELLED"),
+            EventStatus::Cancelled
+        ));
+        assert!(matches!(
+            EventStatus::parse("UNKNOWN"),
+            EventStatus::Confirmed
+        ));
     }
 
     #[test]

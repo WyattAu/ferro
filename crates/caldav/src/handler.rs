@@ -86,10 +86,7 @@ pub async fn handle_put(
 
     let existing = state.manager.get_event(&calendar, &uid).await;
     let event = match existing {
-        Some(_) => state
-            .manager
-            .update_event(&calendar, &uid, &ical)
-            .await?,
+        Some(_) => state.manager.update_event(&calendar, &uid, &ical).await?,
         None => state.manager.create_event(&calendar, &ical).await?,
     };
 

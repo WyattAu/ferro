@@ -86,5 +86,4 @@ codegen-units = 1
 strip = true
 panic = "abort"
 
-[patch.crates-io]
-wry = { path = "../wry", features = ["gtk4-window"] }
+

@@ -11,13 +11,13 @@ use crate::components::onboarding::OnboardingOverlay;
 use crate::components::setup_wizard::SetupWizard;
 use crate::components::toast::ProvideToastContext;
 use crate::i18n::{I18nCtx, Locale};
-use crate::t;
 use crate::pages::admin::AdminPage;
 use crate::pages::auth::AuthCallbackPage;
 use crate::pages::home::HomePage;
 use crate::pages::login::LoginPage;
 use crate::pages::settings::SettingsPage;
 use crate::pages::trash::TrashPage;
+use crate::t;
 
 #[component]
 pub fn App() -> impl IntoView {

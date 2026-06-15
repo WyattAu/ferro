@@ -77,7 +77,11 @@ mod tests {
         let range_start = Utc::now();
         let range_end = Utc::now() + Duration::hours(10);
 
-        assert!(event_in_time_range(&event, Some(&range_start), Some(&range_end)));
+        assert!(event_in_time_range(
+            &event,
+            Some(&range_start),
+            Some(&range_end)
+        ));
 
         let range_start2 = Utc::now() + Duration::hours(100);
         assert!(!event_in_time_range(&event, Some(&range_start2), None));

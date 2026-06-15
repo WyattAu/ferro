@@ -667,9 +667,15 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             };
 
             if failed == 0 {
-                ToastContext::success(format!("Bulk action: {} {} succeeded", succeeded, action_str));
+                ToastContext::success(format!(
+                    "Bulk action: {} {} succeeded",
+                    succeeded, action_str
+                ));
             } else {
-                ToastContext::warning(format!("Bulk action: {} {} succeeded, {} failed", succeeded, action_str, failed));
+                ToastContext::warning(format!(
+                    "Bulk action: {} {} succeeded, {} failed",
+                    succeeded, action_str, failed
+                ));
             }
 
             clipboard_state.clear();
@@ -1002,7 +1008,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     ToastContext::success(format!("Copied {} to {}", s, d));
                     reload();
                 }
-                    Err(e) => ToastContext::error(format!("Copy failed: {}", e)),
+                Err(e) => ToastContext::error(format!("Copy failed: {}", e)),
             }
         });
     });
@@ -1027,7 +1033,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                         ToastContext::success(format!("Copied {} to {}", file_name, dest));
                         reload();
                     }
-                Err(e) => ToastContext::error(format!("Copy failed: {}", e)),
+                    Err(e) => ToastContext::error(format!("Copy failed: {}", e)),
                 }
             });
         } else {

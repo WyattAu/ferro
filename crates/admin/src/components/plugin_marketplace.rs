@@ -156,7 +156,11 @@ fn status_text(status: &PluginStatus) -> String {
 fn sort_plugins(plugins: &mut [MarketplacePlugin], sort_by: &SortBy) {
     match sort_by {
         SortBy::Name => plugins.sort_by(|a, b| a.name.cmp(&b.name)),
-        SortBy::Rating => plugins.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap_or(std::cmp::Ordering::Equal)),
+        SortBy::Rating => plugins.sort_by(|a, b| {
+            b.rating
+                .partial_cmp(&a.rating)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }),
         SortBy::Downloads => plugins.sort_by(|a, b| b.downloads.cmp(&a.downloads)),
         SortBy::Recent => plugins.reverse(),
     }
@@ -315,10 +319,18 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
                 Ok(resp) => {
                     let mut updates = Vec::new();
                     for plugin in &resp.plugins {
-                        if matches!(plugin.status, PluginStatus::Installed | PluginStatus::Enabled) {
-                            if let Some(local) = plugins.get_untracked().iter().find(|p| p.id == plugin.id) {
+                        if matches!(
+                            plugin.status,
+                            PluginStatus::Installed | PluginStatus::Enabled
+                        ) {
+                            if let Some(local) =
+                                plugins.get_untracked().iter().find(|p| p.id == plugin.id)
+                            {
                                 if plugin.version != local.version {
-                                    updates.push(format!("{}: {} -> {}", plugin.name, local.version, plugin.version));
+                                    updates.push(format!(
+                                        "{}: {} -> {}",
+                                        plugin.name, local.version, plugin.version
+                                    ));
                                 }
                             }
                         }

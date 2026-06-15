@@ -1,7 +1,13 @@
 use crate::schema::*;
 use chrono::Utc;
 
-pub fn to_scim_user(id: &str, username: &str, display_name: &str, email: &str, active: bool) -> ScimUser {
+pub fn to_scim_user(
+    id: &str,
+    username: &str,
+    display_name: &str,
+    email: &str,
+    active: bool,
+) -> ScimUser {
     ScimUser {
         schemas: vec!["urn:ietf:params:scim:schemas:core:2.0:User".into()],
         id: id.to_string(),
@@ -13,7 +19,15 @@ pub fn to_scim_user(id: &str, username: &str, display_name: &str, email: &str, a
             formatted: Some(display_name.to_string()),
         }),
         display_name: Some(display_name.to_string()),
-        emails: if email.is_empty() { vec![] } else { vec![ScimEmail { value: email.to_string(), email_type: Some("work".into()), primary: true }] },
+        emails: if email.is_empty() {
+            vec![]
+        } else {
+            vec![ScimEmail {
+                value: email.to_string(),
+                email_type: Some("work".into()),
+                primary: true,
+            }]
+        },
         active,
         groups: vec![],
         meta: ScimMeta {
