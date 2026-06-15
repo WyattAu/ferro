@@ -190,6 +190,36 @@ fn build_client(token: &str) -> Result<reqwest::Client, String> {
         .map_err(|e| format!("Failed to create HTTP client: {}", e))
 }
 
+/// URL percent-decode a string (e.g. %20 -> space).
+fn percent_decode(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut output = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hi = hex_val(bytes[i + 1]);
+            let lo = hex_val(bytes[i + 2]);
+            if let (Some(h), Some(l)) = (hi, lo) {
+                output.push(h * 16 + l);
+                i += 3;
+                continue;
+            }
+        }
+        output.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8(output).unwrap_or_else(|_| input.to_string())
+}
+
+fn hex_val(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
 /// Try to decode a base64 string. Returns None if invalid.
 fn try_base64_decode(input: &str) -> Option<String> {
     const BASE64_TABLE: [i8; 256] = {
@@ -250,7 +280,8 @@ fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<FileEntry> {
             .and_then(|n| n.text())
             .unwrap_or("");
 
-        let href_normalized = href.trim_end_matches('/');
+        let href_decoded = percent_decode(href);
+        let href_normalized = href_decoded.trim_end_matches('/');
 
         if href_normalized.is_empty() || href_normalized == base_normalized {
             continue;
@@ -266,6 +297,9 @@ fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<FileEntry> {
         if name.is_empty() {
             continue;
         }
+
+        // Use the decoded href as the path so the frontend gets clean paths
+        let href = href_decoded.as_str();
 
         let prop = node
             .children()
@@ -314,6 +348,11 @@ fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<FileEntry> {
             etag,
         });
     }
+
+    // Deduplicate by decoded path (handles double-encoding like Shared%2520Projects)
+    // First decode each path, then dedup keeping the first occurrence (cleaner name)
+    let mut seen = std::collections::HashSet::new();
+    entries.retain(|e| seen.insert(percent_decode(&e.path)));
 
     entries
 }
