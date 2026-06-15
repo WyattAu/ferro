@@ -137,8 +137,50 @@ pub struct ConnectInfo {
 
 fn build_client(token: &str) -> Result<reqwest::Client, String> {
     let mut headers = reqwest::header::HeaderMap::new();
-    let value = reqwest::header::HeaderValue::from_str(&format!("Bearer {}", token))
-        .map_err(|e| format!("Invalid token: {}", e))?;
+
+    // Detect auth format:
+    // - If token contains ":" it's user:pass (Basic auth) -- base64 encode it
+    // - If token decodes from base64 to user:pass, use Basic as-is
+    // - Otherwise treat as Bearer token
+    let auth_header = if token.contains(':') {
+        // Raw user:pass -- base64 encode as Basic
+        const BASE64_CHARS: &[u8] =
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let input = token.as_bytes();
+        let mut output = Vec::with_capacity((input.len() + 2) / 3 * 4);
+        for chunk in input.chunks(3) {
+            let b0 = chunk[0] as u32;
+            let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
+            let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
+            let triple = (b0 << 16) | (b1 << 8) | b2;
+            output.push(BASE64_CHARS[((triple >> 18) & 0x3F) as usize]);
+            output.push(BASE64_CHARS[((triple >> 12) & 0x3F) as usize]);
+            if chunk.len() > 1 {
+                output.push(BASE64_CHARS[((triple >> 6) & 0x3F) as usize]);
+            } else {
+                output.push(b'=');
+            }
+            if chunk.len() > 2 {
+                output.push(BASE64_CHARS[(triple & 0x3F) as usize]);
+            } else {
+                output.push(b'=');
+            }
+        }
+        let encoded = String::from_utf8(output).unwrap_or_default();
+        format!("Basic {encoded}")
+    } else if let Some(decoded) = try_base64_decode(token) {
+        if decoded.contains(':') {
+            format!("Basic {token}")
+        } else {
+            format!("Bearer {token}")
+        }
+    } else {
+        format!("Bearer {token}")
+    };
+
+    let value =
+        reqwest::header::HeaderValue::from_str(&auth_header)
+            .map_err(|e| format!("Invalid token: {}", e))?;
     headers.insert(reqwest::header::AUTHORIZATION, value);
     reqwest::Client::builder()
         .default_headers(headers)
@@ -146,6 +188,46 @@ fn build_client(token: &str) -> Result<reqwest::Client, String> {
         .connect_timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))
+}
+
+/// Try to decode a base64 string. Returns None if invalid.
+fn try_base64_decode(input: &str) -> Option<String> {
+    const BASE64_TABLE: [i8; 256] = {
+        let mut table = [0i8; 256];
+        let chars = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut i = 0;
+        while i < 64 {
+            table[chars[i] as usize] = i as i8;
+            i += 1;
+        }
+        table[b'=' as usize] = -1;
+        table
+    };
+
+    let input = input.as_bytes();
+    let mut output = Vec::with_capacity(input.len() * 3 / 4);
+    let mut buf: u32 = 0;
+    let mut bits: u32 = 0;
+
+    for &byte in input {
+        let val = BASE64_TABLE[byte as usize];
+        if val == -1 {
+            // padding, flush remaining
+            if bits >= 6 {
+                output.push((buf >> (bits - 6)) as u8);
+            }
+            break;
+        } else if val >= 0 {
+            buf = (buf << 6) | (val as u32);
+            bits += 6;
+            if bits >= 8 {
+                bits -= 8;
+                output.push((buf >> bits) as u8);
+            }
+        }
+    }
+
+    String::from_utf8(output).ok()
 }
 
 fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<FileEntry> {
