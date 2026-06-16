@@ -1615,12 +1615,8 @@ fn api_routes(
         )
         // Video streaming endpoints
         .route(
-            "/stream/{*path}",
+            "/stream",
             axum::routing::get(streaming::stream_video),
-        )
-        .route(
-            "/stream/{*path}/manifest.m3u8",
-            axum::routing::get(streaming::hls_manifest),
         )
         // Whiteboard endpoints
         .route(
@@ -1976,11 +1972,10 @@ pub fn build_router_with_static(
     );
 
     let mut router_builder = Router::new();
-    // When --static-dir is set, don't register WebDAV catch-all at /
-    // so that static file serving can handle requests to / and common extensions
-    if static_dir.is_none() {
-        router_builder = router_builder.route("/", any(webdav::handle_any));
-    }
+    // Always register WebDAV catch-all at /
+    // Static file serving (when --static-dir is set) handles common extensions,
+    // but WebDAV methods (PROPFIND, MKCOL, etc.) go to the WebDAV handler
+    router_builder = router_builder.route("/", any(webdav::handle_any));
     let router = router_builder
         .route("/.well-known/ferro", axum::routing::get(health_check))
         .route("/healthz", axum::routing::get(liveness))

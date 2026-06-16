@@ -116,7 +116,7 @@ pub fn App() -> impl IntoView {
     view! {
         <ErrorBoundary>
             <ProvideToastContext>
-                <Router base="/ui".to_string()>
+                <Router base="/".to_string()>
                     <Routes fallback=|| t!("common.not_found")>
                         <Route path=path!("/") view=RootView />
                         <Route path=path!("/dashboard") view=DashboardPage />

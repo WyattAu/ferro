@@ -1,0 +1,340 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:2:1-34:12
+INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:2:1-34:12
+INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:2:1-34:12
+INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:2:1-34:12
+MERGED from [com.google.android.material:material:1.12.0] /home/wyatt/.gradle/caches/8.14.3/transforms/58cd8153b5cf940cab3f5bed13d5e349/transformed/material-1.12.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.appcompat:appcompat-resources:1.7.1] /home/wyatt/.gradle/caches/8.14.3/transforms/fe47845c05d5904c9fb5168b07b1658e/transformed/appcompat-resources-1.7.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/wyatt/.gradle/caches/8.14.3/transforms/2dbc33a0fd980a83ad2a771837a983e1/transformed/constraintlayout-2.0.1/AndroidManifest.xml:2:1-11:12
+MERGED from [androidx.appcompat:appcompat:1.7.1] /home/wyatt/.gradle/caches/8.14.3/transforms/c38c6688f1437b770ab7c2b89ca1e66c/transformed/appcompat-1.7.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/8bbfbbfef76a0dbc5c56868e10ecc53c/transformed/viewpager2-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.fragment:fragment:1.5.4] /home/wyatt/.gradle/caches/8.14.3/transforms/ade3248d0cbe21e6dda19f981194675f/transformed/fragment-1.5.4/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.activity:activity-ktx:1.10.1] /home/wyatt/.gradle/caches/8.14.3/transforms/f83b1b6a162be73dec0448ed17b9911e/transformed/activity-ktx-1.10.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity:1.10.1] /home/wyatt/.gradle/caches/8.14.3/transforms/d0342884b8ebd63ea38920f32dee7aec/transformed/activity-1.10.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.webkit:webkit:1.14.0] /home/wyatt/.gradle/caches/8.14.3/transforms/146f357aec994a047dc66df5b986889e/transformed/webkit-1.14.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/e0c135976158499ced8b016bb8c3029c/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/db4478c97b20a6f506aefaf3ea82526b/transformed/drawerlayout-1.1.1/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/584eda10ffe2c1ff6a03109a90d127f5/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.transition:transition:1.5.0] /home/wyatt/.gradle/caches/8.14.3/transforms/73d70f0bf69d09fe4007d7d90ceee2e0/transformed/transition-1.5.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/aad7c1f5fe0056008b477634faca3a03/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/e6a70c7531bd8fddbab58406e85178b4/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/d9472046a3d9e618fa513cfa7508c2ce/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/ff05671f795e105d3276ab1578a2fa7b/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/8f3c1ec528863a7cd53dac8d03a48520/transformed/loader-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/6a89194575bc90257c2033bd837f5dce/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/47933db83d001aa412ca2e599af5e899/transformed/recyclerview-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.customview:customview:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/91042924086ee05f09c12569ee770c69/transformed/customview-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/wyatt/.gradle/caches/8.14.3/transforms/9ed7f18001f1222deed418c8977e96fb/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/wyatt/.gradle/caches/8.14.3/transforms/7df1977c748f60e096b034fa107821c9/transformed/savedstate-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/67893622be9501fa107dc743480cece7/transformed/lifecycle-viewmodel-ktx-2.6.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/a028f869769bd87da33dd6b58ccde921/transformed/lifecycle-viewmodel-2.6.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/179d870a86000ae2af5a3c16a423c14c/transformed/lifecycle-runtime-ktx-2.6.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8cea7c3672b2809c427aec63806b76d4/transformed/lifecycle-livedata-core-2.6.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/aaeeaaa532dab526139f66b653a91c4c/transformed/lifecycle-livedata-2.6.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/28b09380d9bc5e110dd13726fd523224/transformed/lifecycle-runtime-2.6.2/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/9718000ad4fd0d1d6da1ebe1af453f83/transformed/lifecycle-viewmodel-savedstate-2.6.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core-ktx:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/6352057d4352ecc6745476efc49604b8/transformed/core-ktx-1.16.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] /home/wyatt/.gradle/caches/8.14.3/transforms/11af85947d1fd84b8c058fffb61b8dcc/transformed/annotation-experimental-1.4.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/ddf7dc235911785f3f53554277d638a9/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.cardview:cardview:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/04d930bf3c99640e1f1170b78ec0ec0e/transformed/cardview-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:17:1-55:12
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/0a9653cc7dc349d110cc4721e927f1a0/transformed/startup-runtime-1.1.1/AndroidManifest.xml:17:1-33:12
+MERGED from [androidx.tracing:tracing:1.2.0] /home/wyatt/.gradle/caches/8.14.3/transforms/0d14cbe855890c08feddfbc171f5f05f/transformed/tracing-1.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/0722d9e76e9bf1fe1606894a91b37d0c/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/1e24294a2e0686835ec64975faab081e/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/66e669332388012bf54ef5be93d3ae34/transformed/documentfile-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/4053626bf4a21fdf0c319854ee1609bc/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.print:print:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/40094dbfc220a2e843341442a8e28324/transformed/print-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/wyatt/.gradle/caches/8.14.3/transforms/2345f82a902602208c23c2661b493e9a/transformed/core-runtime-2.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core-viewtree:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5c30593fc9c65538c587c154e26ec745/transformed/core-viewtree-1.0.0/AndroidManifest.xml:2:1-7:12
+	package
+		INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:4:5-67
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:4:22-64
+uses-permission#android.permission.ACCESS_NETWORK_STATE
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:5:5-79
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:5:22-76
+uses-permission#android.permission.READ_EXTERNAL_STORAGE
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:6:5-80
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:6:22-77
+uses-permission#android.permission.WRITE_EXTERNAL_STORAGE
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:7:5-81
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:7:22-78
+uses-permission#android.permission.CAMERA
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:8:5-65
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:8:22-62
+uses-permission#android.permission.READ_MEDIA_IMAGES
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:9:5-76
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:9:22-73
+uses-permission#android.permission.ACCESS_WIFI_STATE
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:10:5-76
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:10:22-73
+application
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:12:5-33:19
+INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:12:5-33:19
+MERGED from [com.google.android.material:material:1.12.0] /home/wyatt/.gradle/caches/8.14.3/transforms/58cd8153b5cf940cab3f5bed13d5e349/transformed/material-1.12.0/AndroidManifest.xml:22:5-20
+MERGED from [com.google.android.material:material:1.12.0] /home/wyatt/.gradle/caches/8.14.3/transforms/58cd8153b5cf940cab3f5bed13d5e349/transformed/material-1.12.0/AndroidManifest.xml:22:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/wyatt/.gradle/caches/8.14.3/transforms/2dbc33a0fd980a83ad2a771837a983e1/transformed/constraintlayout-2.0.1/AndroidManifest.xml:9:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/wyatt/.gradle/caches/8.14.3/transforms/2dbc33a0fd980a83ad2a771837a983e1/transformed/constraintlayout-2.0.1/AndroidManifest.xml:9:5-20
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/0a9653cc7dc349d110cc4721e927f1a0/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/0a9653cc7dc349d110cc4721e927f1a0/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/1e24294a2e0686835ec64975faab081e/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/1e24294a2e0686835ec64975faab081e/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+	android:extractNativeLibs
+		INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:28:18-86
+	android:supportsRtl
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:16:9-35
+	android:label
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:15:9-30
+	android:icon
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:14:9-43
+	android:allowBackup
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:13:9-35
+	android:theme
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:17:9-43
+	android:networkSecurityConfig
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:19:9-69
+	android:usesCleartextTraffic
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:18:9-44
+activity#com.wyattau.ferro.MainActivity
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:21:9-31:20
+	android:launchMode
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:25:13-44
+	android:windowSoftInputMode
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:26:13-55
+	android:exported
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:24:13-36
+	android:configChanges
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:23:13-106
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:22:13-41
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:27:13-30:29
+action#android.intent.action.MAIN
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:28:17-69
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:28:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:29:17-77
+	android:name
+		ADDED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:29:27-74
+uses-sdk
+INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml
+INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml
+MERGED from [com.google.android.material:material:1.12.0] /home/wyatt/.gradle/caches/8.14.3/transforms/58cd8153b5cf940cab3f5bed13d5e349/transformed/material-1.12.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.material:material:1.12.0] /home/wyatt/.gradle/caches/8.14.3/transforms/58cd8153b5cf940cab3f5bed13d5e349/transformed/material-1.12.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.7.1] /home/wyatt/.gradle/caches/8.14.3/transforms/fe47845c05d5904c9fb5168b07b1658e/transformed/appcompat-resources-1.7.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.7.1] /home/wyatt/.gradle/caches/8.14.3/transforms/fe47845c05d5904c9fb5168b07b1658e/transformed/appcompat-resources-1.7.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/wyatt/.gradle/caches/8.14.3/transforms/2dbc33a0fd980a83ad2a771837a983e1/transformed/constraintlayout-2.0.1/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/wyatt/.gradle/caches/8.14.3/transforms/2dbc33a0fd980a83ad2a771837a983e1/transformed/constraintlayout-2.0.1/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.appcompat:appcompat:1.7.1] /home/wyatt/.gradle/caches/8.14.3/transforms/c38c6688f1437b770ab7c2b89ca1e66c/transformed/appcompat-1.7.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.appcompat:appcompat:1.7.1] /home/wyatt/.gradle/caches/8.14.3/transforms/c38c6688f1437b770ab7c2b89ca1e66c/transformed/appcompat-1.7.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/8bbfbbfef76a0dbc5c56868e10ecc53c/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/8bbfbbfef76a0dbc5c56868e10ecc53c/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.5.4] /home/wyatt/.gradle/caches/8.14.3/transforms/ade3248d0cbe21e6dda19f981194675f/transformed/fragment-1.5.4/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.5.4] /home/wyatt/.gradle/caches/8.14.3/transforms/ade3248d0cbe21e6dda19f981194675f/transformed/fragment-1.5.4/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.activity:activity-ktx:1.10.1] /home/wyatt/.gradle/caches/8.14.3/transforms/f83b1b6a162be73dec0448ed17b9911e/transformed/activity-ktx-1.10.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.10.1] /home/wyatt/.gradle/caches/8.14.3/transforms/f83b1b6a162be73dec0448ed17b9911e/transformed/activity-ktx-1.10.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity:1.10.1] /home/wyatt/.gradle/caches/8.14.3/transforms/d0342884b8ebd63ea38920f32dee7aec/transformed/activity-1.10.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.10.1] /home/wyatt/.gradle/caches/8.14.3/transforms/d0342884b8ebd63ea38920f32dee7aec/transformed/activity-1.10.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.webkit:webkit:1.14.0] /home/wyatt/.gradle/caches/8.14.3/transforms/146f357aec994a047dc66df5b986889e/transformed/webkit-1.14.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.webkit:webkit:1.14.0] /home/wyatt/.gradle/caches/8.14.3/transforms/146f357aec994a047dc66df5b986889e/transformed/webkit-1.14.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/e0c135976158499ced8b016bb8c3029c/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/e0c135976158499ced8b016bb8c3029c/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/db4478c97b20a6f506aefaf3ea82526b/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/db4478c97b20a6f506aefaf3ea82526b/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/584eda10ffe2c1ff6a03109a90d127f5/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/584eda10ffe2c1ff6a03109a90d127f5/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.transition:transition:1.5.0] /home/wyatt/.gradle/caches/8.14.3/transforms/73d70f0bf69d09fe4007d7d90ceee2e0/transformed/transition-1.5.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.transition:transition:1.5.0] /home/wyatt/.gradle/caches/8.14.3/transforms/73d70f0bf69d09fe4007d7d90ceee2e0/transformed/transition-1.5.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/aad7c1f5fe0056008b477634faca3a03/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/aad7c1f5fe0056008b477634faca3a03/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/e6a70c7531bd8fddbab58406e85178b4/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/e6a70c7531bd8fddbab58406e85178b4/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/d9472046a3d9e618fa513cfa7508c2ce/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/d9472046a3d9e618fa513cfa7508c2ce/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/ff05671f795e105d3276ab1578a2fa7b/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/ff05671f795e105d3276ab1578a2fa7b/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/8f3c1ec528863a7cd53dac8d03a48520/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/8f3c1ec528863a7cd53dac8d03a48520/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/6a89194575bc90257c2033bd837f5dce/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/6a89194575bc90257c2033bd837f5dce/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/47933db83d001aa412ca2e599af5e899/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/47933db83d001aa412ca2e599af5e899/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/91042924086ee05f09c12569ee770c69/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] /home/wyatt/.gradle/caches/8.14.3/transforms/91042924086ee05f09c12569ee770c69/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/wyatt/.gradle/caches/8.14.3/transforms/9ed7f18001f1222deed418c8977e96fb/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/wyatt/.gradle/caches/8.14.3/transforms/9ed7f18001f1222deed418c8977e96fb/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/wyatt/.gradle/caches/8.14.3/transforms/7df1977c748f60e096b034fa107821c9/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/wyatt/.gradle/caches/8.14.3/transforms/7df1977c748f60e096b034fa107821c9/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/67893622be9501fa107dc743480cece7/transformed/lifecycle-viewmodel-ktx-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/67893622be9501fa107dc743480cece7/transformed/lifecycle-viewmodel-ktx-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/a028f869769bd87da33dd6b58ccde921/transformed/lifecycle-viewmodel-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/a028f869769bd87da33dd6b58ccde921/transformed/lifecycle-viewmodel-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/179d870a86000ae2af5a3c16a423c14c/transformed/lifecycle-runtime-ktx-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/179d870a86000ae2af5a3c16a423c14c/transformed/lifecycle-runtime-ktx-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8cea7c3672b2809c427aec63806b76d4/transformed/lifecycle-livedata-core-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8cea7c3672b2809c427aec63806b76d4/transformed/lifecycle-livedata-core-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/aaeeaaa532dab526139f66b653a91c4c/transformed/lifecycle-livedata-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/aaeeaaa532dab526139f66b653a91c4c/transformed/lifecycle-livedata-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/28b09380d9bc5e110dd13726fd523224/transformed/lifecycle-runtime-2.6.2/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/28b09380d9bc5e110dd13726fd523224/transformed/lifecycle-runtime-2.6.2/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/9718000ad4fd0d1d6da1ebe1af453f83/transformed/lifecycle-viewmodel-savedstate-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/9718000ad4fd0d1d6da1ebe1af453f83/transformed/lifecycle-viewmodel-savedstate-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core-ktx:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/6352057d4352ecc6745476efc49604b8/transformed/core-ktx-1.16.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/6352057d4352ecc6745476efc49604b8/transformed/core-ktx-1.16.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] /home/wyatt/.gradle/caches/8.14.3/transforms/11af85947d1fd84b8c058fffb61b8dcc/transformed/annotation-experimental-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] /home/wyatt/.gradle/caches/8.14.3/transforms/11af85947d1fd84b8c058fffb61b8dcc/transformed/annotation-experimental-1.4.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/ddf7dc235911785f3f53554277d638a9/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/ddf7dc235911785f3f53554277d638a9/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/04d930bf3c99640e1f1170b78ec0ec0e/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/04d930bf3c99640e1f1170b78ec0ec0e/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/0a9653cc7dc349d110cc4721e927f1a0/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/0a9653cc7dc349d110cc4721e927f1a0/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.tracing:tracing:1.2.0] /home/wyatt/.gradle/caches/8.14.3/transforms/0d14cbe855890c08feddfbc171f5f05f/transformed/tracing-1.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.tracing:tracing:1.2.0] /home/wyatt/.gradle/caches/8.14.3/transforms/0d14cbe855890c08feddfbc171f5f05f/transformed/tracing-1.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/0722d9e76e9bf1fe1606894a91b37d0c/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/0722d9e76e9bf1fe1606894a91b37d0c/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/1e24294a2e0686835ec64975faab081e/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/1e24294a2e0686835ec64975faab081e/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/66e669332388012bf54ef5be93d3ae34/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/66e669332388012bf54ef5be93d3ae34/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/4053626bf4a21fdf0c319854ee1609bc/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/4053626bf4a21fdf0c319854ee1609bc/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/40094dbfc220a2e843341442a8e28324/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/40094dbfc220a2e843341442a8e28324/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/wyatt/.gradle/caches/8.14.3/transforms/2345f82a902602208c23c2661b493e9a/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/wyatt/.gradle/caches/8.14.3/transforms/2345f82a902602208c23c2661b493e9a/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core-viewtree:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5c30593fc9c65538c587c154e26ec745/transformed/core-viewtree-1.0.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-viewtree:1.0.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5c30593fc9c65538c587c154e26ec745/transformed/core-viewtree-1.0.0/AndroidManifest.xml:5:5-44
+	android:targetSdkVersion
+		INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml
+provider#androidx.startup.InitializationProvider
+ADDED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/0a9653cc7dc349d110cc4721e927f1a0/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/wyatt/.gradle/caches/8.14.3/transforms/0a9653cc7dc349d110cc4721e927f1a0/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+	tools:node
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:28:13-31
+	android:authorities
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+	android:exported
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+meta-data#androidx.emoji2.text.EmojiCompatInitializer
+ADDED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:23:9-81
+permission#com.wyattau.ferro.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:23:9-81
+uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:26:22-94
+uses-permission#com.wyattau.ferro.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:26:22-94
+meta-data#androidx.lifecycle.ProcessLifecycleInitializer
+ADDED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:30:17-78
+meta-data#androidx.profileinstaller.ProfileInstallerInitializer
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+receiver#androidx.profileinstaller.ProfileInstallReceiver
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+	android:enabled
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+	android:exported
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+	android:permission
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+	android:directBootAware
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+intent-filter#action:name:androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+action#androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+intent-filter#action:name:androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+action#androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+intent-filter#action:name:androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+action#androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+intent-filter#action:name:androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+action#androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92

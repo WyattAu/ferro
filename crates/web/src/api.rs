@@ -261,9 +261,40 @@ fn make_opts_with_auth(method: &str) -> web_sys::RequestInit {
 }
 
 #[allow(dead_code)] // Used by WASM runtime
+/// Base URL for the Ferro server. Defaults to same-origin.
+/// When running in Android WebView, set this to the server URL via JavaScript.
+fn get_server_base() -> String {
+    let window = web_sys::window().unwrap();
+    // Check if a server base URL is set (for Android WebView)
+    if let Ok(Some(base)) = window.local_storage() {
+        if let Ok(Some(conn)) = base.get_item("ferro_connection") {
+            if let Ok(obj) = serde_json::from_str::<serde_json::Value>(&conn) {
+                if let Some(url) = obj.get("url").and_then(|v| v.as_str()) {
+                    return url.trim_end_matches('/').to_string();
+                }
+            }
+        }
+    }
+    // Default to same-origin
+    String::new()
+}
+
 async fn fetch_text(url: &str, opts: &web_sys::RequestInit) -> Result<String, String> {
     let window = web_sys::window().ok_or("No window")?;
-    let request = web_sys::Request::new_with_str_and_init(url, opts)
+    
+    // If URL is relative and we have a server base URL, make it absolute
+    let full_url = if url.starts_with('/') {
+        let base = get_server_base();
+        if base.is_empty() {
+            url.to_string()
+        } else {
+            format!("{}{}", base, url)
+        }
+    } else {
+        url.to_string()
+    };
+    
+    let request = web_sys::Request::new_with_str_and_init(&full_url, opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
 
     let resp: web_sys::Response =
