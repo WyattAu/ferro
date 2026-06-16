@@ -2,10 +2,8 @@ package com.wyattau.ferro
 
 import android.content.Context
 import java.io.*
-import java.net.HttpURLConnection
 import java.net.ServerSocket
 import java.net.Socket
-import java.net.URL
 
 /**
  * HTTP server that serves static files from Android assets
@@ -93,58 +91,83 @@ class AssetServer(private val context: Context, private val port: Int = 8888) {
 
     private fun proxyRequest(client: Socket, method: String, path: String, headers: Map<String, String>, body: ByteArray?) {
         try {
-            val url = URL("$backendUrl$path")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = method
-            conn.doOutput = body != null
-            conn.doInput = true
-            conn.connectTimeout = 5000
-            conn.readTimeout = 30000
+            // Use raw socket connection (HttpURLConnection doesn't work with ADB reverse)
+            val backend = Socket("127.0.0.1", 8080)
+            backend.soTimeout = 30000
 
-            // Forward relevant headers
+            // Build raw HTTP request
+            val request = StringBuilder()
+            request.append("$method $path HTTP/1.1\r\n")
+            request.append("Host: 127.0.0.1:8080\r\n")
+            request.append("Connection: close\r\n")
+
             for ((key, value) in headers) {
                 if (key !in listOf("host", "connection", "transfer-encoding")) {
-                    conn.setRequestProperty(key, value)
+                    request.append("$key: $value\r\n")
                 }
             }
-            conn.setRequestProperty("Host", "127.0.0.1:8080")
-            conn.setRequestProperty("Connection", "close")
 
             if (body != null) {
-                conn.outputStream.write(body)
-                conn.outputStream.flush()
+                request.append("Content-Length: ${body.size}\r\n")
+            }
+            request.append("\r\n")
+
+            val output = backend.getOutputStream()
+            output.write(request.toString().toByteArray())
+            if (body != null) {
+                output.write(body)
+            }
+            output.flush()
+
+            // Read response
+            val inputStream = backend.getInputStream()
+            val responseBytes = inputStream.readBytes()
+            backend.close()
+
+            // Parse status line from response
+            val responseStr = String(responseBytes)
+            val firstLineEnd = responseStr.indexOf("\r\n")
+            val statusLine = if (firstLineEnd > 0) responseStr.substring(0, firstLineEnd) else "HTTP/1.1 502 Bad Gateway"
+            val statusCode = statusLine.split(" ").getOrNull(1)?.toIntOrNull() ?: 502
+
+            // Find body after headers
+            val headerEnd = "\r\n\r\n".toByteArray()
+            var bodyStart = -1
+            for (i in 0..responseBytes.size - headerEnd.size) {
+                if (responseBytes[i] == headerEnd[0] && responseBytes[i+1] == headerEnd[1] && responseBytes[i+2] == headerEnd[2] && responseBytes[i+3] == headerEnd[3]) {
+                    bodyStart = i + 4
+                    break
+                }
+            }
+            val bodyBytes = if (bodyStart > 0) responseBytes.copyOfRange(bodyStart, responseBytes.size) else byteArrayOf()
+
+            // Extract Content-Type from response headers
+            var contentType = "application/octet-stream"
+            val headerSection = responseStr.substring(0, firstLineEnd + 2)
+            for (line in headerSection.split("\r\n")) {
+                if (line.lowercase().startsWith("content-type:")) {
+                    contentType = line.substringAfter(":").trim()
+                    break
+                }
             }
 
-            val responseCode = conn.responseCode
-            val responseBytes = try {
-                conn.inputStream.readBytes()
-            } catch (e: Exception) {
-                conn.errorStream?.readBytes() ?: byteArrayOf()
-            }
-
-            val contentType = conn.contentType ?: "application/octet-stream"
-
-            val header = buildString {
-                append("HTTP/1.1 $responseCode OK\r\n")
+            // Send response to client
+            val responseHeader = buildString {
+                append("HTTP/1.1 $statusCode OK\r\n")
                 append("Content-Type: $contentType\r\n")
-                append("Content-Length: ${responseBytes.size}\r\n")
+                append("Content-Length: ${bodyBytes.size}\r\n")
                 append("Access-Control-Allow-Origin: *\r\n")
                 append("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PROPFIND, MKCOL, MOVE, COPY, OPTIONS\r\n")
                 append("Access-Control-Allow-Headers: *\r\n")
                 append("Connection: close\r\n")
-                // Forward DAV headers
-                for ((key, value) in conn.headerFields) {
-                    if (key != null && key.lowercase().startsWith("dav") || key.lowercase().startsWith("allow")) {
-                        append("$key: $value\r\n")
-                    }
-                }
                 append("\r\n")
             }
 
-            client.getOutputStream().write(header.toByteArray())
-            client.getOutputStream().write(responseBytes)
+            client.getOutputStream().write(responseHeader.toByteArray())
+            client.getOutputStream().write(bodyBytes)
             client.getOutputStream().flush()
         } catch (e: Exception) {
+            e.printStackTrace()
             sendResponse(client, 502, "text/plain", "Proxy Error: ${e.message}")
         }
     }

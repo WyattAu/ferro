@@ -262,10 +262,20 @@ fn make_opts_with_auth(method: &str) -> web_sys::RequestInit {
 
 #[allow(dead_code)] // Used by WASM runtime
 /// Base URL for the Ferro server. Defaults to same-origin.
-/// When running in Android WebView, set this to the server URL via JavaScript.
+/// When running in Android WebView, set window.FERRO_SERVER_URL before WASM loads.
 fn get_server_base() -> String {
     let window = web_sys::window().unwrap();
-    // Check if a server base URL is set (for Android WebView)
+    
+    // Check window.FERRO_SERVER_URL first (set by Android HTML)
+    if let Ok(Some(url)) = js_sys::Reflect::get(&window, &"FERRO_SERVER_URL".into()) {
+        if let Some(url) = url.as_string() {
+            if !url.is_empty() {
+                return url.trim_end_matches('/').to_string();
+            }
+        }
+    }
+    
+    // Then check localStorage connection
     if let Ok(Some(base)) = window.local_storage() {
         if let Ok(Some(conn)) = base.get_item("ferro_connection") {
             if let Ok(obj) = serde_json::from_str::<serde_json::Value>(&conn) {
@@ -275,6 +285,7 @@ fn get_server_base() -> String {
             }
         }
     }
+    
     // Default to same-origin
     String::new()
 }
