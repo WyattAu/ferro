@@ -44,6 +44,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "011",
         include_str!("../../../migrations/011_push_notifications.sql"),
     ),
+    (
+        "012",
+        include_str!("../../../migrations/012_notes_tasks.sql"),
+    ),
 ];
 
 fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -130,6 +134,8 @@ mod tests {
             "worm_policies",
             "remote_mounts",
             "api_keys",
+            "notes",
+            "tasks",
         ];
         // SAFETY: `table` values come from a hardcoded constant array above, not user input.
         // This is the ONLY acceptable use of format! in SQL queries in this codebase.

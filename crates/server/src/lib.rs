@@ -17,8 +17,14 @@ pub mod collab_ws;
 pub mod comments;
 pub mod config;
 pub mod conflict;
+pub mod calendar_api;
+pub mod chat_api;
+pub mod contacts_api;
+pub mod notes_api;
+pub mod tasks_api;
 pub mod dav;
 pub mod db;
+pub mod dashboard;
 pub mod dedup;
 pub mod e2ee;
 pub mod email;
@@ -131,6 +137,7 @@ pub mod policies;
 pub mod preferences;
 pub mod presigned;
 pub mod prometheus_metrics;
+pub mod photos_api;
 pub mod push_notifications;
 pub mod quota;
 pub mod range_get;
@@ -154,6 +161,7 @@ pub mod simple_auth;
 pub mod snapshots;
 pub mod storage;
 pub mod storage_health;
+pub mod streaming;
 pub mod streaming_upload;
 pub mod sync;
 pub mod tags;
@@ -172,6 +180,7 @@ pub mod wasm_upload;
 pub mod webauthn_api;
 pub mod webdav;
 pub mod webhooks;
+pub mod whiteboard_api;
 pub mod worker_runner;
 pub mod workers;
 pub mod worm;
@@ -1133,6 +1142,7 @@ fn api_routes(
             axum::routing::post(e2ee::e2ee_key_generate),
         )
         .route("/quota", axum::routing::get(quota::get_quota))
+        .route("/dashboard", axum::routing::get(dashboard::get_dashboard))
         .route("/activity", axum::routing::get(activity::get_activity))
         .route("/tags", axum::routing::get(tags::list_tags))
         .route(
@@ -1449,6 +1459,104 @@ fn api_routes(
             "/api-keys/:id",
             axum::routing::delete(api_keys_routes::delete_api_key::<AppState>),
         )
+        // Calendar REST API bridge
+        .route(
+            "/calendar/events",
+            axum::routing::get(calendar_api::list_events),
+        )
+        .route(
+            "/calendar/events",
+            axum::routing::post(calendar_api::create_event),
+        )
+        .route(
+            "/calendar/events/{uid}",
+            axum::routing::put(calendar_api::update_event),
+        )
+        .route(
+            "/calendar/events/{uid}",
+            axum::routing::delete(calendar_api::delete_event),
+        )
+        // Contacts REST API bridge
+        .route(
+            "/contacts",
+            axum::routing::get(contacts_api::list_contacts),
+        )
+        .route(
+            "/contacts",
+            axum::routing::post(contacts_api::create_contact),
+        )
+        .route(
+            "/contacts/{uid}",
+            axum::routing::put(contacts_api::update_contact),
+        )
+        .route(
+            "/contacts/{uid}",
+            axum::routing::delete(contacts_api::delete_contact),
+        )
+        .route(
+            "/contacts/export",
+            axum::routing::get(contacts_api::export_contacts),
+        )
+        .route(
+            "/contacts/import",
+            axum::routing::post(contacts_api::import_contacts),
+        )
+        // Chat REST API
+        .route(
+            "/chat/rooms",
+            axum::routing::get(chat_api::list_rooms).post(chat_api::create_room),
+        )
+        .route(
+            "/chat/rooms/{room_id}/messages",
+            axum::routing::get(chat_api::get_messages).post(chat_api::send_message),
+        )
+        // Photos REST API
+        .route(
+            "/photos",
+            axum::routing::get(photos_api::list_photos),
+        )
+        .route(
+            "/photos/albums",
+            axum::routing::get(photos_api::list_albums).post(photos_api::create_album),
+        )
+        .route(
+            "/photos/thumbnail/{path}",
+            axum::routing::get(photos_api::get_thumbnail),
+        )
+        .route(
+            "/photos/exif/{path}",
+            axum::routing::get(photos_api::get_exif),
+        )
+        // Notes REST API
+        .route(
+            "/notes",
+            axum::routing::get(notes_api::list_notes).post(notes_api::create_note),
+        )
+        .route(
+            "/notes/search",
+            axum::routing::get(notes_api::search_notes),
+        )
+        .route(
+            "/notes/{id}",
+            axum::routing::get(notes_api::get_note)
+                .put(notes_api::update_note)
+                .delete(notes_api::delete_note),
+        )
+        // Tasks REST API
+        .route(
+            "/tasks",
+            axum::routing::get(tasks_api::list_tasks).post(tasks_api::create_task),
+        )
+        .route(
+            "/tasks/{id}",
+            axum::routing::get(tasks_api::update_task)
+                .put(tasks_api::update_task)
+                .delete(tasks_api::delete_task),
+        )
+        .route(
+            "/tasks/{id}/status",
+            axum::routing::patch(tasks_api::move_task),
+        )
         // Push notification endpoints
         .route(
             "/push/register",
@@ -1461,6 +1569,30 @@ fn api_routes(
         .route(
             "/push/tokens",
             axum::routing::get(push_notifications::list_push_tokens),
+        )
+        // Video streaming endpoints
+        .route(
+            "/stream/{*path}",
+            axum::routing::get(streaming::stream_video),
+        )
+        .route(
+            "/stream/{*path}/manifest.m3u8",
+            axum::routing::get(streaming::hls_manifest),
+        )
+        // Whiteboard endpoints
+        .route(
+            "/whiteboard",
+            axum::routing::get(whiteboard_api::list_whiteboards)
+                .post(whiteboard_api::create_whiteboard),
+        )
+        .route(
+            "/whiteboard/{id}",
+            axum::routing::get(whiteboard_api::get_whiteboard)
+                .put(whiteboard_api::save_whiteboard),
+        )
+        .route(
+            "/whiteboard/{id}/image",
+            axum::routing::get(whiteboard_api::export_whiteboard_image),
         )
         .merge(Router::from(openapi::swagger_ui()))
 }
@@ -1796,6 +1928,10 @@ pub fn build_router_with_static(
         .route(
             "/ws/collab/:document_id",
             axum::routing::get(collab_ws::collab_ws_handler),
+        )
+        .route(
+            "/ws/chat/{room_id}",
+            axum::routing::get(chat_api::ws_chat_handler),
         )
         // CalDAV and CardDAV routes (registered before /*path catch-all)
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
