@@ -1,0 +1,40 @@
+[package]
+name = "ferro-mobile"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Mobile application for Ferro (iOS & Android)"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[lib]
+name = "ferro_mobile"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = []
+ios = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-shell", "dep:tauri-plugin-dialog", "dep:tauri-plugin-fs", "dep:tauri-plugin-notification", "dep:tauri-plugin-http", "dep:tauri-plugin-camera", "dep:tauri-plugin-biometric", "dep:reqwest"]
+android = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-shell", "dep:tauri-plugin-dialog", "dep:tauri-plugin-fs", "dep:tauri-plugin-notification", "dep:tauri-plugin-http", "dep:tauri-plugin-camera", "dep:tauri-plugin-biometric", "dep:reqwest"]
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"], optional = true }
+tauri-plugin-shell = { version = "2", optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-fs = { version = "2", optional = true }
+tauri-plugin-notification = { version = "2", optional = true }
+tauri-plugin-http = { version = "2", optional = true }
+tauri-plugin-camera = { version = "0.1", optional = true }
+tauri-plugin-biometric = { version = "2", optional = true }
+reqwest = { version = "0.12", features = ["json"], optional = true }
+serde = { workspace = true }
+serde_json = "1"
+tokio = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+thiserror = "2"
+chrono = { version = "0.4", features = ["serde"] }
+
+[build-dependencies]
+tauri-build = { version = "2", optional = true }

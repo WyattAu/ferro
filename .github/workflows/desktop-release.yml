@@ -1,0 +1,196 @@
+name: Desktop Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Windows - MSI installer
+  # ---------------------------------------------------------------------------
+  build-windows:
+    name: Windows (x86_64) - MSI
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked --version "^2"
+
+      - name: Fetch dependencies
+        run: cargo fetch --locked --target x86_64-pc-windows-msvc
+
+      - name: Build MSI installer
+        run: cargo tauri build --target x86_64-pc-windows-msvc --features tauri --bundles msi
+        working-directory: crates/desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Code sign MSI (if certificate available)
+        if: env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $cert = ConvertTo-SecureString -AsPlainText -Force "$env:WINDOWS_CERTIFICATE_PASSWORD"
+          $signTool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
+          if (Test-Path $signTool) {
+            Get-ChildItem -Path "crates/desktop/target/release/bundle/msi/*.msi" | ForEach-Object {
+              & $signTool sign /fd sha256 /f "$env:WINDOWS_CERTIFICATE" /p "$env:WINDOWS_CERTIFICATE_PASSWORD" /tr http://timestamp.digicert.com /td sha256 $_.FullName
+            }
+          }
+
+      - name: Upload MSI installer
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ferro-windows-x86_64.msi
+          path: crates/desktop/target/release/bundle/msi/*.msi
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # macOS (aarch64) - DMG installer
+  # ---------------------------------------------------------------------------
+  build-macos:
+    name: macOS (aarch64) - DMG
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked --version "^2"
+
+      - name: Fetch dependencies
+        run: cargo fetch --locked --target aarch64-apple-darwin
+
+      - name: Build DMG installer
+        run: cargo tauri build --target aarch64-apple-darwin --features tauri --bundles dmg
+        working-directory: crates/desktop
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Code sign DMG (if identity available)
+        if: env.APPLE_SIGNING_IDENTITY != ''
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          for dmg in crates/desktop/target/release/bundle/dmg/*.dmg; do
+            codesign --force --sign "$APPLE_SIGNING_IDENTITY" --timestamp --options runtime "$dmg"
+          done
+
+      - name: Upload DMG installer
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ferro-macos-aarch64.dmg
+          path: crates/desktop/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Linux (x86_64) - AppImage + .deb
+  # ---------------------------------------------------------------------------
+  build-linux:
+    name: Linux (x86_64) - AppImage + deb
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev dpkg fakeroot
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked --version "^2"
+
+      - name: Fetch dependencies
+        run: cargo fetch --locked
+
+      - name: Build AppImage + deb
+        run: cargo tauri build --features tauri --bundles appimage,deb
+        working-directory: crates/desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ferro-linux-x86_64.AppImage
+          path: crates/desktop/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
+      - name: Upload deb package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ferro-linux-x86_64.deb
+          path: crates/desktop/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Create GitHub Release with all artifacts
+  # ---------------------------------------------------------------------------
+  release:
+    name: Create Release
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/download-artifact@f44cd7b40bfd40b6aa1cc1b9b5b7bf03d3c67110 # v4.1.0
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/ferro-windows-x86_64.msi/*
+            artifacts/ferro-macos-aarch64.dmg/*
+            artifacts/ferro-linux-x86_64.AppImage/*
+            artifacts/ferro-linux-x86_64.deb/*
+          draft: false
+          prerelease: false

@@ -45,6 +45,7 @@ members = [
     "crates/selective-sync",
     "crates/caldav",
     "crates/scim",
+    "crates/mobile",
 ]
 resolver = "2"
 

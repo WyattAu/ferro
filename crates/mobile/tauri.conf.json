@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/tauri-v2.11/crates/tauri-config-schema/schema.json",
+  "productName": "Ferro",
+  "version": "3.0.0",
+  "identifier": "com.wyattau.ferro.mobile",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "frontendDist": "frontend"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Ferro",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: https://asset.localhost; font-src 'self' data:; connect-src ipc: http://ipc.localhost 'self' https://* http://*"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "copyright": "Copyright 2024 Ferro Contributors",
+    "category": "Utility",
+    "shortDescription": "Ferro File Sync",
+    "longDescription": "Secure self-hosted file synchronization client for mobile",
+    "macOS": {
+      "minimumSystemVersion": "14.0"
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libgtk-3-0", "libwebkit2gtk-4.1-0"],
+        "section": "utils"
+      }
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "iOS": {
+      "developmentTeam": "",
+      "minimumSystemVersion": "16.0"
+    },
+    "android": {
+      "minSdkVersion": 24
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": false
+    }
+  }
+}
