@@ -10,7 +10,7 @@ pub type DbHandle = Arc<std::sync::Mutex<Connection>>;
 use std::sync::Arc;
 
 #[cfg(test)]
-const SCHEMA_VERSION: i64 = 11;
+const SCHEMA_VERSION: i64 = 14;
 
 const MIGRATIONS: &[(&str, &str)] = &[
     (
@@ -47,6 +47,14 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "012",
         include_str!("../../../migrations/012_notes_tasks.sql"),
+    ),
+    (
+        "013",
+        include_str!("../../../migrations/013_mail_analytics_watermark.sql"),
+    ),
+    (
+        "014",
+        include_str!("../../../migrations/014_devices_notification_prefs.sql"),
     ),
 ];
 
@@ -136,6 +144,8 @@ mod tests {
             "api_keys",
             "notes",
             "tasks",
+            "devices",
+            "notification_prefs",
         ];
         // SAFETY: `table` values come from a hardcoded constant array above, not user input.
         // This is the ONLY acceptable use of format! in SQL queries in this codebase.

@@ -81,6 +81,8 @@ lru = "0.16"
 utoipa = { version = "5", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "8", features = ["axum", "vendored"] }
 lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1-rustls", "builder", "tokio1", "aws-lc-rs", "webpki-roots"] }
+imap = "2.4"
+native-tls = "0.2"
 ferro-rate-limiter = { path = "../rate-limiter" }
 ferro-cache = { path = "../cache" }
 ferro-health = { path = "../health" }
@@ -97,6 +99,7 @@ ferro-sync-protocol = { path = "../sync-protocol" }
 ferro-selective-sync = { path = "../selective-sync" }
 ferro-server-sharing = { path = "../server-sharing" }
 ferro-server-webdav = { path = "../server-webdav" }
+regex = "1"
 
 [dev-dependencies]
 http-body-util = "0.1"

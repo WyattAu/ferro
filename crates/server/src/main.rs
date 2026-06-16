@@ -799,6 +799,11 @@ async fn main() -> anyhow::Result<()> {
 
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         ferro_server::event_triggers::load_triggers_from_db(&conn);
+
+        // Initialize DLP tables
+        if let Err(e) = ferro_server::dlp_api::init_dlp_table(db) {
+            tracing::warn!("Failed to init DLP tables: {}", e);
+        }
     }
 
     // Validate storage backend is reachable

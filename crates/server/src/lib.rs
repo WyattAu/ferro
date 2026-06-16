@@ -1,3 +1,4 @@
+pub mod account_api;
 pub mod activity;
 pub mod admin_api;
 pub mod ai_search;
@@ -120,7 +121,9 @@ pub mod integration;
 pub mod json_logging;
 #[cfg(feature = "ldap")]
 pub mod ldap_auth;
+pub mod link_analytics_api;
 pub mod lock;
+pub mod mail_api;
 pub mod metadata_replication;
 pub mod metrics;
 pub mod move_copy;
@@ -128,6 +131,9 @@ pub mod object_store_backend;
 pub mod ocr;
 pub mod ocr_engine;
 pub mod offline_wiring;
+pub mod offline_api;
+pub mod antivirus_api;
+pub mod dlp_api;
 pub mod openapi;
 #[cfg(feature = "pg")]
 pub mod pg_state;
@@ -135,6 +141,7 @@ pub mod plugin_marketplace_api;
 pub mod plugin_permissions;
 pub mod policies;
 pub mod preferences;
+pub mod notification_prefs_api;
 pub mod presigned;
 pub mod prometheus_metrics;
 pub mod photos_api;
@@ -175,6 +182,7 @@ pub mod upload;
 pub mod user_api;
 pub mod user_paths;
 pub mod users;
+pub mod watermark_api;
 pub mod wasm_upload;
 #[cfg(feature = "webauthn")]
 pub mod webauthn_api;
@@ -664,6 +672,16 @@ impl AppState {
         }
         self.push_notification_store = Some(Arc::new(tokio::sync::RwLock::new(push_store)));
 
+        // Initialize device and notification preference stores
+        let device_store = account_api::DeviceStore::new(db.clone());
+        if let Err(e) = device_store.init_table() {
+            tracing::warn!(error = %e, "failed to init devices table");
+        }
+        let notif_prefs_store = notification_prefs_api::NotificationPrefsStore::new(db.clone());
+        if let Err(e) = notif_prefs_store.init_table() {
+            tracing::warn!(error = %e, "failed to init notification_prefs table");
+        }
+
         let lock_mgr = lock::LockManager::new().with_db(db.clone());
         if let Err(e) = lock_mgr.load_all_from_db(&conn) {
             tracing::warn!(error = %e, "failed to load locks from database");
@@ -1123,6 +1141,8 @@ fn api_routes(
         .route("/bulk/delete", axum::routing::post(bulk::bulk_delete))
         .route("/batch/copy", axum::routing::post(batch::batch_copy))
         .route("/batch/move", axum::routing::post(batch::batch_move))
+        .route("/batch/delete", axum::routing::post(batch::batch_delete))
+        .route("/batch/share", axum::routing::post(batch::batch_share))
         .route(
             "/fed/share",
             axum::routing::post(federation::federated_share),
@@ -1348,6 +1368,29 @@ fn api_routes(
         .route(
             "/admin/tenants/{id}/rate-limit/status",
             axum::routing::get(tenant_rate_limit_api::get_tenant_rate_limit_status),
+        )
+        // Account transfer and device management (P3-08)
+        .route(
+            "/admin/users/{id}/transfer",
+            axum::routing::post(account_api::transfer_user_data),
+        )
+        .route(
+            "/admin/devices/{user_id}/wipe",
+            axum::routing::post(account_api::wipe_user_devices),
+        )
+        .route(
+            "/admin/users/{id}/devices",
+            axum::routing::get(account_api::list_user_devices),
+        )
+        .route(
+            "/admin/users/{id}/devices/{device_id}/revoke",
+            axum::routing::post(account_api::revoke_device),
+        )
+        // Notification preferences (P4-07)
+        .route(
+            "/notification-prefs",
+            axum::routing::get(notification_prefs_api::get_notification_prefs)
+                .put(notification_prefs_api::update_notification_prefs),
         )
         .route(
             "/admin/search/config",
@@ -1585,6 +1628,63 @@ fn api_routes(
             axum::routing::get(whiteboard_api::list_whiteboards)
                 .post(whiteboard_api::create_whiteboard),
         )
+        // Offline mode endpoints
+        .route(
+            "/offline/sync",
+            axum::routing::post(offline_api::trigger_sync),
+        )
+        .route(
+            "/offline/status",
+            axum::routing::get(offline_api::get_status),
+        )
+        .route(
+            "/offline/pending",
+            axum::routing::get(offline_api::list_pending),
+        )
+        .route(
+            "/offline/resolve/{id}",
+            axum::routing::post(offline_api::resolve_conflict),
+        )
+        .route(
+            "/offline/cached",
+            axum::routing::get(offline_api::list_cached),
+        )
+        // Antivirus endpoints
+        .route(
+            "/antivirus/scan/{path}",
+            axum::routing::post(antivirus_api::scan_file),
+        )
+        .route(
+            "/antivirus/status",
+            axum::routing::get(antivirus_api::antivirus_status),
+        )
+        .route(
+            "/antivirus/scan-all",
+            axum::routing::post(antivirus_api::scan_all),
+        )
+        .route(
+            "/antivirus/history",
+            axum::routing::get(antivirus_api::scan_history),
+        )
+        // DLP endpoints
+        .route(
+            "/dlp/policies",
+            axum::routing::get(dlp_api::list_policies)
+                .post(dlp_api::create_policy),
+        )
+        .route(
+            "/dlp/policies/{id}",
+            axum::routing::put(dlp_api::update_policy)
+                .delete(dlp_api::delete_policy),
+        )
+        .route(
+            "/dlp/scan/{path}",
+            axum::routing::post(dlp_api::scan_file_dlp),
+        )
+        .route(
+            "/dlp/alerts",
+            axum::routing::get(dlp_api::list_alerts),
+        )
         .route(
             "/whiteboard/{id}",
             axum::routing::get(whiteboard_api::get_whiteboard)
@@ -1593,6 +1693,61 @@ fn api_routes(
         .route(
             "/whiteboard/{id}/image",
             axum::routing::get(whiteboard_api::export_whiteboard_image),
+        )
+        // Mail API (P3-03)
+        .route(
+            "/mail/accounts",
+            axum::routing::get(mail_api::list_accounts).post(mail_api::create_account),
+        )
+        .route(
+            "/mail/accounts/{id}",
+            axum::routing::delete(mail_api::delete_account),
+        )
+        .route(
+            "/mail/accounts/{id}/folders",
+            axum::routing::get(mail_api::mail_folders),
+        )
+        .route(
+            "/mail/accounts/{id}/folders/{folder}/messages",
+            axum::routing::get(mail_api::mail_messages),
+        )
+        .route(
+            "/mail/accounts/{id}/folders/{folder}/messages/{uid}",
+            axum::routing::get(mail_api::mail_message_detail),
+        )
+        .route(
+            "/mail/accounts/{id}/send",
+            axum::routing::post(mail_api::send_email),
+        )
+        .route(
+            "/mail/accounts/{id}/folders/{folder}/messages/{uid}/attachments/{part}/download",
+            axum::routing::post(mail_api::download_attachment),
+        )
+        // Link Analytics API (P3-06)
+        .route(
+            "/analytics/overview",
+            axum::routing::get(link_analytics_api::analytics_overview),
+        )
+        .route(
+            "/analytics/links",
+            axum::routing::get(link_analytics_api::list_link_analytics),
+        )
+        .route(
+            "/analytics/links/{id}/stats",
+            axum::routing::get(link_analytics_api::analytics_link_stats),
+        )
+        // Watermark API (P3-07)
+        .route(
+            "/watermark/preview",
+            axum::routing::post(watermark_api::preview_watermark),
+        )
+        .route(
+            "/watermark/apply/{path}",
+            axum::routing::post(watermark_api::apply_watermark),
+        )
+        .route(
+            "/watermark/policies",
+            axum::routing::get(watermark_api::list_policies).post(watermark_api::create_policy),
         )
         .merge(Router::from(openapi::swagger_ui()))
 }

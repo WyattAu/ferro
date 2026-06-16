@@ -67,6 +67,8 @@ pub struct FileConfigValues {
     pub fcm_server_key: Option<String>,
     pub apns_key_path: Option<String>,
     pub apns_team_id: Option<String>,
+    pub clamav_host: Option<String>,
+    pub clamav_port: Option<u16>,
 }
 
 /// Configuration loaded from a TOML file with include support.
@@ -380,6 +382,14 @@ pub struct ServerConfig {
     /// Apple Developer Team ID for APNS.
     #[arg(long, env = "FERRO_APNS_TEAM_ID")]
     pub apns_team_id: Option<String>,
+
+    /// ClamAV daemon host for virus scanning (default: 127.0.0.1).
+    #[arg(long, env = "FERRO_CLAMAV_HOST", default_value = "127.0.0.1")]
+    pub clamav_host: String,
+
+    /// ClamAV daemon port for virus scanning (default: 3310).
+    #[arg(long, env = "FERRO_CLAMAV_PORT", default_value = "3310")]
+    pub clamav_port: u16,
 }
 
 /// Custom Debug implementation that redacts sensitive fields (passwords, secrets, tokens).
@@ -436,6 +446,8 @@ impl std::fmt::Debug for ServerConfig {
             .field("sync_nodes", &self.sync_nodes)
             .field("sync_interval", &self.sync_interval)
             .field("sync_mode", &self.sync_mode)
+            .field("clamav_host", &self.clamav_host)
+            .field("clamav_port", &self.clamav_port)
             .finish()
     }
 }
@@ -500,6 +512,8 @@ impl std::fmt::Debug for FileConfigValues {
                 "apns_team_id",
                 &self.apns_team_id.as_ref().map(|_| "***REDACTED***"),
             )
+            .field("clamav_host", &self.clamav_host)
+            .field("clamav_port", &self.clamav_port)
             .finish()
     }
 }
@@ -618,6 +632,8 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
         fcm_server_key: override_.fcm_server_key.or(base.fcm_server_key),
         apns_key_path: override_.apns_key_path.or(base.apns_key_path),
         apns_team_id: override_.apns_team_id.or(base.apns_team_id),
+        clamav_host: override_.clamav_host.or(base.clamav_host),
+        clamav_port: override_.clamav_port.or(base.clamav_port),
     }
 }
 
@@ -776,6 +792,16 @@ where
     }
     if !was_set("apns_team_id") {
         cli.apns_team_id = file.apns_team_id.clone();
+    }
+    if !was_set("clamav_host") {
+        if let Some(ref host) = file.clamav_host {
+            cli.clamav_host = host.clone();
+        }
+    }
+    if !was_set("clamav_port") {
+        if let Some(port) = file.clamav_port {
+            cli.clamav_port = port;
+        }
     }
 }
 
