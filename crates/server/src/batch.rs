@@ -148,6 +148,104 @@ pub async fn batch_move(
         .into_response()
 }
 
+#[derive(Debug, Deserialize)]
+pub struct BatchDeleteRequest {
+    pub paths: Vec<String>,
+}
+
+pub async fn batch_delete(
+    State(state): State<AppState>,
+    axum::Json(body): axum::Json<BatchDeleteRequest>,
+) -> Response {
+    let mut succeeded: Vec<String> = Vec::new();
+    let mut failed: Vec<serde_json::Value> = Vec::new();
+
+    for path in &body.paths {
+        let normalized = common::path::normalize_path(path);
+
+        if !common::path::validate_path(&normalized) {
+            failed.push(serde_json::json!({
+                "path": path,
+                "error": "Invalid path",
+            }));
+            continue;
+        }
+
+        match state.storage.delete(&normalized).await {
+            Ok(()) => {
+                succeeded.push(path.clone());
+                crate::indexer::remove_file(&state, &normalized).await;
+            }
+            Err(e) => {
+                failed.push(serde_json::json!({
+                    "path": path,
+                    "error": e.to_string(),
+                }));
+            }
+        }
+    }
+
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "succeeded": succeeded,
+            "failed": failed,
+            "total_requested": body.paths.len(),
+        })),
+    )
+        .into_response()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BatchShareRequest {
+    pub paths: Vec<String>,
+    pub permissions: String,
+    pub expiry: Option<i64>,
+}
+
+pub async fn batch_share(
+    State(state): State<AppState>,
+    axum::Json(body): axum::Json<BatchShareRequest>,
+) -> Response {
+    let mut results: Vec<serde_json::Value> = Vec::new();
+
+    for path in &body.paths {
+        let normalized = common::path::normalize_path(path);
+
+        if !common::path::validate_path(&normalized) {
+            results.push(serde_json::json!({
+                "path": path,
+                "status": "error",
+                "error": "Invalid path",
+            }));
+            continue;
+        }
+
+        let req = crate::shares::CreateShareRequest {
+            path: normalized.clone(),
+            password: None,
+            expires_in_hours: body.expiry,
+            max_downloads: None,
+            allow_download: Some(true),
+            allow_upload: None,
+        };
+
+        let share = state.share_store.create(req, "batch".to_string()).await;
+        results.push(serde_json::json!({
+            "path": path,
+            "status": "ok",
+            "token": share.token,
+            "permissions": body.permissions,
+        }));
+    }
+
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "results": results })),
+    )
+        .into_response()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
