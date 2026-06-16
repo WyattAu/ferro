@@ -1193,8 +1193,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
            on:dragleave=handle_drag_leave
            on:drop=handle_drop
        >
-           // Toolbar
-           <div class="brutal-border border-b px-3 sm:px-6 py-3 surface shadow-concrete sticky top-0 z-20 bg-white dark:bg-gray-800">
+            // Toolbar - compact on mobile
+            <div class="brutal-border border-b px-2 sm:px-6 py-1.5 sm:py-3 surface shadow-concrete sticky top-0 z-20 bg-white dark:bg-gray-800">
                <div class="flex items-center justify-between gap-2">
                    <div class="flex items-center gap-2 min-w-0 flex-1">
                        <button

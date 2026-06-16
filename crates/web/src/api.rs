@@ -267,8 +267,8 @@ fn get_server_base() -> String {
     let window = web_sys::window().unwrap();
     
     // Check window.FERRO_SERVER_URL first (set by Android HTML)
-    if let Ok(Some(url)) = js_sys::Reflect::get(&window, &"FERRO_SERVER_URL".into()) {
-        if let Some(url) = url.as_string() {
+    if let Ok(val) = js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("FERRO_SERVER_URL")) {
+        if let Some(url) = val.as_string() {
             if !url.is_empty() {
                 return url.trim_end_matches('/').to_string();
             }

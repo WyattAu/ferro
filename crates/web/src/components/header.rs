@@ -315,7 +315,7 @@ pub fn Header() -> impl IntoView {
     let has_searched = move || search_total.get() > 0 || !search_results.with(Vec::is_empty);
 
     view! {
-        <header class="fixed top-0 left-0 right-0 w-full z-30 surface border-b px-4 sm:px-6 py-3 shadow-concrete">
+        <header class="fixed top-0 left-0 right-0 w-full z-30 surface border-b px-2 sm:px-6 py-1.5 sm:py-3 shadow-concrete">
             <div class="flex items-center justify-between max-w-7xl mx-auto">
                 <div class="flex items-center gap-3">
                     <A href="/" attr:class="flex items-center gap-3 no-underline">
