@@ -37,4 +37,4 @@ thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
 
 [build-dependencies]
-tauri-build = { version = "2", optional = true }
+tauri-build = { version = "2", optional = true , features = [] }

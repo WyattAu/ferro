@@ -48,18 +48,35 @@
       "frameworks": [],
       "providerShortName": null,
       "dmg": {
-        "appPosition": [480, 170],
-        "applicationFolderPosition": [180, 170],
-        "windowSize": [660, 400]
+        "appPosition": {
+          "x": 480,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        }
       }
     },
     "linux": {
       "deb": {
-        "depends": ["libgtk-3-0", "libwebkit2gtk-4.1-0", "libayatana-appindicator3-1"],
+        "depends": [
+          "libgtk-3-0",
+          "libwebkit2gtk-4.1-0",
+          "libayatana-appindicator3-1"
+        ],
         "section": "utils"
       },
       "rpm": {
-        "depends": ["gtk3", "webkit2gtk4.1", "libayatana-appindicator-gtk3"]
+        "depends": [
+          "gtk3",
+          "webkit2gtk4.1",
+          "libayatana-appindicator-gtk3"
+        ]
       }
     },
     "windows": {

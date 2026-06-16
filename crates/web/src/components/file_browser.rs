@@ -701,6 +701,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         set_show_activity.update(|v| *v = !*v);
     };
 
+    let theme_state_for_wasm = theme_state.clone();
+
     Effect::new(move |_| {
         let ts = theme_state.clone();
         let commands = vec![
@@ -832,6 +834,13 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         palette_state.set_commands(commands);
     });
 
+    let do_rename = move |path: String| {
+        let file_name = path.rsplit('/').next().unwrap_or("").to_string();
+        set_rename_source.set(path.clone());
+        set_rename_new_name.set(file_name);
+        set_show_rename_dialog.set(true);
+    };
+
     #[cfg(target_arch = "wasm32")]
     {
         let ps = palette_state;
@@ -857,7 +866,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let set_sm = set_show_move_dialog;
         let set_scd = set_show_copy_dialog;
         let set_sshd = set_show_share_dialog;
-        let ts = theme_state;
+        let ts = theme_state_for_wasm;
         let all_ents = all_entries;
         let do_rename_fn = do_rename;
         let navigate_fn = navigate;
@@ -1068,13 +1077,6 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         set_copy_source.set(path.clone());
         set_copy_dest.set(String::new());
         set_show_copy_dialog.set(true);
-    };
-
-    let do_rename = move |path: String| {
-        let file_name = path.rsplit('/').next().unwrap_or("").to_string();
-        set_rename_source.set(path.clone());
-        set_rename_new_name.set(file_name);
-        set_show_rename_dialog.set(true);
     };
 
     let on_rename_confirm = Callback::new(move |(source, new_name): (String, String)| {

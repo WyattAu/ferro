@@ -1,1 +1,35 @@
-<!DOCTYPE html><html><head><title>Ferro Mobile</title></head><body><h1>Ferro Mobile</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="description" content="Ferro - Self-hosted file storage platform with WebDAV, content-addressable storage, and WASM workers"/>
+    <title>FERRO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/ui/style.css"/>
+    
+    <link data-trunk-rel="rust" data-wasm-opt="O" data-bincode/>
+<link rel="modulepreload" href="/ui/web-1ed63343b2732737.js" crossorigin="anonymous" integrity="sha384-1cNuLlR8YBniMlKGEbRy9EHcc34nw1M4f0fUBh7e4Fc/pq8z/tT88eue0zlmAku4"><link rel="preload" href="/ui/web-1ed63343b2732737_bg.wasm" crossorigin="anonymous" integrity="sha384-Pw9ngFfN0OM2N2jFa2KP+b1GLGFGxIYBrcKbWpyzt6vSw1gn6YPQnUEOHVfvDzIs" as="fetch" type="application/wasm"></head>
+<body>
+    <div id="app"></div>
+    <noscript>
+        <div style="padding: 3rem; text-align: center; font-family: 'IBM Plex Mono', monospace; background: #F5F0EB; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 3px solid #2B2B2B;">
+            <h1 style="font-size: 4rem; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 1rem;">FERRO</h1>
+            <p style="font-family: 'Inter', sans-serif; color: #8B8178; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem;">WebAssembly is required to run this application.</p>
+        </div>
+    </noscript>
+
+<script type="module">
+import init, * as bindings from '/ui/web-1ed63343b2732737.js';
+const wasm = await init({ module_or_path: '/ui/web-1ed63343b2732737_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script></body>
+</html>

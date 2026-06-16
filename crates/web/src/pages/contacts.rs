@@ -1,6 +1,8 @@
 use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::JsCast;
 
 use crate::api;
 use crate::components::header::{Header, provide_header_state};
@@ -327,8 +329,9 @@ pub fn ContactsPage() -> impl IntoView {
             input.set_type("file");
             input.set_accept(".vcf");
             let set_contacts_clone = set_contacts;
+            let input_clone = input.clone();
             let on_change = Closure::wrap(Box::new(move |_: web_sys::Event| {
-                if let Some(files) = input.files() {
+                if let Some(files) = input_clone.files() {
                     if let Some(file) = files.get(0) {
                         let reader = web_sys::FileReader::new().expect("failed to create reader");
                         let reader_clone = reader.clone();
