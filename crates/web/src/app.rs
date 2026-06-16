@@ -13,10 +13,18 @@ use crate::components::toast::ProvideToastContext;
 use crate::i18n::{I18nCtx, Locale};
 use crate::pages::admin::AdminPage;
 use crate::pages::auth::AuthCallbackPage;
+use crate::pages::calendar::CalendarPage;
+use crate::pages::chat::ChatPage;
+use crate::pages::contacts::ContactsPage;
+use crate::pages::dashboard::DashboardPage;
 use crate::pages::home::HomePage;
 use crate::pages::login::LoginPage;
+use crate::pages::notes::NotesPage;
+use crate::pages::photos::PhotosPage;
 use crate::pages::settings::SettingsPage;
+use crate::pages::tasks::TasksPage;
 use crate::pages::trash::TrashPage;
+use crate::pages::whiteboard::WhiteboardPage;
 use crate::t;
 
 #[component]
@@ -109,11 +117,21 @@ pub fn App() -> impl IntoView {
                 <Router base="/ui".to_string()>
                     <Routes fallback=|| t!("common.not_found")>
                         <Route path=path!("/") view=RootView />
+                        <Route path=path!("/dashboard") view=DashboardPage />
                         <Route path=path!("/files/") view=RootView />
                         <Route path=path!("/files/*path") view=FileViewRoute />
                         <Route path=path!("/trash") view=TrashPage />
                         <Route path=path!("/settings") view=SettingsPage />
                         <Route path=path!("/admin") view=AdminPage />
+                        <Route path=path!("/calendar") view=CalendarPage />
+                        <Route path=path!("/contacts") view=ContactsPage />
+                        <Route path=path!("/notes") view=NotesPage />
+                        <Route path=path!("/tasks") view=TasksPage />
+                        <Route path=path!("/chat") view=ChatPage />
+                        <Route path=path!("/chat/*room_id") view=ChatPage />
+                        <Route path=path!("/photos") view=PhotosPage />
+                        <Route path=path!("/whiteboard") view=WhiteboardPage />
+                        <Route path=path!("/whiteboard/:id") view=WhiteboardPage />
                         <Route path=path!("/auth/callback") view=AuthCallbackPage />
                         <Route path=path!("/auth/login") view=LoginPage />
                     </Routes>

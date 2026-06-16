@@ -1,6 +1,14 @@
 pub mod admin;
 pub mod auth;
+pub mod calendar;
+pub mod chat;
+pub mod contacts;
+pub mod dashboard;
 pub mod home;
 pub mod login;
+pub mod notes;
+pub mod photos;
 pub mod settings;
+pub mod tasks;
 pub mod trash;
+pub mod whiteboard;
