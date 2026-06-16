@@ -17,6 +17,7 @@ use crate::components::file_preview::FilePreview;
 use crate::components::file_row::FileRow;
 use crate::components::grid_view::GridView;
 use crate::components::header::use_header_state;
+use crate::components::keyboard_shortcuts_help::KeyboardShortcutsHelp;
 use crate::components::new_folder_dialog::NewFolderDialog;
 use crate::components::path_dialog::PathDialog;
 use crate::components::scroll_sentinel::ScrollSentinel;
@@ -856,6 +857,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let set_sm = set_show_move_dialog;
         let set_scd = set_show_copy_dialog;
         let set_sshd = set_show_share_dialog;
+        let ts = theme_state;
+        let all_ents = all_entries;
+        let do_rename_fn = do_rename;
+        let navigate_fn = navigate;
+        let current_p = current_path;
 
         // Global keyboard shortcuts (wired into document, cleaned up on unmount)
         if let Some(window) = web_sys::window() {
@@ -863,6 +869,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 use wasm_bindgen::JsCast;
                 let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
                     move |ev: web_sys::KeyboardEvent| {
+                        let ctrl = ev.ctrl_key() || ev.meta_key();
+                        let shift = ev.shift_key();
+                        let key = ev.key();
+
                         let tag = ev
                             .target()
                             .and_then(|t| {
@@ -872,30 +882,17 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                             .map(|el| el.tag_name().to_lowercase())
                             .unwrap_or_default();
 
-                        if tag == "input" || tag == "textarea" || tag == "select" {
+                        let in_input = tag == "input" || tag == "textarea" || tag == "select";
+
+                        // Ctrl+K: Command palette (works everywhere)
+                        if ctrl && (key == "k" || key == "K") && !shift {
+                            ev.prevent_default();
+                            ps.toggle();
                             return;
                         }
 
-                        let ctrl = ev.ctrl_key() || ev.meta_key();
-
-                        if ctrl && ev.key() == "k" {
-                            ev.prevent_default();
-                            ps.toggle();
-                        } else if ctrl && ev.key() == "n" {
-                            ev.prevent_default();
-                            snf.set(true);
-                        } else if ctrl && ev.key() == "u" {
-                            ev.prevent_default();
-                            su.set(true);
-                        } else if ev.key() == "Delete" || ev.key() == "Backspace" {
-                            ev.prevent_default();
-                            if !sel_paths.with(|s| s.is_empty()) {
-                                sdc.set(true);
-                            }
-                        } else if ctrl && ev.key() == "a" {
-                            ev.prevent_default();
-                            sa();
-                        } else if ev.key() == "Escape" {
+                        // Escape: close dialogs/deselect (works everywhere)
+                        if key == "Escape" {
                             if ps.is_open() {
                                 ps.close();
                                 return;
@@ -923,22 +920,133 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                 ssp.set(std::collections::HashSet::new());
                                 return;
                             }
-                        } else if ctrl && ev.key() == "f" {
+                        }
+
+                        // Shortcuts that should NOT fire when in an input field
+                        if in_input {
+                            return;
+                        }
+
+                        // Ctrl+D: Toggle dark mode
+                        if ctrl && (key == "d" || key == "D") && !shift {
+                            ev.prevent_default();
+                            let current = ts.theme().get();
+                            let next = match current {
+                                Theme::Light => Theme::Dark,
+                                Theme::Dark => Theme::Light,
+                            };
+                            ts.set_theme(next);
+                            return;
+                        }
+
+                        // Ctrl+Shift+N: New note (navigate to notes page)
+                        if ctrl && shift && (key == "n" || key == "N") {
+                            ev.prevent_default();
+                            #[cfg(target_arch = "wasm32")]
+                            {
+                                if let Some(window) = web_sys::window() {
+                                    let _ = window.location().set_href("/ui/notes");
+                                }
+                            }
+                            return;
+                        }
+
+                        // Ctrl+N: New folder
+                        if ctrl && (key == "n" || key == "N") && !shift {
+                            ev.prevent_default();
+                            snf.set(true);
+                            return;
+                        }
+
+                        // Ctrl+U: Upload
+                        if ctrl && (key == "u" || key == "U") {
+                            ev.prevent_default();
+                            su.set(true);
+                            return;
+                        }
+
+                        // Ctrl+A: Select all
+                        if ctrl && (key == "a" || key == "A") {
+                            ev.prevent_default();
+                            sa();
+                            return;
+                        }
+
+                        // Ctrl+F: Search
+                        if ctrl && (key == "f" || key == "F") {
                             ev.prevent_default();
                             if let Some(h) = hs {
                                 h.open_search();
                             }
-                        } else if ctrl && ev.key() == "c" {
+                            return;
+                        }
+
+                        // Ctrl+C: Copy
+                        if ctrl && (key == "c" || key == "C") {
                             ev.prevent_default();
                             cc();
-                        } else if ctrl && ev.key() == "x" {
+                            return;
+                        }
+
+                        // Ctrl+X: Cut
+                        if ctrl && (key == "x" || key == "X") {
                             ev.prevent_default();
                             cx();
-                        } else if ctrl && ev.key() == "v" {
+                            return;
+                        }
+
+                        // Ctrl+V: Paste
+                        if ctrl && (key == "v" || key == "V") {
                             ev.prevent_default();
                             if cs.has_files() {
                                 cv();
                             }
+                            return;
+                        }
+
+                        // Delete / Backspace: Delete selected
+                        if key == "Delete" || key == "Backspace" {
+                            ev.prevent_default();
+                            if !sel_paths.with(|s| s.is_empty()) {
+                                sdc.set(true);
+                            }
+                            return;
+                        }
+
+                        // F2: Rename selected file
+                        if key == "F2" {
+                            ev.prevent_default();
+                            let paths: Vec<String> = sel_paths.get().into_iter().collect();
+                            if let Some(path) = paths.first() {
+                                do_rename_fn(path.clone());
+                            }
+                            return;
+                        }
+
+                        // Enter: Open selected file/folder
+                        if key == "Enter" {
+                            ev.prevent_default();
+                            let paths: Vec<String> = sel_paths.get().into_iter().collect();
+                            if let Some(path) = paths.first() {
+                                let entries = all_ents.get();
+                                if let Some(entry) = entries.iter().find(|e| &e.path == path) {
+                                    if entry.is_collection {
+                                        navigate_fn(path.clone());
+                                    } else {
+                                        spf.set(Some(entry.clone()));
+                                    }
+                                }
+                            }
+                            return;
+                        }
+
+                        // /: Focus search
+                        if key == "/" && !ctrl && !shift {
+                            ev.prevent_default();
+                            if let Some(h) = hs {
+                                h.open_search();
+                            }
+                            return;
                         }
                     },
                 )
@@ -1623,6 +1731,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 loading=loading
                 has_entries=Signal::derive(move || !all_entries.with(Vec::is_empty))
                 files_tab_active=Signal::derive(show_files_view)
+                is_dragging=upload_drag.into()
             />
 
             // Move dialog (extracted PathDialog component)
@@ -1690,5 +1799,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             set_open=set_show_version_history
             file_path=version_history_path
         />
+
+        // Keyboard shortcuts help overlay
+        <KeyboardShortcutsHelp />
     }
 }

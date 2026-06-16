@@ -3,6 +3,8 @@ use leptos::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use leptos::task::spawn_local;
 
+#[cfg(target_arch = "wasm32")]
+use crate::styles::dark_mode;
 use crate::t;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -58,48 +60,19 @@ pub fn provide_theme_state() -> ThemeState {
 
     #[cfg(target_arch = "wasm32")]
     {
-        let init_state = state.clone();
-        Effect::new(move |_| {
-            let window = web_sys::window();
-            let document = window.as_ref().and_then(|w| w.document());
+        // Inject dark mode CSS
+        dark_mode::inject_dark_mode_css();
 
-            let Some(document) = document else {
-                return;
-            };
-            let html = document.document_element();
+        // Resolve initial theme from localStorage > system preference
+        let initial_theme_str = dark_mode::resolve_initial_theme();
+        let initial = Theme::from_str(initial_theme_str);
+        state.set_theme(initial);
 
-            if let Some(html) = html {
-                let stored = window
-                    .as_ref()
-                    .and_then(|w| w.local_storage().ok())
-                    .flatten()
-                    .and_then(|s| s.get_item("ferro_theme").ok())
-                    .flatten();
+        // Apply initial theme with data-theme attribute
+        dark_mode::apply_theme(initial_theme_str);
+        dark_mode::persist_theme(initial_theme_str);
 
-                let initial = stored.map(|s| Theme::from_str(&s)).unwrap_or_else(|| {
-                    let prefers_dark = window
-                        .as_ref()
-                        .and_then(|w| w.match_media("(prefers-color-scheme: dark)").ok())
-                        .flatten()
-                        .map(|mql| mql.matches())
-                        .unwrap_or(false);
-                    if prefers_dark {
-                        Theme::Dark
-                    } else {
-                        Theme::Light
-                    }
-                });
-
-                init_state.set_theme(initial);
-
-                if initial == Theme::Dark {
-                    let _ = html.class_list().add_1("dark");
-                } else {
-                    let _ = html.class_list().remove_1("dark");
-                }
-            }
-        });
-
+        // Listen for system theme changes
         let listen_state = state.clone();
         spawn_local(async move {
             if let Some(window) = web_sys::window() {
@@ -125,27 +98,14 @@ pub fn provide_theme_state() -> ThemeState {
                 }
             }
         });
-    }
 
-    #[cfg(target_arch = "wasm32")]
-    {
+        // Sync theme state changes to DOM
         let sync_state = state.clone();
         Effect::new(move |_| {
             let current = sync_state.theme.get();
-            if let Some(window) = web_sys::window() {
-                if let Some(document) = window.document() {
-                    if let Some(html) = document.document_element() {
-                        if current == Theme::Dark {
-                            let _ = html.class_list().add_1("dark");
-                        } else {
-                            let _ = html.class_list().remove_1("dark");
-                        }
-                    }
-                }
-                if let Ok(Some(storage)) = window.local_storage() {
-                    let _ = storage.set_item("ferro_theme", current.as_str());
-                }
-            }
+            let theme_str = current.as_str();
+            dark_mode::apply_theme(theme_str);
+            dark_mode::persist_theme(theme_str);
         });
     }
 

@@ -9,6 +9,75 @@ use crate::t;
 use ferro_common::format::format_size;
 use leptos_router::components::A;
 
+const MAX_RECENT_SEARCHES: usize = 8;
+const RECENT_SEARCHES_KEY: &str = "ferro_recent_searches";
+
+fn load_recent_searches() -> Vec<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                if let Ok(Some(json)) = storage.get_item(RECENT_SEARCHES_KEY) {
+                    if let Ok(list) = serde_json::from_str::<Vec<String>>(&json) {
+                        return list;
+                    }
+                }
+            }
+        }
+    }
+    Vec::new()
+}
+
+fn save_recent_search(query: &str) {
+    if query.trim().is_empty() {
+        return;
+    }
+    let mut searches = load_recent_searches();
+    searches.retain(|s| s != query);
+    searches.insert(0, query.to_string());
+    searches.truncate(MAX_RECENT_SEARCHES);
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Ok(json) = serde_json::to_string(&searches) {
+            if let Some(window) = web_sys::window() {
+                if let Ok(Some(storage)) = window.local_storage() {
+                    let _ = storage.set_item(RECENT_SEARCHES_KEY, &json);
+                }
+            }
+        }
+    }
+}
+
+fn highlight_matches(text: &str, query: &str) -> String {
+    if query.is_empty() {
+        return html_escape(text);
+    }
+    let lower_text = text.to_lowercase();
+    let lower_query = query.to_lowercase();
+    let mut result = String::with_capacity(text.len() * 2);
+    let mut last_end = 0;
+
+    for start in lower_text.match_indices(&lower_query).map(|(i, _)| i) {
+        let end = start + query.len();
+        result.push_str(&html_escape(&text[last_end..start]));
+        result.push_str("<mark class=\"bg-yellow-200 dark:bg-yellow-800 rounded px-0.5\">");
+        result.push_str(&html_escape(&text[start..end]));
+        result.push_str("</mark>");
+        last_end = end;
+    }
+    result.push_str(&html_escape(&text[last_end..]));
+    result
+}
+
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
 #[derive(Clone, Copy)]
 pub struct HeaderState {
     trigger_search: ReadSignal<u32>,
@@ -50,7 +119,10 @@ pub fn Header() -> impl IntoView {
     let (search_total, set_search_total) = signal(0usize);
     let (filter_type, set_filter_type) = signal(String::new());
     let (filter_sort, set_filter_sort) = signal(String::new());
+    let (filter_folder, set_filter_folder) = signal(String::new());
     let (quota_info, set_quota_info) = signal(None::<crate::api::QuotaInfo>);
+    let (recent_searches, set_recent_searches) = signal(load_recent_searches());
+    let (show_suggestions, set_show_suggestions) = signal(false);
 
     Effect::new(move |_| {
         spawn_local(async move {
@@ -105,8 +177,12 @@ pub fn Header() -> impl IntoView {
             return;
         }
         set_searching.set(true);
+        set_show_suggestions.set(false);
+        save_recent_search(&query);
+        set_recent_searches.set(load_recent_searches());
         let ft = filter_type.get();
         let fs = filter_sort.get();
+        let ff = filter_folder.get();
         spawn_local(async move {
             let filters = SearchFilters {
                 r#type: if ft.is_empty() { None } else { Some(ft) },
@@ -115,8 +191,16 @@ pub fn Header() -> impl IntoView {
             };
             match crate::api::search_files(&query, Some(&filters)).await {
                 Ok(resp) => {
-                    set_search_results.set(resp.results);
-                    set_search_total.set(resp.total);
+                    let results = if ff.is_empty() {
+                        resp.results
+                    } else {
+                        resp.results
+                            .into_iter()
+                            .filter(|r| r.path.starts_with(&ff))
+                            .collect()
+                    };
+                    set_search_total.set(results.len());
+                    set_search_results.set(results);
                 }
                 Err(_) => {
                     set_search_results.set(vec![]);
@@ -353,10 +437,63 @@ pub fn Header() -> impl IntoView {
                             prop:value=search_query
                             on:input=on_search_input
                             on:keydown=on_search_submit
+                            on:focus=move |_| {
+                                if search_query.get().is_empty() {
+                                    set_show_suggestions.set(true);
+                                }
+                            }
+                            on:blur=move |_| {
+                                // Delay to allow click on suggestion
+                                #[cfg(target_arch = "wasm32")]
+                                {
+                                    let _ = set_timeout_with_handle(
+                                        move || set_show_suggestions.set(false),
+                                        std::time::Duration::from_millis(200),
+                                    );
+                                }
+                            }
                         />
                         <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
+
+                        // Search suggestions dropdown
+                        {move || {
+                            let queries = recent_searches.get();
+                            let show = show_suggestions.get() && search_query.get().is_empty() && !queries.is_empty();
+                            if !show {
+                                return view! { <div class="hidden"></div> }.into_any();
+                            }
+                            view! {
+                                <div class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50 max-h-48 overflow-y-auto">
+                                    <div class="px-3 py-1.5 text-xs font-mono text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+                                        "Recent Searches"
+                                    </div>
+                                    {queries.into_iter().map(|q| {
+                                        let query = q.clone();
+                                        let set_q = set_search_query;
+                                        let do_s = do_search;
+                                        let set_show = set_show_suggestions;
+                                        view! {
+                                            <button
+                                                class="w-full text-left px-3 py-2 text-sm font-mono text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                                on:mousedown=move |ev| {
+                                                    ev.prevent_default();
+                                                    set_q.set(query.clone());
+                                                    do_s(query.clone());
+                                                    set_show.set(false);
+                                                }
+                                            >
+                                                <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span class="truncate">{q}</span>
+                                            </button>
+                                        }
+                                    }).collect::<Vec<_>>()}
+                                </div>
+                            }.into_any()
+                        }}
                     </div>
                     <button
                         class="p-2 text-gray-500 hover:text-blue-600 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -369,7 +506,7 @@ pub fn Header() -> impl IntoView {
                     </button>
                 </div>
 
-                <div class="flex items-center gap-2 mb-2">
+                <div class="flex items-center gap-2 mb-2 flex-wrap">
                     <label for="search-filter-type" class="sr-only">{t!("search.filter_type")}</label>
                     <select
                         id="search-filter-type"
@@ -395,6 +532,21 @@ pub fn Header() -> impl IntoView {
                         <option value="date" selected=move || filter_sort.get() == "date">{t!("search.sort_date")}</option>
                         <option value="size" selected=move || filter_sort.get() == "size">{t!("search.sort_size")}</option>
                     </select>
+                    <label for="search-filter-folder" class="sr-only">"Search in folder"</label>
+                    <input
+                        id="search-filter-folder"
+                        type="text"
+                        placeholder="/path/to/folder"
+                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style="letter-spacing: 0.05em; max-width: 180px;"
+                        aria-label="Search in folder"
+                        prop:value=filter_folder
+                        on:input=move |ev| set_filter_folder.set(event_target_value(&ev))
+                        on:change=move |_| {
+                            let query = search_query.get();
+                            do_search(query);
+                        }
+                    />
                 </div>
 
                 {move || searching.get().then(|| view! {
@@ -476,6 +628,8 @@ fn SearchResultsList(
                         {
                             let dir_path = result.path.clone();
                             let parent = dir_path.rfind('/').map(|i| &dir_path[..i]).unwrap_or("/");
+                            let highlighted_name = highlight_matches(&result.name, &q);
+                            let highlighted_path = highlight_matches(&result.path, &q);
                             view! {
                                 <a
                                     class="block w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-0 cursor-pointer no-underline text-inherit transition-colors"
@@ -486,12 +640,15 @@ fn SearchResultsList(
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
                                         <div class="min-w-0">
-                                            <div class="text-sm font-semibold font-mono truncate">{result.name.clone()}</div>
-                                            <div class="text-xs text-gray-500 font-mono truncate">{result.path.clone()}</div>
+                                            <div class="text-sm font-semibold font-mono truncate" inner_html=highlighted_name></div>
+                                            <div class="text-xs text-gray-500 font-mono truncate" inner_html=highlighted_path></div>
                                         </div>
                                     </div>
-                                    {result.snippet.as_ref().map(|s| view! {
-                                        <div class="text-xs text-gray-500 mt-0.5 ml-6 truncate">{s.clone()}</div>
+                                    {result.snippet.as_ref().map(|s| {
+                                        let highlighted_snippet = highlight_matches(s, &q);
+                                        view! {
+                                            <div class="text-xs text-gray-500 mt-0.5 ml-6 truncate" inner_html=highlighted_snippet></div>
+                                        }
                                     })}
                                 </a>
                             }
