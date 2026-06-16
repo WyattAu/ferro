@@ -4,6 +4,7 @@ use leptos::task::spawn_local;
 
 use crate::api::FileEntry;
 use crate::components::focus_trap::FocusTrap;
+use crate::components::video_player::VideoPlayer;
 
 use crate::t;
 
@@ -178,10 +179,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                 }.into_any(),
                                 "video" => view! {
                                     <div class="flex items-center justify-center">
-                                        <video controls class="max-w-full max-h-[60vh] rounded-lg" aria-label={format!("Video: {}", n)}>
-                                            <source src={p} type="video/mp4" />
-                                            {t!("preview.no_video")}
-                                        </video>
+                                        <VideoPlayer src=p title=n />
                                     </div>
                                 }.into_any(),
                                 "audio" => view! {

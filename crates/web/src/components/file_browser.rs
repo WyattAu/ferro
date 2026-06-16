@@ -25,6 +25,7 @@ use crate::components::skeleton::{SkeletonFavorites, SkeletonGrid, SkeletonList,
 use crate::components::theme_toggle::{Theme, use_theme_state};
 use crate::components::toast::ToastContext;
 use crate::components::upload_dialog::UploadDialog;
+use crate::components::version_history::VersionHistory;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum BrowserTab {
@@ -81,6 +82,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let (last_clicked_index, set_last_clicked_index) = signal(None::<usize>);
 
     let (show_activity, set_show_activity) = signal(false);
+    let (show_version_history, set_show_version_history) = signal(false);
+    let (version_history_path, set_version_history_path) = signal(String::new());
     let (show_delete_confirm, set_show_delete_confirm) = signal(false);
     // Move dialog signals (owned here, passed to PathDialog)
     let (show_move_dialog, set_show_move_dialog) = signal(false);
@@ -335,6 +338,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let do_share = move |_path: String| {
         set_show_share_dialog.set(true);
         // ShareDialogHandle will be available after component mounts via provide_context
+    };
+
+    let open_version_history = move |path: String| {
+        set_version_history_path.set(path);
+        set_show_version_history.set(true);
     };
 
     // do_upload_files remains here because it is also used by drag-and-drop on the container
@@ -1388,6 +1396,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                                     is_locked=lk
                                                     lock_owner=lo
                                                     lock_expires=le
+                                                    on_version_history=Callback::new(open_version_history)
                                                 />
                                             }
                                         }
@@ -1460,6 +1469,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                                     is_locked=lk
                                                     lock_owner=lo
                                                     lock_expires=le
+                                                    on_version_history=Callback::new(open_version_history)
                                                 />
                                             }
                                         }
@@ -1467,11 +1477,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                 </tbody>
                             </table>
                         }.into_any()
-                   }
-               }}
-           })}
+                    }
+                }}
+            })}
 
-           // File list/grid (Files tab)
+            // File list/grid (Files tab)
            {move || (show_files_view() && !loading.get()).then(|| view! {
                {match view_mode.get() {
                    ViewMode::Grid => view! {
@@ -1561,16 +1571,17 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                                     is_locked=lk
                                                     lock_owner=lo
                                                     lock_expires=le
+                                                    on_version_history=Callback::new(open_version_history)
                                                 />
                                             }
-                                       }
-                                   </For>
-                               </tbody>
-                           </table>
-                       </div>
-                   }.into_any(),
-               }}
-           })}
+                                        }
+                                    </For>
+                                </tbody>
+                            </table>
+                        </div>
+                    }.into_any(),
+                }}
+            })}
 
             // Bulk action bar (extracted component)
             <BulkActionBar
@@ -1671,6 +1682,13 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         <ActivitySidebar
             open=show_activity
             set_open=set_show_activity
+        />
+
+        // Version history panel (extracted component)
+        <VersionHistory
+            open=show_version_history
+            set_open=set_show_version_history
+            file_path=version_history_path
         />
     }
 }

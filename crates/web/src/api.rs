@@ -1302,6 +1302,358 @@ pub async fn fetch_branding() -> Result<BrandingConfig, String> {
     Ok(BrandingConfig::default())
 }
 
+// ---------------------------------------------------------------------------
+// Version History API
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileVersion {
+    pub id: u64,
+    pub path: String,
+    pub size: u64,
+    pub content_hash: String,
+    pub modified_at: String,
+    pub author: String,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VersionsResponse {
+    pub versions: Vec<FileVersion>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiffLine {
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub content: String,
+    pub old_line: Option<usize>,
+    pub new_line: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiffStats {
+    pub additions: usize,
+    pub deletions: usize,
+    pub unchanged: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiffResponse {
+    pub from_version: String,
+    pub to_version: String,
+    pub is_binary: bool,
+    pub lines: Vec<DiffLine>,
+    pub stats: DiffStats,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn list_versions(path: &str) -> Result<VersionsResponse, String> {
+    let url = format!(
+        "/api/files/{}/versions",
+        urlencoding(path.trim_start_matches('/'))
+    );
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text(&url, &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn list_versions(_path: &str) -> Result<VersionsResponse, String> {
+    Ok(VersionsResponse {
+        versions: vec![],
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn get_version_content(path: &str, version_id: u64) -> Result<Vec<u8>, String> {
+    let url = format!(
+        "/api/files/{}/versions/{}",
+        urlencoding(path.trim_start_matches('/')),
+        version_id
+    );
+    let window = web_sys::window().ok_or("No window")?;
+    let opts = make_opts_with_auth("GET");
+    let request = web_sys::Request::new_with_str_and_init(&url, &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+    let array_buffer = wasm_bindgen_futures::JsFuture::from(
+        resp.array_buffer()
+            .map_err(|e| js_err("array_buffer() failed", &e))?,
+    )
+    .await
+    .map_err(|e| js_err("ArrayBuffer read failed", &e))?;
+    let uint8 = js_sys::Uint8Array::new(&array_buffer);
+    Ok(uint8.to_vec())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_version_content(_path: &str, _version_id: u64) -> Result<Vec<u8>, String> {
+    Ok(vec![])
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn restore_version(path: &str, version_id: u64) -> Result<(), String> {
+    let content = get_version_content(path, version_id).await?;
+    upload_file(path, &content).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn restore_version(_path: &str, _version_id: u64) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn diff_versions(
+    path: &str,
+    from: u64,
+    to: u64,
+) -> Result<DiffResponse, String> {
+    let url = format!(
+        "/api/files/{}/diff?from={}&to={}",
+        urlencoding(path.trim_start_matches('/')),
+        from,
+        to
+    );
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text(&url, &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn diff_versions(
+    _path: &str,
+    _from: u64,
+    _to: u64,
+) -> Result<DiffResponse, String> {
+    Ok(DiffResponse {
+        from_version: String::new(),
+        to_version: String::new(),
+        is_binary: false,
+        lines: vec![],
+        stats: DiffStats {
+            additions: 0,
+            deletions: 0,
+            unchanged: 0,
+        },
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard API
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardRecentFile {
+    pub path: String,
+    pub modified_at: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardSharedFile {
+    pub token: String,
+    pub path: String,
+    pub expires_at: String,
+    pub download_count: u32,
+    pub created_by: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardResponse {
+    pub storage_used: u64,
+    pub storage_total: u64,
+    pub file_count: u64,
+    pub recent_files: Vec<DashboardRecentFile>,
+    pub shared_files: Vec<DashboardSharedFile>,
+    pub activity: Vec<ActivityEntry>,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn get_dashboard() -> Result<DashboardResponse, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/dashboard", &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_dashboard() -> Result<DashboardResponse, String> {
+    Ok(DashboardResponse {
+        storage_used: 0,
+        storage_total: 0,
+        file_count: 0,
+        recent_files: vec![],
+        shared_files: vec![],
+        activity: vec![],
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Share management API
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShareListItem {
+    pub token: String,
+    pub url: String,
+    pub path: String,
+    pub expires_at: String,
+    pub max_downloads: Option<u32>,
+    pub download_count: u32,
+    pub created_by: String,
+    pub allow_download: Option<bool>,
+    pub allow_upload: Option<bool>,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn list_shares() -> Result<Vec<ShareListItem>, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/shares", &opts).await?;
+    let val: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    let items = val
+        .get("shares")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| {
+                    Some(ShareListItem {
+                        token: v
+                            .get("token")
+                            .and_then(|t| t.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        url: v
+                            .get("url")
+                            .and_then(|u| u.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        path: v
+                            .get("path")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        expires_at: v
+                            .get("expires_at")
+                            .and_then(|e| e.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        max_downloads: v.get("max_downloads").and_then(|d| d.as_u64()).map(|d| d as u32),
+                        download_count: v
+                            .get("download_count")
+                            .and_then(|d| d.as_u64())
+                            .unwrap_or(0) as u32,
+                        created_by: v
+                            .get("created_by")
+                            .and_then(|u| u.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        allow_download: v.get("allow_download").and_then(|d| d.as_bool()),
+                        allow_upload: v.get("allow_upload").and_then(|u| u.as_bool()),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    Ok(items)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn list_shares() -> Result<Vec<ShareListItem>, String> {
+    Ok(vec![])
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn delete_share(token: &str) -> Result<(), String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let opts = make_opts_with_auth("DELETE");
+    let url = format!("/api/shares/{}", urlencoding(token));
+    let request = web_sys::Request::new_with_str_and_init(&url, &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+    if !resp.ok() {
+        return Err(format!("Delete share failed: HTTP {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn delete_share(_token: &str) -> Result<(), String> {
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Calendar & Contacts REST API helpers
+// ---------------------------------------------------------------------------
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_json_with_method(
+    url: &str,
+    method: &str,
+    body: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    let window = web_sys::window().ok_or("No window")?;
+    let headers = web_sys::Headers::new().map_err(|e| js_err("Headers creation failed", &e))?;
+    headers
+        .set("Content-Type", "application/json")
+        .map_err(|e| js_err("Headers set failed", &e))?;
+    with_auth_headers(&headers);
+
+    let opts = web_sys::RequestInit::new();
+    opts.set_method(method);
+    opts.set_headers(&headers);
+
+    if let Some(body_str) = body {
+        opts.set_body(&wasm_bindgen::JsValue::from_str(body_str));
+    }
+
+    let request = web_sys::Request::new_with_str_and_init(url, &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+
+    let text =
+        wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+            .await
+            .map_err(|e| js_err("Response read failed", &e))?
+            .as_string()
+            .ok_or_else(|| "Response text conversion failed".to_string())?;
+
+    if text.is_empty() {
+        Ok(serde_json::json!({}))
+    } else {
+        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_json_with_method(
+    _url: &str,
+    _method: &str,
+    _body: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({}))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

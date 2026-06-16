@@ -29,6 +29,7 @@ pub fn FileRow(
     #[prop(default = false)] is_locked: bool,
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
+    #[prop(default = Callback::new(move |_: String| {}))] on_version_history: Callback<String>,
 ) -> impl IntoView {
     let folder_icon = view! {
         <svg class="w-5 h-5 text-yellow-500" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
@@ -59,6 +60,7 @@ pub fn FileRow(
     let drag_path_row = entry.path.clone();
     let folder_drop_path_row = entry.path.clone();
     let path_for_click = entry.path.clone();
+    let path_for_version_history = entry.path.clone();
     let name_for_download = entry.name.clone();
     let name_for_share = entry.name.clone();
     let name_for_delete = entry.name.clone();
@@ -307,6 +309,21 @@ pub fn FileRow(
                         >
                             <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                            </svg>
+                        </button>
+                    })}
+                    {(!entry.is_collection).then(|| view! {
+                        <button
+                            class="p-2 md:p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                            attr:aria-label=format!("Version history for {}", entry.name)
+                            title=t!("dialog.version_history.title")
+                            on:click=move |ev| {
+                                ev.stop_propagation();
+                                on_version_history.run(path_for_version_history.clone());
+                            }
+                        >
+                            <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </button>
                     })}
