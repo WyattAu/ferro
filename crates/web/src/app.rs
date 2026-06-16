@@ -12,6 +12,7 @@ use crate::components::setup_wizard::SetupWizard;
 use crate::components::toast::ProvideToastContext;
 use crate::i18n::{I18nCtx, Locale};
 use crate::pages::admin::AdminPage;
+use crate::pages::analytics::AnalyticsPage;
 use crate::pages::auth::AuthCallbackPage;
 use crate::pages::calendar::CalendarPage;
 use crate::pages::chat::ChatPage;
@@ -19,6 +20,7 @@ use crate::pages::contacts::ContactsPage;
 use crate::pages::dashboard::DashboardPage;
 use crate::pages::home::HomePage;
 use crate::pages::login::LoginPage;
+use crate::pages::mail::MailPage;
 use crate::pages::notes::NotesPage;
 use crate::pages::photos::PhotosPage;
 use crate::pages::settings::SettingsPage;
@@ -130,8 +132,10 @@ pub fn App() -> impl IntoView {
                         <Route path=path!("/chat") view=ChatPage />
                         <Route path=path!("/chat/*room_id") view=ChatPage />
                         <Route path=path!("/photos") view=PhotosPage />
+                        <Route path=path!("/mail") view=MailPage />
                         <Route path=path!("/whiteboard") view=WhiteboardPage />
                         <Route path=path!("/whiteboard/:id") view=WhiteboardPage />
+                        <Route path=path!("/analytics") view=AnalyticsPage />
                         <Route path=path!("/auth/callback") view=AuthCallbackPage />
                         <Route path=path!("/auth/login") view=LoginPage />
                     </Routes>

@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod analytics;
 pub mod auth;
 pub mod calendar;
 pub mod chat;
@@ -6,6 +7,7 @@ pub mod contacts;
 pub mod dashboard;
 pub mod home;
 pub mod login;
+pub mod mail;
 pub mod notes;
 pub mod photos;
 pub mod settings;
