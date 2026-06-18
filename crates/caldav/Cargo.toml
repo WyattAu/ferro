@@ -13,7 +13,7 @@ ferro-dav = { path = "../dav" }
 axum = { workspace = true, features = ["macros"] }
 bytes = { workspace = true }
 chrono = { workspace = true }
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { version = "0.39", features = ["serialize"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
