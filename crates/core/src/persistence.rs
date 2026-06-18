@@ -136,7 +136,7 @@ impl SqlitePersistence {
                 content_length INTEGER
             )"#,
             "CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)",
-            // AV-009: Add chain_hash column for tamper-evident audit log
+            // AV-009: Add chain_hash column for tamper-evident audit log (idempotent - skip if exists)
             "ALTER TABLE audit_log ADD COLUMN chain_hash TEXT",
             r#"CREATE INDEX IF NOT EXISTS idx_audit_chain_hash ON audit_log(chain_hash)"#,
             r#"
@@ -154,10 +154,18 @@ impl SqlitePersistence {
         ];
 
         for stmt in &ddl {
-            sqlx::query(stmt)
-                .execute(&pool)
-                .await
-                .map_err(|e| FerroError::Internal(format!("SQLite migration failed: {}", e)))?;
+            match sqlx::query(stmt).execute(&pool).await {
+                Ok(_) => {}
+                Err(e) => {
+                    // Ignore "duplicate column" errors for idempotent migrations
+                    let msg = e.to_string();
+                    if msg.contains("duplicate column") || msg.contains("already exists") {
+                        debug!("Migration skip (already applied): {}", msg);
+                    } else {
+                        return Err(FerroError::Internal(format!("SQLite migration failed: {}", e)));
+                    }
+                }
+            }
         }
 
         info!("SQLite persistence initialized: {}", database_url);
