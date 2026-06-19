@@ -337,12 +337,16 @@ pub async fn list_files(path: &str) -> Result<ListingResponse, String> {
     opts.set_method("PROPFIND");
     opts.set_headers(&headers);
 
+    web_sys::console::log_1(&format!("list_files: calling fetch for path={}", path).into());
     let text = fetch_text(path, &opts).await?;
+    web_sys::console::log_1(&format!("list_files: got response, length={}", text.len()).into());
     let mut entries = parse_propfind_xml(&text);
+    web_sys::console::log_1(&format!("list_files: parsed {} entries", entries.len()).into());
     // Filter out the self-referential directory entry (PROPFIND Depth:1
     // always includes the requested directory itself as the first response).
     let normalized = path.trim_end_matches('/');
     entries.retain(|e| e.path.trim_end_matches('/') != normalized);
+    web_sys::console::log_1(&format!("list_files: after filter {} entries", entries.len()).into());
 
     Ok(ListingResponse {
         entries,
@@ -1633,6 +1637,92 @@ pub async fn delete_share(token: &str) -> Result<(), String> {
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn delete_share(_token: &str) -> Result<(), String> {
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Update Check API
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateInfo {
+    pub current_version: String,
+    pub latest_version: String,
+    pub update_available: bool,
+    pub download_url: String,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn check_for_updates() -> Result<UpdateInfo, String> {
+    let current_version = env!("CARGO_PKG_VERSION").to_string();
+
+    let url = "https://api.github.com/repos/WyattAu/ferro/releases/latest";
+    let window = web_sys::window().ok_or("No window")?;
+    let headers = web_sys::Headers::new().map_err(|e| js_err("Headers creation failed", &e))?;
+    headers
+        .set("Accept", "application/vnd.github.v3+json")
+        .map_err(|e| js_err("Headers set failed", &e))?;
+
+    let opts = web_sys::RequestInit::new();
+    opts.set_method("GET");
+    opts.set_headers(&headers);
+
+    let request = web_sys::Request::new_with_str_and_init(url, &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+
+    let resp: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|e| js_err("Fetch failed", &e))?
+            .into();
+
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())?;
+
+    let val: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+
+    let latest_version = val
+        .get("tag_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim_start_matches('v')
+        .to_string();
+
+    let download_url = val
+        .get("html_url")
+        .and_then(|v| v.as_str())
+        .unwrap_or("https://github.com/WyattAu/ferro/releases/latest")
+        .to_string();
+
+    let update_available = if latest_version.is_empty() {
+        false
+    } else {
+        latest_version != current_version
+    };
+
+    Ok(UpdateInfo {
+        current_version,
+        latest_version,
+        update_available,
+        download_url,
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn check_for_updates() -> Result<UpdateInfo, String> {
+    Ok(UpdateInfo {
+        current_version: env!("CARGO_PKG_VERSION").to_string(),
+        latest_version: String::new(),
+        update_available: false,
+        download_url: String::new(),
+    })
 }
 
 // ---------------------------------------------------------------------------

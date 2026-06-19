@@ -272,9 +272,23 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     };
 
-    Effect::new(move |_| {
-        load_directory(initial.clone());
-    });
+    // Load initial directory immediately on mount
+    {
+        let p = initial.clone();
+        spawn_local(async move {
+            match api::list_files(&p).await {
+                Ok(response) => {
+                    set_all_entries.set(response.entries);
+                    set_display_count.set(50);
+                    set_loading.set(false);
+                }
+                Err(e) => {
+                    set_error.set(Some(e));
+                    set_loading.set(false);
+                }
+            }
+        });
+    }
 
     let navigate = move |path: String| {
         load_directory(path.clone());

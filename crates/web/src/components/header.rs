@@ -2,7 +2,7 @@ use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
-use crate::api::{SearchFilters, SearchResultEntry};
+use crate::api::{SearchFilters, SearchResultEntry, UpdateInfo};
 use crate::auth;
 use crate::components::theme_toggle::ThemeToggle;
 use crate::t;
@@ -123,6 +123,19 @@ pub fn Header() -> impl IntoView {
     let (quota_info, set_quota_info) = signal(None::<crate::api::QuotaInfo>);
     let (recent_searches, set_recent_searches) = signal(load_recent_searches());
     let (show_suggestions, set_show_suggestions) = signal(false);
+    let (update_info, set_update_info) = signal(None::<UpdateInfo>);
+
+    // Check for updates on mount
+    Effect::new(move |_| {
+        spawn_local(async move {
+            match crate::api::check_for_updates().await {
+                Ok(info) if info.update_available => {
+                    set_update_info.set(Some(info));
+                }
+                _ => {}
+            }
+        });
+    });
 
     Effect::new(move |_| {
         spawn_local(async move {
@@ -355,6 +368,21 @@ pub fn Header() -> impl IntoView {
                 <div class="flex items-center gap-2 sm:gap-3">
                     {move || quota_info.get().map(|info| view! {
                         <QuotaIndicator info />
+                    })}
+
+                    {move || update_info.get().map(|info| view! {
+                        <a
+                            href=info.download_url
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="relative p-2 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
+                            title=t!("update.available")
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <span class="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white dark:border-gray-900"></span>
+                        </a>
                     })}
 
                     <button

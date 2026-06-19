@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/ui/style.css"/>
     
     <link data-trunk-rel="rust" data-wasm-opt="O" data-bincode/>
-<link rel="modulepreload" href="/ui/web-cbeacfc9f0267eee.js" crossorigin="anonymous" integrity="sha384-5kIoq7cdN6IyRP6gAzbsX/JgbwTTUW2uDpvJDuVEkdLZd4GHbGt5R5HnvYs5px4W"><link rel="preload" href="/ui/web-cbeacfc9f0267eee_bg.wasm" crossorigin="anonymous" integrity="sha384-TOJdimGf8I1KOV6HFivquunq3p5zt8pZ4o/IEjtDLAkYFc247uIdpiZwdYs0Hxz0" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="/ui/web-bbeed42a1e2f04c6.js" crossorigin="anonymous" integrity="sha384-3MF4kBDigyVRmnUACKObnX91p2jr0zaKqDUszc9LFEoFqnfJKUDIfx7IXFpkbcLx"><link rel="preload" href="/ui/web-bbeed42a1e2f04c6_bg.wasm" crossorigin="anonymous" integrity="sha384-p9Ht/PvjWTA4nrm1KweXgoP58Vtz2TPPlHNxjBO9kMHs/n5fZ5pTzBYnifnOTBgD" as="fetch" type="application/wasm"></head>
 <body>
     <div id="app"></div>
     <noscript>
@@ -22,8 +22,8 @@
     </noscript>
 
 <script type="module">
-import init, * as bindings from '/ui/web-cbeacfc9f0267eee.js';
-const wasm = await init({ module_or_path: '/ui/web-cbeacfc9f0267eee_bg.wasm' });
+import init, * as bindings from '/ui/web-bbeed42a1e2f04c6.js';
+const wasm = await init({ module_or_path: '/ui/web-bbeed42a1e2f04c6_bg.wasm' });
 
 
 window.wasmBindings = bindings;

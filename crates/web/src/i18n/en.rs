@@ -526,6 +526,12 @@ pub static EN: &[(&str, &str)] = &[
     ("trash.loading", "Loading trash..."),
     ("trash.original_path", "Original Path"),
     ("trash.title", "Trash"),
+    ("update.available", "Update Available"),
+    ("update.check_failed", "Failed to check for updates"),
+    ("update.current_version", "Current version: {}"),
+    ("update.latest_version", "Latest version: {}"),
+    ("update.no_update", "You are running the latest version"),
+    ("update.view_releases", "View Releases"),
 
 ];
 

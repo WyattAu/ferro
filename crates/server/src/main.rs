@@ -30,6 +30,12 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    // Early-exit: check for updates
+    if cli.check_update {
+        check_for_updates().await;
+        return Ok(());
+    }
+
     let original_args: Vec<String> = std::env::args().collect();
 
     let file_config = if let Some(ref config_path) = cli.config {
@@ -1293,6 +1299,9 @@ Generate shell completion script (bash, zsh, fish, powershell) and exit.
 .BI \-\-print-man-page
 Print this man page to stdout and exit.
 .TP
+.BI \-\-check-update
+Check for new versions and exit.
+.TP
 .BI \-h ", " \-\-help
 Print help information.
 .TP
@@ -1342,6 +1351,67 @@ See the Ferro project repository for license details.
 "#,
         version = version
     );
+}
+
+async fn check_for_updates() {
+    let current_version = env!("CARGO_PKG_VERSION");
+    println!("Current version: {}", current_version);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .user_agent(format!("ferro-server/{}", current_version))
+        .build();
+
+    let client = match client {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Failed to create HTTP client: {}", e);
+            return;
+        }
+    };
+
+    let url = "https://api.github.com/repos/WyattAu/ferro/releases/latest";
+    let resp = match client.get(url).send().await {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Failed to check for updates: {}", e);
+            return;
+        }
+    };
+
+    if !resp.status().is_success() {
+        eprintln!("GitHub API returned status: {}", resp.status());
+        return;
+    }
+
+    let val: serde_json::Value = match resp.json().await {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("Failed to parse response: {}", e);
+            return;
+        }
+    };
+
+    let latest_version = val
+        .get("tag_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .trim_start_matches('v');
+
+    let html_url = val
+        .get("html_url")
+        .and_then(|v| v.as_str())
+        .unwrap_or("https://github.com/WyattAu/ferro/releases/latest");
+
+    if latest_version == current_version {
+        println!("You are running the latest version (v{}).", current_version);
+    } else {
+        println!(
+            "Update available: v{} (current: v{})",
+            latest_version, current_version
+        );
+        println!("Download: {}", html_url);
+    }
 }
 
 fn parse_duration(s: &str) -> Option<std::time::Duration> {

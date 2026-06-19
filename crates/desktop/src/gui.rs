@@ -689,6 +689,86 @@ async fn cmd_default_mount_point() -> String {
     DesktopConfig::default_mount_point().display().to_string()
 }
 
+// ── Auto-Update Commands ────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCheckResult {
+    pub update_available: bool,
+    pub current_version: String,
+    pub latest_version: String,
+    pub download_url: String,
+}
+
+#[tauri::command]
+async fn cmd_check_update(app_handle: tauri::AppHandle) -> Result<UpdateCheckResult, String> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    let current_version = app_handle
+        .package_info()
+        .version
+        .to_string();
+
+    let updater = app_handle.updater().map_err(|e| format!("Updater unavailable: {}", e))?;
+
+    match updater.check().await {
+        Ok(Some(update)) => {
+            let version = update.version.clone().unwrap_or_default();
+            let body = update.body.clone().unwrap_or_default();
+            tracing::info!("Update available: {} (body: {})", version, body);
+            Ok(UpdateCheckResult {
+                update_available: true,
+                current_version,
+                latest_version: version,
+                download_url: "https://github.com/WyattAu/ferro/releases/latest".to_string(),
+            })
+        }
+        Ok(None) => {
+            tracing::info!("No update available");
+            Ok(UpdateCheckResult {
+                update_available: false,
+                current_version,
+                latest_version: String::new(),
+                download_url: String::new(),
+            })
+        }
+        Err(e) => {
+            tracing::warn!("Update check failed: {}", e);
+            Err(format!("Update check failed: {}", e))
+        }
+    }
+}
+
+#[tauri::command]
+async fn cmd_install_update(app_handle: tauri::AppHandle) -> Result<String, String> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    let updater = app_handle.updater().map_err(|e| format!("Updater unavailable: {}", e))?;
+
+    match updater.check().await {
+        Ok(Some(update)) => {
+            let version = update.version.clone().unwrap_or_default();
+            tracing::info!("Installing update: {}", version);
+
+            update
+                .download_and_install(|_chunk_length, _content_length| {})
+                .await
+                .map_err(|e| format!("Install failed: {}", e))?;
+
+            tracing::info!("Update installed, restarting app");
+            app_handle.restart();
+        }
+        Ok(None) => {
+            return Err("No update available".to_string());
+        }
+        Err(e) => {
+            return Err(format!("Update check failed: {}", e));
+        }
+    }
+
+    Ok("Update installed successfully".to_string())
+}
+
 // ── Windows Shell Integration Commands ──────────────────────────────
 
 #[tauri::command]
@@ -744,6 +824,7 @@ async fn cmd_update_tray_tooltip(
 ) -> Result<(), String> {
     #[allow(unused_mut)]
     let mut tooltip = "Ferro - File Storage".to_string();
+    let mut update_available = false;
 
     #[cfg(all(feature = "sync", feature = "tauri"))]
     {
@@ -762,6 +843,17 @@ async fn cmd_update_tray_tooltip(
                 tooltip = "Ferro - Syncing...".to_string();
             }
         }
+    }
+
+    // Check for update and reflect in tooltip
+    if let Ok(updater) = app_handle.updater() {
+        if let Ok(Some(_update)) = updater.check().await {
+            update_available = true;
+        }
+    }
+
+    if update_available {
+        tooltip = format!("{} (Update Available)", tooltip);
     }
 
     if let Some(tray) = app_handle.tray_by_id("main") {
@@ -809,6 +901,8 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             cmd_register_autostart,
             cmd_unregister_autostart,
             cmd_update_tray_tooltip,
+            cmd_check_update,
+            cmd_install_update,
             list_directory,
             get_file,
             put_file,
@@ -861,6 +955,8 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                 MenuItem::with_id(app, "open_folder", "Open Folder", true, None::<&str>)?;
             let open_settings =
                 MenuItem::with_id(app, "open_settings", "Settings", true, None::<&str>)?;
+            let check_update =
+                MenuItem::with_id(app, "check_update", "Check for Updates", true, None::<&str>)?;
             let separator = PredefinedMenuItem::separator(app)?;
 
             #[cfg(all(feature = "sync", feature = "tauri"))]
@@ -891,6 +987,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     &separator,
                     &open_folder,
                     &open_settings,
+                    &check_update,
                     &separator,
                     &quit,
                 ],
@@ -910,6 +1007,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     &separator,
                     &open_folder,
                     &open_settings,
+                    &check_update,
                     &separator,
                     &quit,
                 ],
@@ -922,6 +1020,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     &separator,
                     &open_folder,
                     &open_settings,
+                    &check_update,
                     &separator,
                     &quit,
                 ],
@@ -961,6 +1060,52 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                             let _ = window.set_focus();
                             let _ = window.emit("navigate-to-settings", ());
                         }
+                    }
+                    "check_update" => {
+                        use tauri_plugin_updater::UpdaterExt;
+                        use tauri_plugin_notification::NotificationExt;
+                        let handle = app.clone();
+                        tokio::spawn(async move {
+                            let current_version = handle.package_info().version.to_string();
+                            let updater = match handle.updater() {
+                                Ok(u) => u,
+                                Err(e) => {
+                                    let _ = handle.notification()
+                                        .builder()
+                                        .title("Update Check Failed")
+                                        .body(format!("Updater unavailable: {}", e))
+                                        .show();
+                                    return;
+                                }
+                            };
+                            match updater.check().await {
+                                Ok(Some(update)) => {
+                                    let version = update.version.clone().unwrap_or_default();
+                                    let _ = handle.notification()
+                                        .builder()
+                                        .title("Update Available")
+                                        .body(format!("Version {} is available (current: {})", version, current_version))
+                                        .show();
+                                    if let Some(window) = handle.get_webview_window("main") {
+                                        let _ = window.emit("update-available", version);
+                                    }
+                                }
+                                Ok(None) => {
+                                    let _ = handle.notification()
+                                        .builder()
+                                        .title("No Updates")
+                                        .body(format!("You are running the latest version ({})", current_version))
+                                        .show();
+                                }
+                                Err(e) => {
+                                    let _ = handle.notification()
+                                        .builder()
+                                        .title("Update Check Failed")
+                                        .body(format!("{}", e))
+                                        .show();
+                                }
+                            }
+                        });
                     }
                     #[cfg(all(feature = "sync", feature = "tauri"))]
                     "sync_now" => {
@@ -1035,6 +1180,36 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                         if let Err(e) = state.start_sync().await {
                             tracing::warn!("auto-start sync failed: {}", e);
+                        }
+                    }
+                });
+            }
+
+            // Auto-check for updates on startup (5s delay)
+            {
+                use tauri::Manager;
+                let handle = app.handle().clone();
+                tokio::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    use tauri_plugin_updater::UpdaterExt;
+                    if let Ok(updater) = handle.updater() {
+                        match updater.check().await {
+                            Ok(Some(update)) => {
+                                let version = update.version.clone().unwrap_or_default();
+                                tracing::info!("Startup update check: {} available", version);
+                                if let Some(window) = handle.get_webview_window("main") {
+                                    let _ = window.emit("update-available", &version);
+                                }
+                                if let Some(tray) = handle.tray_by_id("main") {
+                                    let _ = tray.set_tooltip(Some(&format!("Ferro - Update Available: v{}", version)));
+                                }
+                            }
+                            Ok(None) => {
+                                tracing::info!("Startup update check: up to date");
+                            }
+                            Err(e) => {
+                                tracing::debug!("Startup update check failed: {}", e);
+                            }
                         }
                     }
                 });

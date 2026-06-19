@@ -110,6 +110,10 @@ pub struct ServerConfig {
     #[arg(long = "print-man-page")]
     pub print_man_page: bool,
 
+    /// Check for new versions and exit
+    #[arg(long = "check-update")]
+    pub check_update: bool,
+
     #[arg(long, default_value = "0.0.0.0")]
     pub host: String,
 
