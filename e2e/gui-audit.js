@@ -53,8 +53,8 @@ async function runViewport(browser, name, w, h) {
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   
   try {
-    await page.goto(`${BASE}/ui/`, { waitUntil: 'load', timeout: 15000 });
-  } catch (e) { console.log(`${name}: goto failed`); await ctx.close(); return null; }
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  } catch (e) { console.log(`${name}: goto failed - ${e.message}`); await ctx.close(); return null; }
   
   await sleep(5000);
   const skip = page.locator('button:has-text("Skip"), button:has-text("Close")').first();
@@ -73,7 +73,7 @@ async function runViewport(browser, name, w, h) {
 (async () => {
   console.log('=== GUI TRAVERSAL & AUDIT ===\n');
   console.log('Starting server...');
-  const server = spawn('target/debug/ferro-server', ['--host', '127.0.0.1', '--port', String(PORT), '--static-dir', 'crates/web/dist'], { stdio: 'ignore', detached: true });
+  const server = spawn(path.resolve(__dirname, '../target/release/ferro-server'), ['--host', '127.0.0.1', '--port', String(PORT), '--static-dir', path.resolve(__dirname, '../crates/web/dist')], { stdio: 'ignore', detached: true });
   server.unref();
   if (!await waitForServer()) { console.error('Server failed'); process.exit(1); }
   console.log('Server ready\n');
