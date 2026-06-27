@@ -1,0 +1,79 @@
+---
+title: "Desktop App"
+description: "Ferro: Desktop App"
+---
+The Ferro desktop app is built with Tauri, providing a native file browser for your Ferro server.
+
+## Installation
+
+### From Source
+
+```bash
+nix develop .#desktop
+cd crates/desktop
+cargo tauri build
+```
+
+### Nix
+
+```bash
+nix develop .#desktop
+```
+
+This opens a development shell with Tauri dependencies.
+
+## Connecting to a Server
+
+1. Launch the Ferro desktop app
+2. Enter your server URL (e.g., `https://ferro.example.com`)
+3. Enter your authentication token
+4. Click "Connect"
+
+The app will display the server's root directory contents.
+
+## File Browser Features
+
+- **Directory navigation** -- Browse directories with back/forward navigation
+- **File operations** -- Upload, download, rename, and delete files
+- **WebDAV PROPFIND** -- Uses PROPFIND with `Depth: 1` for directory listing
+- **Drag and drop** -- Drag files into the app to upload
+- **File metadata** -- View file size, modification date, ETag
+
+## Architecture
+
+The desktop app communicates with the Ferro server over HTTP using WebDAV:
+
+1. PROPFIND requests list directory contents
+2. PUT requests upload files
+3. GET requests download files
+4. DELETE requests remove files
+
+## Keyboard Shortcuts
+
+The Tauri app supports standard keyboard shortcuts:
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd/Ctrl+N` | New window |
+| `Cmd/Ctrl+Q` | Quit |
+| `Backspace` | Navigate up |
+| `Enter` | Open file/folder |
+
+## Tray Integration
+
+The app can run in the system tray for background access. Use the tray icon to:
+- Show/hide the main window
+- Quick access to recent files
+- Check connection status
+
+## Building for Distribution
+
+```bash
+cd crates/desktop
+cargo tauri build
+```
+
+Output binaries are in `target/release/bundle/`:
+- `.dmg` (macOS)
+- `.deb` / `.AppImage` (Linux)
+- `.msi` / `.exe` (Windows)

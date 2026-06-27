@@ -1,0 +1,88 @@
+---
+title: "ferro-dav"
+description: "Ferro: ferro-dav"
+---
+CalDAV and CardDAV protocol implementations for the Ferro platform. Provides iCalendar (RFC 5545) and vCard (RFC 6350) parsers, store traits for calendar and address book data, and ready-to-use Axum handlers.
+
+## Key Types
+
+### Parsers
+
+| Type | Description |
+|------|-------------|
+| `parse_ical` / `serialize_ical` | RFC 5545 iCalendar parser and serializer |
+| `parse_vcard` / `serialize_vcard` | RFC 6350 vCard parser and serializer |
+| `IcalComponent` / `IcalProperty` | Structured iCalendar representation |
+| `Vcard` / `VcardValue` / `VcardAddress` | Structured vCard representation |
+
+### Store Traits
+
+| Type | Description |
+|------|-------------|
+| `CalendarStore` | Trait for calendar CRUD and time-range event queries |
+| `AddressBookStore` | Trait for address book CRUD and contact management |
+| `InMemoryCalendarStore` | Thread-safe in-memory calendar store |
+| `InMemoryAddressBookStore` | Thread-safe in-memory address book store |
+| `DynCalendarStore` / `DynAddressBookStore` | Type-erased `Arc<dyn ...>` aliases |
+
+### Handlers (requires `handlers` feature)
+
+| Type | Description |
+|------|-------------|
+| `CalDavState` / `caldav::*` | CalDAV Axum handlers (OPTIONS, PROPFIND, REPORT, MKCALENDAR, GET, PUT, DELETE) |
+| `CardDavState` / `carddav::*` | CardDAV Axum handlers (OPTIONS, PROPFIND, REPORT, GET, PUT, DELETE) |
+
+## Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `handlers` | yes | Axum handler modules for CalDAV and CardDAV HTTP endpoints |
+| `persistence` | no | SQLite persistence for in-memory stores |
+
+## Minimal Usage
+
+### Parse iCalendar data
+
+```rust
+use ferro_dav::ical::{parse_ical, get_first_prop};
+
+let ical = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:mtg-1\r\n\
+SUMMARY:Meeting\r\nDTSTART:20240101T100000Z\r\n\
+DTEND:20240101T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+
+let components = parse_ical(ical)?;
+let vevent = &components[0].children[0];
+let summary = get_first_prop(vevent, "SUMMARY").unwrap();
+println!("Event: {}", summary.value);
+```
+
+### Parse vCard data
+
+```rust
+use ferro_dav::vcard::{parse_vcard, serialize_vcard};
+
+let vcard = parse_vcard(
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jane Doe\r\nUID:1\r\nEND:VCARD\r\n"
+)?;
+println!("Name: {}", vcard.fn_name);
+let roundtrip = serialize_vcard(&vcard);
+```
+
+### Build a CalDAV server
+
+```rust
+use ferro_dav::store::{InMemoryCalendarStore, DynCalendarStore};
+use ferro_dav::caldav::{CalDavState, self};
+use std::sync::Arc;
+
+let store: DynCalendarStore = Arc::new(InMemoryCalendarStore::new());
+let state = CalDavState {
+    store,
+    principal: "user1".into(),
+};
+
+let app = axum::Router::new()
+    .route("/.well-known/caldav", axum::routing::get(caldav::options_handler))
+    .route("/dav/calendars", axum::routing::get(caldav::propfind_calendars))
+    .with_state(state);
+```

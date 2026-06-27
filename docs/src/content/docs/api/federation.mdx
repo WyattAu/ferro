@@ -1,0 +1,171 @@
+---
+title: "Federation API"
+description: "Ferro: Federation API"
+---
+Ferro implements the ActivityPub protocol for cross-server federation. This allows separate Ferro instances to share files and follow each other, similar to how Mastodon servers federate.
+
+## Enabling Federation
+
+Set the `--federation-secret` flag to enable the federation inbox:
+
+```bash
+ferro-server --federation-secret "your-hmac-secret-here" \
+  --external-url "https://ferro.example.com"
+```
+
+Or via environment variable:
+
+```bash
+FERRO_FEDERATION_SECRET=your-hmac-secret-here ferro-server
+```
+
+When the federation secret is empty, the inbox returns `503 Service Unavailable`.
+
+## HTTP Signatures
+
+Ferro uses HTTP Signatures (draft-cavage-http-signatures-12) with HMAC-SHA256 for authenticating incoming ActivityPub activities.
+
+### Signature Format
+
+```
+keyId="https://example.com/actor/alice#main-key",
+algorithm="hs2019",
+headers="(request-target)",
+signature="base64-encoded-hmac"
+```
+
+### Verification
+
+1. The `Signature` header is parsed to extract `keyId`, `algorithm`, `headers`, and `signature`
+2. The signing string is constructed from the `(request-target)` pseudo-header: `(request-target): post /fed/inbox`
+3. HMAC-SHA256 is computed over the signing string using the server's federation secret
+4. The actor's identity is extracted from the `keyId` (everything before `#`)
+5. The actor identity must match the `actor` field in the activity JSON
+
+## Endpoints
+
+### WebFinger
+
+```
+GET /.well-known/webfinger?resource=acct:admin@ferro.example.com
+```
+
+Returns the actor URL for a given account.
+
+### Actor
+
+```
+GET /fed/actor/:username
+```
+
+Returns the ActivityPub actor object for a user.
+
+```json
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/security/v1"
+  ],
+  "id": "https://ferro.example.com/fed/actor/admin",
+  "type": "Person",
+  "preferredUsername": "admin",
+  "inbox": "https://ferro.example.com/fed/inbox",
+  "outbox": "https://ferro.example.com/fed/outbox",
+  "followers": "https://ferro.example.com/fed/actor/admin/followers",
+  "following": "https://ferro.example.com/fed/actor/admin/following"
+}
+```
+
+### Followers
+
+```
+GET /fed/actor/:username/followers
+```
+
+Returns an `OrderedCollection` of followers.
+
+### Following
+
+```
+GET /fed/actor/:username/following
+```
+
+Returns an `OrderedCollection` of accounts this server follows.
+
+### Inbox
+
+```
+POST /fed/inbox
+GET  /fed/inbox?offset=0&limit=20
+```
+
+Receives ActivityPub activities (POST) and lists received activities (GET).
+
+### Outbox
+
+```
+GET /fed/outbox?offset=0&limit=20
+```
+
+Lists activities this server has published.
+
+### NodeInfo
+
+```
+GET /fed/nodeinfo
+```
+
+Returns server metadata including supported protocols and usage statistics.
+
+### Federated Share
+
+```
+POST /api/fed/share
+```
+
+Share a file with followers via an Announce activity.
+
+```bash
+curl -X POST http://localhost:8080/api/fed/share \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/documents/report.pdf"}'
+```
+
+## Supported Activities
+
+| Activity Type | Description |
+|---------------|-------------|
+| `Follow` | A remote actor wants to follow this server. Automatically accepted, adds follower. |
+| `Accept` | Sent in response to Follow requests. |
+| `Undo` | Removes a follower (Undo Follow). |
+| `Create` | A new resource was created on a remote server. |
+| `Update` | A resource was updated on a remote server. |
+| `Delete` | A resource was deleted on a remote server. |
+| `Announce` | Re-sharing of a resource (used for federated shares). |
+| `Like` | A resource was liked. |
+
+## Follow/Undo Flow
+
+### Remote server follows this server
+
+1. Remote server sends `Follow` activity to this server's inbox
+2. This server verifies the HTTP Signature
+3. This server adds the remote actor to its followers list
+4. This server sends `Accept` activity to the remote actor's inbox
+
+### Remote server unfollows
+
+1. Remote server sends `Undo` activity to this server's inbox
+2. This server removes the remote actor from its followers list
+
+## Delivery
+
+When this server creates an `Announce` activity (via federated share), it attempts delivery to all followers' inboxes. Delivery happens asynchronously and errors are logged but do not fail the request.
+
+## Security Considerations
+
+- The federation secret must be shared between federating servers
+- All incoming activities must have a valid HTTP Signature
+- The `keyId` actor must match the activity `actor` field (prevents spoofing)
+- Empty federation secret = federation disabled

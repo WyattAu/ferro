@@ -1,0 +1,146 @@
+---
+title: "Horizontal Scaling Guide"
+description: "Ferro: Horizontal Scaling Guide"
+---
+Deploy Ferro across multiple nodes using Raft consensus for metadata replication.
+
+## Architecture Overview
+
+```
+                    ┌─────────────┐
+                    │ Load Balancer│
+                    └──────┬──────┘
+              ┌────────────┼────────────┐
+              │            │            │
+        ┌─────┴─────┐┌────┴─────┐┌────┴─────┐
+        │  Ferro 1  ││ Ferro 2  ││ Ferro 3  │
+        │  (Leader) ││(Follower)││(Follower)│
+        └─────┬─────┘└────┬─────┘└────┬─────┘
+              │            │            │
+        ┌─────┴────────────┴────────────┴─────┐
+        │         Shared Storage (S3)          │
+        └─────────────────────────────────────┘
+```
+
+## Prerequisites
+
+- 3 or more nodes (odd number for quorum)
+- Shared storage backend (S3, GCS, or Azure Blob)
+- Network connectivity between all nodes
+- PostgreSQL for metadata (recommended over SQLite for multi-node)
+
+## Step 1: Configure Node IDs
+
+Each node needs a unique identifier. Use hostname or UUID:
+
+```toml
+# node-1.toml
+node_id = "node-1"
+```
+
+## Step 2: Configure Membership
+
+```toml
+# On all nodes, list the cluster members
+[membership]
+nodes = [
+    { id = "node-1", address = "10.0.1.1:9000" },
+    { id = "node-2", address = "10.0.1.2:9000" },
+    { id = "node-3", address = "10.0.1.3:9000" },
+]
+```
+
+## Step 3: Configure Shared Storage
+
+All nodes must access the same storage backend:
+
+```toml
+storage = "s3://ferro-shared-bucket"
+```
+
+Ensure all nodes have valid credentials for the storage backend.
+
+## Step 4: Start the Cluster
+
+Start nodes sequentially. The first node becomes the leader:
+
+```bash
+# Node 1 (will become leader)
+ferro-server --config node-1.toml
+
+# Node 2
+ferro-server --config node-2.toml
+
+# Node 3
+ferro-server --config node-3.toml
+```
+
+## Step 5: Configure Load Balancer
+
+Configure your load balancer (nginx, HAProxy, etc.) to distribute requests:
+
+```nginx
+upstream ferro {
+    server 10.0.1.1:8080;
+    server 10.0.1.2:8080;
+    server 10.0.1.3:8080;
+}
+
+server {
+    listen 443 ssl;
+    location / {
+        proxy_pass http://ferro;
+    }
+}
+```
+
+## Health Checks
+
+Each node exposes health endpoints:
+
+```bash
+# Liveness (is the process running?)
+curl http://node-1:8080/healthz
+
+# Readiness (can it serve requests?)
+curl http://node-1:8080/readyz
+
+# Startup (has initialization completed?)
+curl http://node-1:8080/startupz
+```
+
+## Node Failure Handling
+
+- **Follower failure:** Leader continues serving requests. Failed follower rejoins automatically.
+- **Leader failure:** Remaining nodes elect a new leader within seconds. Client connections are transparently rerouted.
+- **Quorum loss:** Cluster enters read-only mode until quorum is restored.
+
+## Scaling Up
+
+Add a new node:
+
+1. Start the new node with the same membership configuration
+2. The leader detects the new node and begins log replication
+3. Once the follower is caught up, it starts serving requests
+
+## Scaling Down
+
+Gracefully remove a node:
+
+```bash
+# On the node to remove
+ferro-server --config node.toml --leave-cluster
+```
+
+The leader redistributes data and removes the node from membership.
+
+## Monitoring
+
+Monitor cluster health via Prometheus metrics:
+
+```
+ferro_cluster_leader_id
+ferro_cluster_node_count
+ferro_cluster_term
+ferro_raft_log_index
+```

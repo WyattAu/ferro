@@ -1,0 +1,97 @@
+---
+title: "ferro-client"
+description: "Ferro: ferro-client"
+---
+Async WebDAV client SDK for Ferro servers, with optional C-FFI bindings for mobile platforms (Swift/Kotlin).
+
+## Key Types
+
+| Type | Description |
+|------|-------------|
+| `FerroClient` | Async WebDAV client |
+| `FerroFileEntry` | File metadata returned by list operations |
+
+## Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `ffi` | no | C-compatible FFI bindings for mobile (Swift/Kotlin) |
+
+## Minimal Usage
+
+```rust
+use ferro_client::FerroClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = FerroClient::new("https://ferro.example.com", "my-token");
+
+    let info = client.test_connection().await?;
+    println!("Server has {} root entries", info.root_entries);
+
+    let files = client.list("/").await?;
+    for file in &files {
+        println!("{} ({} bytes)", file.name, file.size);
+    }
+
+    client.put_text("/hello.txt", "Hello, Ferro!").await?;
+    let content = client.get_text("/hello.txt").await?;
+    println!("{}", content);
+
+    client.create_directory("/documents").await?;
+    client.move_item("/hello.txt", "/documents/hello.txt").await?;
+    client.copy("/documents/hello.txt", "/documents/hello-backup.txt").await?;
+    client.delete("/documents/hello-backup.txt").await?;
+
+    Ok(())
+}
+```
+
+## C-FFI (Mobile)
+
+Enable the `ffi` feature for C-compatible bindings:
+
+```toml
+[dependencies]
+ferro-client = { version = "0.1", features = ["ffi"] }
+```
+
+### FFI API
+
+| Function | Description |
+|----------|-------------|
+| `ferro_client_new(url, token)` | Create a client handle |
+| `ferro_client_free(handle)` | Destroy a client handle |
+| `ferro_test_connection(handle)` | Test server connection |
+
+### Swift Example
+
+```swift
+let handle = ferro_client_new("https://ferro.example.com", "my-token")
+defer { ferro_client_free(handle) }
+
+let result = ferro_test_connection(handle)
+if result == .Success {
+    print("Connected!")
+}
+```
+
+### Kotlin Example
+
+```kotlin
+val handle = ferro_client_new("https://ferro.example.com", "my-token")
+try {
+    val result = ferro_test_connection(handle)
+    if (result == FerroResult.Success) {
+        println("Connected!")
+    }
+} finally {
+    ferro_client_free(handle)
+}
+```
+
+## Safety
+
+- All FFI pointer returns must be freed with their corresponding `_free` function
+- String pointers are null-terminated UTF-8
+- Client handles are not thread-safe; use one per thread or synchronize externally

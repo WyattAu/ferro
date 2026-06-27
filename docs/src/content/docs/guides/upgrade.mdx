@@ -1,0 +1,70 @@
+---
+title: "Upgrade Guide"
+description: "Ferro: Upgrade Guide"
+---
+This guide covers upgrading Ferro between versions.
+
+## General Upgrade Process
+
+1. **Read the release notes** for the target version.
+2. **Back up your data:** `POST /api/admin/backup` creates a file-level backup and SQLite snapshot.
+3. **Stop the server:** Send SIGTERM and wait for graceful shutdown (default 30s).
+4. **Update the binary or Docker image.**
+5. **Start the server.** Schema migrations run automatically on startup.
+6. **Verify:** `GET /readyz` should return `200 OK` with all subsystems healthy.
+
+## Version-Specific Notes
+
+### Upgrading to v2.5.1
+
+- First release with `rusqlite` trace feature for slow query logging (queries >100ms are logged at WARN level).
+- `hash_password()` now returns `Result` instead of panicking on bcrypt failure. API callers receive `ApiError::internal()` instead of a process crash.
+- Config file format now supports an optional `schema_version` field for forward-compatibility.
+- Docker Compose files for monitoring (Grafana, Loki, Prometheus, VictoriaMetrics) now use pinned image tags instead of `latest`.
+
+### Upgrading to v2.5.0
+
+- Introduced trash auto-purge daemon. Set `--trash-ttl` to control retention (default: 30 days). Set to `0` to disable.
+- Added account lockout after 10 failed login attempts (15-minute lockout).
+- Added login rate limiting (5 attempts per 60 seconds per IP).
+- Default password enforcement: server blocks non-password-change requests until default password is changed via `POST /api/auth/change-password`.
+
+### Upgrading to v2.x from v1.x
+
+- Database schema migrations run automatically. The `schema_version` table tracks applied migrations.
+- If using `--storage memory` without `--data-dir`, data does not persist across restarts. Configure `--data-dir` for persistence.
+- CORS wildcard (`*`) is rejected when authentication is enabled. Set explicit origins with `--cors-allowed-origins`.
+
+## Rolling Back
+
+If an upgrade fails:
+
+1. Stop the server.
+2. Restore the backup: `POST /api/admin/restore` with `{"backup_id": "<id>"}`.
+3. If the database migration failed, restore `ferro.db` from the backup directory at `{data-dir}/backups/<backup-id>/ferro.db`.
+4. Downgrade to the previous binary version.
+5. Start the server and verify with `GET /readyz`.
+
+## Configuration Changes
+
+| Version | Change | Action Required |
+|---------|--------|----------------|
+| v2.5.1 | `schema_version` field in config | Optional; no action needed |
+| v2.5.0 | `--trash-ttl` flag | Defaults to `30d`; change if needed |
+| v2.5.0 | `--multi-user` flag | Enable for per-user home directories |
+| v2.4.0 | `--wasm-enabled` flag | Defaults to `false`; enable if using WASM workers |
+| v2.3.0 | `--max-file-versions` flag | Defaults to `10`; adjust for versioning needs |
+
+## Data Directory Layout
+
+```
+{data-dir}/
+  ferro.db              # SQLite database (users, shares, metadata)
+  search-index/          # Tantivy full-text search index
+  workers/               # WASM worker modules
+  backups/               # Admin-created backups
+    backup-YYYYMMDD-HHMMSS/
+      manifest.json
+      ferro.db           # Database snapshot
+      <files>            # Storage file copies
+```

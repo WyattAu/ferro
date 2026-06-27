@@ -1,0 +1,75 @@
+---
+title: "Terraform Deployment"
+description: "Ferro: Terraform Deployment"
+---
+Use Terraform to deploy Ferro on Kubernetes or K3s as Infrastructure as Code.
+
+## Prerequisites
+
+- Terraform >= 1.0
+- `kubectl` configured with a valid kubeconfig
+- Helm 3 (installed by Terraform provider)
+
+## Quick Start
+
+### Deploy to existing Kubernetes cluster
+
+```bash
+cd deploy/terraform
+terraform init
+terraform plan -var="admin_password=your-password"
+terraform apply -var="admin_password=your-password"
+```
+
+### Deploy to K3s (self-managed)
+
+```bash
+cd deploy/terraform/k3s
+terraform init
+terraform apply
+```
+
+## Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `admin_user` | `admin` | Admin username |
+| `admin_password` | (required) | Admin password |
+| `replica_count` | `1` | Number of pod replicas |
+| `persistence_enabled` | `true` | Enable persistent storage |
+| `persistence_size` | `5Gi` | Persistent volume size |
+| `image_repository` | `ghcr.io/wyattau/ferro` | Container image repository |
+| `image_tag` | `latest` | Container image tag |
+| `ingress_enabled` | `false` | Enable Ingress resource |
+| `ingress_class_name` | `""` | Ingress class name |
+| `network_policy_enabled` | `true` | Enable network policies |
+
+## What is Deployed
+
+The Terraform configuration creates:
+
+1. **Kubernetes namespace** (`ferro`) with standard labels
+2. **Helm release** using the Ferro Helm chart with the configured values
+
+The Helm chart (at `deploy/helm/ferro`) deploys:
+- Deployment with resource limits and health checks
+- Service (ClusterIP)
+- PersistentVolumeClaim
+- Ingress (if enabled)
+- Secret (admin credentials)
+- NetworkPolicy (if enabled)
+- PodDisruptionBudget
+
+## Cleanup
+
+```bash
+terraform destroy -var="admin_password=your-password"
+```
+
+## Tips
+
+- Store the `admin_password` in Terraform state secrets or a vault
+- Use `-var-file` to load variables from a file
+- Pin the `image_tag` to a specific version in production
+- Use Terraform workspaces for multiple environments
+- The K3s module handles cluster provisioning and Ferro deployment together

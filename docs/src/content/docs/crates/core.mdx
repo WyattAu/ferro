@@ -1,0 +1,92 @@
+---
+title: "ferro-core"
+description: "Ferro: ferro-core"
+---
+Core storage, metadata, search, and runtime abstractions for the Ferro platform. Provides production-ready storage backends (SQLite, PostgreSQL, S3, GCS, Azure Blob), a Tantivy-based full-text search engine, and a WASM worker runtime powered by Wasmtime.
+
+## Key Types
+
+| Type | Description |
+|------|-------------|
+| `InMemoryStorageEngine` | In-memory `StorageEngine` for testing and development |
+| `ObjectStoreStorageEngine` | Wraps any `object_store` implementation (S3, GCS, Azure) |
+| `SqliteMetadataStore` | SQLite-backed metadata store |
+| `PgMetadataStore` | PostgreSQL-backed metadata store |
+| `InMemoryMetadataStore` | In-memory metadata store for testing |
+| `MetadataStore` | Trait for pluggable metadata backends |
+| `SearchEngine` | Tantivy full-text search with path, name, content, owner fields |
+| `WasmWorkerRuntime` | Sandboxed WASM execution with fuel limits and WASI support |
+| `SqlitePersistence` | Snapshot and audit log persistence |
+
+## Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `sqlite` | yes | SQLite metadata store via sqlx |
+| `search` | yes | Tantivy full-text search engine |
+| `wasm` | yes | Wasmtime WASM worker runtime |
+| `object_store` | yes | object_store backend (local, S3, GCS, Azure) |
+| `s3` | no | AWS S3 object store backend |
+| `gcs` | no | Google Cloud Storage backend |
+| `azure` | no | Azure Blob Storage backend |
+| `postgres` | no | PostgreSQL metadata store via sqlx |
+
+## Minimal Usage
+
+### In-memory storage
+
+```rust
+use ferro_core::storage::InMemoryStorageEngine;
+use ferro_common::storage::StorageEngine;
+use bytes::Bytes;
+
+let engine = InMemoryStorageEngine::new();
+let meta = engine.put("/hello.txt", Bytes::from("world"), "user1").await?;
+```
+
+### SQLite metadata store
+
+```rust
+use ferro_core::sqlx_metadata::SqliteMetadataStore;
+
+let store = SqliteMetadataStore::new("sqlite:metadata.db").await?;
+```
+
+### Full-text search
+
+```rust
+use ferro_core::search::SearchEngine;
+use std::path::Path;
+
+let engine = SearchEngine::new(Path::new("/tmp/ferro-index"))?;
+engine.index("/docs/readme.txt", "Introduction to Ferro", &meta).await?;
+let results = engine.search("introduction", 10).await?;
+```
+
+### WASM worker
+
+```rust
+use ferro_core::wasm::{WasmWorkerRuntime, WorkerConfig};
+
+let runtime = WasmWorkerRuntime::new(WorkerConfig::default())?;
+runtime.register("*.md", &wasm_bytes, "process")?;
+let result = runtime.execute("/docs/readme.md", &content).await?;
+```
+
+### Object store with S3
+
+```toml
+# Cargo.toml
+ferro-core = { version = "0.1", features = ["s3"] }
+```
+
+```rust
+use ferro_core::ObjectStoreStorageEngine;
+use object_store::aws::AmazonS3Builder;
+use std::sync::Arc;
+
+let s3 = AmazonS3Builder::new()
+    .with_bucket_name("my-bucket")
+    .build()?;
+let engine = ObjectStoreStorageEngine::with_prefix(Arc::new(s3), "ferro");
+```

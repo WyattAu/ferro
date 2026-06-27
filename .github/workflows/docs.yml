@@ -24,32 +24,28 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      
-      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
-      
-      - name: Install mdBook
-        run: cargo install mdbook --version 0.4.40 --locked
-      
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs
+        run: npm ci
+
       - name: Build documentation
-        run: mdbook build docs/
-      
-      - name: Combine landing page and docs
-        run: |
-          mkdir -p site
-          cp -r landing/* site/
-          mkdir -p site/docs
-          cp -r docs/book/* site/docs/
+        working-directory: docs
+        run: npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
-      
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
-          path: site/
+          path: docs/dist/
 
   deploy:
     environment:
