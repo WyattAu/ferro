@@ -1,7 +1,7 @@
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -27,9 +27,7 @@ pub struct UpdateContactRequest {
     pub vcard_data: String,
 }
 
-pub async fn list_contacts(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn list_contacts(State(state): State<AppState>) -> impl IntoResponse {
     let books = state.address_book_store.list_address_books("default").await;
     let mut all_contacts = Vec::new();
 
@@ -147,7 +145,11 @@ pub async fn update_contact(
         }
     }
 
-    (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Contact not found"}))).into_response()
+    (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({"error": "Contact not found"})),
+    )
+        .into_response()
 }
 
 pub async fn delete_contact(
@@ -163,7 +165,11 @@ pub async fn delete_contact(
             .await
             .is_some()
         {
-            match state.address_book_store.delete_contact(&book.id, &uid).await {
+            match state
+                .address_book_store
+                .delete_contact(&book.id, &uid)
+                .await
+            {
                 Ok(()) => return StatusCode::NO_CONTENT.into_response(),
                 Err(e) => {
                     return (
@@ -176,12 +182,14 @@ pub async fn delete_contact(
         }
     }
 
-    (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Contact not found"}))).into_response()
+    (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({"error": "Contact not found"})),
+    )
+        .into_response()
 }
 
-pub async fn export_contacts(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn export_contacts(State(state): State<AppState>) -> impl IntoResponse {
     let books = state.address_book_store.list_address_books("default").await;
     let mut vcard_data = String::from("BEGIN:VCARD\r\nVERSION:3.0\r\n");
 
@@ -200,7 +208,10 @@ pub async fn export_contacts(
     (
         StatusCode::OK,
         [
-            (axum::http::header::CONTENT_TYPE, "text/vcard; charset=utf-8"),
+            (
+                axum::http::header::CONTENT_TYPE,
+                "text/vcard; charset=utf-8",
+            ),
             (
                 axum::http::header::CONTENT_DISPOSITION,
                 "attachment; filename=\"contacts.vcf\"",
@@ -211,10 +222,7 @@ pub async fn export_contacts(
         .into_response()
 }
 
-pub async fn import_contacts(
-    State(state): State<AppState>,
-    body: String,
-) -> impl IntoResponse {
+pub async fn import_contacts(State(state): State<AppState>, body: String) -> impl IntoResponse {
     let books = state.address_book_store.list_address_books("default").await;
     let book_id = if let Some(book) = books.first() {
         book.id.clone()

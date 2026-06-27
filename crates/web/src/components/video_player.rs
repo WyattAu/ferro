@@ -88,7 +88,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
             if video.paused() {
                 let _ = video.play();
             } else {
-                video.pause();
+                let _ = video.pause();
             }
         }
     };
@@ -102,34 +102,30 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
     };
 
     let handle_volume = move |ev: ev::Event| {
-        if let Some(target) = ev.target() {
-            if let Ok(input) = target.dyn_into::<web_sys::HtmlInputElement>() {
-                if let Ok(val) = input.value().parse::<f64>() {
-                    if let Some(video) = video_ref.get() {
-                        let _ = video.set_volume(val);
-                        set_volume.set(val);
-                        if val == 0.0 {
-                            set_is_muted.set(true);
-                        } else if is_muted.get() {
-                            video.set_muted(false);
-                            set_is_muted.set(false);
-                        }
-                    }
-                }
+        if let Some(target) = ev.target()
+            && let Ok(input) = target.dyn_into::<web_sys::HtmlInputElement>()
+            && let Ok(val) = input.value().parse::<f64>()
+            && let Some(video) = video_ref.get()
+        {
+            video.set_volume(val);
+            set_volume.set(val);
+            if val == 0.0 {
+                set_is_muted.set(true);
+            } else if is_muted.get() {
+                video.set_muted(false);
+                set_is_muted.set(false);
             }
         }
     };
 
     let handle_seek = move |ev: ev::Event| {
-        if let Some(target) = ev.target() {
-            if let Ok(input) = target.dyn_into::<web_sys::HtmlInputElement>() {
-                if let Ok(val) = input.value().parse::<f64>() {
-                    if let Some(video) = video_ref.get() {
-                        video.set_current_time(val);
-                        set_current_time.set(val);
-                    }
-                }
-            }
+        if let Some(target) = ev.target()
+            && let Ok(input) = target.dyn_into::<web_sys::HtmlInputElement>()
+            && let Ok(val) = input.value().parse::<f64>()
+            && let Some(video) = video_ref.get()
+        {
+            video.set_current_time(val);
+            set_current_time.set(val);
         }
     };
 
@@ -137,7 +133,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
         if let Some(video) = video_ref.get() {
             if is_fullscreen.get() {
                 let document = web_sys::window().unwrap().document().unwrap();
-                let _ = document.exit_fullscreen();
+                document.exit_fullscreen();
                 set_is_fullscreen.set(false);
             } else {
                 let _ = video.request_fullscreen();
@@ -189,14 +185,14 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
     };
 
     let handle_progress = move |_: ev::ProgressEvent| {
-        if let Some(video) = video_ref.get() {
-            if let Some(media) = video.dyn_ref::<web_sys::HtmlMediaElement>() {
-                let buffered = media.buffered();
-                if buffered.length() > 0 {
-                    if let Ok(end) = buffered.end(0) {
-                        set_buffered_end.set(end);
-                    }
-                }
+        if let Some(video) = video_ref.get()
+            && let Some(media) = video.dyn_ref::<web_sys::HtmlMediaElement>()
+        {
+            let buffered = media.buffered();
+            if buffered.length() > 0
+                && let Ok(end) = buffered.end(0)
+            {
+                set_buffered_end.set(end);
             }
         }
     };
@@ -238,6 +234,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                 on:canplay=handle_can_play
                 on:play=handle_play
                 on:pause=handle_pause
+                on:progress=handle_progress
                 on:click=toggle_play
             >
                 "Your browser does not support the video element."

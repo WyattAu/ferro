@@ -1,9 +1,9 @@
 //! Whiteboard API endpoints for saving/loading/exporting whiteboard state.
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -93,9 +93,7 @@ pub struct SaveWhiteboardRequest {
 }
 
 /// List all whiteboards.
-pub async fn list_whiteboards(
-    State(_state): State<AppState>,
-) -> Response {
+pub async fn list_whiteboards(State(_state): State<AppState>) -> Response {
     // For now, return an empty list (state is in-memory only)
     // In a real implementation, this would query the database
     let whiteboards: Vec<serde_json::Value> = vec![];
@@ -116,7 +114,9 @@ pub async fn create_whiteboard(
     Json(req): Json<CreateWhiteboardRequest>,
 ) -> Response {
     let id = Uuid::new_v4().to_string();
-    let name = req.name.unwrap_or_else(|| format!("Whiteboard {}", &id[..8]));
+    let name = req
+        .name
+        .unwrap_or_else(|| format!("Whiteboard {}", &id[..8]));
     let now = chrono::Utc::now().to_rfc3339();
 
     let whiteboard = WhiteboardState {
@@ -140,10 +140,7 @@ pub async fn create_whiteboard(
 }
 
 /// Get whiteboard state.
-pub async fn get_whiteboard(
-    State(_state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn get_whiteboard(State(_state): State<AppState>, Path(id): Path<String>) -> Response {
     // For now, return a stub response
     // In a real implementation, this would load from the database
     (

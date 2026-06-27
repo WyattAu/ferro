@@ -426,6 +426,7 @@ fn get_remote_file(port: u16, remote_path: &str) -> String {
     })
 }
 
+#[allow(dead_code)]
 fn delete_remote_file(port: u16, remote_path: &str) {
     let client = reqwest::Client::new();
     let base = format!("http://127.0.0.1:{}", port);
@@ -693,7 +694,6 @@ async fn test_rclone_concurrent_operations() {
 
     let mut handles = Vec::new();
     for i in 0..3 {
-        let port = port;
         handles.push(std::thread::spawn(move || {
             let local_dir = tempfile::tempdir().unwrap();
             std::fs::write(

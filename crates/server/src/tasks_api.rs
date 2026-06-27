@@ -1,7 +1,7 @@
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -112,7 +112,7 @@ pub async fn list_tasks(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": format!("Lock error: {}", e)})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -127,29 +127,29 @@ pub async fn list_tasks(
     let mut conditions = Vec::new();
     let mut values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
 
-    if let Some(ref status) = params.status {
-        if !status.is_empty() {
-            conditions.push(format!("status = ?{}", conditions.len() + 1));
-            values.push(Box::new(status.clone()));
-        }
+    if let Some(ref status) = params.status
+        && !status.is_empty()
+    {
+        conditions.push(format!("status = ?{}", conditions.len() + 1));
+        values.push(Box::new(status.clone()));
     }
-    if let Some(ref assignee) = params.assignee {
-        if !assignee.is_empty() {
-            conditions.push(format!("assignee = ?{}", conditions.len() + 1));
-            values.push(Box::new(assignee.clone()));
-        }
+    if let Some(ref assignee) = params.assignee
+        && !assignee.is_empty()
+    {
+        conditions.push(format!("assignee = ?{}", conditions.len() + 1));
+        values.push(Box::new(assignee.clone()));
     }
-    if let Some(ref priority) = params.priority {
-        if !priority.is_empty() {
-            conditions.push(format!("priority = ?{}", conditions.len() + 1));
-            values.push(Box::new(priority.clone()));
-        }
+    if let Some(ref priority) = params.priority
+        && !priority.is_empty()
+    {
+        conditions.push(format!("priority = ?{}", conditions.len() + 1));
+        values.push(Box::new(priority.clone()));
     }
-    if let Some(ref tag) = params.tag {
-        if !tag.is_empty() {
-            conditions.push(format!("tags LIKE ?{}", conditions.len() + 1));
-            values.push(Box::new(format!("%{}%", tag)));
-        }
+    if let Some(ref tag) = params.tag
+        && !tag.is_empty()
+    {
+        conditions.push(format!("tags LIKE ?{}", conditions.len() + 1));
+        values.push(Box::new(format!("%{}%", tag)));
     }
 
     let where_clause = if conditions.is_empty() {
@@ -190,7 +190,7 @@ pub async fn list_tasks(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": format!("Query error: {}", e)})),
             )
-                .into_response()
+                .into_response();
         }
     }
 
@@ -220,7 +220,7 @@ pub async fn create_task(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": format!("Lock error: {}", e)})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -294,7 +294,7 @@ pub async fn update_task(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": format!("Lock error: {}", e)})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -322,7 +322,7 @@ pub async fn update_task(
                 StatusCode::NOT_FOUND,
                 Json(serde_json::json!({"error": "Task not found"})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -384,7 +384,7 @@ pub async fn delete_task(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": format!("Lock error: {}", e)})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -431,7 +431,7 @@ pub async fn move_task(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": format!("Lock error: {}", e)})),
             )
-                .into_response()
+                .into_response();
         }
     };
 

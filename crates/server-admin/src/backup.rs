@@ -850,7 +850,7 @@ mod tests {
         assert_eq!(deserialized.files.len(), 1);
         assert_eq!(deserialized.files[0].sha256, "b".repeat(64));
         assert_eq!(deserialized.cas_blobs.len(), 1);
-        assert_eq!(deserialized.metadata_snapshot.db_checkpoint, true);
+        assert!(deserialized.metadata_snapshot.db_checkpoint);
     }
 
     #[test]

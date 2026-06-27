@@ -94,14 +94,39 @@ pub fn PhotosPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(Photo {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        path: v.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
-                                        name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
+                                        path: v
+                                            .get("path")
+                                            .and_then(|p| p.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        name: v
+                                            .get("name")
+                                            .and_then(|n| n.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
                                         size: v.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
-                                        mime_type: v.get("mime_type").and_then(|m| m.as_str()).unwrap_or("").to_string(),
-                                        taken_at: v.get("taken_at").and_then(|t| t.as_str()).map(|s| s.to_string()),
-                                        modified_at: v.get("modified_at").and_then(|m| m.as_str()).unwrap_or("").to_string(),
-                                        width: v.get("width").and_then(|w| w.as_u64()).map(|v| v as u32),
-                                        height: v.get("height").and_then(|h| h.as_u64()).map(|v| v as u32),
+                                        mime_type: v
+                                            .get("mime_type")
+                                            .and_then(|m| m.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        taken_at: v
+                                            .get("taken_at")
+                                            .and_then(|t| t.as_str())
+                                            .map(|s| s.to_string()),
+                                        modified_at: v
+                                            .get("modified_at")
+                                            .and_then(|m| m.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        width: v
+                                            .get("width")
+                                            .and_then(|w| w.as_u64())
+                                            .map(|v| v as u32),
+                                        height: v
+                                            .get("height")
+                                            .and_then(|h| h.as_u64())
+                                            .map(|v| v as u32),
                                     })
                                 })
                                 .collect()
@@ -120,38 +145,57 @@ pub fn PhotosPage() -> impl IntoView {
 
     let fetch_albums = move || {
         spawn_local(async move {
-            match api::fetch_json("/api/photos/albums").await {
-                Ok(val) => {
-                    let albums_list = val
-                        .get("albums")
-                        .and_then(|v| v.as_array())
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| {
-                                    Some(Album {
-                                        id: v.get("id")?.as_str()?.to_string(),
-                                        name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
-                                        description: v.get("description").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                                        photo_paths: v.get("photo_paths")
-                                            .and_then(|p| p.as_array())
-                                            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-                                            .unwrap_or_default(),
-                                        created_at: v.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
-                                    })
+            if let Ok(val) = api::fetch_json("/api/photos/albums").await {
+                let albums_list = val
+                    .get("albums")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| {
+                                Some(Album {
+                                    id: v.get("id")?.as_str()?.to_string(),
+                                    name: v
+                                        .get("name")
+                                        .and_then(|n| n.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    description: v
+                                        .get("description")
+                                        .and_then(|d| d.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    photo_paths: v
+                                        .get("photo_paths")
+                                        .and_then(|p| p.as_array())
+                                        .map(|arr| {
+                                            arr.iter()
+                                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                                .collect()
+                                        })
+                                        .unwrap_or_default(),
+                                    created_at: v
+                                        .get("created_at")
+                                        .and_then(|c| c.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
                                 })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    set_albums.set(albums_list);
-                }
-                Err(_) => {}
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                set_albums.set(albums_list);
             }
         });
     };
 
     let fetch_exif = move |photo_path: String| {
         spawn_local(async move {
-            match api::fetch_json(&format!("/api/photos/exif/{}", photo_path.trim_start_matches('/'))).await {
+            match api::fetch_json(&format!(
+                "/api/photos/exif/{}",
+                photo_path.trim_start_matches('/')
+            ))
+            .await
+            {
                 Ok(val) => {
                     if let Ok(exif) = serde_json::from_value::<ExifData>(val) {
                         set_exif_data.set(Some(exif));
@@ -186,7 +230,9 @@ pub fn PhotosPage() -> impl IntoView {
                 "name": name,
                 "description": new_album_description.get(),
             });
-            match api::fetch_json_with_method("/api/photos/albums", "POST", Some(&body.to_string())).await {
+            match api::fetch_json_with_method("/api/photos/albums", "POST", Some(&body.to_string()))
+                .await
+            {
                 Ok(_) => {
                     fetch_albums();
                 }
@@ -198,7 +244,8 @@ pub fn PhotosPage() -> impl IntoView {
     };
 
     let group_by_date = move || -> Vec<(String, Vec<Photo>)> {
-        let mut groups: std::collections::BTreeMap<String, Vec<Photo>> = std::collections::BTreeMap::new();
+        let mut groups: std::collections::BTreeMap<String, Vec<Photo>> =
+            std::collections::BTreeMap::new();
         for photo in photos.get() {
             let date = photo.modified_at[..10.min(photo.modified_at.len())].to_string();
             groups.entry(date).or_default().push(photo);
@@ -405,7 +452,7 @@ pub fn PhotosPage() -> impl IntoView {
                                                                     {if !album.description.is_empty() {
                                                                         view! { <div class="text-xs text-gray-400 mt-1 truncate">{album.description}</div> }.into_any()
                                                                     } else {
-                                                                        view! {}.into_any()
+                                                                        ().into_any()
                                                                     }}
                                                                 </div>
                                                             </div>
@@ -467,38 +514,38 @@ pub fn PhotosPage() -> impl IntoView {
                                                         let model_clone = exif.camera_model.clone();
                                                         view! { <div>"Camera: " {make_clone} {if let Some(model) = model_clone { format!(" {}", model) } else { String::new() }}</div> }.into_any()
                                                     } else {
-                                                        view! {}.into_any()
+                                                        ().into_any()
                                                     }}
                                                     {if let Some(ref date) = exif.date_taken {
                                                         let date_clone = date.clone();
                                                         view! { <div>"Taken: " {date_clone}</div> }.into_any()
                                                     } else {
-                                                        view! {}.into_any()
+                                                        ().into_any()
                                                     }}
                                                     {if let (Some(lat), Some(lon)) = (exif.latitude, exif.longitude) {
                                                         view! { <div>"Location: " {format!("{:.6}, {:.6}", lat, lon)}</div> }.into_any()
                                                     } else {
-                                                        view! {}.into_any()
+                                                        ().into_any()
                                                     }}
                                                     {if let (Some(w), Some(h)) = (exif.width, exif.height) {
                                                         view! { <div>"Dimensions: " {w}" x "{h}</div> }.into_any()
                                                     } else {
-                                                        view! {}.into_any()
+                                                        ().into_any()
                                                     }}
                                                 </div>
                                             }.into_any()
                                         } else {
-                                            view! {}.into_any()
+                                            ().into_any()
                                         }
                                     } else {
-                                        view! {}.into_any()
+                                        ().into_any()
                                     }
                                 }}
                             </div>
                         </div>
                     }.into_any()
                 } else {
-                    view! {}.into_any()
+                    ().into_any()
                 }
             }}
 

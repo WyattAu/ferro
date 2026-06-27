@@ -38,11 +38,21 @@ enum SortBy {
 
 fn priority_color(priority: &str) -> &'static str {
     match priority {
-        "urgent" => "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700",
-        "high" => "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700",
-        "medium" => "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700",
-        "low" => "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700",
-        _ => "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600",
+        "urgent" => {
+            "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
+        }
+        "high" => {
+            "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700"
+        }
+        "medium" => {
+            "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700"
+        }
+        "low" => {
+            "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700"
+        }
+        _ => {
+            "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
+        }
     }
 }
 
@@ -131,15 +141,50 @@ pub fn TasksPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(Task {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        title: v.get("title").and_then(|t| t.as_str()).unwrap_or("").to_string(),
-                                        description: v.get("description").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                                        status: v.get("status").and_then(|s| s.as_str()).unwrap_or("todo").to_string(),
-                                        assignee: v.get("assignee").and_then(|a| a.as_str()).unwrap_or("").to_string(),
-                                        due_date: v.get("due_date").and_then(|d| d.as_str()).map(String::from),
-                                        priority: v.get("priority").and_then(|p| p.as_str()).unwrap_or("medium").to_string(),
-                                        tags: v.get("tags").and_then(|t| t.as_str()).unwrap_or("").to_string(),
-                                        created_at: v.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
-                                        updated_at: v.get("updated_at").and_then(|u| u.as_str()).unwrap_or("").to_string(),
+                                        title: v
+                                            .get("title")
+                                            .and_then(|t| t.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        description: v
+                                            .get("description")
+                                            .and_then(|d| d.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        status: v
+                                            .get("status")
+                                            .and_then(|s| s.as_str())
+                                            .unwrap_or("todo")
+                                            .to_string(),
+                                        assignee: v
+                                            .get("assignee")
+                                            .and_then(|a| a.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        due_date: v
+                                            .get("due_date")
+                                            .and_then(|d| d.as_str())
+                                            .map(String::from),
+                                        priority: v
+                                            .get("priority")
+                                            .and_then(|p| p.as_str())
+                                            .unwrap_or("medium")
+                                            .to_string(),
+                                        tags: v
+                                            .get("tags")
+                                            .and_then(|t| t.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        created_at: v
+                                            .get("created_at")
+                                            .and_then(|c| c.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        updated_at: v
+                                            .get("updated_at")
+                                            .and_then(|u| u.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
                                     })
                                 })
                                 .collect()
@@ -265,12 +310,8 @@ pub fn TasksPage() -> impl IntoView {
 
     let delete_task = move |id: String| {
         spawn_local(async move {
-            let _ = api::fetch_json_with_method(
-                &format!("/api/tasks/{}", id),
-                "DELETE",
-                None,
-            )
-            .await;
+            let _ =
+                api::fetch_json_with_method(&format!("/api/tasks/{}", id), "DELETE", None).await;
             set_selected_task.set(None);
             set_show_detail_modal.set(false);
             fetch_tasks();
@@ -292,12 +333,12 @@ pub fn TasksPage() -> impl IntoView {
 
     // Drag and drop handlers
     let on_drag_start = {
-        let set_dragging_task_id = set_dragging_task_id;
         move |task_id: String, ev: ev::DragEvent| {
             set_dragging_task_id.set(Some(task_id));
             if let Some(data_transfer) = ev.data_transfer() {
-                let _ = data_transfer.set_data("text/plain", &dragging_task_id.get().unwrap_or_default());
-                let _ = data_transfer.set_effect_allowed("move");
+                let _ = data_transfer
+                    .set_data("text/plain", &dragging_task_id.get().unwrap_or_default());
+                data_transfer.set_effect_allowed("move");
             }
         }
     };
@@ -305,12 +346,11 @@ pub fn TasksPage() -> impl IntoView {
     let on_drag_over = move |ev: ev::DragEvent| {
         ev.prevent_default();
         if let Some(data_transfer) = ev.data_transfer() {
-            let _ = data_transfer.set_drop_effect("move");
+            data_transfer.set_drop_effect("move");
         }
     };
 
     let on_drop = {
-        let set_dragging_task_id = set_dragging_task_id;
         move |status: String, ev: ev::DragEvent| {
             ev.prevent_default();
             if let Some(task_id) = dragging_task_id.get() {
@@ -493,7 +533,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{task.description.clone()}</p>
                                                                     }.into_any()
                                                                 } else {
-                                                                    view! {}.into_any()
+                                                                    ().into_any()
                                                                 }}
                                                                 <div class="flex items-center justify-between mt-2">
                                                                     <div class="flex items-center gap-2">
@@ -503,7 +543,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                             <span class="text-xs text-gray-500">{due_clone}</span>
                                                                         }.into_any()
                                                                         } else {
-                                                                            view! {}.into_any()
+                                                                            ().into_any()
                                                                         }}
                                                                     </div>
                                                                     {if !task.assignee.is_empty() {
@@ -511,7 +551,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                             <span class="text-xs text-blue-600 dark:text-blue-400">{task.assignee.clone()}</span>
                                                                         }.into_any()
                                                                     } else {
-                                                                        view! {}.into_any()
+                                                                        ().into_any()
                                                                     }}
                                                                 </div>
                                                                 {if !task.tags.is_empty() {
@@ -523,7 +563,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                         </div>
                                                                     }.into_any()
                                                                 } else {
-                                                                    view! {}.into_any()
+                                                                    ().into_any()
                                                                 }}
                                                                 // Quick move buttons
                                                                 <div class="flex items-center gap-1 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
@@ -543,7 +583,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                             </button>
                                                                         }.into_any()
                                                                     } else {
-                                                                        view! {}.into_any()
+                                                                        ().into_any()
                                                                     }}
                                                                     {if status_clone2 != "done" {
                                                                         let task_id_forward = task_id.clone();
@@ -561,7 +601,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                             </button>
                                                                         }.into_any()
                                                                     } else {
-                                                                        view! {}.into_any()
+                                                                        ().into_any()
                                                                     }}
                                                                 </div>
                                                             </div>

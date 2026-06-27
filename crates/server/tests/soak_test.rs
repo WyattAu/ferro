@@ -128,9 +128,9 @@ fn read_memory_kb(pid: u32) -> Option<(u64, u64)> {
     let mut vm_size: Option<u64> = None;
     for line in content.lines() {
         if let Some(rest) = line.strip_prefix("VmRSS:") {
-            vm_rss = rest.trim().split_whitespace().next()?.parse().ok();
+            vm_rss = rest.split_whitespace().next()?.parse().ok();
         } else if let Some(rest) = line.strip_prefix("VmSize:") {
-            vm_size = rest.trim().split_whitespace().next()?.parse().ok();
+            vm_size = rest.split_whitespace().next()?.parse().ok();
         }
     }
     Some((vm_rss?, vm_size?))
@@ -217,22 +217,19 @@ async fn worker(
                 let body: Vec<u8> = (0..size).map(|_| rng.random::<u8>()).collect();
                 let fname = format!("file_{}", rng.random::<u64>());
                 let path = format!("{}/{}", prefix, fname);
-                match client
+                if let Ok(resp) = client
                     .put(format!("{}{}", base_url, path))
                     .body(body)
                     .send()
                     .await
                 {
-                    Ok(resp) => {
-                        success = is_success(resp.status().as_u16());
-                        if success {
-                            existing_files.push(path);
-                            if existing_files.len() > 500 {
-                                existing_files.remove(0);
-                            }
+                    success = is_success(resp.status().as_u16());
+                    if success {
+                        existing_files.push(path);
+                        if existing_files.len() > 500 {
+                            existing_files.remove(0);
                         }
                     }
-                    Err(_) => {}
                 }
             }
             Op::Get => {
@@ -242,9 +239,8 @@ async fn worker(
                 } else {
                     format!("{}/nonexistent_{}", prefix, rng.random::<u64>())
                 };
-                match client.get(format!("{}{}", base_url, path)).send().await {
-                    Ok(resp) => success = is_success(resp.status().as_u16()),
-                    Err(_) => {}
+                if let Ok(resp) = client.get(format!("{}{}", base_url, path)).send().await {
+                    success = is_success(resp.status().as_u16());
                 }
             }
             Op::Propfind => {
@@ -256,7 +252,7 @@ async fn worker(
                 } else {
                     prefix.clone()
                 };
-                match client
+                if let Ok(resp) = client
                     .request(
                         Method::from_bytes(b"PROPFIND").unwrap(),
                         format!("{}{}", base_url, path),
@@ -265,17 +261,15 @@ async fn worker(
                     .send()
                     .await
                 {
-                    Ok(resp) => success = is_success(resp.status().as_u16()),
-                    Err(_) => {}
+                    success = is_success(resp.status().as_u16());
                 }
             }
             Op::Delete => {
                 if !existing_files.is_empty() {
                     let idx = rng.random_range(0..existing_files.len());
                     let path = existing_files.remove(idx);
-                    match client.delete(format!("{}{}", base_url, path)).send().await {
-                        Ok(resp) => success = is_success(resp.status().as_u16()),
-                        Err(_) => {}
+                    if let Ok(resp) = client.delete(format!("{}{}", base_url, path)).send().await {
+                        success = is_success(resp.status().as_u16());
                     }
                 } else {
                     success = true;
@@ -292,22 +286,19 @@ async fn worker(
                         Method::from_bytes(b"COPY").unwrap()
                     };
                     let is_move = method == Method::from_bytes(b"MOVE").unwrap();
-                    match client
+                    if let Ok(resp) = client
                         .request(method, format!("{}{}", base_url, src))
                         .header("Destination", format!("{}{}", base_url, dest))
                         .send()
                         .await
                     {
-                        Ok(resp) => {
-                            success = is_success(resp.status().as_u16());
-                            if success {
-                                existing_files.push(dest);
-                                if is_move {
-                                    existing_files.remove(src_idx);
-                                }
+                        success = is_success(resp.status().as_u16());
+                        if success {
+                            existing_files.push(dest);
+                            if is_move {
+                                existing_files.remove(src_idx);
                             }
                         }
-                        Err(_) => {}
                     }
                 } else {
                     success = true;

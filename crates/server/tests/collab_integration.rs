@@ -285,7 +285,9 @@ async fn test_new_client_receives_document_state() {
         let msg = recv_message(&mut ws_new).await;
         match msg {
             CollabMessage::DocumentState { .. } => break msg,
-            CollabMessage::Hello { .. } | CollabMessage::Participants { .. } => continue,
+            CollabMessage::Hello { .. }
+            | CollabMessage::Participants { .. }
+            | CollabMessage::Join { .. } => continue,
             other => panic!("expected DocumentState, got {:?}", other),
         }
     };

@@ -1,13 +1,13 @@
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// Link analytics entry for a single access event.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -218,7 +218,13 @@ pub async fn analytics_link_stats(
             .filter_map(|r| r.ok())
             .collect();
 
-        (total_views, total_downloads, unique_visitors, top_referrers, daily_breakdown)
+        (
+            total_views,
+            total_downloads,
+            unique_visitors,
+            top_referrers,
+            daily_breakdown,
+        )
     };
 
     (
@@ -285,9 +291,7 @@ pub async fn analytics_overview(State(state): State<AppState>) -> Response {
         (total_views, total_downloads, total_shares, top_links)
     };
 
-    let storage_used_bytes = state
-        .used_bytes
-        .load(std::sync::atomic::Ordering::Relaxed);
+    let storage_used_bytes = state.used_bytes.load(std::sync::atomic::Ordering::Relaxed);
 
     (
         StatusCode::OK,

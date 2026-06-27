@@ -3,10 +3,10 @@
 //! Connects to ClamAV daemon via TCP socket (default 127.0.0.1:3310)
 //! using the INSTREAM protocol for file scanning.
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -158,8 +158,8 @@ async fn scan_file_tcp(
     .map_err(|e| format!("Failed to read ClamAV response: {}", e))?;
 
     let scan_time_ms = start.elapsed().as_millis() as u64;
-    let response_str = String::from_utf8(response)
-        .map_err(|_| "Invalid UTF-8 in ClamAV response".to_string())?;
+    let response_str =
+        String::from_utf8(response).map_err(|_| "Invalid UTF-8 in ClamAV response".to_string())?;
     let response_str = response_str.trim_end_matches('\0');
 
     if response_str.ends_with("OK") {
@@ -203,10 +203,7 @@ async fn check_connection(config: &ClamavTcpConfig) -> bool {
 }
 
 /// POST /api/antivirus/scan/{path} — Scan a file.
-pub async fn scan_file(
-    State(state): State<AppState>,
-    Path(file_path): Path<String>,
-) -> Response {
+pub async fn scan_file(State(state): State<AppState>, Path(file_path): Path<String>) -> Response {
     let content = match state.storage.get(&file_path).await {
         Ok(c) => c,
         Err(e) => {

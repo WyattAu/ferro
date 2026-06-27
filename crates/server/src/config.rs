@@ -642,6 +642,7 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
 }
 
 /// Apply file-based configuration, without overriding CLI flags.
+#[allow(clippy::too_many_arguments)]
 pub fn apply_file_config<I, T>(args: I, cli: &mut ServerConfig, file: &FileConfigValues)
 where
     I: IntoIterator<Item = T>,
@@ -797,15 +798,15 @@ where
     if !was_set("apns_team_id") {
         cli.apns_team_id = file.apns_team_id.clone();
     }
-    if !was_set("clamav_host") {
-        if let Some(ref host) = file.clamav_host {
-            cli.clamav_host = host.clone();
-        }
+    if !was_set("clamav_host")
+        && let Some(ref host) = file.clamav_host
+    {
+        cli.clamav_host = host.clone();
     }
-    if !was_set("clamav_port") {
-        if let Some(port) = file.clamav_port {
-            cli.clamav_port = port;
-        }
+    if !was_set("clamav_port")
+        && let Some(port) = file.clamav_port
+    {
+        cli.clamav_port = port;
     }
 }
 

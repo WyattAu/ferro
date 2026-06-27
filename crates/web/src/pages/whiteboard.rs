@@ -3,10 +3,8 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use wasm_bindgen::JsCast;
 
-use crate::api;
 use crate::components::header::{Header, provide_header_state};
 use crate::components::theme_toggle::provide_theme_state;
-use crate::t;
 
 #[derive(Debug, Clone, PartialEq)]
 enum Tool {
@@ -66,8 +64,8 @@ struct Viewport {
 }
 
 const PRESET_COLORS: &[&str] = &[
-    "#000000", "#ffffff", "#ff0000", "#00ff00", "#0000ff", "#ffff00",
-    "#ff00ff", "#00ffff", "#ff8800", "#8800ff", "#0088ff", "#88ff00",
+    "#000000", "#ffffff", "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff",
+    "#ff8800", "#8800ff", "#0088ff", "#88ff00",
 ];
 
 const STROKE_WIDTHS: &[f64] = &[1.0, 2.0, 3.0, 5.0, 8.0, 12.0];
@@ -85,13 +83,16 @@ pub fn WhiteboardPage() -> impl IntoView {
     let (current_element, set_current_element) = signal(None::<WhiteboardElement>);
     let (undo_stack, set_undo_stack) = signal(Vec::<Vec<WhiteboardElement>>::new());
     let (redo_stack, set_redo_stack) = signal(Vec::<Vec<WhiteboardElement>>::new());
-    let (viewport, set_viewport) = signal(Viewport { x: 0.0, y: 0.0, zoom: 1.0 });
+    let (viewport, set_viewport) = signal(Viewport {
+        x: 0.0,
+        y: 0.0,
+        zoom: 1.0,
+    });
     let (is_panning, set_is_panning) = signal(false);
     let (pan_start, set_pan_start) = signal(None::<Point>);
     let (show_color_picker, set_show_color_picker) = signal(false);
     let (show_stroke_picker, set_show_stroke_picker) = signal(false);
-    let (whiteboard_id, set_whiteboard_id) = signal(None::<String>);
-    let (whiteboard_name, set_whiteboard_name) = signal("Untitled Whiteboard".to_string());
+    let (whiteboard_name, _set_whiteboard_name) = signal("Untitled Whiteboard".to_string());
 
     let canvas_ref: NodeRef<leptos::html::Canvas> = NodeRef::new();
     let container_ref: NodeRef<leptos::html::Div> = NodeRef::new();
@@ -131,17 +132,17 @@ pub fn WhiteboardPage() -> impl IntoView {
     let export_png = move |_: ev::MouseEvent| {
         if let Some(canvas) = canvas_ref.get() {
             let dyn_el: web_sys::HtmlElement = canvas.into();
-            if let Ok(canvas_el) = dyn_el.dyn_into::<web_sys::HtmlCanvasElement>() {
-                if let Ok(data_url) = canvas_el.to_data_url_with_type("image/png") {
-                    let window = web_sys::window().unwrap();
-                    let document = window.document().unwrap();
-                    if let Ok(anchor) = document.create_element("a") {
-                        if let Ok(anchor) = anchor.dyn_into::<web_sys::HtmlAnchorElement>() {
-                            anchor.set_href(&data_url);
-                            anchor.set_download("whiteboard.png");
-                            anchor.click();
-                        }
-                    }
+            if let Ok(canvas_el) = dyn_el.dyn_into::<web_sys::HtmlCanvasElement>()
+                && let Ok(data_url) = canvas_el.to_data_url_with_type("image/png")
+            {
+                let window = web_sys::window().unwrap();
+                let document = window.document().unwrap();
+                if let Ok(anchor) = document.create_element("a")
+                    && let Ok(anchor) = anchor.dyn_into::<web_sys::HtmlAnchorElement>()
+                {
+                    anchor.set_href(&data_url);
+                    anchor.set_download("whiteboard.png");
+                    anchor.click();
                 }
             }
         }
@@ -189,7 +190,10 @@ pub fn WhiteboardPage() -> impl IntoView {
         if ev.button() == 1 || (ev.button() == 0 && ev.shift_key()) {
             // Middle click or shift+click: start panning
             set_is_panning.set(true);
-            set_pan_start.set(Some(Point { x: ev.offset_x() as f64, y: ev.offset_y() as f64 }));
+            set_pan_start.set(Some(Point {
+                x: ev.offset_x() as f64,
+                y: ev.offset_y() as f64,
+            }));
             return;
         }
 
@@ -236,7 +240,10 @@ pub fn WhiteboardPage() -> impl IntoView {
                     v.x += dx;
                     v.y += dy;
                 });
-                set_pan_start.set(Some(Point { x: ev.offset_x() as f64, y: ev.offset_y() as f64 }));
+                set_pan_start.set(Some(Point {
+                    x: ev.offset_x() as f64,
+                    y: ev.offset_y() as f64,
+                }));
             }
             return;
         }
@@ -262,11 +269,11 @@ pub fn WhiteboardPage() -> impl IntoView {
         }
 
         if is_drawing.get() {
-            if let Some(element) = current_element.get() {
-                if !element.points.is_empty() {
-                    save_to_undo();
-                    set_elements.update(|els| els.push(element));
-                }
+            if let Some(element) = current_element.get()
+                && !element.points.is_empty()
+            {
+                save_to_undo();
+                set_elements.update(|els| els.push(element));
             }
             set_current_element.set(None);
             set_is_drawing.set(false);
@@ -282,7 +289,7 @@ pub fn WhiteboardPage() -> impl IntoView {
         let y = ev.offset_y() as f64;
 
         set_viewport.update(|v| {
-            let new_zoom = (v.zoom * zoom_factor).max(0.1).min(10.0);
+            let new_zoom = (v.zoom * zoom_factor).clamp(0.1, 10.0);
             v.x = x - (x - v.x) * (new_zoom / v.zoom);
             v.y = y - (y - v.y) * (new_zoom / v.zoom);
             v.zoom = new_zoom;
@@ -303,7 +310,11 @@ pub fn WhiteboardPage() -> impl IntoView {
     };
 
     let reset_view = move |_: ev::MouseEvent| {
-        set_viewport.set(Viewport { x: 0.0, y: 0.0, zoom: 1.0 });
+        set_viewport.set(Viewport {
+            x: 0.0,
+            y: 0.0,
+            zoom: 1.0,
+        });
     };
 
     // Draw on canvas
@@ -527,7 +538,7 @@ pub fn WhiteboardPage() -> impl IntoView {
                 <button
                     class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
                     title="Undo (Ctrl+Z)"
-                    on:click=undo.clone()
+                    on:click=undo
                     disabled=move || undo_stack.get().is_empty()
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -537,7 +548,7 @@ pub fn WhiteboardPage() -> impl IntoView {
                 <button
                     class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
                     title="Redo (Ctrl+Shift+Z)"
-                    on:click=redo.clone()
+                    on:click=redo
                     disabled=move || redo_stack.get().is_empty()
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -548,7 +559,7 @@ pub fn WhiteboardPage() -> impl IntoView {
                 <button
                     class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                     title="Clear canvas"
-                    on:click=clear_canvas.clone()
+                    on:click=clear_canvas
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -622,7 +633,11 @@ pub fn WhiteboardPage() -> impl IntoView {
 }
 
 /// Draw a single whiteboard element on the canvas.
-fn draw_element(ctx: &web_sys::CanvasRenderingContext2d, element: &WhiteboardElement, viewport: &Viewport) {
+fn draw_element(
+    ctx: &web_sys::CanvasRenderingContext2d,
+    element: &WhiteboardElement,
+    viewport: &Viewport,
+) {
     if element.points.is_empty() {
         return;
     }
@@ -632,7 +647,7 @@ fn draw_element(ctx: &web_sys::CanvasRenderingContext2d, element: &WhiteboardEle
     ctx.set_fill_style_str(&element.color);
 
     match element.tool {
-        Tool::Pen | Tool::Eraser => {
+        Tool::Pen => {
             ctx.begin_path();
             let first = &element.points[0];
             ctx.move_to(
@@ -683,7 +698,8 @@ fn draw_element(ctx: &web_sys::CanvasRenderingContext2d, element: &WhiteboardEle
                 let rx = (last.x - first.x).abs() / 2.0 * viewport.zoom;
                 let ry = (last.y - first.y).abs() / 2.0 * viewport.zoom;
                 ctx.begin_path();
-                ctx.ellipse(cx, cy, rx, ry, 0.0, 0.0, 2.0 * std::f64::consts::PI).ok();
+                ctx.ellipse(cx, cy, rx, ry, 0.0, 0.0, 2.0 * std::f64::consts::PI)
+                    .ok();
                 ctx.stroke();
             }
         }
@@ -692,7 +708,10 @@ fn draw_element(ctx: &web_sys::CanvasRenderingContext2d, element: &WhiteboardEle
                 let point = &element.points[0];
                 let x = point.x * viewport.zoom + viewport.x;
                 let y = point.y * viewport.zoom + viewport.y;
-                ctx.set_font(&format!("{}px sans-serif", element.stroke_width * 4.0 * viewport.zoom));
+                ctx.set_font(&format!(
+                    "{}px sans-serif",
+                    element.stroke_width * 4.0 * viewport.zoom
+                ));
                 ctx.fill_text(text, x, y).ok();
             }
         }

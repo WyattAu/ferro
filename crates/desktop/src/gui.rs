@@ -178,9 +178,8 @@ fn build_client(token: &str) -> Result<reqwest::Client, String> {
         format!("Bearer {token}")
     };
 
-    let value =
-        reqwest::header::HeaderValue::from_str(&auth_header)
-            .map_err(|e| format!("Invalid token: {}", e))?;
+    let value = reqwest::header::HeaderValue::from_str(&auth_header)
+        .map_err(|e| format!("Invalid token: {}", e))?;
     headers.insert(reqwest::header::AUTHORIZATION, value);
     reqwest::Client::builder()
         .default_headers(headers)
@@ -704,12 +703,11 @@ pub struct UpdateCheckResult {
 async fn cmd_check_update(app_handle: tauri::AppHandle) -> Result<UpdateCheckResult, String> {
     use tauri_plugin_updater::UpdaterExt;
 
-    let current_version = app_handle
-        .package_info()
-        .version
-        .to_string();
+    let current_version = app_handle.package_info().version.to_string();
 
-    let updater = app_handle.updater().map_err(|e| format!("Updater unavailable: {}", e))?;
+    let updater = app_handle
+        .updater()
+        .map_err(|e| format!("Updater unavailable: {}", e))?;
 
     match updater.check().await {
         Ok(Some(update)) => {
@@ -743,7 +741,9 @@ async fn cmd_check_update(app_handle: tauri::AppHandle) -> Result<UpdateCheckRes
 async fn cmd_install_update(app_handle: tauri::AppHandle) -> Result<String, String> {
     use tauri_plugin_updater::UpdaterExt;
 
-    let updater = app_handle.updater().map_err(|e| format!("Updater unavailable: {}", e))?;
+    let updater = app_handle
+        .updater()
+        .map_err(|e| format!("Updater unavailable: {}", e))?;
 
     match updater.check().await {
         Ok(Some(update)) => {
@@ -1062,15 +1062,16 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     "check_update" => {
-                        use tauri_plugin_updater::UpdaterExt;
                         use tauri_plugin_notification::NotificationExt;
+                        use tauri_plugin_updater::UpdaterExt;
                         let handle = app.clone();
                         tokio::spawn(async move {
                             let current_version = handle.package_info().version.to_string();
                             let updater = match handle.updater() {
                                 Ok(u) => u,
                                 Err(e) => {
-                                    let _ = handle.notification()
+                                    let _ = handle
+                                        .notification()
                                         .builder()
                                         .title("Update Check Failed")
                                         .body(format!("Updater unavailable: {}", e))
@@ -1081,24 +1082,33 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                             match updater.check().await {
                                 Ok(Some(update)) => {
                                     let version = update.version.clone().unwrap_or_default();
-                                    let _ = handle.notification()
+                                    let _ = handle
+                                        .notification()
                                         .builder()
                                         .title("Update Available")
-                                        .body(format!("Version {} is available (current: {})", version, current_version))
+                                        .body(format!(
+                                            "Version {} is available (current: {})",
+                                            version, current_version
+                                        ))
                                         .show();
                                     if let Some(window) = handle.get_webview_window("main") {
                                         let _ = window.emit("update-available", version);
                                     }
                                 }
                                 Ok(None) => {
-                                    let _ = handle.notification()
+                                    let _ = handle
+                                        .notification()
                                         .builder()
                                         .title("No Updates")
-                                        .body(format!("You are running the latest version ({})", current_version))
+                                        .body(format!(
+                                            "You are running the latest version ({})",
+                                            current_version
+                                        ))
                                         .show();
                                 }
                                 Err(e) => {
-                                    let _ = handle.notification()
+                                    let _ = handle
+                                        .notification()
                                         .builder()
                                         .title("Update Check Failed")
                                         .body(format!("{}", e))
@@ -1201,7 +1211,10 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                                     let _ = window.emit("update-available", &version);
                                 }
                                 if let Some(tray) = handle.tray_by_id("main") {
-                                    let _ = tray.set_tooltip(Some(&format!("Ferro - Update Available: v{}", version)));
+                                    let _ = tray.set_tooltip(Some(&format!(
+                                        "Ferro - Update Available: v{}",
+                                        version
+                                    )));
                                 }
                             }
                             Ok(None) => {

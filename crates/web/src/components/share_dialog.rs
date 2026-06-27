@@ -8,10 +8,7 @@ use crate::components::toast::ToastContext;
 use crate::t;
 
 #[component]
-pub fn ShareDialog(
-    open: ReadSignal<bool>,
-    set_open: WriteSignal<bool>,
-) -> impl IntoView {
+pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl IntoView {
     let (share_path, set_share_path) = signal(String::new());
     let (active_tab, set_active_tab) = signal(0u8);
 
@@ -80,7 +77,11 @@ pub fn ShareDialog(
         let path = share_path.get();
         let password = share_password.get();
         let expires: u32 = share_expires.get().parse().unwrap_or(168);
-        let pw = if password.is_empty() { None } else { Some(password) };
+        let pw = if password.is_empty() {
+            None
+        } else {
+            Some(password)
+        };
         set_share_creating.set(true);
         set_share_error.set(String::new());
         spawn_local(async move {
@@ -102,7 +103,9 @@ pub fn ShareDialog(
 
     let do_copy_share_url = move |_: ev::MouseEvent| {
         let url = share_url.get();
-        if !url.is_empty() && let Some(window) = web_sys::window() {
+        if !url.is_empty()
+            && let Some(window) = web_sys::window()
+        {
             let nav = window.navigator();
             let clipboard = nav.clipboard();
             wasm_bindgen_futures::spawn_local(async move {
@@ -125,7 +128,10 @@ pub fn ShareDialog(
         spawn_local(async move {
             set_invite_sending.set(false);
             set_invite_sent.set(true);
-            ToastContext::success(format!("Invite sent to {} with {} permission", email, permission));
+            ToastContext::success(format!(
+                "Invite sent to {} with {} permission",
+                email, permission
+            ));
         });
     };
 

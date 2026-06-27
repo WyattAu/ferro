@@ -168,9 +168,8 @@ pub async fn unpin_file_offline(path: String) -> Result<(), String> {
 pub async fn get_storage_stats() -> Result<StorageStats, String> {
     let config = get_config().map_err(|e| e.to_string())?;
 
-    let local_cache_bytes = dir_size_recursive(
-        &std::path::PathBuf::from(&config.local_cache_path).join("files"),
-    );
+    let local_cache_bytes =
+        dir_size_recursive(&std::path::PathBuf::from(&config.local_cache_path).join("files"));
 
     let cache_limit = config.max_cache_size_mb * 1024 * 1024;
 

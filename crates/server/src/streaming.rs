@@ -2,13 +2,13 @@
 
 use axum::body::Body;
 use axum::extract::{Path, State};
-use axum::http::header::{self, HeaderMap, HeaderValue};
 use axum::http::StatusCode;
+use axum::http::header::{self, HeaderMap, HeaderValue};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
 
-use crate::api::normalize_api_path;
 use crate::AppState;
+use crate::api::normalize_api_path;
 
 /// Range header specification for byte range requests.
 struct RangeHeader {
@@ -135,7 +135,10 @@ pub async fn stream_video(
     };
 
     let mut response_headers = HeaderMap::new();
-    response_headers.insert(header::CONTENT_TYPE, HeaderValue::from_str(content_type).unwrap());
+    response_headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(content_type).unwrap(),
+    );
     response_headers.insert(
         header::CONTENT_DISPOSITION,
         HeaderValue::from_str(&format!(
@@ -164,13 +167,8 @@ pub async fn stream_video(
                 );
                 partial_headers.insert(
                     header::CONTENT_RANGE,
-                    HeaderValue::from_str(&format!(
-                        "bytes {}-{}/{}",
-                        start,
-                        end,
-                        total_size
-                    ))
-                    .unwrap(),
+                    HeaderValue::from_str(&format!("bytes {}-{}/{}", start, end, total_size))
+                        .unwrap(),
                 );
 
                 // Stream the requested range
@@ -197,11 +195,7 @@ pub async fn stream_video(
                             }
                         }
 
-                        (
-                            partial_headers,
-                            Bytes::from(data),
-                        )
-                            .into_response()
+                        (partial_headers, Bytes::from(data)).into_response()
                     }
                     Err(e) => (
                         StatusCode::INTERNAL_SERVER_ERROR,
@@ -256,10 +250,7 @@ async fn serve_full_content(
 }
 
 /// GET /api/stream/{path}/manifest.m3u8 — HLS manifest stub (returns 501 if no transcoding).
-pub async fn hls_manifest(
-    State(_state): State<AppState>,
-    Path(_path): Path<String>,
-) -> Response {
+pub async fn hls_manifest(State(_state): State<AppState>, Path(_path): Path<String>) -> Response {
     // HLS transcoding is not yet implemented
     (
         StatusCode::NOT_IMPLEMENTED,

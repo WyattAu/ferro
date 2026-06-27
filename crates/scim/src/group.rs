@@ -2,7 +2,7 @@ use crate::error::ScimError;
 use crate::schema::*;
 use dashmap::DashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct GroupStore {
     groups: DashMap<String, ScimGroup>,
 }

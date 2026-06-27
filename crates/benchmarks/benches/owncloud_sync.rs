@@ -2,7 +2,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use ferro_common::storage::StorageEngine;
 use ferro_core::storage::InMemoryStorageEngine;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn make_owner() -> String {
     "bench-user".to_string()
@@ -10,14 +10,6 @@ fn make_owner() -> String {
 
 fn make_content(size: usize) -> bytes::Bytes {
     bytes::Bytes::from(vec![0xAB; size])
-}
-
-fn percentile(sorted: &mut [f64], p: f64) -> f64 {
-    if sorted.is_empty() {
-        return 0.0;
-    }
-    let idx = ((p / 100.0) * (sorted.len() - 1) as f64).round() as usize;
-    sorted[idx]
 }
 
 fn bench_upload(c: &mut Criterion) {

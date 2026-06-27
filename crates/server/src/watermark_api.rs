@@ -1,14 +1,14 @@
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use image::{GenericImageView, Rgba};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use crate::api_error::ApiError;
 use crate::AppState;
+use crate::api_error::ApiError;
 
 /// Watermark policy configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,7 +118,17 @@ fn apply_text_watermark(
             let step_y = 200;
             for y in (0..h).step_by(step_y as usize) {
                 for x in (0..w).step_by(step_x as usize) {
-                    blend_region(&mut out, x, y, text_width.min(w - x), text_height.min(h - y), alpha, color, w, h);
+                    blend_region(
+                        &mut out,
+                        x,
+                        y,
+                        text_width.min(w - x),
+                        text_height.min(h - y),
+                        alpha,
+                        color,
+                        w,
+                        h,
+                    );
                 }
             }
             return;
@@ -132,11 +142,22 @@ fn apply_text_watermark(
         }
     };
 
-    blend_region(&mut out, x_offset, y_offset, text_width, text_height, alpha, color, w, h);
+    blend_region(
+        &mut out,
+        x_offset,
+        y_offset,
+        text_width,
+        text_height,
+        alpha,
+        color,
+        w,
+        h,
+    );
 
     *img = image::DynamicImage::ImageRgba8(out);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn blend_region(
     img: &mut image::RgbaImage,
     x_start: u32,
@@ -185,7 +206,7 @@ pub async fn preview_watermark(
                     "error": "file_path is required for preview"
                 })),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -210,7 +231,10 @@ pub async fn preview_watermark(
 
     let mut output_buf = std::io::Cursor::new(Vec::new());
     if let Err(e) = img.write_to(&mut output_buf, image::ImageFormat::Png) {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to encode image: {e}"));
+        return ApiError::internal(
+            ApiError::INTERNAL_ERROR,
+            format!("Failed to encode image: {e}"),
+        );
     }
 
     let bytes = output_buf.into_inner();
@@ -233,7 +257,15 @@ pub async fn apply_watermark(
         let result: Result<(String, String, f32, u32, String), _> = conn.query_row(
             "SELECT text, position, opacity, font_size, color FROM watermark_policies LIMIT 1",
             [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
         );
         match result {
             Ok(r) => r,
@@ -276,12 +308,22 @@ pub async fn apply_watermark(
 
     let mut output_buf = std::io::Cursor::new(Vec::new());
     if let Err(e) = img.write_to(&mut output_buf, image::ImageFormat::Png) {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to encode image: {e}"));
+        return ApiError::internal(
+            ApiError::INTERNAL_ERROR,
+            format!("Failed to encode image: {e}"),
+        );
     }
 
     let bytes = bytes::Bytes::from(output_buf.into_inner());
-    if let Err(e) = state.storage.put(&file_path, bytes.clone(), "watermark").await {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to write watermarked file: {e}"));
+    if let Err(e) = state
+        .storage
+        .put(&file_path, bytes.clone(), "watermark")
+        .await
+    {
+        return ApiError::internal(
+            ApiError::INTERNAL_ERROR,
+            format!("Failed to write watermarked file: {e}"),
+        );
     }
 
     (

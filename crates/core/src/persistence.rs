@@ -162,7 +162,10 @@ impl SqlitePersistence {
                     if msg.contains("duplicate column") || msg.contains("already exists") {
                         debug!("Migration skip (already applied): {}", msg);
                     } else {
-                        return Err(FerroError::Internal(format!("SQLite migration failed: {}", e)));
+                        return Err(FerroError::Internal(format!(
+                            "SQLite migration failed: {}",
+                            e
+                        )));
                     }
                 }
             }

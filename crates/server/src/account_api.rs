@@ -118,11 +118,7 @@ impl DeviceStore {
         rows.collect()
     }
 
-    pub fn revoke_device(
-        &self,
-        user_id: &str,
-        device_id: &str,
-    ) -> Result<bool, rusqlite::Error> {
+    pub fn revoke_device(&self, user_id: &str, device_id: &str) -> Result<bool, rusqlite::Error> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
         let affected = conn.execute(
             "UPDATE devices SET revoked = 1 WHERE id = ?1 AND user_id = ?2",
@@ -166,10 +162,7 @@ pub async fn transfer_user_data(
     let db = match &state.db {
         Some(db) => db.clone(),
         None => {
-            return ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                "Database not available",
-            );
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not available");
         }
     };
 
@@ -397,9 +390,7 @@ pub async fn revoke_device(
             })),
         )
             .into_response(),
-        Ok(false) => {
-            ApiError::not_found(ApiError::NOT_FOUND, "Device not found")
-        }
+        Ok(false) => ApiError::not_found(ApiError::NOT_FOUND, "Device not found"),
         Err(e) => ApiError::internal(
             ApiError::INTERNAL_ERROR,
             format!("Failed to revoke device: {}", e),

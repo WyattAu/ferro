@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn test_get_or_create_room() {
         let manager = CollabRoomManager::new();
-        let room = manager.get_or_create_room("doc-1");
+        let _room = manager.get_or_create_room("doc-1");
         assert_eq!(manager.room_count(), 1);
 
         let _room2 = manager.get_or_create_room("doc-1");

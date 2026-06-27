@@ -14,7 +14,7 @@ use tracing::warn;
 use crate::AppState;
 use crate::api_error::ApiError;
 use crate::db::DbHandle;
-use ferro_server_sharing::shares::{hash_share_password, verify_share_password};
+pub use ferro_server_sharing::shares::{hash_share_password, verify_share_password};
 
 const MAX_SHARE_LINKS: usize = 10_000;
 /// Maximum failed password attempts per share token before temporary lockout.

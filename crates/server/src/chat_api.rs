@@ -1,7 +1,7 @@
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -63,7 +63,9 @@ fn messages_file(state: &AppState, room_id: &str) -> std::path::PathBuf {
     chat_dir(state).join(format!("messages_{}.json", room_id))
 }
 
-fn ensure_chat_dir(state: &AppState) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
+fn ensure_chat_dir(
+    state: &AppState,
+) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
     let dir = chat_dir(state);
     std::fs::create_dir_all(&dir).map_err(|e| {
         (
@@ -96,7 +98,10 @@ fn load_rooms(state: &AppState) -> Vec<ChatRoom> {
 
 fn save_rooms(state: &AppState, rooms: &[ChatRoom]) -> Result<(), std::io::Error> {
     let path = rooms_file(state);
-    std::fs::write(path, serde_json::to_string_pretty(rooms).unwrap_or_default())
+    std::fs::write(
+        path,
+        serde_json::to_string_pretty(rooms).unwrap_or_default(),
+    )
 }
 
 fn load_messages(state: &AppState, room_id: &str) -> Vec<ChatMessage> {
@@ -110,10 +115,17 @@ fn load_messages(state: &AppState, room_id: &str) -> Vec<ChatMessage> {
         .unwrap_or_default()
 }
 
-fn save_messages(state: &AppState, room_id: &str, messages: &[ChatMessage]) -> Result<(), std::io::Error> {
+fn save_messages(
+    state: &AppState,
+    room_id: &str,
+    messages: &[ChatMessage],
+) -> Result<(), std::io::Error> {
     let _ = ensure_chat_dir(state);
     let path = messages_file(state, room_id);
-    std::fs::write(path, serde_json::to_string_pretty(messages).unwrap_or_default())
+    std::fs::write(
+        path,
+        serde_json::to_string_pretty(messages).unwrap_or_default(),
+    )
 }
 
 pub async fn list_rooms(State(state): State<AppState>) -> impl IntoResponse {
@@ -242,10 +254,22 @@ async fn handle_chat_ws(
 
                     match msg_type {
                         "message" => {
-                            let content = payload.get("content").and_then(|c| c.as_str()).unwrap_or("");
-                            let user_id = payload.get("user_id").and_then(|u| u.as_str()).unwrap_or("anonymous");
-                            let reply_to = payload.get("reply_to").and_then(|r| r.as_str()).map(|s| s.to_string());
-                            let attachment_path = payload.get("attachment_path").and_then(|a| a.as_str()).map(|s| s.to_string());
+                            let content = payload
+                                .get("content")
+                                .and_then(|c| c.as_str())
+                                .unwrap_or("");
+                            let user_id = payload
+                                .get("user_id")
+                                .and_then(|u| u.as_str())
+                                .unwrap_or("anonymous");
+                            let reply_to = payload
+                                .get("reply_to")
+                                .and_then(|r| r.as_str())
+                                .map(|s| s.to_string());
+                            let attachment_path = payload
+                                .get("attachment_path")
+                                .and_then(|a| a.as_str())
+                                .map(|s| s.to_string());
 
                             let mut messages = load_messages(&state, &room_id);
                             let message = ChatMessage {
@@ -265,19 +289,25 @@ async fn handle_chat_ws(
                                 "type": "message",
                                 "message": message,
                             })) {
-                                let _ = socket.send(Message::Text(response.into())).await;
+                                let _ = socket.send(Message::Text(response)).await;
                             }
                         }
                         "typing" => {
-                            let user_id = payload.get("user_id").and_then(|u| u.as_str()).unwrap_or("anonymous");
-                            let is_typing = payload.get("is_typing").and_then(|t| t.as_bool()).unwrap_or(false);
+                            let user_id = payload
+                                .get("user_id")
+                                .and_then(|u| u.as_str())
+                                .unwrap_or("anonymous");
+                            let is_typing = payload
+                                .get("is_typing")
+                                .and_then(|t| t.as_bool())
+                                .unwrap_or(false);
 
                             if let Ok(response) = serde_json::to_string(&serde_json::json!({
                                 "type": "typing",
                                 "user_id": user_id,
                                 "is_typing": is_typing,
                             })) {
-                                let _ = socket.send(Message::Text(response.into())).await;
+                                let _ = socket.send(Message::Text(response)).await;
                             }
                         }
                         _ => {}

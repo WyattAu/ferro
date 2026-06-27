@@ -1,7 +1,7 @@
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -61,7 +61,9 @@ fn albums_file(state: &AppState) -> std::path::PathBuf {
     photos_dir(state).join("albums.json")
 }
 
-fn ensure_photos_dir(state: &AppState) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
+fn ensure_photos_dir(
+    state: &AppState,
+) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
     let dir = photos_dir(state);
     std::fs::create_dir_all(&dir).map_err(|e| {
         (
@@ -121,7 +123,10 @@ fn load_albums(state: &AppState) -> Vec<Album> {
 fn save_albums(state: &AppState, albums: &[Album]) -> Result<(), std::io::Error> {
     let _ = ensure_photos_dir(state);
     let path = albums_file(state);
-    std::fs::write(path, serde_json::to_string_pretty(albums).unwrap_or_default())
+    std::fs::write(
+        path,
+        serde_json::to_string_pretty(albums).unwrap_or_default(),
+    )
 }
 
 pub async fn list_photos(
@@ -130,10 +135,7 @@ pub async fn list_photos(
 ) -> impl IntoResponse {
     let storage = state.storage.clone();
 
-    let entries = match storage.list_all("/", 10000).await {
-        Ok(e) => e,
-        Err(_) => Vec::new(),
-    };
+    let entries = storage.list_all("/", 10000).await.unwrap_or_default();
 
     let mut photos: Vec<Photo> = entries
         .iter()
@@ -155,14 +157,10 @@ pub async fn list_photos(
         .collect();
 
     if let Some(ref start) = params.start {
-        photos.retain(|p| {
-            p.modified_at.as_str() >= start.as_str()
-        });
+        photos.retain(|p| p.modified_at.as_str() >= start.as_str());
     }
     if let Some(ref end) = params.end {
-        photos.retain(|p| {
-            p.modified_at.as_str() <= end.as_str()
-        });
+        photos.retain(|p| p.modified_at.as_str() <= end.as_str());
     }
 
     photos.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));

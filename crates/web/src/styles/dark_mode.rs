@@ -1,8 +1,8 @@
-/// Dark mode CSS variables and theme management.
-///
-/// Provides CSS custom properties for dark/light themes using `data-theme` attribute,
-/// localStorage persistence, system theme detection via `prefers-color-scheme`,
-/// and smooth transitions between themes.
+//! Dark mode CSS variables and theme management.
+//!
+//! Provides CSS custom properties for dark/light themes using `data-theme` attribute,
+//! localStorage persistence, system theme detection via `prefers-color-scheme`,
+//! and smooth transitions between themes.
 
 /// CSS for dark mode variables and transitions.
 /// Injected as a `<style>` tag on app mount.
@@ -70,7 +70,12 @@ pub fn inject_dark_mode_css() {
 
     if let Some(window) = web_sys::window() {
         if let Some(doc) = window.document() {
-            if doc.query_selector("#ferro-dark-mode-css").ok().flatten().is_some() {
+            if doc
+                .query_selector("#ferro-dark-mode-css")
+                .ok()
+                .flatten()
+                .is_some()
+            {
                 return;
             }
 

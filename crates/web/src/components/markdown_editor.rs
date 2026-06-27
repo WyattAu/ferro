@@ -184,28 +184,37 @@ fn render_markdown(text: &str) -> String {
             continue;
         }
 
-        if line.starts_with("# ") {
-            html.push_str(&format!("<h1 class=\"text-2xl font-bold mt-4 mb-2\">{}</h1>", html_escape(&line[2..])));
-        } else if line.starts_with("## ") {
-            html.push_str(&format!("<h2 class=\"text-xl font-bold mt-3 mb-2\">{}</h2>", html_escape(&line[3..])));
-        } else if line.starts_with("### ") {
-            html.push_str(&format!("<h3 class=\"text-lg font-bold mt-2 mb-1\">{}</h3>", html_escape(&line[4..])));
-        } else if line.starts_with("- ") {
+        if let Some(rest) = line.strip_prefix("# ") {
+            html.push_str(&format!(
+                "<h1 class=\"text-2xl font-bold mt-4 mb-2\">{}</h1>",
+                html_escape(rest)
+            ));
+        } else if let Some(rest) = line.strip_prefix("## ") {
+            html.push_str(&format!(
+                "<h2 class=\"text-xl font-bold mt-3 mb-2\">{}</h2>",
+                html_escape(rest)
+            ));
+        } else if let Some(rest) = line.strip_prefix("### ") {
+            html.push_str(&format!(
+                "<h3 class=\"text-lg font-bold mt-2 mb-1\">{}</h3>",
+                html_escape(rest)
+            ));
+        } else if let Some(rest) = line.strip_prefix("- ") {
             if !in_list {
                 html.push_str("<ul class=\"list-disc list-inside mb-2\">");
                 in_list = true;
             }
-            html.push_str(&format!("<li>{}</li>", render_inline(&line[2..])));
-        } else if line.starts_with("1. ") {
+            html.push_str(&format!("<li>{}</li>", render_inline(rest)));
+        } else if let Some(rest) = line.strip_prefix("1. ") {
             if !in_list {
                 html.push_str("<ol class=\"list-decimal list-inside mb-2\">");
                 in_list = true;
             }
-            html.push_str(&format!("<li>{}</li>", render_inline(&line[3..])));
-        } else if line.starts_with("> ") {
+            html.push_str(&format!("<li>{}</li>", render_inline(rest)));
+        } else if let Some(rest) = line.strip_prefix("> ") {
             html.push_str(&format!(
                 "<blockquote class=\"border-l-4 border-gray-300 dark:border-gray-600 pl-3 italic text-gray-600 dark:text-gray-400 mb-2\">{}</blockquote>",
-                render_inline(&line[2..])
+                render_inline(rest)
             ));
         } else if line.starts_with("---") {
             html.push_str("<hr class=\"my-4 border-gray-300 dark:border-gray-600\" />");
@@ -326,7 +335,10 @@ mod tests {
 
     #[test]
     fn test_render_inline_bold() {
-        assert_eq!(render_inline("hello **world**"), "hello <strong>world</strong>");
+        assert_eq!(
+            render_inline("hello **world**"),
+            "hello <strong>world</strong>"
+        );
     }
 
     #[test]

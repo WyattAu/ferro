@@ -1,7 +1,7 @@
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -53,14 +53,13 @@ pub struct NotesQuery {
 }
 
 fn notes_dir(state: &AppState) -> std::path::PathBuf {
-    let base = state
-        .data_dir
-        .as_deref()
-        .unwrap_or(".ferro");
+    let base = state.data_dir.as_deref().unwrap_or(".ferro");
     std::path::PathBuf::from(base).join("notes")
 }
 
-fn ensure_notes_dir(state: &AppState) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
+fn ensure_notes_dir(
+    state: &AppState,
+) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
     let dir = notes_dir(state);
     std::fs::create_dir_all(&dir).map_err(|e| {
         (
@@ -121,9 +120,9 @@ fn read_note_from_file(path: &std::path::Path) -> Option<Note> {
         created_at = meta
             .as_ref()
             .and_then(|m| m.created().ok())
-            .and_then(|t| {
+            .map(|t| {
                 let dt: chrono::DateTime<chrono::Utc> = t.into();
-                Some(dt.to_rfc3339())
+                dt.to_rfc3339()
             })
             .unwrap_or_default();
     }
@@ -131,9 +130,9 @@ fn read_note_from_file(path: &std::path::Path) -> Option<Note> {
         updated_at = meta
             .as_ref()
             .and_then(|m| m.modified().ok())
-            .and_then(|t| {
+            .map(|t| {
                 let dt: chrono::DateTime<chrono::Utc> = t.into();
-                Some(dt.to_rfc3339())
+                dt.to_rfc3339()
             })
             .unwrap_or_default();
     }
@@ -170,37 +169,36 @@ pub async fn list_notes(
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("md") {
-                if let Some(note) = read_note_from_file(&path) {
-                    notes.push(NoteMeta {
-                        id: note.id,
-                        title: note.title,
-                        folder: note.folder,
-                        tags: note.tags,
-                        created_at: note.created_at,
-                        updated_at: note.updated_at,
-                    });
-                }
+            if path.extension().and_then(|e| e.to_str()) == Some("md")
+                && let Some(note) = read_note_from_file(&path)
+            {
+                notes.push(NoteMeta {
+                    id: note.id,
+                    title: note.title,
+                    folder: note.folder,
+                    tags: note.tags,
+                    created_at: note.created_at,
+                    updated_at: note.updated_at,
+                });
             }
         }
     }
 
     // Filter by folder
-    if let Some(ref folder) = params.folder {
-        if !folder.is_empty() {
-            notes.retain(|n| n.folder == *folder);
-        }
+    if let Some(ref folder) = params.folder
+        && !folder.is_empty()
+    {
+        notes.retain(|n| n.folder == *folder);
     }
 
     // Search filter
-    if let Some(ref q) = params.q {
-        if !q.is_empty() {
-            let q_lower = q.to_lowercase();
-            notes.retain(|n| {
-                n.title.to_lowercase().contains(&q_lower)
-                    || n.tags.to_lowercase().contains(&q_lower)
-            });
-        }
+    if let Some(ref q) = params.q
+        && !q.is_empty()
+    {
+        let q_lower = q.to_lowercase();
+        notes.retain(|n| {
+            n.title.to_lowercase().contains(&q_lower) || n.tags.to_lowercase().contains(&q_lower)
+        });
     }
 
     // Sort
@@ -212,11 +210,7 @@ pub async fn list_notes(
             "created_at" => a.created_at.cmp(&b.created_at),
             _ => a.updated_at.cmp(&b.updated_at),
         };
-        if order == "asc" {
-            cmp.reverse()
-        } else {
-            cmp
-        }
+        if order == "asc" { cmp.reverse() } else { cmp }
     });
 
     Json(serde_json::json!({
@@ -226,10 +220,7 @@ pub async fn list_notes(
     .into_response()
 }
 
-pub async fn get_note(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> impl IntoResponse {
+pub async fn get_note(State(state): State<AppState>, Path(id): Path<String>) -> impl IntoResponse {
     let dir = match ensure_notes_dir(&state) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
@@ -298,7 +289,7 @@ pub async fn update_note(
                 StatusCode::NOT_FOUND,
                 Json(serde_json::json!({"error": "Note not found"})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
@@ -357,7 +348,9 @@ pub async fn search_notes(
 ) -> impl IntoResponse {
     let q = params.get("q").cloned().unwrap_or_default();
     if q.is_empty() {
-        return list_notes(State(state), Query(NotesQuery::default())).await.into_response();
+        return list_notes(State(state), Query(NotesQuery::default()))
+            .await
+            .into_response();
     }
 
     let dir = match ensure_notes_dir(&state) {
@@ -371,22 +364,20 @@ pub async fn search_notes(
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("md") {
-                if let Some(note) = read_note_from_file(&path) {
-                    if note.title.to_lowercase().contains(&q_lower)
-                        || note.content.to_lowercase().contains(&q_lower)
-                        || note.tags.to_lowercase().contains(&q_lower)
-                    {
-                        notes.push(NoteMeta {
-                            id: note.id,
-                            title: note.title,
-                            folder: note.folder,
-                            tags: note.tags,
-                            created_at: note.created_at,
-                            updated_at: note.updated_at,
-                        });
-                    }
-                }
+            if path.extension().and_then(|e| e.to_str()) == Some("md")
+                && let Some(note) = read_note_from_file(&path)
+                && (note.title.to_lowercase().contains(&q_lower)
+                    || note.content.to_lowercase().contains(&q_lower)
+                    || note.tags.to_lowercase().contains(&q_lower))
+            {
+                notes.push(NoteMeta {
+                    id: note.id,
+                    title: note.title,
+                    folder: note.folder,
+                    tags: note.tags,
+                    created_at: note.created_at,
+                    updated_at: note.updated_at,
+                });
             }
         }
     }

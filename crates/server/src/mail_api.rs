@@ -1,14 +1,14 @@
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
+use crate::AppState;
 use crate::api_error::ApiError;
 use crate::db::DbHandle;
-use crate::AppState;
 
 /// IMAP/SMTP mail account configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -214,7 +214,12 @@ fn imap_connect(
 
 fn parse_fetch_headers(
     header_bytes: &[u8],
-) -> (Option<String>, Option<String>, Option<String>, Option<String>) {
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+) {
     let mut subject = None;
     let mut from = None;
     let mut to = None;
@@ -280,13 +285,9 @@ pub async fn create_account(
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
     let imap_port = req.imap_port.unwrap_or(993);
-    let imap_security = req
-        .imap_security
-        .unwrap_or_else(|| "ssl".to_string());
+    let imap_security = req.imap_security.unwrap_or_else(|| "ssl".to_string());
     let smtp_port = req.smtp_port.unwrap_or(587);
-    let smtp_security = req
-        .smtp_security
-        .unwrap_or_else(|| "starttls".to_string());
+    let smtp_security = req.smtp_security.unwrap_or_else(|| "starttls".to_string());
     let imap_password_enc = MailAccountStore::encrypt_password(&req.imap_password);
     let smtp_password_enc = MailAccountStore::encrypt_password(&req.smtp_password);
 
@@ -325,18 +326,12 @@ pub async fn create_account(
 }
 
 /// DELETE /mail/accounts/{id} — remove a mail account.
-pub async fn delete_account(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_account(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(ref db) = state.db else {
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
     };
     let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    match conn.execute(
-        "DELETE FROM mail_accounts WHERE id = ?1",
-        params![id],
-    ) {
+    match conn.execute("DELETE FROM mail_accounts WHERE id = ?1", params![id]) {
         Ok(0) => ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => {
@@ -347,10 +342,7 @@ pub async fn delete_account(
 }
 
 /// GET /mail/accounts/{id}/folders — list IMAP folders.
-pub async fn mail_folders(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn mail_folders(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let Some(ref db) = state.db else {
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
     };
@@ -376,10 +368,7 @@ pub async fn mail_folders(
     let mailboxes = match session.list(Some(""), Some("*")) {
         Ok(m) => m,
         Err(e) => {
-            return ApiError::bad_gateway(
-                ApiError::BAD_GATEWAY,
-                format!("IMAP list error: {e}"),
-            );
+            return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("IMAP list error: {e}"));
         }
     };
 
@@ -388,7 +377,11 @@ pub async fn mail_folders(
         folders.push(MailFolder {
             name: mailbox.name().to_string(),
             delimiter: mailbox.delimiter().map(|d| d.to_string()),
-            flags: mailbox.attributes().iter().map(|a| format!("{a:?}")).collect(),
+            flags: mailbox
+                .attributes()
+                .iter()
+                .map(|a| format!("{a:?}"))
+                .collect(),
         });
     }
 
@@ -405,9 +398,7 @@ pub async fn mail_folders(
 pub async fn mail_messages(
     State(state): State<AppState>,
     Path((id, folder)): Path<(String, String)>,
-    axum::extract::Query(params): axum::extract::Query<
-        std::collections::HashMap<String, String>,
-    >,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Response {
     let limit: u32 = params
         .get("limit")
@@ -440,10 +431,7 @@ pub async fn mail_messages(
     };
 
     if let Err(e) = session.select(&folder) {
-        return ApiError::bad_gateway(
-            ApiError::BAD_GATEWAY,
-            format!("IMAP select error: {e}"),
-        );
+        return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("IMAP select error: {e}"));
     }
 
     let all_messages = match session.uid_search("ALL") {
@@ -550,10 +538,7 @@ pub async fn mail_message_detail(
     };
 
     if let Err(e) = session.select(&folder) {
-        return ApiError::bad_gateway(
-            ApiError::BAD_GATEWAY,
-            format!("IMAP select error: {e}"),
-        );
+        return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("IMAP select error: {e}"));
     }
 
     let uid_str = uid.to_string();
@@ -578,30 +563,30 @@ pub async fn mail_message_detail(
             let mut body_text = None;
             let mut body_html = None;
 
-            if let Ok(body_str) = std::str::from_utf8(body) {
-                if let Some(header_end) = body_str.find("\r\n\r\n") {
-                    let headers = &body_str[..header_end];
-                    for line in headers.lines() {
-                        let lower = line.to_lowercase();
-                        if lower.starts_with("subject:") {
-                            subject = Some(line[8..].trim().to_string());
-                        } else if lower.starts_with("from:") {
-                            from = Some(line[5..].trim().to_string());
-                        } else if lower.starts_with("to:") {
-                            to = Some(line[3..].trim().to_string());
-                        } else if lower.starts_with("cc:") {
-                            cc = Some(line[3..].trim().to_string());
-                        } else if lower.starts_with("date:") {
-                            date = Some(line[5..].trim().to_string());
-                        }
+            if let Ok(body_str) = std::str::from_utf8(body)
+                && let Some(header_end) = body_str.find("\r\n\r\n")
+            {
+                let headers = &body_str[..header_end];
+                for line in headers.lines() {
+                    let lower = line.to_lowercase();
+                    if lower.starts_with("subject:") {
+                        subject = Some(line[8..].trim().to_string());
+                    } else if lower.starts_with("from:") {
+                        from = Some(line[5..].trim().to_string());
+                    } else if lower.starts_with("to:") {
+                        to = Some(line[3..].trim().to_string());
+                    } else if lower.starts_with("cc:") {
+                        cc = Some(line[3..].trim().to_string());
+                    } else if lower.starts_with("date:") {
+                        date = Some(line[5..].trim().to_string());
                     }
+                }
 
-                    let content = &body_str[header_end + 4..];
-                    if content.contains("text/html") {
-                        body_html = Some(content.to_string());
-                    } else {
-                        body_text = Some(content.to_string());
-                    }
+                let content = &body_str[header_end + 4..];
+                if content.contains("text/html") {
+                    body_html = Some(content.to_string());
+                } else {
+                    body_text = Some(content.to_string());
                 }
             }
 
@@ -667,12 +652,13 @@ pub async fn send_email(
             .tls(tls_mode)
             .build();
 
-    let from_addr: lettre::message::Mailbox = match format!("{} <{}>", account.name, account.email_address).parse() {
-        Ok(a) => a,
-        Err(_) => {
-            return ApiError::bad_request(ApiError::INVALID_INPUT, "Invalid from address");
-        }
-    };
+    let from_addr: lettre::message::Mailbox =
+        match format!("{} <{}>", account.name, account.email_address).parse() {
+            Ok(a) => a,
+            Err(_) => {
+                return ApiError::bad_request(ApiError::INVALID_INPUT, "Invalid from address");
+            }
+        };
 
     let mut email_builder = lettre::Message::builder()
         .from(from_addr)
@@ -698,10 +684,7 @@ pub async fn send_email(
         }
     }
 
-    let has_attachments = req
-        .attachments
-        .as_ref()
-        .is_some_and(|a| !a.is_empty());
+    let has_attachments = req.attachments.as_ref().is_some_and(|a| !a.is_empty());
 
     let email = if has_attachments {
         let mut multipart = lettre::message::MultiPart::mixed().singlepart(
@@ -717,8 +700,8 @@ pub async fn send_email(
                 {
                     let ct = lettre::message::header::ContentType::parse(&att.content_type)
                         .unwrap_or(lettre::message::header::ContentType::TEXT_PLAIN);
-                    let attachment = lettre::message::Attachment::new(att.filename.clone())
-                        .body(data, ct);
+                    let attachment =
+                        lettre::message::Attachment::new(att.filename.clone()).body(data, ct);
                     multipart = multipart.singlepart(attachment);
                 }
             }
@@ -726,11 +709,10 @@ pub async fn send_email(
 
         email_builder.multipart(multipart)
     } else if let Some(ref html) = req.body_html {
-        email_builder
-            .multipart(lettre::message::MultiPart::alternative_plain_html(
-                req.body_text.clone().unwrap_or_default(),
-                html.clone(),
-            ))
+        email_builder.multipart(lettre::message::MultiPart::alternative_plain_html(
+            req.body_text.clone().unwrap_or_default(),
+            html.clone(),
+        ))
     } else {
         email_builder.body(req.body_text.clone().unwrap_or_default())
     };
@@ -750,9 +732,7 @@ pub async fn send_email(
                 }
             }
         }
-        Err(e) => {
-            ApiError::bad_request(ApiError::INVALID_INPUT, format!("Email build error: {e}"))
-        }
+        Err(e) => ApiError::bad_request(ApiError::INVALID_INPUT, format!("Email build error: {e}")),
     }
 }
 

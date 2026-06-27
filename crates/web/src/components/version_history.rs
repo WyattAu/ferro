@@ -41,7 +41,7 @@ pub fn VersionHistory(
             match api::list_versions(&p).await {
                 Ok(resp) => {
                     let mut sorted = resp.versions;
-                    sorted.sort_by(|a, b| b.id.cmp(&a.id));
+                    sorted.sort_by_key(|v| std::cmp::Reverse(v.id));
                     set_versions.set(sorted);
                     set_loading.set(false);
                 }

@@ -3,8 +3,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
-use crate::activity::ActivityEntry;
 use crate::AppState;
+use crate::activity::ActivityEntry;
 
 /// Dashboard overview returned to the web frontend.
 #[derive(Debug, Serialize, Deserialize)]

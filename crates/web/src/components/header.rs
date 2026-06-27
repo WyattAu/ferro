@@ -10,6 +10,9 @@ use ferro_common::format::format_size;
 use leptos_router::components::A;
 
 const MAX_RECENT_SEARCHES: usize = 8;
+/// localStorage key for recent searches. Only referenced inside `cfg(target_arch = "wasm32")`
+/// blocks, so mark dead_code to avoid false positives when type-checking on a non-wasm host.
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 const RECENT_SEARCHES_KEY: &str = "ferro_recent_searches";
 
 fn load_recent_searches() -> Vec<String> {

@@ -4,9 +4,9 @@ use leptos::task::spawn_local;
 use leptos_router::components::A;
 
 use crate::api::{self, UserPreferences};
+use crate::components::navigation::NavigationSidebar;
 use crate::components::onboarding::reset_onboarding;
 use crate::components::toast::ToastContext;
-use crate::components::navigation::NavigationSidebar;
 use crate::t;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -70,7 +70,11 @@ pub fn SettingsPage() -> impl IntoView {
     let save_prefs = move |_: ev::MouseEvent| {
         set_saving.set(true);
         let mut p = prefs.get();
-        p.theme = if dark_mode.get() { "dark".to_string() } else { "light".to_string() };
+        p.theme = if dark_mode.get() {
+            "dark".to_string()
+        } else {
+            "light".to_string()
+        };
         p.language = language.get();
         spawn_local(async move {
             match api::update_preferences(&p).await {
@@ -86,7 +90,9 @@ pub fn SettingsPage() -> impl IntoView {
         let email = profile_email.get();
         spawn_local(async move {
             let body = serde_json::json!({ "name": name, "email": email });
-            let _ = api::fetch_json_with_method("/api/user/profile", "PUT", Some(&body.to_string())).await;
+            let _ =
+                api::fetch_json_with_method("/api/user/profile", "PUT", Some(&body.to_string()))
+                    .await;
             ToastContext::success(t!("toast.preferences_saved"));
         });
     };
@@ -101,7 +107,9 @@ pub fn SettingsPage() -> impl IntoView {
         }
         spawn_local(async move {
             let body = serde_json::json!({ "current_password": current, "new_password": new_pw });
-            let _ = api::fetch_json_with_method("/api/user/password", "PUT", Some(&body.to_string())).await;
+            let _ =
+                api::fetch_json_with_method("/api/user/password", "PUT", Some(&body.to_string()))
+                    .await;
             ToastContext::success(t!("toast.preferences_saved"));
         });
         set_current_password.set(String::new());
@@ -137,7 +145,9 @@ pub fn SettingsPage() -> impl IntoView {
 
     let on_items_per_page_change = move |ev: ev::Event| {
         let v = event_target_value(&ev);
-        set_prefs.update(|p| { p.items_per_page = v.parse().unwrap_or(50); });
+        set_prefs.update(|p| {
+            p.items_per_page = v.parse().unwrap_or(50);
+        });
     };
 
     view! {
@@ -298,7 +308,7 @@ pub fn SettingsPage() -> impl IntoView {
                                         ("shares", "settings.event_shares", notify_email_shares, set_notify_email_shares, notify_push_shares, set_notify_push_shares),
                                         ("comments", "settings.event_comments", notify_email_comments, set_notify_email_comments, notify_push_comments, set_notify_push_comments),
                                         ("uploads", "settings.event_uploads", notify_email_uploads, set_notify_email_uploads, notify_push_uploads, set_notify_push_uploads),
-                                    ].into_iter().map(|(key, label, email_val, set_email, push_val, set_push)| {
+                                    ].into_iter().map(|(_key, label, email_val, set_email, push_val, set_push)| {
                                         let label_text = t!(label);
                                         view! {
                                             <div class="grid grid-cols-3 gap-4 items-center py-2 border-b border-gray-100">

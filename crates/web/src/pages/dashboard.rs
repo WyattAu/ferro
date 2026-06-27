@@ -243,10 +243,7 @@ pub fn DashboardPage() -> impl IntoView {
 
 /// Reusable dashboard section with a title, empty state, and list content.
 #[component]
-fn DashboardSection(
-    title: &'static str,
-    children: Children,
-) -> impl IntoView {
+fn DashboardSection(title: &'static str, children: Children) -> impl IntoView {
     view! {
         <section class="mt-6">
             <h2 class="text-sm font-bold uppercase font-mono text-gray-500 mb-3">{title}</h2>

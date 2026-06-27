@@ -54,9 +54,21 @@ pub fn ChatPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(ChatRoom {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
-                                        room_type: v.get("room_type").and_then(|t| t.as_str()).unwrap_or("global").to_string(),
-                                        created_at: v.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
+                                        name: v
+                                            .get("name")
+                                            .and_then(|n| n.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        room_type: v
+                                            .get("room_type")
+                                            .and_then(|t| t.as_str())
+                                            .unwrap_or("global")
+                                            .to_string(),
+                                        created_at: v
+                                            .get("created_at")
+                                            .and_then(|c| c.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
                                     })
                                 })
                                 .collect()
@@ -85,12 +97,34 @@ pub fn ChatPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(ChatMessage {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        room_id: v.get("room_id").and_then(|r| r.as_str()).unwrap_or("").to_string(),
-                                        user_id: v.get("user_id").and_then(|u| u.as_str()).unwrap_or("").to_string(),
-                                        content: v.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string(),
-                                        timestamp: v.get("timestamp").and_then(|t| t.as_str()).unwrap_or("").to_string(),
-                                        reply_to: v.get("reply_to").and_then(|r| r.as_str()).map(|s| s.to_string()),
-                                        attachment_path: v.get("attachment_path").and_then(|a| a.as_str()).map(|s| s.to_string()),
+                                        room_id: v
+                                            .get("room_id")
+                                            .and_then(|r| r.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        user_id: v
+                                            .get("user_id")
+                                            .and_then(|u| u.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        content: v
+                                            .get("content")
+                                            .and_then(|c| c.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        timestamp: v
+                                            .get("timestamp")
+                                            .and_then(|t| t.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        reply_to: v
+                                            .get("reply_to")
+                                            .and_then(|r| r.as_str())
+                                            .map(|s| s.to_string()),
+                                        attachment_path: v
+                                            .get("attachment_path")
+                                            .and_then(|a| a.as_str())
+                                            .map(|s| s.to_string()),
                                     })
                                 })
                                 .collect()
@@ -129,7 +163,8 @@ pub fn ChatPage() -> impl IntoView {
                     "POST",
                     Some(&body.to_string()),
                 )
-                .await {
+                .await
+                {
                     Ok(_) => {
                         fetch_messages(room_id_clone);
                     }
@@ -162,7 +197,8 @@ pub fn ChatPage() -> impl IntoView {
                         "POST",
                         Some(&body.to_string()),
                     )
-                    .await {
+                    .await
+                    {
                         Ok(_) => {
                             fetch_messages(room_id_clone);
                         }
@@ -186,7 +222,9 @@ pub fn ChatPage() -> impl IntoView {
                 "name": name,
                 "room_type": "global",
             });
-            match api::fetch_json_with_method("/api/chat/rooms", "POST", Some(&body.to_string())).await {
+            match api::fetch_json_with_method("/api/chat/rooms", "POST", Some(&body.to_string()))
+                .await
+            {
                 Ok(_) => {
                     fetch_rooms();
                 }
@@ -321,7 +359,7 @@ pub fn ChatPage() -> impl IntoView {
                                                                         <div class="text-xs text-gray-400 mb-1">"Replying to "{reply_to.clone()}</div>
                                                                     }.into_any()
                                                                 } else {
-                                                                    view! {}.into_any()
+                                                                    ().into_any()
                                                                 }}
                                                                 <div class="text-sm text-gray-700 dark:text-gray-300 mt-0.5" inner_html=highlight_mentions(msg.content.clone())></div>
                                                                 {if let Some(ref attachment) = msg.attachment_path {
@@ -333,7 +371,7 @@ pub fn ChatPage() -> impl IntoView {
                                                                         </div>
                                                                     }.into_any()
                                                                 } else {
-                                                                    view! {}.into_any()
+                                                                    ().into_any()
                                                                 }}
                                                             </div>
                                                         </div>
@@ -354,7 +392,7 @@ pub fn ChatPage() -> impl IntoView {
                                                     </div>
                                                 }.into_any()
                                             } else {
-                                                view! {}.into_any()
+                                                ().into_any()
                                             }
                                         }}
 

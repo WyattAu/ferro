@@ -4,8 +4,8 @@ use leptos::task::spawn_local;
 
 use crate::api;
 use crate::components::header::{Header, provide_header_state};
-use crate::components::theme_toggle::provide_theme_state;
 use crate::components::navigation::NavigationSidebar;
+use crate::components::theme_toggle::provide_theme_state;
 use crate::t;
 use ferro_common::format::format_size;
 
@@ -142,11 +142,19 @@ pub fn AdminPage() -> impl IntoView {
                 set_storage_stats.set(Some(data));
             }
             if let Ok(data) = api::fetch_json("/api/shares").await {
-                let list = data.get("shares").and_then(|s| s.as_array()).cloned().unwrap_or_default();
+                let list = data
+                    .get("shares")
+                    .and_then(|s| s.as_array())
+                    .cloned()
+                    .unwrap_or_default();
                 set_share_links.set(list);
             }
             if let Ok(data) = api::fetch_json("/api/audit").await {
-                let list = data.get("entries").and_then(|e| e.as_array()).cloned().unwrap_or_default();
+                let list = data
+                    .get("entries")
+                    .and_then(|e| e.as_array())
+                    .cloned()
+                    .unwrap_or_default();
                 set_audit_entries.set(list);
             }
 
@@ -157,18 +165,43 @@ pub fn AdminPage() -> impl IntoView {
     let fetch_users = move || {
         spawn_local(async move {
             if let Ok(val) = api::fetch_json("/api/admin/users").await {
-                let list = val.get("users").and_then(|u| u.as_array()).map(|arr| {
-                    arr.iter().filter_map(|v| {
-                        Some(AdminUser {
-                            id: v.get("id")?.as_str()?.to_string(),
-                            username: v.get("username").and_then(|u| u.as_str()).unwrap_or("").to_string(),
-                            email: v.get("email").and_then(|e| e.as_str()).unwrap_or("").to_string(),
-                            role: v.get("role").and_then(|r| r.as_str()).unwrap_or("user").to_string(),
-                            created_at: v.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
-                            is_active: v.get("is_active").and_then(|a| a.as_bool()).unwrap_or(true),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = val
+                    .get("users")
+                    .and_then(|u| u.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| {
+                                Some(AdminUser {
+                                    id: v.get("id")?.as_str()?.to_string(),
+                                    username: v
+                                        .get("username")
+                                        .and_then(|u| u.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    email: v
+                                        .get("email")
+                                        .and_then(|e| e.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    role: v
+                                        .get("role")
+                                        .and_then(|r| r.as_str())
+                                        .unwrap_or("user")
+                                        .to_string(),
+                                    created_at: v
+                                        .get("created_at")
+                                        .and_then(|c| c.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    is_active: v
+                                        .get("is_active")
+                                        .and_then(|a| a.as_bool())
+                                        .unwrap_or(true),
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_users.set(list);
             }
         });
@@ -179,17 +212,38 @@ pub fn AdminPage() -> impl IntoView {
         spawn_local(async move {
             let url = format!("/api/admin/users/{}/devices", uid);
             if let Ok(val) = api::fetch_json(&url).await {
-                let list = val.get("devices").and_then(|d| d.as_array()).map(|arr| {
-                    arr.iter().filter_map(|v| {
-                        Some(AdminDevice {
-                            id: v.get("id")?.as_str()?.to_string(),
-                            name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
-                            device_type: v.get("device_type").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                            last_seen: v.get("last_seen").and_then(|l| l.as_str()).unwrap_or("").to_string(),
-                            is_active: v.get("is_active").and_then(|a| a.as_bool()).unwrap_or(true),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = val
+                    .get("devices")
+                    .and_then(|d| d.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| {
+                                Some(AdminDevice {
+                                    id: v.get("id")?.as_str()?.to_string(),
+                                    name: v
+                                        .get("name")
+                                        .and_then(|n| n.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    device_type: v
+                                        .get("device_type")
+                                        .and_then(|d| d.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    last_seen: v
+                                        .get("last_seen")
+                                        .and_then(|l| l.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    is_active: v
+                                        .get("is_active")
+                                        .and_then(|a| a.as_bool())
+                                        .unwrap_or(true),
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_selected_user_devices.set(list);
             }
         });
@@ -198,33 +252,84 @@ pub fn AdminPage() -> impl IntoView {
     let fetch_dlp = move || {
         spawn_local(async move {
             if let Ok(val) = api::fetch_json("/api/admin/dlp/policies").await {
-                let list = val.get("policies").and_then(|p| p.as_array()).map(|arr| {
-                    arr.iter().filter_map(|v| {
-                        Some(DlpPolicy {
-                            id: v.get("id")?.as_str()?.to_string(),
-                            name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
-                            description: v.get("description").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                            rule_type: v.get("rule_type").and_then(|r| r.as_str()).unwrap_or("").to_string(),
-                            action: v.get("action").and_then(|a| a.as_str()).unwrap_or("").to_string(),
-                            enabled: v.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = val
+                    .get("policies")
+                    .and_then(|p| p.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| {
+                                Some(DlpPolicy {
+                                    id: v.get("id")?.as_str()?.to_string(),
+                                    name: v
+                                        .get("name")
+                                        .and_then(|n| n.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    description: v
+                                        .get("description")
+                                        .and_then(|d| d.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    rule_type: v
+                                        .get("rule_type")
+                                        .and_then(|r| r.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    action: v
+                                        .get("action")
+                                        .and_then(|a| a.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    enabled: v
+                                        .get("enabled")
+                                        .and_then(|e| e.as_bool())
+                                        .unwrap_or(true),
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_dlp_policies.set(list);
             }
             if let Ok(val) = api::fetch_json("/api/admin/dlp/alerts").await {
-                let list = val.get("alerts").and_then(|a| a.as_array()).map(|arr| {
-                    arr.iter().filter_map(|v| {
-                        Some(DlpAlert {
-                            id: v.get("id")?.as_str()?.to_string(),
-                            policy_name: v.get("policy_name").and_then(|p| p.as_str()).unwrap_or("").to_string(),
-                            user: v.get("user").and_then(|u| u.as_str()).unwrap_or("").to_string(),
-                            filename: v.get("filename").and_then(|f| f.as_str()).unwrap_or("").to_string(),
-                            detected_at: v.get("detected_at").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                            status: v.get("status").and_then(|s| s.as_str()).unwrap_or("").to_string(),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = val
+                    .get("alerts")
+                    .and_then(|a| a.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| {
+                                Some(DlpAlert {
+                                    id: v.get("id")?.as_str()?.to_string(),
+                                    policy_name: v
+                                        .get("policy_name")
+                                        .and_then(|p| p.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    user: v
+                                        .get("user")
+                                        .and_then(|u| u.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    filename: v
+                                        .get("filename")
+                                        .and_then(|f| f.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    detected_at: v
+                                        .get("detected_at")
+                                        .and_then(|d| d.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    status: v
+                                        .get("status")
+                                        .and_then(|s| s.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_dlp_alerts.set(list);
             }
         });
@@ -233,17 +338,37 @@ pub fn AdminPage() -> impl IntoView {
     let fetch_av = move || {
         spawn_local(async move {
             if let Ok(val) = api::fetch_json("/api/admin/antivirus/scans").await {
-                let list = val.get("scans").and_then(|s| s.as_array()).map(|arr| {
-                    arr.iter().filter_map(|v| {
-                        Some(AntivirusScan {
-                            id: v.get("id")?.as_str()?.to_string(),
-                            status: v.get("status").and_then(|s| s.as_str()).unwrap_or("").to_string(),
-                            scanned_at: v.get("scanned_at").and_then(|s| s.as_str()).unwrap_or("").to_string(),
-                            files_scanned: v.get("files_scanned").and_then(|f| f.as_u64()).unwrap_or(0),
-                            threats_found: v.get("threats_found").and_then(|t| t.as_u64()).unwrap_or(0),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = val
+                    .get("scans")
+                    .and_then(|s| s.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| {
+                                Some(AntivirusScan {
+                                    id: v.get("id")?.as_str()?.to_string(),
+                                    status: v
+                                        .get("status")
+                                        .and_then(|s| s.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    scanned_at: v
+                                        .get("scanned_at")
+                                        .and_then(|s| s.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    files_scanned: v
+                                        .get("files_scanned")
+                                        .and_then(|f| f.as_u64())
+                                        .unwrap_or(0),
+                                    threats_found: v
+                                        .get("threats_found")
+                                        .and_then(|t| t.as_u64())
+                                        .unwrap_or(0),
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_av_scans.set(list);
             }
         });
@@ -252,17 +377,37 @@ pub fn AdminPage() -> impl IntoView {
     let fetch_watermarks = move || {
         spawn_local(async move {
             if let Ok(val) = api::fetch_json("/api/admin/watermarks").await {
-                let list = val.get("policies").and_then(|p| p.as_array()).map(|arr| {
-                    arr.iter().filter_map(|v| {
-                        Some(WatermarkPolicy {
-                            id: v.get("id")?.as_str()?.to_string(),
-                            name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
-                            pattern: v.get("pattern").and_then(|p| p.as_str()).unwrap_or("").to_string(),
-                            opacity: v.get("opacity").and_then(|o| o.as_f64()).unwrap_or(0.3),
-                            enabled: v.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = val
+                    .get("policies")
+                    .and_then(|p| p.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| {
+                                Some(WatermarkPolicy {
+                                    id: v.get("id")?.as_str()?.to_string(),
+                                    name: v
+                                        .get("name")
+                                        .and_then(|n| n.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    pattern: v
+                                        .get("pattern")
+                                        .and_then(|p| p.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    opacity: v
+                                        .get("opacity")
+                                        .and_then(|o| o.as_f64())
+                                        .unwrap_or(0.3),
+                                    enabled: v
+                                        .get("enabled")
+                                        .and_then(|e| e.as_bool())
+                                        .unwrap_or(true),
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_watermark_policies.set(list);
             }
         });
@@ -271,15 +416,29 @@ pub fn AdminPage() -> impl IntoView {
     let fetch_notifications = move || {
         spawn_local(async move {
             if let Ok(val) = api::fetch_json("/api/admin/notifications/preferences").await {
-                let list = val.get("preferences").and_then(|p| p.as_array()).map(|arr| {
-                    arr.iter().filter_map(|v| {
-                        Some(NotificationPreference {
-                            event_type: v.get("event_type").and_then(|e| e.as_str()).unwrap_or("").to_string(),
-                            email_enabled: v.get("email_enabled").and_then(|e| e.as_bool()).unwrap_or(false),
-                            push_enabled: v.get("push_enabled").and_then(|p| p.as_bool()).unwrap_or(false),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = val
+                    .get("preferences")
+                    .and_then(|p| p.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|v| NotificationPreference {
+                                event_type: v
+                                    .get("event_type")
+                                    .and_then(|e| e.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                email_enabled: v
+                                    .get("email_enabled")
+                                    .and_then(|e| e.as_bool())
+                                    .unwrap_or(false),
+                                push_enabled: v
+                                    .get("push_enabled")
+                                    .and_then(|p| p.as_bool())
+                                    .unwrap_or(false),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_notification_prefs.set(list);
             }
         });
@@ -620,7 +779,7 @@ pub fn AdminPage() -> impl IntoView {
                                                         <td class="px-4 py-3"><span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", match status2.as_str() { "clean" => "bg-green-100 text-green-700", "threats" => "bg-red-100 text-red-700", "running" => "bg-yellow-100 text-yellow-700", _ => "bg-gray-100 text-gray-500" })>{status}</span></td>
                                                         <td class="px-4 py-3 text-xs font-mono text-gray-500">{scanned_display}</td>
                                                         <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 text-right">{files}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-right"><span class=move || format!("{}", if threats > 0 { "text-red-600 font-bold" } else { "text-gray-500" })>{threats}</span></td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-right"><span class=move || (if threats > 0 { "text-red-600 font-bold" } else { "text-gray-500" }).to_string()>{threats}</span></td>
                                                     </tr>
                                                 }
                                             }
@@ -872,7 +1031,7 @@ pub fn AdminPage() -> impl IntoView {
                                     >
                                         {
                                             let name = device.name.clone();
-                                            let dtype = device.device_type.clone();
+                                            let _dtype = device.device_type.clone();
                                             let last_seen = device.last_seen.clone();
                                             let last_seen_display = if last_seen.len() >= 10 { last_seen[..10].to_string() } else { last_seen };
                                             let is_active = device.is_active;

@@ -1,7 +1,7 @@
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -135,8 +135,17 @@ pub async fn update_event(
     let calendars = state.calendar_store.list_calendars("default").await;
 
     for cal in &calendars {
-        if state.calendar_store.get_event(&cal.id, &uid).await.is_some() {
-            match state.calendar_store.update_event(&cal.id, &uid, &req.ical_data).await {
+        if state
+            .calendar_store
+            .get_event(&cal.id, &uid)
+            .await
+            .is_some()
+        {
+            match state
+                .calendar_store
+                .update_event(&cal.id, &uid, &req.ical_data)
+                .await
+            {
                 Ok(updated) => {
                     return Json(CalendarEventResponse {
                         uid: updated.uid,
@@ -159,7 +168,11 @@ pub async fn update_event(
         }
     }
 
-    (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Event not found"}))).into_response()
+    (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({"error": "Event not found"})),
+    )
+        .into_response()
 }
 
 pub async fn delete_event(
@@ -169,7 +182,12 @@ pub async fn delete_event(
     let calendars = state.calendar_store.list_calendars("default").await;
 
     for cal in &calendars {
-        if state.calendar_store.get_event(&cal.id, &uid).await.is_some() {
+        if state
+            .calendar_store
+            .get_event(&cal.id, &uid)
+            .await
+            .is_some()
+        {
             match state.calendar_store.delete_event(&cal.id, &uid).await {
                 Ok(()) => return StatusCode::NO_CONTENT.into_response(),
                 Err(e) => {
@@ -183,5 +201,9 @@ pub async fn delete_event(
         }
     }
 
-    (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Event not found"}))).into_response()
+    (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({"error": "Event not found"})),
+    )
+        .into_response()
 }

@@ -4,8 +4,8 @@ use leptos::task::spawn_local;
 
 use crate::api;
 use crate::components::header::{Header, provide_header_state};
-use crate::components::theme_toggle::provide_theme_state;
 use crate::components::navigation::NavigationSidebar;
+use crate::components::theme_toggle::provide_theme_state;
 use crate::t;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -115,16 +115,29 @@ pub fn AnalyticsPage() -> impl IntoView {
             let mut storage_val = None;
             let mut shares_val = None;
 
-            if let Ok(v) = api::fetch_json("/api/analytics/overview").await { overview_val = Some(v); }
-            if let Ok(v) = api::fetch_json("/api/analytics/views-over-time").await { views_val = Some(v); }
-            if let Ok(v) = api::fetch_json("/api/analytics/top-links").await { top_links_val = Some(v); }
-            if let Ok(v) = api::fetch_json("/api/analytics/storage").await { storage_val = Some(v); }
-            if let Ok(v) = api::fetch_json("/api/analytics/share-links").await { shares_val = Some(v); }
+            if let Ok(v) = api::fetch_json("/api/analytics/overview").await {
+                overview_val = Some(v);
+            }
+            if let Ok(v) = api::fetch_json("/api/analytics/views-over-time").await {
+                views_val = Some(v);
+            }
+            if let Ok(v) = api::fetch_json("/api/analytics/top-links").await {
+                top_links_val = Some(v);
+            }
+            if let Ok(v) = api::fetch_json("/api/analytics/storage").await {
+                storage_val = Some(v);
+            }
+            if let Ok(v) = api::fetch_json("/api/analytics/share-links").await {
+                shares_val = Some(v);
+            }
 
             if let Some(v) = overview_val {
                 set_overview.set(Some(AnalyticsOverview {
                     total_views: v.get("total_views").and_then(|v| v.as_u64()).unwrap_or(0),
-                    total_downloads: v.get("total_downloads").and_then(|v| v.as_u64()).unwrap_or(0),
+                    total_downloads: v
+                        .get("total_downloads")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0),
                     total_links: v.get("total_links").and_then(|v| v.as_u64()).unwrap_or(0),
                     storage_used: v.get("storage_used").and_then(|v| v.as_u64()).unwrap_or(0),
                     active_users: v.get("active_users").and_then(|v| v.as_u64()).unwrap_or(0),
@@ -132,27 +145,46 @@ pub fn AnalyticsPage() -> impl IntoView {
             }
 
             if let Some(v) = views_val {
-                let list = v.get("data").and_then(|d| d.as_array()).map(|arr| {
-                    arr.iter().filter_map(|item| {
-                        Some(ViewsOverTime {
-                            date: item.get("date").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                            views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = v
+                    .get("data")
+                    .and_then(|d| d.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|item| ViewsOverTime {
+                                date: item
+                                    .get("date")
+                                    .and_then(|d| d.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_views_over_time.set(list);
             }
 
             if let Some(v) = top_links_val {
-                let list = v.get("links").and_then(|l| l.as_array()).map(|arr| {
-                    arr.iter().filter_map(|item| {
-                        Some(TopLink {
-                            path: item.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
-                            views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
-                            downloads: item.get("downloads").and_then(|d| d.as_u64()).unwrap_or(0),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = v
+                    .get("links")
+                    .and_then(|l| l.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|item| TopLink {
+                                path: item
+                                    .get("path")
+                                    .and_then(|p| p.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
+                                downloads: item
+                                    .get("downloads")
+                                    .and_then(|d| d.as_u64())
+                                    .unwrap_or(0),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_top_links.set(list);
             }
 
@@ -160,30 +192,67 @@ pub fn AnalyticsPage() -> impl IntoView {
                 set_storage.set(Some(StorageUsage {
                     used_bytes: v.get("used_bytes").and_then(|u| u.as_u64()).unwrap_or(0),
                     total_bytes: v.get("total_bytes").and_then(|t| t.as_u64()).unwrap_or(0),
-                    by_type: v.get("by_type").and_then(|b| b.as_array()).map(|arr| {
-                        arr.iter().filter_map(|item| {
-                            let key = item.get("type").and_then(|t| t.as_str()).unwrap_or("unknown").to_string();
-                            let size = item.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
-                            Some((key, size))
-                        }).collect()
-                    }).unwrap_or_default(),
+                    by_type: v
+                        .get("by_type")
+                        .and_then(|b| b.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .map(|item| {
+                                    let key = item
+                                        .get("type")
+                                        .and_then(|t| t.as_str())
+                                        .unwrap_or("unknown")
+                                        .to_string();
+                                    let size =
+                                        item.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
+                                    (key, size)
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
                 }));
             }
 
             if let Some(v) = shares_val {
-                let list = v.get("shares").and_then(|s| s.as_array()).map(|arr| {
-                    arr.iter().filter_map(|item| {
-                        Some(ShareLinkAnalytics {
-                            token: item.get("token").and_then(|t| t.as_str()).unwrap_or("").to_string(),
-                            path: item.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
-                            views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
-                            downloads: item.get("downloads").and_then(|d| d.as_u64()).unwrap_or(0),
-                            unique_visitors: item.get("unique_visitors").and_then(|u| u.as_u64()).unwrap_or(0),
-                            created_at: item.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
-                            expires_at: item.get("expires_at").and_then(|e| e.as_str()).unwrap_or("").to_string(),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let list = v
+                    .get("shares")
+                    .and_then(|s| s.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|item| ShareLinkAnalytics {
+                                token: item
+                                    .get("token")
+                                    .and_then(|t| t.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                path: item
+                                    .get("path")
+                                    .and_then(|p| p.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
+                                downloads: item
+                                    .get("downloads")
+                                    .and_then(|d| d.as_u64())
+                                    .unwrap_or(0),
+                                unique_visitors: item
+                                    .get("unique_visitors")
+                                    .and_then(|u| u.as_u64())
+                                    .unwrap_or(0),
+                                created_at: item
+                                    .get("created_at")
+                                    .and_then(|c| c.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                expires_at: item
+                                    .get("expires_at")
+                                    .and_then(|e| e.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_share_links.set(list);
             }
 
@@ -196,33 +265,61 @@ pub fn AnalyticsPage() -> impl IntoView {
         spawn_local(async move {
             let url = format!("/api/analytics/share-links/{}", t);
             if let Ok(v) = api::fetch_json(&url).await {
-                let daily = v.get("daily").and_then(|d| d.as_array()).map(|arr| {
-                    arr.iter().filter_map(|item| {
-                        Some(DailyStats {
-                            date: item.get("date").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                            views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
-                            downloads: item.get("downloads").and_then(|d| d.as_u64()).unwrap_or(0),
-                            unique_visitors: item.get("unique_visitors").and_then(|u| u.as_u64()).unwrap_or(0),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let daily = v
+                    .get("daily")
+                    .and_then(|d| d.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|item| DailyStats {
+                                date: item
+                                    .get("date")
+                                    .and_then(|d| d.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
+                                downloads: item
+                                    .get("downloads")
+                                    .and_then(|d| d.as_u64())
+                                    .unwrap_or(0),
+                                unique_visitors: item
+                                    .get("unique_visitors")
+                                    .and_then(|u| u.as_u64())
+                                    .unwrap_or(0),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_link_detail_daily.set(daily);
 
-                let referrers = v.get("referrers").and_then(|r| r.as_array()).map(|arr| {
-                    arr.iter().filter_map(|item| {
-                        Some(ReferrerStat {
-                            referrer: item.get("referrer").and_then(|r| r.as_str()).unwrap_or("Direct").to_string(),
-                            count: item.get("count").and_then(|c| c.as_u64()).unwrap_or(0),
-                        })
-                    }).collect()
-                }).unwrap_or_default();
+                let referrers = v
+                    .get("referrers")
+                    .and_then(|r| r.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|item| ReferrerStat {
+                                referrer: item
+                                    .get("referrer")
+                                    .and_then(|r| r.as_str())
+                                    .unwrap_or("Direct")
+                                    .to_string(),
+                                count: item.get("count").and_then(|c| c.as_u64()).unwrap_or(0),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 set_link_detail_referrers.set(referrers);
             }
         });
     };
 
     let max_views = move || {
-        views_over_time.get().iter().map(|v| v.views).max().unwrap_or(1).max(1)
+        views_over_time
+            .get()
+            .iter()
+            .map(|v| v.views)
+            .max()
+            .unwrap_or(1)
+            .max(1)
     };
 
     view! {

@@ -19,7 +19,6 @@ pub mod focus_trap;
 pub mod grid_view;
 pub mod header;
 pub mod icons;
-pub mod keyboard_shortcuts;
 pub mod keyboard_shortcuts_help;
 pub mod markdown_editor;
 pub mod navigation;

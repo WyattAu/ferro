@@ -82,11 +82,31 @@ pub fn NotesPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(NoteMeta {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        title: v.get("title").and_then(|t| t.as_str()).unwrap_or("").to_string(),
-                                        folder: v.get("folder").and_then(|f| f.as_str()).unwrap_or("").to_string(),
-                                        tags: v.get("tags").and_then(|t| t.as_str()).unwrap_or("").to_string(),
-                                        created_at: v.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
-                                        updated_at: v.get("updated_at").and_then(|u| u.as_str()).unwrap_or("").to_string(),
+                                        title: v
+                                            .get("title")
+                                            .and_then(|t| t.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        folder: v
+                                            .get("folder")
+                                            .and_then(|f| f.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        tags: v
+                                            .get("tags")
+                                            .and_then(|t| t.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        created_at: v
+                                            .get("created_at")
+                                            .and_then(|c| c.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        updated_at: v
+                                            .get("updated_at")
+                                            .and_then(|u| u.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
                                     })
                                 })
                                 .collect()
@@ -176,12 +196,8 @@ pub fn NotesPage() -> impl IntoView {
 
     let delete_note = move |id: String| {
         spawn_local(async move {
-            let _ = api::fetch_json_with_method(
-                &format!("/api/notes/{}", id),
-                "DELETE",
-                None,
-            )
-            .await;
+            let _ =
+                api::fetch_json_with_method(&format!("/api/notes/{}", id), "DELETE", None).await;
             set_selected_note_id.set(None);
             set_selected_note.set(None);
             fetch_notes();
@@ -280,7 +296,9 @@ pub fn NotesPage() -> impl IntoView {
                         {move || {
                             let f = folders();
                             if f.is_empty() {
-                                return view! {}.into_any();
+                                return {
+                                    ().into_any()
+                                };
                             }
                             view! {
                                 <div class="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
@@ -328,7 +346,7 @@ pub fn NotesPage() -> impl IntoView {
                                                 {if !note.folder.is_empty() {
                                                     view! { <span class="text-xs text-blue-500 dark:text-blue-400">{note.folder}</span> }.into_any()
                                                 } else {
-                                                    view! {}.into_any()
+                                                    ().into_any()
                                                 }}
                                                 <span class="text-xs text-gray-400">{note.updated_at[..10.min(note.updated_at.len())].to_string()}</span>
                                             </div>
@@ -341,7 +359,7 @@ pub fn NotesPage() -> impl IntoView {
                                                     </div>
                                                 }.into_any()
                                             } else {
-                                                view! {}.into_any()
+                                                ().into_any()
                                             }}
                                         </div>
                                     }

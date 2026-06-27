@@ -3,10 +3,10 @@
 //! Provides REST API for triggering sync, checking status, listing pending
 //! changes, resolving conflicts, and listing cached files.
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use ferro_offline::change_queue::ChangeQueueStore;
 use serde::{Deserialize, Serialize};
 
@@ -152,13 +152,10 @@ pub async fn get_status(State(state): State<AppState>) -> Response {
     let online = state.connection_monitor.is_online();
     let conn_state = state.connection_monitor.state();
 
-    let last_sync = state
-        .connection_monitor
-        .last_online_at()
-        .map(|instant| {
-            let elapsed = instant.elapsed();
-            format!("{} seconds ago", elapsed.as_secs())
-        });
+    let last_sync = state.connection_monitor.last_online_at().map(|instant| {
+        let elapsed = instant.elapsed();
+        format!("{} seconds ago", elapsed.as_secs())
+    });
 
     (
         StatusCode::OK,

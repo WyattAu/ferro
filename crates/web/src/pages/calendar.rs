@@ -106,9 +106,7 @@ fn days_in_month(year: i32, month: u32) -> u32 {
     } else {
         (year, month + 1)
     };
-    (chrono::NaiveDate::from_ymd_opt(y, m, 1).unwrap()
-        - chrono::TimeDelta::days(1))
-    .day()
+    (chrono::NaiveDate::from_ymd_opt(y, m, 1).unwrap() - chrono::TimeDelta::days(1)).day()
 }
 
 fn first_day_of_month(year: i32, month: u32) -> u32 {
@@ -265,12 +263,12 @@ pub fn CalendarPage() -> impl IntoView {
         let dtstart = if allday {
             format!("DTSTART;VALUE=DATE:{}", start.replace('-', ""))
         } else {
-            format!("DTSTART:{}", start.replace('-', "").replace(':', "") + "00Z")
+            format!("DTSTART:{}", start.replace(['-', ':'], "") + "00Z")
         };
         let dtend = if allday {
             format!("DTEND;VALUE=DATE:{}", end.replace('-', ""))
         } else {
-            format!("DTEND:{}", end.replace('-', "").replace(':', "") + "00Z")
+            format!("DTEND:{}", end.replace(['-', ':'], "") + "00Z")
         };
 
         let ical = format!(
@@ -332,10 +330,10 @@ pub fn CalendarPage() -> impl IntoView {
                     *d = (*d - chrono::TimeDelta::days(1)).with_day(1).unwrap_or(*d);
                 }
                 ViewMode::Week => {
-                    *d = *d - chrono::TimeDelta::days(7);
+                    *d -= chrono::TimeDelta::days(7);
                 }
                 ViewMode::Day => {
-                    *d = *d - chrono::TimeDelta::days(1);
+                    *d -= chrono::TimeDelta::days(1);
                 }
             }
         });
@@ -354,10 +352,10 @@ pub fn CalendarPage() -> impl IntoView {
                     *d = chrono::NaiveDate::from_ymd_opt(next_year, next_month, 1).unwrap_or(*d);
                 }
                 ViewMode::Week => {
-                    *d = *d + chrono::TimeDelta::days(7);
+                    *d += chrono::TimeDelta::days(7);
                 }
                 ViewMode::Day => {
-                    *d = *d + chrono::TimeDelta::days(1);
+                    *d += chrono::TimeDelta::days(1);
                 }
             }
         });

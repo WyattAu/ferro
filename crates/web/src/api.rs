@@ -265,34 +265,39 @@ fn make_opts_with_auth(method: &str) -> web_sys::RequestInit {
 /// When running in Android WebView, set window.FERRO_SERVER_URL before WASM loads.
 fn get_server_base() -> String {
     let window = web_sys::window().unwrap();
-    
+
     // Check window.FERRO_SERVER_URL first (set by Android HTML)
-    if let Ok(val) = js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("FERRO_SERVER_URL")) {
-        if let Some(url) = val.as_string() {
-            if !url.is_empty() {
-                return url.trim_end_matches('/').to_string();
-            }
-        }
+    if let Ok(val) = js_sys::Reflect::get(
+        &window,
+        &wasm_bindgen::JsValue::from_str("FERRO_SERVER_URL"),
+    ) && let Some(url) = val.as_string()
+        && !url.is_empty()
+    {
+        return url.trim_end_matches('/').to_string();
     }
-    
+
     // Then check localStorage connection
-    if let Ok(Some(base)) = window.local_storage() {
-        if let Ok(Some(conn)) = base.get_item("ferro_connection") {
-            if let Ok(obj) = serde_json::from_str::<serde_json::Value>(&conn) {
-                if let Some(url) = obj.get("url").and_then(|v| v.as_str()) {
-                    return url.trim_end_matches('/').to_string();
-                }
-            }
-        }
+    if let Ok(Some(base)) = window.local_storage()
+        && let Ok(Some(conn)) = base.get_item("ferro_connection")
+        && let Ok(obj) = serde_json::from_str::<serde_json::Value>(&conn)
+        && let Some(url) = obj.get("url").and_then(|v| v.as_str())
+    {
+        return url.trim_end_matches('/').to_string();
     }
-    
+
     // Default to same-origin
     String::new()
 }
 
+/// Fetch a URL and return the response body as plain text.
+///
+/// All call sites live behind `cfg(target_arch = "wasm32")` (the WASM client build), so this
+/// helper appears unused when type-checking the crate against a non-wasm host target. The
+/// `allow(dead_code)` attribute silences that false positive without affecting the WASM build.
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 async fn fetch_text(url: &str, opts: &web_sys::RequestInit) -> Result<String, String> {
     let window = web_sys::window().ok_or("No window")?;
-    
+
     // If URL is relative and we have a server base URL, make it absolute
     let full_url = if url.starts_with('/') {
         let base = get_server_base();
@@ -304,7 +309,7 @@ async fn fetch_text(url: &str, opts: &web_sys::RequestInit) -> Result<String, St
     } else {
         url.to_string()
     };
-    
+
     let request = web_sys::Request::new_with_str_and_init(&full_url, opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
 
@@ -1406,9 +1411,7 @@ pub async fn list_versions(path: &str) -> Result<VersionsResponse, String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn list_versions(_path: &str) -> Result<VersionsResponse, String> {
-    Ok(VersionsResponse {
-        versions: vec![],
-    })
+    Ok(VersionsResponse { versions: vec![] })
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1457,11 +1460,7 @@ pub async fn restore_version(_path: &str, _version_id: u64) -> Result<(), String
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn diff_versions(
-    path: &str,
-    from: u64,
-    to: u64,
-) -> Result<DiffResponse, String> {
+pub async fn diff_versions(path: &str, from: u64, to: u64) -> Result<DiffResponse, String> {
     let url = format!(
         "/api/files/{}/diff?from={}&to={}",
         urlencoding(path.trim_start_matches('/')),
@@ -1474,11 +1473,7 @@ pub async fn diff_versions(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn diff_versions(
-    _path: &str,
-    _from: u64,
-    _to: u64,
-) -> Result<DiffResponse, String> {
+pub async fn diff_versions(_path: &str, _from: u64, _to: u64) -> Result<DiffResponse, String> {
     Ok(DiffResponse {
         from_version: String::new(),
         to_version: String::new(),
@@ -1591,7 +1586,10 @@ pub async fn list_shares() -> Result<Vec<ShareListItem>, String> {
                             .and_then(|e| e.as_str())
                             .unwrap_or("")
                             .to_string(),
-                        max_downloads: v.get("max_downloads").and_then(|d| d.as_u64()).map(|d| d as u32),
+                        max_downloads: v
+                            .get("max_downloads")
+                            .and_then(|d| d.as_u64())
+                            .map(|d| d as u32),
                         download_count: v
                             .get("download_count")
                             .and_then(|d| d.as_u64())
@@ -1679,11 +1677,12 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
         return Err(format!("HTTP error: {}", resp.status()));
     }
 
-    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
-        .await
-        .map_err(|e| js_err("Response read failed", &e))?
-        .as_string()
-        .ok_or_else(|| "Response text conversion failed".to_string())?;
+    let text =
+        wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+            .await
+            .map_err(|e| js_err("Response read failed", &e))?
+            .as_string()
+            .ok_or_else(|| "Response text conversion failed".to_string())?;
 
     let val: serde_json::Value =
         serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;

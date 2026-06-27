@@ -30,6 +30,7 @@ fn app_with_data_dir() -> (axum::Router, tempfile::TempDir) {
     (router, dir)
 }
 
+#[allow(dead_code)]
 fn fresh_app_with_data_dir(dir: &std::path::Path) -> axum::Router {
     let state = AppState::in_memory().with_data_dir(dir.to_string_lossy().to_string());
     build_router(state)

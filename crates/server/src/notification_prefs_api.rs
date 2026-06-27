@@ -179,9 +179,7 @@ impl NotificationPrefsStore {
 }
 
 /// GET /api/notification-prefs
-pub async fn get_notification_prefs(
-    State(state): State<AppState>,
-) -> Response {
+pub async fn get_notification_prefs(State(state): State<AppState>) -> Response {
     let db = match &state.db {
         Some(db) => db.clone(),
         None => {

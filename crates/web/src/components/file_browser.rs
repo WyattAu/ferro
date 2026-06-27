@@ -715,8 +715,6 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         set_show_activity.update(|v| *v = !*v);
     };
 
-    let theme_state_for_wasm = theme_state.clone();
-
     Effect::new(move |_| {
         let ts = theme_state.clone();
         let commands = vec![

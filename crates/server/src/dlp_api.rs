@@ -4,10 +4,10 @@
 //! file size limits, external share restrictions) and provides file scanning
 //! against configured policies.
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
@@ -76,19 +76,62 @@ pub struct DlpViolation {
 
 /// Known file extensions that should be blocked.
 const BLOCKED_EXECUTABLE_EXTENSIONS: &[&str] = &[
-    "exe", "msi", "bat", "cmd", "com", "pif", "scr", "vbs", "vbe", "js", "jse",
-    "ws", "wsh", "ps1", "psm1", "psd1", "reg", "dll", "sys", "cpl", "inf",
-    "hta", "cda", "lnk", "application", "gadget",
+    "exe",
+    "msi",
+    "bat",
+    "cmd",
+    "com",
+    "pif",
+    "scr",
+    "vbs",
+    "vbe",
+    "js",
+    "jse",
+    "ws",
+    "wsh",
+    "ps1",
+    "psm1",
+    "psd1",
+    "reg",
+    "dll",
+    "sys",
+    "cpl",
+    "inf",
+    "hta",
+    "cda",
+    "lnk",
+    "application",
+    "gadget",
 ];
 
 /// Content patterns for detection (regex-based).
 fn content_patterns() -> Vec<(&'static str, &'static str, &'static str)> {
     vec![
-        ("credit_card", r"\b(?:\d[ -]*?){13,16}\b", "Credit card number detected"),
-        ("ssn", r"\b\d{3}-\d{2}-\d{4}\b", "Social Security Number detected"),
-        ("email", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "Email address detected"),
-        ("phone", r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b", "Phone number detected"),
-        ("ip_address", r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", "IP address detected"),
+        (
+            "credit_card",
+            r"\b(?:\d[ -]*?){13,16}\b",
+            "Credit card number detected",
+        ),
+        (
+            "ssn",
+            r"\b\d{3}-\d{2}-\d{4}\b",
+            "Social Security Number detected",
+        ),
+        (
+            "email",
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+            "Email address detected",
+        ),
+        (
+            "phone",
+            r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b",
+            "Phone number detected",
+        ),
+        (
+            "ip_address",
+            r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",
+            "IP address detected",
+        ),
     ]
 }
 
@@ -124,10 +167,7 @@ pub fn init_dlp_table(db: &DbHandle) -> Result<(), rusqlite::Error> {
 fn load_policies(db: &DbHandle) -> Vec<DlpPolicy> {
     let conn = match db.lock() {
         Ok(c) => c,
-        Err(e) => {
-            let c = e.into_inner();
-            c
-        }
+        Err(e) => e.into_inner(),
     };
     let mut stmt = match conn.prepare(
         "SELECT id, name, policy_type, enabled, config, created_at, updated_at FROM dlp_policies ORDER BY created_at DESC",
@@ -192,7 +232,12 @@ pub async fn create_policy(
         }
     };
 
-    let valid_types = ["file_type", "content_pattern", "file_size", "external_share"];
+    let valid_types = [
+        "file_type",
+        "content_pattern",
+        "file_size",
+        "external_share",
+    ];
     if !valid_types.contains(&req.policy_type.as_str()) {
         return (
             StatusCode::BAD_REQUEST,
@@ -216,10 +261,7 @@ pub async fn create_policy(
     if let Some(db) = &state.db {
         let conn = match db.lock() {
             Ok(c) => c,
-            Err(e) => {
-                let c = e.into_inner();
-                c
-            }
+            Err(e) => e.into_inner(),
         };
         if let Err(e) = conn.execute(
             "INSERT INTO dlp_policies (id, name, policy_type, enabled, config, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -278,10 +320,7 @@ pub async fn update_policy(
 
     let conn = match db.lock() {
         Ok(c) => c,
-        Err(e) => {
-            let c = e.into_inner();
-            c
-        }
+        Err(e) => e.into_inner(),
     };
 
     // Check policy exists
@@ -318,13 +357,13 @@ pub async fn update_policy(
         );
     }
 
-    if let Some(config) = &req.config {
-        if let Ok(config_str) = serde_json::to_string(config) {
-            let _ = conn.execute(
-                "UPDATE dlp_policies SET config = ?1, updated_at = ?2 WHERE id = ?3",
-                params![config_str, now, id],
-            );
-        }
+    if let Some(config) = &req.config
+        && let Ok(config_str) = serde_json::to_string(config)
+    {
+        let _ = conn.execute(
+            "UPDATE dlp_policies SET config = ?1, updated_at = ?2 WHERE id = ?3",
+            params![config_str, now, id],
+        );
     }
 
     // Reload and return
@@ -379,10 +418,7 @@ pub async fn update_policy(
 }
 
 /// DELETE /api/dlp/policies/{id} — Delete a DLP policy.
-pub async fn delete_policy(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_policy(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let db = match &state.db {
         Some(db) => db,
         None => {
@@ -396,10 +432,7 @@ pub async fn delete_policy(
 
     let conn = match db.lock() {
         Ok(c) => c,
-        Err(e) => {
-            let c = e.into_inner();
-            c
-        }
+        Err(e) => e.into_inner(),
     };
 
     let affected = conn
@@ -456,50 +489,43 @@ pub async fn scan_file_dlp(
 
         match policy.policy_type.as_str() {
             "file_type" => {
-                if let Some(blocked) = policy.config.get("blocked_extensions") {
-                    if let Some(exts) = blocked.as_array() {
-                    if let Some(dot_pos) = file_path.rfind('.') {
-                        let ext = &file_path[dot_pos + 1..].to_lowercase();
-                        for blocked_ext in exts {
-                            if let Some(bext) = blocked_ext.as_str() {
-                                if *ext == bext.to_lowercase() {
-                                        violations.push(DlpViolation {
-                                            policy_id: policy.id.clone(),
-                                            policy_name: policy.name.clone(),
-                                            policy_type: policy.policy_type.clone(),
-                                            description: format!(
-                                                "Blocked file extension: .{}",
-                                                ext
-                                            ),
-                                            severity: policy
-                                                .config
-                                                .get("severity")
-                                                .and_then(|s| s.as_str())
-                                                .unwrap_or("high")
-                                                .to_string(),
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                // Default: block executables if no specific config
-                if policy.config.get("blocked_extensions").is_none() {
-                    if let Some(dot_pos) = file_path.rfind('.') {
-                        let ext = &file_path[dot_pos + 1..].to_lowercase();
-                        if BLOCKED_EXECUTABLE_EXTENSIONS.contains(&ext.as_str()) {
+                if let Some(blocked) = policy.config.get("blocked_extensions")
+                    && let Some(exts) = blocked.as_array()
+                    && let Some(dot_pos) = file_path.rfind('.')
+                {
+                    let ext = &file_path[dot_pos + 1..].to_lowercase();
+                    for blocked_ext in exts {
+                        if let Some(bext) = blocked_ext.as_str()
+                            && *ext == bext.to_lowercase()
+                        {
                             violations.push(DlpViolation {
                                 policy_id: policy.id.clone(),
                                 policy_name: policy.name.clone(),
                                 policy_type: policy.policy_type.clone(),
-                                description: format!(
-                                    "Executable file blocked: .{}",
-                                    ext
-                                ),
-                                severity: "high".to_string(),
+                                description: format!("Blocked file extension: .{}", ext),
+                                severity: policy
+                                    .config
+                                    .get("severity")
+                                    .and_then(|s| s.as_str())
+                                    .unwrap_or("high")
+                                    .to_string(),
                             });
                         }
+                    }
+                }
+                // Default: block executables if no specific config
+                if policy.config.get("blocked_extensions").is_none()
+                    && let Some(dot_pos) = file_path.rfind('.')
+                {
+                    let ext = &file_path[dot_pos + 1..].to_lowercase();
+                    if BLOCKED_EXECUTABLE_EXTENSIONS.contains(&ext.as_str()) {
+                        violations.push(DlpViolation {
+                            policy_id: policy.id.clone(),
+                            policy_name: policy.name.clone(),
+                            policy_type: policy.policy_type.clone(),
+                            description: format!("Executable file blocked: .{}", ext),
+                            severity: "high".to_string(),
+                        });
                     }
                 }
             }
@@ -521,40 +547,14 @@ pub async fn scan_file_dlp(
                     if !patterns_to_check.contains(name) {
                         continue;
                     }
-                    if let Ok(re) = regex::Regex::new(regex) {
-                        if re.is_match(&content_str) {
-                            violations.push(DlpViolation {
-                                policy_id: policy.id.clone(),
-                                policy_name: policy.name.clone(),
-                                policy_type: policy.policy_type.clone(),
-                                description: description.to_string(),
-                                severity: policy
-                                    .config
-                                    .get("severity")
-                                    .and_then(|s| s.as_str())
-                                    .unwrap_or("medium")
-                                    .to_string(),
-                            });
-                        }
-                    }
-                }
-            }
-            "file_size" => {
-                if let Some(max_size) = policy
-                    .config
-                    .get("max_size_bytes")
-                    .and_then(|s| s.as_u64())
-                {
-                    if content.len() as u64 > max_size {
+                    if let Ok(re) = regex::Regex::new(regex)
+                        && re.is_match(&content_str)
+                    {
                         violations.push(DlpViolation {
                             policy_id: policy.id.clone(),
                             policy_name: policy.name.clone(),
                             policy_type: policy.policy_type.clone(),
-                            description: format!(
-                                "File size {} exceeds limit of {} bytes",
-                                content.len(),
-                                max_size
-                            ),
+                            description: description.to_string(),
                             severity: policy
                                 .config
                                 .get("severity")
@@ -565,15 +565,36 @@ pub async fn scan_file_dlp(
                     }
                 }
             }
+            "file_size" => {
+                if let Some(max_size) = policy.config.get("max_size_bytes").and_then(|s| s.as_u64())
+                    && content.len() as u64 > max_size
+                {
+                    violations.push(DlpViolation {
+                        policy_id: policy.id.clone(),
+                        policy_name: policy.name.clone(),
+                        policy_type: policy.policy_type.clone(),
+                        description: format!(
+                            "File size {} exceeds limit of {} bytes",
+                            content.len(),
+                            max_size
+                        ),
+                        severity: policy
+                            .config
+                            .get("severity")
+                            .and_then(|s| s.as_str())
+                            .unwrap_or("medium")
+                            .to_string(),
+                    });
+                }
+            }
             "external_share" => {
                 // Check if file is shared externally (placeholder logic)
                 if let Some(deny_external) =
                     policy.config.get("deny_external").and_then(|s| s.as_bool())
+                    && deny_external
                 {
-                    if deny_external {
-                        // In a real implementation, check if file is in a shared context
-                        // For now, flag files that look like they might be shared
-                    }
+                    // In a real implementation, check if file is in a shared context
+                    // For now, flag files that look like they might be shared
                 }
             }
             _ => {}
@@ -581,32 +602,29 @@ pub async fn scan_file_dlp(
     }
 
     // Record violations as alerts
-    if !violations.is_empty() {
-        if let Some(db) = &state.db {
-            let conn = match db.lock() {
-                Ok(c) => c,
-                Err(e) => {
-                    let c = e.into_inner();
-                    c
-                }
-            };
-            let now = chrono::Utc::now().to_rfc3339();
-            for violation in &violations {
-                let alert_id = uuid::Uuid::new_v4().to_string();
-                let _ = conn.execute(
-                    "INSERT INTO dlp_alerts (id, policy_id, policy_name, file_path, violation_type, details, severity, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                    params![
-                        alert_id,
-                        violation.policy_id,
-                        violation.policy_name,
-                        file_path,
-                        violation.policy_type,
-                        violation.description,
-                        violation.severity,
-                        now,
-                    ],
-                );
-            }
+    if !violations.is_empty()
+        && let Some(db) = &state.db
+    {
+        let conn = match db.lock() {
+            Ok(c) => c,
+            Err(e) => e.into_inner(),
+        };
+        let now = chrono::Utc::now().to_rfc3339();
+        for violation in &violations {
+            let alert_id = uuid::Uuid::new_v4().to_string();
+            let _ = conn.execute(
+                "INSERT INTO dlp_alerts (id, policy_id, policy_name, file_path, violation_type, details, severity, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    alert_id,
+                    violation.policy_id,
+                    violation.policy_name,
+                    file_path,
+                    violation.policy_type,
+                    violation.description,
+                    violation.severity,
+                    now,
+                ],
+            );
         }
     }
 
@@ -630,10 +648,7 @@ pub async fn list_alerts(State(state): State<AppState>) -> Response {
         Some(db) => {
             let conn = match db.lock() {
                 Ok(c) => c,
-                Err(e) => {
-                    let c = e.into_inner();
-                    c
-                }
+                Err(e) => e.into_inner(),
             };
             let mut stmt = match conn.prepare(
                 "SELECT id, policy_id, policy_name, file_path, violation_type, details, severity, created_at FROM dlp_alerts ORDER BY created_at DESC LIMIT 100",

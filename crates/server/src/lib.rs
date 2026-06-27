@@ -12,24 +12,24 @@ pub mod backup;
 pub mod batch;
 pub mod branding;
 pub mod bulk;
+pub mod calendar_api;
+pub mod chat_api;
 #[cfg(unix)]
 pub mod clamav;
 pub mod collab_ws;
 pub mod comments;
 pub mod config;
 pub mod conflict;
-pub mod calendar_api;
-pub mod chat_api;
 pub mod contacts_api;
-pub mod notes_api;
-pub mod tasks_api;
+pub mod dashboard;
 pub mod dav;
 pub mod db;
-pub mod dashboard;
 pub mod dedup;
 pub mod e2ee;
 pub mod email;
 pub mod encryption;
+pub mod notes_api;
+pub mod tasks_api;
 pub use ferro_distributed::erasure_storage;
 pub mod error;
 pub mod events;
@@ -114,6 +114,8 @@ pub mod federation {
         ferro_server_activitypub::federated_share(State(fed_state(&s)), body).await
     }
 }
+pub mod antivirus_api;
+pub mod dlp_api;
 pub mod event_triggers;
 pub mod idempotency;
 pub mod indexer;
@@ -127,24 +129,22 @@ pub mod mail_api;
 pub mod metadata_replication;
 pub mod metrics;
 pub mod move_copy;
+pub mod notification_prefs_api;
 pub mod object_store_backend;
 pub mod ocr;
 pub mod ocr_engine;
-pub mod offline_wiring;
 pub mod offline_api;
-pub mod antivirus_api;
-pub mod dlp_api;
+pub mod offline_wiring;
 pub mod openapi;
 #[cfg(feature = "pg")]
 pub mod pg_state;
+pub mod photos_api;
 pub mod plugin_marketplace_api;
 pub mod plugin_permissions;
 pub mod policies;
 pub mod preferences;
-pub mod notification_prefs_api;
 pub mod presigned;
 pub mod prometheus_metrics;
-pub mod photos_api;
 pub mod push_notifications;
 pub mod quota;
 pub mod range_get;
@@ -182,8 +182,8 @@ pub mod upload;
 pub mod user_api;
 pub mod user_paths;
 pub mod users;
-pub mod watermark_api;
 pub mod wasm_upload;
+pub mod watermark_api;
 #[cfg(feature = "webauthn")]
 pub mod webauthn_api;
 pub mod webdav;
@@ -1520,10 +1520,7 @@ fn api_routes(
             axum::routing::delete(calendar_api::delete_event),
         )
         // Contacts REST API bridge
-        .route(
-            "/contacts",
-            axum::routing::get(contacts_api::list_contacts),
-        )
+        .route("/contacts", axum::routing::get(contacts_api::list_contacts))
         .route(
             "/contacts",
             axum::routing::post(contacts_api::create_contact),
@@ -1554,10 +1551,7 @@ fn api_routes(
             axum::routing::get(chat_api::get_messages).post(chat_api::send_message),
         )
         // Photos REST API
-        .route(
-            "/photos",
-            axum::routing::get(photos_api::list_photos),
-        )
+        .route("/photos", axum::routing::get(photos_api::list_photos))
         .route(
             "/photos/albums",
             axum::routing::get(photos_api::list_albums).post(photos_api::create_album),
@@ -1575,10 +1569,7 @@ fn api_routes(
             "/notes",
             axum::routing::get(notes_api::list_notes).post(notes_api::create_note),
         )
-        .route(
-            "/notes/search",
-            axum::routing::get(notes_api::search_notes),
-        )
+        .route("/notes/search", axum::routing::get(notes_api::search_notes))
         .route(
             "/notes/{id}",
             axum::routing::get(notes_api::get_note)
@@ -1614,10 +1605,7 @@ fn api_routes(
             axum::routing::get(push_notifications::list_push_tokens),
         )
         // Video streaming endpoints
-        .route(
-            "/stream",
-            axum::routing::get(streaming::stream_video),
-        )
+        .route("/stream", axum::routing::get(streaming::stream_video))
         // Whiteboard endpoints
         .route(
             "/whiteboard",
@@ -1665,26 +1653,20 @@ fn api_routes(
         // DLP endpoints
         .route(
             "/dlp/policies",
-            axum::routing::get(dlp_api::list_policies)
-                .post(dlp_api::create_policy),
+            axum::routing::get(dlp_api::list_policies).post(dlp_api::create_policy),
         )
         .route(
             "/dlp/policies/{id}",
-            axum::routing::put(dlp_api::update_policy)
-                .delete(dlp_api::delete_policy),
+            axum::routing::put(dlp_api::update_policy).delete(dlp_api::delete_policy),
         )
         .route(
             "/dlp/scan/{path}",
             axum::routing::post(dlp_api::scan_file_dlp),
         )
-        .route(
-            "/dlp/alerts",
-            axum::routing::get(dlp_api::list_alerts),
-        )
+        .route("/dlp/alerts", axum::routing::get(dlp_api::list_alerts))
         .route(
             "/whiteboard/{id}",
-            axum::routing::get(whiteboard_api::get_whiteboard)
-                .put(whiteboard_api::save_whiteboard),
+            axum::routing::get(whiteboard_api::get_whiteboard).put(whiteboard_api::save_whiteboard),
         )
         .route(
             "/whiteboard/{id}/image",

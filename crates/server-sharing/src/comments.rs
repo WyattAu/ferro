@@ -523,7 +523,7 @@ mod tests {
     fn setup_store() -> (CommentStore, TempDir) {
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("ferro.db");
-        let mut conn = rusqlite::Connection::open(&db_path).unwrap();
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
         conn.execute_batch("PRAGMA journal_mode=WAL;").unwrap();
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS comments (

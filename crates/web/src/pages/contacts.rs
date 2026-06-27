@@ -1,8 +1,6 @@
 use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use wasm_bindgen::prelude::Closure;
-use wasm_bindgen::JsCast;
 
 use crate::api;
 use crate::components::header::{Header, provide_header_state};
@@ -31,10 +29,10 @@ fn parse_vcard_fn(vcard: &str) -> String {
 fn parse_vcard_emails(vcard: &str) -> Vec<String> {
     let mut emails = Vec::new();
     for line in vcard.lines() {
-        if line.starts_with("EMAIL") {
-            if let Some(colon_pos) = line.find(':') {
-                emails.push(line[colon_pos + 1..].trim().to_string());
-            }
+        if line.starts_with("EMAIL")
+            && let Some(colon_pos) = line.find(':')
+        {
+            emails.push(line[colon_pos + 1..].trim().to_string());
         }
     }
     emails
@@ -43,10 +41,10 @@ fn parse_vcard_emails(vcard: &str) -> Vec<String> {
 fn parse_vcard_phones(vcard: &str) -> Vec<String> {
     let mut phones = Vec::new();
     for line in vcard.lines() {
-        if line.starts_with("TEL") {
-            if let Some(colon_pos) = line.find(':') {
-                phones.push(line[colon_pos + 1..].trim().to_string());
-            }
+        if line.starts_with("TEL")
+            && let Some(colon_pos) = line.find(':')
+        {
+            phones.push(line[colon_pos + 1..].trim().to_string());
         }
     }
     phones
@@ -72,19 +70,19 @@ fn parse_vcard_note(vcard: &str) -> String {
 
 fn parse_vcard_photo(vcard: &str) -> Option<String> {
     for line in vcard.lines() {
-        if line.starts_with("PHOTO") {
-            if let Some(colon_pos) = line.find(':') {
-                let data = line[colon_pos + 1..].trim();
-                if !data.is_empty() {
-                    let mime = if line.contains("PNG") {
-                        "image/png"
-                    } else if line.contains("JPEG") || line.contains("JPG") {
-                        "image/jpeg"
-                    } else {
-                        "image/png"
-                    };
-                    return Some(format!("data:{};base64,{}", mime, data));
-                }
+        if line.starts_with("PHOTO")
+            && let Some(colon_pos) = line.find(':')
+        {
+            let data = line[colon_pos + 1..].trim();
+            if !data.is_empty() {
+                let mime = if line.contains("PNG") {
+                    "image/png"
+                } else if line.contains("JPEG") || line.contains("JPG") {
+                    "image/jpeg"
+                } else {
+                    "image/png"
+                };
+                return Some(format!("data:{};base64,{}", mime, data));
             }
         }
     }
@@ -221,8 +219,7 @@ pub fn ContactsPage() -> impl IntoView {
         if q.is_empty() {
             ctrs
         } else {
-            ctrs
-                .into_iter()
+            ctrs.into_iter()
                 .filter(|c| {
                     let name = parse_vcard_fn(&c.vcard_data).to_lowercase();
                     let emails = parse_vcard_emails(&c.vcard_data);
@@ -257,8 +254,18 @@ pub fn ContactsPage() -> impl IntoView {
 
     let save_contact = move |_: ev::MouseEvent| {
         let fn_name = dialog_fn.get();
-        let emails: Vec<String> = dialog_emails.get().split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
-        let phones: Vec<String> = dialog_phones.get().split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+        let emails: Vec<String> = dialog_emails
+            .get()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let phones: Vec<String> = dialog_phones
+            .get()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
         let org = dialog_org.get();
         let note = dialog_note.get();
         let editing = editing_contact.get();
@@ -286,12 +293,9 @@ pub fn ContactsPage() -> impl IntoView {
                     "address_book_id": "",
                     "vcard_data": vcard
                 });
-                let _ = api::fetch_json_with_method(
-                    "/api/contacts",
-                    "POST",
-                    Some(&body.to_string()),
-                )
-                .await;
+                let _ =
+                    api::fetch_json_with_method("/api/contacts", "POST", Some(&body.to_string()))
+                        .await;
             }
             fetch_contacts();
         });
@@ -299,12 +303,8 @@ pub fn ContactsPage() -> impl IntoView {
 
     let delete_contact = move |uid: String| {
         spawn_local(async move {
-            let _ = api::fetch_json_with_method(
-                &format!("/api/contacts/{}", uid),
-                "DELETE",
-                None,
-            )
-            .await;
+            let _ = api::fetch_json_with_method(&format!("/api/contacts/{}", uid), "DELETE", None)
+                .await;
             set_selected_contact.set(None);
             fetch_contacts();
         });
@@ -501,7 +501,7 @@ pub fn ContactsPage() -> impl IntoView {
                                                         {if !org_clone.is_empty() {
                                                             view! { <div class="text-sm text-gray-500">{org_clone}</div> }.into_any()
                                                         } else {
-                                                            view! {}.into_any()
+                                                            ().into_any()
                                                         }}
                                                     </div>
                                                 </div>
@@ -536,7 +536,7 @@ pub fn ContactsPage() -> impl IntoView {
                                                         </div>
                                                     }.into_any()
                                                 } else {
-                                                    view! {}.into_any()
+                                                    ().into_any()
                                                 }}
 
                                                 {if !phones.is_empty() {
@@ -551,7 +551,7 @@ pub fn ContactsPage() -> impl IntoView {
                                                         </div>
                                                     }.into_any()
                                                 } else {
-                                                    view! {}.into_any()
+                                                    ().into_any()
                                                 }}
 
                                                 {if !org.is_empty() {
@@ -562,7 +562,7 @@ pub fn ContactsPage() -> impl IntoView {
                                                         </div>
                                                     }.into_any()
                                                 } else {
-                                                    view! {}.into_any()
+                                                    ().into_any()
                                                 }}
 
                                                 {if !note.is_empty() {
@@ -573,7 +573,7 @@ pub fn ContactsPage() -> impl IntoView {
                                                         </div>
                                                     }.into_any()
                                                 } else {
-                                                    view! {}.into_any()
+                                                    ().into_any()
                                                 }}
                                             </div>
 

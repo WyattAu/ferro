@@ -161,7 +161,7 @@ fn sort_plugins(plugins: &mut [MarketplacePlugin], sort_by: &SortBy) {
                 .partial_cmp(&a.rating)
                 .unwrap_or(std::cmp::Ordering::Equal)
         }),
-        SortBy::Downloads => plugins.sort_by(|a, b| b.downloads.cmp(&a.downloads)),
+        SortBy::Downloads => plugins.sort_by_key(|b| std::cmp::Reverse(b.downloads)),
         SortBy::Recent => plugins.reverse(),
     }
 }
@@ -322,17 +322,14 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
                         if matches!(
                             plugin.status,
                             PluginStatus::Installed | PluginStatus::Enabled
-                        ) {
-                            if let Some(local) =
-                                plugins.get_untracked().iter().find(|p| p.id == plugin.id)
-                            {
-                                if plugin.version != local.version {
-                                    updates.push(format!(
-                                        "{}: {} -> {}",
-                                        plugin.name, local.version, plugin.version
-                                    ));
-                                }
-                            }
+                        ) && let Some(local) =
+                            plugins.get_untracked().iter().find(|p| p.id == plugin.id)
+                            && plugin.version != local.version
+                        {
+                            updates.push(format!(
+                                "{}: {} -> {}",
+                                plugin.name, local.version, plugin.version
+                            ));
                         }
                     }
                     set_update_results.set(Some(updates));

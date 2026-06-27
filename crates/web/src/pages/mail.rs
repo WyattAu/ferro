@@ -4,8 +4,8 @@ use leptos::task::spawn_local;
 
 use crate::api;
 use crate::components::header::{Header, provide_header_state};
-use crate::components::theme_toggle::provide_theme_state;
 use crate::components::navigation::NavigationSidebar;
+use crate::components::theme_toggle::provide_theme_state;
 use crate::t;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -85,7 +85,7 @@ pub fn MailPage() -> impl IntoView {
     let (selected_message, set_selected_message) = signal(None::<MailMessageDetail>);
     let (view, set_view) = signal(MailView::List);
     let (search_query, set_search_query) = signal(String::new());
-    let (error_msg, set_error) = signal(String::new());
+    let (_error_msg, set_error) = signal(String::new());
 
     let (show_add_account, set_show_add_account) = signal(false);
     let (new_account_email, set_new_account_email) = signal(String::new());
@@ -109,9 +109,21 @@ pub fn MailPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(MailAccount {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        email: v.get("email").and_then(|e| e.as_str()).unwrap_or("").to_string(),
-                                        display_name: v.get("display_name").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                                        provider: v.get("provider").and_then(|p| p.as_str()).unwrap_or("").to_string(),
+                                        email: v
+                                            .get("email")
+                                            .and_then(|e| e.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        display_name: v
+                                            .get("display_name")
+                                            .and_then(|d| d.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        provider: v
+                                            .get("provider")
+                                            .and_then(|p| p.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
                                     })
                                 })
                                 .collect()
@@ -132,27 +144,36 @@ pub fn MailPage() -> impl IntoView {
         let aid = account_id.to_string();
         spawn_local(async move {
             let url = format!("/api/mail/accounts/{}/folders", aid);
-            match api::fetch_json(&url).await {
-                Ok(val) => {
-                    let list = val
-                        .get("folders")
-                        .and_then(|v| v.as_array())
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| {
-                                    Some(MailFolder {
-                                        id: v.get("id")?.as_str()?.to_string(),
-                                        name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
-                                        unread_count: v.get("unread_count").and_then(|u| u.as_u64()).unwrap_or(0) as u32,
-                                        folder_type: v.get("folder_type").and_then(|t| t.as_str()).unwrap_or("").to_string(),
-                                    })
+            if let Ok(val) = api::fetch_json(&url).await {
+                let list = val
+                    .get("folders")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| {
+                                Some(MailFolder {
+                                    id: v.get("id")?.as_str()?.to_string(),
+                                    name: v
+                                        .get("name")
+                                        .and_then(|n| n.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    unread_count: v
+                                        .get("unread_count")
+                                        .and_then(|u| u.as_u64())
+                                        .unwrap_or(0)
+                                        as u32,
+                                    folder_type: v
+                                        .get("folder_type")
+                                        .and_then(|t| t.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
                                 })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    set_folders.set(list);
-                }
-                Err(_) => {}
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                set_folders.set(list);
             }
         });
     };
@@ -162,30 +183,49 @@ pub fn MailPage() -> impl IntoView {
         let fid = folder_id.to_string();
         spawn_local(async move {
             let url = format!("/api/mail/accounts/{}/folders/{}/messages", aid, fid);
-            match api::fetch_json(&url).await {
-                Ok(val) => {
-                    let list = val
-                        .get("messages")
-                        .and_then(|v| v.as_array())
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| {
-                                    Some(MailMessage {
-                                        id: v.get("id")?.as_str()?.to_string(),
-                                        subject: v.get("subject").and_then(|s| s.as_str()).unwrap_or("").to_string(),
-                                        from: v.get("from").and_then(|f| f.as_str()).unwrap_or("").to_string(),
-                                        date: v.get("date").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                                        is_read: v.get("is_read").and_then(|r| r.as_bool()).unwrap_or(false),
-                                        has_attachments: v.get("has_attachments").and_then(|a| a.as_bool()).unwrap_or(false),
-                                        snippet: v.get("snippet").and_then(|s| s.as_str()).unwrap_or("").to_string(),
-                                    })
+            if let Ok(val) = api::fetch_json(&url).await {
+                let list = val
+                    .get("messages")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| {
+                                Some(MailMessage {
+                                    id: v.get("id")?.as_str()?.to_string(),
+                                    subject: v
+                                        .get("subject")
+                                        .and_then(|s| s.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    from: v
+                                        .get("from")
+                                        .and_then(|f| f.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    date: v
+                                        .get("date")
+                                        .and_then(|d| d.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    is_read: v
+                                        .get("is_read")
+                                        .and_then(|r| r.as_bool())
+                                        .unwrap_or(false),
+                                    has_attachments: v
+                                        .get("has_attachments")
+                                        .and_then(|a| a.as_bool())
+                                        .unwrap_or(false),
+                                    snippet: v
+                                        .get("snippet")
+                                        .and_then(|s| s.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
                                 })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    set_messages.set(list);
-                }
-                Err(_) => {}
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                set_messages.set(list);
             }
         });
     };
@@ -213,33 +253,85 @@ pub fn MailPage() -> impl IntoView {
         let fid = selected_folder.get().unwrap_or_default();
         let mid = message_id.clone();
         spawn_local(async move {
-            let url = format!("/api/mail/accounts/{}/folders/{}/messages/{}", aid, fid, mid);
-            match api::fetch_json(&url).await {
-                Ok(val) => {
-                    let detail = MailMessageDetail {
-                        id: val.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string(),
-                        subject: val.get("subject").and_then(|s| s.as_str()).unwrap_or("").to_string(),
-                        from: val.get("from").and_then(|f| f.as_str()).unwrap_or("").to_string(),
-                        to: val.get("to").and_then(|t| t.as_array()).map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()).unwrap_or_default(),
-                        cc: val.get("cc").and_then(|c| c.as_array()).map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()).unwrap_or_default(),
-                        date: val.get("date").and_then(|d| d.as_str()).unwrap_or("").to_string(),
-                        body_html: val.get("body_html").and_then(|h| h.as_str()).map(String::from),
-                        body_text: val.get("body_text").and_then(|t| t.as_str()).map(String::from),
-                        attachments: val.get("attachments").and_then(|a| a.as_array()).map(|arr| {
-                            arr.iter().filter_map(|v| {
-                                Some(MailAttachment {
-                                    id: v.get("id")?.as_str()?.to_string(),
-                                    filename: v.get("filename").and_then(|f| f.as_str()).unwrap_or("").to_string(),
-                                    size: v.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
-                                    mime_type: v.get("mime_type").and_then(|m| m.as_str()).unwrap_or("").to_string(),
+            let url = format!(
+                "/api/mail/accounts/{}/folders/{}/messages/{}",
+                aid, fid, mid
+            );
+            if let Ok(val) = api::fetch_json(&url).await {
+                let detail = MailMessageDetail {
+                    id: val
+                        .get("id")
+                        .and_then(|i| i.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    subject: val
+                        .get("subject")
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    from: val
+                        .get("from")
+                        .and_then(|f| f.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    to: val
+                        .get("to")
+                        .and_then(|t| t.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    cc: val
+                        .get("cc")
+                        .and_then(|c| c.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    date: val
+                        .get("date")
+                        .and_then(|d| d.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    body_html: val
+                        .get("body_html")
+                        .and_then(|h| h.as_str())
+                        .map(String::from),
+                    body_text: val
+                        .get("body_text")
+                        .and_then(|t| t.as_str())
+                        .map(String::from),
+                    attachments: val
+                        .get("attachments")
+                        .and_then(|a| a.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| {
+                                    Some(MailAttachment {
+                                        id: v.get("id")?.as_str()?.to_string(),
+                                        filename: v
+                                            .get("filename")
+                                            .and_then(|f| f.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        size: v.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
+                                        mime_type: v
+                                            .get("mime_type")
+                                            .and_then(|m| m.as_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                    })
                                 })
-                            }).collect()
-                        }).unwrap_or_default(),
-                    };
-                    set_selected_message.set(Some(detail));
-                    set_view.set(MailView::Detail);
-                }
-                Err(_) => {}
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                };
+                set_selected_message.set(Some(detail));
+                set_view.set(MailView::Detail);
             }
         });
     };
@@ -258,11 +350,13 @@ pub fn MailPage() -> impl IntoView {
                 "subject": subject,
                 "body": body,
             });
-            let _ = api::fetch_json_with_method("/api/mail/send", "POST", Some(&body_json.to_string())).await;
+            let _ =
+                api::fetch_json_with_method("/api/mail/send", "POST", Some(&body_json.to_string()))
+                    .await;
         });
     };
 
-    let delete_account = move |account_id: String| {
+    let _delete_account = move |account_id: String| {
         let aid = account_id.clone();
         spawn_local(async move {
             let url = format!("/api/mail/accounts/{}", aid);
@@ -271,11 +365,16 @@ pub fn MailPage() -> impl IntoView {
     };
 
     let format_bytes = |bytes: u64| -> String {
-        if bytes == 0 { return "0 B".to_string(); }
+        if bytes == 0 {
+            return "0 B".to_string();
+        }
         let units = ["B", "KB", "MB", "GB"];
         let mut val = bytes as f64;
         let mut idx = 0;
-        while val >= 1024.0 && idx < units.len() - 1 { val /= 1024.0; idx += 1; }
+        while val >= 1024.0 && idx < units.len() - 1 {
+            val /= 1024.0;
+            idx += 1;
+        }
         format!("{:.1} {}", val, units[idx])
     };
 
@@ -327,7 +426,7 @@ pub fn MailPage() -> impl IntoView {
                                         let aid = account.id.clone();
                                         let aid2 = aid.clone();
                                         let email = account.email.clone();
-                                        let selected = selected_account.clone();
+                                        let selected = selected_account;
                                         view! {
                                             <div
                                                 class=move || format!("px-3 py-2.5 cursor-pointer border-b border-gray-100 dark:border-gray-700 transition-colors {}",
@@ -359,7 +458,7 @@ pub fn MailPage() -> impl IntoView {
                                         let fid2 = fid.clone();
                                         let name = folder.name.clone();
                                         let unread = folder.unread_count;
-                                        let selected = selected_folder.clone();
+                                        let selected = selected_folder;
                                         view! {
                                             <div
                                                 class=move || format!("px-3 py-2 cursor-pointer flex items-center justify-between transition-colors {}",

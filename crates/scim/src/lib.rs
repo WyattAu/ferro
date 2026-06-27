@@ -7,7 +7,7 @@ pub mod user;
 use axum::Router;
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ScimState {
     pub group_store: Arc<group::GroupStore>,
 }

@@ -2,8 +2,8 @@ use leptos::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
-use crate::components::command_palette::use_command_palette_state;
 use crate::components::clipboard::use_clipboard_state;
+use crate::components::command_palette::use_command_palette_state;
 use crate::components::focus_trap::FocusTrap;
 use crate::components::theme_toggle::use_theme_state;
 use crate::t;
@@ -46,7 +46,8 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
         if query.is_empty() {
             return shortcuts.clone();
         }
-        shortcuts.iter()
+        shortcuts
+            .iter()
             .filter(|(_, keys, label)| {
                 label.to_lowercase().contains(&query) || keys.to_lowercase().contains(&query)
             })
@@ -69,7 +70,8 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
                             set_show.update(|v| *v = !*v);
                         }
                     },
-                ) as Box<dyn Fn(web_sys::KeyboardEvent)>);
+                )
+                    as Box<dyn Fn(web_sys::KeyboardEvent)>);
                 let _ = document
                     .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
                 std::mem::forget(cb);
