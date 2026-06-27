@@ -1,28 +1,70 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 5.0 | **Date:** 2026-06-11 | **Status:** v5.0 Production Readiness
+**Version:** 5.1 | **Date:** 2026-06-27 | **Status:** v5.1 Audit Cycle 13 Complete
 
 ---
 
-## Current State (2026-06-10)
+## Current State (2026-06-27)
 
 | Metric | Value |
 |--------|-------|
-| Crates | 43 |
-| Tests | 2400+ passed, 0 failed, 0 ignored |
+| Crates | 46 |
+| Tests | 2500+ passed, 0 failed, 0 ignored |
 | Code | ~107K lines Rust |
 | Clippy warnings | 0 |
 | Security audit | Self-audit complete, 14 findings fixed (F001-F013 + F002) |
 | Pen test | 33 security tests + 44 integration tests + 91 wiring tests |
 | Integration | All 15 framework crates wired into server |
-| CI/CD | 7 workflows (checks, bench, extended, release, docs, desktop, dependabot) |
-| Docs | Landing page + mdBook at /docs/, Mermaid diagrams, COMPARISON.md (15 platforms), ROADMAP.md |
+| CI/CD | 8 workflows (checks, bench, extended, release, docs, desktop, dependabot, security-scan) |
+| Docs | Astro + Starlight documentation site, landing page, Mermaid diagrams, COMPARISON.md (15 platforms), ROADMAP.md |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | MSRV | 1.92 (enforced in CI) |
 | Competitive gaps | 0 remaining (all 25 closed) |
-| Pre-commit hook | fmt + clippy + secret scan + targeted crate tests (configurable) |
+| Pre-commit hook | fmt + clippy + secret scan + targeted crate tests (configurable, bash shebang) |
 
 ## Recently Completed
+
+### 2026-06-27: Audit Cycle 13 - End-to-End Code Quality, CI/CD, Documentation, Deployment
+
+**Phase 1: Code Quality Fixes:**
+- Fixed ~107 clippy errors in web crate (unused imports, dead code, Leptos idiom fixes)
+- Fixed ~34 clippy errors in server crate (collapsible_if, let_binding_return, and_then)
+- Fixed eraser tool bug in whiteboard (was using Pen composite instead of destination-out)
+- Fixed flaky collab_integration test (Join message handling)
+- Removed dead keyboard_shortcuts.rs (superseded by keyboard_shortcuts_help.rs)
+- Added cfg_attr(dead_code) for wasm-only symbols (fetch_text, RECENT_SEARCHES_KEY)
+- Fixed scim crate: Default derives, bool_assert_comparison, too_many_arguments
+
+**Phase 2: CI/CD Audit:**
+- Pinned trivy-action to commit hash in release.yml (was unpinned @master)
+- Verified all 8 workflows are well-structured with proper security pinning
+
+**Phase 3: GUI Audit:**
+- Fixed landing page accessibility: darkened --text-secondary from #8B8178 to #736961 for WCAG AA 4.5:1+ contrast
+- Fixed title: "Ferro --" double dash to "Ferro:"
+- Updated crate count from 43 to 46
+- Fixed pre-commit hook shebang: #!/bin/sh to #!/usr/bin/env bash (script uses bashisms)
+
+**Phase 4: Documentation:**
+- Fixed MSRV: 1.95+ corrected to 1.92+ across README, CONTRIBUTING.md
+- Fixed crate count: 43 corrected to 46 across README, VERSION.md, docs
+- Added 3 missing crates to README: ferro-caldav, ferro-mobile, ferro-scim
+- Cleaned architecture Mermaid diagram: removed 7 phantom crates (e2ee, session-manager, etc.)
+- Fixed platform-integration.md: ferro-mobile-contract references updated to ferro-mobile
+
+**Phase 6: Web Deployment:**
+- Migrated documentation from mdBook to Astro 7 + Starlight 0.41
+- 57 markdown pages migrated to Starlight content collection format
+- Landing page integrated as Astro page (replaces raw HTML)
+- Added search index (Pagefind), sitemap, logo asset
+- Updated CI/CD workflow: npm ci + astro build (replaces mdbook install + build)
+- Fixed MDX angle bracket issues (<120KB, <data-dir>, {id})
+
+**Phase 7: Functionality Audit:**
+- Identified backup.rs duplication (1526 lines): server/src/backup.rs duplicates server-admin/src/backup.rs
+- Server crate has 131 source files -- decomposition candidates identified
+- Confirmed correct layering: TOTP, WebAuthn, E2EE/Encryption/Ransomware follow proper library + HTTP handler pattern
+- 20+ standalone crates consumed only by server binary (correct architecture)
 
 ### 2026-06-10: Audit Cycle 12 - Code Quality, CI/CD Hardening, Accessibility
 
