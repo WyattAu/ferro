@@ -212,7 +212,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Run Trivy vulnerability scanner on container
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@bfa4b33a029b9aa80ddb784b45574c30e072c59e # v0.36.0
         with:
           image-ref: 'ghcr.io/${{ github.repository_owner }}/ferro:${{ github.ref_name }}'
           format: 'table'
