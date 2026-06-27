@@ -2,7 +2,7 @@
 
 ## Crate Structure
 
-Ferro is built as a Rust workspace with 43 crates organized by functional domain:
+Ferro is built as a Rust workspace with 46 crates organized by functional domain:
 
 ```mermaid
 graph LR
@@ -11,14 +11,16 @@ graph LR
         Desktop["ferro-desktop<br/>(Tauri desktop app)"]
         CLI["ferro-cli<br/>(admin CLI)"]
         Client["ferro-client<br/>(WebDAV client SDK)"]
+        Mobile["ferro-mobile<br/>(Tauri v2 iOS/Android)"]
     end
 
     subgraph Server ["Server"]
         Server["ferro-server<br/>(Axum HTTP server)"]
-        DAV["ferro-dav<br/>(CalDAV/CardDAV)"]
+        DAV["ferro-dav + ferro-caldav<br/>(WebDAV/CalDAV/CardDAV)"]
         WebDAVHandler["ferro-webdav-handler<br/>(WebDAV XML builders)"]
         Admin["ferro-admin<br/>(Admin dashboard)"]
         GraphQL["ferro-graphql<br/>(GraphQL API)"]
+        SCIM["ferro-scim<br/>(SCIM 2.0 provisioning)"]
     end
 
     subgraph Auth ["Auth & Security"]
@@ -34,20 +36,15 @@ graph LR
     end
 
     subgraph Extensions ["Extensions"]
-        E2EE["ferro-e2ee<br/>(End-to-end encryption)"]
         CRDT["ferro-crdt<br/>(Text CRDT co-editing)"]
-        SyncDelta["ferro-sync-delta<br/>(Block-level sync)"]
         FUSE["ferro-fuse<br/>(FUSE3 mount)"]
         Cache["ferro-cache<br/>(In-memory cache)"]
         EventBus["ferro-event-bus<br/>(Event system)"]
         AuditLog["ferro-audit-log<br/>(Audit trail)"]
-        SessionMgr["ferro-session-manager<br/>(Session mgmt)"]
-        ConfigMgr["ferro-config-manager<br/>(Config mgmt)"]
         Webhook["ferro-webhook<br/>(Webhook dispatch)"]
         RateLimiter["ferro-rate-limiter<br/>(Token bucket)"]
-        SearchIndex["ferro-search-index<br/>(Sharded search)"]
-        StorageAdapter["ferro-storage-adapter<br/>(Storage abstraction)"]
         BackendRouter["ferro-backend-router<br/>(Backend routing)"]
+        WASMHost["ferro-wasm-host<br/>(WASM runtime host)"]
     end
 
     subgraph Federation ["Federation & Distributed"]
@@ -64,12 +61,11 @@ graph LR
         SelectiveSync["ferro-selective-sync<br/>(Selective sync)"]
         NFS["ferro-mount-nfs<br/>(NFS/SMB mount trait)"]
         AI["ferro-ai<br/>(Semantic search, tagging)"]
-        Marketplace["ferro-plugin-marketplace<br/>(Plugin registry)"]
-        MobileContract["ferro-mobile-contract<br/>(iOS/Android API)"]
     end
 
     subgraph Tooling ["Tooling"]
         Benchmarks["ferro-benchmarks<br/>(Criterion benchmarks)"]
+        Migrate["ferro-migrate<br/>(Data migration)"]
     end
 ```
 

@@ -325,7 +325,7 @@ See [docs/api.md](docs/api.md) for detailed request/response documentation.
 ## Development
 
 ### Prerequisites
-- Rust 1.95+ (edition 2024)
+- Rust 1.92+ (edition 2024, pinned in `rust-toolchain.toml`)
 - OpenSSL (for PostgreSQL support)
 
 ### Build
@@ -383,7 +383,7 @@ See [deploy/README-ecosystem.md](deploy/README-ecosystem.md) for all deployment 
 
 ## Architecture
 
-Ferro is built as a Rust workspace with 43 crates:
+Ferro is built as a Rust workspace with 46 crates:
 
 **Core**
 
@@ -394,6 +394,8 @@ Ferro is built as a Rust workspace with 43 crates:
 | `ferro-crypto` | Cryptographic primitives (SHA, HMAC, password hashing) |
 | `ferro-auth` | Authentication (OIDC, simple auth) and Cedar authorization |
 | `ferro-dav` | WebDAV protocol implementation (RFC 4918) |
+| `ferro-caldav` | CalDAV/CardDAV protocol implementation (RFC 4791/6352) |
+| `ferro-scim` | SCIM 2.0 user/group provisioning |
 
 **Server**
 
@@ -427,6 +429,7 @@ Ferro is built as a Rust workspace with 43 crates:
 | Crate | Description |
 |-------|-------------|
 | `ferro-desktop` | Tauri desktop application |
+| `ferro-mobile` | Tauri v2 mobile bindings (iOS/Android) |
 | `ferro-client` | Rust client SDK with C-FFI |
 | `ferro-fuse` | FUSE filesystem mount |
 | `ferro-mount-nfs` | NFS mount support |

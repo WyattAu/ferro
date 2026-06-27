@@ -6,7 +6,7 @@ Thank you for your interest in contributing. This guide covers everything you ne
 
 ### Prerequisites
 
-- Rust 1.95+ (edition 2024, pinned in `rust-toolchain.toml`)
+- Rust 1.92+ (edition 2024, pinned in `rust-toolchain.toml`)
 - Just (optional, for common tasks)
 - Node.js 18+ (for web UI development)
 - Playwright (for E2E tests, optional)

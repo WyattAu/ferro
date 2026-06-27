@@ -300,7 +300,7 @@ pub struct DesktopConfig {
 
 ### Objective
 
-Implement iOS Files Provider extension using `ferro-mobile-contract` API bindings.
+Implement iOS Files Provider extension using `ferro-mobile` API bindings.
 
 ### Existing Code
 
@@ -456,7 +456,7 @@ Thumbnails are generated server-side via WebDAV `GET` with `Range` header, then 
 
 ### Objective
 
-Implement Android Storage Access Framework provider using `ferro-mobile-contract` API bindings.
+Implement Android Storage Access Framework provider using `ferro-mobile` API bindings.
 
 ### Existing Code
 

@@ -3,7 +3,7 @@
 ## Current Status
 - **Phase:** v3.1.0 Release Candidate
 - **Version:** 3.1.0-rc.1
-- **Crates:** 43
+- **Crates:** 46
 - **Tests:** 2500+ test functions passed, 0 failed, 0 clippy warnings
 - **E2E:** 14 Playwright spec files + DOM snapshot + screenshot infrastructure
 - **Fuzzing:** 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes
@@ -12,7 +12,7 @@
 - **Mobile:** Tauri v2 iOS/Android: 12 mobile commands fully implemented (WebDAV sync, offline pinning, thumbnails, push notifications, connectivity monitoring, conflict resolution). Responsive frontend with touch gestures. Config persisted to disk.
 - **Web Frontend:** Leptos WASM frontend fully functional at /ui/ -- 165 DOM elements, 17 buttons, 3 inputs, 0 console errors. Verified across Desktop (1280x720), Mobile (390x844), Tablet (768x1024) viewports via Playwright.
 - **Static Serving:** Fixed --static-dir priority so WebDAV handler no longer intercepts root path. Server serves index.html at /, WASM/JS/CSS at /ui/*.
-- **Status:** v5.0 complete. ALL roadmap items DONE (including mobile). 43 crates, 2500+ tests.
+- **Status:** v5.0 complete. ALL roadmap items DONE (including mobile). 46 crates, 2500+ tests.
 - **Last Updated:** 2026-06-12 (Cycle 16: WASM frontend rebuilt, static serving fixed, Playwright traversal verified all 3 viewports -- 165 elements, 17 buttons, 0 errors)
 
 ## Phase Progress

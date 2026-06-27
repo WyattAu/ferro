@@ -28,7 +28,7 @@ C4Context
 
 ## Crate Structure
 
-Ferro is built as a Rust workspace with 43 crates organized by functional domain.
+Ferro is built as a Rust workspace with 46 crates organized by functional domain.
 
 ### Client & UI
 
