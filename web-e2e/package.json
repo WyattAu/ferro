@@ -9,7 +9,7 @@
     "report": "playwright show-report"
   },
   "devDependencies": {
-    "@playwright/test": "^1.45.0",
+    "@playwright/test": "^1.61.1",
     "playwright": "^1.45.0"
   }
 }
