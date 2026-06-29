@@ -6,6 +6,7 @@ use sha2::{Digest, Sha256};
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use common::server_context::HasStorage;
 
 /// Manifest describing a backup's contents.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -318,8 +319,8 @@ pub async fn download_backup(State(state): State<AppState>) -> Response {
 ///
 /// Accepts a zip archive containing a manifest and file data. Validates
 /// SHA-256 checksums and restores files to storage.
-pub async fn restore_from_archive(
-    State(state): State<AppState>,
+pub async fn restore_from_archive_impl<S: HasStorage>(
+    state: &S,
     body: axum::body::Bytes,
 ) -> Response {
     let manifest: BackupManifest = match extract_manifest_from_archive(&body) {
@@ -356,7 +357,7 @@ pub async fn restore_from_archive(
     for entry in &manifest.files {
         let archive_key = entry.path.trim_start_matches('/').replace('/', "_");
 
-        let already_exists = state.storage.exists(&entry.path).await.unwrap_or(false);
+        let already_exists = state.storage().exists(&entry.path).await.unwrap_or(false);
         if already_exists {
             report.files_skipped += 1;
             continue;
@@ -383,7 +384,7 @@ pub async fn restore_from_archive(
         }
 
         match state
-            .storage
+            .storage()
             .put(
                 &entry.path,
                 bytes::Bytes::from(content.clone()),
@@ -402,6 +403,13 @@ pub async fn restore_from_archive(
     }
 
     (StatusCode::OK, axum::Json(report)).into_response()
+}
+
+pub async fn restore_from_archive(
+    State(state): State<AppState>,
+    body: axum::body::Bytes,
+) -> Response {
+    restore_from_archive_impl(&state, body).await
 }
 
 /// GET /api/admin/backups — list available backups.
@@ -560,9 +568,8 @@ pub struct IntegrityAuditReport {
     pub findings: Vec<IntegrityCheckResult>,
 }
 
-/// GET /api/admin/integrity — audit all stored files for hash integrity.
-pub async fn audit_integrity(State(state): State<AppState>) -> Response {
-    let entries = match state.storage.list_all("/", 10000).await {
+pub async fn audit_integrity_impl<S: HasStorage>(state: &S) -> Response {
+    let entries = match state.storage().list_all("/", 10000).await {
         Ok(e) => e,
         Err(e) => {
             return ApiError::internal(
@@ -601,7 +608,7 @@ pub async fn audit_integrity(State(state): State<AppState>) -> Response {
             continue;
         }
 
-        match state.storage.get(&meta.path).await {
+        match state.storage().get(&meta.path).await {
             Ok(content) => {
                 let computed = hex::encode(Sha256::digest(&content));
 
@@ -630,6 +637,11 @@ pub async fn audit_integrity(State(state): State<AppState>) -> Response {
     }
 
     (StatusCode::OK, axum::Json(report)).into_response()
+}
+
+/// GET /api/admin/integrity — audit all stored files for hash integrity.
+pub async fn audit_integrity(State(state): State<AppState>) -> Response {
+    audit_integrity_impl(&state).await
 }
 
 /// GET /api/admin/audit-chain — verify audit log chain hash integrity.

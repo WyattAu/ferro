@@ -14,6 +14,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::RwLock;
 
 use crate::AppState;
+use common::server_context::HasStorage;
 
 /// Maximum number of scan results to retain in history.
 const MAX_SCAN_HISTORY: usize = 100;
@@ -202,9 +203,8 @@ async fn check_connection(config: &ClamavTcpConfig) -> bool {
     }
 }
 
-/// POST /api/antivirus/scan/{path} — Scan a file.
-pub async fn scan_file(State(state): State<AppState>, Path(file_path): Path<String>) -> Response {
-    let content = match state.storage.get(&file_path).await {
+pub async fn scan_file_impl<S: HasStorage>(state: &S, file_path: &str) -> Response {
+    let content = match state.storage().get(file_path).await {
         Ok(c) => c,
         Err(e) => {
             return (
@@ -221,11 +221,11 @@ pub async fn scan_file(State(state): State<AppState>, Path(file_path): Path<Stri
     let scanned_at = chrono::Utc::now().to_rfc3339();
     let file_size = content.len() as u64;
 
-    match scan_file_tcp(&config, &file_path, &content).await {
+    match scan_file_tcp(&config, file_path, &content).await {
         Ok((clean, threat_name, scan_time_ms)) => {
             let entry = ScanResultEntry {
                 id: uuid::Uuid::new_v4().to_string(),
-                file_path: file_path.clone(),
+                file_path: file_path.to_string(),
                 clean,
                 threat_name: threat_name.clone(),
                 scan_time_ms,
@@ -259,6 +259,11 @@ pub async fn scan_file(State(state): State<AppState>, Path(file_path): Path<Stri
     }
 }
 
+/// POST /api/antivirus/scan/{path} — Scan a file.
+pub async fn scan_file(State(state): State<AppState>, Path(file_path): Path<String>) -> Response {
+    scan_file_impl(&state, &file_path).await
+}
+
 /// GET /api/antivirus/status — ClamAV connection status.
 pub async fn antivirus_status(State(_state): State<AppState>) -> Response {
     let config = ClamavTcpConfig::default();
@@ -276,20 +281,16 @@ pub async fn antivirus_status(State(_state): State<AppState>) -> Response {
         .into_response()
 }
 
-/// POST /api/antivirus/scan-all — Scan all files in a directory.
-pub async fn scan_all(
-    State(state): State<AppState>,
-    Json(req): Json<ScanDirectoryRequest>,
-) -> Response {
-    let prefix = if req.directory.is_empty() {
+pub async fn scan_all_impl<S: HasStorage>(state: &S, directory: &str) -> Response {
+    let prefix = if directory.is_empty() {
         "/".to_string()
-    } else if req.directory.ends_with('/') {
-        req.directory.clone()
+    } else if directory.ends_with('/') {
+        directory.to_string()
     } else {
-        format!("{}/", req.directory)
+        format!("{}/", directory)
     };
 
-    let entries = match state.storage.list_all(&prefix, 10000).await {
+    let entries = match state.storage().list_all(&prefix, 10000).await {
         Ok(e) => e,
         Err(e) => {
             return (
@@ -313,7 +314,7 @@ pub async fn scan_all(
             continue;
         }
 
-        let content = match state.storage.get(&meta.path).await {
+        let content = match state.storage().get(&meta.path).await {
             Ok(c) => c,
             Err(_) => {
                 errors += 1;
@@ -350,7 +351,7 @@ pub async fn scan_all(
     (
         StatusCode::OK,
         Json(serde_json::json!({
-            "directory": req.directory,
+            "directory": directory,
             "scanned": scanned,
             "infected": infected,
             "clean": scanned - infected,
@@ -359,6 +360,14 @@ pub async fn scan_all(
         })),
     )
         .into_response()
+}
+
+/// POST /api/antivirus/scan-all — Scan all files in a directory.
+pub async fn scan_all(
+    State(state): State<AppState>,
+    Json(req): Json<ScanDirectoryRequest>,
+) -> Response {
+    scan_all_impl(&state, &req.directory).await
 }
 
 /// GET /api/antivirus/history — Scan history with results.
@@ -383,7 +392,6 @@ pub async fn scan_history(State(_state): State<AppState>) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::AppState;
 
     #[tokio::test]
     async fn test_antivirus_status() {

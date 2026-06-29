@@ -9,6 +9,7 @@ use crate::AppState;
 use crate::api_error::ApiError;
 use crate::audit::build_audit_entry;
 use crate::users;
+use common::server_context::HasStorage;
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct AdminStatsResponse {
@@ -117,20 +118,7 @@ pub struct StorageQueryParams {
     pub limit: Option<usize>,
 }
 
-/// Return detailed storage statistics.
-#[utoipa::path(
-    get,
-    path = "/api/admin/storage",
-    params(StorageQueryParams),
-    responses(
-        (status = 200, description = "Storage statistics", body = AdminStorageResponse),
-    ),
-    tags = ["admin"],
-)]
-pub async fn admin_storage(
-    State(state): State<AppState>,
-    Query(_params): Query<StorageQueryParams>,
-) -> Response {
+pub async fn admin_storage_impl<S: HasStorage>(state: &S) -> Response {
     let mut file_count = 0u64;
     let mut collection_count = 0u64;
     let mut total_bytes = 0u64;
@@ -138,7 +126,7 @@ pub async fn admin_storage(
     let mut largest_file_size: u64 = 0;
     let mut recent_files: Vec<serde_json::Value> = Vec::new();
 
-    if let Ok(entries) = state.storage.list_all("/", 10000).await {
+    if let Ok(entries) = state.storage().list_all("/", 10000).await {
         for meta in &entries {
             if meta.is_collection {
                 collection_count += 1;
@@ -186,6 +174,23 @@ pub async fn admin_storage(
     };
 
     (StatusCode::OK, axum::Json(body)).into_response()
+}
+
+/// Return detailed storage statistics.
+#[utoipa::path(
+    get,
+    path = "/api/admin/storage",
+    params(StorageQueryParams),
+    responses(
+        (status = 200, description = "Storage statistics", body = AdminStorageResponse),
+    ),
+    tags = ["admin"],
+)]
+pub async fn admin_storage(
+    State(state): State<AppState>,
+    Query(_params): Query<StorageQueryParams>,
+) -> Response {
+    admin_storage_impl(&state).await
 }
 
 /// Query parameters for the admin audit endpoint.
