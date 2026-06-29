@@ -986,6 +986,139 @@ impl ferro_server_security::SecurityAppState for AppState {
     }
 }
 
+// --- Composite trait implementations for crate decomposition ---
+// These implement the server_context traits from ferro-common, allowing
+// extracted crates to depend on traits rather than AppState directly.
+
+impl common::server_context::HasStorage for AppState {
+    fn storage(&self) -> &Arc<dyn StorageEngine> {
+        &self.storage
+    }
+}
+
+impl common::server_context::HasLockManager for AppState {
+    fn lock_manager(&self) -> &Arc<dyn LockManagerTrait> {
+        &self.lock_manager
+    }
+}
+
+impl common::server_context::HasBodyLimits for AppState {
+    fn max_body_size(&self) -> u64 {
+        self.max_body_size
+    }
+}
+
+impl common::server_context::HasMaintenanceMode for AppState {
+    fn maintenance_mode(&self) -> &Arc<std::sync::atomic::AtomicBool> {
+        &self.maintenance_mode
+    }
+}
+
+impl common::server_context::HasStartupState for AppState {
+    fn startup_complete(&self) -> &Arc<std::sync::atomic::AtomicBool> {
+        &self.startup_complete
+    }
+}
+
+impl common::server_context::HasMetrics for AppState {
+    fn request_count(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.request_count
+    }
+    fn storage_op_counts(&self) -> &Arc<[std::sync::atomic::AtomicU64; 6]> {
+        &self.storage_op_counts
+    }
+}
+
+impl common::server_context::HasExternalUrl for AppState {
+    fn external_url(&self) -> &str {
+        &self.external_url
+    }
+}
+
+impl common::server_context::HasAdminCreds for AppState {
+    fn admin_user(&self) -> Option<&str> {
+        self.admin_user.as_deref()
+    }
+    fn admin_password(&self) -> Option<&str> {
+        self.admin_password.as_deref()
+    }
+    fn admin_password_rotated(&self) -> &Arc<std::sync::atomic::AtomicBool> {
+        &self.admin_password_rotated
+    }
+}
+
+impl common::server_context::HasDataDir for AppState {
+    fn data_dir(&self) -> Option<&str> {
+        self.data_dir.as_deref()
+    }
+}
+
+impl common::server_context::HasDedupConfig for AppState {
+    fn dedup_enabled(&self) -> bool {
+        self.dedup_enabled
+    }
+}
+
+impl common::server_context::HasStreamingConfig for AppState {
+    fn streaming_upload_threshold(&self) -> u64 {
+        self.streaming_upload_threshold
+    }
+}
+
+impl common::server_context::HasTrash for AppState {
+    fn trash_dir(&self) -> Option<&str> {
+        self.trash_dir.as_deref()
+    }
+    fn max_file_versions(&self) -> u64 {
+        self.max_file_versions
+    }
+}
+
+impl common::server_context::HasQuota for AppState {
+    fn quota_bytes(&self) -> Option<u64> {
+        self.quota_bytes
+    }
+    fn used_bytes(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.used_bytes
+    }
+    fn file_count(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.file_count
+    }
+}
+
+impl common::server_context::HasWopi for AppState {
+    fn wopi_token_secret(&self) -> &str {
+        &self.wopi_token_secret
+    }
+    fn wopi_office_url(&self) -> &str {
+        &self.wopi_office_url
+    }
+}
+
+impl common::server_context::HasThumbnailConfig for AppState {
+    fn thumbnail_size(&self) -> u32 {
+        self.thumbnail_size
+    }
+}
+
+impl common::server_context::HasRateLimitConfig for AppState {
+    fn rate_limit_burst(&self) -> u32 {
+        self.rate_limit_burst
+    }
+    fn rate_limit_refill(&self) -> u32 {
+        self.rate_limit_refill
+    }
+    fn max_concurrent_requests(&self) -> usize {
+        self.max_concurrent_requests
+    }
+}
+
+impl common::server_context::HasSnapshotConfig for AppState {
+    fn max_snapshot_versions(&self) -> usize {
+        self.max_snapshot_versions
+    }
+}
+
 pub fn make_app() -> Router {
     let state = AppState::in_memory()
         .with_wopi_token_secret("test-wopi-secret-for-integration".to_string());
