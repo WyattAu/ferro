@@ -9,6 +9,7 @@ use tracing::warn;
 
 use crate::AppState;
 use crate::db::DbHandle;
+use common::server_context::HasFavorites;
 
 /// Trait for managing user favorite paths.
 #[async_trait]
@@ -104,13 +105,20 @@ impl Default for InMemoryFavoriteStore {
 }
 
 /// List the current user's favorite paths.
-pub async fn list_favorites(State(state): State<AppState>) -> Response {
-    let favorites = state.favorites.list().await;
+///
+/// Generic over `HasFavorites` for crate decomposition.
+pub async fn list_favorites_impl<S: HasFavorites>(state: &S) -> Response {
+    let favorites = state.list_favorites().await;
     (
         StatusCode::OK,
         axum::Json(serde_json::json!({ "paths": favorites })),
     )
         .into_response()
+}
+
+/// Concrete axum handler that delegates to the generic implementation.
+pub async fn list_favorites(State(state): State<AppState>) -> Response {
+    list_favorites_impl(&state).await
 }
 
 /// Request body for adding/removing a favorite path.

@@ -990,6 +990,20 @@ impl ferro_server_security::SecurityAppState for AppState {
 // These implement the server_context traits from ferro-common, allowing
 // extracted crates to depend on traits rather than AppState directly.
 
+impl common::server_context::HasUptime for AppState {
+    fn started_at(&self) -> std::time::Instant {
+        self.started_at
+    }
+}
+
+impl common::server_context::HasFavorites for AppState {
+    fn list_favorites(
+        &self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<String>> + Send + '_>> {
+        Box::pin(async move { self.favorites.list().await })
+    }
+}
+
 impl common::server_context::HasStorage for AppState {
     fn storage(&self) -> &Arc<dyn StorageEngine> {
         &self.storage

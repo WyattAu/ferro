@@ -21,6 +21,18 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use crate::storage::{LockManagerTrait, StorageEngine};
 
+/// Provides access to the server start time for uptime calculation.
+pub trait HasUptime: Send + Sync {
+    fn started_at(&self) -> std::time::Instant;
+}
+
+/// Provides access to the favorites store (list/add/remove).
+pub trait HasFavorites: Send + Sync {
+    fn list_favorites(
+        &self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<String>> + Send + '_>>;
+}
+
 /// Provides access to the storage engine.
 pub trait HasStorage: Send + Sync {
     fn storage(&self) -> &Arc<dyn StorageEngine>;
