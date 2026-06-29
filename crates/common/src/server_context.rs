@@ -112,6 +112,11 @@ pub trait HasQuota: Send + Sync {
     fn file_count(&self) -> &Arc<AtomicU64>;
 }
 
+/// Provides access to storage health monitoring.
+pub trait HasStorageHealth: Send + Sync {
+    fn any_unhealthy(&self) -> bool;
+}
+
 /// Provides access to the WOPI integration.
 pub trait HasWopi: Send + Sync {
     fn wopi_token_secret(&self) -> &str;

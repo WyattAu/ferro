@@ -1133,6 +1133,12 @@ impl common::server_context::HasSnapshotConfig for AppState {
     }
 }
 
+impl common::server_context::HasStorageHealth for AppState {
+    fn any_unhealthy(&self) -> bool {
+        self.storage_health.any_unhealthy()
+    }
+}
+
 pub fn make_app() -> Router {
     let state = AppState::in_memory()
         .with_wopi_token_secret("test-wopi-secret-for-integration".to_string());

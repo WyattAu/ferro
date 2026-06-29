@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use common::server_context::HasQuota;
 
 /// Storage quota information.
 #[derive(Debug, Serialize, Deserialize)]
@@ -16,14 +17,17 @@ pub struct QuotaInfo {
     pub unlimited: bool,
 }
 
-/// GET /api/quota — return current quota usage.
-pub async fn get_quota(State(state): State<AppState>) -> Response {
-    let quota_bytes = state.quota_bytes.unwrap_or(0);
-    let unlimited = state.quota_bytes.is_none();
+pub async fn get_quota_impl<S: HasQuota>(state: &S) -> Response {
+    let quota_bytes = state.quota_bytes().unwrap_or(0);
+    let unlimited = state.quota_bytes().is_none();
 
-    let used_bytes = state.used_bytes.load(std::sync::atomic::Ordering::Relaxed);
+    let used_bytes = state
+        .used_bytes()
+        .load(std::sync::atomic::Ordering::Relaxed);
 
-    let file_count = state.file_count.load(std::sync::atomic::Ordering::Relaxed);
+    let file_count = state
+        .file_count()
+        .load(std::sync::atomic::Ordering::Relaxed);
 
     let used_percent = if unlimited || quota_bytes == 0 {
         0.0
@@ -42,6 +46,11 @@ pub async fn get_quota(State(state): State<AppState>) -> Response {
         }),
     )
         .into_response()
+}
+
+/// GET /api/quota — return current quota usage.
+pub async fn get_quota(State(state): State<AppState>) -> Response {
+    get_quota_impl(&state).await
 }
 
 /// Check whether an upload would exceed the storage quota.
