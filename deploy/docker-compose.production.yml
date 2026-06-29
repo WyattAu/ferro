@@ -7,6 +7,7 @@
 
 services:
   ferro:
+    # Pin: replace `latest` with specific version tag or @sha256:digest from registry
     image: ghcr.io/wyattau/ferro:latest
     container_name: ferro
     restart: unless-stopped
@@ -95,6 +96,7 @@ services:
         max-file: "3"
 
   caddy:
+    # Pin: run `docker inspect --format='{{index .RepoDigests 0}}' caddy:2-alpine` to get digest
     image: caddy:2-alpine
     container_name: ferro-caddy
     restart: unless-stopped
@@ -127,6 +129,7 @@ services:
         max-file: "3"
 
   loki:
+    # Pin: run `docker inspect --format='{{index .RepoDigests 0}}' grafana/loki:3.3.2` to get digest
     image: grafana/loki:3.3.2
     container_name: ferro-loki
     restart: unless-stopped

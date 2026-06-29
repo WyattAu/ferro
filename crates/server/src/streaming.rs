@@ -9,6 +9,7 @@ use bytes::Bytes;
 
 use crate::AppState;
 use crate::api::normalize_api_path;
+use crate::api_error::ApiError;
 
 /// Range header specification for byte range requests.
 struct RangeHeader {
@@ -135,18 +136,16 @@ pub async fn stream_video(
     };
 
     let mut response_headers = HeaderMap::new();
-    response_headers.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_str(content_type).unwrap(),
-    );
-    response_headers.insert(
-        header::CONTENT_DISPOSITION,
-        HeaderValue::from_str(&format!(
-            "inline; filename=\"{}\"",
-            path.rsplit('/').next().unwrap_or("video")
-        ))
-        .unwrap(),
-    );
+    let Ok(content_type_val) = HeaderValue::from_str(content_type) else {
+        return ApiError::internal(ApiError::INTERNAL_ERROR, "Invalid content type")
+            .into_response();
+    };
+    response_headers.insert(header::CONTENT_TYPE, content_type_val);
+    let filename = path.rsplit('/').next().unwrap_or("video");
+    let disposition_value = format!("inline; filename=\"{}\"", filename);
+    if let Ok(disp_val) = HeaderValue::from_str(&disposition_value) {
+        response_headers.insert(header::CONTENT_DISPOSITION, disp_val);
+    }
     response_headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
     response_headers.insert(
         header::CACHE_CONTROL,
@@ -161,15 +160,14 @@ pub async fn stream_video(
                 let content_length = end - start + 1;
 
                 let mut partial_headers = response_headers.clone();
-                partial_headers.insert(
-                    header::CONTENT_LENGTH,
-                    HeaderValue::from_str(&content_length.to_string()).unwrap(),
-                );
-                partial_headers.insert(
-                    header::CONTENT_RANGE,
+                if let Ok(cl_val) = HeaderValue::from_str(&content_length.to_string()) {
+                    partial_headers.insert(header::CONTENT_LENGTH, cl_val);
+                }
+                if let Ok(cr_val) =
                     HeaderValue::from_str(&format!("bytes {}-{}/{}", start, end, total_size))
-                        .unwrap(),
-                );
+                {
+                    partial_headers.insert(header::CONTENT_RANGE, cr_val);
+                }
 
                 // Stream the requested range
                 match state.storage.get_stream(&path).await {
@@ -226,10 +224,9 @@ async fn serve_full_content(
     total_size: u64,
     mut headers: HeaderMap,
 ) -> Response {
-    headers.insert(
-        header::CONTENT_LENGTH,
-        HeaderValue::from_str(&total_size.to_string()).unwrap(),
-    );
+    if let Ok(cl_val) = HeaderValue::from_str(&total_size.to_string()) {
+        headers.insert(header::CONTENT_LENGTH, cl_val);
+    }
 
     match state.storage.get_stream(&path).await {
         Ok(reader) => {

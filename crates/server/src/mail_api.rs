@@ -636,10 +636,17 @@ pub async fn send_email(
     }
 
     let tls_params =
-        lettre::transport::smtp::client::TlsParameters::builder(account.smtp_host.clone())
+        match lettre::transport::smtp::client::TlsParameters::builder(account.smtp_host.clone())
             .build()
-            .map_err(|e| format!("TLS config error: {e}"))
-            .unwrap();
+        {
+            Ok(tp) => tp,
+            Err(e) => {
+                return ApiError::bad_request(
+                    ApiError::INVALID_INPUT,
+                    format!("TLS config error: {e}"),
+                );
+            }
+        };
 
     let tls_mode = match account.smtp_security.as_str() {
         "ssl" => lettre::transport::smtp::client::Tls::Wrapper(tls_params),

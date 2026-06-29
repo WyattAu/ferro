@@ -495,9 +495,34 @@ pub async fn admin_export_user_data(
         .compression_method(zip::CompressionMethod::Deflated)
         .compression_level(Some(6));
 
-    for entry in std::fs::read_dir(tmp_dir.path())
-        .unwrap_or_else(|_| std::fs::read_dir(tmp_dir.path()).unwrap())
-    {
+    let Ok(dir_entries) = std::fs::read_dir(tmp_dir.path()) else {
+        tracing::warn!("failed to read temp dir for ZIP");
+        // Continue without zip entries
+        let cursor = zip_writer.finish().unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "failed to finalize ZIP");
+            std::io::Cursor::new(Vec::new())
+        });
+        let zip_bytes = cursor.into_inner();
+        if zip_bytes.is_empty() {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Export archive is empty");
+        }
+        let filename = format!("gdpr-export-{}.zip", user.username);
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::CONTENT_TYPE,
+            axum::http::HeaderValue::from_static("application/zip"),
+        );
+        headers.insert(
+            axum::http::header::CONTENT_DISPOSITION,
+            axum::http::HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename))
+                .unwrap_or_else(|_| {
+                    axum::http::HeaderValue::from_static("attachment; filename=\"export.zip\"")
+                }),
+        );
+        return (headers, axum::body::Body::from(zip_bytes)).into_response();
+    };
+
+    for entry in dir_entries {
         let entry = match entry {
             Ok(e) => e,
             Err(_) => continue,

@@ -368,9 +368,9 @@ pub async fn list_policies(State(state): State<AppState>) -> Response {
                 created_at: row.get(8)?,
             })
         })
-        .unwrap()
-        .filter_map(|r| r.ok())
-        .collect();
+        .ok()
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
 
     (
         StatusCode::OK,

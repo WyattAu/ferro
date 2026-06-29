@@ -17,6 +17,9 @@ pub fn is_public_auth_path(path: &str) -> bool {
         || path == "/ui"
         || path == "/api/policies"
         || path.starts_with("/s/")
+        || path.starts_with("/fed/")
+        || path == "/.well-known/webfinger"
+        || path.starts_with("/.well-known/webfinger")
 }
 
 /// JWT claims extracted from an OIDC/Basic auth token.

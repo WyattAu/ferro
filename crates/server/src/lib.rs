@@ -357,6 +357,14 @@ pub struct AppState {
     pub health_checker: Arc<ferro_health::HealthChecker>,
     /// Selective sync profile store (SQLite-backed, optional).
     pub selective_sync_store: Option<Arc<ferro_selective_sync::ProfileStore>>,
+    /// Rate limiter burst capacity.
+    pub rate_limit_burst: u32,
+    /// Rate limiter refill rate per second.
+    pub rate_limit_refill: u32,
+    /// Maximum concurrent in-flight requests.
+    pub max_concurrent_requests: usize,
+    /// Maximum number of snapshot versions to retain.
+    pub max_snapshot_versions: usize,
 }
 
 impl AppState {
@@ -379,6 +387,10 @@ impl AppState {
             share_store: Arc::new(shares::ShareStore::new()),
             audit_log: Arc::new(AuditLog::new()),
             snapshot_store: Arc::new(SnapshotStore::new(50)),
+            rate_limit_burst: 10_000,
+            rate_limit_refill: 166,
+            max_concurrent_requests: 128,
+            max_snapshot_versions: 50,
             max_body_size: 1024 * 1024 * 1024,
             external_url: "http://localhost:8080".to_string(),
             wopi_token_secret: String::new(),
@@ -586,7 +598,8 @@ impl AppState {
         mut self,
         persistence: Arc<ferro_core::persistence::SqlitePersistence>,
     ) -> Self {
-        self.snapshot_store = Arc::new(SnapshotStore::new(50).with_persistence(persistence));
+        self.snapshot_store =
+            Arc::new(SnapshotStore::new(self.max_snapshot_versions).with_persistence(persistence));
         self
     }
 
@@ -1053,7 +1066,7 @@ fn api_routes(
             axum::routing::post(wasm_upload::upload_wasm_module),
         )
         .route(
-            "/workers/modules/{filename}",
+            "/workers/modules/:filename",
             axum::routing::delete(wasm_upload::delete_wasm_module),
         )
         .route(
@@ -1069,19 +1082,19 @@ fn api_routes(
             axum::routing::get(plugin_marketplace_api::list_marketplace_plugins),
         )
         .route(
-            "/admin/plugins/{id}/install",
+            "/admin/plugins/:id/install",
             axum::routing::post(plugin_marketplace_api::install_plugin),
         )
         .route(
-            "/admin/plugins/{id}/uninstall",
+            "/admin/plugins/:id/uninstall",
             axum::routing::post(plugin_marketplace_api::uninstall_plugin),
         )
         .route(
-            "/admin/plugins/{id}/enable",
+            "/admin/plugins/:id/enable",
             axum::routing::post(plugin_marketplace_api::enable_plugin),
         )
         .route(
-            "/admin/plugins/{id}/disable",
+            "/admin/plugins/:id/disable",
             axum::routing::post(plugin_marketplace_api::disable_plugin),
         )
         .route(
@@ -1134,7 +1147,7 @@ fn api_routes(
         )
         .route("/recent", axum::routing::get(favorites::list_recent))
         .route("/trash", axum::routing::get(trash::list_trash))
-        .route("/trash/{path}", axum::routing::delete(trash::move_to_trash))
+        .route("/trash/:path", axum::routing::delete(trash::move_to_trash))
         .route("/trash/restore", axum::routing::post(trash::restore_trash))
         .route("/trash/purge", axum::routing::delete(trash::purge_trash))
         .route("/trash/empty", axum::routing::delete(trash::empty_trash))
@@ -1166,13 +1179,10 @@ fn api_routes(
         .route("/activity", axum::routing::get(activity::get_activity))
         .route("/tags", axum::routing::get(tags::list_tags))
         .route(
-            "/tags/{path}",
+            "/tags/:path",
             axum::routing::get(tags::get_tags).post(tags::add_tags),
         )
-        .route(
-            "/tags/{path}/{tag}",
-            axum::routing::delete(tags::remove_tag),
-        )
+        .route("/tags/:path/:tag", axum::routing::delete(tags::remove_tag))
         .route("/tags/search", axum::routing::get(tags::search_by_tag))
         .route(
             "/comments",
@@ -1207,7 +1217,7 @@ fn api_routes(
             axum::routing::post(search::handle_force_unlock),
         )
         .route(
-            "/locks/{token}",
+            "/locks/:token",
             axum::routing::delete(search::handle_unlock_by_token),
         )
         .route("/admin/stats", axum::routing::get(admin_api::admin_stats))
@@ -1279,17 +1289,17 @@ fn api_routes(
             axum::routing::post(user_api::create_user).get(admin_api::admin_list_users),
         )
         .route(
-            "/admin/users/{id}",
+            "/admin/users/:id",
             axum::routing::get(admin_api::admin_get_user)
                 .put(user_api::update_user)
                 .delete(admin_api::admin_delete_user),
         )
         .route(
-            "/admin/users/{id}/reset-password",
+            "/admin/users/:id/reset-password",
             axum::routing::post(user_api::reset_password),
         )
         .route(
-            "/admin/users/{id}/role",
+            "/admin/users/:id/role",
             axum::routing::put(admin_api::admin_set_user_role),
         )
         // Branding (G-09)
@@ -1305,7 +1315,7 @@ fn api_routes(
             axum::routing::post(guests::create_guest).get(guests::list_guests),
         )
         .route(
-            "/admin/guests/{id}",
+            "/admin/guests/:id",
             axum::routing::delete(guests::revoke_guest),
         )
         // Data retention policies (G-23)
@@ -1314,7 +1324,7 @@ fn api_routes(
             axum::routing::get(retention::list_policies).post(retention::create_policy),
         )
         .route(
-            "/admin/retention/policies/{id}",
+            "/admin/retention/policies/:id",
             axum::routing::delete(retention::delete_policy),
         )
         .route(
@@ -1327,17 +1337,17 @@ fn api_routes(
             axum::routing::get(worm::list_policies).post(worm::create_policy),
         )
         .route(
-            "/admin/worm/policies/{id}",
+            "/admin/worm/policies/:id",
             axum::routing::delete(worm::delete_policy),
         )
         // GDPR compliance (G-13)
         .route("/admin/gdpr", axum::routing::get(gdpr::list_gdpr_requests))
         .route(
-            "/admin/users/{id}/export",
+            "/admin/users/:id/export",
             axum::routing::post(gdpr::request_data_export).get(admin_api::admin_export_user_data),
         )
         .route(
-            "/admin/users/{id}/data",
+            "/admin/users/:id/data",
             axum::routing::delete(admin_api::admin_erase_user_data),
         )
         // Event triggers (G-16)
@@ -1347,11 +1357,11 @@ fn api_routes(
                 .get(event_triggers::list_event_triggers),
         )
         .route(
-            "/admin/triggers/{id}",
+            "/admin/triggers/:id",
             axum::routing::delete(event_triggers::delete_event_trigger),
         )
         .route(
-            "/admin/triggers/{id}/toggle",
+            "/admin/triggers/:id/toggle",
             axum::routing::post(event_triggers::toggle_event_trigger),
         )
         // Tenant rate limiting (OP-006)
@@ -1360,30 +1370,30 @@ fn api_routes(
             axum::routing::get(tenant_rate_limit_api::list_tenant_rate_limits),
         )
         .route(
-            "/admin/tenants/{id}/rate-limit",
+            "/admin/tenants/:id/rate-limit",
             axum::routing::get(tenant_rate_limit_api::get_tenant_rate_limit)
                 .put(tenant_rate_limit_api::update_tenant_rate_limit)
                 .delete(tenant_rate_limit_api::delete_tenant_rate_limit),
         )
         .route(
-            "/admin/tenants/{id}/rate-limit/status",
+            "/admin/tenants/:id/rate-limit/status",
             axum::routing::get(tenant_rate_limit_api::get_tenant_rate_limit_status),
         )
         // Account transfer and device management (P3-08)
         .route(
-            "/admin/users/{id}/transfer",
+            "/admin/users/:id/transfer",
             axum::routing::post(account_api::transfer_user_data),
         )
         .route(
-            "/admin/devices/{user_id}/wipe",
+            "/admin/devices/:user_id/wipe",
             axum::routing::post(account_api::wipe_user_devices),
         )
         .route(
-            "/admin/users/{id}/devices",
+            "/admin/users/:id/devices",
             axum::routing::get(account_api::list_user_devices),
         )
         .route(
-            "/admin/users/{id}/devices/{device_id}/revoke",
+            "/admin/users/:id/devices/:device_id/revoke",
             axum::routing::post(account_api::revoke_device),
         )
         // Notification preferences (P4-07)
@@ -1459,7 +1469,7 @@ fn api_routes(
             axum::routing::post(sync::blocks::assemble_file),
         )
         .route(
-            "/sync/blocks/{hash}",
+            "/sync/blocks/:hash",
             axum::routing::get(sync::blocks::get_block),
         )
         // Selective sync profiles
@@ -1469,7 +1479,7 @@ fn api_routes(
                 .post(selective_sync_api::create_profile),
         )
         .route(
-            "/sync/profiles/{id}",
+            "/sync/profiles/:id",
             axum::routing::put(selective_sync_api::update_profile)
                 .delete(selective_sync_api::delete_profile),
         )
@@ -1512,11 +1522,11 @@ fn api_routes(
             axum::routing::post(calendar_api::create_event),
         )
         .route(
-            "/calendar/events/{uid}",
+            "/calendar/events/:uid",
             axum::routing::put(calendar_api::update_event),
         )
         .route(
-            "/calendar/events/{uid}",
+            "/calendar/events/:uid",
             axum::routing::delete(calendar_api::delete_event),
         )
         // Contacts REST API bridge
@@ -1526,11 +1536,11 @@ fn api_routes(
             axum::routing::post(contacts_api::create_contact),
         )
         .route(
-            "/contacts/{uid}",
+            "/contacts/:uid",
             axum::routing::put(contacts_api::update_contact),
         )
         .route(
-            "/contacts/{uid}",
+            "/contacts/:uid",
             axum::routing::delete(contacts_api::delete_contact),
         )
         .route(
@@ -1547,7 +1557,7 @@ fn api_routes(
             axum::routing::get(chat_api::list_rooms).post(chat_api::create_room),
         )
         .route(
-            "/chat/rooms/{room_id}/messages",
+            "/chat/rooms/:room_id/messages",
             axum::routing::get(chat_api::get_messages).post(chat_api::send_message),
         )
         // Photos REST API
@@ -1557,11 +1567,11 @@ fn api_routes(
             axum::routing::get(photos_api::list_albums).post(photos_api::create_album),
         )
         .route(
-            "/photos/thumbnail/{path}",
+            "/photos/thumbnail/:path",
             axum::routing::get(photos_api::get_thumbnail),
         )
         .route(
-            "/photos/exif/{path}",
+            "/photos/exif/:path",
             axum::routing::get(photos_api::get_exif),
         )
         // Notes REST API
@@ -1571,7 +1581,7 @@ fn api_routes(
         )
         .route("/notes/search", axum::routing::get(notes_api::search_notes))
         .route(
-            "/notes/{id}",
+            "/notes/:id",
             axum::routing::get(notes_api::get_note)
                 .put(notes_api::update_note)
                 .delete(notes_api::delete_note),
@@ -1582,13 +1592,13 @@ fn api_routes(
             axum::routing::get(tasks_api::list_tasks).post(tasks_api::create_task),
         )
         .route(
-            "/tasks/{id}",
+            "/tasks/:id",
             axum::routing::get(tasks_api::update_task)
                 .put(tasks_api::update_task)
                 .delete(tasks_api::delete_task),
         )
         .route(
-            "/tasks/{id}/status",
+            "/tasks/:id/status",
             axum::routing::patch(tasks_api::move_task),
         )
         // Push notification endpoints
@@ -1626,7 +1636,7 @@ fn api_routes(
             axum::routing::get(offline_api::list_pending),
         )
         .route(
-            "/offline/resolve/{id}",
+            "/offline/resolve/:id",
             axum::routing::post(offline_api::resolve_conflict),
         )
         .route(
@@ -1635,7 +1645,7 @@ fn api_routes(
         )
         // Antivirus endpoints
         .route(
-            "/antivirus/scan/{path}",
+            "/antivirus/scan/:path",
             axum::routing::post(antivirus_api::scan_file),
         )
         .route(
@@ -1656,20 +1666,20 @@ fn api_routes(
             axum::routing::get(dlp_api::list_policies).post(dlp_api::create_policy),
         )
         .route(
-            "/dlp/policies/{id}",
+            "/dlp/policies/:id",
             axum::routing::put(dlp_api::update_policy).delete(dlp_api::delete_policy),
         )
         .route(
-            "/dlp/scan/{path}",
+            "/dlp/scan/:path",
             axum::routing::post(dlp_api::scan_file_dlp),
         )
         .route("/dlp/alerts", axum::routing::get(dlp_api::list_alerts))
         .route(
-            "/whiteboard/{id}",
+            "/whiteboard/:id",
             axum::routing::get(whiteboard_api::get_whiteboard).put(whiteboard_api::save_whiteboard),
         )
         .route(
-            "/whiteboard/{id}/image",
+            "/whiteboard/:id/image",
             axum::routing::get(whiteboard_api::export_whiteboard_image),
         )
         // Mail API (P3-03)
@@ -1678,27 +1688,27 @@ fn api_routes(
             axum::routing::get(mail_api::list_accounts).post(mail_api::create_account),
         )
         .route(
-            "/mail/accounts/{id}",
+            "/mail/accounts/:id",
             axum::routing::delete(mail_api::delete_account),
         )
         .route(
-            "/mail/accounts/{id}/folders",
+            "/mail/accounts/:id/folders",
             axum::routing::get(mail_api::mail_folders),
         )
         .route(
-            "/mail/accounts/{id}/folders/{folder}/messages",
+            "/mail/accounts/:id/folders/:folder/messages",
             axum::routing::get(mail_api::mail_messages),
         )
         .route(
-            "/mail/accounts/{id}/folders/{folder}/messages/{uid}",
+            "/mail/accounts/:id/folders/:folder/messages/:uid",
             axum::routing::get(mail_api::mail_message_detail),
         )
         .route(
-            "/mail/accounts/{id}/send",
+            "/mail/accounts/:id/send",
             axum::routing::post(mail_api::send_email),
         )
         .route(
-            "/mail/accounts/{id}/folders/{folder}/messages/{uid}/attachments/{part}/download",
+            "/mail/accounts/:id/folders/:folder/messages/:uid/attachments/:part/download",
             axum::routing::post(mail_api::download_attachment),
         )
         // Link Analytics API (P3-06)
@@ -1711,7 +1721,7 @@ fn api_routes(
             axum::routing::get(link_analytics_api::list_link_analytics),
         )
         .route(
-            "/analytics/links/{id}/stats",
+            "/analytics/links/:id/stats",
             axum::routing::get(link_analytics_api::analytics_link_stats),
         )
         // Watermark API (P3-07)
@@ -1720,7 +1730,7 @@ fn api_routes(
             axum::routing::post(watermark_api::preview_watermark),
         )
         .route(
-            "/watermark/apply/{path}",
+            "/watermark/apply/:path",
             axum::routing::post(watermark_api::apply_watermark),
         )
         .route(
@@ -1900,8 +1910,8 @@ pub fn build_router_with_static(
     });
 
     let rate_limiter = Arc::new(ferro_rate_limiter::TokenBucketLimiter::new(
-        10_000,
-        166,
+        state.rate_limit_burst,
+        state.rate_limit_refill,
         std::time::Duration::from_secs(1),
     ));
     let rate_limit_layer =
@@ -1974,11 +1984,11 @@ pub fn build_router_with_static(
             axum::routing::get(remote_mount::list_mounts).post(remote_mount::create_mount),
         )
         .route(
-            "/admin/mounts/{id}",
+            "/admin/mounts/:id",
             axum::routing::delete(remote_mount::delete_mount),
         )
         .route(
-            "/admin/mounts/{id}/test",
+            "/admin/mounts/:id/test",
             axum::routing::get(remote_mount::test_mount),
         )
         // Extended share endpoints (G-24, G-25)
@@ -2026,15 +2036,15 @@ pub fn build_router_with_static(
             axum::routing::get(federation::webfinger),
         )
         .route(
-            "/fed/actor/{username}",
+            "/fed/actor/:username",
             axum::routing::get(federation::get_actor),
         )
         .route(
-            "/fed/actor/{username}/followers",
+            "/fed/actor/:username/followers",
             axum::routing::get(federation::list_followers),
         )
         .route(
-            "/fed/actor/{username}/following",
+            "/fed/actor/:username/following",
             axum::routing::get(federation::list_following),
         )
         .route(
@@ -2043,12 +2053,6 @@ pub fn build_router_with_static(
         )
         .route("/fed/outbox", axum::routing::get(federation::list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
-        .route(
-            "/fed/files/*path",
-            axum::routing::get(api_federation::get_fed_file)
-                .put(api_federation::put_fed_file)
-                .delete(api_federation::delete_fed_file),
-        )
         .nest(
             &versioned_api_path,
             api_routes(&state, state.webrtc_offers.clone()),
@@ -2062,28 +2066,26 @@ pub fn build_router_with_static(
             axum::routing::get(collab_ws::collab_ws_handler),
         )
         .route(
-            "/ws/chat/{room_id}",
+            "/ws/chat/:room_id",
             axum::routing::get(chat_api::ws_chat_handler),
         )
-        // CalDAV and CardDAV routes (registered before /*path catch-all)
+        // CalDAV and CardDAV routes (registered before WebDAV fallback)
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route(
             "/dav/cal/",
             axum::routing::get(dav::caldav_list).put(dav::caldav_create),
         )
         .route(
-            "/dav/cal/{calendar}",
-            axum::routing::delete(dav::caldav_delete),
+            "/dav/cal/:calendar",
+            axum::routing::any(dav::caldav_calendar_or_event),
         )
         .route(
-            "/dav/cal/{calendar}/",
-            axum::routing::get(dav::caldav_props),
+            "/dav/cal/:calendar/",
+            axum::routing::any(dav::caldav_calendar_or_event),
         )
         .route(
-            "/dav/cal/{calendar}/{uid}.ics",
-            axum::routing::get(dav::caldav_get_event)
-                .put(dav::caldav_put_event)
-                .delete(dav::caldav_delete_event),
+            "/dav/cal/:calendar/:uid",
+            axum::routing::any(dav::caldav_calendar_or_event),
         )
         .route("/dav/card", axum::routing::options(dav::carddav_options))
         .route(
@@ -2091,20 +2093,20 @@ pub fn build_router_with_static(
             axum::routing::get(dav::carddav_list).put(dav::carddav_create),
         )
         .route(
-            "/dav/card/{book}",
-            axum::routing::delete(dav::carddav_delete),
-        )
-        .route("/dav/card/{book}/", axum::routing::get(dav::carddav_props))
-        .route(
-            "/dav/card/{book}/{uid}.vcf",
-            axum::routing::get(dav::carddav_get_contact)
-                .put(dav::carddav_put_contact)
-                .delete(dav::carddav_delete_contact),
+            "/dav/card/:book",
+            axum::routing::any(dav::carddav_book_or_contact),
         )
         .route(
-            "/remote/*path",
-            axum::routing::any(remote_mount::proxy_remote_mount),
+            "/dav/card/:book/",
+            axum::routing::any(dav::carddav_book_or_contact),
         )
+        .route(
+            "/dav/card/:book/:uid",
+            axum::routing::any(dav::carddav_book_or_contact),
+        )
+        // /remote/*path moved to api_and_webdav_fallback to avoid matchit 0.7.3
+        // bug where catch-all wildcard routes corrupt named-parameter routes
+        // in the same tree (github.com/ibraheemdev/matchit/issues/31).
         // Combined fallback: dispatches REST file content requests vs WebDAV.
         //
         // matchit 0.7.3 does not allow catch-all parameters ({*path}) inside
@@ -2201,7 +2203,7 @@ pub fn build_router_with_static(
         // Cap concurrent in-flight requests to prevent the tokio runtime and
         // storage backend from being overwhelmed. Excess connections queue in
         // the kernel listen backlog instead of competing for resources.
-        .layer(ConcurrencyLimitLayer::new(128))
+        .layer(ConcurrencyLimitLayer::new(state.max_concurrent_requests))
         // Reject requests with both Content-Length and Transfer-Encoding
         // to prevent HTTP request smuggling (CL-TE / TE-CL desync).
         .layer(axum::middleware::from_fn(
@@ -2471,6 +2473,11 @@ pub async fn api_and_webdav_fallback(
         .strip_prefix("/api/v1/files/")
         .or_else(|| path_str.strip_prefix("/api/files/"));
 
+    // Check for /fed/files/ prefix (moved from explicit route to fallback to
+    // avoid matchit 0.7.3 bug where catch-all wildcard routes in the same tree
+    // as named-parameter routes cause the parameterized routes to silently fail).
+    let fed_files_rest = path_str.strip_prefix("/fed/files/");
+
     if let Some(file_path) = rest
         && !file_path.is_empty()
     {
@@ -2604,6 +2611,47 @@ pub async fn api_and_webdav_fallback(
             body_bytes,
         )
         .await;
+    }
+    // Federation file proxy: /fed/files/{*path}
+    // Dispatched here instead of as an explicit route to avoid matchit 0.7.3
+    // bug where catch-all wildcard routes corrupt named-parameter routes in the
+    // same tree. See: https://github.com/ibraheemdev/matchit/issues/31
+    if let Some(file_path) = fed_files_rest
+        && !file_path.is_empty()
+    {
+        return match method {
+            axum::http::Method::GET => {
+                api_federation::get_fed_file(
+                    State(state),
+                    axum::extract::Path(file_path.to_string()),
+                    headers,
+                )
+                .await
+            }
+            axum::http::Method::PUT => {
+                api_federation::put_fed_file(
+                    State(state),
+                    axum::extract::Path(file_path.to_string()),
+                    headers,
+                    body,
+                )
+                .await
+            }
+            axum::http::Method::DELETE => {
+                api_federation::delete_fed_file(
+                    State(state),
+                    axum::extract::Path(file_path.to_string()),
+                    headers,
+                )
+                .await
+            }
+            _ => StatusCode::METHOD_NOT_ALLOWED.into_response(),
+        };
+    }
+    // Remote mount proxy: /remote/{*path}
+    // Dispatched here instead of as an explicit route to avoid matchit 0.7.3 bug.
+    if path_str.starts_with("/remote/") {
+        return remote_mount::proxy_remote_mount(method, uri, State(state), headers, body).await;
     }
     // Fall through to WebDAV handler
     webdav::handle_any(method, uri, State(state), None, headers, body).await

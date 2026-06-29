@@ -10,6 +10,7 @@
 # - Pin FROM to @sha256:<digest> for reproducibility
 # - To pin: replace tags with digest from `docker inspect --format='{{index .RepoDigests 0}}'`
 # ==============================================================================
+# Pin: run `docker inspect --format='{{index .RepoDigests 0}}' rust:1.95-bookworm` to get digest
 FROM rust:1.95-bookworm AS builder
 
 ARG BUILD_FEATURES=""
@@ -73,6 +74,7 @@ COPY --from=builder /app/target/release/ferro-cli /ferro-cli
 COPY --from=builder /app/crates/web/dist /ui
 
 # Copy health-shim (TCP probe, no curl needed)
+# Pin: replace `latest` with specific version tag or @sha256:digest from registry
 COPY --from=ghcr.io/wyattau/evergreenshim/cache-shim:latest /shim /shim
 
 # Non-root user (OpenShift nonroot range)

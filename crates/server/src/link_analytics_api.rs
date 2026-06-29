@@ -158,74 +158,72 @@ pub async fn analytics_link_stats(
     };
 
     // All DB queries happen in a single lock scope, no await needed
-    let (total_views, total_downloads, unique_visitors, top_referrers, daily_breakdown) = {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
 
-        let total_views: u64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM link_analytics WHERE share_token = ?1 AND event_type = 'view'",
-                params![token],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
-
-        let total_downloads: u64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM link_analytics WHERE share_token = ?1 AND event_type = 'download'",
-                params![token],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
-
-        let unique_visitors: u64 = conn
-            .query_row(
-                "SELECT COUNT(DISTINCT ip_address) FROM link_analytics WHERE share_token = ?1 AND ip_address IS NOT NULL",
-                params![token],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
-
-        let mut referrer_stmt = conn
-            .prepare(
-                "SELECT COALESCE(referrer, 'direct') as ref, COUNT(*) as cnt FROM link_analytics WHERE share_token = ?1 GROUP BY ref ORDER BY cnt DESC LIMIT 10",
-            )
-            .unwrap();
-        let top_referrers: Vec<ReferrerCount> = referrer_stmt
-            .query_map(params![token], |row| {
-                Ok(ReferrerCount {
-                    referrer: row.get(0)?,
-                    count: row.get(1)?,
-                })
-            })
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect();
-
-        let mut daily_stmt = conn
-            .prepare(
-                "SELECT DATE(timestamp) as day, SUM(CASE WHEN event_type='view' THEN 1 ELSE 0 END) as views, SUM(CASE WHEN event_type='download' THEN 1 ELSE 0 END) as downloads FROM link_analytics WHERE share_token = ?1 AND timestamp >= datetime('now', '-30 days') GROUP BY day ORDER BY day",
-            )
-            .unwrap();
-        let daily_breakdown: Vec<DailyCount> = daily_stmt
-            .query_map(params![token], |row| {
-                Ok(DailyCount {
-                    date: row.get(0)?,
-                    views: row.get(1)?,
-                    downloads: row.get(2)?,
-                })
-            })
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect();
-
-        (
-            total_views,
-            total_downloads,
-            unique_visitors,
-            top_referrers,
-            daily_breakdown,
+    let total_views: u64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM link_analytics WHERE share_token = ?1 AND event_type = 'view'",
+            params![token],
+            |row| row.get(0),
         )
+        .unwrap_or(0);
+
+    let total_downloads: u64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM link_analytics WHERE share_token = ?1 AND event_type = 'download'",
+            params![token],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let unique_visitors: u64 = conn
+        .query_row(
+            "SELECT COUNT(DISTINCT ip_address) FROM link_analytics WHERE share_token = ?1 AND ip_address IS NOT NULL",
+            params![token],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let mut referrer_stmt = match conn.prepare(
+        "SELECT COALESCE(referrer, 'direct') as ref, COUNT(*) as cnt FROM link_analytics WHERE share_token = ?1 GROUP BY ref ORDER BY cnt DESC LIMIT 10",
+    ) {
+        Ok(s) => s,
+        Err(e) => {
+            warn!("Failed to prepare referrer query: {}", e);
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database query failed");
+        }
     };
+    let top_referrers: Vec<ReferrerCount> = referrer_stmt
+        .query_map(params![token], |row| {
+            Ok(ReferrerCount {
+                referrer: row.get(0)?,
+                count: row.get(1)?,
+            })
+        })
+        .ok()
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
+
+    let mut daily_stmt = match conn.prepare(
+        "SELECT DATE(timestamp) as day, SUM(CASE WHEN event_type='view' THEN 1 ELSE 0 END) as views, SUM(CASE WHEN event_type='download' THEN 1 ELSE 0 END) as downloads FROM link_analytics WHERE share_token = ?1 AND timestamp >= datetime('now', '-30 days') GROUP BY day ORDER BY day",
+    ) {
+        Ok(s) => s,
+        Err(e) => {
+            warn!("Failed to prepare daily breakdown query: {}", e);
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database query failed");
+        }
+    };
+    let daily_breakdown: Vec<DailyCount> = daily_stmt
+        .query_map(params![token], |row| {
+            Ok(DailyCount {
+                date: row.get(0)?,
+                views: row.get(1)?,
+                downloads: row.get(2)?,
+            })
+        })
+        .ok()
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
 
     (
         StatusCode::OK,
@@ -248,48 +246,48 @@ pub async fn analytics_overview(State(state): State<AppState>) -> Response {
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
     };
 
-    let (total_views, total_downloads, total_shares, top_links) = {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
 
-        let total_views: u64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM link_analytics WHERE event_type = 'view'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
+    let total_views: u64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM link_analytics WHERE event_type = 'view'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
 
-        let total_downloads: u64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM link_analytics WHERE event_type = 'download'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
+    let total_downloads: u64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM link_analytics WHERE event_type = 'download'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
 
-        let total_shares: u64 = conn
-            .query_row("SELECT COUNT(*) FROM shares", [], |row| row.get(0))
-            .unwrap_or(0);
+    let total_shares: u64 = conn
+        .query_row("SELECT COUNT(*) FROM shares", [], |row| row.get(0))
+        .unwrap_or(0);
 
-        let mut top_stmt = conn
-            .prepare(
-                "SELECT a.share_token, s.file_path, COUNT(*) as cnt FROM link_analytics a LEFT JOIN shares s ON a.share_token = s.token WHERE a.event_type = 'view' GROUP BY a.share_token ORDER BY cnt DESC LIMIT 10",
-            )
-            .unwrap();
-        let top_links: Vec<TopLink> = top_stmt
-            .query_map([], |row| {
-                Ok(TopLink {
-                    token: row.get(0)?,
-                    path: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                    views: row.get(2)?,
-                })
-            })
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect();
-
-        (total_views, total_downloads, total_shares, top_links)
+    let mut top_stmt = match conn.prepare(
+        "SELECT a.share_token, s.file_path, COUNT(*) as cnt FROM link_analytics a LEFT JOIN shares s ON a.share_token = s.token WHERE a.event_type = 'view' GROUP BY a.share_token ORDER BY cnt DESC LIMIT 10",
+    ) {
+        Ok(s) => s,
+        Err(e) => {
+            warn!("Failed to prepare top links query: {}", e);
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database query failed");
+        }
     };
+    let top_links: Vec<TopLink> = top_stmt
+        .query_map([], |row| {
+            Ok(TopLink {
+                token: row.get(0)?,
+                path: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                views: row.get(2)?,
+            })
+        })
+        .ok()
+        .map(|rows| rows.filter_map(|r| r.ok()).collect())
+        .unwrap_or_default();
 
     let storage_used_bytes = state.used_bytes.load(std::sync::atomic::Ordering::Relaxed);
 

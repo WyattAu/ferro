@@ -602,6 +602,12 @@ async fn main() -> anyhow::Result<()> {
         .with_max_file_versions(cli.max_file_versions)
         .with_streaming_upload_threshold(cli.streaming_upload_threshold);
 
+    let mut state = state;
+    state.rate_limit_burst = cli.rate_limit_burst;
+    state.rate_limit_refill = cli.rate_limit_refill;
+    state.max_concurrent_requests = cli.max_concurrent_requests;
+    state.max_snapshot_versions = cli.max_snapshot_versions;
+
     // Initialize federation token store if federation secret is configured
     let state = if !state.federation_secret.is_empty() {
         for peer in &cli.federation_trusted_peers {

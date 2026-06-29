@@ -64,6 +64,10 @@ pub struct FileConfigValues {
     pub dedup_enabled: Option<bool>,
     pub offline_cache_dir: Option<String>,
     pub offline_queue_size: Option<usize>,
+    pub rate_limit_burst: Option<u32>,
+    pub rate_limit_refill: Option<u32>,
+    pub max_concurrent_requests: Option<usize>,
+    pub max_snapshot_versions: Option<usize>,
     pub fcm_server_key: Option<String>,
     pub apns_key_path: Option<String>,
     pub apns_team_id: Option<String>,
@@ -387,6 +391,22 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_APNS_TEAM_ID")]
     pub apns_team_id: Option<String>,
 
+    /// Rate limiter burst capacity (default: 10000).
+    #[arg(long, env = "FERRO_RATE_LIMIT_BURST", default_value = "10000")]
+    pub rate_limit_burst: u32,
+
+    /// Rate limiter refill rate per second (default: 166).
+    #[arg(long, env = "FERRO_RATE_LIMIT_REFILL", default_value = "166")]
+    pub rate_limit_refill: u32,
+
+    /// Maximum concurrent in-flight requests (default: 128).
+    #[arg(long, env = "FERRO_MAX_CONCURRENT_REQUESTS", default_value = "128")]
+    pub max_concurrent_requests: usize,
+
+    /// Maximum number of snapshot versions to retain (default: 50).
+    #[arg(long, env = "FERRO_MAX_SNAPSHOT_VERSIONS", default_value = "50")]
+    pub max_snapshot_versions: usize,
+
     /// ClamAV daemon host for virus scanning (default: 127.0.0.1).
     #[arg(long, env = "FERRO_CLAMAV_HOST", default_value = "127.0.0.1")]
     pub clamav_host: String,
@@ -452,6 +472,10 @@ impl std::fmt::Debug for ServerConfig {
             .field("sync_mode", &self.sync_mode)
             .field("clamav_host", &self.clamav_host)
             .field("clamav_port", &self.clamav_port)
+            .field("rate_limit_burst", &self.rate_limit_burst)
+            .field("rate_limit_refill", &self.rate_limit_refill)
+            .field("max_concurrent_requests", &self.max_concurrent_requests)
+            .field("max_snapshot_versions", &self.max_snapshot_versions)
             .finish()
     }
 }
@@ -518,6 +542,10 @@ impl std::fmt::Debug for FileConfigValues {
             )
             .field("clamav_host", &self.clamav_host)
             .field("clamav_port", &self.clamav_port)
+            .field("rate_limit_burst", &self.rate_limit_burst)
+            .field("rate_limit_refill", &self.rate_limit_refill)
+            .field("max_concurrent_requests", &self.max_concurrent_requests)
+            .field("max_snapshot_versions", &self.max_snapshot_versions)
             .finish()
     }
 }
@@ -633,6 +661,14 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
             .or(base.streaming_upload_threshold),
         offline_cache_dir: override_.offline_cache_dir.or(base.offline_cache_dir),
         offline_queue_size: override_.offline_queue_size.or(base.offline_queue_size),
+        rate_limit_burst: override_.rate_limit_burst.or(base.rate_limit_burst),
+        rate_limit_refill: override_.rate_limit_refill.or(base.rate_limit_refill),
+        max_concurrent_requests: override_
+            .max_concurrent_requests
+            .or(base.max_concurrent_requests),
+        max_snapshot_versions: override_
+            .max_snapshot_versions
+            .or(base.max_snapshot_versions),
         fcm_server_key: override_.fcm_server_key.or(base.fcm_server_key),
         apns_key_path: override_.apns_key_path.or(base.apns_key_path),
         apns_team_id: override_.apns_team_id.or(base.apns_team_id),
@@ -807,6 +843,26 @@ where
         && let Some(port) = file.clamav_port
     {
         cli.clamav_port = port;
+    }
+    if !was_set("rate_limit_burst")
+        && let Some(burst) = file.rate_limit_burst
+    {
+        cli.rate_limit_burst = burst;
+    }
+    if !was_set("rate_limit_refill")
+        && let Some(refill) = file.rate_limit_refill
+    {
+        cli.rate_limit_refill = refill;
+    }
+    if !was_set("max_concurrent_requests")
+        && let Some(max) = file.max_concurrent_requests
+    {
+        cli.max_concurrent_requests = max;
+    }
+    if !was_set("max_snapshot_versions")
+        && let Some(max) = file.max_snapshot_versions
+    {
+        cli.max_snapshot_versions = max;
     }
 }
 

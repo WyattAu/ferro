@@ -246,15 +246,13 @@ pub async fn resolve_conflict(
     let pending = queue.pending().await;
     let op = pending.iter().find(|op| op.id == id);
 
-    if op.is_none() {
+    let Some(_op) = op else {
         return (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({ "error": "Operation not found" })),
         )
             .into_response();
-    }
-
-    let _op = op.unwrap();
+    };
 
     if req.resolution == "accept_local" {
         if let Err(e) = queue.mark_synced(&id).await {

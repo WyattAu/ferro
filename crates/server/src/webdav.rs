@@ -481,7 +481,7 @@ async fn handle_options(_path: &str) -> Result<Response> {
     Ok((StatusCode::OK, headers, "").into_response())
 }
 
-async fn handle_propfind(state: AppState, path: &str, headers: &HeaderMap) -> Result<Response> {
+pub async fn handle_propfind(state: AppState, path: &str, headers: &HeaderMap) -> Result<Response> {
     let path = normalize_path(path);
 
     if !common::path::validate_path(&path) {

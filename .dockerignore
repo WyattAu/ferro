@@ -1,8 +1,15 @@
 .git
 target
+node_modules
 docs/book
+docs/dist
 .github
 .gitignore
 .envrc
 .flake*
 deploy
+*.md
+Dockerfile
+docker-compose*.yml
+.env
+.env.*
