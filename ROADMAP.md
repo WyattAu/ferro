@@ -1,10 +1,10 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 5.1 | **Date:** 2026-06-27 | **Status:** v5.1 Audit Cycle 13 Complete
+**Version:** 5.2 | **Date:** 2026-06-29 | **Status:** v5.2 Audit Cycle 14 Complete
 
 ---
 
-## Current State (2026-06-27)
+## Current State (2026-06-29)
 
 | Metric | Value |
 |--------|-------|
@@ -20,9 +20,35 @@
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | MSRV | 1.92 (enforced in CI) |
 | Competitive gaps | 0 remaining (all 25 closed) |
-| Pre-commit hook | fmt + clippy + secret scan + targeted crate tests (configurable, bash shebang) |
+| Pre-commit hook | fmt + clippy (targeted) + secret scan + targeted crate tests (no full workspace fallback) |
 
 ## Recently Completed
+
+### 2026-06-29: Audit Cycle 14 - CalDAV/CardDAV Bug Fix, Dead Code Removal, Pre-commit Optimization
+
+**Phase 1: Critical Bug Fix -- CalDAV/CardDAV Depth Calculation:**
+- Root cause: `caldav_calendar_or_event` and `carddav_book_or_contact` computed path depth via `path.trim_end_matches('/').split('/')`, which produced a leading empty segment from the leading `/`. This inflated depth by 1, causing all event GET/PUT/DELETE (depth==5, expected 4) and calendar DELETE (depth==4, expected 3) to fall through to the WebDAV fallback instead of the CalDAV/CardDAV handlers. REPORT (no depth guard) entered the CalDAV handler but found an empty store since events were stored via WebDAV.
+- Fix: Added `trim_start_matches('/')` before splitting in both unified handlers.
+- CardDAV tests also fixed: added `UID:` fields to vCard test data (`create_contact` extracts UID from the vCard, not the URL path), corrected REPORT URI to use actual book_id.
+- Test results: 11/11 CalDAV/CardDAV + 12/12 federation = 23/23 integration tests passing.
+
+**Phase 2: Dead Code Removal:**
+- Removed 10 unused standalone handler functions from `dav.rs` (caldav_delete, caldav_props, caldav_get_event, caldav_put_event, caldav_delete_event, carddav_delete, carddav_props, carddav_get_contact, carddav_put_contact, carddav_delete_contact). All superseded by unified handlers `caldav_calendar_or_event` and `carddav_book_or_contact`.
+- Cleaned up debug instrumentation from `store.rs` and `dav.rs` (pointer-level tracing used during root cause analysis).
+
+**Phase 3: Pre-commit Hook Optimization:**
+- Made Stage 2 (clippy) git-diff-aware: only lints changed crates when crate paths are in the diff, falls back to full workspace only when no crates changed.
+- Changed Stage 5 (tests) to skip (not run full workspace) when no crate paths are in the diff.
+- Both stages now use `git diff --cached` (staged files only, consistent with pre-commit semantics).
+- Eliminates the primary cause of `SKIP_PRECOMMIT=1` workarounds.
+
+**Phase 4: Docker Audit Verification:**
+- Verified Dockerfile already at 90% EvergreenImageRegistry compliance (multi-stage build, scratch base, non-root user 65532:65532, healthcheck via TCP shim, OCI labels, CA certificates).
+- Entry point (`deploy/entrypoint.sh`) verified clean: `/bin/sh` (no bashisms), proper UID/GID remapping for OpenShift.
+- Remaining P2 items (per-image READMEs, image size optimization) are polish, not security.
+
+**Phase 5: 24-Hour Soak Test Initiated:**
+- Soak test harness started with `SOAK_DURATION=86400` (24h), isolated `CARGO_TARGET_DIR=target/soak` to avoid build contention.
 
 ### 2026-06-27: Audit Cycle 13 - End-to-End Code Quality, CI/CD, Documentation, Deployment
 

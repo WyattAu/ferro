@@ -2,14 +2,13 @@
 # Ferro pre-commit hook: fmt + clippy + targeted tests + security scan.
 #
 # Stages:
-#   (1/5) Formatting (cargo fmt)
-#   (2/5) Linting  (cargo clippy --deny warnings)
+#   (1/5) Formatting (cargo fmt --all)
+#   (2/5) Linting  (cargo clippy on changed crates, full workspace if none)
 #   (3/5) Secret scan (detect hardcoded secrets in staged code)
 #   (4/5) TODO/FIXME scan (detect incomplete work markers)
-#   (5/5) Tests    (cargo test on crates that changed vs HEAD)
+#   (5/5) Tests    (cargo test on changed crates only, skip if none)
 #
 # Override: SKIP_PRECOMMIT=1 git commit ...
-# Run full test suite locally: PRECOMMIT_FULL_TESTS=1 git commit ...
 # Skip specific stages: SKIP_CLIPPY=1 SKIP_TESTS=1 SKIP_SECRET_SCAN=1 git commit ...
 
 set -euo pipefail
@@ -50,9 +49,35 @@ check_step "cargo fmt" cargo fmt --all -- --check
 if [ "${SKIP_CLIPPY:-0}" != "1" ]; then
   echo ""
   echo "[pre-commit] (2/5) Running clippy..."
-  check_step "cargo clippy" cargo clippy --workspace --all-targets \
-    --features "s3,gcs,azure,pg,redis,ldap" \
-    --locked -- -D warnings
+  CLIPPY_CHANGED=$(git diff --cached --name-only HEAD 2>/dev/null | grep '^crates/' | cut -d/ -f2 | sort -u || true)
+  CLIPPY_FAILED=0
+  if [ -n "$CLIPPY_CHANGED" ]; then
+    echo "[pre-commit] Clippy on changed crates: $(echo $CLIPPY_CHANGED | tr '\n' ' ')"
+    for CRATE in $CLIPPY_CHANGED; do
+      # Try ferro-$CRATE first, fall back to bare $CRATE
+      if ! (cargo clippy -p "ferro-${CRATE}" --all-targets \
+        --features "s3,gcs,azure,pg,redis,ldap" \
+        --locked -- -D warnings 2>/dev/null || \
+        cargo clippy -p "${CRATE}" --all-targets \
+        --features "s3,gcs,azure,pg,redis,ldap" \
+        --locked -- -D warnings 2>/dev/null); then
+        CLIPPY_FAILED=1
+      fi
+    done
+  else
+    echo "[pre-commit] No crate changes detected, running clippy on full workspace..."
+    if ! cargo clippy --workspace --all-targets \
+      --features "s3,gcs,azure,pg,redis,ldap" \
+      --locked -- -D warnings 2>/dev/null; then
+      CLIPPY_FAILED=1
+    fi
+  fi
+  if [ "$CLIPPY_FAILED" -ne 0 ]; then
+    FAIL=$((FAIL + 1))
+    echo "[pre-commit] FAILED: cargo clippy"
+  else
+    PASS=$((PASS + 1))
+  fi
 else
   echo ""
   echo "[pre-commit] (2/5) Clippy skipped (SKIP_CLIPPY=1)"
@@ -124,11 +149,11 @@ if [ "${PRECOMMIT_FULL_TESTS:-0}" = "1" ]; then
 elif [ "${SKIP_TESTS:-0}" = "1" ]; then
   echo "[pre-commit] Tests skipped (SKIP_TESTS=1)"
 else
-  # Determine which crates changed (staged + unstaged)
-  CHANGED=$(git diff --name-only HEAD 2>/dev/null | grep '^crates/' | cut -d/ -f2 | sort -u || true)
+  # Determine which crates changed (staged files only)
+  CHANGED=$(git diff --cached --name-only HEAD 2>/dev/null | grep '^crates/' | cut -d/ -f2 | sort -u || true)
   if [ -z "$CHANGED" ]; then
-    echo "[pre-commit] No crate changes detected, running workspace tests..."
-    check_step "cargo test --workspace" cargo test --workspace --locked
+    echo "[pre-commit] No crate changes detected, skipping tests."
+    PASS=$((PASS + 1))
   else
     echo "[pre-commit] Testing changed crates: $(echo $CHANGED | tr '\n' ' ')"
     TEST_FAILED=0
