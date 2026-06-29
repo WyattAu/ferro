@@ -320,8 +320,12 @@ pub async fn caldav_calendar_or_event(
     body: axum::body::Body,
 ) -> Response {
     let path = uri.path().to_string();
-    let segments: Vec<&str> = path.trim_end_matches('/').split('/').collect();
-    // segments: ["dav", "cal", ...]
+    let segments: Vec<&str> = path
+        .trim_start_matches('/')
+        .trim_end_matches('/')
+        .split('/')
+        .collect();
+    // segments: ["dav", "cal", ...]  (leading '/' stripped)
     let depth = segments.len(); // 3 = calendar level, 4 = event level
 
     let cal_state = caldav_state(&state).await;
@@ -438,7 +442,11 @@ pub async fn carddav_book_or_contact(
     body: axum::body::Body,
 ) -> Response {
     let path = uri.path().to_string();
-    let segments: Vec<&str> = path.trim_end_matches('/').split('/').collect();
+    let segments: Vec<&str> = path
+        .trim_start_matches('/')
+        .trim_end_matches('/')
+        .split('/')
+        .collect();
     let depth = segments.len(); // 3 = book level, 4 = contact level
 
     let card_state = carddav_state(&state).await;
