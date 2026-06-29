@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 5.3 | **Date:** 2026-06-29 | **Status:** v5.3 Audit Cycle 14 Complete + Decomposition Phase 0
+**Version:** 5.4 | **Date:** 2026-06-29 | **Status:** v5.4 Server Decomposition Phase 1 In Progress
 
 ---
 
@@ -46,15 +46,14 @@
 - CORS: `access-control-allow-origin: *` (permissive, acceptable for test instance)
 - TRACE method: Properly rejected (400)
 
-**Server Crate Decomposition -- Phase 0 + Phase 1 Proof of Concept:**
+**Server Crate Decomposition -- Phase 1 In Progress (17/130+ handlers refactored):**
 - Created ADR-001 documenting 3-phase decomposition plan
-- Added `server_context` module to `ferro-common` with 19 composite traits (17 + HasUptime + HasFavorites)
-- Implemented all 19 traits for `AppState` in `ferro-server/src/lib.rs`
+- Added `server_context` module to `ferro-common` with 22 composite traits
+- Implemented all traits for `AppState` in `ferro-server/src/lib.rs`
 - Removed dead 1526-line `backup.rs` duplicate from `server-admin`
-- Refactored 2 handlers as Phase 1 proof of concept:
-  - `metrics_handler`: `S: HasStorage + HasUptime` pattern
-  - `list_favorites`: `S: HasFavorites` pattern with `Pin<Box<Future>>` return
-- Full decomposition estimated: 12 extracted crates, ~45K LOC refactoring
+- Refactored 17 handlers to use generic trait pattern (HasStorage, HasUptime, HasFavorites, HasQuota, HasStorageHealth)
+- Pattern proven: `_impl` functions take `&S: Trait`, concrete handlers delegate
+- utoipa attributes preserved on concrete handlers for OpenAPI schema generation
 
 ### 2026-06-29: Audit Cycle 14 - CalDAV/CardDAV Bug Fix, Dead Code Removal, Pre-commit Optimization
 
