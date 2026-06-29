@@ -3,6 +3,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use base64::Engine;
 use common::auth::Claims;
+use common::server_context::HasStorage;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -566,24 +567,7 @@ pub struct FileEntryJson {
 /// GET /api/v1/files — JSON file listing (alternative to WebDAV PROPFIND).
 ///
 /// Query parameters:
-/// - `path`: directory to list (default: `/`)
-/// - `depth`: nesting depth 0 or 1 (default: 1)
-#[utoipa::path(
-    get,
-    path = "/api/v1/files",
-    params(ListFilesParams),
-    responses(
-        (status = 200, description = "File listing", body = ListFilesResponse),
-        (status = 409, description = "Not a collection", body = ApiError),
-        (status = 404, description = "Path not found", body = ApiError),
-        (status = 500, description = "List failed", body = ApiError),
-    ),
-    tags = ["files"],
-)]
-pub async fn list_files(
-    State(state): State<AppState>,
-    Query(params): Query<ListFilesParams>,
-) -> Response {
+pub async fn list_files_impl<S: HasStorage>(state: &S, params: &ListFilesParams) -> Response {
     let path = params.path.as_deref().unwrap_or("/").trim_matches('/');
     let normalized = if path.is_empty() {
         "/"
@@ -595,7 +579,7 @@ pub async fn list_files(
     // Verify the target is a collection. For "/", synthesize a root collection
     // if the store doesn't auto-create it (mirrors WebDAV PROPFIND behavior).
     if normalized != "/" {
-        match state.storage.head(normalized).await {
+        match state.storage().head(normalized).await {
             Ok(meta) if meta.is_collection => {}
             Ok(_) => {
                 return (
@@ -620,13 +604,13 @@ pub async fn list_files(
         }
     } else {
         // Root may not exist in in-memory store; that's OK — list() will return empty.
-        let _ = state.storage.head("/").await;
+        let _ = state.storage().head("/").await;
     }
 
     let entries = if depth == 0 {
         vec![]
     } else {
-        match state.storage.list(normalized).await {
+        match state.storage().list(normalized).await {
             Ok(items) => items,
             Err(e) => {
                 return (
@@ -666,6 +650,27 @@ pub async fn list_files(
         }),
     )
         .into_response()
+}
+
+/// - `path`: directory to list (default: `/`)
+/// - `depth`: nesting depth 0 or 1 (default: 1)
+#[utoipa::path(
+    get,
+    path = "/api/v1/files",
+    params(ListFilesParams),
+    responses(
+        (status = 200, description = "File listing", body = ListFilesResponse),
+        (status = 409, description = "Not a collection", body = ApiError),
+        (status = 404, description = "Path not found", body = ApiError),
+        (status = 500, description = "List failed", body = ApiError),
+    ),
+    tags = ["files"],
+)]
+pub async fn list_files(
+    State(state): State<AppState>,
+    Query(params): Query<ListFilesParams>,
+) -> Response {
+    list_files_impl(&state, &params).await
 }
 
 /// GET /api/v1/files/{path} — download file content or get collection metadata.
@@ -996,21 +1001,7 @@ pub async fn delete_file(
     }
 }
 
-/// POST /api/v1/files/mkdir — create a directory/collection.
-#[utoipa::path(
-    post,
-    path = "/api/v1/files/mkdir",
-    request_body(content = serde_json::Value, description = "JSON with 'path' field"),
-    responses(
-        (status = 201, description = "Directory created", body = MkdirResponse),
-        (status = 409, description = "Already exists", body = ApiError),
-        (status = 500, description = "Mkdir failed", body = ApiError),
-    ),
-    tags = ["files"],
-)]
-pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::Value>) -> Response {
-    let path = body.get("path").and_then(|v| v.as_str()).unwrap_or("/");
-
+pub async fn mkdir_impl<S: HasStorage>(state: &S, path: &str) -> Response {
     let path = match normalize_api_path(path) {
         Ok(p) => p,
         Err(e) => {
@@ -1049,7 +1040,7 @@ pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::V
 
     let owner = "anonymous".to_string();
 
-    match state.storage.create_collection(&path, &owner).await {
+    match state.storage().create_collection(&path, &owner).await {
         Ok(meta) => {
             let location = meta.path.clone();
             (
@@ -1078,6 +1069,23 @@ pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::V
                 .into_response()
         }
     }
+}
+
+/// POST /api/v1/files/mkdir — create a directory/collection.
+#[utoipa::path(
+    post,
+    path = "/api/v1/files/mkdir",
+    request_body(content = serde_json::Value, description = "JSON with 'path' field"),
+    responses(
+        (status = 201, description = "Directory created", body = MkdirResponse),
+        (status = 409, description = "Already exists", body = ApiError),
+        (status = 500, description = "Mkdir failed", body = ApiError),
+    ),
+    tags = ["files"],
+)]
+pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::Value>) -> Response {
+    let path = body.get("path").and_then(|v| v.as_str()).unwrap_or("/");
+    mkdir_impl(&state, path).await
 }
 
 /// Handler for `/api/v1/files/{*path}` — dispatches GET/PUT/DELETE.
@@ -1126,6 +1134,27 @@ pub async fn files_content_handler(
             axum::Json(serde_json::json!({
                 "error": "method_not_allowed",
                 "message": "Only GET, PUT, and DELETE are supported for file operations",
+            })),
+        )
+            .into_response(),
+    }
+}
+
+pub async fn copy_file_impl<S: HasStorage>(state: &S, from: &str, to: &str) -> Response {
+    match state.storage().copy(from, to).await {
+        Ok(()) => (
+            StatusCode::CREATED,
+            axum::Json(CopyMoveResponse {
+                from_path: from.to_string(),
+                to_path: to.to_string(),
+            }),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({
+                "error": "copy_failed",
+                "message": e.to_string(),
             })),
         )
             .into_response(),
@@ -1187,19 +1216,23 @@ pub async fn copy_file(
         }
     };
 
-    match state.storage.copy(&from, &to).await {
+    copy_file_impl(&state, &from, &to).await
+}
+
+pub async fn move_file_rest_impl<S: HasStorage>(state: &S, from: &str, to: &str) -> Response {
+    match state.storage().move_path(from, to).await {
         Ok(()) => (
             StatusCode::CREATED,
             axum::Json(CopyMoveResponse {
-                from_path: from,
-                to_path: to,
+                from_path: from.to_string(),
+                to_path: to.to_string(),
             }),
         )
             .into_response(),
         Err(e) => (
             StatusCode::NOT_FOUND,
             axum::Json(serde_json::json!({
-                "error": "copy_failed",
+                "error": "move_failed",
                 "message": e.to_string(),
             })),
         )
@@ -1262,24 +1295,7 @@ pub async fn move_file_rest(
         }
     };
 
-    match state.storage.move_path(&from, &to).await {
-        Ok(()) => (
-            StatusCode::CREATED,
-            axum::Json(CopyMoveResponse {
-                from_path: from,
-                to_path: to,
-            }),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::NOT_FOUND,
-            axum::Json(serde_json::json!({
-                "error": "move_failed",
-                "message": e.to_string(),
-            })),
-        )
-            .into_response(),
-    }
+    move_file_rest_impl(&state, &from, &to).await
 }
 
 /// Normalize a user-supplied path for the REST API.

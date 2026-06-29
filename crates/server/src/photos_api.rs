@@ -1,10 +1,11 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
+use common::server_context::HasStorage;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Photo {
@@ -129,11 +130,8 @@ fn save_albums(state: &AppState, albums: &[Album]) -> Result<(), std::io::Error>
     )
 }
 
-pub async fn list_photos(
-    State(state): State<AppState>,
-    Query(params): Query<PhotosQuery>,
-) -> impl IntoResponse {
-    let storage = state.storage.clone();
+pub async fn list_photos_impl<S: HasStorage>(state: &S, params: &PhotosQuery) -> Response {
+    let storage = state.storage();
 
     let entries = storage.list_all("/", 10000).await.unwrap_or_default();
 
@@ -170,6 +168,13 @@ pub async fn list_photos(
         "total": photos.len(),
     }))
     .into_response()
+}
+
+pub async fn list_photos(
+    State(state): State<AppState>,
+    Query(params): Query<PhotosQuery>,
+) -> impl IntoResponse {
+    list_photos_impl(&state, &params).await
 }
 
 pub async fn list_albums(State(state): State<AppState>) -> impl IntoResponse {
@@ -210,11 +215,8 @@ pub async fn create_album(
     (StatusCode::CREATED, Json(serde_json::json!(album))).into_response()
 }
 
-pub async fn get_thumbnail(
-    State(state): State<AppState>,
-    Path(path): Path<String>,
-) -> impl IntoResponse {
-    let storage = state.storage.clone();
+pub async fn get_thumbnail_impl<S: HasStorage>(state: &S, path: &str) -> Response {
+    let storage = state.storage();
     let clean_path = path.trim_start_matches('/');
 
     match storage.get(clean_path).await {
@@ -235,11 +237,15 @@ pub async fn get_thumbnail(
     }
 }
 
-pub async fn get_exif(
+pub async fn get_thumbnail(
     State(state): State<AppState>,
     Path(path): Path<String>,
 ) -> impl IntoResponse {
-    let storage = state.storage.clone();
+    get_thumbnail_impl(&state, &path).await
+}
+
+pub async fn get_exif_impl<S: HasStorage>(state: &S, path: &str) -> Response {
+    let storage = state.storage();
     let clean_path = path.trim_start_matches('/');
 
     match storage.get(clean_path).await {
@@ -262,4 +268,11 @@ pub async fn get_exif(
         )
             .into_response(),
     }
+}
+
+pub async fn get_exif(
+    State(state): State<AppState>,
+    Path(path): Path<String>,
+) -> impl IntoResponse {
+    get_exif_impl(&state, &path).await
 }
