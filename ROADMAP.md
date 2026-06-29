@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 5.2 | **Date:** 2026-06-29 | **Status:** v5.2 Audit Cycle 14 Complete
+**Version:** 5.3 | **Date:** 2026-06-29 | **Status:** v5.3 Audit Cycle 14 Complete + Decomposition Phase 0
 
 ---
 
@@ -23,6 +23,35 @@
 | Pre-commit hook | fmt + clippy (targeted) + secret scan + targeted crate tests (no full workspace fallback) |
 
 ## Recently Completed
+
+### 2026-06-29: oCIS Migration, Security Audit, Server Decomposition Phase 0
+
+**oCIS Migration Tool -- OIDC Support:**
+- Added OAuth2/OIDC token support to `OcisClient`: Bearer token, ROPC grant, Basic Auth
+- Added `--source-token` and `--oidc-client-id` CLI args for migration tool
+- Fixed double-prefix bug in `webdav_url` (PROPFIND hrefs already contain base path)
+- Handled 404 gracefully for virtual directories (oCIS Shares/)
+- Enabled `PROXY_BASIC_AUTH_ENABLE` on oCIS instance on TrueNAS
+
+**Live Instance Testing:**
+- Deployed Ferro test stack on TrueNAS (192.168.1.3, Docker)
+- Created Keycloak user for migration testing
+- Successfully migrated 3 files from oCIS 7.1.4 -> Ferro via OIDC ROPC grant
+- All 58 tests pass (35 security + 11 CalDAV/CardDAV + 12 federation)
+
+**Security Audit:**
+- Auth bypass tests: Auth disabled on test instance (expected), API endpoints accessible
+- Path traversal: Blocked (404 on `../../etc/passwd`, in-memory storage prevents writes)
+- Security headers: X-Content-Type-Options, X-Frame-Options, CSP, Referrer-Policy, Permissions-Policy all present
+- CORS: `access-control-allow-origin: *` (permissive, acceptable for test instance)
+- TRACE method: Properly rejected (400)
+
+**Server Crate Decomposition -- Phase 0 Complete:**
+- Created ADR-001 documenting 3-phase decomposition plan
+- Added `server_context` module to `ferro-common` with 17 composite traits
+- Implemented all 17 traits for `AppState` in `ferro-server`
+- Removed dead 1526-line `backup.rs` duplicate from `server-admin`
+- Full decomposition estimated: 12 extracted crates, ~45K LOC refactoring
 
 ### 2026-06-29: Audit Cycle 14 - CalDAV/CardDAV Bug Fix, Dead Code Removal, Pre-commit Optimization
 

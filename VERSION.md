@@ -13,7 +13,7 @@
 - **Web Frontend:** Leptos WASM frontend fully functional at /ui/ -- 165 DOM elements, 17 buttons, 3 inputs, 0 console errors. Verified across Desktop (1280x720), Mobile (390x844), Tablet (768x1024) viewports via Playwright.
 - **Static Serving:** Fixed --static-dir priority so WebDAV handler no longer intercepts root path. Server serves index.html at /, WASM/JS/CSS at /ui/*.
 - **Status:** v5.2 complete (Audit Cycle 14). ALL roadmap items DONE. 46 crates, 2500+ tests.
-- **Last Updated:** 2026-06-29 (Cycle 14: CalDAV/CardDAV depth bug fixed, dead code removed, pre-commit optimized, 24h soak test initiated)
+- **Last Updated:** 2026-06-29 (Cycle 14+15: oCIS OIDC migration, security audit, server decomposition Phase 0)
 
 ## Phase Progress
 | Phase | Status | Completion |
