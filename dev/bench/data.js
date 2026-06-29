@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782696695626,
+  "lastUpdate": 1782701518281,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -34277,6 +34277,444 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 1467,
             "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 18,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "9ad346387dde41ce0094faf57aaead7fbc960a65",
+          "message": "chore: audit cycle 14 -- dead code removal, pre-commit optimization, docs\n\n- Remove 10 dead standalone CalDAV/CardDAV handler functions from dav.rs\n  (superseded by unified caldav_calendar_or_event/carddav_book_or_contact)\n- Make pre-commit hook git-diff-aware: clippy and tests only run on\n  changed crates, skip full workspace when no crates in diff\n- Update ROADMAP.md with audit cycle 14 findings (v5.2)\n- Update VERSION.md to 3.1.0-rc.2",
+          "timestamp": "2026-06-29T03:36:26+01:00",
+          "tree_id": "bb1230510efd251d61ffaf8a64749ccbc49a0b3e",
+          "url": "https://github.com/WyattAu/ferro/commit/9ad346387dde41ce0094faf57aaead7fbc960a65"
+        },
+        "date": 1782701516777,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "password_hash",
+            "value": 267752558,
+            "range": "± 1378908",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 267765513,
+            "range": "± 546337",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 27060,
+            "range": "± 2024",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 27315,
+            "range": "± 2685",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 15668,
+            "range": "± 87",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 10157,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1916,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 1424,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 3795,
+            "range": "± 53",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1KB",
+            "value": 3164,
+            "range": "± 144047",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1KB",
+            "value": 3285,
+            "range": "± 143554",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10KB",
+            "value": 8832,
+            "range": "± 127338",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10KB",
+            "value": 9012,
+            "range": "± 119",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/100KB",
+            "value": 66777,
+            "range": "± 193",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/100KB",
+            "value": 66950,
+            "range": "± 451",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1MB",
+            "value": 663664,
+            "range": "± 970",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1MB",
+            "value": 663871,
+            "range": "± 1254",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10MB",
+            "value": 6603452,
+            "range": "± 6308",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10MB",
+            "value": 6608630,
+            "range": "± 52015",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1KB",
+            "value": 155,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1KB",
+            "value": 309,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10KB",
+            "value": 151,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10KB",
+            "value": 291,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/100KB",
+            "value": 162,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/100KB",
+            "value": 296,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1MB",
+            "value": 155,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1MB",
+            "value": 291,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10MB",
+            "value": 149,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10MB",
+            "value": 290,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/10",
+            "value": 87128,
+            "range": "± 2002",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/10",
+            "value": 28342,
+            "range": "± 407",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/10",
+            "value": 89424,
+            "range": "± 674",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/50",
+            "value": 242084,
+            "range": "± 4727",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/50",
+            "value": 47179,
+            "range": "± 874",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/50",
+            "value": 264528,
+            "range": "± 3842",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/100",
+            "value": 448688,
+            "range": "± 9308",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/100",
+            "value": 62999,
+            "range": "± 785",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/100",
+            "value": 472577,
+            "range": "± 11011",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/100_entries",
+            "value": 147991,
+            "range": "± 1225",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/100_entries",
+            "value": 21257,
+            "range": "± 56",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/100_entries",
+            "value": 24360,
+            "range": "± 455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/100_entries",
+            "value": 268,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/1000_entries",
+            "value": 1452514,
+            "range": "± 20113",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/1000_entries",
+            "value": 223827,
+            "range": "± 1160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/1000_entries",
+            "value": 244769,
+            "range": "± 1725",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/1000_entries",
+            "value": 280,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/10000_entries",
+            "value": 14216206,
+            "range": "± 340375",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/10000_entries",
+            "value": 2339219,
+            "range": "± 18006",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/10000_entries",
+            "value": 2537509,
+            "range": "± 57899",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/10000_entries",
+            "value": 275,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/single_file_sync_cycle",
+            "value": 8797,
+            "range": "± 74",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/batch_sync_50_files",
+            "value": 253893,
+            "range": "± 4074",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/rename_and_move",
+            "value": 1169,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/concurrent_sync_10_clients",
+            "value": 588895,
+            "range": "± 8558",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/delete_cascade",
+            "value": 258669,
+            "range": "± 2174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1977,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8023,
+            "range": "± 63",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 67347,
+            "range": "± 91",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 132,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 21391,
+            "range": "± 597",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 1739,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 118,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 108,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 244,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 194,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 200,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 2043,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 1457,
+            "range": "± 11",
             "unit": "ns/iter"
           },
           {
