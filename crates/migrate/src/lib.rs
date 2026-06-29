@@ -42,7 +42,15 @@ pub struct NextcloudSource {
 pub struct OcisSource {
     pub url: String,
     pub username: String,
+    /// Password for Basic Auth or OIDC ROPC grant.
+    #[serde(default)]
     pub password: String,
+    /// Pre-obtained Bearer token (personal access token from oCIS UI).
+    #[serde(default)]
+    pub token: Option<String>,
+    /// OIDC client ID for automatic token acquisition via ROPC grant.
+    #[serde(default)]
+    pub oidc_client_id: Option<String>,
     #[serde(default = "default_ocis_webdav_base")]
     pub webdav_base: String,
 }
@@ -349,8 +357,26 @@ async fn run_ocis_migration(
     progress: &ProgressTracker,
     report: &mut MigrationReport,
 ) -> MigrateResult<()> {
-    let ocis = OcisClient::new(&source.url, &source.username, &source.password)?
-        .with_webdav_base(&source.webdav_base);
+    // Determine auth method: token > OIDC > basic
+    let ocis = if let Some(ref token) = source.token {
+        tracing::info!("Using Bearer token authentication for oCIS");
+        OcisClient::with_token(&source.url, &source.username, token)?
+    } else if let Some(ref client_id) = source.oidc_client_id {
+        tracing::info!(
+            "Acquiring OIDC token via ROPC grant (client_id={})...",
+            client_id
+        );
+        OcisClient::with_oidc(&source.url, &source.username, &source.password, client_id).await?
+    } else if !source.password.is_empty() {
+        tracing::info!("Using Basic authentication for oCIS");
+        OcisClient::new(&source.url, &source.username, &source.password)?
+    } else {
+        return Err(MigrationError::authentication(
+            "No auth method specified for oCIS. \
+             Provide --source-token (PAT), --oidc-client-id + password, or --source-pass (basic auth).",
+        ));
+    };
+    let ocis = ocis.with_webdav_base(&source.webdav_base);
     let webdav_source = WebDavSource::Ocis(ocis);
 
     tracing::info!("Validating oCIS connection...");

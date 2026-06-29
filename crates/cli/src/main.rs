@@ -227,9 +227,18 @@ enum MigrateCommands {
         #[arg(long, env = "OCIS_SOURCE_USER")]
         source_user: String,
 
-        /// oCIS password
-        #[arg(long, env = "OCIS_SOURCE_PASS")]
+        /// oCIS password (for Basic Auth or OIDC ROPC grant)
+        #[arg(long, env = "OCIS_SOURCE_PASS", default_value = "")]
         source_pass: String,
+
+        /// Pre-obtained Bearer token (oCIS personal access token from UI)
+        #[arg(long, env = "OCIS_SOURCE_TOKEN")]
+        source_token: Option<String>,
+
+        /// OIDC client ID for automatic token acquisition via ROPC grant.
+        /// When set, password is exchanged for an OIDC access token automatically.
+        #[arg(long, env = "OCIS_OIDC_CLIENT_ID")]
+        oidc_client_id: Option<String>,
 
         /// WebDAV base path (default: /dav/files)
         #[arg(long, default_value = "/dav/files")]
@@ -659,6 +668,8 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
             source_url,
             source_user,
             source_pass,
+            source_token,
+            oidc_client_id,
             webdav_base,
             target_url,
             target_token,
@@ -675,6 +686,8 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
                     url: source_url,
                     username: source_user,
                     password: source_pass,
+                    token: source_token,
+                    oidc_client_id,
                     webdav_base,
                 }),
                 target: ferro_migrate::FerroTargetConfig {
