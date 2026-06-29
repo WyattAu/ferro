@@ -46,11 +46,14 @@
 - CORS: `access-control-allow-origin: *` (permissive, acceptable for test instance)
 - TRACE method: Properly rejected (400)
 
-**Server Crate Decomposition -- Phase 0 Complete:**
+**Server Crate Decomposition -- Phase 0 + Phase 1 Proof of Concept:**
 - Created ADR-001 documenting 3-phase decomposition plan
-- Added `server_context` module to `ferro-common` with 17 composite traits
-- Implemented all 17 traits for `AppState` in `ferro-server`
+- Added `server_context` module to `ferro-common` with 19 composite traits (17 + HasUptime + HasFavorites)
+- Implemented all 19 traits for `AppState` in `ferro-server/src/lib.rs`
 - Removed dead 1526-line `backup.rs` duplicate from `server-admin`
+- Refactored 2 handlers as Phase 1 proof of concept:
+  - `metrics_handler`: `S: HasStorage + HasUptime` pattern
+  - `list_favorites`: `S: HasFavorites` pattern with `Pin<Box<Future>>` return
 - Full decomposition estimated: 12 extracted crates, ~45K LOC refactoring
 
 ### 2026-06-29: Audit Cycle 14 - CalDAV/CardDAV Bug Fix, Dead Code Removal, Pre-commit Optimization
