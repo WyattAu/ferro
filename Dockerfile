@@ -11,7 +11,7 @@
 # - To pin: replace tags with digest from `docker inspect --format='{{index .RepoDigests 0}}'`
 # ==============================================================================
 # Pin: run `docker inspect --format='{{index .RepoDigests 0}}' rust:1.95-bookworm` to get digest
-FROM rust:1.95-bookworm AS builder
+FROM rust:1.96-bookworm AS builder
 
 ARG BUILD_FEATURES=""
 
