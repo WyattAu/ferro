@@ -1,5 +1,4 @@
 pub mod admin_api;
-pub mod backup;
 pub mod branding;
 pub mod gdpr;
 #[cfg(feature = "ldap")]
