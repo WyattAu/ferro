@@ -6,6 +6,7 @@ use axum::http::StatusCode;
 use axum::http::header::{self, HeaderMap, HeaderValue};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
+use common::server_context::HasStorage;
 
 use crate::AppState;
 use crate::api::normalize_api_path;
@@ -94,10 +95,39 @@ fn guess_video_mime(path: &str) -> &'static str {
     }
 }
 
+async fn serve_full_content_impl<S: HasStorage>(
+    state: &S,
+    path: String,
+    _content_type: &str,
+    total_size: u64,
+    mut headers: HeaderMap,
+) -> Response {
+    if let Ok(cl_val) = HeaderValue::from_str(&total_size.to_string()) {
+        headers.insert(header::CONTENT_LENGTH, cl_val);
+    }
+
+    match state.storage().get_stream(&path).await {
+        Ok(reader) => {
+            let stream = tokio_util::io::ReaderStream::new(reader);
+            let body = Body::from_stream(stream);
+
+            (headers, body).into_response()
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({
+                "error": "storage_error",
+                "message": e.to_string(),
+            })),
+        )
+            .into_response(),
+    }
+}
+
 /// GET /api/stream/{path} — Stream video with Range header support (206 Partial Content).
-pub async fn stream_video(
-    State(state): State<AppState>,
-    Path(path): Path<String>,
+pub async fn stream_video_impl<S: HasStorage>(
+    state: &S,
+    path: String,
     headers: HeaderMap,
 ) -> Response {
     let path = match normalize_api_path(&path) {
@@ -114,7 +144,7 @@ pub async fn stream_video(
         }
     };
 
-    let meta = match state.storage.head(&path).await {
+    let meta = match state.storage().head(&path).await {
         Ok(m) => m,
         Err(e) => {
             return (
@@ -170,7 +200,7 @@ pub async fn stream_video(
                 }
 
                 // Stream the requested range
-                match state.storage.get_stream(&path).await {
+                match state.storage().get_stream(&path).await {
                     Ok(mut reader) => {
                         // Read the requested range into memory
                         let mut data = Vec::with_capacity(content_length as usize);
@@ -209,41 +239,21 @@ pub async fn stream_video(
             }
         } else {
             // Invalid Range header, serve full content
-            serve_full_content(state, path, content_type, total_size, response_headers).await
+            serve_full_content_impl(state, path, content_type, total_size, response_headers).await
         }
     } else {
         // No Range header, serve full content
-        serve_full_content(state, path, content_type, total_size, response_headers).await
+        serve_full_content_impl(state, path, content_type, total_size, response_headers).await
     }
 }
 
-async fn serve_full_content(
-    state: AppState,
-    path: String,
-    _content_type: &str,
-    total_size: u64,
-    mut headers: HeaderMap,
+/// GET /api/stream/{path} — Stream video with Range header support (206 Partial Content).
+pub async fn stream_video(
+    State(state): State<AppState>,
+    Path(path): Path<String>,
+    headers: HeaderMap,
 ) -> Response {
-    if let Ok(cl_val) = HeaderValue::from_str(&total_size.to_string()) {
-        headers.insert(header::CONTENT_LENGTH, cl_val);
-    }
-
-    match state.storage.get_stream(&path).await {
-        Ok(reader) => {
-            let stream = tokio_util::io::ReaderStream::new(reader);
-            let body = Body::from_stream(stream);
-
-            (headers, body).into_response()
-        }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(serde_json::json!({
-                "error": "storage_error",
-                "message": e.to_string(),
-            })),
-        )
-            .into_response(),
-    }
+    stream_video_impl(&state, path, headers).await
 }
 
 /// GET /api/stream/{path}/manifest.m3u8 — HLS manifest stub (returns 501 if no transcoding).
