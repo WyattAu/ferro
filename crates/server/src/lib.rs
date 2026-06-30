@@ -220,7 +220,7 @@ use ferro_core::wasm::WasmWorkerRuntime;
 
 use audit::AuditLog;
 use snapshots::SnapshotStore;
-use trash::TrashedEntry;
+use trash::TrashStore;
 use users::{InMemoryUserStore, UserStoreTrait};
 
 use db::DbHandle;
@@ -262,8 +262,9 @@ pub struct AppState {
     pub maintenance_mode: Arc<std::sync::atomic::AtomicBool>,
     pub started_at: std::time::Instant,
     pub favorites: Arc<dyn FavoriteStore>,
-    pub trash: Arc<DashMap<String, TrashedEntry>>,
+    pub trash: Arc<DashMap<String, trash::TrashedEntry>>,
     pub trash_dir: Option<String>,
+    pub trash_store: TrashStore,
     pub quota_bytes: Option<u64>,
     pub used_bytes: Arc<std::sync::atomic::AtomicU64>,
     pub file_count: Arc<std::sync::atomic::AtomicU64>,
@@ -415,6 +416,7 @@ impl AppState {
             favorites: Arc::new(favorites::InMemoryFavoriteStore::new()),
             trash: Arc::new(DashMap::new()),
             trash_dir: None,
+            trash_store: TrashStore::new(),
             quota_bytes: None,
             used_bytes: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             file_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
@@ -604,7 +606,8 @@ impl AppState {
     }
 
     pub fn with_trash_dir(mut self, dir: String) -> Self {
-        self.trash_dir = Some(dir);
+        self.trash_dir = Some(dir.clone());
+        self.trash_store = self.trash_store.clone().with_trash_dir(dir);
         self
     }
 
@@ -701,6 +704,8 @@ impl AppState {
                 self.trash.insert(entry.original_path.clone(), entry);
             }
         }
+        self.trash_store = self.trash_store.clone().with_db(db.clone());
+        self.trash_store.load_from_db();
         let push_store = push_notifications::PushNotificationStore::new(db.clone());
         if let Err(e) = push_store.init_table() {
             tracing::warn!(error = %e, "failed to init push_notifications table");

@@ -259,7 +259,6 @@ pub async fn batch_share(
 mod tests {
     use super::*;
     use crate::AppState;
-    use common::server_context::HasStorage;
     use http_body_util::BodyExt;
     use tower::ServiceExt;
 

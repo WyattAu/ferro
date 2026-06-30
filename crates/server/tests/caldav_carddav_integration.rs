@@ -795,7 +795,7 @@ async fn test_multiget_hrefs_parsing() {
         .unwrap();
 
     let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:direct-event-001\r\nDTSTART:20260701T100000Z\r\nDTEND:20260701T110000Z\r\nSUMMARY:Test\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
-    let ev = store.create_event(&cal.id, ical).await.unwrap();
+    let _ev = store.create_event(&cal.id, ical).await.unwrap();
 
     // Verify get_event works on the store directly
     let got = store.get_event(&cal.id, "direct-event-001").await;

@@ -147,3 +147,53 @@ pub trait HasRateLimitConfig: Send + Sync {
 pub trait HasSnapshotConfig: Send + Sync {
     fn max_snapshot_versions(&self) -> usize;
 }
+
+// =============================================================================
+// TODO Phase 2: Traits to add when store types are moved to ferro-common
+// =============================================================================
+//
+// The following traits require store types (UserStoreTrait, ShareStoreTrait, etc.)
+// that are currently defined in ferro-server or ferro-auth. Once those types are
+// extracted into ferro-common (or a new ferro-store-traits crate), create these
+// traits and implement them for AppState.
+//
+// ## 1. HasUserStore
+//    Used by: admin_api.rs, user_api.rs
+//    Field: state.user_store (Arc<dyn UserStoreTrait>)
+//    Methods needed: user list, create, delete, update password, authenticate, etc.
+//    Dependencies: ferro-auth::UserStoreTrait
+//
+// ## 2. HasShareStore
+//    Used by: shares.rs, batch.rs
+//    Field: state.share_store (Arc<dyn ShareStoreTrait>)
+//    Methods needed: create, delete, list shares, resolve share links, etc.
+//    Dependencies: ferro-server::ShareStoreTrait
+//
+// ## 3. HasAuditLog
+//    Used by: favorites.rs, backup.rs, lib.rs, activity.rs
+//    Field: state.audit_log (AuditLog)
+//    Methods needed: log events, query activity, etc.
+//    Dependencies: ferro-server::AuditLog
+//
+// ## 4. HasTagStore
+//    Used by: tags.rs
+//    Field: state.tag_store (Arc<dyn TagStore>)
+//    Methods needed: add/remove tags, list tags, filter by tag, etc.
+//    Dependencies: ferro-server::TagStore
+//
+// ## 5. HasCommentStore
+//    Used by: comments.rs
+//    Field: state.comment_store (Arc<dyn CommentStore>)
+//    Methods needed: add/update/delete comments, list comments for file, etc.
+//    Dependencies: ferro-server::CommentStore
+//
+// ## 6. HasFavoriteStore
+//    Used by: favorites.rs
+//    Field: state.favorites (FavoriteStore)
+//    Methods needed: list, add, remove favorites
+//    Note: HasFavorites trait already exists (see above), but it delegates to
+//          FavoriteStore directly. This trait would expose the store object itself
+//          if needed for extracted crate access.
+//    Dependencies: ferro-server::FavoriteStore
+//
+// =============================================================================

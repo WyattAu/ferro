@@ -5,6 +5,7 @@ use dashmap::DashMap;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Arc;
 use tracing::warn;
 
 use crate::AppState;
@@ -21,6 +22,157 @@ pub struct TrashedEntry {
     pub size: u64,
     pub mime_type: String,
 }
+
+// ---------------------------------------------------------------------------
+// TrashStore – encapsulates the in-memory DashMap + optional SQLite persistence
+// ---------------------------------------------------------------------------
+
+pub struct TrashStore {
+    entries: Arc<DashMap<String, TrashedEntry>>,
+    trash_dir: Option<String>,
+    db: Option<DbHandle>,
+}
+
+impl Clone for TrashStore {
+    fn clone(&self) -> Self {
+        Self {
+            entries: Arc::clone(&self.entries),
+            trash_dir: self.trash_dir.clone(),
+            db: self.db.clone(),
+        }
+    }
+}
+
+impl Default for TrashStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TrashStore {
+    pub fn new() -> Self {
+        Self {
+            entries: Arc::new(DashMap::new()),
+            trash_dir: None,
+            db: None,
+        }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    pub fn with_trash_dir(mut self, dir: String) -> Self {
+        self.trash_dir = Some(dir);
+        self
+    }
+
+    // -- DashMap delegation ------------------------------------------------
+
+    pub fn list(&self) -> Vec<TrashedEntry> {
+        self.entries.iter().map(|r| r.value().clone()).collect()
+    }
+
+    pub fn insert(&self, key: String, entry: TrashedEntry) {
+        self.entries.insert(key, entry);
+    }
+
+    pub fn remove(&self, key: &str) -> Option<(String, TrashedEntry)> {
+        self.entries.remove(key)
+    }
+
+    pub fn contains(&self, key: &str) -> bool {
+        self.entries.contains_key(key)
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn clear(&self) {
+        self.entries.clear();
+    }
+
+    pub fn get(&self, key: &str) -> Option<dashmap::mapref::one::Ref<'_, String, TrashedEntry>> {
+        self.entries.get(key)
+    }
+
+    pub fn iter(&self) -> dashmap::iter::Iter<'_, String, TrashedEntry> {
+        self.entries.iter()
+    }
+
+    // -- Trash directory ---------------------------------------------------
+
+    pub fn trash_dir(&self) -> Option<&str> {
+        self.trash_dir.as_deref()
+    }
+
+    // -- Eviction ----------------------------------------------------------
+
+    pub fn evict_oldest_if_needed(&self) {
+        if self.entries.len() <= MAX_TRASH_ENTRIES {
+            return;
+        }
+        while self.entries.len() > MAX_TRASH_ENTRIES {
+            let oldest_key = self
+                .entries
+                .iter()
+                .min_by_key(|e| e.value().deleted_at)
+                .map(|e| e.key().clone());
+            if let Some(key) = oldest_key {
+                if let Some((_, entry)) = self.entries.remove(&key) {
+                    delete_trash_file(&entry.trash_path);
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    // -- Persistence -------------------------------------------------------
+
+    pub fn persist_insert(&self, entry: &TrashedEntry) {
+        let Some(ref db) = self.db else {
+            return;
+        };
+        persist_trash_insert(db, entry);
+    }
+
+    pub fn persist_remove(&self, original_path: &str) {
+        let Some(ref db) = self.db else {
+            return;
+        };
+        persist_trash_remove(db, original_path);
+    }
+
+    pub fn persist_clear(&self) {
+        let Some(ref db) = self.db else {
+            return;
+        };
+        persist_trash_clear(db);
+    }
+
+    pub fn load_from_db(&self) {
+        let Some(ref db) = self.db else {
+            return;
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        if let Ok(entries) = load_trash_from_db(&conn) {
+            for entry in entries {
+                self.entries.insert(entry.original_path.clone(), entry);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Response types
+// ---------------------------------------------------------------------------
 
 #[derive(Debug, Serialize)]
 struct TrashedEntryResponse {
@@ -45,6 +197,10 @@ impl From<&TrashedEntry> for TrashedEntryResponse {
 pub struct TrashPathRequest {
     pub original_path: String,
 }
+
+// ---------------------------------------------------------------------------
+// File-system helpers
+// ---------------------------------------------------------------------------
 
 fn generate_trash_path() -> String {
     let ts = chrono::Utc::now().timestamp_millis();
@@ -89,26 +245,11 @@ fn delete_trash_file(trash_path: &str) {
     }
 }
 
-fn evict_oldest_if_needed(trash: &DashMap<String, TrashedEntry>) {
-    if trash.len() <= MAX_TRASH_ENTRIES {
-        return;
-    }
-    while trash.len() > MAX_TRASH_ENTRIES {
-        let oldest_key = trash
-            .iter()
-            .min_by_key(|e| e.value().deleted_at)
-            .map(|e| e.key().clone());
-        if let Some(key) = oldest_key {
-            if let Some((_, entry)) = trash.remove(&key) {
-                delete_trash_file(&entry.trash_path);
-            }
-        } else {
-            break;
-        }
-    }
-}
+// ---------------------------------------------------------------------------
+// SQLite persistence helpers (standalone, used by TrashStore)
+// ---------------------------------------------------------------------------
 
-pub fn persist_trash_insert(db: &DbHandle, entry: &TrashedEntry) {
+fn persist_trash_insert(db: &DbHandle, entry: &TrashedEntry) {
     let conn = db.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute(
         "INSERT OR REPLACE INTO trash (original_path, trash_path, deleted_at, size, mime_type) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -124,7 +265,7 @@ pub fn persist_trash_insert(db: &DbHandle, entry: &TrashedEntry) {
     }
 }
 
-pub fn persist_trash_remove(db: &DbHandle, original_path: &str) {
+fn persist_trash_remove(db: &DbHandle, original_path: &str) {
     let conn = db.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute(
         "DELETE FROM trash WHERE original_path = ?1",
@@ -134,7 +275,7 @@ pub fn persist_trash_remove(db: &DbHandle, original_path: &str) {
     }
 }
 
-pub fn persist_trash_clear(db: &DbHandle) {
+fn persist_trash_clear(db: &DbHandle) {
     let conn = db.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = conn.execute("DELETE FROM trash", []) {
         warn!("Failed to clear trash entries from SQLite: {}", e);
@@ -166,9 +307,13 @@ pub fn load_trash_from_db(
     Ok(entries)
 }
 
+// ---------------------------------------------------------------------------
+// Handlers
+// ---------------------------------------------------------------------------
+
 pub async fn list_trash(State(state): State<AppState>) -> Response {
     let entries: Vec<TrashedEntryResponse> = state
-        .trash
+        .trash_store
         .iter()
         .map(|r| TrashedEntryResponse::from(r.value()))
         .collect();
@@ -207,7 +352,7 @@ pub async fn move_to_trash(
     }
 
     let trash_filename = generate_trash_path();
-    let trash_path_str = if let Some(ref dir) = state.trash_dir {
+    let trash_path_str = if let Some(dir) = state.trash_store.trash_dir() {
         match write_trash_file_async(dir, &trash_filename, content.clone()).await {
             Ok(p) => p.to_string_lossy().to_string(),
             Err(e) => {
@@ -227,13 +372,11 @@ pub async fn move_to_trash(
         mime_type,
     };
 
-    state.trash.insert(normalized.clone(), entry.clone());
-    evict_oldest_if_needed(&state.trash);
-    if let Some(ref db) = state.db {
-        // Use the local entry directly instead of re-fetching from DashMap,
-        // which may have evicted this entry during evict_oldest_if_needed.
-        persist_trash_insert(db, &entry);
-    }
+    state.trash_store.insert(normalized, entry.clone());
+    state.trash_store.evict_oldest_if_needed();
+    // Use the local entry directly instead of re-fetching from DashMap,
+    // which may have evicted this entry during evict_oldest_if_needed.
+    state.trash_store.persist_insert(&entry);
 
     (
         StatusCode::OK,
@@ -248,19 +391,17 @@ pub async fn restore_trash(
 ) -> Response {
     let normalized = common::path::normalize_path(&body.original_path);
 
-    let entry = match state.trash.remove(&normalized) {
+    let entry = match state.trash_store.remove(&normalized) {
         Some((_, entry)) => entry,
         None => return ApiError::not_found(ApiError::TRASH_NOT_FOUND, "File not found in trash"),
     };
 
-    if let Some(ref db) = state.db {
-        persist_trash_remove(db, &normalized);
-    }
+    state.trash_store.persist_remove(&normalized);
 
     let content = match read_trash_file_async(&entry.trash_path).await {
         Ok(bytes) => bytes,
         Err(_) => {
-            state.trash.insert(normalized, entry);
+            state.trash_store.insert(normalized, entry);
             return ApiError::internal(ApiError::INTERNAL_ERROR, "Trash file not found on disk");
         }
     };
@@ -270,7 +411,7 @@ pub async fn restore_trash(
         .put(&entry.original_path, content.clone(), "anonymous")
         .await
     {
-        state.trash.insert(normalized, entry);
+        state.trash_store.insert(normalized, entry);
         return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Restore failed: {}", e));
     }
 
@@ -289,11 +430,9 @@ pub async fn purge_trash(
 ) -> Response {
     let normalized = common::path::normalize_path(&body.original_path);
 
-    if let Some((_, entry)) = state.trash.remove(&normalized) {
+    if let Some((_, entry)) = state.trash_store.remove(&normalized) {
         delete_trash_file(&entry.trash_path);
-        if let Some(ref db) = state.db {
-            persist_trash_remove(db, &normalized);
-        }
+        state.trash_store.persist_remove(&normalized);
     } else {
         return ApiError::not_found(ApiError::TRASH_NOT_FOUND, "File not found in trash");
     }
@@ -306,13 +445,11 @@ pub async fn purge_trash(
 }
 
 pub async fn empty_trash(State(state): State<AppState>) -> Response {
-    for entry in state.trash.iter() {
+    for entry in state.trash_store.iter() {
         delete_trash_file(&entry.trash_path);
     }
-    state.trash.clear();
-    if let Some(ref db) = state.db {
-        persist_trash_clear(db);
-    }
+    state.trash_store.clear();
+    state.trash_store.persist_clear();
     (
         StatusCode::OK,
         axum::Json(serde_json::json!({ "ok": true })),
@@ -324,7 +461,7 @@ pub async fn purge_expired(state: &AppState, ttl: std::time::Duration) -> usize 
     let cutoff = chrono::Utc::now() - ttl;
     let mut keys_to_remove = Vec::new();
 
-    for entry in state.trash.iter() {
+    for entry in state.trash_store.iter() {
         if entry.deleted_at < cutoff {
             keys_to_remove.push(entry.key().clone());
         }
@@ -332,7 +469,7 @@ pub async fn purge_expired(state: &AppState, ttl: std::time::Duration) -> usize 
 
     let mut purged = 0;
     for key in keys_to_remove {
-        if let Some((_, entry)) = state.trash.remove(&key) {
+        if let Some((_, entry)) = state.trash_store.remove(&key) {
             let trash_path = entry.trash_path.clone();
             tokio::spawn(async move {
                 tokio::fs::remove_file(&trash_path).await.ok();
@@ -373,7 +510,7 @@ pub async fn soft_delete(state: &AppState, path: &str) -> Result<(), Response> {
     }
 
     let trash_filename = generate_trash_path();
-    let trash_path_str = if let Some(ref dir) = state.trash_dir {
+    let trash_path_str = if let Some(dir) = state.trash_store.trash_dir() {
         match write_trash_file_async(dir, &trash_filename, content.clone()).await {
             Ok(p) => p.to_string_lossy().to_string(),
             Err(e) => {
@@ -393,13 +530,11 @@ pub async fn soft_delete(state: &AppState, path: &str) -> Result<(), Response> {
         mime_type,
     };
 
-    state.trash.insert(normalized.clone(), entry.clone());
-    evict_oldest_if_needed(&state.trash);
-    if let Some(ref db) = state.db {
-        // Use the local entry directly instead of re-fetching from DashMap,
-        // which may have evicted this entry during evict_oldest_if_needed.
-        persist_trash_insert(db, &entry);
-    }
+    state.trash_store.insert(normalized, entry.clone());
+    state.trash_store.evict_oldest_if_needed();
+    // Use the local entry directly instead of re-fetching from DashMap,
+    // which may have evicted this entry during evict_oldest_if_needed.
+    state.trash_store.persist_insert(&entry);
     Ok(())
 }
 
@@ -436,7 +571,7 @@ mod tests {
         .await;
         assert_eq!(resp.status(), StatusCode::OK);
 
-        assert!(!state.trash.is_empty());
+        assert!(!state.trash_store.is_empty());
 
         let resp = list_trash(State(state)).await;
         assert_eq!(resp.status(), StatusCode::OK);
@@ -499,7 +634,7 @@ mod tests {
         .await;
         assert_eq!(resp.status(), StatusCode::OK);
 
-        assert!(state.trash.is_empty());
+        assert!(state.trash_store.is_empty());
         assert!(state.storage.get("/purge-me.txt").await.is_err());
     }
 
@@ -528,11 +663,11 @@ mod tests {
         )
         .await;
 
-        assert_eq!(state.trash.len(), 2);
+        assert_eq!(state.trash_store.len(), 2);
 
         let resp = empty_trash(State(state.clone())).await;
         assert_eq!(resp.status(), StatusCode::OK);
-        assert!(state.trash.is_empty());
+        assert!(state.trash_store.is_empty());
     }
 
     #[tokio::test]
@@ -568,9 +703,9 @@ mod tests {
         assert!(result.is_ok());
 
         assert!(state.storage.get("/soft-del.txt").await.is_err());
-        assert_eq!(state.trash.len(), 1);
+        assert_eq!(state.trash_store.len(), 1);
 
-        let entry = state.trash.get("/soft-del.txt").unwrap();
+        let entry = state.trash_store.get("/soft-del.txt").unwrap();
         assert_eq!(entry.size, 4);
     }
 
@@ -599,7 +734,7 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         assert!(state.storage.get("/disk-test.txt").await.is_err());
 
-        let entry = state.trash.get("/disk-test.txt").unwrap();
+        let entry = state.trash_store.get("/disk-test.txt").unwrap();
         assert!(PathBuf::from(&entry.trash_path).exists());
         assert_eq!(entry.size, 12);
         drop(entry);
@@ -615,7 +750,7 @@ mod tests {
 
         let content = state.storage.get("/disk-test.txt").await.unwrap();
         assert_eq!(content, bytes::Bytes::from("disk content"));
-        assert!(state.trash.is_empty());
+        assert!(state.trash_store.is_empty());
     }
 
     #[tokio::test]
@@ -641,7 +776,7 @@ mod tests {
         )
         .await;
 
-        let entry = state.trash.get("/purge-disk.txt").unwrap();
+        let entry = state.trash_store.get("/purge-disk.txt").unwrap();
         let disk_path = entry.trash_path.clone();
         assert!(PathBuf::from(&disk_path).exists());
         drop(entry);
@@ -654,7 +789,7 @@ mod tests {
         )
         .await;
         assert_eq!(resp.status(), StatusCode::OK);
-        assert!(state.trash.is_empty());
+        assert!(state.trash_store.is_empty());
         assert!(!PathBuf::from(&disk_path).exists());
     }
 
@@ -695,7 +830,7 @@ mod tests {
         let short_ttl = std::time::Duration::from_secs(0);
         let purged = purge_expired(&state, short_ttl).await;
         assert_eq!(purged, 2, "Both old entries should be purged with 0 TTL");
-        assert_eq!(state.trash.len(), 0);
+        assert_eq!(state.trash_store.len(), 0);
 
         move_to_trash(
             State(state.clone()),
@@ -706,7 +841,7 @@ mod tests {
         let long_ttl = std::time::Duration::from_secs(3600);
         let purged = purge_expired(&state, long_ttl).await;
         assert_eq!(purged, 0, "No entries should be purged with long TTL");
-        assert_eq!(state.trash.len(), 1);
+        assert_eq!(state.trash_store.len(), 1);
     }
 
     #[tokio::test]
@@ -738,7 +873,11 @@ mod tests {
         )
         .await;
 
-        let paths: Vec<String> = state.trash.iter().map(|e| e.trash_path.clone()).collect();
+        let paths: Vec<String> = state
+            .trash_store
+            .iter()
+            .map(|e| e.trash_path.clone())
+            .collect();
         assert_eq!(paths.len(), 2);
         for p in &paths {
             assert!(PathBuf::from(p).exists());
@@ -746,7 +885,7 @@ mod tests {
 
         let resp = empty_trash(State(state.clone())).await;
         assert_eq!(resp.status(), StatusCode::OK);
-        assert!(state.trash.is_empty());
+        assert!(state.trash_store.is_empty());
         for p in &paths {
             assert!(!PathBuf::from(p).exists());
         }
