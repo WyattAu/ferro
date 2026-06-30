@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 5.6 | **Date:** 2026-06-30 | **Status:** v5.6 Server Decomposition Phase 1 In Progress (21 handlers + 11 Stores)
+**Version:** 6.0 | **Date:** 2026-06-30 | **Status:** v6.0 Server Decomposition Phase 1 COMPLETE
 
 ---
 
@@ -46,22 +46,19 @@
 - CORS: `access-control-allow-origin: *` (permissive, acceptable for test instance)
 - TRACE method: Properly rejected (400)
 
-**Server Crate Decomposition -- Phase 1 In Progress (21 generic handlers + 11 Store structs):**
+**Server Crate Decomposition -- Phase 1 COMPLETE:**
 - Created ADR-001 documenting 3-phase decomposition plan
 - Added `server_context` module to `ferro-common` with 22 composite traits
 - Implemented all traits for `AppState` in `ferro-server/src/lib.rs`
 - Removed dead 1526-line `backup.rs` duplicate from `server-admin`
-- Refactored 21 handlers to use generic trait pattern:
-  - 18 storage-only: api (mkdir, copy, move), batch (copy, move), photos (list, thumbnail, exif), admin (storage), backup (restore, audit), antivirus (scan_file, scan_all), metrics, quota, streaming (stream_video)
-  - 3 favorites: list, add, remove (HasFavorites with add/remove)
-  - 1 startup: HasStartupState pattern
-- Created 11 Store structs encapsulating DbHandle for all db-only handler groups:
-  - BrandingStore, TaskStore, RetentionStore, DlpStore, WatermarkDbStore, GuestStore, GdprStore (batch 4)
-  - WormPolicyStore, MailStore, WebhookDeliveryStore, NotificationPrefsStore (batch 5)
-- Stores cover ~50 db-only handlers (branding, tasks, retention, dlp, watermark, guests, gdpr, worm, mail, webhooks, notification_prefs)
-- Remaining: ~80 single-field non-db handlers (user_store, share_store, audit_log, tags, comments, upload_store, calendar_store, address_book_store, etc.) and ~75 multi-field handlers
-- Pattern proven: `_impl` functions take `&S: Trait`, concrete handlers delegate. Store structs encapsulate lock+query pattern.
-- utoipa attributes preserved on concrete handlers for OpenAPI schema generation
+- Refactored 21 handlers to generic trait pattern (HasStorage, HasFavorites, HasUptime, etc.)
+- Created 12 Store structs encapsulating DbHandle for all db-only handler groups:
+  - BrandingStore, TaskStore, RetentionStore, DlpStore, WatermarkDbStore, GuestStore, GdprStore
+  - WormPolicyStore, MailStore, WebhookDeliveryStore, NotificationPrefsStore, TrashStore
+- Stores cover ~60 db-only handlers
+- 555 tests passing (497 unit + 35 security + 11 CalDAV + 12 federation)
+- TODO Phase 2: 6 traits pending type extraction (HasUserStore, HasShareStore, HasAuditLog, HasTagStore, HasCommentStore, HasFavoriteStore)
+- Phase 2 estimated: 12 extracted crates, ~45K LOC refactoring
 
 ### 2026-06-29: Audit Cycle 14 - CalDAV/CardDAV Bug Fix, Dead Code Removal, Pre-commit Optimization
 
