@@ -128,11 +128,8 @@ pub struct FavoritePath {
 }
 
 /// Add a path to the current user's favorites.
-pub async fn add_favorite(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<FavoritePath>,
-) -> Response {
-    state.favorites.add(body.path).await;
+pub async fn add_favorite_impl<S: HasFavorites>(state: &S, path: String) -> Response {
+    state.add_favorite(path).await;
     (
         StatusCode::OK,
         axum::Json(serde_json::json!({ "ok": true })),
@@ -140,17 +137,28 @@ pub async fn add_favorite(
         .into_response()
 }
 
-/// Remove a path from the current user's favorites.
-pub async fn remove_favorite(
+pub async fn add_favorite(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<FavoritePath>,
 ) -> Response {
-    state.favorites.remove(&body.path).await;
+    add_favorite_impl(&state, body.path).await
+}
+
+/// Remove a path from the current user's favorites.
+pub async fn remove_favorite_impl<S: HasFavorites>(state: &S, path: &str) -> Response {
+    state.remove_favorite(path).await;
     (
         StatusCode::OK,
         axum::Json(serde_json::json!({ "ok": true })),
     )
         .into_response()
+}
+
+pub async fn remove_favorite(
+    State(state): State<AppState>,
+    axum::Json(body): axum::Json<FavoritePath>,
+) -> Response {
+    remove_favorite_impl(&state, &body.path).await
 }
 
 /// List recently created/modified files from the audit log.

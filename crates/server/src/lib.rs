@@ -1002,6 +1002,19 @@ impl common::server_context::HasFavorites for AppState {
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<String>> + Send + '_>> {
         Box::pin(async move { self.favorites.list().await })
     }
+    fn add_favorite(
+        &self,
+        path: String,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>> {
+        Box::pin(async move { self.favorites.add(path).await })
+    }
+    fn remove_favorite(
+        &self,
+        path: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>> {
+        let path = path.to_owned();
+        Box::pin(async move { self.favorites.remove(&path).await })
+    }
 }
 
 impl common::server_context::HasStorage for AppState {
@@ -2522,9 +2535,8 @@ pub async fn health_endpoint(State(state): State<AppState>) -> Response {
 /// GET /startupz — Kubernetes-style startup probe.
 /// Returns 200 once the server has completed all startup checks
 /// (storage reachability, CAS verification, DB init). Returns 503 until then.
-pub async fn startup(State(state): State<AppState>) -> Response {
-    use std::sync::atomic::Ordering;
-    if state.startup_complete.load(Ordering::Relaxed) {
+pub async fn startup_impl<S: common::server_context::HasStartupState>(state: &S) -> Response {
+    if state.is_started() {
         (
             StatusCode::OK,
             axum::Json(serde_json::json!({"status": "ok"})),
@@ -2537,6 +2549,10 @@ pub async fn startup(State(state): State<AppState>) -> Response {
         )
             .into_response()
     }
+}
+
+pub async fn startup(State(state): State<AppState>) -> Response {
+    startup_impl(&state).await
 }
 
 pub async fn readiness(State(state): State<AppState>) -> Response {
