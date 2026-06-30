@@ -35,17 +35,32 @@ pub struct UpdateNotificationPrefsRequest {
     pub daily_digest_email: Option<bool>,
 }
 
+#[derive(Clone)]
 pub struct NotificationPrefsStore {
-    db: DbHandle,
+    db: Option<DbHandle>,
+}
+
+impl Default for NotificationPrefsStore {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NotificationPrefsStore {
-    pub fn new(db: DbHandle) -> Self {
-        Self { db }
+    pub fn new() -> Self {
+        Self { db: None }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
     }
 
     pub fn init_table(&self) -> Result<(), rusqlite::Error> {
-        let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(ref db) = self.db else {
+            return Ok(());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS notification_prefs (
                 user_id TEXT PRIMARY KEY NOT NULL,
@@ -64,7 +79,21 @@ impl NotificationPrefsStore {
     }
 
     pub fn get_prefs(&self, user_id: &str) -> Result<NotificationPrefs, rusqlite::Error> {
-        let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(ref db) = self.db else {
+            return Ok(NotificationPrefs {
+                user_id: user_id.to_string(),
+                share_received_email: true,
+                share_received_push: true,
+                comment_added_email: true,
+                comment_added_push: true,
+                task_assigned_email: true,
+                task_assigned_push: true,
+                mention_push: true,
+                system_alert_push: true,
+                daily_digest_email: true,
+            });
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
             "SELECT user_id, share_received_email, share_received_push,
              comment_added_email, comment_added_push,
@@ -111,8 +140,6 @@ impl NotificationPrefsStore {
         user_id: &str,
         updates: &UpdateNotificationPrefsRequest,
     ) -> Result<NotificationPrefs, rusqlite::Error> {
-        let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
-
         // Get current prefs or defaults
         let current = self.get_prefs(user_id)?;
 
@@ -142,28 +169,7 @@ impl NotificationPrefsStore {
             .daily_digest_email
             .unwrap_or(current.daily_digest_email);
 
-        conn.execute(
-            "INSERT OR REPLACE INTO notification_prefs
-             (user_id, share_received_email, share_received_push,
-              comment_added_email, comment_added_push,
-              task_assigned_email, task_assigned_push,
-              mention_push, system_alert_push, daily_digest_email)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![
-                user_id,
-                share_received_email as i64,
-                share_received_push as i64,
-                comment_added_email as i64,
-                comment_added_push as i64,
-                task_assigned_email as i64,
-                task_assigned_push as i64,
-                mention_push as i64,
-                system_alert_push as i64,
-                daily_digest_email as i64,
-            ],
-        )?;
-
-        Ok(NotificationPrefs {
+        let result = NotificationPrefs {
             user_id: user_id.to_string(),
             share_received_email,
             share_received_push,
@@ -174,24 +180,42 @@ impl NotificationPrefsStore {
             mention_push,
             system_alert_push,
             daily_digest_email,
-        })
+        };
+
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            conn.execute(
+                "INSERT OR REPLACE INTO notification_prefs
+                 (user_id, share_received_email, share_received_push,
+                  comment_added_email, comment_added_push,
+                  task_assigned_email, task_assigned_push,
+                  mention_push, system_alert_push, daily_digest_email)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                params![
+                    user_id,
+                    share_received_email as i64,
+                    share_received_push as i64,
+                    comment_added_email as i64,
+                    comment_added_push as i64,
+                    task_assigned_email as i64,
+                    task_assigned_push as i64,
+                    mention_push as i64,
+                    system_alert_push as i64,
+                    daily_digest_email as i64,
+                ],
+            )?;
+        }
+
+        Ok(result)
     }
 }
 
 /// GET /api/notification-prefs
 pub async fn get_notification_prefs(State(state): State<AppState>) -> Response {
-    let db = match &state.db {
-        Some(db) => db.clone(),
-        None => {
-            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not available");
-        }
-    };
-
     // For now, use a default user ID since auth middleware should extract this
     let user_id = "default";
 
-    let store = NotificationPrefsStore::new(db);
-    match store.get_prefs(user_id) {
+    match state.notification_prefs_store.get_prefs(user_id) {
         Ok(prefs) => (StatusCode::OK, axum::Json(prefs)).into_response(),
         Err(e) => ApiError::internal(
             ApiError::INTERNAL_ERROR,
@@ -205,18 +229,10 @@ pub async fn update_notification_prefs(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<UpdateNotificationPrefsRequest>,
 ) -> Response {
-    let db = match &state.db {
-        Some(db) => db.clone(),
-        None => {
-            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not available");
-        }
-    };
-
     // For now, use a default user ID since auth middleware should extract this
     let user_id = "default";
 
-    let store = NotificationPrefsStore::new(db);
-    match store.update_prefs(user_id, &body) {
+    match state.notification_prefs_store.update_prefs(user_id, &body) {
         Ok(prefs) => (StatusCode::OK, axum::Json(prefs)).into_response(),
         Err(e) => ApiError::internal(
             ApiError::INTERNAL_ERROR,

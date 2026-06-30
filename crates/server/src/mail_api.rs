@@ -10,6 +10,185 @@ use crate::AppState;
 use crate::api_error::ApiError;
 use crate::db::DbHandle;
 
+// ---------------------------------------------------------------------------
+// MailStore
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct MailStore {
+    db: Option<DbHandle>,
+}
+
+impl Default for MailStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MailStore {
+    pub fn new() -> Self {
+        Self { db: None }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    fn encrypt_password(password: &str) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(password.as_bytes());
+        let hash = hasher.finalize();
+        format!(
+            "sha256:{}",
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, hash)
+        )
+    }
+
+    fn list_accounts_from_db(
+        conn: &rusqlite::Connection,
+    ) -> Result<Vec<MailAccount>, rusqlite::Error> {
+        let mut stmt = conn.prepare(
+            "SELECT id, name, email_address, imap_host, imap_port, imap_security, imap_username, smtp_host, smtp_port, smtp_security, smtp_username, created_at FROM mail_accounts ORDER BY created_at",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(MailAccount {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                email_address: row.get(2)?,
+                imap_host: row.get(3)?,
+                imap_port: row.get::<_, i32>(4)? as u16,
+                imap_security: row.get(5)?,
+                imap_username: row.get(6)?,
+                smtp_host: row.get(7)?,
+                smtp_port: row.get::<_, i32>(8)? as u16,
+                smtp_security: row.get(9)?,
+                smtp_username: row.get(10)?,
+                created_at: row.get(11)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    fn get_account_from_db(
+        conn: &rusqlite::Connection,
+        id: &str,
+    ) -> Result<MailAccount, rusqlite::Error> {
+        conn.query_row(
+            "SELECT id, name, email_address, imap_host, imap_port, imap_security, imap_username, smtp_host, smtp_port, smtp_security, smtp_username, created_at FROM mail_accounts WHERE id = ?1",
+            params![id],
+            |row| {
+                Ok(MailAccount {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    email_address: row.get(2)?,
+                    imap_host: row.get(3)?,
+                    imap_port: row.get::<_, i32>(4)? as u16,
+                    imap_security: row.get(5)?,
+                    imap_username: row.get(6)?,
+                    smtp_host: row.get(7)?,
+                    smtp_port: row.get::<_, i32>(8)? as u16,
+                    smtp_security: row.get(9)?,
+                    smtp_username: row.get(10)?,
+                    created_at: row.get(11)?,
+                })
+            },
+        )
+    }
+
+    pub fn list_accounts(&self) -> Result<Vec<MailAccount>, String> {
+        let Some(ref db) = self.db else {
+            return Err("Database not configured".to_string());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        Self::list_accounts_from_db(&conn).map_err(|e| format!("Failed to list mail accounts: {e}"))
+    }
+
+    pub fn get_account(&self, id: &str) -> Result<Option<MailAccount>, String> {
+        let Some(ref db) = self.db else {
+            return Err("Database not configured".to_string());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        match Self::get_account_from_db(&conn, id) {
+            Ok(a) => Ok(Some(a)),
+            Err(_) => Ok(None),
+        }
+    }
+
+    pub fn create_account(&self, req: &CreateMailAccountRequest) -> Result<MailAccount, String> {
+        let Some(ref db) = self.db else {
+            return Err("Database not configured".to_string());
+        };
+
+        if req.name.is_empty() || req.email_address.is_empty() {
+            return Err("Name and email address are required".to_string());
+        }
+
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        let imap_port = req.imap_port.unwrap_or(993);
+        let imap_security = req
+            .imap_security
+            .clone()
+            .unwrap_or_else(|| "ssl".to_string());
+        let smtp_port = req.smtp_port.unwrap_or(587);
+        let smtp_security = req
+            .smtp_security
+            .clone()
+            .unwrap_or_else(|| "starttls".to_string());
+        let imap_password_enc = Self::encrypt_password(&req.imap_password);
+        let smtp_password_enc = Self::encrypt_password(&req.smtp_password);
+
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute(
+            "INSERT INTO mail_accounts (id, name, email_address, imap_host, imap_port, imap_security, imap_username, imap_password, smtp_host, smtp_port, smtp_security, smtp_username, smtp_password, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![
+                id, req.name, req.email_address, req.imap_host, imap_port as i32,
+                imap_security, req.imap_username, imap_password_enc,
+                req.smtp_host, smtp_port as i32, smtp_security, req.smtp_username,
+                smtp_password_enc, now,
+            ],
+        )
+        .map_err(|e| {
+            warn!("Failed to create mail account: {}", e);
+            "Failed to create mail account".to_string()
+        })?;
+
+        Ok(MailAccount {
+            id,
+            name: req.name.clone(),
+            email_address: req.email_address.clone(),
+            imap_host: req.imap_host.clone(),
+            imap_port,
+            imap_security,
+            imap_username: req.imap_username.clone(),
+            smtp_host: req.smtp_host.clone(),
+            smtp_port,
+            smtp_security,
+            smtp_username: req.smtp_username.clone(),
+            created_at: now,
+        })
+    }
+
+    pub fn delete_account(&self, id: &str) -> Result<bool, String> {
+        let Some(ref db) = self.db else {
+            return Err("Database not configured".to_string());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let affected = conn
+            .execute("DELETE FROM mail_accounts WHERE id = ?1", params![id])
+            .map_err(|e| {
+                warn!("Failed to delete mail account: {}", e);
+                "Failed to delete mail account".to_string()
+            })?;
+        if affected == 0 {
+            return Err("Mail account not found".to_string());
+        }
+        Ok(true)
+    }
+}
+
 /// IMAP/SMTP mail account configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MailAccount {
@@ -109,80 +288,6 @@ pub struct MailAttachmentInfo {
     pub size: u32,
 }
 
-/// Mail account store backed by SQLite.
-pub struct MailAccountStore {
-    #[allow(dead_code)]
-    db: DbHandle,
-}
-
-impl MailAccountStore {
-    pub fn new(db: DbHandle) -> Self {
-        Self { db }
-    }
-
-    fn encrypt_password(password: &str) -> String {
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(password.as_bytes());
-        let hash = hasher.finalize();
-        format!(
-            "sha256:{}",
-            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, hash)
-        )
-    }
-
-    fn list_accounts_from_db(
-        conn: &rusqlite::Connection,
-    ) -> Result<Vec<MailAccount>, rusqlite::Error> {
-        let mut stmt = conn.prepare(
-            "SELECT id, name, email_address, imap_host, imap_port, imap_security, imap_username, smtp_host, smtp_port, smtp_security, smtp_username, created_at FROM mail_accounts ORDER BY created_at",
-        )?;
-        let rows = stmt.query_map([], |row| {
-            Ok(MailAccount {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                email_address: row.get(2)?,
-                imap_host: row.get(3)?,
-                imap_port: row.get::<_, i32>(4)? as u16,
-                imap_security: row.get(5)?,
-                imap_username: row.get(6)?,
-                smtp_host: row.get(7)?,
-                smtp_port: row.get::<_, i32>(8)? as u16,
-                smtp_security: row.get(9)?,
-                smtp_username: row.get(10)?,
-                created_at: row.get(11)?,
-            })
-        })?;
-        rows.collect()
-    }
-
-    fn get_account_from_db(
-        conn: &rusqlite::Connection,
-        id: &str,
-    ) -> Result<MailAccount, rusqlite::Error> {
-        conn.query_row(
-            "SELECT id, name, email_address, imap_host, imap_port, imap_security, imap_username, smtp_host, smtp_port, smtp_security, smtp_username, created_at FROM mail_accounts WHERE id = ?1",
-            params![id],
-            |row| {
-                Ok(MailAccount {
-                    id: row.get(0)?,
-                    name: row.get(1)?,
-                    email_address: row.get(2)?,
-                    imap_host: row.get(3)?,
-                    imap_port: row.get::<_, i32>(4)? as u16,
-                    imap_security: row.get(5)?,
-                    imap_username: row.get(6)?,
-                    smtp_host: row.get(7)?,
-                    smtp_port: row.get::<_, i32>(8)? as u16,
-                    smtp_security: row.get(9)?,
-                    smtp_username: row.get(10)?,
-                    created_at: row.get(11)?,
-                })
-            },
-        )
-    }
-}
-
 // ---------------------------------------------------------------------------
 // IMAP helpers
 // ---------------------------------------------------------------------------
@@ -249,18 +354,14 @@ fn parse_fetch_headers(
 
 /// GET /mail/accounts — list configured mail accounts.
 pub async fn list_accounts(State(state): State<AppState>) -> Response {
-    let Some(ref db) = state.db else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
-    };
-    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    match MailAccountStore::list_accounts_from_db(&conn) {
+    match state.mail_store.list_accounts() {
         Ok(accounts) => (
             StatusCode::OK,
             Json(serde_json::json!({ "accounts": accounts })),
         )
             .into_response(),
         Err(e) => {
-            warn!("Failed to list mail accounts: {}", e);
+            warn!("{}", e);
             ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to list mail accounts")
         }
     }
@@ -271,87 +372,41 @@ pub async fn create_account(
     State(state): State<AppState>,
     Json(req): Json<CreateMailAccountRequest>,
 ) -> Response {
-    let Some(ref db) = state.db else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
-    };
-
-    if req.name.is_empty() || req.email_address.is_empty() {
-        return ApiError::bad_request(
-            ApiError::INVALID_INPUT,
-            "Name and email address are required",
-        );
-    }
-
-    let id = uuid::Uuid::new_v4().to_string();
-    let now = chrono::Utc::now().to_rfc3339();
-    let imap_port = req.imap_port.unwrap_or(993);
-    let imap_security = req.imap_security.unwrap_or_else(|| "ssl".to_string());
-    let smtp_port = req.smtp_port.unwrap_or(587);
-    let smtp_security = req.smtp_security.unwrap_or_else(|| "starttls".to_string());
-    let imap_password_enc = MailAccountStore::encrypt_password(&req.imap_password);
-    let smtp_password_enc = MailAccountStore::encrypt_password(&req.smtp_password);
-
-    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    match conn.execute(
-        "INSERT INTO mail_accounts (id, name, email_address, imap_host, imap_port, imap_security, imap_username, imap_password, smtp_host, smtp_port, smtp_security, smtp_username, smtp_password, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
-        params![
-            id, req.name, req.email_address, req.imap_host, imap_port as i32,
-            imap_security, req.imap_username, imap_password_enc,
-            req.smtp_host, smtp_port as i32, smtp_security, req.smtp_username,
-            smtp_password_enc, now,
-        ],
-    ) {
-        Ok(_) => {
-            let account = MailAccount {
-                id,
-                name: req.name,
-                email_address: req.email_address,
-                imap_host: req.imap_host,
-                imap_port,
-                imap_security,
-                imap_username: req.imap_username,
-                smtp_host: req.smtp_host,
-                smtp_port,
-                smtp_security,
-                smtp_username: req.smtp_username,
-                created_at: now,
-            };
-            (StatusCode::CREATED, Json(serde_json::json!(account))).into_response()
-        }
+    match state.mail_store.create_account(&req) {
+        Ok(account) => (StatusCode::CREATED, Json(serde_json::json!(account))).into_response(),
         Err(e) => {
-            warn!("Failed to create mail account: {}", e);
-            ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create mail account")
+            if e.contains("required") {
+                ApiError::bad_request(ApiError::INVALID_INPUT, &e)
+            } else {
+                warn!("{}", e);
+                ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create mail account")
+            }
         }
     }
 }
 
 /// DELETE /mail/accounts/{id} — remove a mail account.
 pub async fn delete_account(State(state): State<AppState>, Path(id): Path<String>) -> Response {
-    let Some(ref db) = state.db else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
-    };
-    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    match conn.execute("DELETE FROM mail_accounts WHERE id = ?1", params![id]) {
-        Ok(0) => ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
+    match state.mail_store.delete_account(&id) {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => {
-            warn!("Failed to delete mail account: {}", e);
-            ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to delete mail account")
+            if e == "Mail account not found" {
+                ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found")
+            } else {
+                warn!("{}", e);
+                ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to delete mail account")
+            }
         }
     }
 }
 
 /// GET /mail/accounts/{id}/folders — list IMAP folders.
 pub async fn mail_folders(State(state): State<AppState>, Path(id): Path<String>) -> Response {
-    let Some(ref db) = state.db else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
+    let account = match state.mail_store.get_account(&id) {
+        Ok(Some(a)) => a,
+        Ok(None) => return ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
+        Err(e) => return ApiError::internal(ApiError::INTERNAL_ERROR, e),
     };
-    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    let account = match MailAccountStore::get_account_from_db(&conn, &id) {
-        Ok(a) => a,
-        Err(_) => return ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
-    };
-    drop(conn);
 
     // Connect without password — in production, credentials would come from a secure store
     let mut session = match imap_connect(
@@ -409,15 +464,11 @@ pub async fn mail_messages(
         .and_then(|v| v.parse().ok())
         .unwrap_or(0);
 
-    let Some(ref db) = state.db else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
+    let account = match state.mail_store.get_account(&id) {
+        Ok(Some(a)) => a,
+        Ok(None) => return ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
+        Err(e) => return ApiError::internal(ApiError::INTERNAL_ERROR, e),
     };
-    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    let account = match MailAccountStore::get_account_from_db(&conn, &id) {
-        Ok(a) => a,
-        Err(_) => return ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
-    };
-    drop(conn);
 
     let mut session = match imap_connect(
         &account.imap_host,
@@ -516,15 +567,11 @@ pub async fn mail_message_detail(
     State(state): State<AppState>,
     Path((id, folder, uid)): Path<(String, String, u32)>,
 ) -> Response {
-    let Some(ref db) = state.db else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
+    let account = match state.mail_store.get_account(&id) {
+        Ok(Some(a)) => a,
+        Ok(None) => return ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
+        Err(e) => return ApiError::internal(ApiError::INTERNAL_ERROR, e),
     };
-    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    let account = match MailAccountStore::get_account_from_db(&conn, &id) {
-        Ok(a) => a,
-        Err(_) => return ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
-    };
-    drop(conn);
 
     let mut session = match imap_connect(
         &account.imap_host,
@@ -617,15 +664,10 @@ pub async fn send_email(
     Path(id): Path<String>,
     Json(req): Json<SendEmailRequest>,
 ) -> Response {
-    let Some(ref db) = state.db else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
-    };
-    let account = {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        match MailAccountStore::get_account_from_db(&conn, &id) {
-            Ok(a) => a,
-            Err(_) => return ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
-        }
+    let account = match state.mail_store.get_account(&id) {
+        Ok(Some(a)) => a,
+        Ok(None) => return ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
+        Err(e) => return ApiError::internal(ApiError::INTERNAL_ERROR, e),
     };
 
     if req.to.is_empty() {

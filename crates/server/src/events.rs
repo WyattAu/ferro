@@ -106,7 +106,7 @@ pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
     crate::webhooks::fire_webhooks(
         state.webhooks.clone(),
         webhook_event.clone(),
-        state.db.clone(),
+        state.webhook_delivery_store.clone(),
     )
     .await;
 

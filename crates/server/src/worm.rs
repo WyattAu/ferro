@@ -9,6 +9,118 @@ use crate::AppState;
 use crate::api_error::ApiError;
 use crate::db::DbHandle;
 
+// ---------------------------------------------------------------------------
+// WormPolicyStore
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct WormPolicyStore {
+    db: Option<DbHandle>,
+}
+
+impl Default for WormPolicyStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WormPolicyStore {
+    pub fn new() -> Self {
+        Self { db: None }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    pub fn list_policies(&self) -> Result<Vec<WormPolicy>, String> {
+        let Some(ref db) = self.db else {
+            return Ok(Vec::new());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = match conn.prepare(
+            "SELECT id, path_prefix, enabled, created_at FROM worm_policies ORDER BY created_at",
+        ) {
+            Ok(s) => s,
+            Err(_) => return Ok(Vec::new()),
+        };
+        let rows = stmt.query_map([], WormPolicy::from_row);
+        let mut result = Vec::new();
+        if let Ok(rows) = rows {
+            for row in rows.flatten() {
+                result.push(row);
+            }
+        }
+        Ok(result)
+    }
+
+    pub fn list_enabled_policies(&self) -> Result<Vec<WormPolicy>, String> {
+        let Some(ref db) = self.db else {
+            return Ok(Vec::new());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = match conn.prepare(
+            "SELECT id, path_prefix, enabled, created_at FROM worm_policies WHERE enabled = 1 ORDER BY created_at",
+        ) {
+            Ok(s) => s,
+            Err(_) => return Ok(Vec::new()),
+        };
+        let rows = stmt.query_map([], WormPolicy::from_row);
+        let mut result = Vec::new();
+        if let Ok(rows) = rows {
+            for row in rows.flatten() {
+                result.push(row);
+            }
+        }
+        Ok(result)
+    }
+
+    pub fn create_policy(&self, req: &CreateWormPolicyRequest) -> Result<WormPolicy, String> {
+        if req.path_prefix.trim().is_empty() {
+            return Err("Path prefix must not be empty".to_string());
+        }
+        let Some(ref db) = self.db else {
+            return Err("Database not available".to_string());
+        };
+        let policy_id = uuid::Uuid::new_v4().to_string();
+        let created_at = chrono::Utc::now().to_rfc3339();
+        let policy = WormPolicy {
+            id: policy_id,
+            path_prefix: req.path_prefix.clone(),
+            enabled: req.enabled,
+            created_at,
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute(
+            "INSERT INTO worm_policies (id, path_prefix, enabled, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![policy.id, policy.path_prefix, policy.enabled as i32, policy.created_at],
+        )
+        .map_err(|e| {
+            warn!(error = %e, "failed to create WORM policy");
+            "Failed to create WORM policy".to_string()
+        })?;
+        Ok(policy)
+    }
+
+    pub fn delete_policy(&self, id: &str) -> Result<bool, String> {
+        let Some(ref db) = self.db else {
+            return Err("Database not available".to_string());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let affected = conn
+            .execute("DELETE FROM worm_policies WHERE id = ?1", params![id])
+            .map_err(|e| {
+                warn!(error = %e, "failed to delete WORM policy");
+                "Failed to delete WORM policy".to_string()
+            })?;
+        if affected == 0 {
+            return Err("WORM policy not found".to_string());
+        }
+        Ok(true)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct WormPolicy {
     pub id: String,
@@ -91,25 +203,7 @@ impl WormStoreTrait for SqliteWormStore {
 }
 
 pub fn load_policies(state: &AppState) -> Vec<WormPolicy> {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = match conn.prepare(
-            "SELECT id, path_prefix, enabled, created_at FROM worm_policies WHERE enabled = 1 ORDER BY created_at",
-        ) {
-            Ok(s) => s,
-            Err(_) => return Vec::new(),
-        };
-        let rows = stmt.query_map([], WormPolicy::from_row);
-        let mut result = Vec::new();
-        if let Ok(rows) = rows {
-            for row in rows.flatten() {
-                result.push(row);
-            }
-        }
-        result
-    } else {
-        Vec::new()
-    }
+    state.worm_store.list_enabled_policies().unwrap_or_default()
 }
 
 pub fn is_worm_protected(path: &str, policies: &[WormPolicy]) -> bool {
@@ -127,7 +221,13 @@ pub fn is_worm_protected(path: &str, policies: &[WormPolicy]) -> bool {
 }
 
 pub async fn list_policies(State(state): State<AppState>) -> Response {
-    let policies = load_policies(&state);
+    let policies = match state.worm_store.list_policies() {
+        Ok(p) => p,
+        Err(e) => {
+            warn!(error = %e, "failed to list WORM policies");
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to list WORM policies");
+        }
+    };
     let json: Vec<serde_json::Value> = policies
         .iter()
         .map(|p| serde_json::to_value(p).unwrap_or_default())
@@ -148,56 +248,34 @@ pub async fn create_policy(
         return ApiError::bad_request(ApiError::BAD_REQUEST, "Path prefix must not be empty");
     }
 
-    let policy_id = uuid::Uuid::new_v4().to_string();
-    let created_at = chrono::Utc::now().to_rfc3339();
-
-    let policy = WormPolicy {
-        id: policy_id.clone(),
-        path_prefix: req.path_prefix,
-        enabled: req.enabled,
-        created_at,
-    };
-
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        if let Err(e) = conn.execute(
-            "INSERT INTO worm_policies (id, path_prefix, enabled, created_at) VALUES (?1, ?2, ?3, ?4)",
-            params![policy.id, policy.path_prefix, policy.enabled as i32, policy.created_at],
-        ) {
+    match state.worm_store.create_policy(&req) {
+        Ok(policy) => (
+            StatusCode::CREATED,
+            axum::Json(serde_json::to_value(policy).unwrap_or_else(|e| {
+                tracing::error!(error = %e, "failed to serialize WORM policy");
+                serde_json::json!({"error": "serialization failed"})
+            })),
+        )
+            .into_response(),
+        Err(e) => {
             warn!(error = %e, "failed to create WORM policy");
-            return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create WORM policy");
+            ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create WORM policy")
         }
-    } else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not available");
     }
-
-    (
-        StatusCode::CREATED,
-        axum::Json(serde_json::to_value(policy).unwrap_or_else(|e| {
-            tracing::error!(error = %e, "failed to serialize WORM policy");
-            serde_json::json!({"error": "serialization failed"})
-        })),
-    )
-        .into_response()
 }
 
 pub async fn delete_policy(State(state): State<AppState>, Path(id): Path<String>) -> Response {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let affected = conn.execute("DELETE FROM worm_policies WHERE id = ?1", params![id]);
-        match affected {
-            Ok(0) => return ApiError::not_found(ApiError::NOT_FOUND, "WORM policy not found"),
-            Ok(_) => return (StatusCode::NO_CONTENT, "").into_response(),
-            Err(e) => {
+    match state.worm_store.delete_policy(&id) {
+        Ok(_) => (StatusCode::NO_CONTENT, "").into_response(),
+        Err(e) => {
+            if e == "WORM policy not found" {
+                ApiError::not_found(ApiError::NOT_FOUND, "WORM policy not found")
+            } else {
                 warn!(error = %e, "failed to delete WORM policy");
-                return ApiError::internal(
-                    ApiError::INTERNAL_ERROR,
-                    "Failed to delete WORM policy",
-                );
+                ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to delete WORM policy")
             }
         }
     }
-    ApiError::internal(ApiError::INTERNAL_ERROR, "Database not available")
 }
 
 #[cfg(test)]

@@ -310,6 +310,10 @@ pub struct AppState {
     pub guest_store: guests::GuestStore,
     pub gdpr_store: gdpr::GdprStore,
     pub upload_store: upload::UploadStore,
+    pub worm_store: worm::WormPolicyStore,
+    pub mail_store: mail_api::MailStore,
+    pub notification_prefs_store: notification_prefs_api::NotificationPrefsStore,
+    pub webhook_delivery_store: webhooks::WebhookDeliveryStore,
     pub auth_attempt_tracker: Arc<security::AuthAttemptTracker>,
     pub login_rate_limiter: Arc<security::LoginRateLimiter>,
     /// WASM worker dispatch counter (total executions).
@@ -455,6 +459,10 @@ impl AppState {
             guest_store: guests::GuestStore::new(),
             gdpr_store: gdpr::GdprStore::new(),
             upload_store: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            worm_store: worm::WormPolicyStore::new(),
+            mail_store: mail_api::MailStore::new(),
+            notification_prefs_store: notification_prefs_api::NotificationPrefsStore::new(),
+            webhook_delivery_store: webhooks::WebhookDeliveryStore::new(),
             auth_attempt_tracker: Arc::new(security::AuthAttemptTracker::default()),
             login_rate_limiter: Arc::new(security::LoginRateLimiter::default()),
             wasm_dispatch_count: Arc::new(std::sync::atomic::AtomicU64::new(0)),
@@ -699,14 +707,10 @@ impl AppState {
         }
         self.push_notification_store = Some(Arc::new(tokio::sync::RwLock::new(push_store)));
 
-        // Initialize device and notification preference stores
+        // Initialize device store
         let device_store = account_api::DeviceStore::new(db.clone());
         if let Err(e) = device_store.init_table() {
             tracing::warn!(error = %e, "failed to init devices table");
-        }
-        let notif_prefs_store = notification_prefs_api::NotificationPrefsStore::new(db.clone());
-        if let Err(e) = notif_prefs_store.init_table() {
-            tracing::warn!(error = %e, "failed to init notification_prefs table");
         }
 
         let lock_mgr = lock::LockManager::new().with_db(db.clone());
@@ -727,6 +731,14 @@ impl AppState {
         self.watermark_db_store = watermark_api::WatermarkDbStore::new().with_db(db.clone());
         self.guest_store = guests::GuestStore::new().with_db(db.clone());
         self.gdpr_store = gdpr::GdprStore::new().with_db(db.clone());
+        self.worm_store = worm::WormPolicyStore::new().with_db(db.clone());
+        self.mail_store = mail_api::MailStore::new().with_db(db.clone());
+        self.notification_prefs_store =
+            notification_prefs_api::NotificationPrefsStore::new().with_db(db.clone());
+        if let Err(e) = self.notification_prefs_store.init_table() {
+            tracing::warn!(error = %e, "failed to init notification_prefs table");
+        }
+        self.webhook_delivery_store = webhooks::WebhookDeliveryStore::new().with_db(db.clone());
 
         let selective_sync_path = match &self.data_dir {
             Some(dir) => format!("{}/selective_sync.db", dir),
