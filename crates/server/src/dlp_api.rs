@@ -135,71 +135,337 @@ fn content_patterns() -> Vec<(&'static str, &'static str, &'static str)> {
     ]
 }
 
-/// Initialize the DLP policies table in SQLite.
-pub fn init_dlp_table(db: &DbHandle) -> Result<(), rusqlite::Error> {
-    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS dlp_policies (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            policy_type TEXT NOT NULL,
-            enabled INTEGER NOT NULL DEFAULT 1,
-            config TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS dlp_alerts (
-            id TEXT PRIMARY KEY,
-            policy_id TEXT NOT NULL,
-            policy_name TEXT NOT NULL,
-            file_path TEXT NOT NULL,
-            violation_type TEXT NOT NULL,
-            details TEXT NOT NULL,
-            severity TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        );
-        ",
-    )?;
-    Ok(())
+// ---------------------------------------------------------------------------
+// DlpStore
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct DlpStore {
+    db: Option<DbHandle>,
 }
 
-/// Load all policies from the database.
-fn load_policies(db: &DbHandle) -> Vec<DlpPolicy> {
-    let conn = match db.lock() {
-        Ok(c) => c,
-        Err(e) => e.into_inner(),
-    };
-    let mut stmt = match conn.prepare(
-        "SELECT id, name, policy_type, enabled, config, created_at, updated_at FROM dlp_policies ORDER BY created_at DESC",
-    ) {
-        Ok(s) => s,
-        Err(_) => return Vec::new(),
-    };
-    let rows = stmt.query_map([], |row| {
-        let enabled: i32 = row.get(3)?;
-        let config_str: String = row.get(4)?;
-        let config: serde_json::Value =
-            serde_json::from_str(&config_str).unwrap_or(serde_json::Value::Null);
-        Ok(DlpPolicy {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            policy_type: row.get(2)?,
-            enabled: enabled != 0,
-            config,
-            created_at: row.get(5)?,
-            updated_at: row.get(6)?,
-        })
-    });
-    match rows {
-        Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
-        Err(_) => Vec::new(),
+impl Default for DlpStore {
+    fn default() -> Self {
+        Self::new()
     }
 }
+
+impl DlpStore {
+    pub fn new() -> Self {
+        Self { db: None }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    pub fn init_tables(&self) -> Result<(), String> {
+        let Some(db) = &self.db else {
+            return Ok(());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS dlp_policies (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                policy_type TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                config TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS dlp_alerts (
+                id TEXT PRIMARY KEY,
+                policy_id TEXT NOT NULL,
+                policy_name TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                violation_type TEXT NOT NULL,
+                details TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            ",
+        )
+        .map_err(|e| format!("Failed to init DLP tables: {}", e))
+    }
+
+    pub fn list_policies(&self) -> Result<Vec<DlpPolicy>, String> {
+        let Some(db) = &self.db else {
+            return Ok(Vec::new());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, policy_type, enabled, config, created_at, updated_at FROM dlp_policies ORDER BY created_at DESC",
+            )
+            .map_err(|e| format!("Failed to prepare query: {}", e))?;
+        let rows = stmt
+            .query_map([], |row| {
+                let enabled: i32 = row.get(3)?;
+                let config_str: String = row.get(4)?;
+                let config: serde_json::Value =
+                    serde_json::from_str(&config_str).unwrap_or(serde_json::Value::Null);
+                Ok(DlpPolicy {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    policy_type: row.get(2)?,
+                    enabled: enabled != 0,
+                    config,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| format!("Failed to query policies: {}", e))?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
+    }
+
+    pub fn get_policy(&self, id: &str) -> Result<Option<DlpPolicy>, String> {
+        let Some(db) = &self.db else {
+            return Ok(None);
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, policy_type, enabled, config, created_at, updated_at FROM dlp_policies WHERE id = ?1",
+            )
+            .map_err(|e| format!("Failed to prepare query: {}", e))?;
+        let mut rows = stmt
+            .query_map(params![id], |row| {
+                let enabled: i32 = row.get(3)?;
+                let config_str: String = row.get(4)?;
+                let config: serde_json::Value =
+                    serde_json::from_str(&config_str).unwrap_or(serde_json::Value::Null);
+                Ok(DlpPolicy {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    policy_type: row.get(2)?,
+                    enabled: enabled != 0,
+                    config,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| format!("Failed to query policy: {}", e))?;
+        rows.next()
+            .transpose()
+            .map_err(|e| format!("Failed to read policy: {}", e))
+    }
+
+    pub fn create_policy(&self, req: &CreateDlpPolicyRequest) -> Result<DlpPolicy, String> {
+        let policy_id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        let enabled = req.enabled.unwrap_or(true);
+        let config_str =
+            serde_json::to_string(&req.config).map_err(|e| format!("Invalid config: {}", e))?;
+
+        let valid_types = [
+            "file_type",
+            "content_pattern",
+            "file_size",
+            "external_share",
+        ];
+        if !valid_types.contains(&req.policy_type.as_str()) {
+            return Err(format!(
+                "Invalid policy_type. Must be one of: {:?}",
+                valid_types
+            ));
+        }
+
+        let policy = DlpPolicy {
+            id: policy_id,
+            name: req.name.clone(),
+            policy_type: req.policy_type.clone(),
+            enabled,
+            config: req.config.clone(),
+            created_at: now.clone(),
+            updated_at: now,
+        };
+
+        if let Some(db) = &self.db {
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            conn.execute(
+                "INSERT INTO dlp_policies (id, name, policy_type, enabled, config, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    policy.id,
+                    policy.name,
+                    policy.policy_type,
+                    policy.enabled as i32,
+                    config_str,
+                    policy.created_at,
+                    policy.updated_at,
+                ],
+            )
+            .map_err(|e| format!("Failed to create policy: {}", e))?;
+        }
+
+        Ok(policy)
+    }
+
+    pub fn update_policy(
+        &self,
+        id: &str,
+        req: &UpdateDlpPolicyRequest,
+    ) -> Result<Option<DlpPolicy>, String> {
+        let Some(db) = &self.db else {
+            return Err("Database not configured".to_string());
+        };
+
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+
+        let exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM dlp_policies WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|c| c > 0)
+            .unwrap_or(false);
+
+        if !exists {
+            return Ok(None);
+        }
+
+        let now = chrono::Utc::now().to_rfc3339();
+
+        if let Some(name) = &req.name {
+            let _ = conn.execute(
+                "UPDATE dlp_policies SET name = ?1, updated_at = ?2 WHERE id = ?3",
+                params![name, now, id],
+            );
+        }
+
+        if let Some(enabled) = req.enabled {
+            let _ = conn.execute(
+                "UPDATE dlp_policies SET enabled = ?1, updated_at = ?2 WHERE id = ?3",
+                params![enabled as i32, now, id],
+            );
+        }
+
+        if let Some(config) = &req.config
+            && let Ok(config_str) = serde_json::to_string(config)
+        {
+            let _ = conn.execute(
+                "UPDATE dlp_policies SET config = ?1, updated_at = ?2 WHERE id = ?3",
+                params![config_str, now, id],
+            );
+        }
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, policy_type, enabled, config, created_at, updated_at FROM dlp_policies WHERE id = ?1",
+            )
+            .map_err(|e| format!("Failed to reload policy: {}", e))?;
+        let mut rows = stmt
+            .query_map(params![id], |row| {
+                let enabled: i32 = row.get(3)?;
+                let config_str: String = row.get(4)?;
+                let config: serde_json::Value =
+                    serde_json::from_str(&config_str).unwrap_or(serde_json::Value::Null);
+                Ok(DlpPolicy {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    policy_type: row.get(2)?,
+                    enabled: enabled != 0,
+                    config,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| format!("Failed to reload policy: {}", e))?;
+
+        match rows.next().transpose() {
+            Ok(Some(p)) => Ok(Some(p)),
+            _ => Err("Failed to reload policy".to_string()),
+        }
+    }
+
+    pub fn delete_policy(&self, id: &str) -> Result<bool, String> {
+        let Some(db) = &self.db else {
+            return Err("Database not configured".to_string());
+        };
+
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+
+        let affected = conn
+            .execute("DELETE FROM dlp_policies WHERE id = ?1", params![id])
+            .unwrap_or(0);
+
+        if affected == 0 { Ok(false) } else { Ok(true) }
+    }
+
+    pub fn list_alerts(&self) -> Result<Vec<DlpAlert>, String> {
+        let Some(db) = &self.db else {
+            return Ok(Vec::new());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, policy_id, policy_name, file_path, violation_type, details, severity, created_at FROM dlp_alerts ORDER BY created_at DESC LIMIT 100",
+            )
+            .map_err(|e| format!("Failed to prepare query: {}", e))?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(DlpAlert {
+                    id: row.get(0)?,
+                    policy_id: row.get(1)?,
+                    policy_name: row.get(2)?,
+                    file_path: row.get(3)?,
+                    violation_type: row.get(4)?,
+                    details: row.get(5)?,
+                    severity: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| format!("Failed to query alerts: {}", e))?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn record_alert(
+        &self,
+        policy_id: &str,
+        policy_name: &str,
+        file_path: &str,
+        violation_type: &str,
+        details: &str,
+        severity: &str,
+    ) -> Result<(), String> {
+        let Some(db) = &self.db else {
+            return Ok(());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let alert_id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO dlp_alerts (id, policy_id, policy_name, file_path, violation_type, details, severity, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                alert_id,
+                policy_id,
+                policy_name,
+                file_path,
+                violation_type,
+                details,
+                severity,
+                now,
+            ],
+        )
+        .map_err(|e| format!("Failed to record alert: {}", e))?;
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Route handlers
+// ---------------------------------------------------------------------------
 
 /// GET /api/dlp/policies — List DLP policies.
 pub async fn list_policies(State(state): State<AppState>) -> Response {
     let policies = match &state.db {
-        Some(db) => load_policies(db),
+        Some(db) => {
+            let store = DlpStore::new().with_db(db.clone());
+            store.list_policies().unwrap_or_default()
+        }
         None => Vec::new(),
     };
 
@@ -218,87 +484,44 @@ pub async fn create_policy(
     State(state): State<AppState>,
     Json(req): Json<CreateDlpPolicyRequest>,
 ) -> Response {
-    let policy_id = uuid::Uuid::new_v4().to_string();
-    let now = chrono::Utc::now().to_rfc3339();
-    let enabled = req.enabled.unwrap_or(true);
-    let config_str = match serde_json::to_string(&req.config) {
-        Ok(s) => s,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "error": format!("Invalid config: {}", e) })),
-            )
-                .into_response();
-        }
+    let store = match &state.db {
+        Some(db) => DlpStore::new().with_db(db.clone()),
+        None => DlpStore::new(),
     };
 
-    let valid_types = [
-        "file_type",
-        "content_pattern",
-        "file_size",
-        "external_share",
-    ];
-    if !valid_types.contains(&req.policy_type.as_str()) {
-        return (
-            StatusCode::BAD_REQUEST,
+    match store.create_policy(&req) {
+        Ok(policy) => (
+            StatusCode::CREATED,
             Json(serde_json::json!({
-                "error": format!("Invalid policy_type. Must be one of: {:?}", valid_types),
+                "message": "Policy created",
+                "policy": {
+                    "id": policy.id,
+                    "name": policy.name,
+                    "policy_type": policy.policy_type,
+                    "enabled": policy.enabled,
+                    "config": policy.config,
+                    "created_at": policy.created_at,
+                    "updated_at": policy.updated_at,
+                },
             })),
         )
-            .into_response();
-    }
-
-    let policy = DlpPolicy {
-        id: policy_id.clone(),
-        name: req.name,
-        policy_type: req.policy_type,
-        enabled,
-        config: req.config,
-        created_at: now.clone(),
-        updated_at: now,
-    };
-
-    if let Some(db) = &state.db {
-        let conn = match db.lock() {
-            Ok(c) => c,
-            Err(e) => e.into_inner(),
-        };
-        if let Err(e) = conn.execute(
-            "INSERT INTO dlp_policies (id, name, policy_type, enabled, config, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![
-                policy.id,
-                policy.name,
-                policy.policy_type,
-                policy.enabled as i32,
-                config_str,
-                policy.created_at,
-                policy.updated_at,
-            ],
-        ) {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": format!("Failed to create policy: {}", e) })),
-            )
-                .into_response();
+            .into_response(),
+        Err(e) => {
+            if e.starts_with("Invalid") {
+                (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({ "error": e })),
+                )
+                    .into_response()
+            } else {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "error": e })),
+                )
+                    .into_response()
+            }
         }
     }
-
-    (
-        StatusCode::CREATED,
-        Json(serde_json::json!({
-            "message": "Policy created",
-            "policy": {
-                "id": policy.id,
-                "name": policy.name,
-                "policy_type": policy.policy_type,
-                "enabled": policy.enabled,
-                "config": policy.config,
-                "created_at": policy.created_at,
-                "updated_at": policy.updated_at,
-            },
-        })),
-    )
-        .into_response()
 }
 
 /// PUT /api/dlp/policies/{id} — Update a DLP policy.
@@ -307,8 +530,8 @@ pub async fn update_policy(
     Path(id): Path<String>,
     Json(req): Json<UpdateDlpPolicyRequest>,
 ) -> Response {
-    let db = match &state.db {
-        Some(db) => db,
+    let store = match &state.db {
+        Some(db) => DlpStore::new().with_db(db.clone()),
         None => {
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
@@ -318,109 +541,32 @@ pub async fn update_policy(
         }
     };
 
-    let conn = match db.lock() {
-        Ok(c) => c,
-        Err(e) => e.into_inner(),
-    };
-
-    // Check policy exists
-    let exists: bool = conn
-        .query_row(
-            "SELECT COUNT(*) FROM dlp_policies WHERE id = ?1",
-            params![id],
-            |row| row.get::<_, i64>(0),
+    match store.update_policy(&id, &req) {
+        Ok(Some(policy)) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "message": "Policy updated",
+                "policy": policy,
+            })),
         )
-        .map(|c| c > 0)
-        .unwrap_or(false);
-
-    if !exists {
-        return (
+            .into_response(),
+        Ok(None) => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({ "error": "Policy not found" })),
         )
-            .into_response();
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": e })),
+        )
+            .into_response(),
     }
-
-    let now = chrono::Utc::now().to_rfc3339();
-
-    if let Some(name) = &req.name {
-        let _ = conn.execute(
-            "UPDATE dlp_policies SET name = ?1, updated_at = ?2 WHERE id = ?3",
-            params![name, now, id],
-        );
-    }
-
-    if let Some(enabled) = req.enabled {
-        let _ = conn.execute(
-            "UPDATE dlp_policies SET enabled = ?1, updated_at = ?2 WHERE id = ?3",
-            params![enabled as i32, now, id],
-        );
-    }
-
-    if let Some(config) = &req.config
-        && let Ok(config_str) = serde_json::to_string(config)
-    {
-        let _ = conn.execute(
-            "UPDATE dlp_policies SET config = ?1, updated_at = ?2 WHERE id = ?3",
-            params![config_str, now, id],
-        );
-    }
-
-    // Reload and return
-    let policy = {
-        let mut stmt = match conn.prepare(
-            "SELECT id, name, policy_type, enabled, config, created_at, updated_at FROM dlp_policies WHERE id = ?1",
-        ) {
-            Ok(s) => s,
-            Err(_) => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({ "error": "Failed to reload policy" })),
-                )
-                    .into_response();
-            }
-        };
-        let rows = stmt.query_map(params![id], |row| {
-            let enabled: i32 = row.get(3)?;
-            let config_str: String = row.get(4)?;
-            let config: serde_json::Value =
-                serde_json::from_str(&config_str).unwrap_or(serde_json::Value::Null);
-            Ok(DlpPolicy {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                policy_type: row.get(2)?,
-                enabled: enabled != 0,
-                config,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
-            })
-        });
-        match rows.and_then(|mut r| r.next().transpose()) {
-            Ok(Some(p)) => p,
-            _ => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({ "error": "Failed to reload policy" })),
-                )
-                    .into_response();
-            }
-        }
-    };
-
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "message": "Policy updated",
-            "policy": policy,
-        })),
-    )
-        .into_response()
 }
 
 /// DELETE /api/dlp/policies/{id} — Delete a DLP policy.
 pub async fn delete_policy(State(state): State<AppState>, Path(id): Path<String>) -> Response {
-    let db = match &state.db {
-        Some(db) => db,
+    let store = match &state.db {
+        Some(db) => DlpStore::new().with_db(db.clone()),
         None => {
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
@@ -430,31 +576,26 @@ pub async fn delete_policy(State(state): State<AppState>, Path(id): Path<String>
         }
     };
 
-    let conn = match db.lock() {
-        Ok(c) => c,
-        Err(e) => e.into_inner(),
-    };
-
-    let affected = conn
-        .execute("DELETE FROM dlp_policies WHERE id = ?1", params![id])
-        .unwrap_or(0);
-
-    if affected == 0 {
-        return (
+    match store.delete_policy(&id) {
+        Ok(true) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "message": "Policy deleted",
+                "id": id,
+            })),
+        )
+            .into_response(),
+        Ok(false) => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({ "error": "Policy not found" })),
         )
-            .into_response();
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": e })),
+        )
+            .into_response(),
     }
-
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "message": "Policy deleted",
-            "id": id,
-        })),
-    )
-        .into_response()
 }
 
 /// POST /api/dlp/scan/{path} — Scan file against DLP policies.
@@ -475,10 +616,12 @@ pub async fn scan_file_dlp(
         }
     };
 
-    let policies = match &state.db {
-        Some(db) => load_policies(db),
-        None => Vec::new(),
+    let store = match &state.db {
+        Some(db) => DlpStore::new().with_db(db.clone()),
+        None => DlpStore::new(),
     };
+
+    let policies = store.list_policies().unwrap_or_default();
 
     let mut violations = Vec::new();
 
@@ -602,28 +745,15 @@ pub async fn scan_file_dlp(
     }
 
     // Record violations as alerts
-    if !violations.is_empty()
-        && let Some(db) = &state.db
-    {
-        let conn = match db.lock() {
-            Ok(c) => c,
-            Err(e) => e.into_inner(),
-        };
-        let now = chrono::Utc::now().to_rfc3339();
+    if !violations.is_empty() {
         for violation in &violations {
-            let alert_id = uuid::Uuid::new_v4().to_string();
-            let _ = conn.execute(
-                "INSERT INTO dlp_alerts (id, policy_id, policy_name, file_path, violation_type, details, severity, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    alert_id,
-                    violation.policy_id,
-                    violation.policy_name,
-                    file_path,
-                    violation.policy_type,
-                    violation.description,
-                    violation.severity,
-                    now,
-                ],
+            let _ = store.record_alert(
+                &violation.policy_id,
+                &violation.policy_name,
+                &file_path,
+                &violation.policy_type,
+                &violation.description,
+                &violation.severity,
             );
         }
     }
@@ -646,38 +776,8 @@ pub async fn scan_file_dlp(
 pub async fn list_alerts(State(state): State<AppState>) -> Response {
     let alerts = match &state.db {
         Some(db) => {
-            let conn = match db.lock() {
-                Ok(c) => c,
-                Err(e) => e.into_inner(),
-            };
-            let mut stmt = match conn.prepare(
-                "SELECT id, policy_id, policy_name, file_path, violation_type, details, severity, created_at FROM dlp_alerts ORDER BY created_at DESC LIMIT 100",
-            ) {
-                Ok(s) => s,
-                Err(_) => {
-                    return (
-                        StatusCode::OK,
-                        Json(serde_json::json!({ "alerts": [], "total": 0 })),
-                    )
-                        .into_response();
-                }
-            };
-            let rows = stmt.query_map([], |row| {
-                Ok(serde_json::json!({
-                    "id": row.get::<_, String>(0)?,
-                    "policy_id": row.get::<_, String>(1)?,
-                    "policy_name": row.get::<_, String>(2)?,
-                    "file_path": row.get::<_, String>(3)?,
-                    "violation_type": row.get::<_, String>(4)?,
-                    "details": row.get::<_, String>(5)?,
-                    "severity": row.get::<_, String>(6)?,
-                    "created_at": row.get::<_, String>(7)?,
-                }))
-            });
-            match rows {
-                Ok(mapped) => mapped.filter_map(|r| r.ok()).collect::<Vec<_>>(),
-                Err(_) => Vec::new(),
-            }
+            let store = DlpStore::new().with_db(db.clone());
+            store.list_alerts().unwrap_or_default()
         }
         None => Vec::new(),
     };

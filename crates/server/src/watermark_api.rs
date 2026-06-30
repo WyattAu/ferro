@@ -9,6 +9,7 @@ use tracing::warn;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use crate::db::DbHandle;
 
 /// Watermark policy configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,6 +56,133 @@ pub struct WatermarkResult {
     pub success: bool,
     pub message: String,
     pub output_path: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// WatermarkDbStore
+// ---------------------------------------------------------------------------
+
+type WatermarkPolicyRow = (String, String, f32, u32, String);
+
+#[derive(Clone)]
+pub struct WatermarkDbStore {
+    db: Option<DbHandle>,
+}
+
+impl Default for WatermarkDbStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WatermarkDbStore {
+    pub fn new() -> Self {
+        Self { db: None }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    pub fn list_policies(&self) -> Result<Vec<WatermarkPolicy>, String> {
+        let Some(db) = &self.db else {
+            return Ok(Vec::new());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, text, position, opacity, font_size, color, scope, created_at FROM watermark_policies ORDER BY created_at",
+            )
+            .map_err(|e| {
+                warn!("Failed to prepare watermark_policies query: {}", e);
+                format!("Failed to query watermark policies: {}", e)
+            })?;
+
+        let policies: Vec<WatermarkPolicy> = stmt
+            .query_map([], |row| {
+                Ok(WatermarkPolicy {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    text: row.get(2)?,
+                    position: row.get(3)?,
+                    opacity: row.get(4)?,
+                    font_size: row.get(5)?,
+                    color: row.get(6)?,
+                    scope: row.get(7)?,
+                    created_at: row.get(8)?,
+                })
+            })
+            .ok()
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default();
+
+        Ok(policies)
+    }
+
+    pub fn get_default_policy(&self) -> Result<Option<WatermarkPolicyRow>, String> {
+        let Some(db) = &self.db else {
+            return Ok(None);
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let result: Result<WatermarkPolicyRow, _> = conn.query_row(
+            "SELECT text, position, opacity, font_size, color FROM watermark_policies LIMIT 1",
+            [],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
+        );
+        Ok(result.ok())
+    }
+
+    pub fn create_policy(
+        &self,
+        req: &CreateWatermarkPolicyRequest,
+    ) -> Result<WatermarkPolicy, String> {
+        let Some(db) = &self.db else {
+            return Err("Database not configured".to_string());
+        };
+
+        if req.name.is_empty() || req.text.is_empty() {
+            return Err("Name and text are required".to_string());
+        }
+
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        let position = req.position.clone().unwrap_or_else(|| "center".to_string());
+        let opacity = req.opacity.unwrap_or(0.3);
+        let font_size = req.font_size.unwrap_or(48);
+        let color = req.color.clone().unwrap_or_else(|| "#FFFFFF".to_string());
+        let scope = req.scope.clone().unwrap_or_else(|| "all".to_string());
+
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute(
+            "INSERT INTO watermark_policies (id, name, text, position, opacity, font_size, color, scope, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![id, req.name, req.text, position, opacity as f64, font_size as i32, color, scope, now],
+        )
+        .map_err(|e| {
+            warn!("Failed to create watermark policy: {}", e);
+            format!("Failed to create watermark policy: {}", e)
+        })?;
+
+        Ok(WatermarkPolicy {
+            id,
+            name: req.name.clone(),
+            text: req.text.clone(),
+            position,
+            opacity,
+            font_size,
+            color,
+            scope,
+            created_at: now,
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -252,39 +380,20 @@ pub async fn apply_watermark(
     Path(file_path): Path<String>,
 ) -> Response {
     // Get the default policy or use hardcoded defaults
-    let (text, position, opacity, font_size, color) = if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let result: Result<(String, String, f32, u32, String), _> = conn.query_row(
-            "SELECT text, position, opacity, font_size, color FROM watermark_policies LIMIT 1",
-            [],
-            |row| {
-                Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                ))
-            },
-        );
-        match result {
-            Ok(r) => r,
-            Err(_) => (
-                "CONFIDENTIAL".to_string(),
-                "center".to_string(),
-                0.3,
-                48,
-                "#FFFFFF".to_string(),
-            ),
-        }
-    } else {
-        (
+    let store = match &state.db {
+        Some(db) => WatermarkDbStore::new().with_db(db.clone()),
+        None => WatermarkDbStore::new(),
+    };
+
+    let (text, position, opacity, font_size, color) = match store.get_default_policy() {
+        Ok(Some(r)) => r,
+        _ => (
             "CONFIDENTIAL".to_string(),
             "center".to_string(),
             0.3,
             48,
             "#FFFFFF".to_string(),
-        )
+        ),
     };
 
     let data = match state.storage.get(&file_path).await {
@@ -339,44 +448,21 @@ pub async fn apply_watermark(
 
 /// GET /watermark/policies — list watermark policies.
 pub async fn list_policies(State(state): State<AppState>) -> Response {
-    let Some(ref db) = state.db else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
-    };
-    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-
-    let mut stmt = match conn.prepare(
-        "SELECT id, name, text, position, opacity, font_size, color, scope, created_at FROM watermark_policies ORDER BY created_at",
-    ) {
-        Ok(s) => s,
-        Err(e) => {
-            warn!("Failed to prepare watermark_policies query: {}", e);
-            return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to query watermark policies");
+    let store = match &state.db {
+        Some(db) => WatermarkDbStore::new().with_db(db.clone()),
+        None => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
         }
     };
 
-    let policies: Vec<WatermarkPolicy> = stmt
-        .query_map([], |row| {
-            Ok(WatermarkPolicy {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                text: row.get(2)?,
-                position: row.get(3)?,
-                opacity: row.get(4)?,
-                font_size: row.get(5)?,
-                color: row.get(6)?,
-                scope: row.get(7)?,
-                created_at: row.get(8)?,
-            })
-        })
-        .ok()
-        .map(|rows| rows.filter_map(|r| r.ok()).collect())
-        .unwrap_or_default();
-
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({ "policies": policies })),
-    )
-        .into_response()
+    match store.list_policies() {
+        Ok(policies) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "policies": policies })),
+        )
+            .into_response(),
+        Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, &e),
+    }
 }
 
 /// POST /watermark/policies — create a watermark policy.
@@ -384,44 +470,21 @@ pub async fn create_policy(
     State(state): State<AppState>,
     Json(req): Json<CreateWatermarkPolicyRequest>,
 ) -> Response {
-    let Some(ref db) = state.db else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
+    let store = match &state.db {
+        Some(db) => WatermarkDbStore::new().with_db(db.clone()),
+        None => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
+        }
     };
 
-    if req.name.is_empty() || req.text.is_empty() {
-        return ApiError::bad_request(ApiError::INVALID_INPUT, "Name and text are required");
-    }
-
-    let id = uuid::Uuid::new_v4().to_string();
-    let now = chrono::Utc::now().to_rfc3339();
-    let position = req.position.unwrap_or_else(|| "center".to_string());
-    let opacity = req.opacity.unwrap_or(0.3);
-    let font_size = req.font_size.unwrap_or(48);
-    let color = req.color.unwrap_or_else(|| "#FFFFFF".to_string());
-    let scope = req.scope.unwrap_or_else(|| "all".to_string());
-
-    let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    match conn.execute(
-        "INSERT INTO watermark_policies (id, name, text, position, opacity, font_size, color, scope, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![id, req.name, req.text, position, opacity as f64, font_size as i32, color, scope, now],
-    ) {
-        Ok(_) => {
-            let policy = WatermarkPolicy {
-                id,
-                name: req.name,
-                text: req.text,
-                position,
-                opacity,
-                font_size,
-                color,
-                scope,
-                created_at: now,
-            };
-            (StatusCode::CREATED, Json(serde_json::json!(policy))).into_response()
-        }
+    match store.create_policy(&req) {
+        Ok(policy) => (StatusCode::CREATED, Json(serde_json::json!(policy))).into_response(),
         Err(e) => {
-            warn!("Failed to create watermark policy: {}", e);
-            ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create watermark policy")
+            if e.contains("Name and text are required") {
+                ApiError::bad_request(ApiError::INVALID_INPUT, &e)
+            } else {
+                ApiError::internal(ApiError::INTERNAL_ERROR, &e)
+            }
         }
     }
 }

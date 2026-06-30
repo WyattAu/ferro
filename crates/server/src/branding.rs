@@ -7,6 +7,7 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
+use crate::db::DbHandle;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,6 +61,60 @@ pub struct UpdateBrandingRequest {
     pub title: Option<String>,
     pub favicon_url: Option<String>,
     pub custom_css: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct BrandingStore {
+    db: Option<DbHandle>,
+}
+
+impl Default for BrandingStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BrandingStore {
+    pub fn new() -> Self {
+        Self { db: None }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    pub fn load(&self) -> BrandingConfig {
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            if let Ok(value) = conn.query_row(
+                "SELECT value FROM preferences WHERE key = 'branding'",
+                [],
+                |row| row.get::<_, String>(0),
+            ) && let Ok(config) = serde_json::from_str::<BrandingConfig>(&value)
+            {
+                return config;
+            }
+        }
+        BrandingConfig::default()
+    }
+
+    pub fn save(&self, config: &BrandingConfig) {
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            let value = serde_json::to_string(config).unwrap_or_default();
+            if let Err(e) = conn.execute(
+                "INSERT OR REPLACE INTO preferences (key, value) VALUES ('branding', ?1)",
+                params![value],
+            ) {
+                tracing::warn!(error = %e, "failed to save branding config");
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -149,32 +204,12 @@ pub async fn reset_branding(State(state): State<AppState>) -> Response {
 
 /// Load branding config from the preferences table.
 pub fn load_branding(state: &AppState) -> BrandingConfig {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        if let Ok(value) = conn.query_row(
-            "SELECT value FROM preferences WHERE key = 'branding'",
-            [],
-            |row| row.get::<_, String>(0),
-        ) && let Ok(config) = serde_json::from_str::<BrandingConfig>(&value)
-        {
-            return config;
-        }
-    }
-    BrandingConfig::default()
+    state.branding_store.load()
 }
 
 /// Save branding config to the preferences table.
 fn save_branding(state: &AppState, config: &BrandingConfig) {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let value = serde_json::to_string(config).unwrap_or_default();
-        if let Err(e) = conn.execute(
-            "INSERT OR REPLACE INTO preferences (key, value) VALUES ('branding', ?1)",
-            params![value],
-        ) {
-            tracing::warn!(error = %e, "failed to save branding config");
-        }
-    }
+    state.branding_store.save(config)
 }
 
 // ---------------------------------------------------------------------------

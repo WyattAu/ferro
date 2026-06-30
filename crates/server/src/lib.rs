@@ -302,6 +302,13 @@ pub struct AppState {
     pub ws_manager: Arc<ws::WsManager>,
     pub collab_rooms: collab_ws::CollabRoomManager,
     pub db: Option<DbHandle>,
+    pub branding_store: branding::BrandingStore,
+    pub task_store: tasks_api::TaskStore,
+    pub retention_store: retention::RetentionStore,
+    pub dlp_store: dlp_api::DlpStore,
+    pub watermark_db_store: watermark_api::WatermarkDbStore,
+    pub guest_store: guests::GuestStore,
+    pub gdpr_store: gdpr::GdprStore,
     pub upload_store: upload::UploadStore,
     pub auth_attempt_tracker: Arc<security::AuthAttemptTracker>,
     pub login_rate_limiter: Arc<security::LoginRateLimiter>,
@@ -440,6 +447,13 @@ impl AppState {
             ws_manager: Arc::new(ws::WsManager::new()),
             collab_rooms: collab_ws::CollabRoomManager::new(),
             db: None,
+            branding_store: branding::BrandingStore::new(),
+            task_store: tasks_api::TaskStore::new(),
+            retention_store: retention::RetentionStore::new(),
+            dlp_store: dlp_api::DlpStore::new(),
+            watermark_db_store: watermark_api::WatermarkDbStore::new(),
+            guest_store: guests::GuestStore::new(),
+            gdpr_store: gdpr::GdprStore::new(),
             upload_store: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
             auth_attempt_tracker: Arc::new(security::AuthAttemptTracker::default()),
             login_rate_limiter: Arc::new(security::LoginRateLimiter::default()),
@@ -705,6 +719,14 @@ impl AppState {
             tracing::warn!(error = %e, "failed to load remote mounts from database");
         }
         self.remote_mounts = Arc::new(remote_mounts);
+
+        self.branding_store = branding::BrandingStore::new().with_db(db.clone());
+        self.task_store = tasks_api::TaskStore::new().with_db(db.clone());
+        self.retention_store = retention::RetentionStore::new().with_db(db.clone());
+        self.dlp_store = dlp_api::DlpStore::new().with_db(db.clone());
+        self.watermark_db_store = watermark_api::WatermarkDbStore::new().with_db(db.clone());
+        self.guest_store = guests::GuestStore::new().with_db(db.clone());
+        self.gdpr_store = gdpr::GdprStore::new().with_db(db.clone());
 
         let selective_sync_path = match &self.data_dir {
             Some(dir) => format!("{}/selective_sync.db", dir),

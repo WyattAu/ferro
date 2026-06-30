@@ -9,6 +9,7 @@ use tracing::{info, warn};
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use crate::db::DbHandle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetentionPolicy {
@@ -73,35 +74,139 @@ pub struct RetentionExecutionResult {
     pub errors: Vec<String>,
 }
 
-pub async fn list_policies(State(state): State<AppState>) -> Response {
-    let policies = if let Some(ref db) = state.db {
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct RetentionStore {
+    db: Option<DbHandle>,
+}
+
+impl Default for RetentionStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RetentionStore {
+    pub fn new() -> Self {
+        Self { db: None }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    pub fn list_policies(&self) -> Result<Vec<RetentionPolicy>, String> {
+        let db = self.db.as_ref().ok_or("Database not available")?;
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = match conn.prepare(
             "SELECT id, name, path_prefix, max_age_seconds, max_file_count, min_free_bytes, dry_run, enabled FROM retention_policies ORDER BY created_at",
         ) {
             Ok(s) => s,
-            Err(_) => {
-                return (
-                    StatusCode::OK,
-                    axum::Json(serde_json::json!({ "policies": [] })),
-                )
-                    .into_response();
-            }
+            Err(_) => return Ok(Vec::new()),
         };
-        let rows = stmt.query_map([], |row| {
-            let p = RetentionPolicy::from_row(row)?;
-            Ok(serde_json::to_value(p).unwrap_or_default())
-        });
+        let rows = stmt.query_map([], RetentionPolicy::from_row);
         let mut result = Vec::new();
         if let Ok(rows) = rows {
             for row in rows.flatten() {
                 result.push(row);
             }
         }
-        result
-    } else {
-        Vec::new()
-    };
+        Ok(result)
+    }
+
+    pub fn list_enabled_policies(&self) -> Result<Vec<RetentionPolicy>, String> {
+        let db = self.db.as_ref().ok_or("Database not available")?;
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = match conn.prepare(
+            "SELECT id, name, path_prefix, max_age_seconds, max_file_count, min_free_bytes, dry_run, enabled FROM retention_policies WHERE enabled = 1",
+        ) {
+            Ok(s) => s,
+            Err(_) => return Ok(Vec::new()),
+        };
+        let rows = stmt.query_map([], RetentionPolicy::from_row);
+        let mut result = Vec::new();
+        if let Ok(rows) = rows {
+            for row in rows.flatten() {
+                result.push(row);
+            }
+        }
+        Ok(result)
+    }
+
+    pub fn create_policy(
+        &self,
+        req: &CreateRetentionPolicyRequest,
+    ) -> Result<RetentionPolicy, String> {
+        let db = self.db.as_ref().ok_or("Database not available")?;
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+
+        let policy_id = uuid::Uuid::new_v4().to_string();
+
+        if let Err(e) = conn.execute(
+            "INSERT INTO retention_policies (id, name, path_prefix, max_age_days, max_age_seconds, max_file_count, min_free_bytes, dry_run, enabled) VALUES (?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                policy_id,
+                req.name,
+                req.path_prefix,
+                req.max_age_seconds as i64,
+                req.max_file_count.map(|v| v as i64),
+                req.min_free_bytes.map(|v| v as i64),
+                req.dry_run as i32,
+                req.enabled as i32,
+            ],
+        ) {
+            warn!(error = %e, "failed to create retention policy");
+            return Err("Failed to create retention policy".to_string());
+        }
+
+        Ok(RetentionPolicy {
+            id: policy_id,
+            name: req.name.clone(),
+            path_prefix: req.path_prefix.clone(),
+            max_age_seconds: req.max_age_seconds,
+            max_file_count: req.max_file_count,
+            min_free_bytes: req.min_free_bytes,
+            dry_run: req.dry_run,
+            enabled: req.enabled,
+        })
+    }
+
+    pub fn delete_policy(&self, id: &str) -> Result<bool, String> {
+        let db = self.db.as_ref().ok_or("Database not available")?;
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let affected = conn
+            .execute("DELETE FROM retention_policies WHERE id = ?1", params![id])
+            .map_err(|e| {
+                warn!(error = %e, "failed to delete retention policy");
+                "Failed to delete retention policy".to_string()
+            })?;
+        Ok(affected > 0)
+    }
+
+    pub fn update_last_run(&self) {
+        if let Some(ref db) = self.db {
+            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            let now = chrono::Utc::now().to_rfc3339();
+            if let Err(e) = conn.execute(
+                "UPDATE retention_policies SET last_run_at = ?1 WHERE enabled = 1",
+                params![now],
+            ) {
+                warn!(error = %e, "failed to update retention policy last_run_at");
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Handlers
+// ---------------------------------------------------------------------------
+
+pub async fn list_policies(State(state): State<AppState>) -> Response {
+    let policies = state.retention_store.list_policies().unwrap_or_default();
 
     (
         StatusCode::OK,
@@ -127,72 +232,32 @@ pub async fn create_policy(
         );
     }
 
-    let policy_id = uuid::Uuid::new_v4().to_string();
-
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        if let Err(e) = conn.execute(
-            "INSERT INTO retention_policies (id, name, path_prefix, max_age_days, max_age_seconds, max_file_count, min_free_bytes, dry_run, enabled) VALUES (?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                policy_id,
-                req.name,
-                req.path_prefix,
-                req.max_age_seconds as i64,
-                req.max_file_count.map(|v| v as i64),
-                req.min_free_bytes.map(|v| v as i64),
-                req.dry_run as i32,
-                req.enabled as i32,
-            ],
-        ) {
-            warn!(error = %e, "failed to create retention policy");
-            return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create retention policy");
-        }
-    } else {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not available");
+    match state.retention_store.create_policy(&req) {
+        Ok(policy) => (
+            StatusCode::CREATED,
+            axum::Json(serde_json::to_value(policy).unwrap_or_else(|e| {
+                tracing::error!(error = %e, "failed to serialize retention policy");
+                serde_json::json!({"error": "serialization failed"})
+            })),
+        )
+            .into_response(),
+        Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, &e),
     }
-
-    let policy = RetentionPolicy {
-        id: policy_id.clone(),
-        name: req.name,
-        path_prefix: req.path_prefix,
-        max_age_seconds: req.max_age_seconds,
-        max_file_count: req.max_file_count,
-        min_free_bytes: req.min_free_bytes,
-        dry_run: req.dry_run,
-        enabled: req.enabled,
-    };
-
-    (
-        StatusCode::CREATED,
-        axum::Json(serde_json::to_value(policy).unwrap_or_else(|e| {
-            tracing::error!(error = %e, "failed to serialize retention policy");
-            serde_json::json!({"error": "serialization failed"})
-        })),
-    )
-        .into_response()
 }
 
 pub async fn delete_policy(State(state): State<AppState>, Path(id): Path<String>) -> Response {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let affected = conn.execute("DELETE FROM retention_policies WHERE id = ?1", params![id]);
-        match affected {
-            Ok(0) => return ApiError::not_found(ApiError::NOT_FOUND, "Policy not found"),
-            Ok(_) => return (StatusCode::NO_CONTENT, "").into_response(),
-            Err(e) => {
-                warn!(error = %e, "failed to delete retention policy");
-                return ApiError::internal(
-                    ApiError::INTERNAL_ERROR,
-                    "Failed to delete retention policy",
-                );
-            }
-        }
+    match state.retention_store.delete_policy(&id) {
+        Ok(true) => (StatusCode::NO_CONTENT, "").into_response(),
+        Ok(false) => ApiError::not_found(ApiError::NOT_FOUND, "Policy not found"),
+        Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, &e),
     }
-    ApiError::internal(ApiError::INTERNAL_ERROR, "Database not available")
 }
 
 pub async fn execute_policies(State(state): State<AppState>) -> Response {
-    let policies = load_enabled_policies(&state);
+    let policies = state
+        .retention_store
+        .list_enabled_policies()
+        .unwrap_or_default();
     if policies.is_empty() {
         return (
             StatusCode::OK,
@@ -210,35 +275,13 @@ pub async fn execute_policies(State(state): State<AppState>) -> Response {
         results.push(result);
     }
 
-    update_last_run(&state);
+    state.retention_store.update_last_run();
 
     (
         StatusCode::OK,
         axum::Json(serde_json::json!({ "results": results })),
     )
         .into_response()
-}
-
-fn load_enabled_policies(state: &AppState) -> Vec<RetentionPolicy> {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = match conn.prepare(
-            "SELECT id, name, path_prefix, max_age_seconds, max_file_count, min_free_bytes, dry_run, enabled FROM retention_policies WHERE enabled = 1",
-        ) {
-            Ok(s) => s,
-            Err(_) => return Vec::new(),
-        };
-        let rows = stmt.query_map([], RetentionPolicy::from_row);
-        let mut result = Vec::new();
-        if let Ok(rows) = rows {
-            for row in rows.flatten() {
-                result.push(row);
-            }
-        }
-        result
-    } else {
-        Vec::new()
-    }
 }
 
 async fn execute_single_policy(
@@ -367,19 +410,6 @@ async fn execute_single_policy(
     result
 }
 
-fn update_last_run(state: &AppState) {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let now = chrono::Utc::now().to_rfc3339();
-        if let Err(e) = conn.execute(
-            "UPDATE retention_policies SET last_run_at = ?1 WHERE enabled = 1",
-            params![now],
-        ) {
-            warn!(error = %e, "failed to update retention policy last_run_at");
-        }
-    }
-}
-
 pub fn spawn_retention_daemon(state: Arc<AppState>, interval_secs: u64, cancel: CancellationToken) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
@@ -408,7 +438,10 @@ pub fn spawn_retention_daemon(state: Arc<AppState>, interval_secs: u64, cancel: 
 }
 
 async fn run_retention_check(state: &AppState) {
-    let policies = load_enabled_policies(state);
+    let policies = match state.retention_store.list_enabled_policies() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
     if policies.is_empty() {
         return;
     }
@@ -417,7 +450,7 @@ async fn run_retention_check(state: &AppState) {
     for policy in &policies {
         execute_single_policy(state, policy).await;
     }
-    update_last_run(state);
+    state.retention_store.update_last_run();
 }
 
 #[cfg(test)]

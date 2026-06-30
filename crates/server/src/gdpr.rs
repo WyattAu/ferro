@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use crate::db::DbHandle;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,6 +33,278 @@ pub struct GdprExportResponse {
 }
 
 // ---------------------------------------------------------------------------
+// GdprStore
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct GdprStore {
+    db: Option<DbHandle>,
+}
+
+impl Default for GdprStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GdprStore {
+    pub fn new() -> Self {
+        Self { db: None }
+    }
+
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    pub fn user_exists(&self, user_id: &str) -> bool {
+        let Some(db) = &self.db else {
+            return false;
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.query_row(
+            "SELECT COUNT(*) FROM users WHERE id = ?1",
+            params![user_id],
+            |row| row.get::<_, i32>(0),
+        )
+        .unwrap_or(0)
+            > 0
+    }
+
+    pub fn is_user_admin(&self, user_id: &str) -> bool {
+        let Some(db) = &self.db else {
+            return false;
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.query_row(
+            "SELECT role FROM users WHERE id = ?1",
+            params![user_id],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap_or_default()
+            == "Admin"
+    }
+
+    pub fn has_pending_request(&self, user_id: &str, request_type: &str) -> bool {
+        let Some(db) = &self.db else {
+            return false;
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.query_row(
+            "SELECT COUNT(*) FROM gdpr_requests WHERE user_id = ?1 AND request_type = ?2 AND status IN ('pending', 'processing')",
+            params![user_id, request_type],
+            |row| row.get::<_, i32>(0),
+        )
+        .unwrap_or(0)
+            > 0
+    }
+
+    pub fn get_latest_request(
+        &self,
+        user_id: &str,
+        request_type: &str,
+    ) -> Option<(String, String, Option<String>)> {
+        let Some(db) = &self.db else {
+            return None;
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.query_row(
+            "SELECT id, status, result_path FROM gdpr_requests WHERE user_id = ?1 AND request_type = ?2 ORDER BY created_at DESC LIMIT 1",
+            params![user_id, request_type],
+            |row| Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            )),
+        )
+        .ok()
+    }
+
+    pub fn create_export_request(&self, user_id: &str) -> Result<String, String> {
+        let Some(db) = &self.db else {
+            return Err("Database not configured".to_string());
+        };
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute(
+            "INSERT INTO gdpr_requests (id, user_id, request_type, status) VALUES (?1, ?2, 'export', 'pending')",
+            params![request_id, user_id],
+        )
+        .map_err(|e| {
+            tracing::warn!(error = %e, "failed to create GDPR export request");
+            format!("Failed to create export request: {}", e)
+        })?;
+        Ok(request_id)
+    }
+
+    pub fn create_erasure_request(&self, user_id: &str) -> Result<String, String> {
+        let Some(db) = &self.db else {
+            return Err("Database not configured".to_string());
+        };
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute(
+            "INSERT INTO gdpr_requests (id, user_id, request_type, status) VALUES (?1, ?2, 'erasure', 'pending')",
+            params![request_id, user_id],
+        )
+        .map_err(|e| {
+            tracing::warn!(error = %e, "failed to create GDPR erasure request");
+            format!("Failed to create erasure request: {}", e)
+        })?;
+        Ok(request_id)
+    }
+
+    pub fn list_requests(&self) -> Result<Vec<serde_json::Value>, String> {
+        let Some(db) = &self.db else {
+            return Ok(Vec::new());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, user_id, request_type, status, created_at, completed_at, error_message FROM gdpr_requests ORDER BY created_at DESC",
+            )
+            .map_err(|e| format!("Failed to prepare query: {}", e))?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(serde_json::json!({
+                    "id": row.get::<_, String>(0)?,
+                    "user_id": row.get::<_, String>(1)?,
+                    "request_type": row.get::<_, String>(2)?,
+                    "status": row.get::<_, String>(3)?,
+                    "created_at": row.get::<_, String>(4)?,
+                    "completed_at": row.get::<_, Option<String>>(5)?,
+                    "error_message": row.get::<_, Option<String>>(6)?,
+                }))
+            })
+            .map_err(|e| format!("Failed to query GDPR requests: {}", e))?;
+        let mut result = Vec::new();
+        for row in rows.flatten() {
+            result.push(row);
+        }
+        Ok(result)
+    }
+
+    pub fn update_status(
+        &self,
+        request_id: &str,
+        status: &str,
+        result_path: Option<&str>,
+        error_message: Option<&str>,
+    ) {
+        let Some(db) = &self.db else {
+            return;
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let completed_at = if status == "completed" || status == "failed" {
+            Some(chrono::Utc::now().to_rfc3339())
+        } else {
+            None
+        };
+        if let Err(e) = conn.execute(
+            "UPDATE gdpr_requests SET status = ?1, completed_at = ?2, result_path = ?3, error_message = ?4 WHERE id = ?5",
+            params![status, completed_at, result_path, error_message, request_id],
+        ) {
+            tracing::warn!(error = %e, "failed to update GDPR request status");
+        }
+    }
+
+    pub fn collect_user_data(&self, user_id: &str) -> Option<serde_json::Value> {
+        let Some(db) = &self.db else {
+            return None;
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.query_row(
+            "SELECT id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, is_guest, guest_expires_at FROM users WHERE id = ?1",
+            params![user_id],
+            |row| {
+                Ok(serde_json::json!({
+                    "id": row.get::<_, String>(0)?,
+                    "username": row.get::<_, String>(1)?,
+                    "display_name": row.get::<_, String>(2)?,
+                    "email": row.get::<_, String>(3)?,
+                    "role": row.get::<_, String>(4)?,
+                    "created_at": row.get::<_, String>(5)?,
+                    "last_login": row.get::<_, Option<String>>(6)?,
+                    "status": row.get::<_, String>(7)?,
+                    "storage_quota_bytes": row.get::<_, i64>(8)?,
+                    "storage_used_bytes": row.get::<_, i64>(9)?,
+                    "is_ldap": row.get::<_, i32>(10)? != 0,
+                    "is_guest": row.get::<_, i32>(11)? != 0,
+                    "guest_expires_at": row.get::<_, Option<String>>(12)?,
+                }))
+            },
+        )
+        .ok()
+    }
+
+    pub fn collect_audit_log(&self, user_id: &str) -> Vec<serde_json::Value> {
+        let Some(db) = &self.db else {
+            return Vec::new();
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = match conn.prepare(
+            "SELECT timestamp, action, path, details FROM audit_log WHERE user_id = ?1 ORDER BY timestamp DESC LIMIT 10000",
+        ) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+        let rows = stmt.query_map(params![user_id], |row| {
+            Ok(serde_json::json!({
+                "timestamp": row.get::<_, String>(0)?,
+                "action": row.get::<_, String>(1)?,
+                "path": row.get::<_, String>(2)?,
+                "details": row.get::<_, String>(3)?,
+            }))
+        });
+        let mut result = Vec::new();
+        if let Ok(rows) = rows {
+            for row in rows.flatten() {
+                result.push(row);
+            }
+        }
+        result
+    }
+
+    pub fn soft_delete_user(&self, user_id: &str) -> Result<(), String> {
+        let Some(db) = &self.db else {
+            return Ok(());
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let tables_to_clean = ["favorites", "file_tags", "locks"];
+        for table in &tables_to_clean {
+            if let Err(e) = conn.execute(
+                &format!(
+                    "DELETE FROM {} WHERE path IN (SELECT 'unknown' WHERE 0)",
+                    table
+                ),
+                [],
+            ) {
+                tracing::warn!(error = %e, table = table, "failed to clean table during erasure");
+            }
+        }
+        conn.execute(
+            "UPDATE users SET status = 'disabled', display_name = '[ERASED]', email = '', password_hash = NULL, totp_secret = NULL, totp_enabled = 0 WHERE id = ?1",
+            params![user_id],
+        )
+        .map_err(|e| format!("Failed to erase user record: {}", e))?;
+        Ok(())
+    }
+
+    pub fn get_username(&self, user_id: &str) -> Option<String> {
+        let Some(db) = &self.db else {
+            return None;
+        };
+        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.query_row(
+            "SELECT username FROM users WHERE id = ?1",
+            params![user_id],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // GDPR Data Export (G-13)
 // ---------------------------------------------------------------------------
 
@@ -43,13 +316,20 @@ pub async fn request_data_export(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> Response {
+    let store = match &state.db {
+        Some(db) => GdprStore::new().with_db(db.clone()),
+        None => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
+        }
+    };
+
     // Verify the user exists
-    if !user_exists(&state, &user_id) {
+    if !store.user_exists(&user_id) {
         return ApiError::not_found(ApiError::USER_NOT_FOUND, "User not found");
     }
 
     // Check for existing pending/exporting requests
-    if has_pending_gdpr_request(&state, &user_id, "export") {
+    if store.has_pending_request(&user_id, "export") {
         return (
             StatusCode::CONFLICT,
             axum::Json(serde_json::json!({
@@ -59,21 +339,14 @@ pub async fn request_data_export(
             .into_response();
     }
 
-    let request_id = uuid::Uuid::new_v4().to_string();
+    let request_id = match store.create_export_request(&user_id) {
+        Ok(id) => id,
+        Err(e) => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, &e);
+        }
+    };
     let request_id_clone = request_id.clone();
     let user_id_clone = user_id.clone();
-
-    // Create the request record
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        if let Err(e) = conn.execute(
-            "INSERT INTO gdpr_requests (id, user_id, request_type, status) VALUES (?1, ?2, 'export', 'pending')",
-            params![request_id, user_id],
-        ) {
-            tracing::warn!(error = %e, "failed to create GDPR export request");
-            return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create export request");
-        }
-    }
 
     // Spawn the export task
     let state_clone = state.clone();
@@ -101,7 +374,14 @@ pub async fn get_data_export_status(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> Response {
-    let request = get_latest_gdpr_request(&state, &user_id, "export");
+    let store = match &state.db {
+        Some(db) => GdprStore::new().with_db(db.clone()),
+        None => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
+        }
+    };
+
+    let request = store.get_latest_request(&user_id, "export");
 
     match request {
         Some(req) => (
@@ -129,13 +409,19 @@ pub async fn request_data_erasure(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> Response {
-    if !user_exists(&state, &user_id) {
+    let store = match &state.db {
+        Some(db) => GdprStore::new().with_db(db.clone()),
+        None => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Database not configured");
+        }
+    };
+
+    if !store.user_exists(&user_id) {
         return ApiError::not_found(ApiError::USER_NOT_FOUND, "User not found");
     }
 
     // Prevent erasure of admin accounts
-    let is_admin = is_user_admin(&state, &user_id);
-    if is_admin {
+    if store.is_user_admin(&user_id) {
         return (
             StatusCode::FORBIDDEN,
             axum::Json(serde_json::json!({
@@ -145,20 +431,14 @@ pub async fn request_data_erasure(
             .into_response();
     }
 
-    let request_id = uuid::Uuid::new_v4().to_string();
+    let request_id = match store.create_erasure_request(&user_id) {
+        Ok(id) => id,
+        Err(e) => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, &e);
+        }
+    };
     let request_id_clone = request_id.clone();
     let user_id_clone = user_id.clone();
-
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        if let Err(e) = conn.execute(
-            "INSERT INTO gdpr_requests (id, user_id, request_type, status) VALUES (?1, ?2, 'erasure', 'pending')",
-            params![request_id, user_id],
-        ) {
-            tracing::warn!(error = %e, "failed to create GDPR erasure request");
-            return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create erasure request");
-        }
-    }
 
     let state_clone = state.clone();
     tokio::spawn(async move {
@@ -186,41 +466,12 @@ pub async fn request_data_erasure(
 ///
 /// List all GDPR requests.
 pub async fn list_gdpr_requests(State(state): State<AppState>) -> Response {
-    let requests = if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = match conn.prepare(
-            "SELECT id, user_id, request_type, status, created_at, completed_at, error_message FROM gdpr_requests ORDER BY created_at DESC",
-        ) {
-            Ok(s) => s,
-            Err(_) => {
-                return (
-                    StatusCode::OK,
-                    axum::Json(serde_json::json!({ "requests": [] })),
-                )
-                    .into_response();
-            }
-        };
-        let rows = stmt.query_map([], |row| {
-            Ok(serde_json::json!({
-                "id": row.get::<_, String>(0)?,
-                "user_id": row.get::<_, String>(1)?,
-                "request_type": row.get::<_, String>(2)?,
-                "status": row.get::<_, String>(3)?,
-                "created_at": row.get::<_, String>(4)?,
-                "completed_at": row.get::<_, Option<String>>(5)?,
-                "error_message": row.get::<_, Option<String>>(6)?,
-            }))
-        });
-        let mut result = Vec::new();
-        if let Ok(rows) = rows {
-            for row in rows.flatten() {
-                result.push(row);
-            }
-        }
-        result
-    } else {
-        Vec::new()
+    let store = match &state.db {
+        Some(db) => GdprStore::new().with_db(db.clone()),
+        None => GdprStore::new(),
     };
+
+    let requests = store.list_requests().unwrap_or_default();
 
     (
         StatusCode::OK,
@@ -235,20 +486,17 @@ pub async fn list_gdpr_requests(State(state): State<AppState>) -> Response {
 
 /// Process a data export request asynchronously.
 async fn process_data_export(state: &AppState, request_id: &str, user_id: &str) {
-    update_gdpr_status(state, request_id, "processing", None, None);
+    let store = match &state.db {
+        Some(db) => GdprStore::new().with_db(db.clone()),
+        None => return,
+    };
+
+    store.update_status(request_id, "processing", None, None);
 
     // Get user info for the export
-    let _username = if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT username FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get::<_, String>(0),
-        )
-        .unwrap_or_else(|_| "unknown".to_string())
-    } else {
-        "unknown".to_string()
-    };
+    let _username = store
+        .get_username(user_id)
+        .unwrap_or_else(|| "unknown".to_string());
 
     // Create a data directory for the export
     let export_dir = std::path::PathBuf::from(format!("/tmp/ferro-gdpr-export-{}", request_id));
@@ -257,7 +505,9 @@ async fn process_data_export(state: &AppState, request_id: &str, user_id: &str) 
     }
 
     // Export user metadata as JSON
-    let user_data = collect_user_data(state, user_id);
+    let user_data = store
+        .collect_user_data(user_id)
+        .unwrap_or_else(|| serde_json::json!({"error": "user not found"}));
     let metadata_path = export_dir.join("user_metadata.json");
     if let Ok(json) = serde_json::to_string_pretty(&user_data)
         && let Err(e) = std::fs::write(&metadata_path, &json)
@@ -266,7 +516,7 @@ async fn process_data_export(state: &AppState, request_id: &str, user_id: &str) 
     }
 
     // Export audit log entries for this user
-    let audit_entries = collect_user_audit_log(state, user_id);
+    let audit_entries = store.collect_audit_log(user_id);
     let audit_path = export_dir.join("audit_log.json");
     if let Ok(json) = serde_json::to_string_pretty(&audit_entries)
         && let Err(e) = std::fs::write(&audit_path, &json)
@@ -278,7 +528,7 @@ async fn process_data_export(state: &AppState, request_id: &str, user_id: &str) 
     let zip_path = format!("/tmp/ferro-gdpr-export-{}.zip", request_id);
     match create_zip_archive(&export_dir, &zip_path) {
         Ok(_) => {
-            update_gdpr_status(state, request_id, "completed", Some(&zip_path), None);
+            store.update_status(request_id, "completed", Some(&zip_path), None);
             tracing::info!(
                 request_id = request_id,
                 user_id = user_id,
@@ -287,8 +537,7 @@ async fn process_data_export(state: &AppState, request_id: &str, user_id: &str) 
             );
         }
         Err(e) => {
-            update_gdpr_status(
-                state,
+            store.update_status(
                 request_id,
                 "failed",
                 None,
@@ -305,7 +554,12 @@ async fn process_data_export(state: &AppState, request_id: &str, user_id: &str) 
 
 /// Process a data erasure request asynchronously.
 async fn process_data_erasure(state: &AppState, request_id: &str, user_id: &str) {
-    update_gdpr_status(state, request_id, "processing", None, None);
+    let store = match &state.db {
+        Some(db) => GdprStore::new().with_db(db.clone()),
+        None => return,
+    };
+
+    store.update_status(request_id, "processing", None, None);
 
     let mut errors = Vec::new();
     let mut deleted_files = 0u32;
@@ -322,29 +576,8 @@ async fn process_data_erasure(state: &AppState, request_id: &str, user_id: &str)
     }
 
     // Delete user from database (all personal data)
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        // Delete from all related tables
-        let tables_to_clean = ["favorites", "file_tags", "locks"];
-        for table in &tables_to_clean {
-            if let Err(e) = conn.execute(
-                &format!(
-                    "DELETE FROM {} WHERE path IN (SELECT 'unknown' WHERE 0)",
-                    table
-                ),
-                [],
-            ) {
-                tracing::warn!(error = %e, table = table, "failed to clean table during erasure");
-            }
-        }
-        // Disable the user (soft delete) rather than hard delete,
-        // to preserve referential integrity for audit log
-        if let Err(e) = conn.execute(
-            "UPDATE users SET status = 'disabled', display_name = '[ERASED]', email = '', password_hash = NULL, totp_secret = NULL, totp_enabled = 0 WHERE id = ?1",
-            params![user_id],
-        ) {
-            errors.push(format!("Failed to erase user record: {}", e));
-        }
+    if let Err(e) = store.soft_delete_user(user_id) {
+        errors.push(e);
     }
 
     let result_summary = format!(
@@ -357,7 +590,7 @@ async fn process_data_erasure(state: &AppState, request_id: &str, user_id: &str)
         }
     );
 
-    update_gdpr_status(state, request_id, "completed", Some(&result_summary), None);
+    store.update_status(request_id, "completed", Some(&result_summary), None);
     tracing::info!(
         request_id = request_id,
         user_id = user_id,
@@ -369,156 +602,6 @@ async fn process_data_erasure(state: &AppState, request_id: &str, user_id: &str)
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-fn user_exists(state: &AppState, user_id: &str) -> bool {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT COUNT(*) FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get::<_, i32>(0),
-        )
-        .unwrap_or(0)
-            > 0
-    } else {
-        false
-    }
-}
-
-fn is_user_admin(state: &AppState, user_id: &str) -> bool {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT role FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get::<_, String>(0),
-        )
-        .unwrap_or_default()
-            == "Admin"
-    } else {
-        false
-    }
-}
-
-fn has_pending_gdpr_request(state: &AppState, user_id: &str, request_type: &str) -> bool {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT COUNT(*) FROM gdpr_requests WHERE user_id = ?1 AND request_type = ?2 AND status IN ('pending', 'processing')",
-            params![user_id, request_type],
-            |row| row.get::<_, i32>(0),
-        )
-        .unwrap_or(0)
-            > 0
-    } else {
-        false
-    }
-}
-
-fn get_latest_gdpr_request(
-    state: &AppState,
-    user_id: &str,
-    request_type: &str,
-) -> Option<(String, String, Option<String>)> {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT id, status, result_path FROM gdpr_requests WHERE user_id = ?1 AND request_type = ?2 ORDER BY created_at DESC LIMIT 1",
-            params![user_id, request_type],
-            |row| Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            )),
-        )
-        .ok()
-    } else {
-        None
-    }
-}
-
-fn update_gdpr_status(
-    state: &AppState,
-    request_id: &str,
-    status: &str,
-    result_path: Option<&str>,
-    error_message: Option<&str>,
-) {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let completed_at = if status == "completed" || status == "failed" {
-            Some(chrono::Utc::now().to_rfc3339())
-        } else {
-            None
-        };
-        if let Err(e) = conn.execute(
-            "UPDATE gdpr_requests SET status = ?1, completed_at = ?2, result_path = ?3, error_message = ?4 WHERE id = ?5",
-            params![status, completed_at, result_path, error_message, request_id],
-        ) {
-            tracing::warn!(error = %e, "failed to update GDPR request status");
-        }
-    }
-}
-
-fn collect_user_data(state: &AppState, user_id: &str) -> serde_json::Value {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        // Collect user record (excluding password hash)
-        if let Ok(user) = conn.query_row(
-            "SELECT id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, is_guest, guest_expires_at FROM users WHERE id = ?1",
-            params![user_id],
-            |row| {
-                Ok(serde_json::json!({
-                    "id": row.get::<_, String>(0)?,
-                    "username": row.get::<_, String>(1)?,
-                    "display_name": row.get::<_, String>(2)?,
-                    "email": row.get::<_, String>(3)?,
-                    "role": row.get::<_, String>(4)?,
-                    "created_at": row.get::<_, String>(5)?,
-                    "last_login": row.get::<_, Option<String>>(6)?,
-                    "status": row.get::<_, String>(7)?,
-                    "storage_quota_bytes": row.get::<_, i64>(8)?,
-                    "storage_used_bytes": row.get::<_, i64>(9)?,
-                    "is_ldap": row.get::<_, i32>(10)? != 0,
-                    "is_guest": row.get::<_, i32>(11)? != 0,
-                    "guest_expires_at": row.get::<_, Option<String>>(12)?,
-                }))
-            },
-        ) {
-            return user;
-        }
-    }
-    serde_json::json!({"error": "user not found"})
-}
-
-fn collect_user_audit_log(state: &AppState, user_id: &str) -> Vec<serde_json::Value> {
-    if let Some(ref db) = state.db {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = match conn.prepare(
-            "SELECT timestamp, action, path, details FROM audit_log WHERE user_id = ?1 ORDER BY timestamp DESC LIMIT 10000",
-        ) {
-            Ok(s) => s,
-            Err(_) => return Vec::new(),
-        };
-        let rows = stmt.query_map(params![user_id], |row| {
-            Ok(serde_json::json!({
-                "timestamp": row.get::<_, String>(0)?,
-                "action": row.get::<_, String>(1)?,
-                "path": row.get::<_, String>(2)?,
-                "details": row.get::<_, String>(3)?,
-            }))
-        });
-        let mut result = Vec::new();
-        if let Ok(rows) = rows {
-            for row in rows.flatten() {
-                result.push(row);
-            }
-        }
-        result
-    } else {
-        Vec::new()
-    }
-}
 
 async fn list_user_files(state: &AppState, _user_id: &str) -> Result<Vec<String>, String> {
     // List all files owned by this user
