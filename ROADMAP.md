@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 5.4 | **Date:** 2026-06-29 | **Status:** v5.4 Server Decomposition Phase 1 In Progress
+**Version:** 5.5 | **Date:** 2026-06-30 | **Status:** v5.5 Server Decomposition Phase 1 In Progress (21 handlers refactored)
 
 ---
 
@@ -46,13 +46,17 @@
 - CORS: `access-control-allow-origin: *` (permissive, acceptable for test instance)
 - TRACE method: Properly rejected (400)
 
-**Server Crate Decomposition -- Phase 1 In Progress (17/130+ handlers refactored):**
+**Server Crate Decomposition -- Phase 1 In Progress (21/160+ handlers refactored):**
 - Created ADR-001 documenting 3-phase decomposition plan
 - Added `server_context` module to `ferro-common` with 22 composite traits
 - Implemented all traits for `AppState` in `ferro-server/src/lib.rs`
 - Removed dead 1526-line `backup.rs` duplicate from `server-admin`
-- Refactored 17 handlers to use generic trait pattern (HasStorage, HasUptime, HasFavorites, HasQuota, HasStorageHealth)
-- Pattern proven: `_impl` functions take `&S: Trait`, concrete handlers delegate
+- Refactored 21 handlers to use generic trait pattern:
+  - 18 storage-only: api (mkdir, copy, move), batch (copy, move), photos (list, thumbnail, exif), admin (storage), backup (restore, audit), antivirus (scan_file, scan_all), metrics, quota, streaming (stream_video)
+  - 3 favorites: list, add, remove (HasFavorites with add/remove)
+  - 1 startup: HasStartupState pattern
+- Remaining: ~45 db-only handlers (need Store abstractions), ~130 single-field handlers (need additional traits), ~75 multi-field handlers (need composite traits)
+- Pattern proven: `_impl` functions take `&S: Trait`, concrete handlers delegate. Return `Response` (not `impl IntoResponse`) to avoid lifetime capture issues with generics.
 - utoipa attributes preserved on concrete handlers for OpenAPI schema generation
 
 ### 2026-06-29: Audit Cycle 14 - CalDAV/CardDAV Bug Fix, Dead Code Removal, Pre-commit Optimization
