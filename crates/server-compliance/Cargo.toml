@@ -1,0 +1,25 @@
+[package]
+name = "ferro-server-compliance"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Ferro compliance modules: retention, WORM, DLP, antivirus"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+ferro-server-security = { path = "../server-security" }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { version = "0.7", features = ["rt"] }
+tracing = { workspace = true }
+rusqlite = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+regex = "1"
+utoipa = { version = "5", features = ["axum_extras"] }
+async-trait = "0.1"

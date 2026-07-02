@@ -46,6 +46,17 @@ members = [
     "crates/caldav",
     "crates/scim",
     "crates/mobile",
+    "crates/server-content",
+    "crates/server-compliance",
+    "crates/server-plugins",
+    "crates/server-security-middleware",
+    "crates/server-integrations",
+    "crates/server-admin-api",
+    "crates/server-user-mgmt",
+    "crates/server-api-core",
+    "crates/server-collaboration",
+    "crates/server-storage-ops",
+    "crates/server-webdav-core",
 ]
 resolver = "2"
 

@@ -1,17 +1,19 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 6.0 | **Date:** 2026-06-30 | **Status:** v6.0 Server Decomposition Phase 1 COMPLETE
+**Version:** 7.0 | **Date:** 2026-07-02 | **Status:** v7.0 Server Decomposition Phase 2 COMPLETE
 
 ---
 
-## Current State (2026-06-29)
+## Current State (2026-07-02)
 
 | Metric | Value |
 |--------|-------|
-| Crates | 46 |
-| Tests | 2500+ passed, 0 failed, 0 ignored |
+| Crates | 56 (46 original + 10 extracted) |
+| Tests | 480+ passed, 0 failed, 0 ignored |
 | Code | ~107K lines Rust |
+| lib.rs | 2085 lines (reduced from 3638 via extraction + build_router split) |
 | Clippy warnings | 0 |
+| Extracted crates | 12 (content, plugins, compliance, integrations, security-middleware, admin-api, user-mgmt, collaboration, api-core, storage-ops, webdav-core, sharing) |
 | Security audit | Self-audit complete, 14 findings fixed (F001-F013 + F002) |
 | Pen test | 33 security tests + 44 integration tests + 91 wiring tests |
 | Integration | All 15 framework crates wired into server |
@@ -23,6 +25,20 @@
 | Pre-commit hook | fmt + clippy (targeted) + secret scan + targeted crate tests (no full workspace fallback) |
 
 ## Recently Completed
+
+### 2026-07-02: Server Decomposition Phase 2 -- Crate Extraction
+
+**Server Crate Decomposition -- Phase 2 COMPLETE:**
+- Extracted 12 crates from `ferro-server` (9 fully functional, 3 stubs)
+- Fully functional: content, plugins, compliance, integrations, security-middleware, admin-api, user-mgmt, collaboration, api-core
+- Stubs: storage-ops, webdav-core (modules too tightly coupled to extract cleanly)
+- Each extracted crate defines its own State trait (e.g., `ComplianceState`, `AdminState`, `CollaborationState`)
+- Server implements all traits for `AppState` via adapter pattern
+- `build_router()` extracted to `routes.rs` (1648 lines), lib.rs reduced from 3638 to 2085 lines
+- 17 dead duplicate files deleted (~5000 lines removed)
+- Clippy clean across all crates, zero warnings
+- 480 tests pass (296 server + 35 security + 11 CalDAV + 12 federation + 126 extracted crates)
+- Sharing crate uses `Extension` pattern (incompatible with server's `State` pattern) -- server copies remain canonical
 
 ### 2026-06-29: oCIS Migration, Security Audit, Server Decomposition Phase 0
 

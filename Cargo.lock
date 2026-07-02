@@ -3127,6 +3127,7 @@ dependencies = [
  "bytes",
  "chrono",
  "hex",
+ "mime_guess",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -3528,11 +3529,22 @@ dependencies = [
  "ferro-rate-limiter",
  "ferro-selective-sync",
  "ferro-server-activitypub",
+ "ferro-server-admin-api",
+ "ferro-server-api-core",
  "ferro-server-automation",
+ "ferro-server-collaboration",
+ "ferro-server-compliance",
+ "ferro-server-content",
+ "ferro-server-integrations",
+ "ferro-server-plugins",
  "ferro-server-security",
+ "ferro-server-security-middleware",
  "ferro-server-sharing",
+ "ferro-server-storage-ops",
+ "ferro-server-user-mgmt",
  "ferro-server-versioning",
  "ferro-server-webdav",
+ "ferro-server-webdav-core",
  "ferro-server-webrtc",
  "ferro-server-wopi",
  "ferro-sync-protocol",
@@ -3633,6 +3645,65 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-admin-api"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "ferro-auth",
+ "ferro-common",
+ "ferro-core",
+ "ferro-server-security",
+ "hex",
+ "http-body-util",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "tokio",
+ "tower",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "zip 2.4.2",
+]
+
+[[package]]
+name = "ferro-server-api-core"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "chrono",
+ "dashmap",
+ "ferro-common",
+ "ferro-core",
+ "ferro-event-bus",
+ "ferro-server-integrations",
+ "ferro-server-security",
+ "hex",
+ "hmac 0.13.0",
+ "http-body-util",
+ "lettre",
+ "rand 0.9.4",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "tokio",
+ "tower",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ferro-server-automation"
 version = "3.0.0"
 dependencies = [
@@ -3659,6 +3730,117 @@ dependencies = [
  "tracing",
  "url",
  "utoipa",
+ "uuid",
+]
+
+[[package]]
+name = "ferro-server-collaboration"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "bytes",
+ "chrono",
+ "dashmap",
+ "ferro-common",
+ "ferro-crdt",
+ "ferro-server-security",
+ "ferro-server-security-middleware",
+ "futures",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ferro-server-compliance"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "chrono",
+ "ferro-common",
+ "ferro-server-security",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
+name = "ferro-server-content"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "chrono",
+ "ferro-common",
+ "ferro-server-security",
+ "hex",
+ "image",
+ "pdf",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ferro-server-integrations"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "dashmap",
+ "ferro-common",
+ "ferro-offline",
+ "http-body-util",
+ "imap",
+ "lettre",
+ "native-tls",
+ "rand 0.9.4",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
+name = "ferro-server-plugins"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "dashmap",
+ "ferro-core",
+ "http-body-util",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tower",
+ "tracing",
  "uuid",
 ]
 
@@ -3690,6 +3872,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-security-middleware"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "ferro-auth",
+ "ferro-common",
+ "ferro-server-security",
+ "http-body-util",
+ "hyper",
+ "jsonwebtoken",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ferro-server-sharing"
 version = "3.0.0"
 dependencies = [
@@ -3712,6 +3916,51 @@ dependencies = [
  "sha2 0.11.0",
  "subtle",
  "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ferro-server-storage-ops"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "chrono",
+ "ferro-common",
+ "ferro-server-security",
+ "hex",
+ "http-body-util",
+ "mime_guess",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "ferro-server-user-mgmt"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "ferro-auth",
+ "ferro-common",
+ "ferro-server-integrations",
+ "ferro-server-security",
+ "ferro-server-sharing",
+ "rand 0.8.6",
+ "rusqlite",
+ "serde",
+ "serde_json",
  "tokio",
  "tokio-util",
  "tracing",
@@ -3764,6 +4013,32 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "ferro-server-webdav-core"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "bytes",
+ "chrono",
+ "dashmap",
+ "ferro-common",
+ "ferro-dav",
+ "ferro-offline",
+ "ferro-server-security",
+ "ferro-server-storage-ops",
+ "ferro-server-webdav",
+ "http-body-util",
+ "quick-xml 0.37.5",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]

@@ -749,7 +749,7 @@ pub async fn get_file(
         // Stream file content (with read cache for small files)
         // Re-detect MIME from extension if stored value is the generic default.
         let content_type = if meta.mime_type == "application/octet-stream" {
-            crate::webdav::sniff_content_type(&[], &path)
+            common::mime::sniff_content_type(&[], &path)
         } else {
             meta.mime_type.clone()
         };

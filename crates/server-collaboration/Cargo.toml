@@ -1,0 +1,31 @@
+[package]
+name = "ferro-server-collaboration"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Ferro collaboration modules: chat, collab WebSocket, comments, tags"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+ferro-server-security = { path = "../server-security" }
+ferro-server-security-middleware = { path = "../server-security-middleware" }
+ferro-crdt = { path = "../crdt" }
+axum = { workspace = true, features = ["ws"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+rusqlite = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+dashmap = "6"
+bytes = "1"
+futures = "0.3"
+async-trait = "0.1"
+tempfile = "3"
+
+[dev-dependencies]
+tokio-tungstenite = "0.24"

@@ -44,15 +44,18 @@ pub async fn publish_file_modified(
 
 struct WebhookBusHandler {
     webhooks: Arc<tokio::sync::RwLock<Vec<crate::webhooks::WebhookConfig>>>,
-    db: Option<crate::db::DbHandle>,
+    delivery_store: crate::webhooks::WebhookDeliveryStore,
 }
 
 impl WebhookBusHandler {
     fn new(
         webhooks: Arc<tokio::sync::RwLock<Vec<crate::webhooks::WebhookConfig>>>,
-        db: Option<crate::db::DbHandle>,
+        delivery_store: crate::webhooks::WebhookDeliveryStore,
     ) -> Self {
-        Self { webhooks, db }
+        Self {
+            webhooks,
+            delivery_store,
+        }
     }
 }
 
@@ -76,7 +79,12 @@ impl EventHandler<FileEvent> for WebhookBusHandler {
             user: Some(event.user_id.clone()),
             etag: None,
         };
-        crate::webhooks::fire_webhooks(self.webhooks.clone(), webhook_event, self.db.clone()).await;
+        crate::webhooks::fire_webhooks(
+            self.webhooks.clone(),
+            webhook_event,
+            self.delivery_store.clone(),
+        )
+        .await;
         Ok(())
     }
 
@@ -128,11 +136,11 @@ impl EventHandler<FileEvent> for NotificationBusHandler {
 pub fn setup_event_handlers(state: &AppState) {
     let bus = &state.event_bus;
 
-    let wh = WebhookBusHandler::new(state.webhooks.clone(), state.db.clone());
+    let wh = WebhookBusHandler::new(state.webhooks.clone(), state.webhook_delivery_store.clone());
     bus.subscribe("file.created", Box::new(wh));
-    let wh = WebhookBusHandler::new(state.webhooks.clone(), state.db.clone());
+    let wh = WebhookBusHandler::new(state.webhooks.clone(), state.webhook_delivery_store.clone());
     bus.subscribe("file.deleted", Box::new(wh));
-    let wh = WebhookBusHandler::new(state.webhooks.clone(), state.db.clone());
+    let wh = WebhookBusHandler::new(state.webhooks.clone(), state.webhook_delivery_store.clone());
     bus.subscribe("file.modified", Box::new(wh));
 
     let nh = NotificationBusHandler::new(

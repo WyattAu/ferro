@@ -328,7 +328,7 @@ async fn handle_put_streaming(
         .get("Content-Type")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string())
-        .unwrap_or_else(|| sniff_content_type(&body, &path));
+        .unwrap_or_else(|| common::mime::sniff_content_type(&body, &path));
 
     if let Some(declared) = headers.get("Content-Type").and_then(|v| v.to_str().ok())
         && let Some(detected) = crate::security::verify_content_type(declared, &body)
@@ -627,7 +627,7 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
         let mut cache = state.offline_cache.write().await;
         if let Some(cached_data) = cache.get(&path) {
             debug!("OFFLINE GET: serving cached content for {}", path);
-            let content_type = sniff_content_type(&cached_data, &path);
+            let content_type = common::mime::sniff_content_type(&cached_data, &path);
             let etag = format!(
                 "\"{}\"",
                 common::metadata::ContentHash::compute(&cached_data).as_str()
@@ -680,7 +680,7 @@ async fn handle_get(state: AppState, path: &str, headers: &HeaderMap) -> Result<
     }
 
     let content_type = if meta.mime_type == "application/octet-stream" {
-        sniff_content_type(&[], &path)
+        common::mime::sniff_content_type(&[], &path)
     } else {
         meta.mime_type.clone()
     };
@@ -786,7 +786,7 @@ async fn handle_head(state: AppState, path: &str, headers: &HeaderMap) -> Result
     let mut resp_headers = HeaderMap::new();
     // Re-detect MIME from extension if stored value is the generic default.
     let content_type = if meta.mime_type == "application/octet-stream" {
-        sniff_content_type(&[], &path)
+        common::mime::sniff_content_type(&[], &path)
     } else {
         meta.mime_type.clone()
     };
@@ -819,54 +819,6 @@ async fn handle_head(state: AppState, path: &str, headers: &HeaderMap) -> Result
     );
 
     Ok((StatusCode::OK, resp_headers, "").into_response())
-}
-
-/// Detect MIME type from the first bytes of content using magic bytes.
-pub(crate) fn sniff_content_type(data: &[u8], path: &str) -> String {
-    // First try the file extension
-    if let Some(mime) = mime_guess::from_path(path).first() {
-        let mime_str = mime.essence_str();
-        if mime_str != "application/octet-stream" {
-            return mime_str.to_string();
-        }
-    }
-
-    // Fall back to magic bytes for common formats
-    if data.len() >= 4 {
-        match &data[..4] {
-            b"%PDF" => return "application/pdf".to_string(),
-            b"\x89PNG" => return "image/png".to_string(),
-            b"GIF8" => return "image/gif".to_string(),
-            _ => {}
-        }
-    }
-    if data.len() >= 3 && &data[..3] == b"\xff\xd8\xff" {
-        return "image/jpeg".to_string();
-    }
-    if data.len() >= 5 && &data[..5] == b"<?xml" {
-        return "application/xml".to_string();
-    }
-    if data.len() >= 2 && &data[..2] == b"PK" {
-        return "application/zip".to_string();
-    }
-    // RAR: Rar!\x1a\x07
-    if data.len() >= 6 && &data[..6] == b"Rar!\x1a\x07" {
-        return "application/vnd.rar".to_string();
-    }
-    // OGG
-    if data.len() >= 4 && &data[..4] == b"OggS" {
-        return "audio/ogg".to_string();
-    }
-    // WebP
-    if data.len() >= 12 && &data[8..12] == b"WEBP" {
-        return "image/webp".to_string();
-    }
-    // MP4
-    if data.len() >= 8 && &data[4..8] == b"ftyp" {
-        return "video/mp4".to_string();
-    }
-
-    "application/octet-stream".to_string()
 }
 
 async fn handle_put(
@@ -1071,7 +1023,7 @@ async fn handle_put(
         .get("Content-Type")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string())
-        .unwrap_or_else(|| sniff_content_type(&body, &path));
+        .unwrap_or_else(|| common::mime::sniff_content_type(&body, &path));
 
     // Verify Content-Type matches actual file content (magic bytes check)
     if let Some(declared) = headers.get("Content-Type").and_then(|v| v.to_str().ok())

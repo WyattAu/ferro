@@ -1,21 +1,21 @@
-pub mod account_api;
-pub mod activity;
-pub mod admin_api;
+pub use ferro_server_admin_api::activity;
+pub use ferro_server_admin_api::admin_api;
+pub use ferro_server_user_mgmt::account_api;
 pub mod ai_search;
 pub mod api;
 pub mod api_error;
 pub mod api_federation;
 pub mod api_keys_routes;
 pub mod audit;
-pub mod auth;
-pub mod backup;
+pub use ferro_server_admin_api::backup;
+pub use ferro_server_security_middleware::auth;
 pub mod batch;
-pub mod branding;
+pub use ferro_server_admin_api::branding;
 pub mod bulk;
 pub mod calendar_api;
-pub mod chat_api;
+pub use ferro_server_collaboration::chat_api;
 #[cfg(unix)]
-pub mod clamav;
+pub use ferro_server_compliance::clamav;
 pub mod collab_ws;
 pub mod comments;
 pub mod config;
@@ -24,20 +24,18 @@ pub mod contacts_api;
 pub mod dashboard;
 pub mod dav;
 pub mod db;
-pub mod dedup;
-pub mod e2ee;
-pub mod email;
-pub mod encryption;
+pub use ferro_server_content::e2ee;
+pub use ferro_server_content::encryption;
+pub use ferro_server_storage_ops::dedup;
 pub mod notes_api;
 pub mod tasks_api;
 pub use ferro_distributed::erasure_storage;
 pub mod error;
-pub mod events;
 pub mod favorites;
 pub mod federation_sync;
 pub mod fs_util;
-pub mod gdpr;
-pub mod guests;
+pub use ferro_server_admin_api::gdpr;
+pub use ferro_server_user_mgmt::guests;
 pub mod federation {
     pub use ferro_server_activitypub::FederationState;
     pub use ferro_server_activitypub::store::ActivityStore;
@@ -114,9 +112,8 @@ pub mod federation {
         ferro_server_activitypub::federated_share(State(fed_state(&s)), body).await
     }
 }
-pub mod antivirus_api;
-pub mod dlp_api;
-pub mod event_triggers;
+pub use ferro_server_compliance::antivirus_api;
+pub use ferro_server_compliance::dlp_api;
 pub mod idempotency;
 pub mod indexer;
 pub mod integration;
@@ -125,42 +122,41 @@ pub mod json_logging;
 pub mod ldap_auth;
 pub mod link_analytics_api;
 pub mod lock;
-pub mod mail_api;
+pub use ferro_server_integrations::mail_api;
 pub mod metadata_replication;
 pub mod metrics;
 pub mod move_copy;
 pub mod notification_prefs_api;
 pub mod object_store_backend;
 pub mod ocr;
-pub mod ocr_engine;
-pub mod offline_api;
+pub use ferro_server_content::ocr_engine;
+pub use ferro_server_integrations::offline_api;
 pub mod offline_wiring;
 pub mod openapi;
 #[cfg(feature = "pg")]
 pub mod pg_state;
 pub mod photos_api;
-pub mod plugin_marketplace_api;
-pub mod plugin_permissions;
+pub use ferro_server_plugins::plugin_marketplace_api;
+pub use ferro_server_plugins::plugin_permissions;
 pub mod policies;
 pub mod preferences;
 pub mod presigned;
 pub mod prometheus_metrics;
-pub mod push_notifications;
+pub use ferro_server_integrations::push_notifications;
 pub mod quota;
-pub mod range_get;
+pub use ferro_server_storage_ops::range_get;
 pub mod ransomware;
-pub mod read_cache;
+pub use ferro_server_integrations::read_cache;
 #[cfg(feature = "redis")]
 pub mod redis_lock;
 #[cfg(feature = "redis")]
 pub mod redis_rate_limiter;
-pub mod remote_mount;
-pub mod request_id;
+pub use ferro_server_integrations::remote_mount;
+pub use ferro_server_security_middleware::request_id;
 pub mod request_logging;
-pub mod retention;
-pub mod search;
-pub mod security;
-pub mod security_headers;
+pub use ferro_server_compliance::retention;
+pub use ferro_server_security_middleware::security;
+pub use ferro_server_security_middleware::security_headers;
 pub mod selective_sync_api;
 pub mod shares;
 pub mod shares_ext;
@@ -169,9 +165,9 @@ pub mod snapshots;
 pub mod storage;
 pub mod storage_health;
 pub mod streaming;
-pub mod streaming_upload;
+pub use ferro_server_storage_ops::streaming_upload;
 pub mod sync;
-pub mod tags;
+pub use ferro_server_collaboration::tags;
 pub mod tenant_rate_limit_api;
 pub mod thumbnail_cache;
 pub mod thumbnails;
@@ -179,37 +175,81 @@ pub mod totp_api;
 pub mod trash;
 pub mod triggers;
 pub mod upload;
-pub mod user_api;
+pub use ferro_server_user_mgmt::user_api;
 pub mod user_paths;
 pub mod users;
-pub mod wasm_upload;
-pub mod watermark_api;
+pub use ferro_server_content::watermark_api;
+pub use ferro_server_plugins::wasm_upload;
 #[cfg(feature = "webauthn")]
 pub mod webauthn_api;
 pub mod webdav;
-pub mod webhooks;
 pub mod whiteboard_api;
 pub mod worker_runner;
-pub mod workers;
-pub mod worm;
-pub mod ws;
+pub use ferro_server_compliance::worm;
+pub use ferro_server_plugins::workers;
+pub mod routes;
 pub mod xml;
 
+// Re-export api-core modules
+pub use ferro_server_api_core::email;
+pub use ferro_server_api_core::event_triggers;
+pub use ferro_server_api_core::events;
+pub use ferro_server_api_core::search;
+pub use ferro_server_api_core::webhooks;
+pub mod ws {
+    use axum::extract::ws::{Message, WebSocket};
+    use axum::extract::{State, WebSocketUpgrade};
+    use axum::response::Response;
+    pub use ferro_server_api_core::ws::WsManager as WsManagerReexport;
+    pub use ferro_server_api_core::ws::{WsEvent, WsManager};
+    use futures::{SinkExt, StreamExt};
+
+    pub async fn ws_handler(
+        ws: WebSocketUpgrade,
+        State(state): State<crate::AppState>,
+    ) -> Response {
+        ws.on_upgrade(move |socket| handle_socket(socket, state.ws_manager.clone()))
+    }
+
+    async fn handle_socket(socket: WebSocket, manager: std::sync::Arc<WsManager>) {
+        let mut rx = manager.subscribe();
+        let (mut ws_sender, mut ws_receiver) = socket.split();
+
+        let send_task = async move {
+            while let Ok(msg) = rx.recv().await {
+                if ws_sender.send(Message::Text(msg)).await.is_err() {
+                    break;
+                }
+            }
+            manager.unsubscribe();
+        };
+
+        let recv_task = async move {
+            while let Some(Ok(msg)) = ws_receiver.next().await {
+                match msg {
+                    Message::Close(_) => break,
+                    Message::Ping(_) => {}
+                    _ => {}
+                }
+            }
+        };
+
+        tokio::select! {
+            _ = send_task => {},
+            _ = recv_task => {},
+        };
+    }
+}
+
 use axum::Router;
-use axum::body::Body;
 use axum::extract::State;
-use axum::http::HeaderMap;
-use axum::http::{Request, StatusCode};
-use axum::middleware::Next;
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::any;
 use common::storage::LockManagerTrait;
 use common::storage::StorageEngine;
 use dashmap::{DashMap, DashSet};
 use lock::LockManager;
 use std::sync::Arc;
-use tower::limit::ConcurrencyLimitLayer;
-use tower_http::compression::CompressionLayer;
 
 use auth::api_keys::InMemoryApiKeyStore;
 use auth::cedar::CedarAuthorizer;
@@ -239,6 +279,8 @@ pub struct AppState {
     pub search: Option<Arc<tokio::sync::RwLock<SearchEngine>>>,
     pub search_ranking_config: Arc<tokio::sync::RwLock<SearchRankingConfig>>,
     pub ai_search: Option<Arc<ai_search::AiSearchBridge>>,
+    /// AI search bridge as trait object for api-core compatibility.
+    pub ai_search_bridge: Option<Arc<dyn ferro_server_api_core::AiSearchBridgeTrait>>,
     pub wasm_runtime: Option<Arc<WasmWorkerRuntime>>,
     pub workers_dir: Option<std::path::PathBuf>,
     pub metadata_store: Option<Arc<dyn ferro_core::metadata::MetadataStore>>,
@@ -302,6 +344,7 @@ pub struct AppState {
     pub storage_health: Arc<storage_health::StorageHealthMonitor>,
     pub ws_manager: Arc<ws::WsManager>,
     pub collab_rooms: collab_ws::CollabRoomManager,
+    pub collab_audit_adapter: Arc<dyn ferro_server_collaboration::AuditLogTrait>,
     pub db: Option<DbHandle>,
     pub branding_store: branding::BrandingStore,
     pub task_store: tasks_api::TaskStore,
@@ -377,6 +420,18 @@ pub struct AppState {
     pub max_concurrent_requests: usize,
     /// Maximum number of snapshot versions to retain.
     pub max_snapshot_versions: usize,
+    /// Adapter for compliance crate's audit log trait.
+    pub compliance_audit_adapter: Arc<dyn ferro_server_compliance::AuditLogTrait>,
+    /// Adapter for admin-api crate's audit log trait.
+    pub admin_audit_adapter: Arc<dyn ferro_server_admin_api::AuditLogTrait>,
+    /// Adapter for admin-api crate's share store trait.
+    pub admin_share_store: Arc<dyn ferro_server_admin_api::AdminShareStoreTrait>,
+    /// Adapter for admin-api crate's favorite store trait.
+    pub admin_favorites_store: Arc<dyn ferro_server_admin_api::AdminFavoriteStoreTrait>,
+    /// Adapter for admin-api crate's tag store trait.
+    pub admin_tags_store: Arc<dyn ferro_server_admin_api::AdminTagStoreTrait>,
+    /// Adapter for user-mgmt crate's audit log trait.
+    pub user_mgmt_audit_adapter: Arc<dyn ferro_server_user_mgmt::AuditLog>,
 }
 
 impl AppState {
@@ -391,6 +446,7 @@ impl AppState {
                 SearchRankingConfig::default(),
             )),
             ai_search: None,
+            ai_search_bridge: None,
             wasm_runtime: None,
             workers_dir: None,
             metadata_store: None,
@@ -452,6 +508,7 @@ impl AppState {
             storage_health: Arc::new(storage_health::StorageHealthMonitor::new()),
             ws_manager: Arc::new(ws::WsManager::new()),
             collab_rooms: collab_ws::CollabRoomManager::new(),
+            collab_audit_adapter: Arc::new(CollaborationAuditLogAdapter(Arc::new(AuditLog::new()))),
             db: None,
             branding_store: branding::BrandingStore::new(),
             task_store: tasks_api::TaskStore::new(),
@@ -508,6 +565,16 @@ impl AppState {
                 Arc::new(checker)
             },
             selective_sync_store: None,
+            compliance_audit_adapter: Arc::new(AuditLogAdapter(Arc::new(AuditLog::new()))),
+            admin_audit_adapter: Arc::new(AdminAuditLogAdapter(Arc::new(AuditLog::new()))),
+            admin_share_store: Arc::new(AdminShareStoreAdapter(
+                Arc::new(shares::ShareStore::new()),
+            )),
+            admin_favorites_store: Arc::new(AdminFavoriteStoreAdapter(Arc::new(
+                favorites::InMemoryFavoriteStore::new(),
+            ))),
+            admin_tags_store: Arc::new(AdminTagStoreAdapter(Arc::new(tags::TagStore::new()))),
+            user_mgmt_audit_adapter: Arc::new(UserMgmtAuditLogAdapter(Arc::new(AuditLog::new()))),
         }
     }
 
@@ -531,7 +598,9 @@ impl AppState {
     }
 
     pub fn with_ai_search(mut self, bridge: ai_search::AiSearchBridge) -> Self {
-        self.ai_search = Some(Arc::new(bridge));
+        let bridge_arc = Arc::new(bridge);
+        self.ai_search_bridge = Some(bridge_arc.clone());
+        self.ai_search = Some(bridge_arc);
         self
     }
 
@@ -740,6 +809,13 @@ impl AppState {
         self.mail_store = mail_api::MailStore::new().with_db(db.clone());
         self.notification_prefs_store =
             notification_prefs_api::NotificationPrefsStore::new().with_db(db.clone());
+        // Rebuild admin-api adapters with DB-backed stores
+        self.admin_audit_adapter = Arc::new(AdminAuditLogAdapter(self.audit_log.clone()));
+        self.admin_share_store = Arc::new(AdminShareStoreAdapter(self.share_store.clone()));
+        self.admin_favorites_store = Arc::new(AdminFavoriteStoreAdapter(self.favorites.clone()));
+        self.admin_tags_store = Arc::new(AdminTagStoreAdapter(self.tags.clone()));
+        self.collab_audit_adapter = Arc::new(CollaborationAuditLogAdapter(self.audit_log.clone()));
+        self.user_mgmt_audit_adapter = Arc::new(UserMgmtAuditLogAdapter(self.audit_log.clone()));
         if let Err(e) = self.notification_prefs_store.init_table() {
             tracing::warn!(error = %e, "failed to init notification_prefs table");
         }
@@ -1025,6 +1101,126 @@ impl ferro_server_security::SecurityAppState for AppState {
     }
 }
 
+/// Adapter to bridge the server's AuditLog to the collaboration crate's AuditLogTrait.
+struct CollaborationAuditLogAdapter(Arc<AuditLog>);
+
+#[async_trait::async_trait]
+impl ferro_server_collaboration::AuditLogTrait for CollaborationAuditLogAdapter {
+    async fn log(&self, entry: ferro_server_collaboration::AuditEntry) {
+        self.0
+            .log(crate::audit::AuditEntry {
+                timestamp: entry.timestamp,
+                method: entry.method,
+                path: entry.path,
+                user: entry.user,
+                status: entry.status,
+                client_ip: entry.client_ip,
+                user_agent: entry.user_agent,
+                content_length: entry.content_length,
+            })
+            .await;
+    }
+}
+
+impl ferro_server_collaboration::CollaborationState for AppState {
+    fn admin_user(&self) -> Option<&str> {
+        self.admin_user.as_deref()
+    }
+
+    fn audit_log(&self) -> &Arc<dyn ferro_server_collaboration::AuditLogTrait> {
+        &self.collab_audit_adapter
+    }
+
+    fn comments(&self) -> &Arc<comments::CommentStore> {
+        &self.comments
+    }
+
+    fn tags(&self) -> &Arc<tags::TagStore> {
+        &self.tags
+    }
+
+    fn storage(&self) -> &Arc<dyn common::storage::StorageEngine> {
+        &self.storage
+    }
+
+    fn collab_rooms(&self) -> &collab_ws::CollabRoomManager {
+        &self.collab_rooms
+    }
+
+    fn db(&self) -> &Option<ferro_server_collaboration::DbHandle> {
+        &self.db
+    }
+}
+
+// --- UserMgmtState implementation for ferro-server-user-mgmt ---
+
+/// Adapter to bridge the server's AuditLog to the user-mgmt crate's AuditLog trait.
+struct UserMgmtAuditLogAdapter(Arc<AuditLog>);
+
+impl ferro_server_user_mgmt::AuditLog for UserMgmtAuditLogAdapter {
+    fn log(
+        &self,
+        entry: ferro_server_user_mgmt::AuditEntry,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>> {
+        let audit = self.0.clone();
+        Box::pin(async move {
+            audit
+                .log(crate::audit::AuditEntry {
+                    timestamp: entry.timestamp,
+                    method: entry.method,
+                    path: entry.path,
+                    user: entry.user,
+                    status: entry.status,
+                    client_ip: entry.client_ip,
+                    user_agent: entry.user_agent,
+                    content_length: entry.content_length,
+                })
+                .await;
+        })
+    }
+}
+
+impl ferro_server_user_mgmt::UserMgmtState for AppState {
+    fn user_info(&self, username: &str) -> Option<ferro_auth::users::UserInfo> {
+        self.user_info(username)
+    }
+
+    fn admin_user(&self) -> &Option<String> {
+        &self.admin_user
+    }
+
+    fn user_store(&self) -> &Arc<dyn ferro_auth::users::UserStoreTrait> {
+        &self.user_store
+    }
+
+    fn db(&self) -> &Option<ferro_server_user_mgmt::DbHandle> {
+        // DbHandle is the same type alias in both crates: Arc<Mutex<Connection>>
+        &self.db
+    }
+
+    fn audit_log(&self) -> &Arc<dyn ferro_server_user_mgmt::AuditLog> {
+        &self.user_mgmt_audit_adapter
+    }
+
+    fn push_notification_store(
+        &self,
+    ) -> &Option<
+        Arc<
+            tokio::sync::RwLock<
+                ferro_server_integrations::push_notifications::PushNotificationStore,
+            >,
+        >,
+    > {
+        &self.push_notification_store
+    }
+
+    fn push_notification_config(
+        &self,
+    ) -> &ferro_server_integrations::push_notifications::PushNotificationConfig {
+        &self.push_notification_config
+    }
+}
+
 // --- Composite trait implementations for crate decomposition ---
 // These implement the server_context traits from ferro-common, allowing
 // extracted crates to depend on traits rather than AppState directly.
@@ -1191,1364 +1387,377 @@ impl common::server_context::HasStorageHealth for AppState {
     }
 }
 
+impl ferro_server_content::watermark_api::WatermarkState for AppState {
+    fn storage(&self) -> &Arc<dyn common::storage::StorageEngine> {
+        &self.storage
+    }
+
+    fn db(&self) -> &Option<ferro_server_content::watermark_api::DbHandle> {
+        &self.db
+    }
+}
+
+/// Adapter to bridge the server's AuditLog to the compliance crate's AuditLogTrait.
+struct AuditLogAdapter(Arc<AuditLog>);
+
+#[async_trait::async_trait]
+impl ferro_server_compliance::AuditLogTrait for AuditLogAdapter {
+    async fn log(&self, entry: ferro_server_compliance::AuditEntry) {
+        self.0
+            .log(crate::audit::AuditEntry {
+                timestamp: entry.timestamp,
+                method: entry.method,
+                path: entry.path,
+                user: entry.user,
+                status: entry.status,
+                client_ip: entry.client_ip,
+                user_agent: entry.user_agent,
+                content_length: entry.content_length,
+            })
+            .await;
+    }
+}
+
+impl ferro_server_compliance::ComplianceState for AppState {
+    fn used_bytes(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.used_bytes
+    }
+
+    fn db(&self) -> &Option<ferro_server_compliance::DbHandle> {
+        &self.db
+    }
+
+    fn retention_store(&self) -> &ferro_server_compliance::retention::RetentionStore {
+        &self.retention_store
+    }
+
+    fn worm_store(&self) -> &ferro_server_compliance::worm::WormPolicyStore {
+        &self.worm_store
+    }
+
+    fn dlp_store(&self) -> &ferro_server_compliance::dlp_api::DlpStore {
+        &self.dlp_store
+    }
+
+    fn audit_log(&self) -> &Arc<dyn ferro_server_compliance::AuditLogTrait> {
+        &self.compliance_audit_adapter
+    }
+}
+
+/// Adapter to bridge the server's AuditLog to the admin crate's AuditLogTrait.
+struct AdminAuditLogAdapter(Arc<AuditLog>);
+
+#[async_trait::async_trait]
+impl ferro_server_admin_api::AuditLogTrait for AdminAuditLogAdapter {
+    async fn log(&self, entry: ferro_server_admin_api::AuditEntry) {
+        self.0
+            .log(crate::audit::AuditEntry {
+                timestamp: entry.timestamp,
+                method: entry.method,
+                path: entry.path,
+                user: entry.user,
+                status: entry.status,
+                client_ip: entry.client_ip,
+                user_agent: entry.user_agent,
+                content_length: entry.content_length,
+            })
+            .await;
+    }
+
+    async fn entries(&self) -> Vec<ferro_server_admin_api::AuditEntry> {
+        self.0
+            .recent_with_offset(10000, 0)
+            .await
+            .into_iter()
+            .map(|e| ferro_server_admin_api::AuditEntry {
+                timestamp: e.timestamp,
+                method: e.method,
+                path: e.path,
+                user: e.user,
+                status: e.status,
+                client_ip: e.client_ip,
+                user_agent: e.user_agent,
+                content_length: e.content_length,
+            })
+            .collect()
+    }
+
+    async fn verify_chain(&self) -> Option<serde_json::Value> {
+        None
+    }
+}
+
+/// Adapter to bridge the server's ShareStoreTrait to the admin crate's AdminShareStoreTrait.
+struct AdminShareStoreAdapter(Arc<dyn shares::ShareStoreTrait>);
+
+#[async_trait::async_trait]
+impl ferro_server_admin_api::AdminShareStoreTrait for AdminShareStoreAdapter {
+    async fn list(&self) -> Vec<ferro_server_admin_api::AdminShareLink> {
+        self.0
+            .list()
+            .await
+            .into_iter()
+            .map(|s| ferro_server_admin_api::AdminShareLink {
+                token: s.token,
+                path: s.path,
+                expires_at: s.expires_at.to_rfc3339(),
+                max_downloads: s.max_downloads,
+                download_count: s.download_count,
+                created_by: s.created_by,
+                allow_download: s.allow_download,
+                allow_upload: s.allow_upload,
+            })
+            .collect()
+    }
+
+    async fn delete(&self, token: &str) -> bool {
+        self.0.delete(token).await
+    }
+}
+
+/// Adapter to bridge the server's FavoriteStore to the admin crate's AdminFavoriteStoreTrait.
+struct AdminFavoriteStoreAdapter(Arc<dyn favorites::FavoriteStore>);
+
+#[async_trait::async_trait]
+impl ferro_server_admin_api::AdminFavoriteStoreTrait for AdminFavoriteStoreAdapter {
+    async fn list(&self) -> Vec<String> {
+        self.0.list().await
+    }
+
+    async fn remove(&self, path: &str) {
+        self.0.remove(path).await
+    }
+}
+
+/// Adapter to bridge the server's TagStore to the admin crate's AdminTagStoreTrait.
+struct AdminTagStoreAdapter(Arc<tags::TagStore>);
+
+impl ferro_server_admin_api::AdminTagStoreTrait for AdminTagStoreAdapter {
+    fn all_tags(&self) -> Vec<(String, Vec<String>)> {
+        self.0
+            .entries
+            .iter()
+            .map(|entry| {
+                let (path, tags) = entry.pair();
+                (path.clone(), tags.iter().cloned().collect())
+            })
+            .collect()
+    }
+
+    fn all_tag_pairs(&self) -> Vec<(String, String)> {
+        self.0
+            .entries
+            .iter()
+            .flat_map(|entry| {
+                let (path, tags) = entry.pair();
+                tags.iter()
+                    .map(|tag| (path.clone(), tag.clone()))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
+    fn remove_tag(&self, path: &str, tag: &str) -> bool {
+        self.0.remove_tag(path, tag)
+    }
+}
+
+impl ferro_server_admin_api::AdminState for AppState {
+    fn started_at(&self) -> std::time::Instant {
+        self.started_at
+    }
+
+    fn oidc_enabled(&self) -> bool {
+        self.oidc.is_some()
+    }
+
+    fn admin_user_enabled(&self) -> bool {
+        self.admin_user.is_some()
+    }
+
+    fn search_enabled(&self) -> bool {
+        self.search.is_some()
+    }
+
+    fn cedar_enabled(&self) -> bool {
+        self.cedar.is_some()
+    }
+
+    fn maintenance_mode(&self) -> &Arc<std::sync::atomic::AtomicBool> {
+        &self.maintenance_mode
+    }
+
+    fn data_dir(&self) -> Option<&str> {
+        self.data_dir.as_deref()
+    }
+
+    fn db(&self) -> &Option<ferro_server_admin_api::DbHandle> {
+        &self.db
+    }
+
+    fn cas_store(&self) -> Option<&Arc<dyn ferro_core::cas::CasStore>> {
+        self.cas_store.as_ref()
+    }
+
+    fn audit_log(&self) -> &Arc<dyn ferro_server_admin_api::AuditLogTrait> {
+        &self.admin_audit_adapter
+    }
+
+    fn user_store(&self) -> &Arc<dyn ferro_auth::users::UserStoreTrait> {
+        &self.user_store
+    }
+
+    fn share_store(&self) -> &Arc<dyn ferro_server_admin_api::AdminShareStoreTrait> {
+        &self.admin_share_store
+    }
+
+    fn favorites(&self) -> &Arc<dyn ferro_server_admin_api::AdminFavoriteStoreTrait> {
+        &self.admin_favorites_store
+    }
+
+    fn tags(&self) -> &Arc<dyn ferro_server_admin_api::AdminTagStoreTrait> {
+        &self.admin_tags_store
+    }
+
+    fn branding_store(&self) -> &ferro_server_admin_api::branding::BrandingStore {
+        &self.branding_store
+    }
+
+    fn gdpr_store(&self) -> &ferro_server_admin_api::gdpr::GdprStore {
+        &self.gdpr_store
+    }
+}
+
+impl ferro_server_plugins::PluginState for AppState {
+    fn plugin_registry(&self) -> &Arc<DashMap<String, plugin_permissions::PluginManifest>> {
+        &self.plugin_registry
+    }
+
+    fn workers_dir(&self) -> Option<&std::path::PathBuf> {
+        self.workers_dir.as_ref()
+    }
+
+    fn wasm_runtime(&self) -> Option<&Arc<ferro_core::wasm::WasmWorkerRuntime>> {
+        self.wasm_runtime.as_ref()
+    }
+}
+
+impl ferro_server_integrations::IntegrationsState for AppState {
+    fn mail_store(&self) -> &mail_api::MailStore {
+        &self.mail_store
+    }
+    fn push_notification_store(
+        &self,
+    ) -> &Option<Arc<tokio::sync::RwLock<push_notifications::PushNotificationStore>>> {
+        &self.push_notification_store
+    }
+    fn push_notification_config(&self) -> &push_notifications::PushNotificationConfig {
+        &self.push_notification_config
+    }
+    fn connection_monitor(&self) -> &Arc<ferro_offline::monitor::ConnectionMonitor> {
+        &self.connection_monitor
+    }
+    fn offline_cache(&self) -> &Arc<tokio::sync::RwLock<ferro_offline::cache::ContentCache>> {
+        &self.offline_cache
+    }
+    fn offline_queue(&self) -> &Option<Arc<ferro_offline::change_queue::SqliteChangeQueue>> {
+        &self.offline_queue
+    }
+    fn storage(&self) -> &Arc<dyn common::storage::StorageEngine> {
+        &self.storage
+    }
+    fn read_cache(&self) -> &Arc<read_cache::ReadCache> {
+        &self.read_cache
+    }
+    fn remote_mounts(&self) -> &Arc<remote_mount::RemoteMountStore> {
+        &self.remote_mounts
+    }
+}
+
+// --- ApiCoreState implementation ---
+
+impl ferro_server_api_core::ApiCoreState for AppState {
+    fn ws_manager(&self) -> &Arc<ws::WsManager> {
+        &self.ws_manager
+    }
+    fn read_cache(&self) -> &Arc<read_cache::ReadCache> {
+        &self.read_cache
+    }
+    fn webhooks(&self) -> &Arc<tokio::sync::RwLock<Vec<webhooks::WebhookConfig>>> {
+        &self.webhooks
+    }
+    fn webhook_delivery_store(&self) -> &webhooks::WebhookDeliveryStore {
+        &self.webhook_delivery_store
+    }
+    fn email_config(&self) -> &email::EmailConfig {
+        &self.email_config
+    }
+    fn push_notification_store(
+        &self,
+    ) -> &Option<Arc<tokio::sync::RwLock<push_notifications::PushNotificationStore>>> {
+        &self.push_notification_store
+    }
+    fn push_notification_config(&self) -> &push_notifications::PushNotificationConfig {
+        &self.push_notification_config
+    }
+    fn event_bus(&self) -> &Arc<ferro_event_bus::EventBus> {
+        &self.event_bus
+    }
+    fn wasm_runtime(&self) -> &Option<Arc<ferro_core::wasm::WasmWorkerRuntime>> {
+        &self.wasm_runtime
+    }
+    fn workers_dir(&self) -> &Option<std::path::PathBuf> {
+        &self.workers_dir
+    }
+    fn wasm_dispatch_count(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.wasm_dispatch_count
+    }
+    fn wasm_error_count(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.wasm_error_count
+    }
+    fn wasm_fuel_total(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.wasm_fuel_total
+    }
+    fn db(&self) -> &Option<db::DbHandle> {
+        &self.db
+    }
+    fn search(&self) -> &Option<Arc<tokio::sync::RwLock<ferro_core::search::SearchEngine>>> {
+        &self.search
+    }
+    fn search_ranking_config(
+        &self,
+    ) -> &Arc<tokio::sync::RwLock<ferro_core::search::SearchRankingConfig>> {
+        &self.search_ranking_config
+    }
+    fn ai_search(&self) -> &Option<Arc<dyn ferro_server_api_core::AiSearchBridgeTrait>> {
+        // AiSearchBridge is behind an Arc<dyn AiSearchBridgeTrait> in the new pattern
+        // For now, we need a way to store it as trait object
+        // This requires a small refactoring - store ai_search as Option<Arc<dyn AiSearchBridgeTrait>>
+        &self.ai_search_bridge
+    }
+    fn lock_manager(&self) -> &Arc<dyn common::storage::LockManagerTrait> {
+        &self.lock_manager
+    }
+    fn preferences(&self) -> &Arc<dyn search::PreferenceStore> {
+        &self.preferences
+    }
+}
+
 pub fn make_app() -> Router {
     let state = AppState::in_memory()
         .with_wopi_token_secret("test-wopi-secret-for-integration".to_string());
     build_router(state)
 }
 
-pub fn build_router(state: AppState) -> Router {
-    build_router_with_static(state, None, "*", "v1")
-}
+pub use routes::build_router;
+pub use routes::build_router_with_static;
 
-fn api_routes(
-    state: &AppState,
-    webrtc_offers: Arc<ferro_server_webrtc::offers::OfferStore>,
-) -> Router<AppState> {
-    Router::new()
-        .route("/auth/info", axum::routing::get(api::auth_info))
-        .route("/auth/login", axum::routing::get(api::auth_login))
-        .route("/auth/callback", axum::routing::get(api::auth_callback))
-        .route(
-            "/auth/refresh",
-            axum::routing::post(api::auth_refresh_token),
-        )
-        .route(
-            "/auth/change-password",
-            axum::routing::post(api::auth_change_password),
-        )
-        // TOTP two-factor authentication
-        .route(
-            "/auth/totp/setup",
-            axum::routing::post(totp_api::totp_setup::<AppState>),
-        )
-        .route(
-            "/auth/totp/enable",
-            axum::routing::post(totp_api::totp_enable::<AppState>),
-        )
-        .route(
-            "/auth/totp/disable",
-            axum::routing::post(totp_api::totp_disable::<AppState>),
-        )
-        .route(
-            "/auth/totp/status",
-            axum::routing::get(totp_api::totp_status::<AppState>),
-        )
-        // WebAuthn/FIDO2 authentication (G-04)
-        .merge({
-            #[cfg(feature = "webauthn")]
-            {
-                axum::Router::new()
-                    .route(
-                        "/auth/webauthn/register/begin",
-                        axum::routing::post(webauthn_api::webauthn_register_begin::<AppState>),
-                    )
-                    .route(
-                        "/auth/webauthn/register/finish",
-                        axum::routing::post(webauthn_api::webauthn_register_finish::<AppState>),
-                    )
-                    .route(
-                        "/auth/webauthn/login/begin",
-                        axum::routing::post(webauthn_api::webauthn_login_begin::<AppState>),
-                    )
-                    .route(
-                        "/auth/webauthn/login/finish",
-                        axum::routing::post(webauthn_api::webauthn_login_finish::<AppState>),
-                    )
-            }
-            #[cfg(not(feature = "webauthn"))]
-            {
-                axum::Router::new()
-            }
-        })
-        .route("/search", axum::routing::get(search::handle_search))
-        .route(
-            "/workers",
-            axum::routing::get(workers::list_workers).post(workers::register_worker),
-        )
-        .route(
-            "/workers/upload",
-            axum::routing::post(wasm_upload::upload_wasm_module),
-        )
-        .route(
-            "/workers/modules/:filename",
-            axum::routing::delete(wasm_upload::delete_wasm_module),
-        )
-        .route(
-            "/workers/modules",
-            axum::routing::get(wasm_upload::list_wasm_modules),
-        )
-        .route(
-            "/plugins",
-            axum::routing::get(plugin_permissions::list_plugins),
-        )
-        .route(
-            "/admin/plugins/marketplace",
-            axum::routing::get(plugin_marketplace_api::list_marketplace_plugins),
-        )
-        .route(
-            "/admin/plugins/:id/install",
-            axum::routing::post(plugin_marketplace_api::install_plugin),
-        )
-        .route(
-            "/admin/plugins/:id/uninstall",
-            axum::routing::post(plugin_marketplace_api::uninstall_plugin),
-        )
-        .route(
-            "/admin/plugins/:id/enable",
-            axum::routing::post(plugin_marketplace_api::enable_plugin),
-        )
-        .route(
-            "/admin/plugins/:id/disable",
-            axum::routing::post(plugin_marketplace_api::disable_plugin),
-        )
-        .route(
-            "/policies",
-            axum::routing::get(policies::list_policies)
-                .post(policies::add_policy)
-                .delete(policies::delete_policy),
-        )
-        .route("/config", axum::routing::get(config::get_server_config))
-        .route(
-            "/branding",
-            axum::routing::get(branding::get_public_branding),
-        )
-        .route("/files", axum::routing::get(api::list_files))
-        .route("/files/mkdir", axum::routing::post(api::mkdir))
-        .route("/files/move", axum::routing::post(move_copy::move_file))
-        .route("/files/copy", axum::routing::post(move_copy::copy_file))
-        .route("/upload-url", axum::routing::get(presigned::get_upload_url))
-        .route(
-            "/download-url",
-            axum::routing::get(presigned::get_download_url),
-        )
-        .route(
-            "/shares",
-            axum::routing::get(shares::list_shares).post(shares::create_share),
-        )
-        .route(
-            "/shares/:token",
-            axum::routing::delete(shares::delete_share),
-        )
-        .route("/audit", axum::routing::get(audit_handler))
-        .route("/storage/stats", axum::routing::get(storage_stats))
-        .route(
-            "/snapshots",
-            axum::routing::get(snapshots::list_snapshots).post(snapshots::create_snapshot),
-        )
-        .route(
-            "/snapshots/:id",
-            axum::routing::delete(snapshots::delete_snapshot_by_id),
-        )
-        .route(
-            "/snapshots/:id/restore",
-            axum::routing::post(snapshots::restore_snapshot),
-        )
-        .route(
-            "/favorites",
-            axum::routing::get(favorites::list_favorites)
-                .put(favorites::add_favorite)
-                .delete(favorites::remove_favorite),
-        )
-        .route("/recent", axum::routing::get(favorites::list_recent))
-        .route("/trash", axum::routing::get(trash::list_trash))
-        .route("/trash/:path", axum::routing::delete(trash::move_to_trash))
-        .route("/trash/restore", axum::routing::post(trash::restore_trash))
-        .route("/trash/purge", axum::routing::delete(trash::purge_trash))
-        .route("/trash/empty", axum::routing::delete(trash::empty_trash))
-        .route("/bulk/delete", axum::routing::post(bulk::bulk_delete))
-        .route("/batch/copy", axum::routing::post(batch::batch_copy))
-        .route("/batch/move", axum::routing::post(batch::batch_move))
-        .route("/batch/delete", axum::routing::post(batch::batch_delete))
-        .route("/batch/share", axum::routing::post(batch::batch_share))
-        .route(
-            "/fed/share",
-            axum::routing::post(federation::federated_share),
-        )
-        .merge(api_federation::routes())
-        .route(
-            "/files/encrypt",
-            axum::routing::post(encryption::encrypt_file::<AppState>),
-        )
-        .route(
-            "/files/decrypt",
-            axum::routing::post(encryption::decrypt_file::<AppState>),
-        )
-        .route("/e2ee/encrypt", axum::routing::post(e2ee::e2ee_encrypt))
-        .route(
-            "/e2ee/key/generate",
-            axum::routing::post(e2ee::e2ee_key_generate),
-        )
-        .route("/quota", axum::routing::get(quota::get_quota))
-        .route("/dashboard", axum::routing::get(dashboard::get_dashboard))
-        .route("/activity", axum::routing::get(activity::get_activity))
-        .route("/tags", axum::routing::get(tags::list_tags))
-        .route(
-            "/tags/:path",
-            axum::routing::get(tags::get_tags).post(tags::add_tags),
-        )
-        .route("/tags/:path/:tag", axum::routing::delete(tags::remove_tag))
-        .route("/tags/search", axum::routing::get(tags::search_by_tag))
-        .route(
-            "/comments",
-            axum::routing::get(comments::list_comments_handler)
-                .post(comments::create_comment_handler),
-        )
-        .route(
-            "/comments/:id",
-            axum::routing::put(comments::update_comment_handler)
-                .delete(comments::delete_comment_handler),
-        )
-        .route(
-            "/comments/:id/resolve",
-            axum::routing::post(comments::resolve_comment_handler),
-        )
-        .route(
-            "/health/storage",
-            axum::routing::get(storage_health::storage_health_handler),
-        )
-        .route(
-            "/thumbnail/*path",
-            axum::routing::get(thumbnails::get_thumbnail),
-        )
-        .route(
-            "/preferences",
-            axum::routing::get(search::handle_get_preferences)
-                .put(search::handle_update_preferences),
-        )
-        .route("/locks", axum::routing::get(search::handle_list_locks))
-        .route(
-            "/locks/force-unlock",
-            axum::routing::post(search::handle_force_unlock),
-        )
-        .route(
-            "/locks/:token",
-            axum::routing::delete(search::handle_unlock_by_token),
-        )
-        .route("/admin/stats", axum::routing::get(admin_api::admin_stats))
-        .route(
-            "/admin/storage",
-            axum::routing::get(admin_api::admin_storage),
-        )
-        .route(
-            "/admin/storage/stats",
-            axum::routing::get(admin_api::admin_storage_stats),
-        )
-        .route("/admin/audit", axum::routing::get(admin_api::admin_audit))
-        .route(
-            "/admin/audit/summary",
-            axum::routing::get(admin_api::admin_audit_summary),
-        )
-        .route(
-            "/admin/maintenance",
-            axum::routing::get(admin_api::admin_maintenance).post(admin_api::admin_maintenance),
-        )
-        .route(
-            "/admin/backup/:id",
-            axum::routing::delete(backup::delete_backup),
-        )
-        .route("/admin/backup", axum::routing::post(backup::create_backup))
-        .route(
-            "/admin/backup/latest",
-            axum::routing::get(backup::get_latest_backup),
-        )
-        .route(
-            "/admin/backup/download",
-            axum::routing::get(backup::download_backup),
-        )
-        .route(
-            "/admin/backup/restore",
-            axum::routing::post(backup::restore_from_archive),
-        )
-        .route("/admin/backups", axum::routing::get(backup::list_backups))
-        .route(
-            "/admin/integrity",
-            axum::routing::get(backup::audit_integrity),
-        )
-        .route(
-            "/admin/audit-chain",
-            axum::routing::get(backup::audit_chain_verify),
-        )
-        .route(
-            "/admin/restore",
-            axum::routing::post(backup::restore_backup),
-        )
-        .route(
-            "/admin/webhooks/:id",
-            axum::routing::delete(webhooks::delete_webhook),
-        )
-        .route(
-            "/admin/webhooks",
-            axum::routing::post(webhooks::create_webhook).get(webhooks::list_webhooks),
-        )
-        .route(
-            "/admin/webhooks/:id/deliveries",
-            axum::routing::get(webhooks::list_webhook_deliveries),
-        )
-        .route(
-            "/admin/webhooks/deliveries/dead",
-            axum::routing::get(webhooks::list_dead_letters),
-        )
-        .route(
-            "/admin/users",
-            axum::routing::post(user_api::create_user).get(admin_api::admin_list_users),
-        )
-        .route(
-            "/admin/users/:id",
-            axum::routing::get(admin_api::admin_get_user)
-                .put(user_api::update_user)
-                .delete(admin_api::admin_delete_user),
-        )
-        .route(
-            "/admin/users/:id/reset-password",
-            axum::routing::post(user_api::reset_password),
-        )
-        .route(
-            "/admin/users/:id/role",
-            axum::routing::put(admin_api::admin_set_user_role),
-        )
-        // Branding (G-09)
-        .route(
-            "/admin/branding",
-            axum::routing::get(branding::get_branding)
-                .put(branding::update_branding)
-                .delete(branding::reset_branding),
-        )
-        // Guest accounts (G-10)
-        .route(
-            "/admin/guests",
-            axum::routing::post(guests::create_guest).get(guests::list_guests),
-        )
-        .route(
-            "/admin/guests/:id",
-            axum::routing::delete(guests::revoke_guest),
-        )
-        // Data retention policies (G-23)
-        .route(
-            "/admin/retention/policies",
-            axum::routing::get(retention::list_policies).post(retention::create_policy),
-        )
-        .route(
-            "/admin/retention/policies/:id",
-            axum::routing::delete(retention::delete_policy),
-        )
-        .route(
-            "/admin/retention/execute",
-            axum::routing::post(retention::execute_policies),
-        )
-        // WORM policies
-        .route(
-            "/admin/worm/policies",
-            axum::routing::get(worm::list_policies).post(worm::create_policy),
-        )
-        .route(
-            "/admin/worm/policies/:id",
-            axum::routing::delete(worm::delete_policy),
-        )
-        // GDPR compliance (G-13)
-        .route("/admin/gdpr", axum::routing::get(gdpr::list_gdpr_requests))
-        .route(
-            "/admin/users/:id/export",
-            axum::routing::post(gdpr::request_data_export).get(admin_api::admin_export_user_data),
-        )
-        .route(
-            "/admin/users/:id/data",
-            axum::routing::delete(admin_api::admin_erase_user_data),
-        )
-        // Event triggers (G-16)
-        .route(
-            "/admin/triggers",
-            axum::routing::post(event_triggers::create_event_trigger)
-                .get(event_triggers::list_event_triggers),
-        )
-        .route(
-            "/admin/triggers/:id",
-            axum::routing::delete(event_triggers::delete_event_trigger),
-        )
-        .route(
-            "/admin/triggers/:id/toggle",
-            axum::routing::post(event_triggers::toggle_event_trigger),
-        )
-        // Tenant rate limiting (OP-006)
-        .route(
-            "/admin/tenants/rate-limits",
-            axum::routing::get(tenant_rate_limit_api::list_tenant_rate_limits),
-        )
-        .route(
-            "/admin/tenants/:id/rate-limit",
-            axum::routing::get(tenant_rate_limit_api::get_tenant_rate_limit)
-                .put(tenant_rate_limit_api::update_tenant_rate_limit)
-                .delete(tenant_rate_limit_api::delete_tenant_rate_limit),
-        )
-        .route(
-            "/admin/tenants/:id/rate-limit/status",
-            axum::routing::get(tenant_rate_limit_api::get_tenant_rate_limit_status),
-        )
-        // Account transfer and device management (P3-08)
-        .route(
-            "/admin/users/:id/transfer",
-            axum::routing::post(account_api::transfer_user_data),
-        )
-        .route(
-            "/admin/devices/:user_id/wipe",
-            axum::routing::post(account_api::wipe_user_devices),
-        )
-        .route(
-            "/admin/users/:id/devices",
-            axum::routing::get(account_api::list_user_devices),
-        )
-        .route(
-            "/admin/users/:id/devices/:device_id/revoke",
-            axum::routing::post(account_api::revoke_device),
-        )
-        // Notification preferences (P4-07)
-        .route(
-            "/notification-prefs",
-            axum::routing::get(notification_prefs_api::get_notification_prefs)
-                .put(notification_prefs_api::update_notification_prefs),
-        )
-        .route(
-            "/admin/search/config",
-            axum::routing::get(search::handle_get_search_config)
-                .put(search::handle_update_search_config),
-        )
-        .route(
-            "/admin/search/reindex",
-            axum::routing::post(search::handle_reindex),
-        )
-        // Extended shares (G-24, G-25)
-        .route(
-            "/shares/ext",
-            axum::routing::post(shares_ext::create_share_ext),
-        )
-        .route(
-            "/users/me",
-            axum::routing::get(user_api::get_current_user).put(user_api::update_current_user),
-        )
-        .nest(
-            "",
-            ferro_server_versioning::routes().layer(axum::Extension(
-                ferro_server_versioning::VersioningState {
-                    data_dir: state.data_dir.clone(),
-                    admin_user: state.admin_user.clone(),
-                    storage: state.storage.clone(),
-                    max_file_versions: state.max_file_versions,
-                },
-            )),
-        )
-        .nest(
-            "/webrtc",
-            ferro_server_webrtc::routes(ferro_server_webrtc::WebRtcState {
-                offers: webrtc_offers,
-            }),
-        )
-        .route(
-            "/graphql",
-            axum::routing::get(ferro_graphql::graphql_playground)
-                .post(ferro_graphql::graphql_handler),
-        )
-        .route(
-            "/sync/events",
-            axum::routing::get(sync::events::sync_events),
-        )
-        .route("/sync/delta", axum::routing::get(sync::events::sync_delta))
-        .route(
-            "/sync/status",
-            axum::routing::get(sync::events::sync_status),
-        )
-        // Block sync protocol
-        .route(
-            "/sync/blocks/manifest",
-            axum::routing::get(sync::blocks::get_manifest),
-        )
-        .route(
-            "/sync/blocks/upload",
-            axum::routing::post(sync::blocks::upload_blocks),
-        )
-        .route(
-            "/sync/blocks/check",
-            axum::routing::get(sync::blocks::check_blocks),
-        )
-        .route(
-            "/sync/blocks/assemble",
-            axum::routing::post(sync::blocks::assemble_file),
-        )
-        .route(
-            "/sync/blocks/:hash",
-            axum::routing::get(sync::blocks::get_block),
-        )
-        // Selective sync profiles
-        .route(
-            "/sync/profiles",
-            axum::routing::get(selective_sync_api::list_profiles)
-                .post(selective_sync_api::create_profile),
-        )
-        .route(
-            "/sync/profiles/:id",
-            axum::routing::put(selective_sync_api::update_profile)
-                .delete(selective_sync_api::delete_profile),
-        )
-        .route(
-            "/sync/filter-preview",
-            axum::routing::post(selective_sync_api::filter_preview),
-        )
-        .route("/ws", axum::routing::get(ws::ws_handler))
-        .route("/upload/init", axum::routing::post(upload::init_upload))
-        .route(
-            "/upload/:upload_id/chunk/:chunk_index",
-            axum::routing::put(upload::upload_chunk),
-        )
-        .route(
-            "/upload/:upload_id/complete",
-            axum::routing::post(upload::complete_upload),
-        )
-        .route(
-            "/upload/:upload_id",
-            axum::routing::delete(upload::cancel_upload),
-        )
-        .route("/uploads", axum::routing::get(upload::list_uploads))
-        // API key management
-        .route(
-            "/api-keys",
-            axum::routing::get(api_keys_routes::list_api_keys::<AppState>)
-                .post(api_keys_routes::create_api_key::<AppState>),
-        )
-        .route(
-            "/api-keys/:id",
-            axum::routing::delete(api_keys_routes::delete_api_key::<AppState>),
-        )
-        // Calendar REST API bridge
-        .route(
-            "/calendar/events",
-            axum::routing::get(calendar_api::list_events),
-        )
-        .route(
-            "/calendar/events",
-            axum::routing::post(calendar_api::create_event),
-        )
-        .route(
-            "/calendar/events/:uid",
-            axum::routing::put(calendar_api::update_event),
-        )
-        .route(
-            "/calendar/events/:uid",
-            axum::routing::delete(calendar_api::delete_event),
-        )
-        // Contacts REST API bridge
-        .route("/contacts", axum::routing::get(contacts_api::list_contacts))
-        .route(
-            "/contacts",
-            axum::routing::post(contacts_api::create_contact),
-        )
-        .route(
-            "/contacts/:uid",
-            axum::routing::put(contacts_api::update_contact),
-        )
-        .route(
-            "/contacts/:uid",
-            axum::routing::delete(contacts_api::delete_contact),
-        )
-        .route(
-            "/contacts/export",
-            axum::routing::get(contacts_api::export_contacts),
-        )
-        .route(
-            "/contacts/import",
-            axum::routing::post(contacts_api::import_contacts),
-        )
-        // Chat REST API
-        .route(
-            "/chat/rooms",
-            axum::routing::get(chat_api::list_rooms).post(chat_api::create_room),
-        )
-        .route(
-            "/chat/rooms/:room_id/messages",
-            axum::routing::get(chat_api::get_messages).post(chat_api::send_message),
-        )
-        // Photos REST API
-        .route("/photos", axum::routing::get(photos_api::list_photos))
-        .route(
-            "/photos/albums",
-            axum::routing::get(photos_api::list_albums).post(photos_api::create_album),
-        )
-        .route(
-            "/photos/thumbnail/:path",
-            axum::routing::get(photos_api::get_thumbnail),
-        )
-        .route(
-            "/photos/exif/:path",
-            axum::routing::get(photos_api::get_exif),
-        )
-        // Notes REST API
-        .route(
-            "/notes",
-            axum::routing::get(notes_api::list_notes).post(notes_api::create_note),
-        )
-        .route("/notes/search", axum::routing::get(notes_api::search_notes))
-        .route(
-            "/notes/:id",
-            axum::routing::get(notes_api::get_note)
-                .put(notes_api::update_note)
-                .delete(notes_api::delete_note),
-        )
-        // Tasks REST API
-        .route(
-            "/tasks",
-            axum::routing::get(tasks_api::list_tasks).post(tasks_api::create_task),
-        )
-        .route(
-            "/tasks/:id",
-            axum::routing::get(tasks_api::update_task)
-                .put(tasks_api::update_task)
-                .delete(tasks_api::delete_task),
-        )
-        .route(
-            "/tasks/:id/status",
-            axum::routing::patch(tasks_api::move_task),
-        )
-        // Push notification endpoints
-        .route(
-            "/push/register",
-            axum::routing::post(push_notifications::register_push_token),
-        )
-        .route(
-            "/push/unregister",
-            axum::routing::post(push_notifications::unregister_push_token),
-        )
-        .route(
-            "/push/tokens",
-            axum::routing::get(push_notifications::list_push_tokens),
-        )
-        // Video streaming endpoints
-        .route("/stream", axum::routing::get(streaming::stream_video))
-        // Whiteboard endpoints
-        .route(
-            "/whiteboard",
-            axum::routing::get(whiteboard_api::list_whiteboards)
-                .post(whiteboard_api::create_whiteboard),
-        )
-        // Offline mode endpoints
-        .route(
-            "/offline/sync",
-            axum::routing::post(offline_api::trigger_sync),
-        )
-        .route(
-            "/offline/status",
-            axum::routing::get(offline_api::get_status),
-        )
-        .route(
-            "/offline/pending",
-            axum::routing::get(offline_api::list_pending),
-        )
-        .route(
-            "/offline/resolve/:id",
-            axum::routing::post(offline_api::resolve_conflict),
-        )
-        .route(
-            "/offline/cached",
-            axum::routing::get(offline_api::list_cached),
-        )
-        // Antivirus endpoints
-        .route(
-            "/antivirus/scan/:path",
-            axum::routing::post(antivirus_api::scan_file),
-        )
-        .route(
-            "/antivirus/status",
-            axum::routing::get(antivirus_api::antivirus_status),
-        )
-        .route(
-            "/antivirus/scan-all",
-            axum::routing::post(antivirus_api::scan_all),
-        )
-        .route(
-            "/antivirus/history",
-            axum::routing::get(antivirus_api::scan_history),
-        )
-        // DLP endpoints
-        .route(
-            "/dlp/policies",
-            axum::routing::get(dlp_api::list_policies).post(dlp_api::create_policy),
-        )
-        .route(
-            "/dlp/policies/:id",
-            axum::routing::put(dlp_api::update_policy).delete(dlp_api::delete_policy),
-        )
-        .route(
-            "/dlp/scan/:path",
-            axum::routing::post(dlp_api::scan_file_dlp),
-        )
-        .route("/dlp/alerts", axum::routing::get(dlp_api::list_alerts))
-        .route(
-            "/whiteboard/:id",
-            axum::routing::get(whiteboard_api::get_whiteboard).put(whiteboard_api::save_whiteboard),
-        )
-        .route(
-            "/whiteboard/:id/image",
-            axum::routing::get(whiteboard_api::export_whiteboard_image),
-        )
-        // Mail API (P3-03)
-        .route(
-            "/mail/accounts",
-            axum::routing::get(mail_api::list_accounts).post(mail_api::create_account),
-        )
-        .route(
-            "/mail/accounts/:id",
-            axum::routing::delete(mail_api::delete_account),
-        )
-        .route(
-            "/mail/accounts/:id/folders",
-            axum::routing::get(mail_api::mail_folders),
-        )
-        .route(
-            "/mail/accounts/:id/folders/:folder/messages",
-            axum::routing::get(mail_api::mail_messages),
-        )
-        .route(
-            "/mail/accounts/:id/folders/:folder/messages/:uid",
-            axum::routing::get(mail_api::mail_message_detail),
-        )
-        .route(
-            "/mail/accounts/:id/send",
-            axum::routing::post(mail_api::send_email),
-        )
-        .route(
-            "/mail/accounts/:id/folders/:folder/messages/:uid/attachments/:part/download",
-            axum::routing::post(mail_api::download_attachment),
-        )
-        // Link Analytics API (P3-06)
-        .route(
-            "/analytics/overview",
-            axum::routing::get(link_analytics_api::analytics_overview),
-        )
-        .route(
-            "/analytics/links",
-            axum::routing::get(link_analytics_api::list_link_analytics),
-        )
-        .route(
-            "/analytics/links/:id/stats",
-            axum::routing::get(link_analytics_api::analytics_link_stats),
-        )
-        // Watermark API (P3-07)
-        .route(
-            "/watermark/preview",
-            axum::routing::post(watermark_api::preview_watermark),
-        )
-        .route(
-            "/watermark/apply/:path",
-            axum::routing::post(watermark_api::apply_watermark),
-        )
-        .route(
-            "/watermark/policies",
-            axum::routing::get(watermark_api::list_policies).post(watermark_api::create_policy),
-        )
-        .merge(Router::from(openapi::swagger_ui()))
-}
-
-pub fn build_router_with_static(
-    state: AppState,
-    static_dir: Option<&str>,
-    cors_allowed_origins: &str,
-    api_version: &str,
-) -> Router {
-    let request_counter = state.request_count.clone();
-    let duration_buckets = state.request_duration_buckets.clone();
-    let duration_sum_ms = state.request_duration_sum_ms.clone();
-    let status_counts = state.request_status_counts.clone();
-    let storage_op_counts = state.storage_op_counts.clone();
-    let auth_enabled = state.auth_enabled();
-    let oidc = state.oidc.clone();
-    let cedar = state.cedar.clone();
-    let auth_layer = axum::middleware::from_fn(move |req, next| {
-        let fut: std::pin::Pin<
-            Box<dyn std::future::Future<Output = axum::response::Response> + Send>,
-        > = if auth_enabled {
-            Box::pin(auth::oidc::auth_middleware(oidc.clone(), req, next))
-        } else {
-            let mut req = req;
-            req.extensions_mut()
-                .insert(common::auth::Claims::anonymous());
-            Box::pin(next.run(req))
-        };
-        fut
-    });
-
-    let cedar_layer = axum::middleware::from_fn(move |req, next| {
-        Box::pin(auth::cedar::cedar_middleware(cedar.clone(), req, next))
-    });
-
-    let admin_user = state.admin_user.clone();
-    let admin_password = state.admin_password.clone();
-    let admin_password_for_default_check = admin_password.clone();
-    let admin_password_rotated = state.admin_password_rotated.clone();
-    let user_store = state.user_store.clone();
-    let api_key_store = state.api_key_store.clone();
-    let simple_auth_layer =
-        axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-            simple_auth::simple_auth_middleware_with_api_keys(
-                req,
-                admin_user.clone(),
-                admin_password.clone(),
-                user_store.clone(),
-                Some(api_key_store.clone()),
-                next,
-            )
-        });
-
-    // Enforce password change when default password is in use.
-    // This runs AFTER simple_auth, so we know the request passed authentication.
-    let default_password_layer =
-        axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-            let pw = admin_password_for_default_check.clone();
-            let rotated = admin_password_rotated.clone();
-            async move {
-                if !rotated.load(std::sync::atomic::Ordering::Relaxed)
-                    && let Some(ref pw_val) = pw
-                    && security::is_default_password(pw_val)
-                {
-                    let path = req.uri().path();
-                    if !security::is_password_change_allowed_path(path) {
-                        return Ok::<_, std::convert::Infallible>(
-                            security::response_require_password_change(),
-                        );
-                    }
-                }
-                Ok(next.run(req).await)
-            }
-        });
-
-    let maintenance_mode = state.maintenance_mode.clone();
-    let maintenance_layer = axum::middleware::from_fn(
-        move |req: axum::http::Request<Body>, next: Next| {
-            let flag = maintenance_mode.clone();
-            async move {
-                if flag.load(std::sync::atomic::Ordering::Relaxed) {
-                    let method = req.method();
-                    let path = req.uri().path();
-                    // Allow read operations and the maintenance toggle endpoint.
-                    let is_read = matches!(method.as_str(), "GET" | "HEAD" | "OPTIONS");
-                    // Allow the admin maintenance toggle even during maintenance.
-                    let is_maintenance_toggle = path == "/api/admin/maintenance";
-                    if !is_read && !is_maintenance_toggle {
-                        return Ok::<_, std::convert::Infallible>(
-                            crate::api_error::ApiError::service_unavailable(
-                                crate::api_error::ApiError::MAINTENANCE_MODE,
-                                "Server is in maintenance mode. Write operations are temporarily disabled.",
-                            ),
-                        );
-                    }
-                }
-                Ok(next.run(req).await)
-            }
-        },
-    );
-
-    let cors_origins = cors_allowed_origins.to_string();
-    if cors_origins == "*" {
-        tracing::warn!(
-            "SECURITY WARNING: CORS is configured to allow all origins ('*'). \
-             This is appropriate for development but should be restricted in production."
-        );
-    }
-    let cors_auth_enabled = state.auth_enabled();
-    if cors_origins == "*" && cors_auth_enabled {
-        tracing::error!(
-            "CORS allowed origins is '*' while auth is enabled -- \
-             set a specific origin in production to prevent credential theft"
-        );
-    }
-    let cors_layer = axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
-        let allowed = cors_origins.clone();
-        async move {
-            if req.headers().contains_key("origin") {
-                let origin_value = if allowed == "*" {
-                    axum::http::HeaderValue::from_static("*")
-                } else {
-                    let req_origin = req
-                        .headers()
-                        .get("origin")
-                        .and_then(|v| v.to_str().ok())
-                        .unwrap_or("");
-                    let origin_str = if allowed.split(',').any(|o| o.trim() == req_origin) {
-                        req_origin
-                    } else {
-                        ""
-                    };
-                    match axum::http::HeaderValue::from_str(origin_str) {
-                        Ok(v) if !origin_str.is_empty() => v,
-                        _ => {
-                            return (StatusCode::FORBIDDEN, "CORS origin not allowed")
-                                .into_response();
-                        }
-                    }
-                };
-
-                if req.method() == axum::http::Method::OPTIONS {
-                    let mut headers = axum::http::HeaderMap::new();
-                    headers.insert("Access-Control-Allow-Origin", origin_value);
-                    headers.insert("Access-Control-Allow-Methods", axum::http::HeaderValue::from_static(
-                        "GET, POST, PUT, DELETE, PATCH, OPTIONS, PROPFIND, MKCOL, COPY, MOVE, LOCK, UNLOCK, PROPPATCH"
-                    ));
-                    headers.insert("Access-Control-Allow-Headers", axum::http::HeaderValue::from_static(
-                        "Content-Type, Authorization, Depth, Destination, If, If-Match, If-None-Match, Lock-Token, Overwrite"
-                    ));
-                    headers.insert(
-                        "Access-Control-Max-Age",
-                        axum::http::HeaderValue::from_static("86400"),
-                    );
-                    return (StatusCode::NO_CONTENT, headers, "").into_response();
-                }
-
-                let mut response = next.run(req).await;
-                response
-                    .headers_mut()
-                    .insert("Access-Control-Allow-Origin", origin_value);
-                response.headers_mut().insert(
-                    "Access-Control-Expose-Headers",
-                    axum::http::HeaderValue::from_static("ETag, Content-Length, DAV, Lock-Token"),
-                );
-                response
-            } else {
-                next.run(req).await
-            }
-        }
-    });
-
-    let rate_limiter = Arc::new(ferro_rate_limiter::TokenBucketLimiter::new(
-        state.rate_limit_burst,
-        state.rate_limit_refill,
-        std::time::Duration::from_secs(1),
-    ));
-    let rate_limit_layer =
-        axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-            let limiter = rate_limiter.clone();
-            async move {
-                let client_ip = req
-                    .headers()
-                    .get("x-forwarded-for")
-                    .and_then(|v: &axum::http::HeaderValue| v.to_str().ok())
-                    .and_then(|s: &str| s.split(',').next())
-                    .map(|s: &str| s.trim().to_string())
-                    .unwrap_or_else(|| "unknown".to_string());
-
-                use ferro_rate_limiter::RateLimiter;
-                match limiter.check(&client_ip).await {
-                    Ok(result) if result.allowed => next.run(req).await,
-                    _ => api_error::ApiError::too_many_requests(
-                        api_error::ApiError::RATE_LIMITED,
-                        "Rate limit exceeded",
-                    ),
-                }
-            }
-        });
-
-    let versioned_api_path = format!("/api/{}", api_version);
-    let api_version_for_header = api_version.to_string();
-    let deprecation_layer = axum::middleware::from_fn(
-        move |req: axum::extract::Request, next: axum::middleware::Next| {
-            let ver = api_version_for_header.clone();
-            async move {
-                let mut response = next.run(req).await;
-                response.headers_mut().insert(
-                    axum::http::HeaderName::from_static("deprecation"),
-                    axum::http::HeaderValue::from_static("true"),
-                );
-                response.headers_mut().insert(
-                    axum::http::HeaderName::from_static("sunset"),
-                    axum::http::HeaderValue::from_static("Sat, 01 May 2027 00:00:00 GMT"),
-                );
-                let link = format!("</api/{}>; rel=\"successor-version\"", ver);
-                let header_value = axum::http::HeaderValue::from_str(&link)
-                    .unwrap_or_else(|_| axum::http::HeaderValue::from_static("invalid-version"));
-                response
-                    .headers_mut()
-                    .insert(axum::http::header::LINK, header_value);
-                response
-            }
-        },
-    );
-
-    let mut router_builder = Router::new();
-    // Always register WebDAV catch-all at /
-    // Static file serving (when --static-dir is set) handles common extensions,
-    // but WebDAV methods (PROPFIND, MKCOL, etc.) go to the WebDAV handler
-    router_builder = router_builder.route("/", any(webdav::handle_any));
-    let router = router_builder
-        .route("/.well-known/ferro", axum::routing::get(health_check))
-        .route("/healthz", axum::routing::get(liveness))
-        .route("/health", axum::routing::get(health_endpoint))
-        .route("/readyz", axum::routing::get(readiness))
-        .route("/startupz", axum::routing::get(startup))
-        .route(
-            "/s/:token",
-            axum::routing::get(shares::serve_share).post(shares::handle_share_upload),
-        )
-        // Remote mount management
-        .route(
-            "/admin/mounts",
-            axum::routing::get(remote_mount::list_mounts).post(remote_mount::create_mount),
-        )
-        .route(
-            "/admin/mounts/:id",
-            axum::routing::delete(remote_mount::delete_mount),
-        )
-        .route(
-            "/admin/mounts/:id/test",
-            axum::routing::get(remote_mount::test_mount),
-        )
-        // Extended share endpoints (G-24, G-25)
-        .route(
-            "/s/:token/upload",
-            axum::routing::post(shares_ext::upload_to_share),
-        )
-        .route(
-            "/s/:token/uploads",
-            axum::routing::get(shares_ext::list_share_uploads),
-        )
-        .route(
-            "/s/:token/view",
-            axum::routing::get(shares_ext::serve_view_share),
-        )
-        .nest(
-            "/wopi",
-            ferro_server_wopi::routes::<AppState>().layer(axum::Extension(
-                ferro_server_wopi::WopiState {
-                    storage: state.storage.clone(),
-                    lock_manager: state.lock_manager.clone(),
-                    wopi_token_secret: state.wopi_token_secret.clone(),
-                    wopi_office_url: state.wopi_office_url.clone(),
-                },
-            )),
-        )
-        .nest(
-            "/hosting",
-            ferro_server_wopi::discovery_route::<AppState>().layer(axum::Extension(
-                ferro_server_wopi::WopiState {
-                    storage: state.storage.clone(),
-                    lock_manager: state.lock_manager.clone(),
-                    wopi_token_secret: state.wopi_token_secret.clone(),
-                    wopi_office_url: state.wopi_office_url.clone(),
-                },
-            )),
-        )
-        .route("/metrics", axum::routing::get(metrics::metrics_handler))
-        .route(
-            "/metrics/prometheus",
-            axum::routing::get(prometheus_metrics::prometheus_metrics_handler),
-        )
-        .route(
-            "/.well-known/webfinger",
-            axum::routing::get(federation::webfinger),
-        )
-        .route(
-            "/fed/actor/:username",
-            axum::routing::get(federation::get_actor),
-        )
-        .route(
-            "/fed/actor/:username/followers",
-            axum::routing::get(federation::list_followers),
-        )
-        .route(
-            "/fed/actor/:username/following",
-            axum::routing::get(federation::list_following),
-        )
-        .route(
-            "/fed/inbox",
-            axum::routing::post(federation::inbox).get(federation::list_inbox),
-        )
-        .route("/fed/outbox", axum::routing::get(federation::list_outbox))
-        .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
-        .nest(
-            &versioned_api_path,
-            api_routes(&state, state.webrtc_offers.clone()),
-        )
-        .nest(
-            "/api",
-            api_routes(&state, state.webrtc_offers.clone()).layer(deprecation_layer),
-        )
-        .route(
-            "/ws/collab/:document_id",
-            axum::routing::get(collab_ws::collab_ws_handler),
-        )
-        .route(
-            "/ws/chat/:room_id",
-            axum::routing::get(chat_api::ws_chat_handler),
-        )
-        // CalDAV and CardDAV routes (registered before WebDAV fallback)
-        .route("/dav/cal", axum::routing::options(dav::caldav_options))
-        .route(
-            "/dav/cal/",
-            axum::routing::get(dav::caldav_list).put(dav::caldav_create),
-        )
-        .route(
-            "/dav/cal/:calendar",
-            axum::routing::any(dav::caldav_calendar_or_event),
-        )
-        .route(
-            "/dav/cal/:calendar/",
-            axum::routing::any(dav::caldav_calendar_or_event),
-        )
-        .route(
-            "/dav/cal/:calendar/:uid",
-            axum::routing::any(dav::caldav_calendar_or_event),
-        )
-        .route("/dav/card", axum::routing::options(dav::carddav_options))
-        .route(
-            "/dav/card/",
-            axum::routing::get(dav::carddav_list).put(dav::carddav_create),
-        )
-        .route(
-            "/dav/card/:book",
-            axum::routing::any(dav::carddav_book_or_contact),
-        )
-        .route(
-            "/dav/card/:book/",
-            axum::routing::any(dav::carddav_book_or_contact),
-        )
-        .route(
-            "/dav/card/:book/:uid",
-            axum::routing::any(dav::carddav_book_or_contact),
-        )
-        // /remote/*path moved to api_and_webdav_fallback to avoid matchit 0.7.3
-        // bug where catch-all wildcard routes corrupt named-parameter routes
-        // in the same tree (github.com/ibraheemdev/matchit/issues/31).
-        // Combined fallback: dispatches REST file content requests vs WebDAV.
-        //
-        // matchit 0.7.3 does not allow catch-all parameters ({*path}) inside
-        // nested routes, and .nest("/api/v1", ...) prevents a top-level
-        // /api/v1/files/{*path} from matching (the nested router claims the
-        // /api/v1 prefix). Using fallback() ensures we run after all route
-        // matching, and we dispatch based on path prefix.
-        .fallback(api_and_webdav_fallback)
-        .layer(rate_limit_layer)
-        .layer({
-            let tenant_limiter = state.tenant_rate_limiter.clone();
-            axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-                let limiter = tenant_limiter.clone();
-                async move {
-                    // Only apply tenant rate limiting if a tenant limiter is configured.
-                    let Some(limiter) = limiter else {
-                        return next.run(req).await;
-                    };
-
-                    // Extract tenant ID from X-Tenant-ID header.
-                    let tenant_id = req
-                        .headers()
-                        .get("x-tenant-id")
-                        .and_then(|v| v.to_str().ok())
-                        .map(|s| s.to_string());
-
-                    let Some(tid) = tenant_id else {
-                        // No tenant header — pass through (global rate limit already applied).
-                        return next.run(req).await;
-                    };
-
-                    use ferro_rate_limiter::RateLimiter;
-                    match limiter.check(&tid).await {
-                        Ok(result) if result.allowed => {
-                            let mut response = next.run(req).await;
-                            if let Ok(val) =
-                                axum::http::HeaderValue::from_str(&result.remaining.to_string())
-                            {
-                                response.headers_mut().insert("X-RateLimit-Remaining", val);
-                            }
-                            response
-                        }
-                        _ => api_error::ApiError::too_many_requests(
-                            api_error::ApiError::RATE_LIMITED,
-                            "Tenant rate limit exceeded",
-                        ),
-                    }
-                }
-            })
-        })
-        .layer(cedar_layer)
-        .layer(auth_layer)
-        .layer(simple_auth_layer)
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            guests::guest_expiry_middleware,
-        ))
-        .layer(default_password_layer)
-        .layer(maintenance_layer)
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            security::auth_guard_middleware,
-        ))
-        .layer(cors_layer)
-        .layer(axum::middleware::from_fn(request_id::request_id_middleware))
-        .layer(axum::middleware::from_fn(
-            move |req: Request<Body>, next: Next| {
-                let counter = request_counter.clone();
-                let buckets = duration_buckets.clone();
-                let statuses = status_counts.clone();
-                let storage_ops = storage_op_counts.clone();
-                let sum = duration_sum_ms.clone();
-                request_logging::request_logging_middleware(
-                    counter,
-                    buckets,
-                    sum,
-                    statuses,
-                    Some(storage_ops),
-                    req,
-                    next,
-                )
-            },
-        ))
-        .layer(axum::middleware::from_fn(
-            security_headers::security_headers_middleware,
-        ))
-        .layer(axum::middleware::from_fn(
-            security_headers::panic_handler_middleware,
-        ))
-        .layer(CompressionLayer::new())
-        .layer(axum::extract::DefaultBodyLimit::max(
-            state.max_body_size as usize,
-        ))
-        // Cap concurrent in-flight requests to prevent the tokio runtime and
-        // storage backend from being overwhelmed. Excess connections queue in
-        // the kernel listen backlog instead of competing for resources.
-        .layer(ConcurrencyLimitLayer::new(state.max_concurrent_requests))
-        // Reject requests with both Content-Length and Transfer-Encoding
-        // to prevent HTTP request smuggling (CL-TE / TE-CL desync).
-        .layer(axum::middleware::from_fn(
-            security::smuggling_rejection_middleware,
-        ))
-        .with_state(state.clone())
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            audit::audit_middleware,
-        ));
-
-    let schema = ferro_graphql::build_schema(state.graphql_context());
-    let mut router = router.layer(axum::Extension(schema));
-
-    // Helper for SPA middleware MIME type detection.
-    fn mime_guess(rel: &str) -> &'static str {
-        if rel.ends_with(".js") {
-            "application/javascript"
-        } else if rel.ends_with(".wasm") {
-            "application/wasm"
-        } else if rel.ends_with(".css") {
-            "text/css; charset=utf-8"
-        } else if rel.ends_with(".html") || rel.ends_with(".htm") {
-            "text/html; charset=utf-8"
-        } else if rel.ends_with(".svg") {
-            "image/svg+xml"
-        } else if rel.ends_with(".json") {
-            "application/json"
-        } else if rel.ends_with(".png") {
-            "image/png"
-        } else if rel.ends_with(".ico") {
-            "image/x-icon"
-        } else if rel.ends_with(".woff") || rel.ends_with(".woff2") {
-            "font/woff2"
-        } else {
-            "application/octet-stream"
-        }
-    }
-
-    // Serve SPA static files when --static-dir is set.
-    // Uses custom handler instead of ServeDir to fix trailing-slash redirect bug
-    // where Leptos Router path="/" fails to match on /ui/.
-    if let Some(dir) = static_dir {
-        let static_dir_path = std::path::PathBuf::from(dir);
-        tracing::info!("Serving static web assets from {:?}", static_dir_path);
-
-        // SPA middleware: intercepts requests for static assets.
-        // - / serves index.html (SPA entry point)
-        // - /*.html, /*.css, /*.js, /*.wasm serve static files
-        // - /ui* paths serve static files with index.html fallback for SPA routing
-        // - All other paths fall through to API/WebDAV handlers
-        let spa_middleware = axum::middleware::from_fn(
-            move |req: axum::http::Request<axum::body::Body>, next: axum::middleware::Next| {
-                let path = req.uri().path().to_owned();
-                let static_dir_path = static_dir_path.clone();
-                async move {
-                    // Helper to serve a file from static_dir
-                    let serve_file = |rel: &str| {
-                        let static_dir_path = static_dir_path.clone();
-                        let rel = rel.to_string();
-                        async move {
-                            let file_path = std::path::Path::new(&static_dir_path).join(&rel);
-                            if file_path.is_file() {
-                                match tokio::fs::read(&file_path).await {
-                                    Ok(content) => {
-                                        let ct = mime_guess(&rel);
-                                        Some(
-                                            (
-                                                StatusCode::OK,
-                                                [(axum::http::header::CONTENT_TYPE, ct)],
-                                                content,
-                                            )
-                                                .into_response(),
-                                        )
-                                    }
-                                    Err(_) => None,
-                                }
-                            } else {
-                                None
-                            }
-                        }
-                    };
-
-                    // Root path: serve index.html
-                    if path == "/" {
-                        if let Some(resp) = serve_file("index.html").await {
-                            return resp;
-                        }
-                        return (StatusCode::NOT_FOUND, "Not found").into_response();
-                    }
-
-                    // Check for common static file extensions
-                    let has_static_ext = path.ends_with(".html")
-                        || path.ends_with(".css")
-                        || path.ends_with(".js")
-                        || path.ends_with(".wasm");
-
-                    if has_static_ext {
-                        // Strip leading slash to get relative path
-                        let rel = path.trim_start_matches('/');
-                        if let Some(resp) = serve_file(rel).await {
-                            return resp;
-                        }
-                        // File not found - fall through to next handler
-                    }
-
-                    // Redirect /ui/ to /ui -- Leptos Router path="/" fails to match
-                    // when browser URL has trailing slash after base "/ui".
-                    if path == "/ui/" {
-                        return axum::response::Redirect::permanent("/ui").into_response();
-                    }
-
-                    // /ui and /ui/* paths: serve static files with SPA fallback
-                    if path == "/ui" || path.starts_with("/ui/") {
-                        let rel = path.trim_start_matches("/ui/");
-                        if let Some(resp) = serve_file(rel).await {
-                            return resp;
-                        }
-                        // Serve index.html for SPA client-side routing
-                        return match tokio::fs::read(static_dir_path.join("index.html")).await {
-                            Ok(content) => (
-                                StatusCode::OK,
-                                [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
-                                content,
-                            )
-                                .into_response(),
-                            Err(_) => (StatusCode::NOT_FOUND, "Not found").into_response(),
-                        };
-                    }
-
-                    // Not a static file path, pass to next handler (API/WebDAV)
-                    next.run(req).await
-                }
-            },
-        );
-        router = router.layer(spa_middleware);
-    }
-
-    router
-}
+// Functions moved to routes module:
+// - api_routes
+// - build_router_with_static
+// - api_and_webdav_fallback
+//
+// These are re-exported above via `pub use routes::{build_router, build_router_with_static};`
 
 pub async fn liveness() -> impl IntoResponse {
     (StatusCode::OK, "ok")
@@ -2658,211 +1867,6 @@ pub async fn readiness(State(state): State<AppState>) -> Response {
         "subsystems": subsystems,
     });
     (code, axum::Json(body)).into_response()
-}
-
-/// Combined fallback that dispatches REST API file content requests to the
-/// REST handler and everything else to the WebDAV handler.
-///
-/// This is necessary because matchit 0.7.3 does not support catch-all
-/// parameters (`{*path}`) inside nested routes, and `.nest("/api/v1", ...)`
-/// prevents a top-level `/api/v1/files/{*path}` from matching paths that
-/// start with `/api/v1/`. Using `fallback()` ensures we run after all
-/// matchit route matching is complete.
-pub async fn api_and_webdav_fallback(
-    method: axum::http::Method,
-    uri: axum::http::Uri,
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: axum::body::Body,
-) -> Response {
-    let path_str = uri.path().to_string();
-    // Check for both /api/v1/files/ and /api/files/ (deprecated) prefixes
-    let rest = path_str
-        .strip_prefix("/api/v1/files/")
-        .or_else(|| path_str.strip_prefix("/api/files/"));
-
-    // Check for /fed/files/ prefix (moved from explicit route to fallback to
-    // avoid matchit 0.7.3 bug where catch-all wildcard routes in the same tree
-    // as named-parameter routes cause the parameterized routes to silently fail).
-    let fed_files_rest = path_str.strip_prefix("/fed/files/");
-
-    if let Some(file_path) = rest
-        && !file_path.is_empty()
-    {
-        // ----------------------------------------------------------------
-        // Versioning API: intercept before the generic file-content handler.
-        //
-        // matchit `{path}` only captures a single segment, so nested paths
-        // like /api/v1/files/docs/test.txt/versions never match the
-        // versioning routes registered via .nest(""). They fall through to
-        // this fallback, which previously treated them as file content
-        // requests. We check for the /versions and /diff suffixes here.
-        // ----------------------------------------------------------------
-
-        // GET|DELETE /files/{*path}/versions/{version_id}
-        if let Some(idx) = file_path.rfind("/versions/") {
-            let filepath = &file_path[..idx];
-            let after = &file_path[idx + "/versions/".len()..];
-            if !filepath.is_empty()
-                && let Ok(vid) = after.parse::<u64>()
-            {
-                let ver_state = ferro_server_versioning::VersioningState {
-                    data_dir: state.data_dir.clone(),
-                    admin_user: state.admin_user.clone(),
-                    storage: state.storage.clone(),
-                    max_file_versions: state.max_file_versions,
-                };
-                return match method {
-                    axum::http::Method::GET => {
-                        ferro_server_versioning::get_version(
-                            axum::Extension(ver_state),
-                            axum::extract::Path((filepath.to_string(), vid)),
-                        )
-                        .await
-                    }
-                    axum::http::Method::DELETE => {
-                        ferro_server_versioning::delete_version(
-                            axum::Extension(ver_state),
-                            axum::extract::Path((filepath.to_string(), vid)),
-                        )
-                        .await
-                    }
-                    _ => (
-                        axum::http::StatusCode::METHOD_NOT_ALLOWED,
-                        "Method not allowed",
-                    )
-                        .into_response(),
-                };
-            }
-        }
-
-        // GET|POST /files/{*path}/versions
-        if let Some(filepath) = file_path.strip_suffix("/versions")
-            && !filepath.is_empty()
-            && matches!(method, axum::http::Method::GET | axum::http::Method::POST)
-        {
-            let ver_state = ferro_server_versioning::VersioningState {
-                data_dir: state.data_dir.clone(),
-                admin_user: state.admin_user.clone(),
-                storage: state.storage.clone(),
-                max_file_versions: state.max_file_versions,
-            };
-            return match method {
-                axum::http::Method::GET => {
-                    ferro_server_versioning::list_versions(
-                        axum::Extension(ver_state),
-                        axum::extract::Path(filepath.to_string()),
-                    )
-                    .await
-                }
-                axum::http::Method::POST => {
-                    ferro_server_versioning::create_version(
-                        axum::Extension(ver_state),
-                        axum::extract::Path(filepath.to_string()),
-                    )
-                    .await
-                }
-                _ => StatusCode::METHOD_NOT_ALLOWED.into_response(),
-            };
-        }
-
-        // GET /files/{*path}/diff
-        if let Some(filepath) = file_path.strip_suffix("/diff")
-            && !filepath.is_empty()
-            && method == axum::http::Method::GET
-        {
-            let ver_state = ferro_server_versioning::VersioningState {
-                data_dir: state.data_dir.clone(),
-                admin_user: state.admin_user.clone(),
-                storage: state.storage.clone(),
-                max_file_versions: state.max_file_versions,
-            };
-            let params: std::collections::HashMap<String, String> = uri
-                .query()
-                .map(|q| {
-                    q.split('&')
-                        .filter_map(|p| {
-                            let mut parts = p.splitn(2, '=');
-                            Some((parts.next()?.to_string(), parts.next()?.to_string()))
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            return ferro_server_versioning::diff_versions(
-                axum::Extension(ver_state),
-                axum::extract::Path(filepath.to_string()),
-                axum::extract::Query(ferro_server_versioning::DiffParams {
-                    from: params.get("from").cloned().unwrap_or_default(),
-                    to: params.get("to").cloned().unwrap_or_default(),
-                }),
-            )
-            .await;
-        }
-
-        // File content handler (original behavior)
-        let body_bytes = match http_body_util::BodyExt::collect(body).await {
-            Ok(collected) => collected.to_bytes(),
-            Err(_) => {
-                return (
-                    axum::http::StatusCode::BAD_REQUEST,
-                    "Failed to read request body",
-                )
-                    .into_response();
-            }
-        };
-        return api::files_content_handler(
-            method,
-            uri,
-            State(state),
-            headers,
-            Some(axum::extract::Path(file_path.to_string())),
-            body_bytes,
-        )
-        .await;
-    }
-    // Federation file proxy: /fed/files/{*path}
-    // Dispatched here instead of as an explicit route to avoid matchit 0.7.3
-    // bug where catch-all wildcard routes corrupt named-parameter routes in the
-    // same tree. See: https://github.com/ibraheemdev/matchit/issues/31
-    if let Some(file_path) = fed_files_rest
-        && !file_path.is_empty()
-    {
-        return match method {
-            axum::http::Method::GET => {
-                api_federation::get_fed_file(
-                    State(state),
-                    axum::extract::Path(file_path.to_string()),
-                    headers,
-                )
-                .await
-            }
-            axum::http::Method::PUT => {
-                api_federation::put_fed_file(
-                    State(state),
-                    axum::extract::Path(file_path.to_string()),
-                    headers,
-                    body,
-                )
-                .await
-            }
-            axum::http::Method::DELETE => {
-                api_federation::delete_fed_file(
-                    State(state),
-                    axum::extract::Path(file_path.to_string()),
-                    headers,
-                )
-                .await
-            }
-            _ => StatusCode::METHOD_NOT_ALLOWED.into_response(),
-        };
-    }
-    // Remote mount proxy: /remote/{*path}
-    // Dispatched here instead of as an explicit route to avoid matchit 0.7.3 bug.
-    if path_str.starts_with("/remote/") {
-        return remote_mount::proxy_remote_mount(method, uri, State(state), headers, body).await;
-    }
-    // Fall through to WebDAV handler
-    webdav::handle_any(method, uri, State(state), None, headers, body).await
 }
 
 pub async fn health_check(State(state): State<AppState>) -> Response {

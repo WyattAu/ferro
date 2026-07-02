@@ -1,0 +1,178 @@
+use ferro_event_bus::event::FileEvent as BusFileEvent;
+
+use crate::ApiCoreState;
+
+#[derive(Clone, Debug)]
+pub struct FileEvent {
+    pub op_type: &'static str,
+    pub path: String,
+    pub new_path: Option<String>,
+    pub size: Option<u64>,
+    pub mime_type: Option<String>,
+    pub owner: String,
+    pub etag: Option<String>,
+    pub already_existed: bool,
+}
+
+pub async fn dispatch_post_op<S: ApiCoreState>(state: &S, event: FileEvent) {
+    let ws_event = match event.op_type {
+        "put" | "mkcol" => {
+            if event.already_existed {
+                Some(crate::ws::WsEvent::FileUpdated {
+                    path: event.path.clone(),
+                    size: event.size.unwrap_or(0),
+                    owner: event.owner.clone(),
+                })
+            } else {
+                Some(crate::ws::WsEvent::FileCreated {
+                    path: event.path.clone(),
+                    size: event.size.unwrap_or(0),
+                    owner: event.owner.clone(),
+                })
+            }
+        }
+        "delete" => Some(crate::ws::WsEvent::FileDeleted {
+            path: event.path.clone(),
+            owner: event.owner.clone(),
+        }),
+        "move" => Some(crate::ws::WsEvent::FileMoved {
+            from: event.path.clone(),
+            to: event.new_path.clone().unwrap_or_default(),
+            owner: event.owner.clone(),
+        }),
+        "copy" => Some(crate::ws::WsEvent::FileCreated {
+            path: event.new_path.clone().unwrap_or_else(|| event.path.clone()),
+            size: event.size.unwrap_or(0),
+            owner: event.owner.clone(),
+        }),
+        _ => None,
+    };
+    if let Some(ws) = ws_event {
+        state.ws_manager().broadcast(&ws);
+    }
+
+    state.read_cache().invalidate_path(&event.path);
+    if let Some(np) = &event.new_path {
+        state.read_cache().invalidate_path(np);
+    }
+
+    let webhook_event = match event.op_type {
+        "put" => crate::webhooks::WebhookEvent {
+            event: if event.already_existed {
+                "file.modify".to_string()
+            } else {
+                "file.upload".to_string()
+            },
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            path: event.path.clone(),
+            size: event.size,
+            user: Some(event.owner.clone()),
+            etag: event.etag.clone(),
+        },
+        "delete" => crate::webhooks::WebhookEvent {
+            event: "file.delete".to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            path: event.path.clone(),
+            size: None,
+            user: Some(event.owner.clone()),
+            etag: None,
+        },
+        "mkcol" => crate::webhooks::WebhookEvent {
+            event: "file.upload".to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            path: event.path.clone(),
+            size: None,
+            user: Some(event.owner.clone()),
+            etag: None,
+        },
+        "move" => crate::webhooks::WebhookEvent {
+            event: "file.modify".to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            path: event.path.clone(),
+            size: event.size,
+            user: Some(event.owner.clone()),
+            etag: event.etag.clone(),
+        },
+        "copy" => crate::webhooks::WebhookEvent {
+            event: "file.upload".to_string(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            path: event.new_path.clone().unwrap_or_else(|| event.path.clone()),
+            size: event.size,
+            user: Some(event.owner.clone()),
+            etag: None,
+        },
+        _ => return,
+    };
+    crate::webhooks::fire_webhooks(
+        state.webhooks().clone(),
+        webhook_event.clone(),
+        state.webhook_delivery_store().clone(),
+    )
+    .await;
+
+    // Email notifications when enabled
+    if state.email_config().enabled {
+        let subject = format!("Ferro: {}", webhook_event.event);
+        let body = format!(
+            "Event: {}\nPath: {}\nTimestamp: {}",
+            webhook_event.event, webhook_event.path, webhook_event.timestamp
+        );
+        let msg = crate::email::EmailMessage {
+            to: webhook_event.user.clone().unwrap_or_default(),
+            subject,
+            body_text: body,
+            body_html: None,
+        };
+        tokio::spawn(async move {
+            if let Err(e) =
+                crate::email::send_email(&crate::email::EmailConfig::default(), &msg).await
+            {
+                tracing::warn!("Email notification failed: {}", e);
+            }
+        });
+    }
+
+    // Push notifications when configured
+    if let Some(push_store) = state.push_notification_store() {
+        let push_config = state.push_notification_config().clone();
+        let store = push_store.clone();
+        let user_id = event.owner.clone();
+        let event_type_str = event.op_type.to_string();
+        let path_str = event.path.clone();
+        tokio::spawn(async move {
+            ferro_server_integrations::push_notifications::dispatch_push_notifications(
+                &store,
+                &push_config,
+                &user_id,
+                &event_type_str,
+                &path_str,
+            )
+            .await;
+        });
+    }
+
+    // Publish to event bus as additional dispatch path
+    let bus_event_type = match event.op_type {
+        "put" | "mkcol" if !event.already_existed => "file.created",
+        "put" if event.already_existed => "file.modified",
+        "delete" => "file.deleted",
+        "move" => "file.modified",
+        "copy" => "file.created",
+        _ => return,
+    };
+    let mut bus_event = BusFileEvent::new(bus_event_type, &event.path, &event.owner);
+    bus_event.size = event.size;
+    bus_event.content_type = event.mime_type.map(|s| s.to_string());
+    if let Some(ref new_path) = event.new_path {
+        bus_event
+            .metadata
+            .insert("new_path".to_string(), new_path.clone());
+    }
+    if let Some(ref etag) = event.etag {
+        bus_event.metadata.insert("etag".to_string(), etag.clone());
+    }
+    let bus = state.event_bus().clone();
+    tokio::spawn(async move {
+        bus.publish(bus_event).await;
+    });
+}

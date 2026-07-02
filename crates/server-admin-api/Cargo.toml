@@ -1,0 +1,41 @@
+[package]
+name = "ferro-server-admin-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Admin API handlers for the Ferro server"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[features]
+default = []
+s3 = []
+gcs = []
+azure = []
+
+[dependencies]
+common = { package = "ferro-common", path = "../common" }
+ferro-server-security = { path = "../server-security" }
+ferro-core = { path = "../core" }
+ferro-auth = { path = "../auth" }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+rusqlite = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+utoipa = { version = "5", features = ["axum_extras"] }
+async-trait = "0.1"
+sha2 = "0.11"
+hex = "0.4"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+tempfile = "3"
+base64 = "0.22"
+bytes = "1"
+
+[dev-dependencies]
+http-body-util = "0.1"
+tower = { version = "0.5", features = ["limit"] }

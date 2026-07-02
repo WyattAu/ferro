@@ -7,6 +7,7 @@ pub mod conflict;
 pub mod error;
 pub mod format;
 pub mod metadata;
+pub mod mime;
 pub mod path;
 pub mod server_context;
 pub mod storage;

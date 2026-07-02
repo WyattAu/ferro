@@ -813,8 +813,11 @@ async fn main() -> anyhow::Result<()> {
         ferro_server::event_triggers::load_triggers_from_db(&conn);
 
         // Initialize DLP tables
-        if let Err(e) = ferro_server::dlp_api::init_dlp_table(db) {
-            tracing::warn!("Failed to init DLP tables: {}", e);
+        {
+            let store = ferro_server::dlp_api::DlpStore::new().with_db(db.clone());
+            if let Err(e) = store.init_tables() {
+                tracing::warn!("Failed to init DLP tables: {}", e);
+            }
         }
     }
 

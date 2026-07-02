@@ -96,6 +96,33 @@ impl AiSearchBridge {
     }
 }
 
+#[async_trait::async_trait]
+impl ferro_server_api_core::AiSearchBridgeTrait for AiSearchBridge {
+    fn is_available(&self) -> bool {
+        true
+    }
+
+    fn semantic_search(
+        &self,
+        query: &str,
+        limit: usize,
+        min_similarity: Option<f32>,
+    ) -> Result<Vec<ferro_server_api_core::SemanticSearchResult>, String> {
+        let results = self
+            .semantic_search(query, limit, min_similarity)
+            .map_err(|e| e.to_string())?;
+        Ok(results
+            .into_iter()
+            .map(|r| ferro_server_api_core::SemanticSearchResult {
+                id: r.id,
+                path: r.path,
+                score: r.score,
+                metadata: r.metadata,
+            })
+            .collect())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
