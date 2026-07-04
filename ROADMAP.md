@@ -1,21 +1,24 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 7.0 | **Date:** 2026-07-02 | **Status:** v7.0 Server Decomposition Phase 2 COMPLETE
+**Version:** 8.1 | **Date:** 2026-07-04 | **Status:** v8.1 Desktop Build + CalDAV Hardening + Pen Test Scope COMPLETE
 
 ---
 
-## Current State (2026-07-02)
+## Current State (2026-07-04)
 
 | Metric | Value |
 |--------|-------|
-| Crates | 56 (46 original + 10 extracted) |
-| Tests | 480+ passed, 0 failed, 0 ignored |
+| Crates | 58 (46 original + 12 extracted) |
+| Tests | 496+ lib + 254+ extracted + 250+ integration + 35 security + 11 CalDAV + 12 federation + 22 webdav-litmus = ALL PASSING |
 | Code | ~107K lines Rust |
-| lib.rs | 2085 lines (reduced from 3638 via extraction + build_router split) |
+| lib.rs | 227 lines (reduced from 3638 via 3-phase extraction) |
 | Clippy warnings | 0 |
-| Extracted crates | 12 (content, plugins, compliance, integrations, security-middleware, admin-api, user-mgmt, collaboration, api-core, storage-ops, webdav-core, sharing) |
-| Security audit | Self-audit complete, 14 findings fixed (F001-F013 + F002) |
+| Extracted crates | 12 (content, plugins, compliance, integrations, security-middleware, admin-api, user-mgmt, collaboration, api-core, storage-ops, webdav-core, sharing) + infra, productivity, storage-utils |
+| Security audit | Self-audit complete, 14 findings fixed; pen test scope document created |
 | Pen test | 33 security tests + 44 integration tests + 91 wiring tests |
+| Desktop | Tauri v2.11 + Leptos 0.8 WASM, builds to 9.3MB ELF binary, 30+ commands |
+| Mobile | Tauri v2 mobile, complete code, needs Android NDK for cross-compile |
+| CalDAV hardening | sync-collection 501 stub, tightened multiget detection, PROPPATCH 403 for unsupported |
 | Integration | All 15 framework crates wired into server |
 | CI/CD | 8 workflows (checks, bench, extended, release, docs, desktop, dependabot, security-scan) |
 | Docs | Astro + Starlight documentation site, landing page, Mermaid diagrams, COMPARISON.md (15 platforms), ROADMAP.md |
@@ -23,8 +26,55 @@
 | MSRV | 1.92 (enforced in CI) |
 | Competitive gaps | 0 remaining (all 25 closed) |
 | Pre-commit hook | fmt + clippy (targeted) + secret scan + targeted crate tests (no full workspace fallback) |
+| Soak test | 24h soak in progress (PID 2166782), 281K+ ops, 184 req/s, zero errors |
 
 ## Recently Completed
+
+### 2026-07-04: Desktop Build Fix + CalDAV Hardening + Photos Extraction + Pen Test Scope
+
+**Desktop Client -- Tauri v2 Build FIXED:**
+- Fixed 6 Tauri v2 API compilation errors in `gui.rs`: unwrap_or_default on String, download_and_install signature, missing UpdaterExt import
+- Fixed WASM frontend: theme_state_for_wasm rename, missing wasm_bindgen imports in contacts.rs
+- Desktop binary builds successfully: 9.3MB ELF x86-64
+- WASM frontend builds successfully via trunk
+
+**CalDAV/CardDAV Robustness Hardening:**
+- Added sync-collection REPORT stub (501 Not Implemented) -- DAVx5 gets proper response
+- Tightened multiget detection: `<calendar-multiget` instead of `calendar-multiget` (XML-aware)
+- PROPPATCH returns 403 Forbidden for unsupported properties (was 200 OK for all)
+- Only `displayname` accepted; `calendar-color`, `calendar-description` rejected with proper multi-status
+
+**Photos API Extraction:**
+- Extracted `photos_api.rs` (278 lines) to `ferro-server-productivity/src/photos.rs`
+- ProductivityState trait extended with `storage()` method
+- 3 modules left in server: notification_prefs_api, link_analytics_api, prometheus_metrics (3+ server-internal type dependencies each)
+
+**Penetration Test Scope:**
+- Created `docs/security/penetration_test_scope.md` (525 lines)
+- 10 attack categories, 80+ specific test cases
+- Key findings: auth fallback danger, SSRF vectors, WASM RCE surface, request smuggling mitigation exists
+- Tooling: nuclei, masscan, sqlmap, cargo-fuzz, Burp Suite / OWASP ZAP
+
+**24h Soak Test:**
+- Running (PID 2166782), 50 concurrent users, 24h duration
+- 281K+ ops, 184 req/s, zero errors after 25 minutes
+- Log: target/soak/soak-24h.log
+
+### 2026-07-04: Server Decomposition Phase 3 -- Core Decomposition
+
+**Server Crate Decomposition -- Phase 3 COMPLETE:**
+- lib.rs: 2340 -> 227 lines (target <500 exceeded)
+- Extracted: AppState + 30 trait impls -> state.rs (1794 lines)
+- Extracted: handlers (health/readiness/audit/stats) -> handlers.rs (253 lines)
+- Extracted: federation wiring -> federation.rs (74 lines)
+- Extracted: ws wiring -> ws.rs (43 lines)
+- 3 new crates: server-infra, server-productivity, server-storage-utils
+- Merged: thumbnail_cache -> storage-utils, api_error -> security-middleware, offline_wiring -> integrations
+- Fixed move_copy.rs: return JSON body on success (was empty 200 OK)
+- Fixed 9 clippy warnings across server/sharing/webdav-core
+- 6 core files: lib.rs (227), state.rs (1794), handlers.rs (253), routes.rs (1704), federation.rs (74), ws.rs (43) = 4095 total
+- 496+ lib tests + 254+ extracted crate tests + 250+ integration tests = ALL PASSING
+- Clippy clean (-D warnings) across all 3 crates
 
 ### 2026-07-02: Server Decomposition Phase 2 -- Crate Extraction
 
