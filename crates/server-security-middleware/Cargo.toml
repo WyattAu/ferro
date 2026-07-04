@@ -31,5 +31,6 @@ jsonwebtoken = "9"
 utoipa = { version = "5", features = ["axum_extras"] }
 
 [dev-dependencies]
+bytes = "1"
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
