@@ -30,6 +30,7 @@ http-body-util = "0.1"
 utoipa = { version = "5", features = ["axum_extras"] }
 bytes = "1"
 rand = "0.9"
+tokio-util = { version = "0.7", features = ["rt"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

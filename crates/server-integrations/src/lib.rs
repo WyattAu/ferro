@@ -1,5 +1,6 @@
 pub mod mail_api;
 pub mod offline_api;
+pub mod offline_wiring;
 pub mod push_notifications;
 pub mod read_cache;
 pub mod remote_mount;

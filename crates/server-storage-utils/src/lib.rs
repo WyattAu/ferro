@@ -1,5 +1,6 @@
 pub mod snapshots;
 pub mod storage_health;
+pub mod thumbnail_cache;
 pub mod thumbnails;
 
 use common::storage::StorageEngine;

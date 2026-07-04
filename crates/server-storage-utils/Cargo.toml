@@ -26,3 +26,5 @@ hex = "0.4"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
 pdf = "0.9"
 dashmap = "6"
+lru = "0.16"
+tempfile = "3"

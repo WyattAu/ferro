@@ -1770,22 +1770,6 @@ impl ferro_server_productivity::ProductivityState for AppState {
 }
 
 // ---------------------------------------------------------------------------
-// ThumbnailCacheTrait
-// ---------------------------------------------------------------------------
-
-impl ferro_server_storage_utils::ThumbnailCacheTrait for crate::thumbnail_cache::ThumbnailCache {
-    fn get(&self, path: &str) -> Option<(Vec<u8>, String)> {
-        self.get(path)
-    }
-    fn put(&self, path: &str, data: Vec<u8>, mime: &str) {
-        self.put(path, data, mime)
-    }
-    fn invalidate(&self, path: &str) {
-        self.invalidate(path)
-    }
-}
-
-// ---------------------------------------------------------------------------
 // StorageUtilsState
 // ---------------------------------------------------------------------------
 
