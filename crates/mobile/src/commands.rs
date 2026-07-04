@@ -1,4 +1,4 @@
-use crate::{BiometricAuthResult, CameraUploadResult, MobileError, StorageStats};
+use crate::{BiometricAuthResult, CameraUploadResult, MobileError, MobilePlatform, StorageStats};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,7 +60,8 @@ pub async fn camera_upload(file_path: String) -> Result<CameraUploadResult, Stri
         .await
         .map_err(|e| format!("Failed to read file: {}", e))?;
 
-    let file_name = std::path::Path::new(&file_name_from_path(&file_path))
+    let raw_name = file_name_from_path(&file_path);
+    let file_name = std::path::Path::new(&raw_name)
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("upload.dat");

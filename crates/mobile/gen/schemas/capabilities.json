@@ -1,0 +1,1 @@
+{"mobile-default":{"identifier":"mobile-default","description":"Default permissions for Ferro Mobile","local":true,"windows":["main"],"permissions":["core:default","shell:allow-open","dialog:allow-ask","dialog:allow-confirm","dialog:allow-message","dialog:allow-save","dialog:allow-open","fs:default","notification:default","biometric:default"]}}
