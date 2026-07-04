@@ -1,7 +1,7 @@
 use axum::Extension;
 use axum::body::Bytes;
 use axum::extract::{Path, State};
-use axum::http::Method;
+use axum::http::{Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use http_body_util::BodyExt;
 
@@ -48,6 +48,13 @@ pub async fn dispatch_caldav<S: WebDavCoreState>(
             ferro_dav::caldav::create_calendar_handler(axum::extract::State(cal_state)).await
         }
         "REPORT" => {
+            if is_sync_collection_report(&body) {
+                return (
+                    StatusCode::NOT_IMPLEMENTED,
+                    "Sync-collection not yet supported",
+                )
+                    .into_response();
+            }
             if is_multiget_report(&body) {
                 ferro_dav::caldav::handle_multiget(axum::extract::State(cal_state), Extension(body))
                     .await
@@ -115,6 +122,13 @@ pub async fn dispatch_carddav<S: WebDavCoreState>(
 
     match method.as_str() {
         "REPORT" => {
+            if is_sync_collection_report(&body) {
+                return (
+                    StatusCode::NOT_IMPLEMENTED,
+                    "Sync-collection not yet supported",
+                )
+                    .into_response();
+            }
             if is_multiget_report(&body) {
                 ferro_dav::carddav::handle_multiget(
                     axum::extract::State(card_state),
@@ -191,12 +205,23 @@ pub async fn carddav_create<S: WebDavCoreState>(State(state): State<S>) -> Respo
 
 /// Check if a REPORT request body is a multiget request.
 /// Multiget requests have root elements `calendar-multiget` or `addressbook-multiget`.
+/// We verify the match is preceded by `<` to avoid false positives from adversarial
+/// content containing these strings outside of XML element context.
 fn is_multiget_report(body: &[u8]) -> bool {
     if body.len() < 20 || body.len() > 10 * 1024 * 1024 {
         return false;
     }
     let body_str = String::from_utf8_lossy(body);
-    body_str.contains("calendar-multiget") || body_str.contains("addressbook-multiget")
+    body_str.contains("<calendar-multiget") || body_str.contains("<addressbook-multiget")
+}
+
+/// Check if a REPORT request body is a sync-collection request.
+fn is_sync_collection_report(body: &[u8]) -> bool {
+    if body.is_empty() || body.len() > 10 * 1024 * 1024 {
+        return false;
+    }
+    let body_str = String::from_utf8_lossy(body);
+    body_str.contains("<sync-collection")
 }
 
 /// Unified CalDAV handler registered with `any()` on all CalDAV paths.
@@ -267,6 +292,13 @@ pub async fn caldav_calendar_or_event<S: WebDavCoreState>(
                         .into_response();
                 }
             };
+            if is_sync_collection_report(&body_bytes) {
+                return (
+                    axum::http::StatusCode::NOT_IMPLEMENTED,
+                    "Sync-collection not yet supported",
+                )
+                    .into_response();
+            }
             if is_multiget_report(&body_bytes) {
                 ferro_dav::caldav::handle_multiget(
                     axum::extract::State(cal_state),
@@ -381,6 +413,13 @@ pub async fn carddav_book_or_contact<S: WebDavCoreState>(
                         .into_response();
                 }
             };
+            if is_sync_collection_report(&body_bytes) {
+                return (
+                    axum::http::StatusCode::NOT_IMPLEMENTED,
+                    "Sync-collection not yet supported",
+                )
+                    .into_response();
+            }
             if is_multiget_report(&body_bytes) {
                 ferro_dav::carddav::handle_multiget(
                     axum::extract::State(card_state),

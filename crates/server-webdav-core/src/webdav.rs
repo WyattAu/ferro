@@ -1636,8 +1636,122 @@ async fn handle_proppatch<S: WebDavCoreState>(
     // Parse simple PROPPATCH body to extract property operations
     let props = ferro_webdav_handler::parse_proppatch(body);
 
-    // Build response XML showing all properties as 200 OK
-    let xml = ferro_webdav_handler::build_proppatch_response(&path, &props);
+    // Properties the server actually stores (returns 200).
+    // Everything else returns 403 Forbidden.
+    const SUPPORTED_PROPS: &[&str] = &["displayname"];
+
+    let mut writer = quick_xml::Writer::new(Vec::new());
+    let _ = writer.write_event(quick_xml::events::Event::Decl(
+        quick_xml::events::BytesDecl::new("1.0", Some("utf-8"), None),
+    ));
+    let mut multistatus = quick_xml::events::BytesStart::new("D:multistatus");
+    multistatus.push_attribute(("xmlns:D", "DAV:"));
+    let _ = writer.write_event(quick_xml::events::Event::Start(multistatus));
+
+    let _ = writer.write_event(quick_xml::events::Event::Start(
+        quick_xml::events::BytesStart::new("D:response"),
+    ));
+    let _ = writer.write_event(quick_xml::events::Event::Start(
+        quick_xml::events::BytesStart::new("D:href"),
+    ));
+    let _ = writer.write_event(quick_xml::events::Event::Text(
+        quick_xml::events::BytesText::new(&path),
+    ));
+    let _ = writer.write_event(quick_xml::events::Event::End(
+        quick_xml::events::BytesEnd::new("D:href"),
+    ));
+
+    // Collect accepted (200) and rejected (403) properties separately.
+    let mut accepted = Vec::new();
+    let mut rejected = Vec::new();
+
+    for prop in &props {
+        if SUPPORTED_PROPS.contains(&prop.name.as_str()) {
+            accepted.push(prop);
+        } else {
+            rejected.push(prop);
+        }
+    }
+
+    // 200 OK block for accepted properties
+    if !accepted.is_empty() {
+        let _ = writer.write_event(quick_xml::events::Event::Start(
+            quick_xml::events::BytesStart::new("D:propstat"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::Start(
+            quick_xml::events::BytesStart::new("D:prop"),
+        ));
+        for prop in &accepted {
+            let _ = writer.write_event(quick_xml::events::Event::Start(
+                quick_xml::events::BytesStart::new(prop.name.as_str()),
+            ));
+            if let Some(ref val) = prop.value {
+                let _ = writer.write_event(quick_xml::events::Event::Text(
+                    quick_xml::events::BytesText::new(val),
+                ));
+            }
+            let _ = writer.write_event(quick_xml::events::Event::End(
+                quick_xml::events::BytesEnd::new(prop.name.as_str()),
+            ));
+        }
+        let _ = writer.write_event(quick_xml::events::Event::End(
+            quick_xml::events::BytesEnd::new("D:prop"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::Start(
+            quick_xml::events::BytesStart::new("D:status"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::Text(
+            quick_xml::events::BytesText::new("HTTP/1.1 200 OK"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::End(
+            quick_xml::events::BytesEnd::new("D:status"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::End(
+            quick_xml::events::BytesEnd::new("D:propstat"),
+        ));
+    }
+
+    // 403 Forbidden block for rejected properties
+    if !rejected.is_empty() {
+        let _ = writer.write_event(quick_xml::events::Event::Start(
+            quick_xml::events::BytesStart::new("D:propstat"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::Start(
+            quick_xml::events::BytesStart::new("D:prop"),
+        ));
+        for prop in &rejected {
+            let _ = writer.write_event(quick_xml::events::Event::Start(
+                quick_xml::events::BytesStart::new(prop.name.as_str()),
+            ));
+            let _ = writer.write_event(quick_xml::events::Event::End(
+                quick_xml::events::BytesEnd::new(prop.name.as_str()),
+            ));
+        }
+        let _ = writer.write_event(quick_xml::events::Event::End(
+            quick_xml::events::BytesEnd::new("D:prop"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::Start(
+            quick_xml::events::BytesStart::new("D:status"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::Text(
+            quick_xml::events::BytesText::new("HTTP/1.1 403 Forbidden"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::End(
+            quick_xml::events::BytesEnd::new("D:status"),
+        ));
+        let _ = writer.write_event(quick_xml::events::Event::End(
+            quick_xml::events::BytesEnd::new("D:propstat"),
+        ));
+    }
+
+    let _ = writer.write_event(quick_xml::events::Event::End(
+        quick_xml::events::BytesEnd::new("D:response"),
+    ));
+    let _ = writer.write_event(quick_xml::events::Event::End(
+        quick_xml::events::BytesEnd::new("D:multistatus"),
+    ));
+
+    let xml = Bytes::from(writer.into_inner());
 
     let mut resp_headers = HeaderMap::new();
     resp_headers.insert(
