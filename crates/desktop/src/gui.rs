@@ -711,7 +711,7 @@ async fn cmd_check_update(app_handle: tauri::AppHandle) -> Result<UpdateCheckRes
 
     match updater.check().await {
         Ok(Some(update)) => {
-            let version = update.version.clone().unwrap_or_default();
+            let version = update.version.clone();
             let body = update.body.clone().unwrap_or_default();
             tracing::info!("Update available: {} (body: {})", version, body);
             Ok(UpdateCheckResult {
@@ -747,11 +747,11 @@ async fn cmd_install_update(app_handle: tauri::AppHandle) -> Result<String, Stri
 
     match updater.check().await {
         Ok(Some(update)) => {
-            let version = update.version.clone().unwrap_or_default();
+            let version = update.version.clone();
             tracing::info!("Installing update: {}", version);
 
             update
-                .download_and_install(|_chunk_length, _content_length| {})
+                .download_and_install(|_chunk_length, _content_length| {}, || {})
                 .await
                 .map_err(|e| format!("Install failed: {}", e))?;
 
@@ -846,9 +846,12 @@ async fn cmd_update_tray_tooltip(
     }
 
     // Check for update and reflect in tooltip
-    if let Ok(updater) = app_handle.updater() {
-        if let Ok(Some(_update)) = updater.check().await {
-            update_available = true;
+    {
+        use tauri_plugin_updater::UpdaterExt;
+        if let Ok(updater) = app_handle.updater() {
+            if let Ok(Some(_update)) = updater.check().await {
+                update_available = true;
+            }
         }
     }
 
@@ -1081,7 +1084,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                             };
                             match updater.check().await {
                                 Ok(Some(update)) => {
-                                    let version = update.version.clone().unwrap_or_default();
+                                    let version = update.version.clone();
                                     let _ = handle
                                         .notification()
                                         .builder()
@@ -1205,7 +1208,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     if let Ok(updater) = handle.updater() {
                         match updater.check().await {
                             Ok(Some(update)) => {
-                                let version = update.version.clone().unwrap_or_default();
+                                let version = update.version.clone();
                                 tracing::info!("Startup update check: {} available", version);
                                 if let Some(window) = handle.get_webview_window("main") {
                                     let _ = window.emit("update-available", &version);
