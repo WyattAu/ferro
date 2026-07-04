@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
-use crate::AppState;
+use crate::ProductivityState;
 use common::server_context::HasStorage;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,17 +53,17 @@ pub struct PhotosQuery {
     pub end: Option<String>,
 }
 
-fn photos_dir(state: &AppState) -> std::path::PathBuf {
-    let base = state.data_dir.as_deref().unwrap_or(".ferro");
+fn photos_dir<S: ProductivityState>(state: &S) -> std::path::PathBuf {
+    let base = state.data_dir().unwrap_or(".ferro");
     std::path::PathBuf::from(base).join("photos")
 }
 
-fn albums_file(state: &AppState) -> std::path::PathBuf {
+fn albums_file<S: ProductivityState>(state: &S) -> std::path::PathBuf {
     photos_dir(state).join("albums.json")
 }
 
-fn ensure_photos_dir(
-    state: &AppState,
+fn ensure_photos_dir<S: ProductivityState>(
+    state: &S,
 ) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
     let dir = photos_dir(state);
     std::fs::create_dir_all(&dir).map_err(|e| {
@@ -110,7 +110,7 @@ fn get_mime_type(path: &str) -> String {
     }
 }
 
-fn load_albums(state: &AppState) -> Vec<Album> {
+fn load_albums<S: ProductivityState>(state: &S) -> Vec<Album> {
     let path = albums_file(state);
     if !path.exists() {
         return Vec::new();
@@ -121,7 +121,7 @@ fn load_albums(state: &AppState) -> Vec<Album> {
         .unwrap_or_default()
 }
 
-fn save_albums(state: &AppState, albums: &[Album]) -> Result<(), std::io::Error> {
+fn save_albums<S: ProductivityState>(state: &S, albums: &[Album]) -> Result<(), std::io::Error> {
     let _ = ensure_photos_dir(state);
     let path = albums_file(state);
     std::fs::write(
@@ -170,14 +170,14 @@ pub async fn list_photos_impl<S: HasStorage>(state: &S, params: &PhotosQuery) ->
     .into_response()
 }
 
-pub async fn list_photos(
-    State(state): State<AppState>,
+pub async fn list_photos<S: ProductivityState>(
+    State(state): State<S>,
     Query(params): Query<PhotosQuery>,
 ) -> impl IntoResponse {
     list_photos_impl(&state, &params).await
 }
 
-pub async fn list_albums(State(state): State<AppState>) -> impl IntoResponse {
+pub async fn list_albums<S: ProductivityState>(State(state): State<S>) -> impl IntoResponse {
     let albums = load_albums(&state);
     Json(serde_json::json!({
         "albums": albums,
@@ -186,8 +186,8 @@ pub async fn list_albums(State(state): State<AppState>) -> impl IntoResponse {
     .into_response()
 }
 
-pub async fn create_album(
-    State(state): State<AppState>,
+pub async fn create_album<S: ProductivityState>(
+    State(state): State<S>,
     Json(req): Json<CreateAlbumRequest>,
 ) -> impl IntoResponse {
     if let Err(e) = ensure_photos_dir(&state) {
@@ -237,8 +237,8 @@ pub async fn get_thumbnail_impl<S: HasStorage>(state: &S, path: &str) -> Respons
     }
 }
 
-pub async fn get_thumbnail(
-    State(state): State<AppState>,
+pub async fn get_thumbnail<S: ProductivityState>(
+    State(state): State<S>,
     Path(path): Path<String>,
 ) -> impl IntoResponse {
     get_thumbnail_impl(&state, &path).await
@@ -270,8 +270,8 @@ pub async fn get_exif_impl<S: HasStorage>(state: &S, path: &str) -> Response {
     }
 }
 
-pub async fn get_exif(
-    State(state): State<AppState>,
+pub async fn get_exif<S: ProductivityState>(
+    State(state): State<S>,
     Path(path): Path<String>,
 ) -> impl IntoResponse {
     get_exif_impl(&state, &path).await

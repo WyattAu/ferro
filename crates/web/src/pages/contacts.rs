@@ -1,6 +1,8 @@
 use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 use crate::api;
 use crate::components::header::{Header, provide_header_state};

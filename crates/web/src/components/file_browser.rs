@@ -715,8 +715,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         set_show_activity.update(|v| *v = !*v);
     };
 
+    let theme_state_2 = theme_state.clone();
     Effect::new(move |_| {
-        let ts = theme_state.clone();
+        let ts = theme_state_2.clone();
         let commands = vec![
             Command {
                 id: "upload-file".to_string(),
@@ -878,7 +879,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let set_sm = set_show_move_dialog;
         let set_scd = set_show_copy_dialog;
         let set_sshd = set_show_share_dialog;
-        let ts = theme_state_for_wasm;
+        let ts = theme_state.clone();
         let all_ents = all_entries;
         let do_rename_fn = do_rename;
         let navigate_fn = navigate;

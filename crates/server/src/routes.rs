@@ -729,18 +729,22 @@ fn api_routes(
                 .post(chat_api::send_message::<AppState>),
         )
         // Photos REST API
-        .route("/photos", axum::routing::get(photos_api::list_photos))
+        .route(
+            "/photos",
+            axum::routing::get(photos_api::list_photos::<AppState>),
+        )
         .route(
             "/photos/albums",
-            axum::routing::get(photos_api::list_albums).post(photos_api::create_album),
+            axum::routing::get(photos_api::list_albums::<AppState>)
+                .post(photos_api::create_album::<AppState>),
         )
         .route(
             "/photos/thumbnail/:path",
-            axum::routing::get(photos_api::get_thumbnail),
+            axum::routing::get(photos_api::get_thumbnail::<AppState>),
         )
         .route(
             "/photos/exif/:path",
-            axum::routing::get(photos_api::get_exif),
+            axum::routing::get(photos_api::get_exif::<AppState>),
         )
         // Notes REST API
         .route(

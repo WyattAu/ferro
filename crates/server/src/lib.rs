@@ -92,7 +92,7 @@ pub mod object_store_backend;
 pub mod ocr;
 pub mod offline_wiring;
 pub mod openapi;
-pub mod photos_api;
+pub use ferro_server_productivity::photos as photos_api;
 pub mod policies;
 pub mod preferences;
 pub mod presigned;
