@@ -4,73 +4,15 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use rusqlite::params;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::AppState;
 use crate::api_error::ApiError;
 use crate::shares::ShareLink;
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-/// The type of share link.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum ShareType {
-    #[default]
-    Download,
-    Upload,
-    View,
-}
-
-impl std::fmt::Display for ShareType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Download => write!(f, "download"),
-            Self::Upload => write!(f, "upload"),
-            Self::View => write!(f, "view"),
-        }
-    }
-}
-
-impl ShareType {
-    pub fn from_str_opt(s: &str) -> Self {
-        match s {
-            "upload" => Self::Upload,
-            "view" => Self::View,
-            _ => Self::Download,
-        }
-    }
-}
-
-/// Extended request body for creating a new share link.
-#[derive(Debug, Deserialize)]
-pub struct CreateShareRequestExt {
-    pub path: String,
-    pub password: Option<String>,
-    pub expires_in_hours: Option<i64>,
-    pub max_downloads: Option<u32>,
-    #[serde(default)]
-    pub share_type: ShareType,
-    #[serde(default = "default_true")]
-    pub allow_download: bool,
-    pub allow_upload: Option<bool>,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-#[derive(Debug, Serialize)]
-pub struct ShareUploadEntry {
-    pub id: String,
-    pub file_name: String,
-    pub size: u64,
-    pub mime_type: String,
-    pub uploaded_at: String,
-}
+pub use ferro_server_sharing::shares_ext::{
+    CreateShareRequestExt, ShareType, ShareUploadEntry, sanitize_filename, sniff_mime_type,
+};
 
 // ---------------------------------------------------------------------------
 // Handlers
@@ -630,37 +572,6 @@ pub(crate) fn get_allow_download(state: &AppState, token: &str) -> bool {
         }
     }
     true
-}
-
-pub(crate) fn sanitize_filename(name: &str) -> String {
-    name.chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
-pub(crate) fn sniff_mime_type(name: &str) -> String {
-    let ext = name.rsplit('.').next().unwrap_or("");
-    match ext.to_lowercase().as_str() {
-        "pdf" => "application/pdf".to_string(),
-        "png" => "image/png".to_string(),
-        "jpg" | "jpeg" => "image/jpeg".to_string(),
-        "gif" => "image/gif".to_string(),
-        "webp" => "image/webp".to_string(),
-        "svg" => "image/svg+xml".to_string(),
-        "mp4" => "video/mp4".to_string(),
-        "mp3" => "audio/mpeg".to_string(),
-        "zip" => "application/zip".to_string(),
-        "txt" | "md" => "text/plain".to_string(),
-        "html" | "htm" => "text/html".to_string(),
-        "json" => "application/json".to_string(),
-        _ => "application/octet-stream".to_string(),
-    }
 }
 
 fn constant_time_eq(a: &str, b: &str) -> bool {

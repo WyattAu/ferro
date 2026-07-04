@@ -19,7 +19,7 @@ pub trait FavoriteStore: Send + Sync {
 }
 
 pub struct InMemoryFavoriteStore {
-    pub(crate) favorites: DashSet<String>,
+    pub favorites: DashSet<String>,
     db: Option<DbHandle>,
 }
 
@@ -131,6 +131,44 @@ pub async fn remove_favorite(
     axum::Json(body): axum::Json<FavoritePath>,
 ) -> Response {
     state.favorites.remove(&body.path).await;
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "ok": true })),
+    )
+        .into_response()
+}
+
+/// List the current user's favorite paths.
+///
+/// Generic over `HasFavorites` for crate decomposition.
+pub async fn list_favorites_impl<S: common::server_context::HasFavorites>(state: &S) -> Response {
+    let favorites = state.list_favorites().await;
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "paths": favorites })),
+    )
+        .into_response()
+}
+
+/// Add a path to the current user's favorites.
+pub async fn add_favorite_impl<S: common::server_context::HasFavorites>(
+    state: &S,
+    path: String,
+) -> Response {
+    state.add_favorite(path).await;
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "ok": true })),
+    )
+        .into_response()
+}
+
+/// Remove a path from the current user's favorites.
+pub async fn remove_favorite_impl<S: common::server_context::HasFavorites>(
+    state: &S,
+    path: &str,
+) -> Response {
+    state.remove_favorite(path).await;
     (
         StatusCode::OK,
         axum::Json(serde_json::json!({ "ok": true })),

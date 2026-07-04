@@ -110,6 +110,9 @@ ferro-server-webdav = { path = "../server-webdav" }
 ferro-server-collaboration = { path = "../server-collaboration" }
 ferro-server-storage-ops = { path = "../server-storage-ops" }
 ferro-server-webdav-core = { path = "../server-webdav-core" }
+ferro-server-productivity = { path = "../server-productivity" }
+ferro-server-storage-utils = { path = "../server-storage-utils" }
+ferro-server-infra = { path = "../server-infra" }
 regex = "1"
 
 [dev-dependencies]

@@ -57,6 +57,9 @@ members = [
     "crates/server-collaboration",
     "crates/server-storage-ops",
     "crates/server-webdav-core",
+    "crates/server-productivity",
+    "crates/server-storage-utils",
+    "crates/server-infra",
 ]
 resolver = "2"
 

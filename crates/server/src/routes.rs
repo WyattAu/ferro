@@ -219,8 +219,14 @@ fn api_routes(
         )
         .route("/files", axum::routing::get(api::list_files))
         .route("/files/mkdir", axum::routing::post(api::mkdir))
-        .route("/files/move", axum::routing::post(move_copy::move_file))
-        .route("/files/copy", axum::routing::post(move_copy::copy_file))
+        .route(
+            "/files/move",
+            axum::routing::post(move_copy::move_file::<AppState>),
+        )
+        .route(
+            "/files/copy",
+            axum::routing::post(move_copy::copy_file::<AppState>),
+        )
         .route("/upload-url", axum::routing::get(presigned::get_upload_url))
         .route(
             "/download-url",
@@ -238,15 +244,16 @@ fn api_routes(
         .route("/storage/stats", axum::routing::get(storage_stats))
         .route(
             "/snapshots",
-            axum::routing::get(snapshots::list_snapshots).post(snapshots::create_snapshot),
+            axum::routing::get(snapshots::list_snapshots::<AppState>)
+                .post(snapshots::create_snapshot::<AppState>),
         )
         .route(
             "/snapshots/:id",
-            axum::routing::delete(snapshots::delete_snapshot_by_id),
+            axum::routing::delete(snapshots::delete_snapshot_by_id::<AppState>),
         )
         .route(
             "/snapshots/:id/restore",
-            axum::routing::post(snapshots::restore_snapshot),
+            axum::routing::post(snapshots::restore_snapshot::<AppState>),
         )
         .route(
             "/favorites",
@@ -255,11 +262,23 @@ fn api_routes(
                 .delete(favorites::remove_favorite),
         )
         .route("/recent", axum::routing::get(favorites::list_recent))
-        .route("/trash", axum::routing::get(trash::list_trash))
-        .route("/trash/:path", axum::routing::delete(trash::move_to_trash))
-        .route("/trash/restore", axum::routing::post(trash::restore_trash))
-        .route("/trash/purge", axum::routing::delete(trash::purge_trash))
-        .route("/trash/empty", axum::routing::delete(trash::empty_trash))
+        .route("/trash", axum::routing::get(trash::list_trash::<AppState>))
+        .route(
+            "/trash/:path",
+            axum::routing::delete(trash::move_to_trash::<AppState>),
+        )
+        .route(
+            "/trash/restore",
+            axum::routing::post(trash::restore_trash::<AppState>),
+        )
+        .route(
+            "/trash/purge",
+            axum::routing::delete(trash::purge_trash::<AppState>),
+        )
+        .route(
+            "/trash/empty",
+            axum::routing::delete(trash::empty_trash::<AppState>),
+        )
         .route("/bulk/delete", axum::routing::post(bulk::bulk_delete))
         .route("/batch/copy", axum::routing::post(batch::batch_copy))
         .route("/batch/move", axum::routing::post(batch::batch_move))
@@ -269,7 +288,7 @@ fn api_routes(
             "/fed/share",
             axum::routing::post(federation::federated_share),
         )
-        .merge(api_federation::routes())
+        .merge(api_federation::routes::<AppState>())
         .route(
             "/files/encrypt",
             axum::routing::post(encryption::encrypt_file::<AppState>),
@@ -318,11 +337,11 @@ fn api_routes(
         )
         .route(
             "/health/storage",
-            axum::routing::get(storage_health::storage_health_handler),
+            axum::routing::get(storage_health::storage_health_handler::<AppState>),
         )
         .route(
             "/thumbnail/*path",
-            axum::routing::get(thumbnails::get_thumbnail),
+            axum::routing::get(thumbnails::get_thumbnail::<AppState>),
         )
         .route(
             "/preferences",
@@ -659,41 +678,44 @@ fn api_routes(
         // Calendar REST API bridge
         .route(
             "/calendar/events",
-            axum::routing::get(calendar_api::list_events),
+            axum::routing::get(calendar_api::list_events::<AppState>),
         )
         .route(
             "/calendar/events",
-            axum::routing::post(calendar_api::create_event),
+            axum::routing::post(calendar_api::create_event::<AppState>),
         )
         .route(
             "/calendar/events/:uid",
-            axum::routing::put(calendar_api::update_event),
+            axum::routing::put(calendar_api::update_event::<AppState>),
         )
         .route(
             "/calendar/events/:uid",
-            axum::routing::delete(calendar_api::delete_event),
+            axum::routing::delete(calendar_api::delete_event::<AppState>),
         )
         // Contacts REST API bridge
-        .route("/contacts", axum::routing::get(contacts_api::list_contacts))
         .route(
             "/contacts",
-            axum::routing::post(contacts_api::create_contact),
+            axum::routing::get(contacts_api::list_contacts::<AppState>),
+        )
+        .route(
+            "/contacts",
+            axum::routing::post(contacts_api::create_contact::<AppState>),
         )
         .route(
             "/contacts/:uid",
-            axum::routing::put(contacts_api::update_contact),
+            axum::routing::put(contacts_api::update_contact::<AppState>),
         )
         .route(
             "/contacts/:uid",
-            axum::routing::delete(contacts_api::delete_contact),
+            axum::routing::delete(contacts_api::delete_contact::<AppState>),
         )
         .route(
             "/contacts/export",
-            axum::routing::get(contacts_api::export_contacts),
+            axum::routing::get(contacts_api::export_contacts::<AppState>),
         )
         .route(
             "/contacts/import",
-            axum::routing::post(contacts_api::import_contacts),
+            axum::routing::post(contacts_api::import_contacts::<AppState>),
         )
         // Chat REST API
         .route(
@@ -723,29 +745,34 @@ fn api_routes(
         // Notes REST API
         .route(
             "/notes",
-            axum::routing::get(notes_api::list_notes).post(notes_api::create_note),
+            axum::routing::get(notes_api::list_notes::<AppState>)
+                .post(notes_api::create_note::<AppState>),
         )
-        .route("/notes/search", axum::routing::get(notes_api::search_notes))
+        .route(
+            "/notes/search",
+            axum::routing::get(notes_api::search_notes::<AppState>),
+        )
         .route(
             "/notes/:id",
-            axum::routing::get(notes_api::get_note)
-                .put(notes_api::update_note)
-                .delete(notes_api::delete_note),
+            axum::routing::get(notes_api::get_note::<AppState>)
+                .put(notes_api::update_note::<AppState>)
+                .delete(notes_api::delete_note::<AppState>),
         )
         // Tasks REST API
         .route(
             "/tasks",
-            axum::routing::get(tasks_api::list_tasks).post(tasks_api::create_task),
+            axum::routing::get(tasks_api::list_tasks::<AppState>)
+                .post(tasks_api::create_task::<AppState>),
         )
         .route(
             "/tasks/:id",
-            axum::routing::get(tasks_api::update_task)
-                .put(tasks_api::update_task)
-                .delete(tasks_api::delete_task),
+            axum::routing::get(tasks_api::update_task::<AppState>)
+                .put(tasks_api::update_task::<AppState>)
+                .delete(tasks_api::delete_task::<AppState>),
         )
         .route(
             "/tasks/:id/status",
-            axum::routing::patch(tasks_api::move_task),
+            axum::routing::patch(tasks_api::move_task::<AppState>),
         )
         // Push notification endpoints
         .route(
@@ -765,8 +792,8 @@ fn api_routes(
         // Whiteboard endpoints
         .route(
             "/whiteboard",
-            axum::routing::get(whiteboard_api::list_whiteboards)
-                .post(whiteboard_api::create_whiteboard),
+            axum::routing::get(whiteboard_api::list_whiteboards::<AppState>)
+                .post(whiteboard_api::create_whiteboard::<AppState>),
         )
         // Offline mode endpoints
         .route(
@@ -827,11 +854,12 @@ fn api_routes(
         )
         .route(
             "/whiteboard/:id",
-            axum::routing::get(whiteboard_api::get_whiteboard).put(whiteboard_api::save_whiteboard),
+            axum::routing::get(whiteboard_api::get_whiteboard::<AppState>)
+                .put(whiteboard_api::save_whiteboard::<AppState>),
         )
         .route(
             "/whiteboard/:id/image",
-            axum::routing::get(whiteboard_api::export_whiteboard_image),
+            axum::routing::get(whiteboard_api::export_whiteboard_image::<AppState>),
         )
         // Mail API (P3-03)
         .route(
@@ -1120,7 +1148,7 @@ pub fn build_router_with_static(
     // Always register WebDAV catch-all at /
     // Static file serving (when --static-dir is set) handles common extensions,
     // but WebDAV methods (PROPFIND, MKCOL, etc.) go to the WebDAV handler
-    router_builder = router_builder.route("/", any(webdav::handle_any));
+    router_builder = router_builder.route("/", any(webdav::handle_any::<AppState>));
     let router = router_builder
         .route("/.well-known/ferro", axum::routing::get(health_check))
         .route("/healthz", axum::routing::get(liveness))
@@ -1227,36 +1255,36 @@ pub fn build_router_with_static(
         .route("/dav/cal", axum::routing::options(dav::caldav_options))
         .route(
             "/dav/cal/",
-            axum::routing::get(dav::caldav_list).put(dav::caldav_create),
+            axum::routing::get(dav::caldav_list::<AppState>).put(dav::caldav_create::<AppState>),
         )
         .route(
             "/dav/cal/:calendar",
-            axum::routing::any(dav::caldav_calendar_or_event),
+            axum::routing::any(dav::caldav_calendar_or_event::<AppState>),
         )
         .route(
             "/dav/cal/:calendar/",
-            axum::routing::any(dav::caldav_calendar_or_event),
+            axum::routing::any(dav::caldav_calendar_or_event::<AppState>),
         )
         .route(
             "/dav/cal/:calendar/:uid",
-            axum::routing::any(dav::caldav_calendar_or_event),
+            axum::routing::any(dav::caldav_calendar_or_event::<AppState>),
         )
         .route("/dav/card", axum::routing::options(dav::carddav_options))
         .route(
             "/dav/card/",
-            axum::routing::get(dav::carddav_list).put(dav::carddav_create),
+            axum::routing::get(dav::carddav_list::<AppState>).put(dav::carddav_create::<AppState>),
         )
         .route(
             "/dav/card/:book",
-            axum::routing::any(dav::carddav_book_or_contact),
+            axum::routing::any(dav::carddav_book_or_contact::<AppState>),
         )
         .route(
             "/dav/card/:book/",
-            axum::routing::any(dav::carddav_book_or_contact),
+            axum::routing::any(dav::carddav_book_or_contact::<AppState>),
         )
         .route(
             "/dav/card/:book/:uid",
-            axum::routing::any(dav::carddav_book_or_contact),
+            axum::routing::any(dav::carddav_book_or_contact::<AppState>),
         )
         // /remote/*path moved to api_and_webdav_fallback to avoid matchit 0.7.3
         // bug where catch-all wildcard routes corrupt named-parameter routes
@@ -1660,7 +1688,7 @@ pub(crate) async fn api_and_webdav_fallback(
     {
         return match method {
             axum::http::Method::GET => {
-                api_federation::get_fed_file(
+                api_federation::get_fed_file::<AppState>(
                     State(state),
                     axum::extract::Path(file_path.to_string()),
                     headers,
@@ -1668,7 +1696,7 @@ pub(crate) async fn api_and_webdav_fallback(
                 .await
             }
             axum::http::Method::PUT => {
-                api_federation::put_fed_file(
+                api_federation::put_fed_file::<AppState>(
                     State(state),
                     axum::extract::Path(file_path.to_string()),
                     headers,
@@ -1677,7 +1705,7 @@ pub(crate) async fn api_and_webdav_fallback(
                 .await
             }
             axum::http::Method::DELETE => {
-                api_federation::delete_fed_file(
+                api_federation::delete_fed_file::<AppState>(
                     State(state),
                     axum::extract::Path(file_path.to_string()),
                     headers,
@@ -1700,5 +1728,5 @@ pub(crate) async fn api_and_webdav_fallback(
         .await;
     }
     // Fall through to WebDAV handler
-    webdav::handle_any(method, uri, State(state), None, headers, body).await
+    webdav::handle_any::<AppState>(method, uri, State(state), None, headers, body).await
 }

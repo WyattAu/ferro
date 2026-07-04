@@ -1,13 +1,18 @@
 pub mod handler;
 pub mod lock;
 pub mod move_copy;
-pub mod range_get;
 pub mod xml_util;
 
 pub use handler::handle_any;
 pub use handler::sanitize_path;
 pub use lock::DbHandle;
 pub use lock::LockManager;
+
+/// Re-export range_get types from storage-ops as a module alias.
+pub mod range_get {
+    pub use ferro_server_storage_ops::range_get::*;
+}
+
 pub use range_get::*;
 pub use xml_util::*;
 

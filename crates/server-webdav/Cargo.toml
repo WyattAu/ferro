@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
 ferro-core = { path = "../core", features = ["sqlite", "search", "wasm", "object_store"] }
+ferro-server-storage-ops = { path = "../server-storage-ops" }
 ferro-webdav-handler = { path = "../webdav-handler" }
 ferro-server-versioning = { path = "../server-versioning" }
 ferro-offline = { path = "../offline" }

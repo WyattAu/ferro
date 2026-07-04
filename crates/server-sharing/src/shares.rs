@@ -16,9 +16,9 @@ use crate::api_error::ApiError;
 use crate::audit::build_audit_entry;
 use crate::db::DbHandle;
 
-const MAX_SHARE_LINKS: usize = 10_000;
-const MAX_SHARE_PASSWORD_ATTEMPTS: u32 = 10;
-const SHARE_LOCKOUT_SECS: i64 = 300;
+pub const MAX_SHARE_LINKS: usize = 10_000;
+pub const MAX_SHARE_PASSWORD_ATTEMPTS: u32 = 10;
+pub const SHARE_LOCKOUT_SECS: i64 = 300;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareLink {

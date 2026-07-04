@@ -1,15 +1,16 @@
 [package]
-name = "ferro-server-storage-ops"
+name = "ferro-server-storage-utils"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "Storage operations (upload, download, quota, dedup, batch) for the Ferro server"
+description = "Storage utility modules (thumbnails, snapshots, storage health) for the Ferro server"
 license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
+ferro-core = { path = "../core", features = ["sqlite", "search"] }
 ferro-server-security = { path = "../server-security" }
 axum = { workspace = true }
 serde = { workspace = true }
@@ -17,14 +18,11 @@ serde_json = "1"
 tokio = { workspace = true }
 tracing = "0.1"
 rusqlite = { version = "0.32", features = ["bundled"] }
-bytes = "1"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-http-body-util = "0.1"
-tokio-util = { version = "0.7", features = ["io", "rt"] }
+bytes = "1"
 sha2 = "0.11"
 hex = "0.4"
-mime_guess = "2"
-url = "2"
-tempfile = "3"
-utoipa = { version = "5", features = ["axum_extras"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+pdf = "0.9"
+dashmap = "6"

@@ -196,6 +196,30 @@ pub mod security {
     }
 }
 
+/// Trait for state that the sharing crate handlers need access to.
+///
+/// The ferro-server crate implements this for its `AppState`, allowing the
+/// sharing crate to remain decoupled from concrete server types.
+#[async_trait::async_trait]
+pub trait SharingStateTrait: Send + Sync {
+    fn share_store(&self) -> &Arc<dyn ShareStoreTrait>;
+    fn storage(&self) -> &Arc<dyn StorageEngine>;
+    fn audit_log(&self) -> &Arc<dyn AuditLogTrait>;
+    fn db(&self) -> &Option<db::DbHandle>;
+    fn max_body_size(&self) -> u64;
+    fn tags(&self) -> &Arc<TagStore>;
+    fn comments(&self) -> &Arc<CommentStore>;
+    fn favorites(&self) -> &Arc<dyn FavoriteStore>;
+    fn admin_user(&self) -> Option<&str>;
+    fn activity_store(&self) -> &Arc<ferro_server_activitypub::store::ActivityStore>;
+    fn external_url(&self) -> &str;
+    fn federation_secret(&self) -> &str;
+    #[allow(clippy::type_complexity)]
+    fn on_share_created(
+        &self,
+    ) -> &Option<Arc<dyn Fn(&str, &str) -> futures::future::BoxFuture<'static, ()> + Send + Sync>>;
+}
+
 #[derive(Clone)]
 pub struct SharingState {
     pub share_store: Arc<dyn ShareStoreTrait>,
@@ -213,4 +237,50 @@ pub struct SharingState {
     #[allow(clippy::type_complexity)]
     pub on_share_created:
         Option<Arc<dyn Fn(&str, &str) -> futures::future::BoxFuture<'static, ()> + Send + Sync>>,
+}
+
+#[async_trait::async_trait]
+impl SharingStateTrait for SharingState {
+    fn share_store(&self) -> &Arc<dyn ShareStoreTrait> {
+        &self.share_store
+    }
+    fn storage(&self) -> &Arc<dyn StorageEngine> {
+        &self.storage
+    }
+    fn audit_log(&self) -> &Arc<dyn AuditLogTrait> {
+        &self.audit_log
+    }
+    fn db(&self) -> &Option<db::DbHandle> {
+        &self.db
+    }
+    fn max_body_size(&self) -> u64 {
+        self.max_body_size
+    }
+    fn tags(&self) -> &Arc<TagStore> {
+        &self.tags
+    }
+    fn comments(&self) -> &Arc<CommentStore> {
+        &self.comments
+    }
+    fn favorites(&self) -> &Arc<dyn FavoriteStore> {
+        &self.favorites
+    }
+    fn admin_user(&self) -> Option<&str> {
+        self.admin_user.as_deref()
+    }
+    fn activity_store(&self) -> &Arc<ferro_server_activitypub::store::ActivityStore> {
+        &self.activity_store
+    }
+    fn external_url(&self) -> &str {
+        &self.external_url
+    }
+    fn federation_secret(&self) -> &str {
+        &self.federation_secret
+    }
+    fn on_share_created(
+        &self,
+    ) -> &Option<Arc<dyn Fn(&str, &str) -> futures::future::BoxFuture<'static, ()> + Send + Sync>>
+    {
+        &self.on_share_created
+    }
 }

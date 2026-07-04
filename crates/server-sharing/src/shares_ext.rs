@@ -405,7 +405,7 @@ pub async fn serve_view_share(
     (StatusCode::OK, headers, body).into_response()
 }
 
-pub(crate) fn serve_upload_dropzone(link: &ShareLink) -> Response {
+pub fn serve_upload_dropzone(link: &ShareLink) -> Response {
     let html = format!(
         r#"<!DOCTYPE html>
 <html lang="en">
@@ -486,10 +486,7 @@ async function uploadFiles(files) {{
     (StatusCode::OK, headers, html).into_response()
 }
 
-pub(crate) fn serve_preview_html(
-    link: &ShareLink,
-    meta: &common::metadata::FileMetadata,
-) -> Response {
+pub fn serve_preview_html(link: &ShareLink, meta: &common::metadata::FileMetadata) -> Response {
     let filename = link.path.rsplit('/').next().unwrap_or("preview");
     let escaped_filename = html_escape(filename);
     let content_type = &meta.mime_type;
@@ -578,7 +575,7 @@ fn html_escape(s: &str) -> String {
         .replace('\'', "&#39;")
 }
 
-pub(crate) fn get_share_type(state: &SharingState, token: &str) -> ShareType {
+pub fn get_share_type(state: &SharingState, token: &str) -> ShareType {
     if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         if let Ok(st) = conn.query_row(
@@ -595,7 +592,7 @@ pub(crate) fn get_share_type(state: &SharingState, token: &str) -> ShareType {
     ShareType::Download
 }
 
-pub(crate) fn get_allow_download(state: &SharingState, token: &str) -> bool {
+pub fn get_allow_download(state: &SharingState, token: &str) -> bool {
     if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         if let Ok(allowed) = conn.query_row(
@@ -609,7 +606,7 @@ pub(crate) fn get_allow_download(state: &SharingState, token: &str) -> bool {
     true
 }
 
-pub(crate) fn sanitize_filename(name: &str) -> String {
+pub fn sanitize_filename(name: &str) -> String {
     name.chars()
         .map(|c| {
             if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' {
@@ -621,7 +618,7 @@ pub(crate) fn sanitize_filename(name: &str) -> String {
         .collect()
 }
 
-pub(crate) fn sniff_mime_type(name: &str) -> String {
+pub fn sniff_mime_type(name: &str) -> String {
     let ext = name.rsplit('.').next().unwrap_or("");
     match ext.to_lowercase().as_str() {
         "pdf" => "application/pdf".to_string(),

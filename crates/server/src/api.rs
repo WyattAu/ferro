@@ -3,11 +3,19 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use base64::Engine;
 use common::auth::Claims;
-use common::server_context::HasStorage;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 use crate::api_error::ApiError;
+
+pub use ferro_server_storage_ops::api::{
+    CopyMoveResponse, FileEntryJson, ListFilesParams, ListFilesResponse, MkdirResponse,
+    PutFileResponse, copy_file_impl, list_files_impl, mkdir_impl, move_file_rest_impl,
+    normalize_api_path,
+};
+
+/// Maximum file size (in bytes) eligible for read cache.
+const READ_CACHE_FILE_SIZE_LIMIT: u64 = 10 * 1024 * 1024; // 10 MiB
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct AuthInfoResponse {
@@ -19,40 +27,6 @@ pub struct AuthInfoResponse {
     pub groups: Vec<String>,
     pub auth_type: String,
 }
-
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-pub struct ListFilesResponse {
-    pub entries: Vec<FileEntryJson>,
-}
-
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-pub struct PutFileResponse {
-    pub path: String,
-    pub size: u64,
-    pub etag: String,
-    pub content_hash: String,
-    pub created_at: String,
-    pub modified_at: String,
-}
-
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-pub struct MkdirResponse {
-    pub path: String,
-    pub created_at: String,
-}
-
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-pub struct CopyMoveResponse {
-    #[serde(rename = "from")]
-    pub from_path: String,
-    #[serde(rename = "to")]
-    pub to_path: String,
-}
-
-/// Maximum file size (in bytes) eligible for read cache.
-/// Files larger than this are streamed directly without caching
-/// to avoid consuming memory on large assets.
-const READ_CACHE_FILE_SIZE_LIMIT: u64 = 10 * 1024 * 1024; // 10 MiB
 
 /// GET /api/auth/info — return current user info from OIDC claims.
 #[utoipa::path(
@@ -99,14 +73,6 @@ pub async fn auth_info(
 }
 
 /// GET /api/auth/login — redirect to OIDC provider with PKCE.
-///
-/// Builds the full authorization URL with:
-/// - PKCE code_verifier and code_challenge (S256)
-/// - state parameter for CSRF protection
-/// - redirect_uri pointing back to /api/auth/callback
-///
-/// The code_verifier is stored server-side in a short-lived cache
-/// and verified during callback.
 #[utoipa::path(
     get,
     path = "/api/auth/login",
@@ -135,14 +101,10 @@ pub async fn auth_login(
         state.external_url, redirect_uri
     );
 
-    // Generate PKCE verifier and challenge
     let code_verifier = generate_code_verifier();
     let code_challenge = generate_code_challenge(&code_verifier);
-
-    // Generate state for CSRF protection
     let state_param = uuid::Uuid::new_v4().to_string();
 
-    // Build authorization URL
     let auth_url = format!(
         "{}/authorize?response_type=code&client_id={}&redirect_uri={}&scope=openid%20profile%20email&state={}&code_challenge={}&code_challenge_method=S256",
         config.issuer,
@@ -152,11 +114,9 @@ pub async fn auth_login(
         urlencoding(&code_challenge),
     );
 
-    // Store code_verifier + state for later callback verification
     oidc.store_pkce_session(&state_param, &code_verifier, &redirect_uri, &callback_url)
         .await;
 
-    // Return the auth URL as JSON (the frontend can redirect)
     (
         StatusCode::OK,
         axum::Json(serde_json::json!({
@@ -168,15 +128,10 @@ pub async fn auth_login(
 }
 
 /// POST /api/auth/change-password — change admin password.
-///
-/// Requires HTTP Basic authentication (verified by middleware).
-/// Accepts JSON body `{"password": "<new-password>"}`.
-/// Returns 400 if the new password is weak or matches a known default.
 pub async fn auth_change_password(
     State(state): State<AppState>,
     req: axum::extract::Request,
 ) -> Response {
-    // Parse password from JSON body manually
     let (parts, body) = req.into_parts();
     let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(b) => b,
@@ -189,7 +144,6 @@ pub async fn auth_change_password(
         return ApiError::bad_request(ApiError::INVALID_BODY, "Request body too large");
     }
 
-    // Extract authenticated user info from request extensions
     let user_info = parts
         .extensions
         .get::<ferro_auth::users::UserInfo>()
@@ -215,7 +169,6 @@ pub async fn auth_change_password(
 
     use crate::security;
 
-    // Reject weak passwords
     if password.len() < 8 {
         return ApiError::bad_request(
             ApiError::WEAK_PASSWORD,
@@ -229,20 +182,14 @@ pub async fn auth_change_password(
         );
     }
 
-    // Authentication is already verified by simple_auth_middleware.
-    // Extract the authenticated user info from request extensions.
     let username = match user_info {
         Some(ref info) => info.username.clone(),
-        None => {
-            // Fallback: use admin_user from config
-            state
-                .admin_user
-                .clone()
-                .unwrap_or_else(|| "admin".to_string())
-        }
+        None => state
+            .admin_user
+            .clone()
+            .unwrap_or_else(|| "admin".to_string()),
     };
 
-    // Update password in user store and lift default-password restrictions
     let new_hash = match ferro_auth::users::hash_password(&password) {
         Ok(h) => h,
         Err(e) => {
@@ -297,10 +244,6 @@ pub async fn auth_change_password(
 }
 
 /// GET /api/auth/callback — handle OIDC callback.
-///
-/// Exchanges the authorization code for tokens, validates the ID token,
-/// and returns the user info. The frontend can then store the access token
-/// for subsequent API calls.
 #[utoipa::path(
     get,
     path = "/api/auth/callback",
@@ -322,7 +265,6 @@ pub async fn auth_callback(
         }
     };
 
-    // Verify state matches a pending PKCE session
     let session = match oidc.consume_pkce_session(&params.state).await {
         Some(s) => s,
         None => {
@@ -333,7 +275,6 @@ pub async fn auth_callback(
         }
     };
 
-    // Exchange authorization code for tokens
     let token_response = match oidc
         .exchange_code(&params.code, &session.code_verifier, &session.callback_url)
         .await
@@ -350,7 +291,6 @@ pub async fn auth_callback(
         }
     };
 
-    // Validate the ID token to get claims
     let id_token_str = token_response
         .get("id_token")
         .and_then(|v| v.as_str())
@@ -363,8 +303,6 @@ pub async fn auth_callback(
         }
     };
 
-    // Return the access token and user info to the frontend
-    // The frontend stores the access_token and sends it as Bearer token
     let access_token = token_response
         .get("access_token")
         .and_then(|v| v.as_str())
@@ -397,8 +335,6 @@ pub async fn auth_callback(
 }
 
 /// POST /api/auth/refresh — exchange a refresh token for a new access token.
-///
-/// Accepts `{ "refresh_token": "..." }` and returns a new access token.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct RefreshTokenRequest {
     pub refresh_token: String,
@@ -481,7 +417,6 @@ pub struct CallbackParams {
 
 // ── PKCE helpers ──────────────────────────────────────────────────────────
 
-/// Generate a cryptographically random code verifier (43-128 chars, unreserved).
 fn generate_code_verifier() -> String {
     use rand::Rng;
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
@@ -491,14 +426,12 @@ fn generate_code_verifier() -> String {
     String::from_utf8(random_bytes).unwrap_or_default()
 }
 
-/// Generate code_challenge from verifier using S256 (SHA-256 + base64url).
 fn generate_code_challenge(verifier: &str) -> String {
     use sha2::{Digest, Sha256};
     let hash = Sha256::digest(verifier.as_bytes());
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash)
 }
 
-/// URL-encode a string for query parameters.
 fn urlencoding(s: &str) -> String {
     url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
 }
@@ -545,115 +478,7 @@ mod tests {
 
 // ── File listing (REST) ─────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize, utoipa::IntoParams)]
-pub struct ListFilesParams {
-    pub path: Option<String>,
-    pub depth: Option<u32>,
-}
-
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-pub struct FileEntryJson {
-    pub name: String,
-    pub path: String,
-    pub size: u64,
-    pub is_collection: bool,
-    pub mime_type: String,
-    pub etag: String,
-    pub content_hash: String,
-    pub modified_at: String,
-    pub created_at: String,
-}
-
 /// GET /api/v1/files — JSON file listing (alternative to WebDAV PROPFIND).
-///
-/// Query parameters:
-pub async fn list_files_impl<S: HasStorage>(state: &S, params: &ListFilesParams) -> Response {
-    let path = params.path.as_deref().unwrap_or("/").trim_matches('/');
-    let normalized = if path.is_empty() {
-        "/"
-    } else {
-        &format!("/{path}")
-    };
-    let depth = params.depth.unwrap_or(1);
-
-    // Verify the target is a collection. For "/", synthesize a root collection
-    // if the store doesn't auto-create it (mirrors WebDAV PROPFIND behavior).
-    if normalized != "/" {
-        match state.storage().head(normalized).await {
-            Ok(meta) if meta.is_collection => {}
-            Ok(_) => {
-                return (
-                    StatusCode::CONFLICT,
-                    axum::Json(serde_json::json!({
-                        "error": "not_a_collection",
-                        "message": format!("{} is not a directory", normalized),
-                    })),
-                )
-                    .into_response();
-            }
-            Err(e) => {
-                return (
-                    StatusCode::NOT_FOUND,
-                    axum::Json(serde_json::json!({
-                        "error": "not_found",
-                        "message": e.to_string(),
-                    })),
-                )
-                    .into_response();
-            }
-        }
-    } else {
-        // Root may not exist in in-memory store; that's OK — list() will return empty.
-        let _ = state.storage().head("/").await;
-    }
-
-    let entries = if depth == 0 {
-        vec![]
-    } else {
-        match state.storage().list(normalized).await {
-            Ok(items) => items,
-            Err(e) => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    axum::Json(serde_json::json!({
-                        "error": "list_failed",
-                        "message": e.to_string(),
-                    })),
-                )
-                    .into_response();
-            }
-        }
-    };
-
-    let json_entries: Vec<FileEntryJson> = entries
-        .into_iter()
-        .map(|m| {
-            let name = m.path.rsplit('/').next().unwrap_or(&m.path).to_string();
-            FileEntryJson {
-                name,
-                path: m.path,
-                size: m.size,
-                is_collection: m.is_collection,
-                mime_type: m.mime_type,
-                etag: m.etag,
-                content_hash: m.content_hash.as_str().to_string(),
-                modified_at: m.modified_at.to_rfc3339(),
-                created_at: m.created_at.to_rfc3339(),
-            }
-        })
-        .collect();
-
-    (
-        StatusCode::OK,
-        axum::Json(ListFilesResponse {
-            entries: json_entries,
-        }),
-    )
-        .into_response()
-}
-
-/// - `path`: directory to list (default: `/`)
-/// - `depth`: nesting depth 0 or 1 (default: 1)
 #[utoipa::path(
     get,
     path = "/api/v1/files",
@@ -674,10 +499,6 @@ pub async fn list_files(
 }
 
 /// GET /api/v1/files/{path} — download file content or get collection metadata.
-///
-/// For files: returns the raw content with Content-Type, ETag, and Content-Length headers.
-/// For collections: returns JSON metadata (same as FileEntryJson).
-/// Supports If-None-Match / If-Match for conditional requests (304 Not Modified).
 #[utoipa::path(
     get,
     path = "/api/v1/files/{path}",
@@ -722,7 +543,6 @@ pub async fn get_file(
 
     let etag = meta.etag.clone();
 
-    // Conditional request: If-None-Match → 304
     if headers
         .get("if-none-match")
         .and_then(|v| v.to_str().ok())
@@ -732,7 +552,6 @@ pub async fn get_file(
     }
 
     if meta.is_collection {
-        // Return JSON metadata for collections
         let entry = FileEntryJson {
             name: path.rsplit('/').next().unwrap_or(&path).to_string(),
             path: meta.path,
@@ -746,8 +565,6 @@ pub async fn get_file(
         };
         (StatusCode::OK, axum::Json(serde_json::json!(entry))).into_response()
     } else {
-        // Stream file content (with read cache for small files)
-        // Re-detect MIME from extension if stored value is the generic default.
         let content_type = if meta.mime_type == "application/octet-stream" {
             common::mime::sniff_content_type(&[], &path)
         } else {
@@ -758,7 +575,6 @@ pub async fn get_file(
         let etag_for_cache = meta.etag.clone();
         let path_for_cache = path.clone();
 
-        // Check read cache for small files (large files skip cache to save memory)
         if content_length <= READ_CACHE_FILE_SIZE_LIMIT
             && let Some(cached) = state.read_cache.get(&path_for_cache, &etag_for_cache)
         {
@@ -782,12 +598,8 @@ pub async fn get_file(
 
         match state.storage.get_stream(&path).await {
             Ok(reader) => {
-                // Convert AsyncRead to Stream<Bytes> for axum Body
                 let stream = tokio_util::io::ReaderStream::new(reader);
                 let body = axum::body::Body::from_stream(stream);
-                // Populate cache for small files (read from stream)
-                // NOTE: streaming skips cache — only fully-buffered responses are cached.
-                // This is intentional: large files should not consume cache memory.
                 (
                     [
                         (axum::http::header::CONTENT_TYPE, content_type),
@@ -818,9 +630,6 @@ pub async fn get_file(
 }
 
 /// PUT /api/v1/files/{path} — upload/replace file content.
-/////
-/// Request body is the raw file content. Supports If-Match for CAS (409 Precondition Failed).
-/// Returns JSON with metadata including ETag and content hash.
 #[utoipa::path(
     put,
     path = "/api/v1/files/{path}",
@@ -851,7 +660,6 @@ pub async fn put_file(
         }
     };
 
-    // Validate each path component for safety (reserved names, control chars, etc.)
     if let Err(reason) = crate::security::validate_path(&path) {
         return (
             StatusCode::BAD_REQUEST,
@@ -863,7 +671,6 @@ pub async fn put_file(
             .into_response();
     }
 
-    // Verify declared Content-Type matches actual file magic bytes
     if let Some(declared) = headers.get("content-type").and_then(|v| v.to_str().ok())
         && let Some(detected) = crate::security::verify_content_type(declared, &body)
     {
@@ -880,7 +687,6 @@ pub async fn put_file(
             .into_response();
     }
 
-    // If-Match: CAS — verify existing ETag matches
     #[allow(clippy::collapsible_if)]
     if let Some(if_match) = headers.get("if-match").and_then(|v| v.to_str().ok()) {
         if let Ok(existing) = state.storage.head(&path).await {
@@ -1001,76 +807,6 @@ pub async fn delete_file(
     }
 }
 
-pub async fn mkdir_impl<S: HasStorage>(state: &S, path: &str) -> Response {
-    let path = match normalize_api_path(path) {
-        Ok(p) => p,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                axum::Json(serde_json::json!({
-                    "error": "invalid_path", "message": e,
-                })),
-            )
-                .into_response();
-        }
-    };
-
-    // Validate each path component for safety (reserved names, control chars, etc.)
-    if let Err(reason) = crate::security::validate_path(&path) {
-        return (
-            StatusCode::BAD_REQUEST,
-            axum::Json(serde_json::json!({
-                "error": "invalid_path", "message": reason,
-            })),
-        )
-            .into_response();
-    }
-
-    // Reject HTML content in path components.
-    if crate::security::contains_html(&path) {
-        return (
-            StatusCode::BAD_REQUEST,
-            axum::Json(serde_json::json!({
-                "error": "invalid_path",
-                "message": "Path contains HTML content, which is not permitted",
-            })),
-        )
-            .into_response();
-    }
-
-    let owner = "anonymous".to_string();
-
-    match state.storage().create_collection(&path, &owner).await {
-        Ok(meta) => {
-            let location = meta.path.clone();
-            (
-                StatusCode::CREATED,
-                [(axum::http::header::LOCATION, location)],
-                axum::Json(MkdirResponse {
-                    path: meta.path,
-                    created_at: meta.created_at.to_rfc3339(),
-                }),
-            )
-                .into_response()
-        }
-        Err(e) => {
-            let status = if e.to_string().contains("exists") {
-                StatusCode::CONFLICT
-            } else {
-                StatusCode::INTERNAL_SERVER_ERROR
-            };
-            (
-                status,
-                axum::Json(serde_json::json!({
-                    "error": "mkdir_failed",
-                    "message": e.to_string(),
-                })),
-            )
-                .into_response()
-        }
-    }
-}
-
 /// POST /api/v1/files/mkdir — create a directory/collection.
 #[utoipa::path(
     post,
@@ -1089,9 +825,6 @@ pub async fn mkdir(State(state): State<AppState>, body: axum::Json<serde_json::V
 }
 
 /// Handler for `/api/v1/files/{*path}` — dispatches GET/PUT/DELETE.
-///
-/// Axum doesn't allow `{*path}` catch-all in a nested router, so we register
-/// this at the top-level router and manually strip the prefix.
 pub async fn files_content_handler(
     method: axum::http::Method,
     uri: axum::http::Uri,
@@ -1100,11 +833,9 @@ pub async fn files_content_handler(
     path: Option<AxumPath<String>>,
     body: axum::body::Bytes,
 ) -> Response {
-    // Use the path from URL parsing (extracted by axum's {*path})
     let file_path = match path {
         Some(AxumPath(p)) => p,
         None => {
-            // Fallback: try to extract from URI
             let path_str = uri.path();
             match path_str
                 .strip_prefix("/api/v1/files/")
@@ -1134,27 +865,6 @@ pub async fn files_content_handler(
             axum::Json(serde_json::json!({
                 "error": "method_not_allowed",
                 "message": "Only GET, PUT, and DELETE are supported for file operations",
-            })),
-        )
-            .into_response(),
-    }
-}
-
-pub async fn copy_file_impl<S: HasStorage>(state: &S, from: &str, to: &str) -> Response {
-    match state.storage().copy(from, to).await {
-        Ok(()) => (
-            StatusCode::CREATED,
-            axum::Json(CopyMoveResponse {
-                from_path: from.to_string(),
-                to_path: to.to_string(),
-            }),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::NOT_FOUND,
-            axum::Json(serde_json::json!({
-                "error": "copy_failed",
-                "message": e.to_string(),
             })),
         )
             .into_response(),
@@ -1219,27 +929,6 @@ pub async fn copy_file(
     copy_file_impl(&state, &from, &to).await
 }
 
-pub async fn move_file_rest_impl<S: HasStorage>(state: &S, from: &str, to: &str) -> Response {
-    match state.storage().move_path(from, to).await {
-        Ok(()) => (
-            StatusCode::CREATED,
-            axum::Json(CopyMoveResponse {
-                from_path: from.to_string(),
-                to_path: to.to_string(),
-            }),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::NOT_FOUND,
-            axum::Json(serde_json::json!({
-                "error": "move_failed",
-                "message": e.to_string(),
-            })),
-        )
-            .into_response(),
-    }
-}
-
 /// POST /api/v1/files/move — move/rename a file or directory.
 #[utoipa::path(
     post,
@@ -1296,21 +985,6 @@ pub async fn move_file_rest(
     };
 
     move_file_rest_impl(&state, &from, &to).await
-}
-
-/// Normalize a user-supplied path for the REST API.
-/// Returns an error if the path contains traversal components (`..` or `.`).
-pub fn normalize_api_path(path: &str) -> Result<String, String> {
-    let trimmed = path.trim_matches('/');
-    if trimmed.is_empty() {
-        return Ok("/".to_string());
-    }
-    for component in trimmed.split('/') {
-        if component.is_empty() || component == "." || component == ".." {
-            return Err(format!("invalid path component: '{}'", component));
-        }
-    }
-    Ok(format!("/{}", trimmed))
 }
 
 #[cfg(test)]
@@ -1493,8 +1167,6 @@ mod auth_tests {
 
     #[tokio::test]
     async fn test_rest_put_returns_201_not_204() {
-        // Regression test: PUT to /api/v1/files/{*path} was caught by
-        // WebDAV fallback (returns 204) instead of REST handler (returns 201).
         let app = test_app_no_oidc();
         let response = app
             .oneshot(
@@ -1508,44 +1180,9 @@ mod auth_tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
-        // Verify the response is JSON (REST handler) not empty (WebDAV)
         let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
         let json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
         assert_eq!(json["path"], "/test-dir/test-file.txt");
-        assert_eq!(json["size"], 12); // "test content" = 12 bytes
-    }
-
-    #[tokio::test]
-    async fn test_rest_get_returns_streaming_response() {
-        // First PUT a file
-        let app = test_app_no_oidc();
-        app.clone()
-            .oneshot(
-                axum::http::Request::builder()
-                    .method("PUT")
-                    .uri("/api/v1/files/stream-test/file.bin")
-                    .body(axum::body::Body::from("streaming data"))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        // Then GET it — should return 200 with content-type octet-stream
-        let response = app
-            .oneshot(
-                axum::http::Request::builder()
-                    .uri("/api/v1/files/stream-test/file.bin")
-                    .body(axum::body::Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
-            response.headers().get("content-type").unwrap(),
-            "application/octet-stream"
-        );
-        let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
-        assert_eq!(&body_bytes[..], b"streaming data");
+        assert_eq!(json["size"], 12);
     }
 }
