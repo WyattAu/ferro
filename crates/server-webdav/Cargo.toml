@@ -30,5 +30,5 @@ url = "2"
 mime_guess = "2"
 futures = "0.3"
 rusqlite = { version = "0.32", features = ["bundled", "trace"] }
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { version = "0.41", features = ["serialize"] }
 anyhow = "1"

@@ -133,7 +133,9 @@ impl LockRequest {
                     }
                 }
                 Ok(Event::Text(ref e)) => {
-                    let text = e.unescape().unwrap_or_default();
+                    let text =
+                        quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or(""))
+                            .unwrap_or_default();
                     let local = current_element
                         .strip_prefix("D:")
                         .unwrap_or(&current_element);
@@ -288,7 +290,9 @@ pub fn parse_proppatch(body: &[u8]) -> Vec<PropPatchOp> {
             }
             Ok(Event::Text(ref e)) => {
                 if in_prop && in_set {
-                    let text = e.unescape().unwrap_or_default();
+                    let text =
+                        quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or(""))
+                            .unwrap_or_default();
                     let local = current_element
                         .strip_prefix("D:")
                         .unwrap_or(&current_element);

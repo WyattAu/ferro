@@ -11,4 +11,4 @@ publish = false
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
 bytes = "1"
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { version = "0.41", features = ["serialize"] }

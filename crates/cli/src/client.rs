@@ -591,7 +591,10 @@ fn parse_propfind_response(xml: &str) -> Result<Vec<FileMetadata>> {
             }
             Ok(Event::Text(ref e)) => {
                 if capture_text {
-                    text_buf.push_str(&e.unescape().unwrap_or_default());
+                    text_buf.push_str(
+                        &quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or(""))
+                            .unwrap_or_default(),
+                    );
                 }
             }
             Ok(
@@ -599,7 +602,8 @@ fn parse_propfind_response(xml: &str) -> Result<Vec<FileMetadata>> {
                 | Event::PI(_)
                 | Event::DocType(_)
                 | Event::Comment(_)
-                | Event::CData(_),
+                | Event::CData(_)
+                | Event::GeneralRef(_),
             ) => {}
             Ok(Event::Eof) => break,
             Err(e) => anyhow::bail!("XML parse error: {}", e),

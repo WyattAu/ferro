@@ -29,7 +29,7 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 bytes = "1"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { version = "0.41", features = ["serialize"] }
 http-body-util = "0.1"
 tokio-util = { version = "0.7", features = ["io", "rt"] }
 dashmap = "6"
