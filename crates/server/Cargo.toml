@@ -20,7 +20,7 @@ webauthn = []
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
 
 [dependencies]
-common = { package = "ferro-common", path = "../common" }
+common = { package = "ferro-common", path = "../common", features = ["db"] }
 ferro-webdav-handler = { path = "../webdav-handler" }
 ferro-server-webrtc = { path = "../server-webrtc" }
 ferro-auth = { path = "../auth" }

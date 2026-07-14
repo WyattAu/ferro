@@ -15,7 +15,7 @@ gcs = []
 azure = []
 
 [dependencies]
-common = { package = "ferro-common", path = "../common" }
+common = { package = "ferro-common", path = "../common", features = ["db"] }
 ferro-server-security = { path = "../server-security" }
 ferro-core = { path = "../core" }
 ferro-auth = { path = "../auth" }

@@ -9,7 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
-common = { package = "ferro-common", path = "../common" }
+common = { package = "ferro-common", path = "../common", features = ["db"] }
 ferro-core = { path = "../core", features = ["sqlite"] }
 ferro-auth = { path = "../auth" }
 ferro-server-activitypub = { path = "../server-activitypub" }

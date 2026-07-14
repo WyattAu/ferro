@@ -5,8 +5,7 @@ pub mod tags;
 
 use std::sync::Arc;
 
-/// Type alias for SQLite database handle.
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 /// API error type for collaboration handlers.
 ///

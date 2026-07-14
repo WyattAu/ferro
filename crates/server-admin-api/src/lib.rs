@@ -7,8 +7,7 @@ pub mod gdpr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-/// Type alias for SQLite database handle.
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 /// Audit log entry (mirrored from ferro-server for trait purposes).
 #[derive(Debug, Clone, serde::Serialize)]

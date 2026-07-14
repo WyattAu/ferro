@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use ferro_auth::users::{UserInfo, UserStoreTrait};
 
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 // Re-export types needed by handlers
 pub use ferro_auth::users::{

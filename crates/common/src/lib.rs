@@ -33,3 +33,10 @@ mod metadata_proptest;
 
 #[cfg(test)]
 mod format_proptest;
+
+/// Canonical database handle type alias.
+///
+/// `Arc<Mutex<Connection>>` is used by all crates that need synchronous SQLite access
+/// within an async context. Previously defined 19 times across the workspace; now unified here.
+#[cfg(feature = "db")]
+pub type DbHandle = std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>;

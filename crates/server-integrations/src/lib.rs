@@ -10,7 +10,7 @@ use std::sync::Arc;
 use common::storage::StorageEngine;
 
 /// DbHandle: shared SQLite connection handle.
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 // ---------------------------------------------------------------------------
 // ApiError (local copy matching ferro-server's api_error module)

@@ -1,13 +1,7 @@
 use rusqlite::Connection;
 use tracing::info;
 
-/// # Safety
-/// The wrapped `rusqlite::Connection` is only accessed via short-lived lock guards
-/// that never cross an `.await` point. SQLite operations are synchronous
-/// and complete in microseconds, well below the threshold for async poisoning.
-pub type DbHandle = Arc<std::sync::Mutex<Connection>>;
-
-use std::sync::Arc;
+pub use common::DbHandle;
 
 #[cfg(test)]
 const SCHEMA_VERSION: i64 = 14;

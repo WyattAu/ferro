@@ -157,10 +157,7 @@ pub mod audit {
 }
 
 pub mod db {
-    use rusqlite::Connection;
-    use std::sync::Arc;
-
-    pub type DbHandle = Arc<std::sync::Mutex<Connection>>;
+    pub use common::DbHandle;
 }
 
 pub mod security {

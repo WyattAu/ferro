@@ -7,7 +7,7 @@ pub mod ws;
 
 use std::sync::Arc;
 
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 // ---------------------------------------------------------------------------
 // ApiError (local copy matching ferro-server's api_error module)
