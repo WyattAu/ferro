@@ -18,7 +18,6 @@ ferro-server-security = { path = "../server-security" }
 ferro-server-security-middleware = { path = "../server-security-middleware" }
 ferro-server-storage-ops = { path = "../server-storage-ops" }
 ferro-server-versioning = { path = "../server-versioning" }
-ferro-server-webdav = { path = "../server-webdav" }
 ferro-webdav-handler = { path = "../webdav-handler" }
 axum = { workspace = true }
 async-trait = "0.1"

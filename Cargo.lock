@@ -4005,33 +4005,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferro-server-webdav"
-version = "3.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "bytes",
- "chrono",
- "dashmap",
- "ferro-common",
- "ferro-core",
- "ferro-offline",
- "ferro-server-storage-ops",
- "ferro-server-versioning",
- "ferro-webdav-handler",
- "http-body-util",
- "mime_guess",
- "rusqlite",
- "serde",
- "serde_json",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "ferro-server-webdav-core"
 version = "3.0.0"
 dependencies = [
@@ -4049,7 +4022,6 @@ dependencies = [
  "ferro-server-security-middleware",
  "ferro-server-storage-ops",
  "ferro-server-versioning",
- "ferro-server-webdav",
  "ferro-webdav-handler",
  "futures",
  "http-body-util",

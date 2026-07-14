@@ -17,9 +17,33 @@ use axum::extract::{Path as AxumPath, State};
 use axum::http::{HeaderMap, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use common::error::{FerroError, Result};
+use common::path::normalize_path;
 use ferro_webdav_handler::escape_xml;
 use http_body_util::BodyExt;
 use tracing::{debug, instrument, warn};
+
+pub fn sanitize_path(path: &str) -> Result<String> {
+    if path.contains('\0') {
+        return Err(FerroError::InvalidArgument("Path contains null bytes".to_string()));
+    }
+
+    for component in std::path::Path::new(path).components() {
+        match component {
+            std::path::Component::ParentDir => {
+                return Err(FerroError::InvalidArgument(
+                    "Path traversal detected: '..' not allowed".to_string(),
+                ));
+            }
+            std::path::Component::CurDir => {
+                return Err(FerroError::InvalidArgument("Path contains '.' component".to_string()));
+            }
+            _ => {}
+        }
+    }
+
+    let normalized = normalize_path(path);
+    Ok(normalized.to_string())
+}
 
 /// Maximum recursion depth for PROPFIND depth:infinity to prevent DoS.
 pub(crate) const MAX_PROPFIND_DEPTH: u32 = 100;
@@ -39,7 +63,7 @@ pub async fn handle_any<S: WebDavCoreState>(
         None => uri.path().to_string(),
     };
 
-    let path_str = match ferro_server_webdav::sanitize_path(&raw_path) {
+    let path_str = match sanitize_path(&raw_path) {
         Ok(p) => p,
         Err(e) => {
             warn!("Path sanitization failed for '{}': {}", raw_path, e);

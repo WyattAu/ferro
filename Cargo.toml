@@ -38,7 +38,6 @@ members = [
     "crates/consistent-hash",
     "crates/server-automation",
     "crates/server-security",
-    "crates/server-webdav",
     "crates/server-sharing",
     "crates/migrate",
     "crates/selective-sync",

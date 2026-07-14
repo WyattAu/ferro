@@ -366,18 +366,18 @@ mod tests {
         )
     }
 
-    async fn setup_store() -> SqliteMetadataStore {
+    async fn setup_store() -> (TempDir, SqliteMetadataStore) {
         let dir = TempDir::new().unwrap();
         let db_path = dir.path().join("test.db");
         let path_str = db_path.to_string_lossy().to_string();
-        std::mem::forget(dir);
         std::fs::File::create(&path_str).unwrap();
-        SqliteMetadataStore::new(&format!("sqlite:{}", path_str)).await.unwrap()
+        let store = SqliteMetadataStore::new(&format!("sqlite:{}", path_str)).await.unwrap();
+        (dir, store)
     }
 
     #[tokio::test]
     async fn test_sqlite_put_and_get() {
-        let store = setup_store().await;
+        let (_dir, store) = setup_store().await;
         let meta = test_metadata();
 
         store.put(meta.clone()).await.unwrap();
@@ -392,7 +392,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sqlite_put_upsert() {
-        let store = setup_store().await;
+        let (_dir, store) = setup_store().await;
 
         let meta1 = FileMetadata::new(
             "/test/file.txt".to_string(),
@@ -418,7 +418,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sqlite_delete() {
-        let store = setup_store().await;
+        let (_dir, store) = setup_store().await;
         let meta = test_metadata();
 
         store.put(meta).await.unwrap();
@@ -433,7 +433,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sqlite_exists() {
-        let store = setup_store().await;
+        let (_dir, store) = setup_store().await;
         assert!(!store.exists("/test/nope.txt").await.unwrap());
 
         let meta = test_metadata();
@@ -443,7 +443,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sqlite_list() {
-        let store = setup_store().await;
+        let (_dir, store) = setup_store().await;
 
         store
             .put(FileMetadata::new(
@@ -488,7 +488,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sqlite_collection() {
-        let store = setup_store().await;
+        let (_dir, store) = setup_store().await;
 
         let mut meta = FileMetadata::new(
             "/test/folder".to_string(),
@@ -508,7 +508,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sqlite_get_nonexistent() {
-        let store = setup_store().await;
+        let (_dir, store) = setup_store().await;
         let result = store.get("/nonexistent").await;
         assert!(result.is_err());
     }
