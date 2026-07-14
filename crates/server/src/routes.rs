@@ -215,7 +215,10 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             "/shares",
             axum::routing::get(shares::list_shares).post(shares::create_share),
         )
-        .route("/shares/:token", axum::routing::delete(shares::delete_share))
+        .route(
+            "/shares/:token",
+            axum::routing::get(shares::get_share).delete(shares::delete_share),
+        )
         .route("/audit", axum::routing::get(audit_handler))
         .route("/storage/stats", axum::routing::get(storage_stats))
         .route(

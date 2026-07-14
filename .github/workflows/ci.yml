@@ -122,6 +122,18 @@ jobs:
             features: "s3,gcs,azure"
           - name: "all"
             features: "s3,gcs,azure,pg,redis,ldap"
+          - name: "pg+redis+ldap"
+            features: "pg,redis,ldap"
+          - name: "s3+pg+redis"
+            features: "s3,pg,redis"
+          - name: "gcs+ldap"
+            features: "gcs,ldap"
+          - name: "azure+pg"
+            features: "azure,pg"
+          - name: "s3+gcs+pg"
+            features: "s3,gcs,pg"
+          - name: "redis+s3+ldap"
+            features: "redis,s3,ldap"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1

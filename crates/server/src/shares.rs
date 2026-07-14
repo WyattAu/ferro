@@ -6,11 +6,73 @@ use std::collections::HashMap;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use ferro_server_state::ServerState;
 
 pub use ferro_server_sharing::shares::{
     CreateShareRequest, SHARE_LOCKOUT_SECS, ShareLink, ShareStore, ShareStoreTrait, hash_share_password,
     verify_share_password,
 };
+
+// ---------------------------------------------------------------------------
+// Generic _impl functions — testable without Axum
+// ---------------------------------------------------------------------------
+
+/// Core logic for listing all active share links.
+async fn list_shares_impl<S: ServerState>(state: &S) -> Response {
+    let links: Vec<ShareLink> = state.share_store().list().await;
+    let items: Vec<serde_json::Value> = links
+        .iter()
+        .map(|l| {
+            serde_json::json!({
+                "token": l.token,
+                "url": format!("/s/{}", l.token),
+                "path": l.path,
+                "expires_at": l.expires_at.to_rfc3339(),
+                "max_downloads": l.max_downloads,
+                "download_count": l.download_count,
+                "created_by": l.created_by,
+                "allow_download": l.allow_download,
+                "allow_upload": l.allow_upload,
+            })
+        })
+        .collect();
+    (StatusCode::OK, axum::Json(serde_json::json!({ "shares": items }))).into_response()
+}
+
+/// Core logic for deleting a share link by token.
+async fn delete_share_impl<S: ServerState>(state: &S, token: &str) -> Response {
+    if state.share_store().delete(token).await {
+        (StatusCode::NO_CONTENT, "").into_response()
+    } else {
+        ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found")
+    }
+}
+
+/// Core logic for getting a single share link by token.
+async fn get_share_impl<S: ServerState>(state: &S, token: &str) -> Response {
+    match state.share_store().get(token).await {
+        Some(link) => (
+            StatusCode::OK,
+            axum::Json(serde_json::json!({
+                "token": link.token,
+                "url": format!("/s/{}", link.token),
+                "path": link.path,
+                "expires_at": link.expires_at.to_rfc3339(),
+                "max_downloads": link.max_downloads,
+                "download_count": link.download_count,
+                "created_by": link.created_by,
+                "allow_download": link.allow_download,
+                "allow_upload": link.allow_upload,
+            })),
+        )
+            .into_response(),
+        None => ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Axum handlers (thin wrappers)
+// ---------------------------------------------------------------------------
 
 /// Create a new share link.
 pub async fn create_share(State(state): State<AppState>, axum::Json(req): axum::Json<CreateShareRequest>) -> Response {
@@ -57,33 +119,17 @@ pub async fn create_share(State(state): State<AppState>, axum::Json(req): axum::
 
 /// List all active share links.
 pub async fn list_shares(State(state): State<AppState>) -> Response {
-    let links: Vec<ShareLink> = state.share_store.list().await;
-    let items: Vec<serde_json::Value> = links
-        .iter()
-        .map(|l| {
-            serde_json::json!({
-                "token": l.token,
-                "url": format!("/s/{}", l.token),
-                "path": l.path,
-                "expires_at": l.expires_at.to_rfc3339(),
-                "max_downloads": l.max_downloads,
-                "download_count": l.download_count,
-                "created_by": l.created_by,
-                "allow_download": l.allow_download,
-                "allow_upload": l.allow_upload,
-            })
-        })
-        .collect();
-    (StatusCode::OK, axum::Json(serde_json::json!({ "shares": items }))).into_response()
+    list_shares_impl(&state).await
 }
 
 /// Delete a share link by token.
 pub async fn delete_share(State(state): State<AppState>, Path(token): Path<String>) -> Response {
-    if state.share_store.delete(&token).await {
-        (StatusCode::NO_CONTENT, "").into_response()
-    } else {
-        ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found")
-    }
+    delete_share_impl(&state, &token).await
+}
+
+/// Get a single share link by token.
+pub async fn get_share(State(state): State<AppState>, Path(token): Path<String>) -> Response {
+    get_share_impl(&state, &token).await
 }
 
 /// Serve a shared file by token, enforcing expiration and password.
