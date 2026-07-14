@@ -1,7 +1,7 @@
 use crate::AppState;
-use ferro_server_config::ServerConfig as Cli;
 use crate::users::UserStoreTrait;
 use ferro_offline::change_queue::ChangeQueueStore;
+use ferro_server_config::ServerConfig as Cli;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 

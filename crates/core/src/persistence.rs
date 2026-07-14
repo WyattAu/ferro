@@ -539,9 +539,7 @@ impl ferro_common::audit::AuditLogPersistence for SqlitePersistence {
             content_length: entry.content_length,
             chain_hash: entry.chain_hash,
         };
-        AuditLogStore::log(self, persisted)
-            .await
-            .map_err(|e| e.to_string())?;
+        AuditLogStore::log(self, persisted).await.map_err(|e| e.to_string())?;
         Ok(())
     }
 
