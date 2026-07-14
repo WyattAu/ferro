@@ -49,6 +49,18 @@ proptest! {
     }
 
     #[test]
+    fn content_hash_different_inputs_different_hashes(a in ".{1,256}", b in ".{1,256}") {
+        prop_assume!(a != b, "inputs must be distinct");
+        let hash_a = ContentHash::compute(a.as_bytes());
+        let hash_b = ContentHash::compute(b.as_bytes());
+        prop_assert_ne!(
+            hash_a, hash_b,
+            "different inputs {:?} and {:?} produced the same hash",
+            a, b
+        );
+    }
+
+    #[test]
     fn content_hash_as_str_matches_as_hex(data in ".*") {
         let hash = ContentHash::compute(data.as_bytes());
         prop_assert_eq!(hash.as_str(), hash.as_hex());

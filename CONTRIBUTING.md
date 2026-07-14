@@ -28,6 +28,30 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 - Use `clippy` for linting
 - Write documentation for public APIs
 
+### Crate Architecture
+
+The workspace is organized into domain-specific crates:
+
+| Crate | Purpose |
+|-------|---------|
+| `common` | Shared types (DbHandle, AuditEntry, AuditLogTrait, error types) |
+| `core` | Storage engine trait + InMemoryStorageEngine |
+| `server` | Main binary, handlers, middleware, startup |
+| `server-config` | Configuration parsing, CLI, validation |
+| `server-storage-ops` | Storage operations (upload, download, thumbnails, snapshots) |
+| `server-security-middleware` | Auth middleware, CORS, rate limiting, canonical ApiError |
+| `server-webdav-core` | WebDAV/CalDAV/CardDAV protocol handlers |
+| `server-collaboration` | Real-time collaboration, comments, tags |
+| `server-compliance` | WORM, retention, antivirus, DLP |
+| `server-sharing` | Share links, favorites, federation |
+
+**Key design principles:**
+- Types are defined once in their canonical crate and re-exported everywhere
+- `common::DbHandle` is the single source of truth (not 19 copies)
+- `server-security-middleware::ApiError` is the canonical error type
+- `common::audit::AuditEntry` and `AuditLogTrait` are shared across all crates
+- Feature flags (pg, redis, ldap, s3, gcs, azure) are tested in CI matrix
+
 ### Testing
 - Write unit tests for new functionality
 - Write integration tests for complex features

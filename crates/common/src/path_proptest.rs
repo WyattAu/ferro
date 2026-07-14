@@ -45,6 +45,22 @@ proptest! {
     }
 
     #[test]
+    fn normalize_removes_double_slashes(s in "/{0,5}[a-z]{0,10}//{1,5}[a-z]{0,10}") {
+        let result = normalize_path(&s);
+        prop_assert!(
+            !result.contains("//"),
+            "normalize_path({:?}) = {:?} still contains double slashes",
+            s, result
+        );
+    }
+
+    #[test]
+    fn normalize_empty_returns_root(_s in "") {
+        let result = normalize_path("");
+        prop_assert_eq!(result.as_ref(), "/");
+    }
+
+    #[test]
     fn validate_empty_is_false(_s in "") {
         prop_assert!(!validate_path(""));
     }

@@ -26,6 +26,7 @@ support for online document editing.
 - **Audit Logging** — Track all file operations
 - **Metadata Snapshots** — Point-in-time recovery for ransomware protection
 - **Rate Limiting** — Per-IP token-bucket rate limiter
+- **Unified Type System** — Single-source-of-truth types (DbHandle, ApiError, AuditEntry) across 57 crates
 - **Push Notifications** — FCM (Android) and APNS (iOS) delivery pipeline
 - **API Federation** — ActivityPub-based cross-instance federation
 - **Compliance Documentation** — SOC 2, ISO 27001, HIPAA, PCI DSS, FedRAMP mapping
