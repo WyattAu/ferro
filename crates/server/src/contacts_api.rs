@@ -5,6 +5,7 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 
 #[derive(Debug, Serialize)]
 pub struct ContactResponse {
@@ -28,11 +29,11 @@ pub struct UpdateContactRequest {
 }
 
 pub async fn list_contacts(State(state): State<AppState>) -> impl IntoResponse {
-    let books = state.address_book_store.list_address_books("default").await;
+    let books = state.address_book_store().list_address_books("default").await;
     let mut all_contacts = Vec::new();
 
     for book in &books {
-        let contacts = state.address_book_store.list_contacts(&book.id).await;
+        let contacts = state.address_book_store().list_contacts(&book.id).await;
         for contact in contacts {
             all_contacts.push(ContactResponse {
                 uid: contact.uid,
@@ -55,7 +56,7 @@ pub async fn create_contact(
     State(state): State<AppState>,
     Json(req): Json<CreateContactRequest>,
 ) -> impl IntoResponse {
-    let books = state.address_book_store.list_address_books("default").await;
+    let books = state.address_book_store().list_address_books("default").await;
     let book_id = if req.address_book_id.is_empty() {
         if let Some(book) = books.first() {
             book.id.clone()
@@ -109,7 +110,7 @@ pub async fn update_contact(
     Path(uid): Path<String>,
     Json(req): Json<UpdateContactRequest>,
 ) -> impl IntoResponse {
-    let books = state.address_book_store.list_address_books("default").await;
+    let books = state.address_book_store().list_address_books("default").await;
 
     for book in &books {
         if state
@@ -156,7 +157,7 @@ pub async fn delete_contact(
     State(state): State<AppState>,
     Path(uid): Path<String>,
 ) -> impl IntoResponse {
-    let books = state.address_book_store.list_address_books("default").await;
+    let books = state.address_book_store().list_address_books("default").await;
 
     for book in &books {
         if state
@@ -190,11 +191,11 @@ pub async fn delete_contact(
 }
 
 pub async fn export_contacts(State(state): State<AppState>) -> impl IntoResponse {
-    let books = state.address_book_store.list_address_books("default").await;
+    let books = state.address_book_store().list_address_books("default").await;
     let mut vcard_data = String::from("BEGIN:VCARD\r\nVERSION:3.0\r\n");
 
     for book in &books {
-        let contacts = state.address_book_store.list_contacts(&book.id).await;
+        let contacts = state.address_book_store().list_contacts(&book.id).await;
         for contact in contacts {
             vcard_data.push_str(&contact.vcard_data);
             if !contact.vcard_data.ends_with("\r\n") {
@@ -223,7 +224,7 @@ pub async fn export_contacts(State(state): State<AppState>) -> impl IntoResponse
 }
 
 pub async fn import_contacts(State(state): State<AppState>, body: String) -> impl IntoResponse {
-    let books = state.address_book_store.list_address_books("default").await;
+    let books = state.address_book_store().list_address_books("default").await;
     let book_id = if let Some(book) = books.first() {
         book.id.clone()
     } else {

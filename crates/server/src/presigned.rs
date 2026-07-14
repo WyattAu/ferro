@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use ferro_server_state::ServerState;
 
 /// Query parameters for presigned URL generation.
 #[derive(Debug, Deserialize)]
@@ -18,9 +19,8 @@ fn default_expires() -> u32 {
     3600
 }
 
-/// GET /api/upload-url — generate a presigned upload URL.
-pub async fn get_upload_url(State(state): State<AppState>, Query(params): Query<PresignedParams>) -> Response {
-    match &state.presigned_generator {
+async fn get_upload_url_impl<S: ServerState>(state: &S, params: &PresignedParams) -> Response {
+    match state.presigned_generator() {
         Some(generator) => match generator.generate_put_url(&params.path, params.expires).await {
             Ok(url) => (
                 StatusCode::OK,
@@ -43,9 +43,13 @@ pub async fn get_upload_url(State(state): State<AppState>, Query(params): Query<
     }
 }
 
-/// GET /api/download-url — generate a presigned download URL.
-pub async fn get_download_url(State(state): State<AppState>, Query(params): Query<PresignedParams>) -> Response {
-    match &state.presigned_generator {
+/// GET /api/upload-url — generate a presigned upload URL.
+pub async fn get_upload_url(State(state): State<AppState>, Query(params): Query<PresignedParams>) -> Response {
+    get_upload_url_impl(&state, &params).await
+}
+
+async fn get_download_url_impl<S: ServerState>(state: &S, params: &PresignedParams) -> Response {
+    match state.presigned_generator() {
         Some(generator) => match generator.generate_get_url(&params.path, params.expires).await {
             Ok(url) => (
                 StatusCode::OK,
@@ -66,6 +70,11 @@ pub async fn get_download_url(State(state): State<AppState>, Query(params): Quer
         },
         None => ApiError::service_unavailable(ApiError::NOT_CONFIGURED, "Pre-signed URLs not configured"),
     }
+}
+
+/// GET /api/download-url — generate a presigned download URL.
+pub async fn get_download_url(State(state): State<AppState>, Query(params): Query<PresignedParams>) -> Response {
+    get_download_url_impl(&state, &params).await
 }
 
 #[cfg(test)]

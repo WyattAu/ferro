@@ -7,6 +7,7 @@ use std::path::{Path as StdPath, PathBuf};
 use tracing::{debug, warn};
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 
 const SUPPORTED_IMAGE_TYPES: &[&str] = &["image/jpeg", "image/png", "image/gif", "image/webp"];
 
@@ -190,11 +191,8 @@ impl ThumbnailService {
     }
 }
 
-pub async fn get_thumbnail(
-    State(state): State<AppState>,
-    axum::extract::Path(path): axum::extract::Path<String>,
-) -> Response {
-    let meta = match state.storage.head(&path).await {
+async fn get_thumbnail_impl<S: ServerState>(state: &S, path: &str) -> Response {
+    let meta = match state.storage().head(path).await {
         Ok(m) => m,
         Err(_) => return (StatusCode::NOT_FOUND, "File not found").into_response(),
     };
@@ -209,7 +207,7 @@ pub async fn get_thumbnail(
         &meta.mime_type
     };
 
-    if let Some((data, cached_mime)) = state.thumbnail_cache.get(&path) {
+    if let Some((data, cached_mime)) = state.thumbnail_cache().get(path) {
         debug!("Thumbnail cache hit (LRU): {}", path);
         let content_type = if cached_mime == "image/svg+xml" {
             "image/svg+xml"
@@ -227,19 +225,19 @@ pub async fn get_thumbnail(
             .into_response();
     }
 
-    let content = match state.storage.get(&path).await {
+    let content = match state.storage().get(path).await {
         Ok(c) => c,
         Err(_) => return (StatusCode::NOT_FOUND, "File not found").into_response(),
     };
 
-    let data_dir = state.data_dir.as_deref().unwrap_or("/tmp/ferro");
-    let service = ThumbnailService::new(data_dir, state.thumbnail_size);
+    let data_dir = state.data_dir().unwrap_or("/tmp/ferro");
+    let service = ThumbnailService::new(data_dir, state.thumbnail_size());
 
-    let (content_type, data) = service.get_or_generate(&path, mime, content).await;
+    let (content_type, data) = service.get_or_generate(path, mime, content).await;
 
     state
-        .thumbnail_cache
-        .put(&path, data.to_vec(), content_type);
+        .thumbnail_cache()
+        .put(path, data.to_vec(), content_type);
 
     (
         StatusCode::OK,
@@ -250,6 +248,13 @@ pub async fn get_thumbnail(
         data,
     )
         .into_response()
+}
+
+pub async fn get_thumbnail(
+    State(state): State<AppState>,
+    axum::extract::Path(path): axum::extract::Path<String>,
+) -> Response {
+    get_thumbnail_impl(&state, &path).await
 }
 
 #[cfg(test)]

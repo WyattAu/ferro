@@ -4,6 +4,7 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 use crate::activity::ActivityEntry;
 
 /// Dashboard overview returned to the web frontend.
@@ -35,12 +36,12 @@ pub struct SharedFile {
 
 /// GET /api/dashboard — aggregated dashboard data for the web frontend.
 pub async fn get_dashboard(State(state): State<AppState>) -> Response {
-    let quota_bytes = state.quota_bytes.unwrap_or(0);
-    let used_bytes = state.used_bytes.load(std::sync::atomic::Ordering::Relaxed);
-    let file_count = state.file_count.load(std::sync::atomic::Ordering::Relaxed);
+    let quota_bytes = state.quota_bytes().unwrap_or(0);
+    let used_bytes = state.used_bytes();
+    let file_count = state.file_count();
 
     // Recent activity (last 10 events)
-    let audit_entries = state.audit_log.entries().await;
+    let audit_entries = state.audit_log().entries().await;
     let activity: Vec<ActivityEntry> = audit_entries
         .iter()
         .rev()
@@ -65,7 +66,7 @@ pub async fn get_dashboard(State(state): State<AppState>) -> Response {
         .collect();
 
     // Shared files (from share store)
-    let shares = state.share_store.list().await;
+    let shares = state.share_store().list().await;
     let shared_files: Vec<SharedFile> = shares
         .iter()
         .take(10)

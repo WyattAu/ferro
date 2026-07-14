@@ -1,4 +1,5 @@
 use axum::Json;
+use ferro_server_state::ServerState;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -6,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NoteMeta {
@@ -52,13 +54,13 @@ pub struct NotesQuery {
     pub order: Option<String>,
 }
 
-fn notes_dir(state: &AppState) -> std::path::PathBuf {
-    let base = state.data_dir.as_deref().unwrap_or(".ferro");
+fn notes_dir<S: ServerState>(state: &S) -> std::path::PathBuf {
+    let base = state.data_dir().unwrap_or(".ferro");
     std::path::PathBuf::from(base).join("notes")
 }
 
-fn ensure_notes_dir(
-    state: &AppState,
+fn ensure_notes_dir<S: ServerState>(
+    state: &S,
 ) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
     let dir = notes_dir(state);
     std::fs::create_dir_all(&dir).map_err(|e| {

@@ -11,6 +11,7 @@ use tracing::info;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use ferro_server_state::ServerState;
 
 /// A filesystem snapshot containing metadata for all files at a point in time.
 #[derive(Debug, Clone, Serialize, SerdeDeserialize)]
@@ -167,12 +168,8 @@ pub struct CreateSnapshotRequest {
     pub description: Option<String>,
 }
 
-/// POST /api/snapshots — create a new filesystem snapshot.
-pub async fn create_snapshot(
-    State(state): State<AppState>,
-    axum::Json(req): axum::Json<CreateSnapshotRequest>,
-) -> Response {
-    let entries = match state.storage.list_all("/", 1000).await {
+async fn create_snapshot_impl<S: ServerState>(state: &S, req: CreateSnapshotRequest) -> Response {
+    let entries = match state.storage().list_all("/", 1000).await {
         Ok(e) => e,
         Err(e) => {
             return ApiError::internal(
@@ -183,7 +180,7 @@ pub async fn create_snapshot(
     };
 
     let snapshot = state
-        .snapshot_store
+        .snapshot_store()
         .create(
             req.description
                 .unwrap_or_else(|| "Manual snapshot".to_string()),
@@ -203,9 +200,16 @@ pub async fn create_snapshot(
         .into_response()
 }
 
-/// GET /api/snapshots — list all snapshots.
-pub async fn list_snapshots(State(state): State<AppState>) -> Response {
-    let snapshots: Vec<Snapshot> = state.snapshot_store.list().await;
+/// POST /api/snapshots — create a new filesystem snapshot.
+pub async fn create_snapshot(
+    State(state): State<AppState>,
+    axum::Json(req): axum::Json<CreateSnapshotRequest>,
+) -> Response {
+    create_snapshot_impl(&state, req).await
+}
+
+async fn list_snapshots_impl<S: ServerState>(state: &S) -> Response {
+    let snapshots: Vec<Snapshot> = state.snapshot_store().list().await;
     let items: Vec<serde_json::Value> = snapshots
         .iter()
         .map(|s| {
@@ -224,24 +228,29 @@ pub async fn list_snapshots(State(state): State<AppState>) -> Response {
         .into_response()
 }
 
-/// DELETE /api/snapshots/:id — delete a snapshot.
-pub async fn delete_snapshot_by_id(
-    State(state): State<AppState>,
-    axum::extract::Path(id): axum::extract::Path<String>,
-) -> Response {
-    if state.snapshot_store.delete(&id).await {
+/// GET /api/snapshots — list all snapshots.
+pub async fn list_snapshots(State(state): State<AppState>) -> Response {
+    list_snapshots_impl(&state).await
+}
+
+async fn delete_snapshot_by_id_impl<S: ServerState>(state: &S, id: &str) -> Response {
+    if state.snapshot_store().delete(id).await {
         (StatusCode::NO_CONTENT, "").into_response()
     } else {
         ApiError::not_found(ApiError::SNAPSHOT_NOT_FOUND, "Snapshot not found")
     }
 }
 
-/// POST /api/snapshots/:id/restore — restore a snapshot.
-pub async fn restore_snapshot(
+/// DELETE /api/snapshots/:id — delete a snapshot.
+pub async fn delete_snapshot_by_id(
     State(state): State<AppState>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Response {
-    let snapshot = match state.snapshot_store.get(&id).await {
+    delete_snapshot_by_id_impl(&state, &id).await
+}
+
+async fn restore_snapshot_impl<S: ServerState>(state: &S, id: &str) -> Response {
+    let snapshot = match state.snapshot_store().get(id).await {
         Some(s) => s,
         None => {
             return ApiError::not_found(ApiError::SNAPSHOT_NOT_FOUND, "Snapshot not found");
@@ -253,9 +262,9 @@ pub async fn restore_snapshot(
     let mut missing_content = 0u64;
     for entry in &snapshot.entries {
         if entry.is_collection {
-            if !state.storage.exists(&entry.path).await.unwrap_or(false) {
+            if !state.storage().exists(&entry.path).await.unwrap_or(false) {
                 if let Err(e) = state
-                    .storage
+                    .storage()
                     .create_collection(&entry.path, &entry.owner)
                     .await
                 {
@@ -263,7 +272,7 @@ pub async fn restore_snapshot(
                 }
                 collections_created += 1;
             }
-        } else if state.storage.exists(&entry.path).await.unwrap_or(false) {
+        } else if state.storage().exists(&entry.path).await.unwrap_or(false) {
             restored += 1;
         } else {
             missing_content += 1;
@@ -289,4 +298,12 @@ pub async fn restore_snapshot(
         })),
     )
         .into_response()
+}
+
+/// POST /api/snapshots/:id/restore — restore a snapshot.
+pub async fn restore_snapshot(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Response {
+    restore_snapshot_impl(&state, &id).await
 }

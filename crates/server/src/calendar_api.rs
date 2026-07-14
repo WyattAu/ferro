@@ -5,6 +5,7 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 use ferro_dav::store::CalFilter;
 
 #[derive(Debug, Deserialize)]
@@ -38,7 +39,7 @@ pub async fn list_events(
     State(state): State<AppState>,
     axum::extract::Query(query): axum::extract::Query<EventRangeQuery>,
 ) -> impl IntoResponse {
-    let calendars = state.calendar_store.list_calendars("default").await;
+    let calendars = state.calendar_store().list_calendars("default").await;
 
     let start = query.start.as_deref().and_then(|s| {
         chrono::DateTime::parse_from_rfc3339(s)
@@ -55,7 +56,7 @@ pub async fn list_events(
     let mut all_events = Vec::new();
 
     for cal in &calendars {
-        let events = state.calendar_store.query_events(&cal.id, &filter).await;
+        let events = state.calendar_store().query_events(&cal.id, &filter).await;
         for event in events {
             all_events.push(CalendarEventResponse {
                 uid: event.uid,
@@ -78,7 +79,7 @@ pub async fn create_event(
     State(state): State<AppState>,
     Json(req): Json<CreateEventRequest>,
 ) -> impl IntoResponse {
-    let calendars = state.calendar_store.list_calendars("default").await;
+    let calendars = state.calendar_store().list_calendars("default").await;
     let calendar_id = if req.calendar_id.is_empty() {
         if let Some(cal) = calendars.first() {
             cal.id.clone()
@@ -132,7 +133,7 @@ pub async fn update_event(
     Path(uid): Path<String>,
     Json(req): Json<UpdateEventRequest>,
 ) -> impl IntoResponse {
-    let calendars = state.calendar_store.list_calendars("default").await;
+    let calendars = state.calendar_store().list_calendars("default").await;
 
     for cal in &calendars {
         if state
@@ -179,7 +180,7 @@ pub async fn delete_event(
     State(state): State<AppState>,
     Path(uid): Path<String>,
 ) -> impl IntoResponse {
-    let calendars = state.calendar_store.list_calendars("default").await;
+    let calendars = state.calendar_store().list_calendars("default").await;
 
     for cal in &calendars {
         if state
@@ -188,7 +189,7 @@ pub async fn delete_event(
             .await
             .is_some()
         {
-            match state.calendar_store.delete_event(&cal.id, &uid).await {
+            match state.calendar_store().delete_event(&cal.id, &uid).await {
                 Ok(()) => return StatusCode::NO_CONTENT.into_response(),
                 Err(e) => {
                     return (

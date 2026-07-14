@@ -74,8 +74,8 @@ async fn get_share_impl<S: ServerState>(state: &S, token: &str) -> Response {
 // Axum handlers (thin wrappers)
 // ---------------------------------------------------------------------------
 
-/// Create a new share link.
-pub async fn create_share(State(state): State<AppState>, axum::Json(req): axum::Json<CreateShareRequest>) -> Response {
+/// Core logic for creating a share link.
+async fn create_share_impl<S: ServerState + ferro_server_api_core::ApiCoreState>(state: &S, req: CreateShareRequest) -> Response {
     for component in std::path::Path::new(&req.path).components() {
         match component {
             std::path::Component::ParentDir | std::path::Component::CurDir => {
@@ -92,10 +92,10 @@ pub async fn create_share(State(state): State<AppState>, axum::Json(req): axum::
         }
     }
 
-    let link = state.share_store.create(req, "anonymous".to_string()).await;
+    let link = state.share_store().create(req, "anonymous".to_string()).await;
 
     crate::event_triggers::fire_event_triggers(
-        &state,
+        state,
         crate::event_triggers::EventType::ShareCreated,
         &link.path,
         &link.created_by,
@@ -117,6 +117,11 @@ pub async fn create_share(State(state): State<AppState>, axum::Json(req): axum::
         .into_response()
 }
 
+/// Create a new share link.
+pub async fn create_share(State(state): State<AppState>, axum::Json(req): axum::Json<CreateShareRequest>) -> Response {
+    create_share_impl(&state, req).await
+}
+
 /// List all active share links.
 pub async fn list_shares(State(state): State<AppState>) -> Response {
     list_shares_impl(&state).await
@@ -132,15 +137,14 @@ pub async fn get_share(State(state): State<AppState>, Path(token): Path<String>)
     get_share_impl(&state, &token).await
 }
 
-/// Serve a shared file by token, enforcing expiration and password.
-/// Supports download, secure-view (preview-only), and file-drop (upload) shares.
-pub async fn serve_share(
-    State(state): State<AppState>,
-    Path(token): Path<String>,
-    axum::extract::Query(params): axum::extract::Query<HashMap<String, String>>,
+/// Core logic for serving a shared file by token.
+async fn serve_share_impl<S: ServerState>(
+    state: &S,
+    token: &str,
+    params: &HashMap<String, String>,
 ) -> Response {
     // Check if this token is temporarily locked due to too many failed attempts
-    if state.share_store.is_share_locked(&token) {
+    if state.share_store().is_share_locked(token) {
         return ApiError::with_details(
             StatusCode::TOO_MANY_REQUESTS,
             ApiError::RATE_LIMITED,
@@ -149,7 +153,7 @@ pub async fn serve_share(
         );
     }
 
-    let link = match state.share_store.get(&token).await {
+    let link = match state.share_store().get(token).await {
         Some(l) => l,
         None => return ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found"),
     };
@@ -174,10 +178,10 @@ pub async fn serve_share(
         let provided_password = params.get("password").map(|s| s.as_str());
         match provided_password {
             Some(pw) if verify_share_password(pw, stored_hash) => {
-                state.share_store.clear_failed_attempts(&token);
+                state.share_store().clear_failed_attempts(token);
             }
             Some(_) => {
-                state.share_store.record_failed_attempt(&token);
+                state.share_store().record_failed_attempt(token);
                 return ApiError::unauthorized(ApiError::SHARE_PASSWORD_INVALID, "Invalid password");
             }
             None => {
@@ -191,23 +195,23 @@ pub async fn serve_share(
         }
     }
 
-    let meta = match state.storage.head(&link.path).await {
+    let meta = match state.storage().head(&link.path).await {
         Ok(m) => m,
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
     };
 
     // Secure view (allow_download=false): serve HTML preview page
     if link.allow_download == Some(false) {
-        state.share_store.increment_download(&token).await;
+        state.share_store().increment_download(token).await;
         return crate::shares_ext::serve_preview_html(&link, &meta);
     }
 
-    let reader = match state.storage.get_stream(&link.path).await {
+    let reader = match state.storage().get_stream(&link.path).await {
         Ok(r) => r,
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
     };
 
-    state.share_store.increment_download(&token).await;
+    state.share_store().increment_download(token).await;
 
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(
@@ -235,13 +239,23 @@ pub async fn serve_share(
     (StatusCode::OK, headers, body).into_response()
 }
 
-/// `POST /s/:token` -- Upload a file to a file-drop (upload-only) share via multipart form.
-pub async fn handle_share_upload(
+/// Serve a shared file by token, enforcing expiration and password.
+/// Supports download, secure-view (preview-only), and file-drop (upload) shares.
+pub async fn serve_share(
     State(state): State<AppState>,
     Path(token): Path<String>,
+    axum::extract::Query(params): axum::extract::Query<HashMap<String, String>>,
+) -> Response {
+    serve_share_impl(&state, &token, &params).await
+}
+
+/// Core logic for handling share upload.
+async fn handle_share_upload_impl<S: ServerState>(
+    state: &S,
+    token: &str,
     mut multipart: axum::extract::Multipart,
 ) -> Response {
-    let link = match state.share_store.get(&token).await {
+    let link = match state.share_store().get(token).await {
         Some(l) => l,
         None => return ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found"),
     };
@@ -286,43 +300,43 @@ pub async fn handle_share_upload(
         }
     };
 
-    if bytes.len() > state.max_body_size as usize {
+    if bytes.len() > state.max_body_size() as usize {
         return ApiError::with_details(
             StatusCode::PAYLOAD_TOO_LARGE,
             ApiError::PAYLOAD_TOO_LARGE,
             "Upload exceeds size limit",
-            format!("max {} bytes", state.max_body_size),
+            format!("max {} bytes", state.max_body_size()),
         );
     }
 
     let target_path = format!("{}/{}", link.path.trim_end_matches('/'), file_name);
 
-    if state.storage.head(&link.path).await.is_err()
-        && let Err(e) = state.storage.create_collection(&link.path, "anonymous").await
+    if state.storage().head(&link.path).await.is_err()
+        && let Err(e) = state.storage().create_collection(&link.path, "anonymous").await
     {
         tracing::warn!(error = %e, path = %link.path, "failed to create upload target directory");
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create upload directory");
     }
 
     let content_type = crate::shares_ext::sniff_mime_type(&file_name);
-    if let Err(e) = state.storage.put(&target_path, bytes.clone(), "anonymous").await {
+    if let Err(e) = state.storage().put(&target_path, bytes.clone(), "anonymous").await {
         tracing::warn!(error = %e, path = %target_path, "failed to store uploaded file");
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to store uploaded file");
     }
 
     state
-        .audit_log
-        .log(crate::audit::build_audit_entry(
+        .audit_log()
+        .log(crate::state::traits::convert_entry(crate::audit::build_audit_entry(
             "POST",
             &format!("/s/{}", token),
             "anonymous",
             201,
             None,
             None,
-        ))
+        )))
         .await;
 
-    if let Some(ref db) = state.db {
+    if let Some(db) = state.db() {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         let upload_id = uuid::Uuid::new_v4().to_string();
         if let Err(e) = conn.execute(
@@ -342,4 +356,13 @@ pub async fn handle_share_upload(
         })),
     )
         .into_response()
+}
+
+/// `POST /s/:token` -- Upload a file to a file-drop (upload-only) share via multipart form.
+pub async fn handle_share_upload(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+    multipart: axum::extract::Multipart,
+) -> Response {
+    handle_share_upload_impl(&state, &token, multipart).await
 }

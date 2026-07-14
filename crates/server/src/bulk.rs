@@ -4,6 +4,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 
 /// Request body for bulk delete operations.
 #[derive(Debug, Deserialize)]
@@ -27,7 +28,7 @@ pub async fn bulk_delete(State(state): State<AppState>, axum::Json(body): axum::
             continue;
         }
 
-        match state.storage.delete(&normalized).await {
+        match state.storage().delete(&normalized).await {
             Ok(()) => {
                 succeeded.push(path.clone());
                 crate::indexer::remove_file(&state, &normalized).await;

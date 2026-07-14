@@ -5,6 +5,7 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 use crate::db::DbHandle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -364,7 +365,7 @@ pub async fn list_tasks(
     State(state): State<AppState>,
     Query(params): Query<TasksQuery>,
 ) -> impl IntoResponse {
-    match state.task_store.list(&params) {
+    match state.task_store().list(&params) {
         Ok(tasks) => (
             StatusCode::OK,
             Json(serde_json::json!({
@@ -390,7 +391,7 @@ pub async fn create_task(
     State(state): State<AppState>,
     Json(req): Json<CreateTaskRequest>,
 ) -> impl IntoResponse {
-    match state.task_store.create(&req) {
+    match state.task_store().create(&req) {
         Ok(task) => (StatusCode::CREATED, Json(serde_json::json!(task))).into_response(),
         Err(e) if e == "Database not configured" => (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -410,7 +411,7 @@ pub async fn update_task(
     Path(id): Path<String>,
     Json(req): Json<UpdateTaskRequest>,
 ) -> impl IntoResponse {
-    match state.task_store.update(&id, &req) {
+    match state.task_store().update(&id, &req) {
         Ok(Some(task)) => Json(serde_json::json!(task)).into_response(),
         Ok(None) => (
             StatusCode::NOT_FOUND,
@@ -434,7 +435,7 @@ pub async fn delete_task(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match state.task_store.delete(&id) {
+    match state.task_store().delete(&id) {
         Ok(true) => StatusCode::NO_CONTENT.into_response(),
         Ok(false) => (
             StatusCode::NOT_FOUND,
@@ -459,7 +460,7 @@ pub async fn move_task(
     Path(id): Path<String>,
     Json(req): Json<MoveTaskRequest>,
 ) -> impl IntoResponse {
-    match state.task_store.move_task(&id, &req.status) {
+    match state.task_store().move_task(&id, &req.status) {
         Ok(Some(task)) => Json(serde_json::json!(task)).into_response(),
         Ok(None) => (
             StatusCode::NOT_FOUND,

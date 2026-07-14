@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 use crate::api_error::ApiError;
 
 /// Link analytics entry for a single access event.
@@ -94,7 +95,7 @@ pub fn track_link_access(
 
 /// GET /analytics/links — list all share links with stats.
 pub async fn list_link_analytics(State(state): State<AppState>) -> Response {
-    let links = state.share_store.list().await;
+    let links = state.share_store().list().await;
     let mut results = Vec::new();
 
     // Collect stats while holding the lock (no await needed here)
@@ -141,7 +142,7 @@ pub async fn list_link_analytics(State(state): State<AppState>) -> Response {
 
 /// GET /analytics/links/{id}/stats — detailed stats for a link.
 pub async fn analytics_link_stats(Path(token): Path<String>, State(state): State<AppState>) -> Response {
-    let link = match state.share_store.get(&token).await {
+    let link = match state.share_store().get(&token).await {
         Some(l) => l,
         None => return ApiError::not_found(ApiError::NOT_FOUND, "Share link not found"),
     };
@@ -282,7 +283,7 @@ pub async fn analytics_overview(State(state): State<AppState>) -> Response {
         .map(|rows| rows.filter_map(|r| r.ok()).collect())
         .unwrap_or_default();
 
-    let storage_used_bytes = state.used_bytes.load(std::sync::atomic::Ordering::Relaxed);
+    let storage_used_bytes = state.used_bytes();
 
     (
         StatusCode::OK,

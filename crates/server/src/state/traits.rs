@@ -747,7 +747,7 @@ impl ferro_server_infra::InfraState for AppState {
 
 pub struct AuditLogAdapter(pub Arc<crate::audit::AuditLog>);
 
-fn convert_entry(e: crate::audit::AuditEntry) -> ferro_server_state::AuditEntry {
+pub fn convert_entry(e: crate::audit::AuditEntry) -> ferro_server_state::AuditEntry {
     ferro_server_state::AuditEntry {
         timestamp: e.timestamp,
         method: e.method,
@@ -792,6 +792,10 @@ impl ferro_server_state::AuditLogTrait for AuditLogAdapter {
             .into_iter()
             .map(convert_entry)
             .collect()
+    }
+
+    async fn entries(&self) -> Vec<ferro_server_state::AuditEntry> {
+        self.0.entries().await.into_iter().map(convert_entry).collect()
     }
 }
 
@@ -930,5 +934,37 @@ impl ferro_server_state::ServerState for AppState {
 
     fn search_ranking_config(&self) -> &Arc<tokio::sync::RwLock<ferro_core::search::SearchRankingConfig>> {
         &self.search_ranking_config
+    }
+
+    fn presigned_generator(&self) -> &Option<Arc<dyn ferro_core::presigned::PresignedUrlGenerator>> {
+        &self.presigned_generator
+    }
+
+    fn ws_manager(&self) -> &Arc<ferro_server_api_core::ws::WsManager> {
+        &self.ws_manager
+    }
+
+    fn calendar_store(&self) -> &Arc<dyn ferro_dav::store::CalendarStore> {
+        &self.calendar_store
+    }
+
+    fn address_book_store(&self) -> &Arc<dyn ferro_dav::store::AddressBookStore> {
+        &self.address_book_store
+    }
+
+    fn task_store(&self) -> &ferro_server_productivity::tasks::TaskStore {
+        &self.task_store
+    }
+
+    fn cedar(&self) -> &Option<Arc<ferro_auth::cedar::CedarAuthorizer>> {
+        &self.cedar
+    }
+
+    fn used_bytes(&self) -> u64 {
+        self.used_bytes.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn file_count(&self) -> u64 {
+        self.file_count.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
