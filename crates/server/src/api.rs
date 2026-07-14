@@ -8,6 +8,7 @@ use tracing::instrument;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use ferro_server_state::ServerState as _;
 
 pub use ferro_server_storage_ops::api::{
     CopyMoveResponse, FileEntryJson, ListFilesParams, ListFilesResponse, MkdirResponse, PutFileResponse,
@@ -39,9 +40,13 @@ pub struct AuthInfoResponse {
 )]
 #[instrument(name = "auth_info", skip(state, claims))]
 pub async fn auth_info(claims: Option<axum::Extension<Claims>>, State(state): State<AppState>) -> Response {
-    let auth_type = if state.oidc.is_some() {
+    auth_info_impl(&state, claims).await
+}
+
+async fn auth_info_impl<S: ferro_server_state::ServerState>(state: &S, claims: Option<axum::Extension<Claims>>) -> Response {
+    let auth_type = if state.oidc().is_some() {
         "oidc"
-    } else if state.admin_user.is_some() {
+    } else if state.admin_user().is_some() {
         "basic"
     } else {
         "none"
@@ -82,7 +87,11 @@ pub async fn auth_info(claims: Option<axum::Extension<Claims>>, State(state): St
     tags = ["auth"],
 )]
 pub async fn auth_login(State(state): State<AppState>, Query(params): Query<LoginParams>) -> Response {
-    let oidc = match &state.oidc {
+    auth_login_impl(&state, params).await
+}
+
+async fn auth_login_impl<S: ferro_server_state::ServerState>(state: &S, params: LoginParams) -> Response {
+    let oidc = match state.oidc() {
         Some(v) => v,
         None => {
             return ApiError::service_unavailable(ApiError::NOT_CONFIGURED, "OIDC not configured");
@@ -91,7 +100,7 @@ pub async fn auth_login(State(state): State<AppState>, Query(params): Query<Logi
 
     let config = oidc.config();
     let redirect_uri = params.redirect.unwrap_or_else(|| "/ui/".to_string());
-    let callback_url = format!("{}/api/auth/callback?redirect={}", state.external_url, redirect_uri);
+    let callback_url = format!("{}/api/auth/callback?redirect={}", state.external_url(), redirect_uri);
 
     let code_verifier = generate_code_verifier();
     let code_challenge = generate_code_challenge(&code_verifier);
@@ -121,6 +130,10 @@ pub async fn auth_login(State(state): State<AppState>, Query(params): Query<Logi
 
 /// POST /api/auth/change-password — change admin password.
 pub async fn auth_change_password(State(state): State<AppState>, req: axum::extract::Request) -> Response {
+    auth_change_password_impl(&state, req).await
+}
+
+async fn auth_change_password_impl<S: ferro_server_state::ServerState>(state: &S, req: axum::extract::Request) -> Response {
     let (parts, body) = req.into_parts();
     let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(b) => b,
@@ -161,7 +174,7 @@ pub async fn auth_change_password(State(state): State<AppState>, req: axum::extr
 
     let username = match user_info {
         Some(ref info) => info.username.clone(),
-        None => state.admin_user.clone().unwrap_or_else(|| "admin".to_string()),
+        None => state.admin_user().unwrap_or("admin").to_string(),
     };
 
     let new_hash = match ferro_auth::users::hash_password(&password) {
@@ -172,12 +185,12 @@ pub async fn auth_change_password(State(state): State<AppState>, req: axum::extr
         }
     };
     state
-        .admin_password_rotated
+        .admin_password_rotated()
         .store(true, std::sync::atomic::Ordering::Release);
 
-    match state.user_store.get_user_by_username(&username).await {
+    match state.user_store().get_user_by_username(&username).await {
         Ok(u) => {
-            if let Err(e) = state.user_store.set_password(&u.id, &new_hash).await {
+            if let Err(e) = state.user_store().set_password(&u.id, &new_hash).await {
                 tracing::error!("Failed to update password in user store: {:?}", e);
             }
         }
@@ -198,7 +211,7 @@ pub async fn auth_change_password(State(state): State<AppState>, req: axum::extr
                 totp_secret: None,
                 totp_enabled: false,
             };
-            if let Err(e) = state.user_store.create_user(admin_user).await {
+            if let Err(e) = state.user_store().create_user(admin_user).await {
                 tracing::error!(error = ?e, "Failed to create admin user after password change");
             }
         }
@@ -228,7 +241,11 @@ pub async fn auth_change_password(State(state): State<AppState>, req: axum::extr
     tags = ["auth"],
 )]
 pub async fn auth_callback(State(state): State<AppState>, Query(params): Query<CallbackParams>) -> Response {
-    let oidc = match &state.oidc {
+    auth_callback_impl(&state, params).await
+}
+
+async fn auth_callback_impl<S: ferro_server_state::ServerState>(state: &S, params: CallbackParams) -> Response {
+    let oidc = match state.oidc() {
         Some(v) => v,
         None => {
             return ApiError::service_unavailable(ApiError::NOT_CONFIGURED, "OIDC not configured");
@@ -319,7 +336,14 @@ pub async fn auth_refresh_token(
     State(state): State<AppState>,
     axum::Json(body): axum::Json<RefreshTokenRequest>,
 ) -> Response {
-    let oidc = match &state.oidc {
+    auth_refresh_token_impl(&state, body).await
+}
+
+async fn auth_refresh_token_impl<S: ferro_server_state::ServerState>(
+    state: &S,
+    body: RefreshTokenRequest,
+) -> Response {
+    let oidc = match state.oidc() {
         Some(v) => v,
         None => {
             return ApiError::service_unavailable(ApiError::NOT_CONFIGURED, "OIDC not configured");
@@ -471,6 +495,14 @@ pub async fn get_file(
     AxumPath(path): AxumPath<String>,
     headers: axum::http::HeaderMap,
 ) -> Response {
+    get_file_impl(&state, path, headers).await
+}
+
+async fn get_file_impl<S: ferro_server_state::ServerState>(
+    state: &S,
+    path: String,
+    headers: axum::http::HeaderMap,
+) -> Response {
     let path = match normalize_api_path(&path) {
         Ok(p) => p,
         Err(e) => {
@@ -484,7 +516,7 @@ pub async fn get_file(
         }
     };
 
-    let meta = match state.storage.head(&path).await {
+    let meta = match state.storage().head(&path).await {
         Ok(m) => m,
         Err(e) => {
             return (
@@ -533,7 +565,7 @@ pub async fn get_file(
         let path_for_cache = path.clone();
 
         if content_length <= READ_CACHE_FILE_SIZE_LIMIT
-            && let Some(cached) = state.read_cache.get(&path_for_cache, &etag_for_cache)
+            && let Some(cached) = state.read_cache().get(&path_for_cache, &etag_for_cache)
         {
             return (
                 [
@@ -550,7 +582,7 @@ pub async fn get_file(
                 .into_response();
         }
 
-        match state.storage.get_stream(&path).await {
+        match state.storage().get_stream(&path).await {
             Ok(reader) => {
                 let stream = tokio_util::io::ReaderStream::new(reader);
                 let body = axum::body::Body::from_stream(stream);
@@ -641,7 +673,7 @@ pub async fn put_file(
 
     #[allow(clippy::collapsible_if)]
     if let Some(if_match) = headers.get("if-match").and_then(|v| v.to_str().ok()) {
-        if let Ok(existing) = state.storage.head(&path).await {
+        if let Ok(existing) = state.storage().head(&path).await {
             if if_match != existing.etag && if_match != "*" {
                 return (
                     StatusCode::PRECONDITION_FAILED,
@@ -657,7 +689,7 @@ pub async fn put_file(
     }
 
     let owner = "anonymous".to_string();
-    match state.storage.put(&path, body.clone(), &owner).await {
+    match state.storage().put(&path, body.clone(), &owner).await {
         Ok(meta) => {
             let etag = meta.etag.clone();
             let size = meta.size;
@@ -728,7 +760,7 @@ pub async fn delete_file(State(state): State<AppState>, AxumPath(path): AxumPath
                 .into_response();
         }
     };
-    match state.storage.delete(&path).await {
+    match state.storage().delete(&path).await {
         Ok(()) => {
             crate::events::dispatch_post_op(
                 &state,

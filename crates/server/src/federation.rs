@@ -5,11 +5,11 @@ pub use ferro_server_activitypub::*;
 use axum::extract::State;
 use axum::response::Response;
 
-fn fed_state(s: &crate::AppState) -> FederationState {
+fn fed_state(s: &impl ferro_server_state::ServerState) -> FederationState {
     FederationState {
-        activity_store: s.activity_store.clone(),
-        external_url: s.external_url.clone(),
-        federation_secret: s.federation_secret.clone(),
+        activity_store: s.activity_store().clone(),
+        external_url: s.external_url().to_string(),
+        federation_secret: s.federation_secret().to_string(),
     }
 }
 

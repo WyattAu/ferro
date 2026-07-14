@@ -1,6 +1,7 @@
 use ferro_event_bus::event::FileEvent as BusFileEvent;
 
 use crate::AppState;
+use ferro_server_state::ServerState as _;
 
 #[derive(Clone, Debug)]
 pub struct FileEvent {
@@ -48,12 +49,12 @@ pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
         _ => None,
     };
     if let Some(ws) = ws_event {
-        state.ws_manager.broadcast(&ws);
+        state.ws_manager().broadcast(&ws);
     }
 
-    state.read_cache.invalidate_path(&event.path);
+    state.read_cache().invalidate_path(&event.path);
     if let Some(np) = &event.new_path {
-        state.read_cache.invalidate_path(np);
+        state.read_cache().invalidate_path(np);
     }
 
     let webhook_event = match event.op_type {

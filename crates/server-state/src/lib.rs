@@ -70,4 +70,28 @@ pub trait ServerState: Send + Sync + Clone + 'static {
     fn cedar(&self) -> &Option<Arc<ferro_auth::cedar::CedarAuthorizer>>;
     fn used_bytes(&self) -> u64;
     fn file_count(&self) -> u64;
+
+    // Auth
+    fn oidc(&self) -> &Option<Arc<ferro_auth::oidc::OidcValidator>>;
+
+    // Cache/Health
+    fn read_cache(&self) -> &Arc<ferro_server_integrations::read_cache::ReadCache>;
+    fn health_checker(&self) -> &Arc<ferro_health::HealthChecker>;
+    fn metadata_store(&self) -> &Option<Arc<dyn ferro_core::metadata::MetadataStore>>;
+    fn cas_store(&self) -> &Option<Arc<dyn ferro_core::cas::CasStore>>;
+    fn started_at(&self) -> std::time::Instant;
+
+    // Federation
+    fn federation_secret(&self) -> &str;
+    fn activity_store(&self) -> &Arc<ferro_server_activitypub::store::ActivityStore>;
+
+    // Rate limiting
+    fn tenant_rate_limit_store(&self) -> &Option<Arc<ferro_rate_limiter::tenant::TenantRateLimitStore>>;
+    fn tenant_rate_limiter(&self) -> &Option<Arc<ferro_rate_limiter::tenant::TenantAwareRateLimiter>>;
+
+    // Selective sync
+    fn selective_sync_store(&self) -> &Option<Arc<ferro_selective_sync::ProfileStore>>;
+
+    // Plugins
+    fn plugin_registry(&self) -> &Arc<dashmap::DashMap<String, ferro_server_plugins::plugin_permissions::PluginManifest>>;
 }

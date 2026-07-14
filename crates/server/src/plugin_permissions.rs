@@ -4,6 +4,7 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
+use ferro_server_state::ServerState as _;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PluginCapabilities {
@@ -39,7 +40,7 @@ pub struct PluginManifest {
 
 pub async fn list_plugins(State(state): State<AppState>) -> Response {
     let mut plugins: Vec<serde_json::Value> = state
-        .plugin_registry
+        .plugin_registry()
         .iter()
         .map(|entry| {
             let manifest = entry.value();

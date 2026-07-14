@@ -10,6 +10,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::AppState;
 use crate::api_error::ApiError;
+use ferro_server_state::ServerState as _;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -188,11 +189,11 @@ impl FederationTokenStore {
 // Shared state helper
 // ---------------------------------------------------------------------------
 
-fn federation_store(state: &AppState) -> FederationTokenStore {
+fn federation_store(state: &impl ferro_server_state::ServerState) -> FederationTokenStore {
     FederationTokenStore {
         tokens: Arc::new(DashMap::new()),
         peers: Arc::new(tokio::sync::RwLock::new(Vec::new())),
-        federation_secret: state.federation_secret.clone(),
+        federation_secret: state.federation_secret().to_string(),
     }
 }
 

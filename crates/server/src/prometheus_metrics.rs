@@ -2,16 +2,17 @@ use crate::AppState;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
+use ferro_server_state::ServerState as _;
 
 /// GET /metrics/prometheus — return server metrics in Prometheus format.
 pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Response {
     use std::sync::atomic::Ordering;
 
-    let uptime = state.started_at.elapsed().as_secs_f64();
+    let uptime = state.started_at().elapsed().as_secs_f64();
 
     let mut file_count = 0u64;
     let mut total_bytes = 0u64;
-    if let Ok(entries) = state.storage.list_all("/", 10000).await {
+    if let Ok(entries) = state.storage().list_all("/", 10000).await {
         for meta in &entries {
             if !meta.is_collection {
                 file_count += 1;
@@ -20,7 +21,7 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
         }
     }
 
-    let request_count = state.request_count.load(Ordering::Relaxed);
+    let request_count = state.request_count().load(Ordering::Relaxed);
     let request_duration_sum = state.request_duration_sum_ms.load(Ordering::Relaxed) as f64 / 1000.0;
 
     // Read histogram buckets.
@@ -45,13 +46,13 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     let status_5xx = statuses[3].load(Ordering::Relaxed);
 
     // Read actual WASM worker count (0 if not configured)
-    let wasm_workers = match &state.wasm_runtime {
+    let wasm_workers = match state.wasm_runtime() {
         Some(rt) => rt.worker_count().await,
         None => 0,
     };
 
     // Read storage operation counters
-    let storage_ops = &state.storage_op_counts;
+    let storage_ops = state.storage_op_counts();
     let storage_puts = storage_ops[0].load(Ordering::Relaxed);
     let storage_gets = storage_ops[1].load(Ordering::Relaxed);
     let storage_deletes = storage_ops[2].load(Ordering::Relaxed);
@@ -60,7 +61,7 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     let storage_moves = storage_ops[5].load(Ordering::Relaxed);
 
     // Read cache stats
-    let cache_stats = state.read_cache.stats();
+    let cache_stats = state.read_cache().stats();
     let cache_hits = cache_stats.hits;
     let cache_misses = cache_stats.misses;
     let cache_evictions = cache_stats.evictions;

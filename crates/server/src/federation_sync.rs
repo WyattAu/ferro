@@ -6,6 +6,7 @@ use tracing::{info, warn};
 
 use crate::AppState;
 use crate::federation::{FederationState, delivery};
+use ferro_server_state::ServerState as _;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileSyncActivity {
@@ -54,9 +55,9 @@ impl FederationSync {
 
     pub fn federation_state(&self) -> FederationState {
         FederationState {
-            activity_store: self.state.activity_store.clone(),
-            external_url: self.state.external_url.clone(),
-            federation_secret: self.state.federation_secret.clone(),
+            activity_store: self.state.activity_store().clone(),
+            external_url: self.state.external_url().to_string(),
+            federation_secret: self.state.federation_secret().to_string(),
         }
     }
 
@@ -83,7 +84,7 @@ impl FederationSync {
     ) where
         F: Fn(&FileSyncActivity, &str) -> serde_json::Value,
     {
-        if self.state.federation_secret.is_empty() {
+        if self.state.federation_secret().is_empty() {
             return;
         }
 
@@ -151,7 +152,7 @@ impl FederationSync {
                         .map_err(|e| format!("Failed to parse file sync activity object: {}", e))?;
 
                 if let Some(url) = file_sync
-                    .to_create_object(&self.state.external_url)
+                    .to_create_object(self.state.external_url())
                     .get("url")
                     .and_then(|v| v.as_str())
                 {
@@ -160,7 +161,7 @@ impl FederationSync {
                         file_sync.path, activity.actor
                     );
 
-                    if let Ok(meta) = self.state.storage.head(&file_sync.path).await {
+                    if let Ok(meta) = self.state.storage().head(&file_sync.path).await {
                         let dominated = file_sync
                             .checksum
                             .as_ref()
@@ -187,7 +188,7 @@ impl FederationSync {
                     file_sync.path, activity.actor
                 );
 
-                match self.state.storage.delete(&file_sync.path).await {
+                match self.state.storage().delete(&file_sync.path).await {
                     Ok(()) => {
                         info!("Applied remote delete for {}", file_sync.path);
                     }
@@ -211,7 +212,7 @@ impl FederationSync {
 }
 
 pub async fn start_federation_sync(state: Arc<AppState>) {
-    if state.federation_secret.is_empty() {
+    if state.federation_secret().is_empty() {
         info!("Federation sync disabled (no secret configured)");
         return;
     }

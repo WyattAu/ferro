@@ -66,8 +66,8 @@ fn store_error_response(e: StoreError) -> Response {
     }
 }
 
-fn get_or_create_store(state: &AppState) -> Result<std::sync::Arc<ProfileStore>, Box<Response>> {
-    state.selective_sync_store.clone().ok_or_else(|| {
+fn get_or_create_store(state: &impl ferro_server_state::ServerState) -> Result<std::sync::Arc<ProfileStore>, Box<Response>> {
+    state.selective_sync_store().clone().ok_or_else(|| {
         Box::new(ApiError::service_unavailable(
             "NOT_CONFIGURED",
             "Selective sync not configured",

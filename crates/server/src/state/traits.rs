@@ -967,4 +967,52 @@ impl ferro_server_state::ServerState for AppState {
     fn file_count(&self) -> u64 {
         self.file_count.load(std::sync::atomic::Ordering::Relaxed)
     }
+
+    fn oidc(&self) -> &Option<Arc<ferro_auth::oidc::OidcValidator>> {
+        &self.oidc
+    }
+
+    fn read_cache(&self) -> &Arc<ferro_server_integrations::read_cache::ReadCache> {
+        &self.read_cache
+    }
+
+    fn health_checker(&self) -> &Arc<ferro_health::HealthChecker> {
+        &self.health_checker
+    }
+
+    fn metadata_store(&self) -> &Option<Arc<dyn ferro_core::metadata::MetadataStore>> {
+        &self.metadata_store
+    }
+
+    fn cas_store(&self) -> &Option<Arc<dyn ferro_core::cas::CasStore>> {
+        &self.cas_store
+    }
+
+    fn started_at(&self) -> std::time::Instant {
+        self.started_at
+    }
+
+    fn federation_secret(&self) -> &str {
+        &self.federation_secret
+    }
+
+    fn activity_store(&self) -> &Arc<ferro_server_activitypub::store::ActivityStore> {
+        &self.activity_store
+    }
+
+    fn tenant_rate_limit_store(&self) -> &Option<Arc<ferro_rate_limiter::tenant::TenantRateLimitStore>> {
+        &self.tenant_rate_limit_store
+    }
+
+    fn tenant_rate_limiter(&self) -> &Option<Arc<ferro_rate_limiter::tenant::TenantAwareRateLimiter>> {
+        &self.tenant_rate_limiter
+    }
+
+    fn selective_sync_store(&self) -> &Option<Arc<ferro_selective_sync::ProfileStore>> {
+        &self.selective_sync_store
+    }
+
+    fn plugin_registry(&self) -> &Arc<dashmap::DashMap<String, ferro_server_plugins::plugin_permissions::PluginManifest>> {
+        &self.plugin_registry
+    }
 }

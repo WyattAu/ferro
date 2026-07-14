@@ -4,6 +4,7 @@ use axum::response::{IntoResponse, Response};
 use tracing::instrument;
 
 use crate::AppState;
+use ferro_server_state::ServerState as _;
 
 pub async fn liveness() -> impl IntoResponse {
     (StatusCode::OK, "ok")
@@ -11,7 +12,7 @@ pub async fn liveness() -> impl IntoResponse {
 
 #[instrument(name = "health_check", skip(state), fields(otel.status_code))]
 pub async fn health_endpoint(State(state): State<AppState>) -> Response {
-    let response = state.health_checker.check_liveness().await;
+    let response = state.health_checker().check_liveness().await;
     let status = match response.status {
         ferro_health::HealthStatus::Healthy => StatusCode::OK,
         ferro_health::HealthStatus::Degraded => StatusCode::OK,
@@ -51,7 +52,7 @@ pub async fn readiness(State(state): State<AppState>) -> Response {
     let mut subsystems = serde_json::Map::new();
     let mut healthy = true;
 
-    let storage_ok = state.storage.list("/").await.is_ok();
+    let storage_ok = state.storage().list("/").await.is_ok();
     subsystems.insert(
         "storage".to_string(),
         serde_json::json!(if storage_ok { "ok" } else { "error" }),
@@ -62,7 +63,7 @@ pub async fn readiness(State(state): State<AppState>) -> Response {
 
     subsystems.insert(
         "metadata".to_string(),
-        serde_json::json!(if state.metadata_store.is_some() {
+        serde_json::json!(if state.metadata_store().is_some() {
             "persistent"
         } else {
             "in-memory"
@@ -70,7 +71,7 @@ pub async fn readiness(State(state): State<AppState>) -> Response {
     );
 
     // Check SQLite database reachability if configured.
-    let db_ok = match &state.db {
+    let db_ok = match state.db() {
         Some(db) => db
             .lock()
             .ok()
@@ -87,7 +88,7 @@ pub async fn readiness(State(state): State<AppState>) -> Response {
     }
 
     // Check search index readiness if configured.
-    let search_ok = match &state.search {
+    let search_ok = match state.search() {
         Some(search) => search.try_read().is_ok(),
         None => true, // No search configured, not a failure.
     };
@@ -117,7 +118,7 @@ pub async fn health_check(State(state): State<AppState>) -> Response {
     let mut subsystems = serde_json::Map::new();
     let mut healthy = true;
 
-    let storage_ok = state.storage.list("/").await.is_ok();
+    let storage_ok = state.storage().list("/").await.is_ok();
     subsystems.insert(
         "storage".to_string(),
         serde_json::json!(if storage_ok { "ok" } else { "error" }),
@@ -128,7 +129,7 @@ pub async fn health_check(State(state): State<AppState>) -> Response {
 
     subsystems.insert(
         "metadata".to_string(),
-        serde_json::json!(if state.metadata_store.is_some() {
+        serde_json::json!(if state.metadata_store().is_some() {
             "persistent"
         } else {
             "in-memory"
@@ -137,22 +138,22 @@ pub async fn health_check(State(state): State<AppState>) -> Response {
 
     subsystems.insert(
         "wasm".to_string(),
-        serde_json::json!(if state.wasm_runtime.is_some() { "ok" } else { "disabled" }),
+        serde_json::json!(if state.wasm_runtime().is_some() { "ok" } else { "disabled" }),
     );
 
     subsystems.insert(
         "search".to_string(),
-        serde_json::json!(if state.search.is_some() { "ok" } else { "disabled" }),
+        serde_json::json!(if state.search().is_some() { "ok" } else { "disabled" }),
     );
 
     subsystems.insert(
         "auth".to_string(),
-        serde_json::json!(if state.oidc.is_some() { "configured" } else { "disabled" }),
+        serde_json::json!(if state.oidc().is_some() { "configured" } else { "disabled" }),
     );
 
     subsystems.insert(
         "cas".to_string(),
-        serde_json::json!(if state.cas_store.is_some() {
+        serde_json::json!(if state.cas_store().is_some() {
             "enabled"
         } else {
             "disabled"
@@ -169,7 +170,7 @@ pub async fn health_check(State(state): State<AppState>) -> Response {
     let body = serde_json::json!({
         "status": status,
         "version": env!("CARGO_PKG_VERSION"),
-        "uptime_seconds": state.started_at.elapsed().as_secs(),
+        "uptime_seconds": state.started_at().elapsed().as_secs(),
         "subsystems": subsystems,
     });
     (code, axum::Json(body)).into_response()
@@ -181,8 +182,8 @@ pub async fn audit_handler(
 ) -> Response {
     let limit: usize = params.get("limit").and_then(|v| v.parse().ok()).unwrap_or(100);
     let offset: usize = params.get("offset").and_then(|v| v.parse().ok()).unwrap_or(0);
-    let total = state.audit_log.len().await;
-    let entries = state.audit_log.recent_with_offset(limit, offset).await;
+    let total = state.audit_log().len().await;
+    let entries = state.audit_log().recent_with_offset(limit, offset).await;
     (
         axum::http::StatusCode::OK,
         axum::Json(serde_json::json!({
@@ -200,7 +201,7 @@ pub async fn storage_stats(State(state): State<AppState>) -> Response {
     let mut total_size = 0u64;
     let mut collection_count = 0u64;
 
-    if let Ok(entries) = state.storage.list_all("/", 1000).await {
+    if let Ok(entries) = state.storage().list_all("/", 1000).await {
         for meta in &entries {
             if meta.is_collection {
                 collection_count += 1;
@@ -211,7 +212,7 @@ pub async fn storage_stats(State(state): State<AppState>) -> Response {
         }
     }
 
-    let cas_stats: serde_json::Value = if let Some(cas) = &state.cas_store {
+    let cas_stats: serde_json::Value = if let Some(cas) = state.cas_store() {
         serde_json::json!({
             "enabled": true,
             "content_blocks": cas.content_count().await,
@@ -227,7 +228,7 @@ pub async fn storage_stats(State(state): State<AppState>) -> Response {
             "collections": collection_count,
             "total_bytes": total_size,
             "cas": cas_stats,
-            "metadata_store": state.metadata_store.is_some(),
+            "metadata_store": state.metadata_store().is_some(),
         })),
     )
         .into_response()

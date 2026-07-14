@@ -7,6 +7,9 @@ use std::convert::Infallible;
 use std::time::Duration;
 
 use crate::AppState;
+// NOTE: sync_store is not in ServerState trait due to type mismatch between
+// ferro_server_state::SyncStoreTrait and crate::sync::ops::SyncStore.
+// These handlers access state.sync_store directly.
 
 pub async fn sync_events(State(state): State<AppState>) -> Response {
     let store = state.sync_store.clone();

@@ -19,6 +19,13 @@ ferro-server-storage-ops = { path = "../server-storage-ops" }
 ferro-server-compliance = { path = "../server-compliance" }
 ferro-dav = { path = "../dav" }
 ferro-server-productivity = { path = "../server-productivity" }
+ferro-server-integrations = { path = "../server-integrations" }
+ferro-health = { path = "../health" }
+ferro-server-activitypub = { path = "../server-activitypub" }
+ferro-rate-limiter = { path = "../rate-limiter" }
+ferro-selective-sync = { path = "../selective-sync" }
+ferro-server-plugins = { path = "../server-plugins" }
+dashmap = "6"
 serde = { workspace = true }
 serde_json = "1"
 async-trait = "0.1"

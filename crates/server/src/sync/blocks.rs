@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::AppState;
+use ferro_server_state::ServerState as _;
 
 use base64::Engine;
 
@@ -241,7 +242,7 @@ pub async fn get_manifest(State(state): State<AppState>, Query(params): Query<Ma
     let path = params.path.trim_start_matches('/');
 
     // Fetch file content
-    let content = match state.storage.get(path).await {
+    let content = match state.storage().get(path).await {
         Ok(c) => c,
         Err(e) => {
             return (
@@ -273,7 +274,7 @@ pub async fn get_manifest(State(state): State<AppState>, Query(params): Query<Ma
         .collect();
 
     // Check which blocks exist in CAS
-    let missing_blocks = if let Some(cas) = &state.cas_store {
+    let missing_blocks = if let Some(cas) = state.cas_store() {
         let mut missing = Vec::new();
         for block in &blocks {
             let content_hash = match ContentHash::new(block.hash.clone()) {
@@ -324,7 +325,7 @@ pub async fn get_manifest(State(state): State<AppState>, Query(params): Query<Ma
 /// Upload individual blocks to the server's CAS store. Blocks are deduplicated
 /// by content hash.
 pub async fn upload_blocks(State(state): State<AppState>, Json(body): Json<UploadBlocksRequest>) -> Response {
-    let cas = match &state.cas_store {
+    let cas = match state.cas_store() {
         Some(cas) => cas,
         None => {
             return (
@@ -413,7 +414,7 @@ pub struct CheckBlocksResponse {
 }
 
 pub async fn check_blocks(State(state): State<AppState>, Query(params): Query<CheckBlocksQuery>) -> Response {
-    let cas = match &state.cas_store {
+    let cas = match state.cas_store() {
         Some(cas) => cas,
         None => {
             return (
@@ -458,7 +459,7 @@ pub async fn check_blocks(State(state): State<AppState>, Query(params): Query<Ch
 ///
 /// Assemble a file from blocks already in the CAS store.
 pub async fn assemble_file(State(state): State<AppState>, Json(body): Json<AssembleRequest>) -> Response {
-    let cas = match &state.cas_store {
+    let cas = match state.cas_store() {
         Some(cas) => cas,
         None => {
             return (
@@ -508,7 +509,7 @@ pub async fn assemble_file(State(state): State<AppState>, Json(body): Json<Assem
 
     // Write to storage
     let path = body.path.trim_start_matches('/');
-    match state.storage.put(path, file_bytes, &body.owner).await {
+    match state.storage().put(path, file_bytes, &body.owner).await {
         Ok(_meta) => (
             StatusCode::OK,
             Json(AssembleResponse {
@@ -533,7 +534,7 @@ pub async fn assemble_file(State(state): State<AppState>, Json(body): Json<Assem
 ///
 /// Download a single block from the CAS store by its content hash.
 pub async fn get_block(State(state): State<AppState>, Path(hash): Path<String>) -> Response {
-    let cas = match &state.cas_store {
+    let cas = match state.cas_store() {
         Some(cas) => cas,
         None => {
             return (

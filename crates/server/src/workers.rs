@@ -4,10 +4,11 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
+use ferro_server_state::ServerState as _;
 
 /// GET /api/workers — list registered WASM workers.
 pub async fn list_workers(State(state): State<AppState>) -> Response {
-    match &state.wasm_runtime {
+    match state.wasm_runtime() {
         Some(runtime) => {
             let workers = runtime.list_workers().await;
             let items: Vec<serde_json::Value> = workers
@@ -63,7 +64,7 @@ pub async fn register_worker(
     State(state): State<AppState>,
     axum::Json(req): axum::Json<RegisterWorkerRequest>,
 ) -> Response {
-    match &state.wasm_runtime {
+    match state.wasm_runtime() {
         Some(runtime) => {
             let event = ferro_core::wasm::WorkerEvent {
                 pattern: req.pattern.clone(),
