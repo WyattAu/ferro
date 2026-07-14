@@ -5,13 +5,18 @@ use bytes::Bytes;
 use chrono::Utc;
 use ferro_common::error::{FerroError, Result};
 use ferro_common::metadata::{ContentHash, FileMetadata};
+use ferro_common::path::normalize_path;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::debug;
 
 /// In-memory storage engine that combines content and metadata storage.
-#[derive(Debug)]
+///
+/// Implements the [`StorageEngine`] trait with path normalization, immediate-child
+/// listing, and depth-limited recursive listing. Suitable for tests, benchmarks,
+/// and single-instance servers.
+#[derive(Debug, Clone)]
 pub struct InMemoryStorageEngine {
     store: Arc<RwLock<HashMap<String, Bytes>>>,
     metadata: Arc<RwLock<HashMap<String, FileMetadata>>>,
@@ -37,135 +42,176 @@ impl Default for InMemoryStorageEngine {
 #[async_trait]
 impl StorageEngine for InMemoryStorageEngine {
     async fn put(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata> {
+        let path = normalize_path(path).into_owned();
         let hash = ContentHash::compute(&content);
-        let meta = FileMetadata::new(path.to_string(), hash.clone(), content.len() as u64, owner.to_string());
+        let meta = FileMetadata::new(path.clone(), hash.clone(), content.len() as u64, owner.to_string());
 
         let mut store = self.store.write().await;
         let mut meta_map = self.metadata.write().await;
 
-        store.insert(path.to_string(), content);
-        meta_map.insert(path.to_string(), meta.clone());
+        store.insert(path.clone(), content);
+        meta_map.insert(path.clone(), meta.clone());
 
         debug!("PUT {} ({} bytes, hash={})", path, meta.size, hash.as_str());
         Ok(meta)
     }
 
     async fn get(&self, path: &str) -> Result<Bytes> {
+        let path = normalize_path(path).into_owned();
         let store = self.store.read().await;
         store
-            .get(path)
+            .get(&path)
             .cloned()
-            .ok_or_else(|| FerroError::NotFound(path.to_string()))
+            .ok_or(FerroError::NotFound(path))
     }
 
     async fn delete(&self, path: &str) -> Result<()> {
-        let mut store = self.store.write().await;
-        let mut meta_map = self.metadata.write().await;
+        let path = normalize_path(path).into_owned();
 
-        store
-            .remove(path)
-            .ok_or_else(|| FerroError::NotFound(path.to_string()))?;
-        meta_map.remove(path);
+        let meta_guard = self.metadata.read().await;
+        if !meta_guard.contains_key(&path) {
+            return Err(FerroError::NotFound(path));
+        }
+        drop(meta_guard);
+
+        self.store.write().await.remove(&path);
+        self.metadata.write().await.remove(&path);
 
         debug!("DELETE {}", path);
         Ok(())
     }
 
-    async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>> {
-        let meta_map = self.metadata.read().await;
-        let results: Vec<FileMetadata> = meta_map
+    async fn list(&self, path: &str) -> Result<Vec<FileMetadata>> {
+        let path = normalize_path(path);
+        let prefix = if path == "/" {
+            "/".to_string()
+        } else {
+            format!("{}/", path.trim_end_matches('/'))
+        };
+
+        let meta_guard = self.metadata.read().await;
+        let mut items: Vec<FileMetadata> = meta_guard
             .values()
-            .filter(|m| m.path.starts_with(prefix))
+            .filter(|m| {
+                if !m.path.starts_with(&prefix) || m.path == path.as_ref() {
+                    return false;
+                }
+                let remaining = &m.path[prefix.len()..];
+                !remaining.contains('/')
+            })
             .cloned()
             .collect();
-        Ok(results)
+
+        items.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(items)
     }
 
     async fn copy(&self, src: &str, dst: &str) -> Result<()> {
-        // TOCTOU-safe: perform existence check AND extraction under a single write lock
+        let src = normalize_path(src).into_owned();
+        let dst = normalize_path(dst).into_owned();
+
         let mut store = self.store.write().await;
         let mut meta_map = self.metadata.write().await;
 
-        let content = match store.get(src).cloned() {
+        let content = match store.get(&src).cloned() {
             Some(c) => c,
-            None => return Err(FerroError::NotFound(src.to_string())),
+            None => return Err(FerroError::NotFound(src)),
         };
-        let mut meta = match meta_map.get(src).cloned() {
+        let mut meta = match meta_map.get(&src).cloned() {
             Some(m) => m,
-            None => return Err(FerroError::NotFound(src.to_string())),
+            None => return Err(FerroError::NotFound(src)),
         };
 
-        meta.path = dst.to_string();
+        meta.path = dst.clone();
+        meta.etag = format!("\"{}\"", meta.content_hash.as_str());
         meta.modified_at = Utc::now();
 
-        store.insert(dst.to_string(), content);
-        meta_map.insert(dst.to_string(), meta);
-
         debug!("COPY {} -> {}", src, dst);
+        store.insert(dst.clone(), content);
+        meta_map.insert(dst, meta);
+
         Ok(())
     }
 
     async fn move_path(&self, src: &str, dst: &str) -> Result<()> {
+        let src = normalize_path(src).into_owned();
+        let dst = normalize_path(dst).into_owned();
+
         let mut store = self.store.write().await;
         let mut meta_map = self.metadata.write().await;
 
-        let content = store.remove(src).ok_or_else(|| FerroError::NotFound(src.to_string()))?;
+        let content = store.remove(&src).ok_or_else(|| FerroError::NotFound(src.clone()))?;
         let mut meta = meta_map
-            .remove(src)
-            .ok_or_else(|| FerroError::NotFound(src.to_string()))?;
+            .remove(&src)
+            .ok_or_else(|| FerroError::NotFound(src.clone()))?;
 
-        meta.path = dst.to_string();
+        meta.path = dst.clone();
+        meta.etag = format!("\"{}\"", meta.content_hash.as_str());
         meta.modified_at = Utc::now();
 
-        store.insert(dst.to_string(), content);
-        meta_map.insert(dst.to_string(), meta);
-
         debug!("MOVE {} -> {}", src, dst);
+        store.insert(dst.clone(), content);
+        meta_map.insert(dst, meta);
+
         Ok(())
     }
 
     async fn head(&self, path: &str) -> Result<FileMetadata> {
+        let path = normalize_path(path).into_owned();
         let meta_map = self.metadata.read().await;
         meta_map
-            .get(path)
+            .get(&path)
             .cloned()
-            .ok_or_else(|| FerroError::NotFound(path.to_string()))
+            .ok_or(FerroError::NotFound(path))
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {
+        let path = normalize_path(path).into_owned();
         let meta_map = self.metadata.read().await;
-        Ok(meta_map.contains_key(path))
+        Ok(meta_map.contains_key(&path))
     }
 
     async fn create_collection(&self, path: &str, owner: &str) -> Result<FileMetadata> {
-        let meta = FileMetadata::new_collection(path.to_string(), owner.to_string());
-        self.metadata.write().await.insert(path.to_string(), meta.clone());
-        self.store.write().await.insert(path.to_string(), Bytes::new());
+        let path = normalize_path(path).into_owned();
+
+        if self.metadata.read().await.contains_key(&path) {
+            return Err(FerroError::AlreadyExists(path));
+        }
+
+        let meta = FileMetadata::new_collection(path.clone(), owner.to_string());
         debug!("MKCOL {}", path);
+        self.metadata.write().await.insert(path.clone(), meta.clone());
+        self.store.write().await.insert(path, Bytes::new());
         Ok(meta)
     }
 
-    async fn list_all(&self, prefix: &str, max_depth: u32) -> Result<Vec<FileMetadata>> {
-        let meta_map = self.metadata.read().await;
-        let base = if prefix == "/" {
-            ""
+    async fn list_all(&self, path: &str, max_depth: u32) -> Result<Vec<FileMetadata>> {
+        let path = normalize_path(path);
+        let prefix = if path == "/" {
+            "/".to_string()
         } else {
-            prefix.trim_end_matches('/')
+            format!("{}/", path.trim_end_matches('/'))
         };
-        let base_len = base.len();
-        let results: Vec<FileMetadata> = meta_map
+
+        let meta_guard = self.metadata.read().await;
+        let mut items: Vec<FileMetadata> = meta_guard
             .values()
             .filter(|m| {
-                if !m.path.starts_with(base) || m.path == base || m.path == prefix {
+                if !m.path.starts_with(&prefix) || m.path == path.as_ref() {
                     return false;
                 }
-                let relative = &m.path[base_len..].trim_start_matches('/');
-                let depth = relative.matches('/').count() as u32;
+                let remaining = &m.path[prefix.len()..];
+                let depth = remaining.matches('/').count() as u32;
                 depth < max_depth
             })
             .cloned()
             .collect();
-        Ok(results)
+
+        // Hard cap on total results to prevent DoS (must match webdav::MAX_PROPFIND_DEPTH)
+        items.truncate(100);
+
+        items.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(items)
     }
 }
 
