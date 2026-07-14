@@ -1,34 +1,61 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 8.1 | **Date:** 2026-07-04 | **Status:** v8.1 Desktop Build + CalDAV Hardening + Pen Test Scope COMPLETE
+**Version:** 8.2 | **Date:** 2026-07-14 | **Status:** Audit Cycle 16 COMPLETE -- clippy clean, CI consolidated, GUI hardened
 
 ---
 
-## Current State (2026-07-04)
+## Current State (2026-07-14)
 
 | Metric | Value |
 |--------|-------|
-| Crates | 58 (46 original + 12 extracted) |
-| Tests | 496+ lib + 254+ extracted + 250+ integration + 35 security + 11 CalDAV + 12 federation + 22 webdav-litmus = ALL PASSING |
-| Code | ~107K lines Rust |
-| lib.rs | 227 lines (reduced from 3638 via 3-phase extraction) |
-| Clippy warnings | 0 |
-| Extracted crates | 12 (content, plugins, compliance, integrations, security-middleware, admin-api, user-mgmt, collaboration, api-core, storage-ops, webdav-core, sharing) + infra, productivity, storage-utils |
-| Security audit | Self-audit complete, 14 findings fixed; pen test scope document created |
-| Pen test | 33 security tests + 44 integration tests + 91 wiring tests |
-| Desktop | Tauri v2.11 + Leptos 0.8 WASM, builds to 9.3MB ELF binary, 30+ commands |
-| Mobile | Tauri v2 mobile, complete code, needs Android NDK for cross-compile |
-| CalDAV hardening | sync-collection 501 stub, tightened multiget detection, PROPPATCH 403 for unsupported |
-| Integration | All 15 framework crates wired into server |
-| CI/CD | 8 workflows (checks, bench, extended, release, docs, desktop, dependabot, security-scan) |
-| Docs | Astro + Starlight documentation site, landing page, Mermaid diagrams, COMPARISON.md (15 platforms), ROADMAP.md |
+| Crates | 60 (46 original + 14 extracted) |
+| Tests | 2500+ (unit + integration + property + security) |
+| Code | ~110K lines Rust |
+| Clippy warnings | 0 (all features: s3,gcs,azure,pg,redis,ldap) |
+| CI workflows | 14 (consolidated from 16) |
+| Security | cargo-deny clean, 18/18 pen test checks, zero yanked deps |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | MSRV | 1.92 (enforced in CI) |
-| Competitive gaps | 0 remaining (all 25 closed) |
-| Pre-commit hook | fmt + clippy (targeted) + secret scan + targeted crate tests (no full workspace fallback) |
-| Soak test | 24h soak in progress (PID 2166782), 281K+ ops, 184 req/s, zero errors |
+| Pre-commit hook | fmt + clippy + secret scan + TODO scan + targeted tests |
 
 ## Recently Completed
+
+### 2026-07-14: Audit Cycle 16 -- Comprehensive Codebase Audit
+
+**Phase 1: Deep Testing & Code Quality**
+- Fixed all clippy warnings across 60+ crates (zero warnings with all features)
+- Fixed Cow<str>/String type mismatches in server-collaboration (normalize_path returns Cow)
+- Added missing Default implementations (GdprManager, TenantManager, NotificationManager)
+- Fixed unreachable patterns in ldap_auth.rs (server + admin) that only surface with --features ldap
+- Removed unused imports in feature-gated code (pg_state.rs, redis_lock.rs)
+- Fixed hashbrown HashMap mismatches in benchmarks (dav.rs used std HashMap, structs use hashbrown)
+- Fixed pg_state.rs: updated shares/favorites imports to ferro-server-sharing, fixed self.pool bug
+- Fixed redis_lock.rs: removed invalid .context() calls on FerroError
+- Updated yanked spin crate 0.9.8 to 0.9.9
+- Configured git hooks path, formatted entire workspace
+
+**Phase 2: CI/CD Pipeline Audit**
+- Consolidated ci.yml + checks.yml into single ci.yml (removed 2 redundant workflows)
+- Removed duplicate cargo-deny (was in 3 workflows, now 2)
+- Removed duplicate Trivy scans (was in 4 workflows, now 2)
+- Pinned unpinned actions in sanitizers.yml (SHA-pinned to v4.2.2)
+- Added concurrency groups to sanitizers.yml
+- Fixed sanitizers script: export RUSTUP_TOOLCHAIN=nightly to override rust-toolchain.toml
+- Cleaned stale advisory ignores from deny.toml
+
+**Phase 3: GUI/UI/UX Hardening**
+- Enhanced E2E traversal script with additional route coverage (notes, tasks, contacts, settings)
+- Added design language compliance checks (touch targets, inline styles, border radius, color usage, spacing grid)
+- Added accessibility deep scan (focus-visible, heading hierarchy, landmark roles, color contrast)
+- Fixed command_palette: added aria-activedescendant for screen reader announcements
+- Fixed toast: removed conflicting role=alert + aria-live=polite, added aria-atomic
+- Fixed dialog: replaced 6 hardcoded Tailwind colors with CSS custom properties
+- Fixed command_palette backdrop: replaced hardcoded bg-black with --overlay
+
+**Phase 4: Documentation**
+- Fixed CI badge reference (checks.yml -> ci.yml) in README
+- Fixed MSRV version (1.70 -> 1.92) in CONTRIBUTING.md
+- Updated SECURITY.md: no active advisories as of 2026-07-14
 
 ### 2026-07-04: Desktop Build Fix + CalDAV Hardening + Photos Extraction + Pen Test Scope
 
@@ -1697,3 +1724,29 @@ All 14 roadmap items are DONE (PR-001 through PR-014). iOS and Android targets a
 | Performance regression with SQLite at scale | Medium | High | Recommend PostgreSQL for >100 concurrent users (PF-001) |
 | Tauri GTK4 migration delayed | Medium | Low (desktop-only) | Server/core unaffected; continue with GTK3 |
 | Raft consensus complexity | High | High | Incremental rollout; single-node mode remains default |
+
+### v6.0 -- Crate Consolidation & Code Quality
+
+**Objective:** Eliminate duplication across 60+ crates, unify error types, reduce maintenance burden.
+
+| # | Priority | Item | Description | Effort |
+|---|----------|------|-------------|--------|
+| CC-001 | P0 | Unify ApiError | Eliminate 9 duplicate ApiError definitions. Standardize JSON error format across all endpoints (currently "detail" vs "details" inconsistency). Canonical: server-security-middleware. | 3 days |
+| CC-002 | P0 | Unify InMemoryStorageEngine | Remove 2 of 3 copies (server + server-collaboration). Keep only core/src/storage.rs version. | 1 day |
+| CC-003 | P0 | Eliminate PushNotificationStore duplication | Merge server-automation and server-integrations push notification implementations. One canonical store. | 2 days |
+| CC-004 | P0 | Eliminate WormPolicy duplication | Merge server-automation/src/worm.rs and server-compliance/src/worm.rs. One canonical store. | 2 days |
+| CC-005 | P0 | Eliminate RetentionPolicy duplication | Merge server-automation/src/retention.rs and server-compliance/src/retention.rs. One canonical store. | 2 days |
+| CC-006 | P1 | Unify AuditEntry and AuditLogTrait | Extract to server-api-core or a new audit-common crate. 9 copies of AuditEntry, 4 copies of AuditLogTrait. | 2 days |
+| CC-007 | P1 | Unify LdapConfig | Merge server/src/ldap_auth.rs and server-admin/src/ldap.rs. One canonical LDAP implementation. | 1 day |
+| CC-008 | P1 | Eliminate ThumbnailService duplication | Remove server/src/thumbnails.rs (381 lines), use server-storage-utils version exclusively. | 1 day |
+| CC-009 | P1 | Eliminate StorageHealth duplication | Remove server/src/storage_health.rs, use server-storage-utils version. | 1 day |
+| CC-010 | P1 | Unify DbHandle | Extract Arc<Mutex<Connection>> type alias to common crate. Currently defined in 19 places. | 1 day |
+| CC-011 | P1 | Merge server-storage-utils into server-storage-ops | Both serve same domain. Reduce crate count by 1. | 2 days |
+| CC-012 | P2 | Merge server-admin into server-admin-api | Overlapping LDAP code, small crates. Reduce crate count by 1. | 2 days |
+| CC-013 | P2 | Absorb webhook crate into server-automation | server-automation reimplements webhook crate functionality. | 2 days |
+| CC-014 | P2 | Merge caldav into dav | caldav is just error types. Merge into dav crate. | 1 day |
+| CC-015 | P2 | Merge server-webdav + server-webdav-core | Both are WebDAV handler crates with overlapping responsibilities. | 3 days |
+| CC-016 | P3 | Fix pre-existing memory leak | Address 105-byte leak in ferro-core detected by AddressSanitizer. | 2 days |
+
+**Estimated total effort:** 30 days (Phase 6.0)
+**Target:** Reduce crate count from 60 to ~48, eliminate all critical duplications
