@@ -48,7 +48,9 @@ fn priority_color(priority: &str) -> &'static str {
         "low" => {
             "bg-[var(--success-subtle)] text-[var(--success)] border-[var(--success-subtle)] dark:border-green-700"
         }
-        _ => "bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] border-[var(--border-default)]",
+        _ => {
+            "bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] border-[var(--border-default)]"
+        }
     }
 }
 

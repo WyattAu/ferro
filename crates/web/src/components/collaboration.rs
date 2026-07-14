@@ -446,10 +446,16 @@ fn ConnectionBadge(state: ReadSignal<CollabConnectionState>) -> impl IntoView {
     };
 
     let color_class = move || match state.get() {
-        CollabConnectionState::Connected => "bg-[var(--success-subtle)] text-[var(--success)] dark:bg-green-900 dark:text-[var(--success)]",
-        CollabConnectionState::Connecting => "bg-[var(--warning-subtle)] text-[var(--warning)] bg-[var(--warning-subtle)] text-[var(--warning)]",
+        CollabConnectionState::Connected => {
+            "bg-[var(--success-subtle)] text-[var(--success)] dark:bg-green-900 dark:text-[var(--success)]"
+        }
+        CollabConnectionState::Connecting => {
+            "bg-[var(--warning-subtle)] text-[var(--warning)] bg-[var(--warning-subtle)] text-[var(--warning)]"
+        }
         CollabConnectionState::ReadOnly => "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-        CollabConnectionState::Disconnected => "bg-[var(--bg-inset)] text-[var(--text-primary)] bg-[var(--bg-surface-raised)] dark:text-gray-200",
+        CollabConnectionState::Disconnected => {
+            "bg-[var(--bg-inset)] text-[var(--text-primary)] bg-[var(--bg-surface-raised)] dark:text-gray-200"
+        }
     };
 
     view! {
