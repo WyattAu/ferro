@@ -191,6 +191,8 @@ pub struct AppState {
     pub admin_tags_store: Arc<dyn ferro_server_admin_api::AdminTagStoreTrait>,
     /// Adapter for user-mgmt crate's audit log trait.
     pub user_mgmt_audit_adapter: Arc<dyn ferro_server_user_mgmt::AuditLog>,
+    /// Adapter for ferro-server-state's AuditLogTrait.
+    pub state_audit_adapter: Arc<dyn ferro_server_state::AuditLogTrait>,
 }
 
 impl AppState {
@@ -321,6 +323,7 @@ impl AppState {
                 ferro_server_collaboration::tags::TagStore::new(),
             ))),
             user_mgmt_audit_adapter: Arc::new(adapters::UserMgmtAuditLogAdapter(Arc::new(AuditLog::new()))),
+            state_audit_adapter: Arc::new(traits::AuditLogAdapter(Arc::new(AuditLog::new()))),
         }
     }
 

@@ -102,6 +102,7 @@ pub(super) fn with_db(mut state: AppState, db: DbHandle) -> AppState {
     state.admin_tags_store = Arc::new(super::adapters::AdminTagStoreAdapter(state.tags.clone()));
     state.collab_audit_adapter = Arc::new(super::adapters::CollaborationAuditLogAdapter(state.audit_log.clone()));
     state.user_mgmt_audit_adapter = Arc::new(super::adapters::UserMgmtAuditLogAdapter(state.audit_log.clone()));
+    state.state_audit_adapter = Arc::new(super::traits::AuditLogAdapter(state.audit_log.clone()));
     if let Err(e) = state.notification_prefs_store.init_table() {
         tracing::warn!(error = %e, "failed to init notification_prefs table");
     }

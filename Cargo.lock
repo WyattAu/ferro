@@ -3996,8 +3996,17 @@ version = "3.0.0"
 dependencies = [
  "async-trait",
  "bytes",
+ "ferro-auth",
+ "ferro-common",
+ "ferro-core",
+ "ferro-server-api-core",
+ "ferro-server-collaboration",
+ "ferro-server-compliance",
+ "ferro-server-sharing",
+ "ferro-server-storage-ops",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

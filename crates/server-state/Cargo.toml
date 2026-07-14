@@ -9,7 +9,16 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
+common = { package = "ferro-common", path = "../common", features = ["db"] }
+ferro-auth = { path = "../auth" }
+ferro-core = { path = "../core", features = ["search"] }
+ferro-server-sharing = { path = "../server-sharing" }
+ferro-server-api-core = { path = "../server-api-core" }
+ferro-server-collaboration = { path = "../server-collaboration" }
+ferro-server-storage-ops = { path = "../server-storage-ops" }
+ferro-server-compliance = { path = "../server-compliance" }
 serde = { workspace = true }
 serde_json = "1"
 async-trait = "0.1"
 bytes = "1"
+tokio = { workspace = true }

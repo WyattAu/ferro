@@ -123,7 +123,9 @@ impl AppState {
 
     pub fn with_audit_persistence(self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
         let mut s = self;
-        s.audit_log = Arc::new(crate::audit::AuditLog::new().with_persistence(persistence));
+        let audit = Arc::new(crate::audit::AuditLog::new().with_persistence(persistence));
+        s.audit_log = audit.clone();
+        s.state_audit_adapter = Arc::new(crate::state::traits::AuditLogAdapter(audit));
         s
     }
 

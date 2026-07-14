@@ -740,3 +740,195 @@ impl ferro_server_infra::InfraState for AppState {
         &self.activity_store
     }
 }
+
+// ---------------------------------------------------------------------------
+// AuditLogAdapter — bridges crate::audit::AuditLog to ferro_server_state::AuditLogTrait
+// ---------------------------------------------------------------------------
+
+pub struct AuditLogAdapter(pub Arc<crate::audit::AuditLog>);
+
+fn convert_entry(e: crate::audit::AuditEntry) -> ferro_server_state::AuditEntry {
+    ferro_server_state::AuditEntry {
+        timestamp: e.timestamp,
+        method: e.method,
+        path: e.path,
+        user: e.user,
+        status: e.status,
+        client_ip: e.client_ip,
+        user_agent: e.user_agent,
+        content_length: e.content_length,
+    }
+}
+
+#[async_trait::async_trait]
+impl ferro_server_state::AuditLogTrait for AuditLogAdapter {
+    async fn log(&self, entry: ferro_server_state::AuditEntry) {
+        self.0
+            .log(crate::audit::AuditEntry {
+                timestamp: entry.timestamp,
+                method: entry.method,
+                path: entry.path,
+                user: entry.user,
+                status: entry.status,
+                client_ip: entry.client_ip,
+                user_agent: entry.user_agent,
+                content_length: entry.content_length,
+            })
+            .await;
+    }
+
+    async fn len(&self) -> usize {
+        self.0.len().await
+    }
+
+    async fn recent(&self, n: usize) -> Vec<ferro_server_state::AuditEntry> {
+        self.0.recent(n).await.into_iter().map(convert_entry).collect()
+    }
+
+    async fn recent_with_offset(&self, limit: usize, offset: usize) -> Vec<ferro_server_state::AuditEntry> {
+        self.0
+            .recent_with_offset(limit, offset)
+            .await
+            .into_iter()
+            .map(convert_entry)
+            .collect()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ServerState for AppState
+// ---------------------------------------------------------------------------
+
+impl ferro_server_state::ServerState for AppState {
+    fn storage(&self) -> &Arc<dyn common::storage::StorageEngine> {
+        &self.storage
+    }
+
+    fn lock_manager(&self) -> &Arc<dyn common::storage::LockManagerTrait> {
+        &self.lock_manager
+    }
+
+    fn db(&self) -> &Option<common::DbHandle> {
+        &self.db
+    }
+
+    fn admin_user(&self) -> Option<&str> {
+        self.admin_user.as_deref()
+    }
+
+    fn admin_password(&self) -> Option<&str> {
+        self.admin_password.as_deref()
+    }
+
+    fn admin_password_rotated(&self) -> &Arc<std::sync::atomic::AtomicBool> {
+        &self.admin_password_rotated
+    }
+
+    fn user_store(&self) -> &Arc<dyn ferro_auth::users::UserStoreTrait> {
+        &self.user_store
+    }
+
+    fn api_key_store(&self) -> &Arc<dyn ferro_auth::api_keys::ApiKeyStoreTrait> {
+        &self.api_key_store
+    }
+
+    fn search(&self) -> &Option<Arc<tokio::sync::RwLock<ferro_core::search::SearchEngine>>> {
+        &self.search
+    }
+
+    fn preferences(&self) -> &Arc<dyn ferro_server_api_core::search::PreferenceStore> {
+        &self.preferences
+    }
+
+    fn share_store(&self) -> &Arc<dyn ferro_server_sharing::shares::ShareStoreTrait> {
+        &self.share_store
+    }
+
+    fn favorites(&self) -> &Arc<dyn ferro_server_sharing::favorites::FavoriteStore> {
+        &self.favorites
+    }
+
+    fn tags(&self) -> &Arc<ferro_server_collaboration::tags::TagStore> {
+        &self.tags
+    }
+
+    fn comments(&self) -> &Arc<ferro_server_collaboration::comments::CommentStore> {
+        &self.comments
+    }
+
+    fn worm_store(&self) -> &ferro_server_compliance::worm::WormPolicyStore {
+        &self.worm_store
+    }
+
+    fn retention_store(&self) -> &ferro_server_compliance::retention::RetentionStore {
+        &self.retention_store
+    }
+
+    fn dlp_store(&self) -> &ferro_server_compliance::dlp_api::DlpStore {
+        &self.dlp_store
+    }
+
+    fn snapshot_store(&self) -> &Arc<ferro_server_storage_ops::snapshots::SnapshotStore> {
+        &self.snapshot_store
+    }
+
+    fn thumbnail_cache(&self) -> &Arc<dyn ferro_server_storage_ops::ThumbnailCacheTrait> {
+        &self.thumbnail_cache
+    }
+
+    fn storage_health(&self) -> &Arc<ferro_server_storage_ops::storage_health::StorageHealthMonitor> {
+        &self.storage_health
+    }
+
+    fn external_url(&self) -> &str {
+        &self.external_url
+    }
+
+    fn max_body_size(&self) -> u64 {
+        self.max_body_size
+    }
+
+    fn thumbnail_size(&self) -> u32 {
+        self.thumbnail_size
+    }
+
+    fn data_dir(&self) -> Option<&str> {
+        self.data_dir.as_deref()
+    }
+
+    fn max_file_versions(&self) -> u64 {
+        self.max_file_versions
+    }
+
+    fn quota_bytes(&self) -> Option<u64> {
+        self.quota_bytes
+    }
+
+    fn request_count(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.request_count
+    }
+
+    fn storage_op_counts(&self) -> &Arc<[std::sync::atomic::AtomicU64; 6]> {
+        &self.storage_op_counts
+    }
+
+    fn maintenance_mode(&self) -> &Arc<std::sync::atomic::AtomicBool> {
+        &self.maintenance_mode
+    }
+
+    fn startup_complete(&self) -> &Arc<std::sync::atomic::AtomicBool> {
+        &self.startup_complete
+    }
+
+    fn audit_log(&self) -> &Arc<dyn ferro_server_state::AuditLogTrait> {
+        &self.state_audit_adapter
+    }
+
+    fn wasm_runtime(&self) -> &Option<Arc<ferro_core::wasm::WasmWorkerRuntime>> {
+        &self.wasm_runtime
+    }
+
+    fn search_ranking_config(&self) -> &Arc<tokio::sync::RwLock<ferro_core::search::SearchRankingConfig>> {
+        &self.search_ranking_config
+    }
+}
