@@ -264,6 +264,5 @@ fn role_priority(role: &crate::users::UserRole) -> u8 {
         crate::users::UserRole::Admin => 3,
         crate::users::UserRole::User => 2,
         crate::users::UserRole::ReadOnly => 1,
-        _ => 0,
     }
 }

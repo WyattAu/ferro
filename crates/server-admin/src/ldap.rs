@@ -1,4 +1,4 @@
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::Zeroize;
 
 pub struct LdapConfig {
     pub url: String,
@@ -288,6 +288,5 @@ fn role_priority(role: &ferro_server::users::UserRole) -> u8 {
         ferro_server::users::UserRole::Admin => 3,
         ferro_server::users::UserRole::User => 2,
         ferro_server::users::UserRole::ReadOnly => 1,
-        _ => 0,
     }
 }
