@@ -3,8 +3,6 @@ use chrono::Utc;
 use sqlx::PgPool;
 use tracing::{debug, warn};
 
-use crate::DbHandle;
-
 pub struct PgShareStore {
     pool: PgPool,
 }
