@@ -46,9 +46,7 @@ impl MailStore {
         )
     }
 
-    fn list_accounts_from_db(
-        conn: &rusqlite::Connection,
-    ) -> Result<Vec<MailAccount>, rusqlite::Error> {
+    fn list_accounts_from_db(conn: &rusqlite::Connection) -> Result<Vec<MailAccount>, rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT id, name, email_address, imap_host, imap_port, imap_security, imap_username, smtp_host, smtp_port, smtp_security, smtp_username, created_at FROM mail_accounts ORDER BY created_at",
         )?;
@@ -71,10 +69,7 @@ impl MailStore {
         rows.collect()
     }
 
-    fn get_account_from_db(
-        conn: &rusqlite::Connection,
-        id: &str,
-    ) -> Result<MailAccount, rusqlite::Error> {
+    fn get_account_from_db(conn: &rusqlite::Connection, id: &str) -> Result<MailAccount, rusqlite::Error> {
         conn.query_row(
             "SELECT id, name, email_address, imap_host, imap_port, imap_security, imap_username, smtp_host, smtp_port, smtp_security, smtp_username, created_at FROM mail_accounts WHERE id = ?1",
             params![id],
@@ -128,15 +123,9 @@ impl MailStore {
         let id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
         let imap_port = req.imap_port.unwrap_or(993);
-        let imap_security = req
-            .imap_security
-            .clone()
-            .unwrap_or_else(|| "ssl".to_string());
+        let imap_security = req.imap_security.clone().unwrap_or_else(|| "ssl".to_string());
         let smtp_port = req.smtp_port.unwrap_or(587);
-        let smtp_security = req
-            .smtp_security
-            .clone()
-            .unwrap_or_else(|| "starttls".to_string());
+        let smtp_security = req.smtp_security.clone().unwrap_or_else(|| "starttls".to_string());
         let imap_password_enc = Self::encrypt_password(&req.imap_password);
         let smtp_password_enc = Self::encrypt_password(&req.smtp_password);
 
@@ -317,14 +306,7 @@ fn imap_connect(
     Ok(session)
 }
 
-fn parse_fetch_headers(
-    header_bytes: &[u8],
-) -> (
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-) {
+fn parse_fetch_headers(header_bytes: &[u8]) -> (Option<String>, Option<String>, Option<String>, Option<String>) {
     let mut subject = None;
     let mut from = None;
     let mut to = None;
@@ -355,11 +337,7 @@ fn parse_fetch_headers(
 /// GET /mail/accounts — list configured mail accounts.
 pub async fn list_accounts<S: IntegrationsState>(State(state): State<S>) -> Response {
     match state.mail_store().list_accounts() {
-        Ok(accounts) => (
-            StatusCode::OK,
-            Json(serde_json::json!({ "accounts": accounts })),
-        )
-            .into_response(),
+        Ok(accounts) => (StatusCode::OK, Json(serde_json::json!({ "accounts": accounts }))).into_response(),
         Err(e) => {
             warn!("{}", e);
             ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to list mail accounts")
@@ -386,10 +364,7 @@ pub async fn create_account<S: IntegrationsState>(
 }
 
 /// DELETE /mail/accounts/{id} — remove a mail account.
-pub async fn delete_account<S: IntegrationsState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_account<S: IntegrationsState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     match state.mail_store().delete_account(&id) {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => {
@@ -404,10 +379,7 @@ pub async fn delete_account<S: IntegrationsState>(
 }
 
 /// GET /mail/accounts/{id}/folders — list IMAP folders.
-pub async fn mail_folders<S: IntegrationsState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn mail_folders<S: IntegrationsState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let account = match state.mail_store().get_account(&id) {
         Ok(Some(a)) => a,
         Ok(None) => return ApiError::not_found(ApiError::NOT_FOUND, "Mail account not found"),
@@ -438,21 +410,13 @@ pub async fn mail_folders<S: IntegrationsState>(
         folders.push(MailFolder {
             name: mailbox.name().to_string(),
             delimiter: mailbox.delimiter().map(|d| d.to_string()),
-            flags: mailbox
-                .attributes()
-                .iter()
-                .map(|a| format!("{a:?}"))
-                .collect(),
+            flags: mailbox.attributes().iter().map(|a| format!("{a:?}")).collect(),
         });
     }
 
     let _ = session.logout();
 
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({ "folders": folders })),
-    )
-        .into_response()
+    (StatusCode::OK, Json(serde_json::json!({ "folders": folders }))).into_response()
 }
 
 /// GET /mail/accounts/{id}/folders/{folder}/messages — list messages.
@@ -461,14 +425,8 @@ pub async fn mail_messages<S: IntegrationsState>(
     Path((id, folder)): Path<(String, String)>,
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Response {
-    let limit: u32 = params
-        .get("limit")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(50);
-    let offset: u32 = params
-        .get("offset")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(0);
+    let limit: u32 = params.get("limit").and_then(|v| v.parse().ok()).unwrap_or(50);
+    let offset: u32 = params.get("offset").and_then(|v| v.parse().ok()).unwrap_or(0);
 
     let account = match state.mail_store().get_account(&id) {
         Ok(Some(a)) => a,
@@ -494,10 +452,7 @@ pub async fn mail_messages<S: IntegrationsState>(
     let all_messages = match session.uid_search("ALL") {
         Ok(m) => m,
         Err(e) => {
-            return ApiError::bad_gateway(
-                ApiError::BAD_GATEWAY,
-                format!("IMAP uid_search error: {e}"),
-            );
+            return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("IMAP uid_search error: {e}"));
         }
     };
 
@@ -519,19 +474,12 @@ pub async fn mail_messages<S: IntegrationsState>(
             .into_response();
     }
 
-    let uid_range = page_uids
-        .iter()
-        .map(|u| u.to_string())
-        .collect::<Vec<_>>()
-        .join(",");
+    let uid_range = page_uids.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
 
     let fetch_items = match session.uid_fetch(&uid_range, "(UID FLAGS RFC822.SIZE RFC822.HEADER)") {
         Ok(f) => f,
         Err(e) => {
-            return ApiError::bad_gateway(
-                ApiError::BAD_GATEWAY,
-                format!("IMAP uid_fetch error: {e}"),
-            );
+            return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("IMAP uid_fetch error: {e}"));
         }
     };
 
@@ -598,10 +546,7 @@ pub async fn mail_message_detail<S: IntegrationsState>(
     let fetch_items = match session.uid_fetch(&uid_str, "(UID FLAGS RFC822)") {
         Ok(f) => f,
         Err(e) => {
-            return ApiError::bad_gateway(
-                ApiError::BAD_GATEWAY,
-                format!("IMAP uid_fetch error: {e}"),
-            );
+            return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("IMAP uid_fetch error: {e}"));
         }
     };
 
@@ -677,47 +622,34 @@ pub async fn send_email<S: IntegrationsState>(
     };
 
     if req.to.is_empty() {
-        return ApiError::bad_request(
-            ApiError::INVALID_INPUT,
-            "At least one recipient is required",
-        );
+        return ApiError::bad_request(ApiError::INVALID_INPUT, "At least one recipient is required");
     }
 
-    let tls_params =
-        match lettre::transport::smtp::client::TlsParameters::builder(account.smtp_host.clone())
-            .build()
-        {
-            Ok(tp) => tp,
-            Err(e) => {
-                return ApiError::bad_request(
-                    ApiError::INVALID_INPUT,
-                    format!("TLS config error: {e}"),
-                );
-            }
-        };
+    let tls_params = match lettre::transport::smtp::client::TlsParameters::builder(account.smtp_host.clone()).build() {
+        Ok(tp) => tp,
+        Err(e) => {
+            return ApiError::bad_request(ApiError::INVALID_INPUT, format!("TLS config error: {e}"));
+        }
+    };
 
     let tls_mode = match account.smtp_security.as_str() {
         "ssl" => lettre::transport::smtp::client::Tls::Wrapper(tls_params),
         _ => lettre::transport::smtp::client::Tls::Required(tls_params),
     };
 
-    let transport =
-        lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(&account.smtp_host)
-            .port(account.smtp_port)
-            .tls(tls_mode)
-            .build();
+    let transport = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(&account.smtp_host)
+        .port(account.smtp_port)
+        .tls(tls_mode)
+        .build();
 
-    let from_addr: lettre::message::Mailbox =
-        match format!("{} <{}>", account.name, account.email_address).parse() {
-            Ok(a) => a,
-            Err(_) => {
-                return ApiError::bad_request(ApiError::INVALID_INPUT, "Invalid from address");
-            }
-        };
+    let from_addr: lettre::message::Mailbox = match format!("{} <{}>", account.name, account.email_address).parse() {
+        Ok(a) => a,
+        Err(_) => {
+            return ApiError::bad_request(ApiError::INVALID_INPUT, "Invalid from address");
+        }
+    };
 
-    let mut email_builder = lettre::Message::builder()
-        .from(from_addr)
-        .subject(&req.subject);
+    let mut email_builder = lettre::Message::builder().from(from_addr).subject(&req.subject);
 
     for to_addr in &req.to {
         if let Ok(addr) = to_addr.parse() {
@@ -750,13 +682,10 @@ pub async fn send_email<S: IntegrationsState>(
 
         if let Some(ref attachments) = req.attachments {
             for att in attachments {
-                if let Ok(data) =
-                    base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &att.content)
-                {
+                if let Ok(data) = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &att.content) {
                     let ct = lettre::message::header::ContentType::parse(&att.content_type)
                         .unwrap_or(lettre::message::header::ContentType::TEXT_PLAIN);
-                    let attachment =
-                        lettre::message::Attachment::new(att.filename.clone()).body(data, ct);
+                    let attachment = lettre::message::Attachment::new(att.filename.clone()).body(data, ct);
                     multipart = multipart.singlepart(attachment);
                 }
             }
@@ -776,11 +705,7 @@ pub async fn send_email<S: IntegrationsState>(
         Ok(email) => {
             use lettre::AsyncTransport;
             match transport.send(email).await {
-                Ok(_) => (
-                    StatusCode::OK,
-                    Json(serde_json::json!({ "status": "sent" })),
-                )
-                    .into_response(),
+                Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "sent" }))).into_response(),
                 Err(e) => {
                     warn!("SMTP send failed: {}", e);
                     ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("SMTP error: {e}"))
@@ -796,8 +721,5 @@ pub async fn download_attachment<S: IntegrationsState>(
     State(_state): State<S>,
     Path((_id, _folder, _uid, _part)): Path<(String, String, u32, String)>,
 ) -> Response {
-    ApiError::not_implemented(
-        "NOT_IMPLEMENTED",
-        "Attachment download via IMAP is not yet implemented",
-    )
+    ApiError::not_implemented("NOT_IMPLEMENTED", "Attachment download via IMAP is not yet implemented")
 }

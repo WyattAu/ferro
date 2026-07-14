@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/circuit-breaker",
     "crates/crdt",
     "crates/core",
     "crates/common",
@@ -60,6 +61,9 @@ members = [
     "crates/server-productivity",
     "crates/server-storage-utils",
     "crates/server-infra",
+    "crates/chaos",
+    "crates/plugin",
+    "crates/feature-flags",
 ]
 resolver = "2"
 
@@ -84,6 +88,9 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 hex = "0.4"
 rand = "0.8"
 base64 = "0.22"
+hashbrown = { version = "0.15", features = ["inline-more"] }
+ahash = "0.8"
+crossbeam = { version = "0.8", features = ["crossbeam-queue"] }
 aes-gcm = { version = "0.10", features = ["aes", "heapless"] }
 hkdf = "0.12"
 zeroize = "1"

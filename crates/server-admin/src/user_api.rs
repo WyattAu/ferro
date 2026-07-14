@@ -5,25 +5,18 @@ use axum::response::{IntoResponse, Response};
 use ferro_server::AppState;
 use ferro_server::api_error::ApiError;
 use ferro_server::users::{
-    CreateUserRequest, ResetPasswordRequest, UpdateSelfRequest, UpdateUserRequest, UserInfo,
-    UserRole,
+    CreateUserRequest, ResetPasswordRequest, UpdateSelfRequest, UpdateUserRequest, UserInfo, UserRole, ZeroizeString,
 };
 
 #[allow(clippy::result_large_err)]
 fn require_admin(info: &UserInfo) -> Result<(), Response> {
     if info.role != UserRole::Admin {
-        return Err(ApiError::forbidden(
-            ApiError::ADMIN_REQUIRED,
-            "Admin role required",
-        ));
+        return Err(ApiError::forbidden(ApiError::ADMIN_REQUIRED, "Admin role required"));
     }
     Ok(())
 }
 
-pub async fn create_user(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<CreateUserRequest>,
-) -> Response {
+pub async fn create_user(State(state): State<AppState>, axum::Json(body): axum::Json<CreateUserRequest>) -> Response {
     let info = match state.user_info(&body.username) {
         Some(i) => i,
         None => return ApiError::unauthorized(ApiError::AUTH_REQUIRED, "Not authenticated"),
@@ -33,10 +26,7 @@ pub async fn create_user(
     }
 
     if body.username.trim().is_empty() || body.password.trim().is_empty() {
-        return ApiError::bad_request(
-            ApiError::INVALID_INPUT,
-            "Username and password are required",
-        );
+        return ApiError::bad_request(ApiError::INVALID_INPUT, "Username and password are required");
     }
 
     let user = ferro_server::users::User {
@@ -56,7 +46,7 @@ pub async fn create_user(
         storage_used_bytes: 0,
         is_ldap: false,
         password_hash: match ferro_server::users::hash_password(&body.password) {
-            Ok(h) => Some(h),
+            Ok(h) => Some(ZeroizeString::new(h)),
             Err(e) => {
                 return ApiError::internal(ApiError::INTERNAL_ERROR, e.message).into_response();
             }
@@ -68,15 +58,10 @@ pub async fn create_user(
     match state.user_store.create_user(user).await {
         Ok(u) => match serde_json::to_value(&u) {
             Ok(v) => (StatusCode::CREATED, axum::Json(v)).into_response(),
-            Err(e) => ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                format!("Failed to serialize user: {}", e),
-            ),
+            Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to serialize user: {}", e)),
         },
         Err(e) => match e.kind {
-            ferro_server::users::UserErrorKind::Conflict => {
-                ApiError::conflict(ApiError::USER_EXISTS, e.message)
-            }
+            ferro_server::users::UserErrorKind::Conflict => ApiError::conflict(ApiError::USER_EXISTS, e.message),
             _ => ApiError::internal(ApiError::USER_CREATE_ERROR, e.message),
         },
     }
@@ -104,11 +89,7 @@ pub async fn list_users(State(state): State<AppState>) -> Response {
         })
         .collect();
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "users": serialized })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "users": serialized }))).into_response()
 }
 
 pub async fn get_user(State(state): State<AppState>, Path(id): Path<String>) -> Response {
@@ -126,10 +107,7 @@ pub async fn get_user(State(state): State<AppState>, Path(id): Path<String>) -> 
             let mut v = match serde_json::to_value(&u) {
                 Ok(v) => v,
                 Err(e) => {
-                    return ApiError::internal(
-                        ApiError::INTERNAL_ERROR,
-                        format!("Failed to serialize user: {}", e),
-                    );
+                    return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to serialize user: {}", e));
                 }
             };
             if let Some(obj) = v.as_object_mut() {
@@ -138,9 +116,7 @@ pub async fn get_user(State(state): State<AppState>, Path(id): Path<String>) -> 
             (StatusCode::OK, axum::Json(v)).into_response()
         }
         Err(e) => match e.kind {
-            ferro_server::users::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
+            ferro_server::users::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
@@ -165,10 +141,7 @@ pub async fn update_user(
             let mut v = match serde_json::to_value(&u) {
                 Ok(v) => v,
                 Err(e) => {
-                    return ApiError::internal(
-                        ApiError::INTERNAL_ERROR,
-                        format!("Failed to serialize user: {}", e),
-                    );
+                    return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to serialize user: {}", e));
                 }
             };
             if let Some(obj) = v.as_object_mut() {
@@ -177,12 +150,8 @@ pub async fn update_user(
             (StatusCode::OK, axum::Json(v)).into_response()
         }
         Err(e) => match e.kind {
-            ferro_server::users::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
-            ferro_server::users::UserErrorKind::Conflict => {
-                ApiError::conflict(ApiError::USER_CONFLICT, e.message)
-            }
+            ferro_server::users::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
+            ferro_server::users::UserErrorKind::Conflict => ApiError::conflict(ApiError::USER_CONFLICT, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
@@ -199,15 +168,9 @@ pub async fn delete_user(State(state): State<AppState>, Path(id): Path<String>) 
     }
 
     match state.user_store.delete_user(&id).await {
-        Ok(()) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "ok": true })),
-        )
-            .into_response(),
+        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response(),
         Err(e) => match e.kind {
-            ferro_server::users::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
+            ferro_server::users::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
@@ -238,15 +201,9 @@ pub async fn reset_password(
         }
     };
     match state.user_store.set_password(&id, &hash).await {
-        Ok(()) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "ok": true })),
-        )
-            .into_response(),
+        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response(),
         Err(e) => match e.kind {
-            ferro_server::users::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
+            ferro_server::users::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
@@ -270,10 +227,7 @@ pub async fn get_current_user(State(state): State<AppState>) -> Response {
     let mut v = match serde_json::to_value(&user) {
         Ok(v) => v,
         Err(e) => {
-            return ApiError::internal(
-                "SERIALIZATION_ERROR",
-                format!("Failed to serialize user: {}", e),
-            );
+            return ApiError::internal("SERIALIZATION_ERROR", format!("Failed to serialize user: {}", e));
         }
     };
     if let Some(obj) = v.as_object_mut() {
@@ -291,10 +245,7 @@ pub async fn update_current_user(
     let user = match state.user_store.get_user_by_username(username).await {
         Ok(u) => u,
         Err(_) => {
-            return ApiError::not_found(
-                ApiError::USER_NOT_FOUND,
-                "Current user not found in user store",
-            );
+            return ApiError::not_found(ApiError::USER_NOT_FOUND, "Current user not found in user store");
         }
     };
 
@@ -308,10 +259,7 @@ pub async fn update_current_user(
             let mut v = match serde_json::to_value(&u) {
                 Ok(v) => v,
                 Err(e) => {
-                    return ApiError::internal(
-                        ApiError::INTERNAL_ERROR,
-                        format!("Failed to serialize user: {}", e),
-                    );
+                    return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to serialize user: {}", e));
                 }
             };
             if let Some(obj) = v.as_object_mut() {
@@ -319,16 +267,12 @@ pub async fn update_current_user(
             }
             let response = if let Some(ref new_pass) = body.password {
                 if new_pass.trim().is_empty() {
-                    return ApiError::bad_request(
-                        ApiError::INVALID_INPUT,
-                        "Password cannot be empty",
-                    );
+                    return ApiError::bad_request(ApiError::INVALID_INPUT, "Password cannot be empty");
                 }
                 let hash = match ferro_server::users::hash_password(new_pass) {
                     Ok(h) => h,
                     Err(e) => {
-                        return ApiError::internal(ApiError::INTERNAL_ERROR, e.message)
-                            .into_response();
+                        return ApiError::internal(ApiError::INTERNAL_ERROR, e.message).into_response();
                     }
                 };
                 if let Err(e) = state.user_store.set_password(&user.id, &hash).await {

@@ -12,9 +12,9 @@ use tracing::info;
 use tracing::warn;
 
 pub use ferro_server_integrations::offline_wiring::{
-    OfflineConfig, cache_content, clear_queue, connection_state, get_cached_content, is_online,
-    pending_count, queue_copy, queue_create_collection, queue_delete, queue_move, queue_put,
-    spawn_reconnection_listener, sync_pending_ops,
+    OfflineConfig, cache_content, clear_queue, connection_state, get_cached_content, is_online, pending_count,
+    queue_copy, queue_create_collection, queue_delete, queue_move, queue_put, spawn_reconnection_listener,
+    sync_pending_ops,
 };
 
 /// Initialize the offline subsystem: create the queue DB, content cache, and
@@ -22,10 +22,7 @@ pub use ferro_server_integrations::offline_wiring::{
 pub fn init_offline(state: &mut AppState, config: &OfflineConfig) {
     // Ensure the cache directory exists
     if let Err(e) = std::fs::create_dir_all(&config.cache_dir) {
-        warn!(
-            "Failed to create offline cache dir {}: {}",
-            config.cache_dir, e
-        );
+        warn!("Failed to create offline cache dir {}: {}", config.cache_dir, e);
         return;
     }
 
@@ -35,9 +32,7 @@ pub fn init_offline(state: &mut AppState, config: &OfflineConfig) {
     match rusqlite::Connection::open(&queue_db_path) {
         Ok(conn) => {
             let db_handle = Arc::new(std::sync::Mutex::new(conn));
-            let queue = Arc::new(ferro_offline::change_queue::SqliteChangeQueue::new(
-                db_handle,
-            ));
+            let queue = Arc::new(ferro_offline::change_queue::SqliteChangeQueue::new(db_handle));
             if let Err(e) = queue.init() {
                 warn!("Failed to init offline queue table: {}", e);
             }
@@ -48,10 +43,7 @@ pub fn init_offline(state: &mut AppState, config: &OfflineConfig) {
                 .with_offline_cache_size(config.queue_size as u64 * 1024);
         }
         Err(e) => {
-            warn!(
-                "Failed to open offline queue DB: {}, offline queue disabled",
-                e
-            );
+            warn!("Failed to open offline queue DB: {}, offline queue disabled", e);
         }
     }
 }
@@ -64,8 +56,7 @@ mod tests {
     #[test]
     fn test_offline_config_from_args() {
         assert!(OfflineConfig::from_args(None, 50000).is_none());
-        let config =
-            OfflineConfig::from_args(Some("/tmp/ferro-offline".to_string()), 10000).unwrap();
+        let config = OfflineConfig::from_args(Some("/tmp/ferro-offline".to_string()), 10000).unwrap();
         assert_eq!(config.cache_dir, "/tmp/ferro-offline");
         assert_eq!(config.queue_size, 10000);
     }

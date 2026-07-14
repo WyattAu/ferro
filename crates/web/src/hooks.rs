@@ -54,8 +54,7 @@ pub fn UseMediaQuery(_query: String) -> impl IntoView {
                 let closure = Closure::wrap(Box::new(move |_: web_sys::MediaQueryListEvent| {
                     set_matches_clone.set(mql_ref.matches());
                 }) as Box<dyn Fn(_)>);
-                let _ = mql
-                    .add_event_listener_with_callback("change", closure.as_ref().unchecked_ref());
+                let _ = mql.add_event_listener_with_callback("change", closure.as_ref().unchecked_ref());
                 closure.forget();
             }
         });
@@ -87,11 +86,7 @@ pub fn UseElementSize() -> impl IntoView {
                 let set_w = set_w.clone();
                 let set_h = set_h.clone();
                 let cb = Closure::wrap(Box::new(move |entries: js_sys::Array| {
-                    if let Some(entry) = entries
-                        .get(0)
-                        .dyn_into::<web_sys::ResizeObserverEntry>()
-                        .ok()
-                    {
+                    if let Some(entry) = entries.get(0).dyn_into::<web_sys::ResizeObserverEntry>().ok() {
                         let rect = entry.content_rect();
                         set_w.set(rect.width() as u32);
                         set_h.set(rect.height() as u32);

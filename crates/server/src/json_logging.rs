@@ -3,6 +3,7 @@ use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::LookupSpan;
 
 /// JSON-formatted tracing event formatter.
+#[derive(Debug)]
 pub struct JsonFormatter;
 
 struct MessageVisitor(String);
@@ -67,10 +68,7 @@ where
                         &mut buf,
                         r#","span":"{}","span_fields":"{}""#,
                         span.name(),
-                        fields
-                            .to_string()
-                            .replace('\\', "\\\\")
-                            .replace('"', "\\\""),
+                        fields.to_string().replace('\\', "\\\\").replace('"', "\\\""),
                     )?;
                 }
             }

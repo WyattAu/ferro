@@ -12,7 +12,12 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 ferro-webdav-handler = { path = "../crates/webdav-handler" }
-ferro-core = { path = "../crates/core" }
+ferro-dav = { path = "../crates/dav" }
+ferro-common = { path = "../crates/common" }
+ferro-server = { path = "../crates/server" }
+serde_json = "1"
+quick-xml = { version = "0.41", features = ["serialize"] }
+toml = "0.8"
 
 [[bin]]
 name = "fuzz_proppatch"
@@ -35,5 +40,53 @@ doc = false
 [[bin]]
 name = "fuzz_wasm_magic"
 path = "fuzz_targets/fuzz_wasm_magic.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_calcardav"
+path = "fuzz_targets/fuzz_calcardav.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_config"
+path = "fuzz_targets/fuzz_config.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_path_normalize"
+path = "fuzz_targets/fuzz_path_normalize.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_api_auth"
+path = "fuzz_targets/fuzz_api_auth.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_xml"
+path = "fuzz_targets/fuzz_xml.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_json"
+path = "fuzz_targets/fuzz_json.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_vcard"
+path = "fuzz_targets/fuzz_vcard.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ical"
+path = "fuzz_targets/fuzz_ical.rs"
 test = false
 doc = false

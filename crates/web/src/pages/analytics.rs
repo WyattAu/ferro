@@ -134,10 +134,7 @@ pub fn AnalyticsPage() -> impl IntoView {
             if let Some(v) = overview_val {
                 set_overview.set(Some(AnalyticsOverview {
                     total_views: v.get("total_views").and_then(|v| v.as_u64()).unwrap_or(0),
-                    total_downloads: v
-                        .get("total_downloads")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0),
+                    total_downloads: v.get("total_downloads").and_then(|v| v.as_u64()).unwrap_or(0),
                     total_links: v.get("total_links").and_then(|v| v.as_u64()).unwrap_or(0),
                     storage_used: v.get("storage_used").and_then(|v| v.as_u64()).unwrap_or(0),
                     active_users: v.get("active_users").and_then(|v| v.as_u64()).unwrap_or(0),
@@ -151,11 +148,7 @@ pub fn AnalyticsPage() -> impl IntoView {
                     .map(|arr| {
                         arr.iter()
                             .map(|item| ViewsOverTime {
-                                date: item
-                                    .get("date")
-                                    .and_then(|d| d.as_str())
-                                    .unwrap_or("")
-                                    .to_string(),
+                                date: item.get("date").and_then(|d| d.as_str()).unwrap_or("").to_string(),
                                 views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
                             })
                             .collect()
@@ -171,16 +164,9 @@ pub fn AnalyticsPage() -> impl IntoView {
                     .map(|arr| {
                         arr.iter()
                             .map(|item| TopLink {
-                                path: item
-                                    .get("path")
-                                    .and_then(|p| p.as_str())
-                                    .unwrap_or("")
-                                    .to_string(),
+                                path: item.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
                                 views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
-                                downloads: item
-                                    .get("downloads")
-                                    .and_then(|d| d.as_u64())
-                                    .unwrap_or(0),
+                                downloads: item.get("downloads").and_then(|d| d.as_u64()).unwrap_or(0),
                             })
                             .collect()
                     })
@@ -203,8 +189,7 @@ pub fn AnalyticsPage() -> impl IntoView {
                                         .and_then(|t| t.as_str())
                                         .unwrap_or("unknown")
                                         .to_string();
-                                    let size =
-                                        item.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
+                                    let size = item.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
                                     (key, size)
                                 })
                                 .collect()
@@ -220,25 +205,11 @@ pub fn AnalyticsPage() -> impl IntoView {
                     .map(|arr| {
                         arr.iter()
                             .map(|item| ShareLinkAnalytics {
-                                token: item
-                                    .get("token")
-                                    .and_then(|t| t.as_str())
-                                    .unwrap_or("")
-                                    .to_string(),
-                                path: item
-                                    .get("path")
-                                    .and_then(|p| p.as_str())
-                                    .unwrap_or("")
-                                    .to_string(),
+                                token: item.get("token").and_then(|t| t.as_str()).unwrap_or("").to_string(),
+                                path: item.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
                                 views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
-                                downloads: item
-                                    .get("downloads")
-                                    .and_then(|d| d.as_u64())
-                                    .unwrap_or(0),
-                                unique_visitors: item
-                                    .get("unique_visitors")
-                                    .and_then(|u| u.as_u64())
-                                    .unwrap_or(0),
+                                downloads: item.get("downloads").and_then(|d| d.as_u64()).unwrap_or(0),
+                                unique_visitors: item.get("unique_visitors").and_then(|u| u.as_u64()).unwrap_or(0),
                                 created_at: item
                                     .get("created_at")
                                     .and_then(|c| c.as_str())
@@ -271,20 +242,10 @@ pub fn AnalyticsPage() -> impl IntoView {
                     .map(|arr| {
                         arr.iter()
                             .map(|item| DailyStats {
-                                date: item
-                                    .get("date")
-                                    .and_then(|d| d.as_str())
-                                    .unwrap_or("")
-                                    .to_string(),
+                                date: item.get("date").and_then(|d| d.as_str()).unwrap_or("").to_string(),
                                 views: item.get("views").and_then(|v| v.as_u64()).unwrap_or(0),
-                                downloads: item
-                                    .get("downloads")
-                                    .and_then(|d| d.as_u64())
-                                    .unwrap_or(0),
-                                unique_visitors: item
-                                    .get("unique_visitors")
-                                    .and_then(|u| u.as_u64())
-                                    .unwrap_or(0),
+                                downloads: item.get("downloads").and_then(|d| d.as_u64()).unwrap_or(0),
+                                unique_visitors: item.get("unique_visitors").and_then(|u| u.as_u64()).unwrap_or(0),
                             })
                             .collect()
                     })
@@ -312,15 +273,7 @@ pub fn AnalyticsPage() -> impl IntoView {
         });
     };
 
-    let max_views = move || {
-        views_over_time
-            .get()
-            .iter()
-            .map(|v| v.views)
-            .max()
-            .unwrap_or(1)
-            .max(1)
-    };
+    let max_views = move || views_over_time.get().iter().map(|v| v.views).max().unwrap_or(1).max(1);
 
     view! {
         <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">

@@ -4,14 +4,14 @@ use axum::response::{IntoResponse, Response};
 use base64::Engine;
 use common::auth::Claims;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::AppState;
 use crate::api_error::ApiError;
 
 pub use ferro_server_storage_ops::api::{
-    CopyMoveResponse, FileEntryJson, ListFilesParams, ListFilesResponse, MkdirResponse,
-    PutFileResponse, copy_file_impl, list_files_impl, mkdir_impl, move_file_rest_impl,
-    normalize_api_path,
+    CopyMoveResponse, FileEntryJson, ListFilesParams, ListFilesResponse, MkdirResponse, PutFileResponse,
+    copy_file_impl, list_files_impl, mkdir_impl, move_file_rest_impl, normalize_api_path,
 };
 
 /// Maximum file size (in bytes) eligible for read cache.
@@ -37,10 +37,8 @@ pub struct AuthInfoResponse {
     ),
     tags = ["auth"],
 )]
-pub async fn auth_info(
-    claims: Option<axum::Extension<Claims>>,
-    State(state): State<AppState>,
-) -> Response {
+#[instrument(name = "auth_info", skip(state, claims))]
+pub async fn auth_info(claims: Option<axum::Extension<Claims>>, State(state): State<AppState>) -> Response {
     let auth_type = if state.oidc.is_some() {
         "oidc"
     } else if state.admin_user.is_some() {
@@ -83,10 +81,7 @@ pub async fn auth_info(
     ),
     tags = ["auth"],
 )]
-pub async fn auth_login(
-    State(state): State<AppState>,
-    Query(params): Query<LoginParams>,
-) -> Response {
+pub async fn auth_login(State(state): State<AppState>, Query(params): Query<LoginParams>) -> Response {
     let oidc = match &state.oidc {
         Some(v) => v,
         None => {
@@ -96,10 +91,7 @@ pub async fn auth_login(
 
     let config = oidc.config();
     let redirect_uri = params.redirect.unwrap_or_else(|| "/ui/".to_string());
-    let callback_url = format!(
-        "{}/api/auth/callback?redirect={}",
-        state.external_url, redirect_uri
-    );
+    let callback_url = format!("{}/api/auth/callback?redirect={}", state.external_url, redirect_uri);
 
     let code_verifier = generate_code_verifier();
     let code_challenge = generate_code_challenge(&code_verifier);
@@ -128,10 +120,7 @@ pub async fn auth_login(
 }
 
 /// POST /api/auth/change-password — change admin password.
-pub async fn auth_change_password(
-    State(state): State<AppState>,
-    req: axum::extract::Request,
-) -> Response {
+pub async fn auth_change_password(State(state): State<AppState>, req: axum::extract::Request) -> Response {
     let (parts, body) = req.into_parts();
     let body_bytes = match axum::body::to_bytes(body, 1024 * 1024).await {
         Ok(b) => b,
@@ -144,36 +133,24 @@ pub async fn auth_change_password(
         return ApiError::bad_request(ApiError::INVALID_BODY, "Request body too large");
     }
 
-    let user_info = parts
-        .extensions
-        .get::<ferro_auth::users::UserInfo>()
-        .cloned();
+    let user_info = parts.extensions.get::<ferro_auth::users::UserInfo>().cloned();
 
     let password = match serde_json::from_slice::<serde_json::Value>(&body_bytes) {
         Ok(v) => match v.get("password").and_then(|s| s.as_str()) {
             Some(p) => p.to_string(),
             None => {
-                return ApiError::bad_request(
-                    ApiError::MISSING_FIELD,
-                    "Request body must contain 'password' field",
-                );
+                return ApiError::bad_request(ApiError::MISSING_FIELD, "Request body must contain 'password' field");
             }
         },
         Err(_) => {
-            return ApiError::bad_request(
-                ApiError::INVALID_JSON,
-                "Request body must be valid JSON",
-            );
+            return ApiError::bad_request(ApiError::INVALID_JSON, "Request body must be valid JSON");
         }
     };
 
     use crate::security;
 
     if password.len() < 8 {
-        return ApiError::bad_request(
-            ApiError::WEAK_PASSWORD,
-            "Password must be at least 8 characters",
-        );
+        return ApiError::bad_request(ApiError::WEAK_PASSWORD, "Password must be at least 8 characters");
     }
     if security::is_default_password(&password) {
         return ApiError::bad_request(
@@ -184,18 +161,14 @@ pub async fn auth_change_password(
 
     let username = match user_info {
         Some(ref info) => info.username.clone(),
-        None => state
-            .admin_user
-            .clone()
-            .unwrap_or_else(|| "admin".to_string()),
+        None => state.admin_user.clone().unwrap_or_else(|| "admin".to_string()),
     };
 
     let new_hash = match ferro_auth::users::hash_password(&password) {
         Ok(h) => h,
         Err(e) => {
             tracing::error!("Failed to hash password: {:?}", e);
-            return ApiError::internal(ApiError::INTERNAL_ERROR, "Password hashing failed")
-                .into_response();
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Password hashing failed").into_response();
         }
     };
     state
@@ -221,7 +194,7 @@ pub async fn auth_change_password(
                 storage_quota_bytes: None,
                 storage_used_bytes: 0,
                 is_ldap: false,
-                password_hash: Some(new_hash),
+                password_hash: Some(ferro_auth::users::ZeroizeString::new(new_hash)),
                 totp_secret: None,
                 totp_enabled: false,
             };
@@ -254,10 +227,7 @@ pub async fn auth_change_password(
     ),
     tags = ["auth"],
 )]
-pub async fn auth_callback(
-    State(state): State<AppState>,
-    Query(params): Query<CallbackParams>,
-) -> Response {
+pub async fn auth_callback(State(state): State<AppState>, Query(params): Query<CallbackParams>) -> Response {
     let oidc = match &state.oidc {
         Some(v) => v,
         None => {
@@ -268,10 +238,7 @@ pub async fn auth_callback(
     let session = match oidc.consume_pkce_session(&params.state).await {
         Some(s) => s,
         None => {
-            return ApiError::bad_request(
-                ApiError::BAD_REQUEST,
-                "Invalid or expired state parameter",
-            );
+            return ApiError::bad_request(ApiError::BAD_REQUEST, "Invalid or expired state parameter");
         }
     };
 
@@ -291,10 +258,7 @@ pub async fn auth_callback(
         }
     };
 
-    let id_token_str = token_response
-        .get("id_token")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let id_token_str = token_response.get("id_token").and_then(|v| v.as_str()).unwrap_or("");
     let claims = match oidc.validate_token(id_token_str).await {
         Ok(c) => c,
         Err(e) => {
@@ -398,9 +362,7 @@ pub async fn auth_refresh_token(
 
             (StatusCode::OK, axum::Json(response_body)).into_response()
         }
-        Err(_) => {
-            ApiError::unauthorized(ApiError::TOKEN_EXPIRED, "Refresh token expired or invalid")
-        }
+        Err(_) => ApiError::unauthorized(ApiError::TOKEN_EXPIRED, "Refresh token expired or invalid"),
     }
 }
 
@@ -452,11 +414,7 @@ mod tests {
         );
         assert!(verifier.len() <= 128);
         for c in verifier.chars() {
-            assert!(
-                c.is_ascii_alphanumeric() || "-._~".contains(c),
-                "Invalid char: {}",
-                c
-            );
+            assert!(c.is_ascii_alphanumeric() || "-._~".contains(c), "Invalid char: {}", c);
         }
     }
 
@@ -491,10 +449,8 @@ mod tests {
     ),
     tags = ["files"],
 )]
-pub async fn list_files(
-    State(state): State<AppState>,
-    Query(params): Query<ListFilesParams>,
-) -> Response {
+#[instrument(name = "list_files", skip(state, params))]
+pub async fn list_files(State(state): State<AppState>, Query(params): Query<ListFilesParams>) -> Response {
     list_files_impl(&state, &params).await
 }
 
@@ -509,6 +465,7 @@ pub async fn list_files(
     ),
     tags = ["files"],
 )]
+#[instrument(name = "get_file", skip(state, headers), fields(path = %path))]
 pub async fn get_file(
     State(state): State<AppState>,
     AxumPath(path): AxumPath<String>,
@@ -582,10 +539,7 @@ pub async fn get_file(
                 [
                     (axum::http::header::CONTENT_TYPE, content_type),
                     (axum::http::header::ETAG, etag_for_cache),
-                    (
-                        axum::http::header::CONTENT_LENGTH,
-                        content_length.to_string(),
-                    ),
+                    (axum::http::header::CONTENT_LENGTH, content_length.to_string()),
                     (
                         axum::http::header::CONTENT_DISPOSITION,
                         format!("inline; filename=\"{filename}\""),
@@ -604,10 +558,7 @@ pub async fn get_file(
                     [
                         (axum::http::header::CONTENT_TYPE, content_type),
                         (axum::http::header::ETAG, etag_for_cache),
-                        (
-                            axum::http::header::CONTENT_LENGTH,
-                            content_length.to_string(),
-                        ),
+                        (axum::http::header::CONTENT_LENGTH, content_length.to_string()),
                         (
                             axum::http::header::CONTENT_DISPOSITION,
                             format!("inline; filename=\"{filename}\""),
@@ -641,6 +592,7 @@ pub async fn get_file(
     ),
     tags = ["files"],
 )]
+#[instrument(name = "put_file", skip(state, headers, body), fields(path = %path))]
 pub async fn put_file(
     State(state): State<AppState>,
     AxumPath(path): AxumPath<String>,
@@ -762,10 +714,8 @@ pub async fn put_file(
     ),
     tags = ["files"],
 )]
-pub async fn delete_file(
-    State(state): State<AppState>,
-    AxumPath(path): AxumPath<String>,
-) -> Response {
+#[instrument(name = "delete_file", skip(state), fields(path = %path))]
+pub async fn delete_file(State(state): State<AppState>, AxumPath(path): AxumPath<String>) -> Response {
     let path = match normalize_api_path(&path) {
         Ok(p) => p,
         Err(e) => {
@@ -883,10 +833,7 @@ pub async fn files_content_handler(
     ),
     tags = ["files"],
 )]
-pub async fn copy_file(
-    State(state): State<AppState>,
-    body: axum::Json<serde_json::Value>,
-) -> Response {
+pub async fn copy_file(State(state): State<AppState>, body: axum::Json<serde_json::Value>) -> Response {
     let from = body.get("from").and_then(|v| v.as_str()).unwrap_or("");
     let to = body.get("to").and_then(|v| v.as_str()).unwrap_or("");
 
@@ -941,10 +888,7 @@ pub async fn copy_file(
     ),
     tags = ["files"],
 )]
-pub async fn move_file_rest(
-    State(state): State<AppState>,
-    body: axum::Json<serde_json::Value>,
-) -> Response {
+pub async fn move_file_rest(State(state): State<AppState>, body: axum::Json<serde_json::Value>) -> Response {
     let from = body.get("from").and_then(|v| v.as_str()).unwrap_or("");
     let to = body.get("to").and_then(|v| v.as_str()).unwrap_or("");
 

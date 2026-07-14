@@ -87,7 +87,9 @@ fn load_rooms<S: CollaborationState>(state: &S) -> Vec<ChatRoom> {
             room_type: "global".to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
         });
-        let _ = save_rooms(state, &rooms);
+        if let Err(e) = save_rooms(state, &rooms) {
+            tracing::error!(error = %e, "Failed to save chat rooms");
+        }
         return rooms;
     }
     std::fs::read_to_string(&path)
@@ -98,10 +100,7 @@ fn load_rooms<S: CollaborationState>(state: &S) -> Vec<ChatRoom> {
 
 fn save_rooms<S: CollaborationState>(state: &S, rooms: &[ChatRoom]) -> Result<(), std::io::Error> {
     let path = rooms_file(state);
-    std::fs::write(
-        path,
-        serde_json::to_string_pretty(rooms).unwrap_or_default(),
-    )
+    std::fs::write(path, serde_json::to_string_pretty(rooms).unwrap_or_default())
 }
 
 fn load_messages<S: CollaborationState>(state: &S, room_id: &str) -> Vec<ChatMessage> {
@@ -120,12 +119,15 @@ fn save_messages<S: CollaborationState>(
     room_id: &str,
     messages: &[ChatMessage],
 ) -> Result<(), std::io::Error> {
-    let _ = ensure_chat_dir(state);
+    if let Err((_status, body)) = ensure_chat_dir(state) {
+        tracing::error!(error = ?body, "Failed to create chat directory");
+        return Err(std::io::Error::other(format!(
+            "Failed to create chat directory: {:?}",
+            body
+        )));
+    }
     let path = messages_file(state, room_id);
-    std::fs::write(
-        path,
-        serde_json::to_string_pretty(messages).unwrap_or_default(),
-    )
+    std::fs::write(path, serde_json::to_string_pretty(messages).unwrap_or_default())
 }
 
 pub async fn list_rooms<S: CollaborationState>(State(state): State<S>) -> impl IntoResponse {
@@ -239,11 +241,7 @@ pub async fn ws_chat_handler<S: CollaborationState>(
     ws.on_upgrade(move |socket| handle_chat_ws(socket, room_id, state))
 }
 
-async fn handle_chat_ws<S: CollaborationState>(
-    mut socket: axum::extract::ws::WebSocket,
-    room_id: String,
-    state: S,
-) {
+async fn handle_chat_ws<S: CollaborationState>(mut socket: axum::extract::ws::WebSocket, room_id: String, state: S) {
     use axum::extract::ws::Message;
 
     while let Some(Ok(msg)) = socket.recv().await {
@@ -254,18 +252,9 @@ async fn handle_chat_ws<S: CollaborationState>(
 
                     match msg_type {
                         "message" => {
-                            let content = payload
-                                .get("content")
-                                .and_then(|c| c.as_str())
-                                .unwrap_or("");
-                            let user_id = payload
-                                .get("user_id")
-                                .and_then(|u| u.as_str())
-                                .unwrap_or("anonymous");
-                            let reply_to = payload
-                                .get("reply_to")
-                                .and_then(|r| r.as_str())
-                                .map(|s| s.to_string());
+                            let content = payload.get("content").and_then(|c| c.as_str()).unwrap_or("");
+                            let user_id = payload.get("user_id").and_then(|u| u.as_str()).unwrap_or("anonymous");
+                            let reply_to = payload.get("reply_to").and_then(|r| r.as_str()).map(|s| s.to_string());
                             let attachment_path = payload
                                 .get("attachment_path")
                                 .and_then(|a| a.as_str())
@@ -283,7 +272,9 @@ async fn handle_chat_ws<S: CollaborationState>(
                             };
 
                             messages.push(message.clone());
-                            let _ = save_messages(&state, &room_id, &messages);
+                            if let Err(e) = save_messages(&state, &room_id, &messages) {
+                                tracing::error!(error = %e, "Failed to save chat messages");
+                            }
 
                             if let Ok(response) = serde_json::to_string(&serde_json::json!({
                                 "type": "message",
@@ -293,14 +284,8 @@ async fn handle_chat_ws<S: CollaborationState>(
                             }
                         }
                         "typing" => {
-                            let user_id = payload
-                                .get("user_id")
-                                .and_then(|u| u.as_str())
-                                .unwrap_or("anonymous");
-                            let is_typing = payload
-                                .get("is_typing")
-                                .and_then(|t| t.as_bool())
-                                .unwrap_or(false);
+                            let user_id = payload.get("user_id").and_then(|u| u.as_str()).unwrap_or("anonymous");
+                            let is_typing = payload.get("is_typing").and_then(|t| t.as_bool()).unwrap_or(false);
 
                             if let Ok(response) = serde_json::to_string(&serde_json::json!({
                                 "type": "typing",

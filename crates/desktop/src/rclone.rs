@@ -101,11 +101,7 @@ impl RcloneManager {
 
         std::fs::create_dir_all(mount_point)?;
 
-        info!(
-            "Mounting Ferro drive: {} -> {}",
-            remote_url,
-            mount_point.display()
-        );
+        info!("Mounting Ferro drive: {} -> {}", remote_url, mount_point.display());
 
         let mut child = Command::new(rclone_path)
             .args([
@@ -174,10 +170,7 @@ impl RcloneManager {
                     {
                         progress.errors = err;
                     }
-                } else if line.contains("ERROR:")
-                    || line.contains("Fatal")
-                    || line.contains("Failed")
-                {
+                } else if line.contains("ERROR:") || line.contains("Fatal") || line.contains("Failed") {
                     tracing::error!("rclone error: {}", line);
                     progress.last_error = Some(line);
                     progress.status = "error".to_string();
@@ -236,9 +229,7 @@ impl RcloneManager {
         }
         #[cfg(target_os = "macos")]
         {
-            let _ = StdCommand::new("umount")
-                .arg(&mount_point.to_string_lossy())
-                .output();
+            let _ = StdCommand::new("umount").arg(&mount_point.to_string_lossy()).output();
         }
 
         let mut progress = self.progress.write().await;
@@ -252,12 +243,7 @@ impl RcloneManager {
         let output = StdCommand::new("rclone")
             .args(["version"])
             .output()
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "rclone not found: {}. Install it from https://rclone.org/install/",
-                    e
-                )
-            })?;
+            .map_err(|e| anyhow::anyhow!("rclone not found: {}. Install it from https://rclone.org/install/", e))?;
 
         let version = String::from_utf8_lossy(&output.stdout);
         Ok(version.lines().next().unwrap_or("unknown").to_string())

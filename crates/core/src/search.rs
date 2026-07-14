@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
-use tantivy::schema::*;
+use tantivy::schema::{FAST, Field, STORED, STRING, Schema, TEXT, TantivyDocument, Term, Value};
 use tantivy::{DocAddress, Index, IndexReader, IndexWriter, ReloadPolicy, Score};
 use tracing::{debug, info};
 
@@ -31,6 +31,7 @@ impl Default for SearchRankingConfig {
     }
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MatchLocation {
     Name,
@@ -38,7 +39,6 @@ pub enum MatchLocation {
     Content,
 }
 
-#[non_exhaustive]
 #[derive(Debug, Clone, Default)]
 pub struct MatchLocations {
     pub name: bool,
@@ -47,6 +47,7 @@ pub struct MatchLocations {
 }
 
 impl MatchLocations {
+    #[must_use]
     pub fn to_vec(&self) -> Vec<MatchLocation> {
         let mut v = Vec::new();
         if self.name {
@@ -62,7 +63,6 @@ impl MatchLocations {
     }
 }
 
-#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct SearchResult {
     pub path: String,
@@ -73,7 +73,6 @@ pub struct SearchResult {
     pub match_locations: MatchLocations,
 }
 
-#[non_exhaustive]
 pub struct SearchEngine {
     index: Index,
     writer: IndexWriter,
@@ -104,17 +103,17 @@ impl SearchEngine {
         let schema = schema_builder.build();
 
         let index = Index::create_in_dir(index_path, schema.clone())
-            .map_err(|e| FerroError::Internal(format!("Failed to create search index: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to create search index: {e}")))?;
 
         let writer = index
             .writer(50_000_000)
-            .map_err(|e| FerroError::Internal(format!("Failed to create index writer: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to create index writer: {e}")))?;
 
         let reader = index
             .reader_builder()
             .reload_policy(ReloadPolicy::OnCommitWithDelay)
             .try_into()
-            .map_err(|e| FerroError::Internal(format!("Failed to create index reader: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to create index reader: {e}")))?;
 
         info!("Search engine initialized at {:?}", index_path);
 
@@ -136,7 +135,7 @@ impl SearchEngine {
     /// Open an existing search index.
     pub fn open(index_path: &Path) -> Result<Self> {
         let index = Index::open_in_dir(index_path)
-            .map_err(|e| FerroError::Internal(format!("Failed to open search index: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to open search index: {e}")))?;
 
         let schema = index.schema();
         let path_field = schema
@@ -157,19 +156,19 @@ impl SearchEngine {
         let owner_field = schema
             .get_field("owner")
             .map_err(|_| FerroError::Internal("Missing 'owner' field in schema".to_string()))?;
-        let modified_field = schema.get_field("modified_at").map_err(|_| {
-            FerroError::Internal("Missing 'modified_at' field in schema".to_string())
-        })?;
+        let modified_field = schema
+            .get_field("modified_at")
+            .map_err(|_| FerroError::Internal("Missing 'modified_at' field in schema".to_string()))?;
 
         let writer = index
             .writer(50_000_000)
-            .map_err(|e| FerroError::Internal(format!("Failed to create index writer: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to create index writer: {e}")))?;
 
         let reader = index
             .reader_builder()
             .reload_policy(ReloadPolicy::OnCommitWithDelay)
             .try_into()
-            .map_err(|e| FerroError::Internal(format!("Failed to create index reader: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to create index reader: {e}")))?;
 
         Ok(Self {
             index,
@@ -203,7 +202,7 @@ impl SearchEngine {
 
         self.writer
             .add_document(doc)
-            .map_err(|e| FerroError::Internal(format!("Failed to index document: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to index document: {e}")))?;
 
         debug!("Indexed metadata for: {}", metadata.path);
         Ok(())
@@ -227,13 +226,9 @@ impl SearchEngine {
 
         self.writer
             .add_document(doc)
-            .map_err(|e| FerroError::Internal(format!("Failed to index content: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to index content: {e}")))?;
 
-        debug!(
-            "Indexed content for: {} ({} bytes)",
-            metadata.path,
-            content.len()
-        );
+        debug!("Indexed content for: {} ({} bytes)", metadata.path, content.len());
         Ok(())
     }
 
@@ -249,10 +244,10 @@ impl SearchEngine {
     pub fn commit(&mut self) -> Result<()> {
         self.writer
             .commit()
-            .map_err(|e| FerroError::Internal(format!("Failed to commit index: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to commit index: {e}")))?;
         self.reader
             .reload()
-            .map_err(|e| FerroError::Internal(format!("Failed to reload reader: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to reload reader: {e}")))?;
         Ok(())
     }
 
@@ -269,17 +264,15 @@ impl SearchEngine {
     ) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
 
-        let query_parser = QueryParser::for_index(
-            &self.index,
-            vec![self.content_field, self.name_field, self.path_field],
-        );
+        let query_parser =
+            QueryParser::for_index(&self.index, vec![self.content_field, self.name_field, self.path_field]);
         let query = query_parser
             .parse_query(query_str)
-            .map_err(|e| FerroError::Internal(format!("Query parse error: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Query parse error: {e}")))?;
 
         let top_docs: Vec<(Score, DocAddress)> = searcher
             .search(&query, &TopDocs::with_limit(limit * 3).order_by_score())
-            .map_err(|e| FerroError::Internal(format!("Search failed: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Search failed: {e}")))?;
 
         let now_epoch = chrono::Utc::now().timestamp();
         let recent_threshold_secs = (config.recent_file_threshold_days as i64) * 86400;
@@ -313,13 +306,8 @@ impl SearchEngine {
 
                 let name_matches = query_terms.iter().all(|t| name.contains(t));
                 let path_matches = query_terms.iter().any(|t| path_lower.contains(t));
-                let content_text = doc
-                    .get_first(self.content_field)
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                let content_matches = query_terms
-                    .iter()
-                    .any(|t| content_text.to_lowercase().contains(t));
+                let content_text = doc.get_first(self.content_field).and_then(|v| v.as_str()).unwrap_or("");
+                let content_matches = query_terms.iter().any(|t| content_text.to_lowercase().contains(t));
 
                 if name_matches {
                     match_locs.name = true;
@@ -351,13 +339,12 @@ impl SearchEngine {
                 let modified_ts = doc
                     .get_first(self.modified_field)
                     .and_then(|v| v.as_datetime())
-                    .map(|d| d.into_timestamp_micros() / 1_000_000)
-                    .unwrap_or(0);
+                    .map_or(0, |d| d.into_timestamp_micros() / 1_000_000);
                 if now_epoch - modified_ts < recent_threshold_secs {
                     boost *= config.recent_file_boost;
                 }
 
-                let final_score = (score as f64) * boost;
+                let final_score = f64::from(score) * boost;
 
                 let snippet: Option<String> = if content_matches && !content_text.is_empty() {
                     Some(content_text.chars().take(200).collect())
@@ -378,14 +365,10 @@ impl SearchEngine {
             })
             .collect();
 
-        results.sort_by(|a, b| {
-            b.score
-                .partial_cmp(&a.score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
         results.truncate(limit);
 
-        let max_score = results.first().map(|r| r.score).unwrap_or(1.0).max(1.0);
+        let max_score = results.first().map_or(1.0, |r| r.score).max(1.0);
         for r in &mut results {
             r.normalized_score = ((r.score / max_score) * 100.0).min(100.0);
         }
@@ -454,10 +437,7 @@ mod tests {
         FileMetadata::new(path.to_string(), hash, 100, "user1".to_string())
     }
 
-    fn make_metadata_with_modified(
-        path: &str,
-        modified_at: chrono::DateTime<chrono::Utc>,
-    ) -> FileMetadata {
+    fn make_metadata_with_modified(path: &str, modified_at: chrono::DateTime<chrono::Utc>) -> FileMetadata {
         let hash = ContentHash::new("a".repeat(64)).expect("valid hardcoded hash");
         let mut meta = FileMetadata::new(path.to_string(), hash, 100, "user1".to_string());
         meta.modified_at = modified_at;
@@ -563,9 +543,7 @@ mod tests {
             .unwrap();
 
         let old_meta = make_metadata_with_modified("/docs/old_report.txt", old);
-        engine
-            .index_content(&old_meta, "project report data analysis")
-            .unwrap();
+        engine.index_content(&old_meta, "project report data analysis").unwrap();
 
         engine.commit().unwrap();
 
@@ -589,10 +567,7 @@ mod tests {
 
         let partial_meta = make_metadata("/docs/my_report_draft.txt");
         engine
-            .index_content(
-                &partial_meta,
-                "report content with many details about reporting",
-            )
+            .index_content(&partial_meta, "report content with many details about reporting")
             .unwrap();
 
         engine.commit().unwrap();
@@ -646,10 +621,7 @@ mod tests {
         engine.commit().unwrap();
 
         let results = engine.search("report", 10).unwrap();
-        assert!(
-            !results.is_empty(),
-            "should have results for 'report' query"
-        );
+        assert!(!results.is_empty(), "should have results for 'report' query");
         assert!(
             results[0].path.contains("report"),
             "path containing 'report' should rank highest, got: {}",
@@ -680,19 +652,13 @@ mod tests {
 
         let meta = make_metadata("/docs/readme.txt");
         engine
-            .index_content(
-                &meta,
-                "the quarterly financial report shows growth in revenue",
-            )
+            .index_content(&meta, "the quarterly financial report shows growth in revenue")
             .unwrap();
         engine.commit().unwrap();
 
         let results = engine.search("financial report", 10).unwrap();
         assert!(!results.is_empty());
-        assert!(
-            !results[0].highlights.is_empty(),
-            "should extract highlight fragments"
-        );
+        assert!(!results[0].highlights.is_empty(), "should extract highlight fragments");
     }
 
     #[test]
@@ -700,9 +666,7 @@ mod tests {
         let (mut engine, _tmp) = make_search_engine();
 
         let name_meta = make_metadata("/docs/report.txt");
-        engine
-            .index_content(&name_meta, "general information")
-            .unwrap();
+        engine.index_content(&name_meta, "general information").unwrap();
 
         let content_meta = make_metadata("/docs/notes.txt");
         engine
@@ -712,16 +676,10 @@ mod tests {
         engine.commit().unwrap();
 
         let results = engine.search("report", 10).unwrap();
-        let name_result = results
-            .iter()
-            .find(|r| r.path.contains("report.txt"))
-            .unwrap();
+        let name_result = results.iter().find(|r| r.path.contains("report.txt")).unwrap();
         assert!(name_result.match_locations.name);
 
-        let content_result = results
-            .iter()
-            .find(|r| r.path.contains("notes.txt"))
-            .unwrap();
+        let content_result = results.iter().find(|r| r.path.contains("notes.txt")).unwrap();
         assert!(content_result.match_locations.content);
     }
 
@@ -733,9 +691,7 @@ mod tests {
         engine.index_content(&report_meta, "some info").unwrap();
 
         let status_meta = make_metadata("/docs/status.txt");
-        engine
-            .index_content(&status_meta, "report data here")
-            .unwrap();
+        engine.index_content(&status_meta, "report data here").unwrap();
 
         engine.commit().unwrap();
 

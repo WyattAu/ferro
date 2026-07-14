@@ -17,8 +17,7 @@ impl WasmHost {
         let mut engine_config = wasmtime::Config::new();
         engine_config.consume_fuel(config.fuel_enabled);
 
-        let engine =
-            Engine::new(&engine_config).map_err(|e| WasmHostError::CompileFailed(e.to_string()))?;
+        let engine = Engine::new(&engine_config).map_err(|e| WasmHostError::CompileFailed(e.to_string()))?;
 
         Ok(Self {
             engine,
@@ -56,12 +55,7 @@ impl WasmHost {
         Ok(linker)
     }
 
-    pub fn call(
-        &self,
-        handle: &PluginHandle,
-        func: &str,
-        args: &[Val],
-    ) -> Result<Vec<Val>, WasmHostError> {
+    pub fn call(&self, handle: &PluginHandle, func: &str, args: &[Val]) -> Result<Vec<Val>, WasmHostError> {
         let plugin = self
             .plugins
             .get(&handle.name)
@@ -78,18 +72,12 @@ impl WasmHost {
             .ok_or_else(|| WasmHostError::RuntimeError(format!("Function '{}' not found", func)))?;
 
         let mut results = vec![Val::I32(0); func.ty(&store).results().len()];
-        func.call(&mut store, args, &mut results)
-            .map_err(WasmHostError::from)?;
+        func.call(&mut store, args, &mut results).map_err(WasmHostError::from)?;
 
         Ok(results)
     }
 
-    pub fn call_with_input(
-        &self,
-        handle: &PluginHandle,
-        func: &str,
-        input: &[u8],
-    ) -> Result<Vec<u8>, WasmHostError> {
+    pub fn call_with_input(&self, handle: &PluginHandle, func: &str, input: &[u8]) -> Result<Vec<u8>, WasmHostError> {
         let plugin = self
             .plugins
             .get(&handle.name)
@@ -117,28 +105,18 @@ impl WasmHost {
         let ptr = alloc_fn
             .call(&mut store, len)
             .map_err(|e| WasmHostError::RuntimeError(e.to_string()))?;
-        memory.data_mut(&mut store)[ptr as usize..ptr as usize + len as usize]
-            .copy_from_slice(input);
+        memory.data_mut(&mut store)[ptr as usize..ptr as usize + len as usize].copy_from_slice(input);
 
-        let entry = instance
-            .get_typed_func::<u32, u32>(&mut store, func)
-            .map_err(|e| {
-                WasmHostError::RuntimeError(format!(
-                    "Function '{}' not found or wrong signature: {e}",
-                    func
-                ))
-            })?;
+        let entry = instance.get_typed_func::<u32, u32>(&mut store, func).map_err(|e| {
+            WasmHostError::RuntimeError(format!("Function '{}' not found or wrong signature: {e}", func))
+        })?;
 
         let result_ptr = entry.call(&mut store, ptr).map_err(WasmHostError::from)?;
 
         let memory_data = memory.data(&store);
         let len_ptr = result_ptr as usize;
         let len = if len_ptr + 4 <= memory_data.len() {
-            u32::from_le_bytes(
-                memory_data[len_ptr..len_ptr + 4]
-                    .try_into()
-                    .unwrap_or([0; 4]),
-            )
+            u32::from_le_bytes(memory_data[len_ptr..len_ptr + 4].try_into().unwrap_or([0; 4]))
         } else {
             0
         };
@@ -382,9 +360,7 @@ mod tests {
 
         assert_eq!(host.plugin_count(), 2);
 
-        let r1 = host
-            .call(&h1, "add", &[Val::I32(10), Val::I32(20)])
-            .unwrap();
+        let r1 = host.call(&h1, "add", &[Val::I32(10), Val::I32(20)]).unwrap();
         assert_eq!(r1[0].unwrap_i32(), 30);
 
         let r2 = host.call(&h2, "answer", &[]).unwrap();

@@ -36,15 +36,10 @@ impl FerroClient {
     pub fn new(server_url: &str, token: Option<&str>) -> Result<Self> {
         let mut headers = reqwest::header::HeaderMap::new();
         if let Some(t) = token {
-            headers.insert(
-                AUTHORIZATION,
-                HeaderValue::from_str(&format!("Bearer {}", t))?,
-            );
+            headers.insert(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", t))?);
         }
 
-        let http = reqwest::Client::builder()
-            .default_headers(headers)
-            .build()?;
+        let http = reqwest::Client::builder().default_headers(headers).build()?;
 
         Ok(Self {
             http,
@@ -65,11 +60,7 @@ impl FerroClient {
 
     pub async fn get_capabilities(&self) -> Result<ServerCapabilities> {
         let url = format!("{}/", self.server_url);
-        let resp = self
-            .http
-            .request(reqwest::Method::OPTIONS, &url)
-            .send()
-            .await?;
+        let resp = self.http.request(reqwest::Method::OPTIONS, &url).send().await?;
 
         let dav = resp
             .headers()
@@ -78,11 +69,7 @@ impl FerroClient {
             .unwrap_or("unknown")
             .to_string();
 
-        let auth = if self.token.is_some() {
-            "configured"
-        } else {
-            "none"
-        };
+        let auth = if self.token.is_some() { "configured" } else { "none" };
 
         Ok(ServerCapabilities {
             webdav: dav,
@@ -261,14 +248,8 @@ impl FerroClient {
                 .and_then(|v| v.as_str())
                 .unwrap_or("ferro")
                 .to_string(),
-            email: claims
-                .get("email")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            name: claims
-                .get("name")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            email: claims.get("email").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            name: claims.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()),
         })
     }
 
@@ -291,9 +272,7 @@ impl FerroClient {
             return Ok(users);
         }
         if resp.status().as_u16() == 404 {
-            anyhow::bail!(
-                "Admin users endpoint not available (404). The server may not support user management."
-            );
+            anyhow::bail!("Admin users endpoint not available (404). The server may not support user management.");
         }
         anyhow::bail!("List users failed: {}", resp.status())
     }
@@ -355,22 +334,12 @@ impl FerroClient {
             anyhow::bail!("List snapshots failed: {}", resp.status());
         }
         let body: serde_json::Value = resp.json().await?;
-        Ok(body
-            .as_array()
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .collect())
+        Ok(body.as_array().cloned().unwrap_or_default().into_iter().collect())
     }
 
     pub async fn create_snapshot(&self) -> Result<serde_json::Value> {
         let url = format!("{}/api/snapshots", self.server_url);
-        let resp = self
-            .http
-            .post(&url)
-            .json(&serde_json::json!({}))
-            .send()
-            .await?;
+        let resp = self.http.post(&url).json(&serde_json::json!({})).send().await?;
         if !resp.status().is_success() {
             anyhow::bail!("Create snapshot failed: {}", resp.status());
         }
@@ -451,11 +420,7 @@ impl FerroClient {
     }
 
     /// Generic POST with JSON body returning JSON.
-    pub async fn post_json(
-        &self,
-        path: &str,
-        body: &serde_json::Value,
-    ) -> Result<serde_json::Value> {
+    pub async fn post_json(&self, path: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
         let url = format!("{}{}", self.server_url, path);
         let mut req = self.http.post(&url).json(body);
         if let Some(token) = &self.token {
@@ -495,8 +460,7 @@ fn parse_propfind_response(xml: &str) -> Result<Vec<FileMetadata>> {
 
     let mut entries = Vec::new();
     let mut current_href = String::new();
-    let mut current_props: std::collections::HashMap<String, String> =
-        std::collections::HashMap::new();
+    let mut current_props: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     let mut in_prop = false;
     let mut current_tag = String::new();
     let mut capture_text = false;
@@ -552,16 +516,13 @@ fn parse_propfind_response(xml: &str) -> Result<Vec<FileMetadata>> {
                             .and_then(|v| v.parse().ok())
                             .unwrap_or(0);
                         let etag = current_props.get("getetag").cloned().unwrap_or_default();
-                        let mime_type = current_props
-                            .get("getcontenttype")
-                            .cloned()
-                            .unwrap_or_else(|| {
-                                if is_collection {
-                                    "httpd/unix-directory".to_string()
-                                } else {
-                                    "application/octet-stream".to_string()
-                                }
-                            });
+                        let mime_type = current_props.get("getcontenttype").cloned().unwrap_or_else(|| {
+                            if is_collection {
+                                "httpd/unix-directory".to_string()
+                            } else {
+                                "application/octet-stream".to_string()
+                            }
+                        });
                         let modified_at = current_props
                             .get("getlastmodified")
                             .and_then(|v| chrono::DateTime::parse_from_rfc2822(v).ok())
@@ -592,8 +553,7 @@ fn parse_propfind_response(xml: &str) -> Result<Vec<FileMetadata>> {
             Ok(Event::Text(ref e)) => {
                 if capture_text {
                     text_buf.push_str(
-                        &quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or(""))
-                            .unwrap_or_default(),
+                        &quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or("")).unwrap_or_default(),
                     );
                 }
             }
@@ -687,8 +647,7 @@ mod tests {
         assert_eq!(client.server_url(), "http://localhost:8080");
         assert!(client.token.is_none());
 
-        let client_with_token =
-            FerroClient::new("http://localhost:8080/", Some("test-token")).unwrap();
+        let client_with_token = FerroClient::new("http://localhost:8080/", Some("test-token")).unwrap();
         assert_eq!(client_with_token.server_url(), "http://localhost:8080");
         assert_eq!(client_with_token.token.as_deref(), Some("test-token"));
     }

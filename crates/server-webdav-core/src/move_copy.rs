@@ -46,10 +46,7 @@ pub async fn move_file<S: WebDavCoreState>(
     let destination = normalize_path(&body.destination);
 
     if source.is_empty() || destination.is_empty() {
-        return ApiError::bad_request(
-            ApiError::PATH_INVALID,
-            "Source and destination must be non-empty",
-        );
+        return ApiError::bad_request(ApiError::PATH_INVALID, "Source and destination must be non-empty");
     }
 
     if source == destination {
@@ -66,11 +63,7 @@ pub async fn move_file<S: WebDavCoreState>(
         )
             .into_response();
     }
-    if let Err(e) = state
-        .lock_manager()
-        .check_lock_for_write(&destination)
-        .await
-    {
+    if let Err(e) = state.lock_manager().check_lock_for_write(&destination).await {
         return (
             StatusCode::LOCKED,
             axum::Json(serde_json::json!({
@@ -82,11 +75,7 @@ pub async fn move_file<S: WebDavCoreState>(
     }
 
     match state.storage().move_path(&source, &destination).await {
-        Ok(()) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({"status": "ok"})),
-        )
-            .into_response(),
+        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({"status": "ok"}))).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({
@@ -107,10 +96,7 @@ pub async fn copy_file<S: WebDavCoreState>(
     let destination = normalize_path(&body.destination);
 
     if source.is_empty() || destination.is_empty() {
-        return ApiError::bad_request(
-            ApiError::PATH_INVALID,
-            "Source and destination must be non-empty",
-        );
+        return ApiError::bad_request(ApiError::PATH_INVALID, "Source and destination must be non-empty");
     }
 
     if source == destination {
@@ -118,11 +104,7 @@ pub async fn copy_file<S: WebDavCoreState>(
     }
 
     match state.storage().copy(&source, &destination).await {
-        Ok(()) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({"status": "ok"})),
-        )
-            .into_response(),
+        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({"status": "ok"}))).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({

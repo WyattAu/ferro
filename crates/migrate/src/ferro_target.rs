@@ -20,9 +20,7 @@ impl FerroTarget {
                 .map_err(|e| MigrationError::config(e.to_string()))?,
         );
 
-        let http = reqwest::Client::builder()
-            .default_headers(headers)
-            .build()?;
+        let http = reqwest::Client::builder().default_headers(headers).build()?;
 
         Ok(Self {
             http,
@@ -32,11 +30,7 @@ impl FerroTarget {
     }
 
     pub async fn validate(&self) -> MigrateResult<()> {
-        let resp = self
-            .http
-            .get(format!("{}/.well-known/ferro", self.url))
-            .send()
-            .await?;
+        let resp = self.http.get(format!("{}/.well-known/ferro", self.url)).send().await?;
 
         if !resp.status().is_success() {
             return Err(MigrationError::connection(format!(
@@ -143,10 +137,7 @@ impl FerroTarget {
         if !resp.status().is_success() {
             let status = resp.status();
             let err_body: serde_json::Value = resp.json().await.unwrap_or_default();
-            let msg = err_body
-                .get("error")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
+            let msg = err_body.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
             tracing::warn!("Share creation for '{}' failed ({}): {}", path, status, msg);
         }
         Ok(())

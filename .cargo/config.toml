@@ -1,0 +1,12 @@
+# Ferro reproducible build configuration
+# Ensures deterministic builds across environments
+
+[build]
+# Use a consistent target directory
+target-dir = "target"
+
+[env]
+# Deterministic builds: disable incremental compilation for release
+CARGO_INCREMENTAL = { value = "0", force = true }
+# Fixed hash scheme for cargo
+CARGO_HASH_FORMAT = "blake3"

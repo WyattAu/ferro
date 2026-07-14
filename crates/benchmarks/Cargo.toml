@@ -11,11 +11,14 @@ ferro-core = { path = "../core", default-features = false }
 ferro-common = { path = "../common" }
 ferro-dav = { path = "../dav" }
 ferro-crypto = { path = "../crypto" }
+ferro-auth = { path = "../auth" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
 bytes = "1"
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
+rand = "0.9"
+hashbrown = "0.15"
 
 [[bench]]
 name = "storage"
@@ -35,4 +38,20 @@ harness = false
 
 [[bench]]
 name = "owncloud_sync"
+harness = false
+
+[[bench]]
+name = "auth_totp"
+harness = false
+
+[[bench]]
+name = "dav_protocol"
+harness = false
+
+[[bench]]
+name = "crypto"
+harness = false
+
+[[bench]]
+name = "dav"
 harness = false

@@ -29,10 +29,7 @@ pub async fn create_share_ext(
         && let Ok(meta) = state.storage.head(&req.path).await
         && !meta.is_collection
     {
-        return ApiError::bad_request(
-            ApiError::INVALID_INPUT,
-            "Upload share target must be a directory",
-        );
+        return ApiError::bad_request(ApiError::INVALID_INPUT, "Upload share target must be a directory");
     }
 
     if req.share_type == ShareType::View
@@ -59,10 +56,7 @@ pub async fn create_share_ext(
             }
         }),
     };
-    let link = state
-        .share_store
-        .create(base_req, "anonymous".to_string())
-        .await;
+    let link = state.share_store.create(base_req, "anonymous".to_string()).await;
 
     if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
@@ -116,10 +110,7 @@ pub async fn upload_to_share(
 
     let share_type = get_share_type(&state, &token);
     if share_type != ShareType::Upload {
-        return ApiError::bad_request(
-            ApiError::INVALID_INPUT,
-            "This share link does not accept uploads",
-        );
+        return ApiError::bad_request(ApiError::INVALID_INPUT, "This share link does not accept uploads");
     }
 
     let bytes = match axum::body::to_bytes(body, state.max_body_size as usize).await {
@@ -138,24 +129,14 @@ pub async fn upload_to_share(
     let target_path = format!("{}/{}", link.path.trim_end_matches('/'), file_name);
 
     if state.storage.head(&link.path).await.is_err()
-        && let Err(e) = state
-            .storage
-            .create_collection(&link.path, "anonymous")
-            .await
+        && let Err(e) = state.storage.create_collection(&link.path, "anonymous").await
     {
         tracing::warn!(error = %e, path = %link.path, "failed to create upload target directory");
-        return ApiError::internal(
-            ApiError::INTERNAL_ERROR,
-            "Failed to create upload directory",
-        );
+        return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create upload directory");
     }
 
     let content_type = sniff_mime_type(&file_name);
-    if let Err(e) = state
-        .storage
-        .put(&target_path, bytes.clone(), "anonymous")
-        .await
-    {
+    if let Err(e) = state.storage.put(&target_path, bytes.clone(), "anonymous").await {
         tracing::warn!(error = %e, path = %target_path, "failed to store uploaded file");
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to store uploaded file");
     }
@@ -195,10 +176,7 @@ pub async fn upload_to_share(
 }
 
 /// `GET /s/:token/uploads` -- List uploads for an upload share.
-pub async fn list_share_uploads(
-    State(state): State<AppState>,
-    Path(token): Path<String>,
-) -> Response {
+pub async fn list_share_uploads(State(state): State<AppState>, Path(token): Path<String>) -> Response {
     let entries = if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = match conn.prepare(
@@ -237,11 +215,7 @@ pub async fn list_share_uploads(
         Vec::new()
     };
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "uploads": entries })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "uploads": entries }))).into_response()
 }
 
 /// `GET /s/:token/view` -- Serve a secure view share (preview only).
@@ -270,10 +244,7 @@ pub async fn serve_view_share(
 
     let share_type = get_share_type(&state, &token);
     if share_type != ShareType::View {
-        return ApiError::bad_request(
-            ApiError::INVALID_INPUT,
-            "This share link is not a view share",
-        );
+        return ApiError::bad_request(ApiError::INVALID_INPUT, "This share link is not a view share");
     }
 
     if let Some(ref required_password) = link.password {
@@ -284,10 +255,7 @@ pub async fn serve_view_share(
             }
             Some(_) => {
                 state.share_store.record_failed_attempt(&token);
-                return ApiError::unauthorized(
-                    ApiError::SHARE_PASSWORD_INVALID,
-                    "Invalid password",
-                );
+                return ApiError::unauthorized(ApiError::SHARE_PASSWORD_INVALID, "Invalid password");
             }
             None => {
                 return ApiError::with_details(
@@ -340,15 +308,10 @@ pub async fn serve_view_share(
                 "inline; filename=\"{}\"",
                 link.path.rsplit('/').next().unwrap_or("preview")
             ))
-            .unwrap_or_else(|_| {
-                axum::http::HeaderValue::from_static("inline; filename=\"preview\"")
-            }),
+            .unwrap_or_else(|_| axum::http::HeaderValue::from_static("inline; filename=\"preview\"")),
         );
     } else {
-        headers.insert(
-            "Content-Disposition",
-            axum::http::HeaderValue::from_static("inline"),
-        );
+        headers.insert("Content-Disposition", axum::http::HeaderValue::from_static("inline"));
         headers.insert(
             "Content-Security-Policy",
             axum::http::HeaderValue::from_static(
@@ -440,17 +403,11 @@ async function uploadFiles(files) {{
         "Content-Type",
         axum::http::HeaderValue::from_static("text/html; charset=utf-8"),
     );
-    headers.insert(
-        "Content-Disposition",
-        axum::http::HeaderValue::from_static("inline"),
-    );
+    headers.insert("Content-Disposition", axum::http::HeaderValue::from_static("inline"));
     (StatusCode::OK, headers, html).into_response()
 }
 
-pub(crate) fn serve_preview_html(
-    link: &ShareLink,
-    meta: &common::metadata::FileMetadata,
-) -> Response {
+pub(crate) fn serve_preview_html(link: &ShareLink, meta: &common::metadata::FileMetadata) -> Response {
     let filename = link.path.rsplit('/').next().unwrap_or("preview");
     let escaped_filename = html_escape(filename);
     let content_type = &meta.mime_type;
@@ -518,10 +475,7 @@ pub(crate) fn serve_preview_html(
         "Content-Type",
         axum::http::HeaderValue::from_static("text/html; charset=utf-8"),
     );
-    headers.insert(
-        "Content-Disposition",
-        axum::http::HeaderValue::from_static("inline"),
-    );
+    headers.insert("Content-Disposition", axum::http::HeaderValue::from_static("inline"));
     headers.insert(
         "Content-Security-Policy",
         axum::http::HeaderValue::from_static(
@@ -551,10 +505,7 @@ pub(crate) fn get_share_type(state: &AppState, token: &str) -> ShareType {
             params![token],
             |row| row.get::<_, Option<String>>(0),
         ) {
-            return st
-                .as_deref()
-                .map(ShareType::from_str_opt)
-                .unwrap_or_default();
+            return st.as_deref().map(ShareType::from_str_opt).unwrap_or_default();
         }
     }
     ShareType::Download
@@ -606,10 +557,7 @@ mod tests {
     fn test_sanitize_filename() {
         assert_eq!(sanitize_filename("hello.txt"), "hello.txt");
         assert_eq!(sanitize_filename("my file.pdf"), "my_file.pdf");
-        assert_eq!(
-            sanitize_filename("../../../etc/passwd"),
-            ".._.._.._etc_passwd"
-        );
+        assert_eq!(sanitize_filename("../../../etc/passwd"), ".._.._.._etc_passwd");
     }
 
     #[test]

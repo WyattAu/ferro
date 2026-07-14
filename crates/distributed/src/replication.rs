@@ -50,10 +50,7 @@ pub struct ReplicationEntry {
 pub trait ReplicationLog: Send + Sync {
     fn append(&self, entry: ReplicationEntry) -> Result<(), DistributedError>;
     fn get(&self, key: &str) -> Result<Option<ReplicationEntry>, DistributedError>;
-    fn list_since(
-        &self,
-        timestamp: chrono::DateTime<chrono::Utc>,
-    ) -> Result<Vec<ReplicationEntry>, DistributedError>;
+    fn list_since(&self, timestamp: chrono::DateTime<chrono::Utc>) -> Result<Vec<ReplicationEntry>, DistributedError>;
 }
 
 pub struct InMemoryReplicationLog {
@@ -80,9 +77,7 @@ impl Default for InMemoryReplicationLog {
 
 impl ReplicationLog for InMemoryReplicationLog {
     fn append(&self, entry: ReplicationEntry) -> Result<(), DistributedError> {
-        let seq = self
-            .next_sequence
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let seq = self.next_sequence.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let mut entry = entry;
         entry.sequence = seq;
         self.sequences.insert(seq, entry.key.clone());
@@ -94,10 +89,7 @@ impl ReplicationLog for InMemoryReplicationLog {
         Ok(self.entries.get(key).map(|e| e.value().clone()))
     }
 
-    fn list_since(
-        &self,
-        timestamp: chrono::DateTime<chrono::Utc>,
-    ) -> Result<Vec<ReplicationEntry>, DistributedError> {
+    fn list_since(&self, timestamp: chrono::DateTime<chrono::Utc>) -> Result<Vec<ReplicationEntry>, DistributedError> {
         let mut results: Vec<ReplicationEntry> = self
             .entries
             .iter()
@@ -138,8 +130,7 @@ impl ReplicationCoordinator {
     }
 
     pub fn select_quorum(&self) -> Vec<ReplicaLocation> {
-        let mut all: Vec<ReplicaLocation> =
-            self.replicas.iter().map(|r| r.value().clone()).collect();
+        let mut all: Vec<ReplicaLocation> = self.replicas.iter().map(|r| r.value().clone()).collect();
         all.sort_by_key(|r| r.latency_ms);
         all.into_iter().take(self.policy.write_quorum).collect()
     }

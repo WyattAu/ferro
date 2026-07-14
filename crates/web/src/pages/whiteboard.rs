@@ -64,8 +64,8 @@ struct Viewport {
 }
 
 const PRESET_COLORS: &[&str] = &[
-    "#000000", "#ffffff", "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff",
-    "#ff8800", "#8800ff", "#0088ff", "#88ff00",
+    "#000000", "#ffffff", "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#ff8800", "#8800ff",
+    "#0088ff", "#88ff00",
 ];
 
 const STROKE_WIDTHS: &[f64] = &[1.0, 2.0, 3.0, 5.0, 8.0, 12.0];
@@ -633,11 +633,7 @@ pub fn WhiteboardPage() -> impl IntoView {
 }
 
 /// Draw a single whiteboard element on the canvas.
-fn draw_element(
-    ctx: &web_sys::CanvasRenderingContext2d,
-    element: &WhiteboardElement,
-    viewport: &Viewport,
-) {
+fn draw_element(ctx: &web_sys::CanvasRenderingContext2d, element: &WhiteboardElement, viewport: &Viewport) {
     if element.points.is_empty() {
         return;
     }
@@ -671,10 +667,7 @@ fn draw_element(
                     first.x * viewport.zoom + viewport.x,
                     first.y * viewport.zoom + viewport.y,
                 );
-                ctx.line_to(
-                    last.x * viewport.zoom + viewport.x,
-                    last.y * viewport.zoom + viewport.y,
-                );
+                ctx.line_to(last.x * viewport.zoom + viewport.x, last.y * viewport.zoom + viewport.y);
                 ctx.stroke();
             }
         }
@@ -698,8 +691,7 @@ fn draw_element(
                 let rx = (last.x - first.x).abs() / 2.0 * viewport.zoom;
                 let ry = (last.y - first.y).abs() / 2.0 * viewport.zoom;
                 ctx.begin_path();
-                ctx.ellipse(cx, cy, rx, ry, 0.0, 0.0, 2.0 * std::f64::consts::PI)
-                    .ok();
+                ctx.ellipse(cx, cy, rx, ry, 0.0, 0.0, 2.0 * std::f64::consts::PI).ok();
                 ctx.stroke();
             }
         }
@@ -708,10 +700,7 @@ fn draw_element(
                 let point = &element.points[0];
                 let x = point.x * viewport.zoom + viewport.x;
                 let y = point.y * viewport.zoom + viewport.y;
-                ctx.set_font(&format!(
-                    "{}px sans-serif",
-                    element.stroke_width * 4.0 * viewport.zoom
-                ));
+                ctx.set_font(&format!("{}px sans-serif", element.stroke_width * 4.0 * viewport.zoom));
                 ctx.fill_text(text, x, y).ok();
             }
         }

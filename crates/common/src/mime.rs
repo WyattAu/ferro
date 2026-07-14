@@ -1,4 +1,5 @@
 /// Detect MIME type from the first bytes of content using magic bytes.
+#[must_use]
 pub fn sniff_content_type(data: &[u8], path: &str) -> String {
     if let Some(mime) = mime_guess::from_path(path).first() {
         let mime_str = mime.essence_str();
@@ -51,18 +52,12 @@ mod tests {
 
     #[test]
     fn test_sniff_pdf() {
-        assert_eq!(
-            sniff_content_type(b"%PDF-1.4", "doc.pdf"),
-            "application/pdf"
-        );
+        assert_eq!(sniff_content_type(b"%PDF-1.4", "doc.pdf"), "application/pdf");
     }
 
     #[test]
     fn test_sniff_png() {
-        assert_eq!(
-            sniff_content_type(b"\x89PNG\r\n\x1a\n", "img.png"),
-            "image/png"
-        );
+        assert_eq!(sniff_content_type(b"\x89PNG\r\n\x1a\n", "img.png"), "image/png");
     }
 
     #[test]
@@ -72,26 +67,17 @@ mod tests {
 
     #[test]
     fn test_sniff_jpeg() {
-        assert_eq!(
-            sniff_content_type(b"\xff\xd8\xff\xe0", "img.jpg"),
-            "image/jpeg"
-        );
+        assert_eq!(sniff_content_type(b"\xff\xd8\xff\xe0", "img.jpg"), "image/jpeg");
     }
 
     #[test]
     fn test_sniff_xml() {
-        assert_eq!(
-            sniff_content_type(b"<?xml version=\"1.0\"?>", "data.xml"),
-            "text/xml"
-        );
+        assert_eq!(sniff_content_type(b"<?xml version=\"1.0\"?>", "data.xml"), "text/xml");
     }
 
     #[test]
     fn test_sniff_zip() {
-        assert_eq!(
-            sniff_content_type(b"PK\x03\x04", "archive.zip"),
-            "application/zip"
-        );
+        assert_eq!(sniff_content_type(b"PK\x03\x04", "archive.zip"), "application/zip");
     }
 
     #[test]
@@ -104,10 +90,7 @@ mod tests {
 
     #[test]
     fn test_sniff_ogg() {
-        assert_eq!(
-            sniff_content_type(b"OggS\x00\x02", "audio.ogg"),
-            "audio/ogg"
-        );
+        assert_eq!(sniff_content_type(b"OggS\x00\x02", "audio.ogg"), "audio/ogg");
     }
 
     #[test]
@@ -130,5 +113,134 @@ mod tests {
             sniff_content_type(b"\x00\x00\x00\x00", "unknown"),
             "application/octet-stream"
         );
+    }
+
+    #[test]
+    fn test_sniff_unknown_binary() {
+        assert_eq!(
+            sniff_content_type(b"\x01\x02\x03\x04", "data.bin"),
+            "application/octet-stream"
+        );
+    }
+
+    #[test]
+    fn test_sniff_html_by_extension() {
+        assert_eq!(sniff_content_type(b"", "index.html"), "text/html");
+    }
+
+    #[test]
+    fn test_sniff_css_by_extension() {
+        assert_eq!(sniff_content_type(b"", "style.css"), "text/css");
+    }
+
+    #[test]
+    fn test_sniff_js_by_extension() {
+        assert_eq!(sniff_content_type(b"", "app.js"), "text/javascript");
+    }
+
+    #[test]
+    fn test_sniff_json_by_extension() {
+        assert_eq!(sniff_content_type(b"", "data.json"), "application/json");
+    }
+
+    #[test]
+    fn test_sniff_png_by_extension() {
+        assert_eq!(sniff_content_type(b"", "image.png"), "image/png");
+    }
+
+    #[test]
+    fn test_sniff_jpg_by_extension() {
+        assert_eq!(sniff_content_type(b"", "photo.jpg"), "image/jpeg");
+    }
+
+    #[test]
+    fn test_sniff_gif_by_extension() {
+        assert_eq!(sniff_content_type(b"", "animation.gif"), "image/gif");
+    }
+
+    #[test]
+    fn test_sniff_mp3_by_extension() {
+        assert_eq!(sniff_content_type(b"", "song.mp3"), "audio/mpeg");
+    }
+
+    #[test]
+    fn test_sniff_wav_by_extension() {
+        assert_eq!(sniff_content_type(b"", "sound.wav"), "audio/wav");
+    }
+
+    #[test]
+    fn test_sniff_svg_by_extension() {
+        assert_eq!(sniff_content_type(b"", "icon.svg"), "image/svg+xml");
+    }
+
+    #[test]
+    fn test_sniff_tiff_by_extension() {
+        assert_eq!(sniff_content_type(b"", "photo.tiff"), "image/tiff");
+    }
+
+    #[test]
+    fn test_sniff_webm_by_extension() {
+        assert_eq!(sniff_content_type(b"", "video.webm"), "video/webm");
+    }
+
+    #[test]
+    fn test_sniff_mkv_by_extension() {
+        assert_eq!(sniff_content_type(b"", "video.mkv"), "video/x-matroska");
+    }
+
+    #[test]
+    fn test_sniff_avi_by_extension() {
+        assert_eq!(sniff_content_type(b"", "video.avi"), "video/x-msvideo");
+    }
+
+    #[test]
+    fn test_sniff_mov_by_extension() {
+        assert_eq!(sniff_content_type(b"", "video.mov"), "video/quicktime");
+    }
+
+    #[test]
+    fn test_sniff_txt_by_extension() {
+        assert_eq!(sniff_content_type(b"", "readme.txt"), "text/plain");
+    }
+
+    #[test]
+    fn test_sniff_md_by_extension() {
+        assert_eq!(sniff_content_type(b"", "README.md"), "text/markdown");
+    }
+
+    #[test]
+    fn test_sniff_csv_by_extension() {
+        assert_eq!(sniff_content_type(b"", "data.csv"), "text/csv");
+    }
+
+    #[test]
+    fn test_sniff_xml_by_extension() {
+        assert_eq!(sniff_content_type(b"", "data.xml"), "text/xml");
+    }
+
+    #[test]
+    fn test_sniff_pdf_by_extension() {
+        assert_eq!(sniff_content_type(b"", "doc.pdf"), "application/pdf");
+    }
+
+    #[test]
+    fn test_sniff_zip_by_extension() {
+        assert_eq!(sniff_content_type(b"", "archive.zip"), "application/zip");
+    }
+
+    #[test]
+    fn test_sniff_gz_by_extension() {
+        assert_eq!(sniff_content_type(b"", "archive.gz"), "application/gzip");
+    }
+
+    #[test]
+    fn test_sniff_tar_by_extension() {
+        assert_eq!(sniff_content_type(b"", "archive.tar"), "application/x-tar");
+    }
+
+    #[test]
+    fn test_sniff_exe_by_extension() {
+        let result = sniff_content_type(b"", "program.exe");
+        assert!(!result.is_empty());
     }
 }

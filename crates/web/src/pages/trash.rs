@@ -76,11 +76,7 @@ pub fn TrashPage() -> impl IntoView {
 
     let display_entries = move || {
         let ents = entries.get();
-        if ents.len() > 50 {
-            ents[..50].to_vec()
-        } else {
-            ents
-        }
+        if ents.len() > 50 { ents[..50].to_vec() } else { ents }
     };
 
     view! {

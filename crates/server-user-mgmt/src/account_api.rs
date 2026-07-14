@@ -74,12 +74,7 @@ impl DeviceStore {
         Ok(())
     }
 
-    pub fn register_device(
-        &self,
-        user_id: &str,
-        platform: &str,
-        push_token: &str,
-    ) -> Result<Device, rusqlite::Error> {
+    pub fn register_device(&self, user_id: &str, platform: &str, push_token: &str) -> Result<Device, rusqlite::Error> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
         let id = uuid::Uuid::new_v4().to_string();
         conn.execute(
@@ -175,10 +170,7 @@ pub async fn transfer_user_data<S: UserMgmtState>(
         .execute(
             "UPDATE notes SET id = id WHERE id IN (SELECT id FROM notes WHERE folder LIKE ?1)
              AND folder NOT LIKE ?2",
-            params![
-                format!("%{}%", source_user_id),
-                format!("%{}%", target_user_id)
-            ],
+            params![format!("%{}%", source_user_id), format!("%{}%", target_user_id)],
         )
         .unwrap_or(0) as u64;
 
@@ -225,11 +217,8 @@ pub async fn transfer_user_data<S: UserMgmtState>(
             params![source_user_id],
         )
         .ok();
-        conn.execute(
-            "DELETE FROM devices WHERE user_id = ?1",
-            params![source_user_id],
-        )
-        .ok();
+        conn.execute("DELETE FROM devices WHERE user_id = ?1", params![source_user_id])
+            .ok();
         true
     } else {
         false
@@ -279,10 +268,7 @@ pub async fn wipe_user_devices<S: UserMgmtState>(
     let devices = match store.list_devices_for_user(&user_id) {
         Ok(d) => d,
         Err(e) => {
-            return ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                format!("Failed to list devices: {}", e),
-            );
+            return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to list devices: {}", e));
         }
     };
 
@@ -316,10 +302,7 @@ pub async fn wipe_user_devices<S: UserMgmtState>(
     let tokens_revoked = match store.revoke_all_devices(&user_id) {
         Ok(revoked) => revoked,
         Err(e) => {
-            return ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                format!("Failed to revoke tokens: {}", e),
-            );
+            return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to revoke tokens: {}", e));
         }
     };
 
@@ -341,10 +324,7 @@ pub async fn wipe_user_devices<S: UserMgmtState>(
 }
 
 /// GET /api/admin/users/{id}/devices
-pub async fn list_user_devices<S: UserMgmtState>(
-    State(state): State<S>,
-    Path(user_id): Path<String>,
-) -> Response {
+pub async fn list_user_devices<S: UserMgmtState>(State(state): State<S>, Path(user_id): Path<String>) -> Response {
     let db = match state.db() {
         Some(db) => db.clone(),
         None => {
@@ -354,15 +334,8 @@ pub async fn list_user_devices<S: UserMgmtState>(
 
     let store = DeviceStore::new(db);
     match store.list_devices_for_user(&user_id) {
-        Ok(devices) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "devices": devices })),
-        )
-            .into_response(),
-        Err(e) => ApiError::internal(
-            ApiError::INTERNAL_ERROR,
-            format!("Failed to list devices: {}", e),
-        ),
+        Ok(devices) => (StatusCode::OK, axum::Json(serde_json::json!({ "devices": devices }))).into_response(),
+        Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to list devices: {}", e)),
     }
 }
 
@@ -389,9 +362,6 @@ pub async fn revoke_device<S: UserMgmtState>(
         )
             .into_response(),
         Ok(false) => ApiError::not_found(ApiError::NOT_FOUND, "Device not found"),
-        Err(e) => ApiError::internal(
-            ApiError::INTERNAL_ERROR,
-            format!("Failed to revoke device: {}", e),
-        ),
+        Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to revoke device: {}", e)),
     }
 }

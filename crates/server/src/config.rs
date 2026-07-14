@@ -73,6 +73,8 @@ pub struct FileConfigValues {
     pub apns_team_id: Option<String>,
     pub clamav_host: Option<String>,
     pub clamav_port: Option<u16>,
+    pub otlp_endpoint: Option<String>,
+    pub otel_service_name: Option<String>,
 }
 
 /// Configuration loaded from a TOML file with include support.
@@ -198,11 +200,7 @@ pub struct ServerConfig {
 
     /// External base URL the server is accessible from (used for OIDC redirects).
     /// Default: http://localhost:8080
-    #[arg(
-        long,
-        env = "FERRO_EXTERNAL_URL",
-        default_value = "http://localhost:8080"
-    )]
+    #[arg(long, env = "FERRO_EXTERNAL_URL", default_value = "http://localhost:8080")]
     pub external_url: String,
 
     /// WOPI office server URL (e.g., <https://collabora.example.com>).
@@ -324,11 +322,7 @@ pub struct ServerConfig {
     /// Content-Length threshold (bytes) below which uploads use in-memory buffering.
     /// Uploads exceeding this threshold stream to a temporary file before storage.
     /// Default: 65536 (64 KB). Set to 0 to always stream.
-    #[arg(
-        long,
-        env = "FERRO_STREAMING_UPLOAD_THRESHOLD",
-        default_value = "65536"
-    )]
+    #[arg(long, env = "FERRO_STREAMING_UPLOAD_THRESHOLD", default_value = "65536")]
     pub streaming_upload_threshold: u64,
 
     /// Enable multi-user mode with per-user home directories
@@ -414,6 +408,14 @@ pub struct ServerConfig {
     /// ClamAV daemon port for virus scanning (default: 3310).
     #[arg(long, env = "FERRO_CLAMAV_PORT", default_value = "3310")]
     pub clamav_port: u16,
+
+    /// OpenTelemetry OTLP endpoint for distributed tracing (requires 'otel' feature).
+    #[arg(long, env = "FERRO_OTLP_ENDPOINT", default_value = "http://localhost:4317")]
+    pub otlp_endpoint: String,
+
+    /// OpenTelemetry service name for distributed tracing (requires 'otel' feature).
+    #[arg(long, env = "FERRO_OTEL_SERVICE_NAME", default_value = "ferro-server")]
+    pub otel_service_name: String,
 }
 
 /// Custom Debug implementation that redacts sensitive fields (passwords, secrets, tokens).
@@ -433,10 +435,7 @@ impl std::fmt::Debug for ServerConfig {
             .field("oidc_jwks_uri", &self.oidc_jwks_uri)
             .field("cedar_policy_file", &self.cedar_policy_file)
             .field("search_index_path", &self.search_index_path)
-            .field(
-                "metadata_db",
-                &self.metadata_db.as_ref().map(|_| "***REDACTED***"),
-            )
+            .field("metadata_db", &self.metadata_db.as_ref().map(|_| "***REDACTED***"))
             .field("cas_enabled", &self.cas_enabled)
             .field("data_dir", &self.data_dir)
             .field("max_body_size", &self.max_body_size)
@@ -476,6 +475,8 @@ impl std::fmt::Debug for ServerConfig {
             .field("rate_limit_refill", &self.rate_limit_refill)
             .field("max_concurrent_requests", &self.max_concurrent_requests)
             .field("max_snapshot_versions", &self.max_snapshot_versions)
+            .field("otlp_endpoint", &self.otlp_endpoint)
+            .field("otel_service_name", &self.otel_service_name)
             .finish()
     }
 }
@@ -515,10 +516,7 @@ impl std::fmt::Debug for FileConfigValues {
             .field("oidc_jwks_uri", &self.oidc_jwks_uri)
             .field("cedar_policy_file", &self.cedar_policy_file)
             .field("search_index_path", &self.search_index_path)
-            .field(
-                "metadata_db",
-                &self.metadata_db.as_ref().map(|_| "***REDACTED***"),
-            )
+            .field("metadata_db", &self.metadata_db.as_ref().map(|_| "***REDACTED***"))
             .field("cas_enabled", &self.cas_enabled)
             .field("wasm_enabled", &self.wasm_enabled)
             .field("storage_quota", &self.storage_quota)
@@ -532,20 +530,16 @@ impl std::fmt::Debug for FileConfigValues {
                 "fcm_server_key",
                 &self.fcm_server_key.as_ref().map(|_| "***REDACTED***"),
             )
-            .field(
-                "apns_key_path",
-                &self.apns_key_path.as_ref().map(|_| "***REDACTED***"),
-            )
-            .field(
-                "apns_team_id",
-                &self.apns_team_id.as_ref().map(|_| "***REDACTED***"),
-            )
+            .field("apns_key_path", &self.apns_key_path.as_ref().map(|_| "***REDACTED***"))
+            .field("apns_team_id", &self.apns_team_id.as_ref().map(|_| "***REDACTED***"))
             .field("clamav_host", &self.clamav_host)
             .field("clamav_port", &self.clamav_port)
             .field("rate_limit_burst", &self.rate_limit_burst)
             .field("rate_limit_refill", &self.rate_limit_refill)
             .field("max_concurrent_requests", &self.max_concurrent_requests)
             .field("max_snapshot_versions", &self.max_snapshot_versions)
+            .field("otlp_endpoint", &self.otlp_endpoint)
+            .field("otel_service_name", &self.otel_service_name)
             .finish()
     }
 }
@@ -575,28 +569,22 @@ pub fn load_config_file(path: &str) -> anyhow::Result<FileConfigValues> {
     load_config_file_inner(path, &mut chain)
 }
 
-fn load_config_file_inner(
-    path: &str,
-    chain: &mut Vec<std::path::PathBuf>,
-) -> anyhow::Result<FileConfigValues> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| anyhow::anyhow!("Failed to read config file {}: {}", path, e))?;
+fn load_config_file_inner(path: &str, chain: &mut Vec<std::path::PathBuf>) -> anyhow::Result<FileConfigValues> {
+    let content =
+        std::fs::read_to_string(path).map_err(|e| anyhow::anyhow!("Failed to read config file {}: {}", path, e))?;
 
     let canonical = std::path::Path::new(path)
         .canonicalize()
         .map_err(|e| anyhow::anyhow!("Failed to resolve config file path {}: {}", path, e))?;
 
     if chain.contains(&canonical) {
-        return Err(anyhow::anyhow!(
-            "Config file include cycle detected: {}",
-            path
-        ));
+        return Err(anyhow::anyhow!("Config file include cycle detected: {}", path));
     }
 
     chain.push(canonical);
 
-    let config: FileConfig = toml::from_str(&content)
-        .map_err(|e| anyhow::anyhow!("Failed to parse config file {}: {}", path, e))?;
+    let config: FileConfig =
+        toml::from_str(&content).map_err(|e| anyhow::anyhow!("Failed to parse config file {}: {}", path, e))?;
 
     let mut merged = config.values;
 
@@ -637,9 +625,7 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
         wopi_token_secret: override_.wopi_token_secret.or(base.wopi_token_secret),
         wopi_office_url: override_.wopi_office_url.or(base.wopi_office_url),
         federation_secret: override_.federation_secret.or(base.federation_secret),
-        federation_trusted_peers: override_
-            .federation_trusted_peers
-            .or(base.federation_trusted_peers),
+        federation_trusted_peers: override_.federation_trusted_peers.or(base.federation_trusted_peers),
         oidc_issuer: override_.oidc_issuer.or(base.oidc_issuer),
         oidc_client_id: override_.oidc_client_id.or(base.oidc_client_id),
         oidc_audience: override_.oidc_audience.or(base.oidc_audience),
@@ -651,29 +637,23 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
         wasm_enabled: override_.wasm_enabled.or(base.wasm_enabled),
         storage_quota: override_.storage_quota.or(base.storage_quota),
         trash_ttl: override_.trash_ttl.or(base.trash_ttl),
-        graceful_shutdown_timeout: override_
-            .graceful_shutdown_timeout
-            .or(base.graceful_shutdown_timeout),
+        graceful_shutdown_timeout: override_.graceful_shutdown_timeout.or(base.graceful_shutdown_timeout),
         cors_allowed_origins: override_.cors_allowed_origins.or(base.cors_allowed_origins),
         dedup_enabled: override_.dedup_enabled.or(base.dedup_enabled),
-        streaming_upload_threshold: override_
-            .streaming_upload_threshold
-            .or(base.streaming_upload_threshold),
+        streaming_upload_threshold: override_.streaming_upload_threshold.or(base.streaming_upload_threshold),
         offline_cache_dir: override_.offline_cache_dir.or(base.offline_cache_dir),
         offline_queue_size: override_.offline_queue_size.or(base.offline_queue_size),
         rate_limit_burst: override_.rate_limit_burst.or(base.rate_limit_burst),
         rate_limit_refill: override_.rate_limit_refill.or(base.rate_limit_refill),
-        max_concurrent_requests: override_
-            .max_concurrent_requests
-            .or(base.max_concurrent_requests),
-        max_snapshot_versions: override_
-            .max_snapshot_versions
-            .or(base.max_snapshot_versions),
+        max_concurrent_requests: override_.max_concurrent_requests.or(base.max_concurrent_requests),
+        max_snapshot_versions: override_.max_snapshot_versions.or(base.max_snapshot_versions),
         fcm_server_key: override_.fcm_server_key.or(base.fcm_server_key),
         apns_key_path: override_.apns_key_path.or(base.apns_key_path),
         apns_team_id: override_.apns_team_id.or(base.apns_team_id),
         clamav_host: override_.clamav_host.or(base.clamav_host),
         clamav_port: override_.clamav_port.or(base.clamav_port),
+        otlp_endpoint: override_.otlp_endpoint.or(base.otlp_endpoint),
+        otel_service_name: override_.otel_service_name.or(base.otel_service_name),
     }
 }
 
@@ -864,6 +844,16 @@ where
     {
         cli.max_snapshot_versions = max;
     }
+    if !was_set("otlp_endpoint")
+        && let Some(ref endpoint) = file.otlp_endpoint
+    {
+        cli.otlp_endpoint = endpoint.clone();
+    }
+    if !was_set("otel_service_name")
+        && let Some(ref name) = file.otel_service_name
+    {
+        cli.otel_service_name = name.clone();
+    }
 }
 
 fn parse_bytes(s: &str) -> anyhow::Result<u64> {
@@ -1007,12 +997,7 @@ mod tests {
     fn test_load_config_file_nonexistent() {
         let result = load_config_file("/nonexistent/path/ferro.toml");
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("Failed to read config file")
-        );
+        assert!(result.unwrap_err().to_string().contains("Failed to read config file"));
     }
 
     #[test]
@@ -1023,12 +1008,7 @@ mod tests {
 
         let result = load_config_file(config_path.to_str().unwrap());
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("Failed to parse config file")
-        );
+        assert!(result.unwrap_err().to_string().contains("Failed to parse config file"));
     }
 
     #[test]
@@ -1312,14 +1292,8 @@ mod tests {
 
         let debug_output = format!("{:?}", values);
         assert!(!debug_output.contains("secret123"), "admin_password leaked");
-        assert!(
-            !debug_output.contains("WXYZ_TEST_TOKEN"),
-            "wopi_token_secret leaked"
-        );
-        assert!(
-            !debug_output.contains("XYZZY_FED_SECRET"),
-            "federation_secret leaked"
-        );
+        assert!(!debug_output.contains("WXYZ_TEST_TOKEN"), "wopi_token_secret leaked");
+        assert!(!debug_output.contains("XYZZY_FED_SECRET"), "federation_secret leaked");
         assert!(
             !debug_output.contains("postgres://user:pass@host"),
             "metadata_db URL leaked"
@@ -1333,10 +1307,7 @@ mod tests {
         let redacted = redact_url_credentials(url);
         assert!(!redacted.contains("hunter2"), "Password should be redacted");
         assert!(redacted.contains("admin"), "Username should be preserved");
-        assert!(
-            redacted.contains("***REDACTED***"),
-            "Should show REDACTED marker"
-        );
+        assert!(redacted.contains("***REDACTED***"), "Should show REDACTED marker");
     }
 
     #[test]
@@ -1357,9 +1328,6 @@ mod tests {
     fn test_redact_url_credentials_invalid_url() {
         let url = "not-a-url-at-all";
         let redacted = redact_url_credentials(url);
-        assert_eq!(
-            redacted, url,
-            "Invalid URL should be returned as-is (fail-open)"
-        );
+        assert_eq!(redacted, url, "Invalid URL should be returned as-is (fail-open)");
     }
 }

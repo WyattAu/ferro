@@ -36,11 +36,7 @@ pub struct BlockManifest {
 }
 
 /// Chunk a local file into content-defined blocks.
-pub fn chunk_file(
-    path: &Path,
-    relative_path: &str,
-    target_block_size: u64,
-) -> Result<BlockManifest> {
+pub fn chunk_file(path: &Path, relative_path: &str, target_block_size: u64) -> Result<BlockManifest> {
     let data = std::fs::read(path)?;
     let file_hash = compute_hash(&data);
     let total_size = data.len() as u64;
@@ -105,9 +101,8 @@ impl BuzHash {
         let outgoing = self.window[self.window_idx];
         self.window[self.window_idx] = byte;
         self.window_idx = (self.window_idx + 1) % 48;
-        self.hash = self.hash.rotate_left(1)
-            ^ self.table[byte as usize]
-            ^ self.table[outgoing as usize].rotate_left(48);
+        self.hash =
+            self.hash.rotate_left(1) ^ self.table[byte as usize] ^ self.table[outgoing as usize].rotate_left(48);
     }
 }
 
@@ -116,12 +111,7 @@ impl BuzHash {
 ///
 /// This MUST produce identical results to the server's `chunk_data` function
 /// given the same input data and parameters.
-pub fn chunk_data(
-    data: &[u8],
-    target_size: u64,
-    min_size: u64,
-    max_size: u64,
-) -> Vec<(u64, u64, String)> {
+pub fn chunk_data(data: &[u8], target_size: u64, min_size: u64, max_size: u64) -> Vec<(u64, u64, String)> {
     let mask = compute_mask(target_size);
     let mut buzhash = BuzHash::new();
     let mut blocks = Vec::new();
@@ -139,22 +129,14 @@ pub fn chunk_data(
 
         if block_len >= max_size {
             let block_data = &data[block_start..i];
-            blocks.push((
-                block_start as u64,
-                block_data.len() as u64,
-                compute_hash(block_data),
-            ));
+            blocks.push((block_start as u64, block_data.len() as u64, compute_hash(block_data)));
             block_start = i;
             buzhash = BuzHash::new();
         } else if block_len >= min_size {
             buzhash.update(byte);
             if (buzhash.hash & mask) == 0 {
                 let block_data = &data[block_start..=i];
-                blocks.push((
-                    block_start as u64,
-                    block_data.len() as u64,
-                    compute_hash(block_data),
-                ));
+                blocks.push((block_start as u64, block_data.len() as u64, compute_hash(block_data)));
                 block_start = i + 1;
                 buzhash = BuzHash::new();
             }
@@ -165,11 +147,7 @@ pub fn chunk_data(
 
     if block_start < data.len() {
         let block_data = &data[block_start..];
-        blocks.push((
-            block_start as u64,
-            block_data.len() as u64,
-            compute_hash(block_data),
-        ));
+        blocks.push((block_start as u64, block_data.len() as u64, compute_hash(block_data)));
     }
 
     blocks
@@ -182,10 +160,8 @@ fn compute_mask(target_size: u64) -> u64 {
 
 /// Compare two block manifests and return the hashes of blocks that differ.
 pub fn diff_manifests(local: &BlockManifest, remote: &BlockManifest) -> Vec<String> {
-    let local_hashes: std::collections::HashSet<&str> =
-        local.blocks.iter().map(|b| b.hash.as_str()).collect();
-    let remote_hashes: std::collections::HashSet<&str> =
-        remote.blocks.iter().map(|b| b.hash.as_str()).collect();
+    let local_hashes: std::collections::HashSet<&str> = local.blocks.iter().map(|b| b.hash.as_str()).collect();
+    let remote_hashes: std::collections::HashSet<&str> = remote.blocks.iter().map(|b| b.hash.as_str()).collect();
 
     // Blocks in remote but not in local (need to upload)
     remote_hashes

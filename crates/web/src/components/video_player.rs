@@ -202,20 +202,12 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
 
     let progress_pct = move || {
         let d = duration.get();
-        if d > 0.0 {
-            (current_time.get() / d) * 100.0
-        } else {
-            0.0
-        }
+        if d > 0.0 { (current_time.get() / d) * 100.0 } else { 0.0 }
     };
 
     let buffered_pct = move || {
         let d = duration.get();
-        if d > 0.0 {
-            (buffered_end.get() / d) * 100.0
-        } else {
-            0.0
-        }
+        if d > 0.0 { (buffered_end.get() / d) * 100.0 } else { 0.0 }
     };
 
     view! {

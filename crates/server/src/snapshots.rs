@@ -23,6 +23,7 @@ pub struct Snapshot {
 }
 
 /// In-memory snapshot store with optional SQLite persistence.
+#[derive(Debug)]
 pub struct SnapshotStore {
     snapshots: Arc<RwLock<Vec<Snapshot>>>,
     max_snapshots: usize,

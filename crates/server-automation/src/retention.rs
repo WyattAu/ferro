@@ -135,11 +135,7 @@ pub async fn list_policies(Extension(state): Extension<Arc<AutomationState>>) ->
         Vec::new()
     };
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "policies": policies })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "policies": policies }))).into_response()
 }
 
 pub async fn create_policy(
@@ -153,9 +149,7 @@ pub async fn create_policy(
         return error_bad_request("Path prefix must not be empty");
     }
     if req.max_age_seconds == 0 && req.max_file_count.is_none() && req.min_free_bytes.is_none() {
-        return error_bad_request(
-            "At least one of max_age_seconds, max_file_count, or min_free_bytes must be set",
-        );
+        return error_bad_request("At least one of max_age_seconds, max_file_count, or min_free_bytes must be set");
     }
 
     let policy_id = uuid::Uuid::new_v4().to_string();
@@ -203,10 +197,7 @@ pub async fn create_policy(
         .into_response()
 }
 
-pub async fn delete_policy(
-    Extension(state): Extension<Arc<AutomationState>>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_policy(Extension(state): Extension<Arc<AutomationState>>, Path(id): Path<String>) -> Response {
     if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         let affected = conn.execute("DELETE FROM retention_policies WHERE id = ?1", params![id]);
@@ -243,11 +234,7 @@ pub async fn execute_policies(Extension(state): Extension<Arc<AutomationState>>)
 
     update_last_run(&state);
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "results": results })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
 }
 
 fn load_enabled_policies(state: &AutomationState) -> Vec<RetentionPolicy> {
@@ -272,10 +259,7 @@ fn load_enabled_policies(state: &AutomationState) -> Vec<RetentionPolicy> {
     }
 }
 
-async fn execute_single_policy(
-    state: &AutomationState,
-    policy: &RetentionPolicy,
-) -> RetentionExecutionResult {
+async fn execute_single_policy(state: &AutomationState, policy: &RetentionPolicy) -> RetentionExecutionResult {
     let mut result = RetentionExecutionResult {
         policy_id: policy.id.clone(),
         policy_name: policy.name.clone(),
@@ -312,10 +296,7 @@ async fn execute_single_policy(
             continue;
         }
 
-        let age_secs = now
-            .signed_duration_since(meta.modified_at)
-            .num_seconds()
-            .max(0) as u64;
+        let age_secs = now.signed_duration_since(meta.modified_at).num_seconds().max(0) as u64;
 
         if policy.max_age_seconds > 0 && age_secs > policy.max_age_seconds {
             to_delete_paths.push((meta.path.clone(), meta.size));
@@ -412,11 +393,7 @@ fn update_last_run(state: &AutomationState) {
     }
 }
 
-pub fn spawn_retention_daemon(
-    state: Arc<AutomationState>,
-    interval_secs: u64,
-    cancel: CancellationToken,
-) {
+pub fn spawn_retention_daemon(state: Arc<AutomationState>, interval_secs: u64, cancel: CancellationToken) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
 

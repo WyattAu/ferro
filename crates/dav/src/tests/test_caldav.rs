@@ -33,10 +33,7 @@ END:VCALENDAR\r\n",
 #[tokio::test]
 async fn test_create_and_list_calendars() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Personal", "#ff0000")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Personal", "#ff0000").await.unwrap();
     assert_eq!(cal.name, "Personal");
     assert_eq!(cal.principal, "user1");
 
@@ -48,10 +45,7 @@ async fn test_create_and_list_calendars() {
 #[tokio::test]
 async fn test_delete_calendar() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "To Delete", "#000000")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "To Delete", "#000000").await.unwrap();
 
     store.delete_calendar("user1", &cal.id).await.unwrap();
     let cals = store.list_calendars("user1").await;
@@ -61,10 +55,7 @@ async fn test_delete_calendar() {
 #[tokio::test]
 async fn test_get_calendar() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "My Cal", "#00ff00")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "My Cal", "#00ff00").await.unwrap();
 
     let fetched = store.get_calendar("user1", &cal.id).await;
     assert!(fetched.is_some());
@@ -77,10 +68,7 @@ async fn test_get_calendar() {
 #[tokio::test]
 async fn test_create_and_list_events() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Events Cal", "#0000ff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Events Cal", "#0000ff").await.unwrap();
 
     let ical = sample_event_ical("evt-1", "Meeting", "20260427T140000Z", "20260427T150000Z");
     store.create_event(&cal.id, &ical).await.unwrap();
@@ -93,10 +81,7 @@ async fn test_create_and_list_events() {
 #[tokio::test]
 async fn test_get_event() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Cal", "#ffffff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Cal", "#ffffff").await.unwrap();
 
     let ical = sample_event_ical("evt-2", "Get Test", "20260427T100000Z", "20260427T110000Z");
     store.create_event(&cal.id, &ical).await.unwrap();
@@ -112,34 +97,20 @@ async fn test_get_event() {
 #[tokio::test]
 async fn test_update_event() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Cal", "#ffffff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Cal", "#ffffff").await.unwrap();
 
     let ical = sample_event_ical("evt-3", "Original", "20260427T100000Z", "20260427T110000Z");
     store.create_event(&cal.id, &ical).await.unwrap();
 
-    let updated_ical = sample_event_ical(
-        "evt-3",
-        "Updated Title",
-        "20260427T100000Z",
-        "20260427T120000Z",
-    );
-    let event = store
-        .update_event(&cal.id, "evt-3", &updated_ical)
-        .await
-        .unwrap();
+    let updated_ical = sample_event_ical("evt-3", "Updated Title", "20260427T100000Z", "20260427T120000Z");
+    let event = store.update_event(&cal.id, "evt-3", &updated_ical).await.unwrap();
     assert!(event.ical_data.contains("Updated Title"));
 }
 
 #[tokio::test]
 async fn test_delete_event() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Cal", "#ffffff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Cal", "#ffffff").await.unwrap();
 
     let ical = sample_event_ical("evt-4", "Delete Me", "20260427T100000Z", "20260427T110000Z");
     store.create_event(&cal.id, &ical).await.unwrap();
@@ -152,17 +123,9 @@ async fn test_delete_event() {
 #[tokio::test]
 async fn test_query_events_time_range() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Cal", "#ffffff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Cal", "#ffffff").await.unwrap();
 
-    let ical1 = sample_event_ical(
-        "evt-a",
-        "April Event",
-        "20260401T100000Z",
-        "20260402T110000Z",
-    );
+    let ical1 = sample_event_ical("evt-a", "April Event", "20260401T100000Z", "20260402T110000Z");
     let ical2 = sample_event_ical("evt-b", "May Event", "20260501T100000Z", "20260502T110000Z");
     store.create_event(&cal.id, &ical1).await.unwrap();
     store.create_event(&cal.id, &ical2).await.unwrap();
@@ -192,20 +155,14 @@ async fn test_query_events_time_range() {
 #[tokio::test]
 async fn test_query_events_no_filter() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Cal", "#ffffff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Cal", "#ffffff").await.unwrap();
 
     let ical1 = sample_event_ical("evt-x", "Event X", "20260101T100000Z", "20260102T110000Z");
     let ical2 = sample_event_ical("evt-y", "Event Y", "20261201T100000Z", "20261202T110000Z");
     store.create_event(&cal.id, &ical1).await.unwrap();
     store.create_event(&cal.id, &ical2).await.unwrap();
 
-    let filter = CalFilter {
-        start: None,
-        end: None,
-    };
+    let filter = CalFilter { start: None, end: None };
 
     let results = store.query_events(&cal.id, &filter).await;
     assert_eq!(results.len(), 2);
@@ -214,14 +171,8 @@ async fn test_query_events_no_filter() {
 #[tokio::test]
 async fn test_calendar_isolation() {
     let store = InMemoryCalendarStore::new();
-    let cal1 = store
-        .create_calendar("user1", "Cal 1", "#ff0000")
-        .await
-        .unwrap();
-    let cal2 = store
-        .create_calendar("user1", "Cal 2", "#00ff00")
-        .await
-        .unwrap();
+    let cal1 = store.create_calendar("user1", "Cal 1", "#ff0000").await.unwrap();
+    let cal2 = store.create_calendar("user1", "Cal 2", "#00ff00").await.unwrap();
 
     let ical = sample_event_ical("iso-1", "Isolated", "20260427T100000Z", "20260427T110000Z");
     store.create_event(&cal1.id, &ical).await.unwrap();
@@ -235,18 +186,10 @@ async fn test_calendar_isolation() {
 #[tokio::test]
 async fn test_ctag_bumps_on_create_event() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Cal", "#ffffff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Cal", "#ffffff").await.unwrap();
     let ctag_before = cal.ctag.clone();
 
-    let ical = sample_event_ical(
-        "ctag-1",
-        "CTag Test",
-        "20260427T100000Z",
-        "20260427T110000Z",
-    );
+    let ical = sample_event_ical("ctag-1", "CTag Test", "20260427T100000Z", "20260427T110000Z");
     store.create_event(&cal.id, &ical).await.unwrap();
 
     let cal_after = store.get_calendar("user1", &cal.id).await.unwrap();
@@ -256,25 +199,14 @@ async fn test_ctag_bumps_on_create_event() {
 #[tokio::test]
 async fn test_ctag_bumps_on_update_event() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Cal", "#ffffff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Cal", "#ffffff").await.unwrap();
 
-    let ical = sample_event_ical(
-        "ctag-2",
-        "CTag Test",
-        "20260427T100000Z",
-        "20260427T110000Z",
-    );
+    let ical = sample_event_ical("ctag-2", "CTag Test", "20260427T100000Z", "20260427T110000Z");
     store.create_event(&cal.id, &ical).await.unwrap();
     let ctag_before = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
 
     let updated = sample_event_ical("ctag-2", "Updated", "20260427T100000Z", "20260427T120000Z");
-    store
-        .update_event(&cal.id, "ctag-2", &updated)
-        .await
-        .unwrap();
+    store.update_event(&cal.id, "ctag-2", &updated).await.unwrap();
 
     let ctag_after = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
     assert_ne!(ctag_before, ctag_after);
@@ -283,17 +215,9 @@ async fn test_ctag_bumps_on_update_event() {
 #[tokio::test]
 async fn test_ctag_bumps_on_delete_event() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Cal", "#ffffff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Cal", "#ffffff").await.unwrap();
 
-    let ical = sample_event_ical(
-        "ctag-3",
-        "CTag Test",
-        "20260427T100000Z",
-        "20260427T110000Z",
-    );
+    let ical = sample_event_ical("ctag-3", "CTag Test", "20260427T100000Z", "20260427T110000Z");
     store.create_event(&cal.id, &ical).await.unwrap();
     let ctag_before = store.get_calendar("user1", &cal.id).await.unwrap().ctag;
 
@@ -306,10 +230,7 @@ async fn test_ctag_bumps_on_delete_event() {
 #[tokio::test]
 async fn test_query_includes_vtodo() {
     let store = InMemoryCalendarStore::new();
-    let cal = store
-        .create_calendar("user1", "Cal", "#ffffff")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("user1", "Cal", "#ffffff").await.unwrap();
 
     let todo = sample_todo_ical("todo-1", "Buy Milk", "20260401T100000Z", "20260402T110000Z");
     store.create_event(&cal.id, &todo).await.unwrap();

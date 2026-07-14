@@ -137,23 +137,12 @@ impl WatermarkDbStore {
         let result: Result<WatermarkPolicyRow, _> = conn.query_row(
             "SELECT text, position, opacity, font_size, color FROM watermark_policies LIMIT 1",
             [],
-            |row| {
-                Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                ))
-            },
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
         );
         Ok(result.ok())
     }
 
-    pub fn create_policy(
-        &self,
-        req: &CreateWatermarkPolicyRequest,
-    ) -> Result<WatermarkPolicy, String> {
+    pub fn create_policy(&self, req: &CreateWatermarkPolicyRequest) -> Result<WatermarkPolicy, String> {
         let Some(db) = &self.db else {
             return Err("Database not configured".to_string());
         };
@@ -245,10 +234,7 @@ fn apply_text_watermark(
         "top-left" => (10, 10),
         "top-right" => (w.saturating_sub(text_width + 10), 10),
         "bottom-left" => (10, h.saturating_sub(text_height + 10)),
-        "bottom-right" => (
-            w.saturating_sub(text_width + 10),
-            h.saturating_sub(text_height + 10),
-        ),
+        "bottom-right" => (w.saturating_sub(text_width + 10), h.saturating_sub(text_height + 10)),
         "tiled" => {
             // For tiled, we mark every ~200px
             let step_x = 200;
@@ -272,10 +258,7 @@ fn apply_text_watermark(
         }
         _ => {
             // center
-            (
-                w.saturating_sub(text_width) / 2,
-                h.saturating_sub(text_height) / 2,
-            )
+            (w.saturating_sub(text_width) / 2, h.saturating_sub(text_height) / 2)
         }
     };
 
@@ -357,10 +340,7 @@ pub async fn preview_watermark<S: WatermarkState>(
     let mut img = match image::load_from_memory(&data) {
         Ok(i) => i,
         Err(e) => {
-            return ApiError::bad_request(
-                ApiError::INVALID_INPUT,
-                format!("Not a supported image format: {e}"),
-            );
+            return ApiError::bad_request(ApiError::INVALID_INPUT, format!("Not a supported image format: {e}"));
         }
     };
 
@@ -368,26 +348,15 @@ pub async fn preview_watermark<S: WatermarkState>(
 
     let mut output_buf = std::io::Cursor::new(Vec::new());
     if let Err(e) = img.write_to(&mut output_buf, image::ImageFormat::Png) {
-        return ApiError::internal(
-            ApiError::INTERNAL_ERROR,
-            format!("Failed to encode image: {e}"),
-        );
+        return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to encode image: {e}"));
     }
 
     let bytes = output_buf.into_inner();
-    (
-        StatusCode::OK,
-        [(axum::http::header::CONTENT_TYPE, "image/png")],
-        bytes,
-    )
-        .into_response()
+    (StatusCode::OK, [(axum::http::header::CONTENT_TYPE, "image/png")], bytes).into_response()
 }
 
 /// POST /watermark/apply/{path} — apply watermark to a file.
-pub async fn apply_watermark<S: WatermarkState>(
-    State(state): State<S>,
-    Path(file_path): Path<String>,
-) -> Response {
+pub async fn apply_watermark<S: WatermarkState>(State(state): State<S>, Path(file_path): Path<String>) -> Response {
     // Get the default policy or use hardcoded defaults
     let store = match &state.db() {
         Some(db) => WatermarkDbStore::new().with_db(db.clone()),
@@ -415,10 +384,7 @@ pub async fn apply_watermark<S: WatermarkState>(
     let mut img = match image::load_from_memory(&data) {
         Ok(i) => i,
         Err(e) => {
-            return ApiError::bad_request(
-                ApiError::INVALID_INPUT,
-                format!("Not a supported image format: {e}"),
-            );
+            return ApiError::bad_request(ApiError::INVALID_INPUT, format!("Not a supported image format: {e}"));
         }
     };
 
@@ -426,18 +392,11 @@ pub async fn apply_watermark<S: WatermarkState>(
 
     let mut output_buf = std::io::Cursor::new(Vec::new());
     if let Err(e) = img.write_to(&mut output_buf, image::ImageFormat::Png) {
-        return ApiError::internal(
-            ApiError::INTERNAL_ERROR,
-            format!("Failed to encode image: {e}"),
-        );
+        return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to encode image: {e}"));
     }
 
     let bytes = bytes::Bytes::from(output_buf.into_inner());
-    if let Err(e) = state
-        .storage()
-        .put(&file_path, bytes.clone(), "watermark")
-        .await
-    {
+    if let Err(e) = state.storage().put(&file_path, bytes.clone(), "watermark").await {
         return ApiError::internal(
             ApiError::INTERNAL_ERROR,
             format!("Failed to write watermarked file: {e}"),
@@ -465,11 +424,7 @@ pub async fn list_policies<S: WatermarkState>(State(state): State<S>) -> Respons
     };
 
     match store.list_policies() {
-        Ok(policies) => (
-            StatusCode::OK,
-            Json(serde_json::json!({ "policies": policies })),
-        )
-            .into_response(),
+        Ok(policies) => (StatusCode::OK, Json(serde_json::json!({ "policies": policies }))).into_response(),
         Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, &e),
     }
 }

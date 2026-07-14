@@ -17,8 +17,8 @@ pub async fn cached_fetch(url: &str) -> Result<String, String> {
 
     let opts = web_sys::RequestInit::new();
     opts.set_method("GET");
-    let request = web_sys::Request::new_with_str_and_init(url, &opts)
-        .map_err(|e| format!("Request creation failed: {:?}", e))?;
+    let request =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("Request creation failed: {:?}", e))?;
     request
         .headers()
         .set("Accept", "application/json")
@@ -30,15 +30,11 @@ pub async fn cached_fetch(url: &str) -> Result<String, String> {
         .await
         .map_err(|e| format!("Fetch failed: {:?}", e))?;
     let resp: web_sys::Response = resp_value.into();
-    let text_promise = resp
-        .text()
-        .map_err(|e| format!("Text read failed: {:?}", e))?;
+    let text_promise = resp.text().map_err(|e| format!("Text read failed: {:?}", e))?;
     let text = wasm_bindgen_futures::JsFuture::from(text_promise)
         .await
         .map_err(|e| format!("Text read failed: {:?}", e))?;
-    let text = text
-        .as_string()
-        .ok_or_else(|| "Text conversion failed".to_string())?;
+    let text = text.as_string().ok_or_else(|| "Text conversion failed".to_string())?;
 
     with_cache(|cache| cache.insert(cache_key, text.clone()));
     Ok(text)
@@ -184,8 +180,7 @@ pub async fn list_files_cached(path: &str) -> Result<api::ListingResponse, Strin
     let cache_key = format!("list:{}", path);
 
     if let Some(cached) = with_cache(|cache| cache.get(&cache_key)) {
-        return serde_json::from_str(&cached)
-            .map_err(|e| format!("Cache deserialization failed: {}", e));
+        return serde_json::from_str(&cached).map_err(|e| format!("Cache deserialization failed: {}", e));
     }
 
     let result = api::list_files(path).await?;

@@ -237,11 +237,7 @@ impl RgaString {
     }
 
     pub fn text(&self) -> String {
-        self.nodes
-            .iter()
-            .filter(|n| !n.tombstone)
-            .map(|n| n.char)
-            .collect()
+        self.nodes.iter().filter(|n| !n.tombstone).map(|n| n.char).collect()
     }
 }
 
@@ -436,14 +432,8 @@ mod tests {
             },
             position: 5,
             content: "x".to_string(),
-            origin_left: Some(OperationId {
-                site_id: 0,
-                counter: 1,
-            }),
-            origin_right: Some(OperationId {
-                site_id: 0,
-                counter: 2,
-            }),
+            origin_left: Some(OperationId { site_id: 0, counter: 1 }),
+            origin_right: Some(OperationId { site_id: 0, counter: 2 }),
         };
 
         let json = serde_json::to_string(&op).unwrap();

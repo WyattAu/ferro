@@ -40,10 +40,7 @@ async fn test_file_created_event_published() {
         }
     }
 
-    bus.subscribe(
-        "file.created",
-        Box::new(CountingHandler::new(received.clone())),
-    );
+    bus.subscribe("file.created", Box::new(CountingHandler::new(received.clone())));
 
     let event = FileEvent::new("file.created", "/docs/report.pdf", "alice");
     bus.publish(event).await;
@@ -127,10 +124,7 @@ async fn test_event_store_persistence() {
         }
     }
 
-    bus.subscribe(
-        "file.created",
-        Box::new(StoreHandler::new(received.clone())),
-    );
+    bus.subscribe("file.created", Box::new(StoreHandler::new(received.clone())));
 
     for i in 0..5 {
         let event = FileEvent::new("file.created", format!("/file-{}.txt", i), "user");
@@ -199,10 +193,7 @@ async fn test_concurrent_event_publish() {
         }
     }
 
-    bus.subscribe(
-        "file.created",
-        Box::new(ConcurrentHandler::new(received.clone())),
-    );
+    bus.subscribe("file.created", Box::new(ConcurrentHandler::new(received.clone())));
 
     let mut handles = Vec::new();
     for i in 0..50 {
@@ -254,12 +245,7 @@ async fn test_audit_chain_after_file_operations() {
 
     let audit_resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/audit")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/audit").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(audit_resp.status(), StatusCode::OK);

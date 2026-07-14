@@ -143,11 +143,7 @@ impl LockManager {
                 lock.timeout_seconds = timeout;
                 lock.created_at = Utc::now();
                 lock.refresh_count += 1;
-                debug!(
-                    "LOCK refreshed: {} (refresh #{})",
-                    entry.key(),
-                    lock.refresh_count
-                );
+                debug!("LOCK refreshed: {} (refresh #{})", entry.key(), lock.refresh_count);
                 self.persist_lock(&lock);
                 return Ok(lock);
             }
@@ -246,10 +242,7 @@ impl LockManager {
         });
     }
 
-    pub fn load_all_from_db(
-        &self,
-        conn: &rusqlite::Connection,
-    ) -> std::result::Result<(), rusqlite::Error> {
+    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT token, path, principal, scope, lock_type, depth, timeout_seconds, created_at, refresh_count FROM locks",
         )?;
@@ -363,13 +356,7 @@ mod tests {
     fn test_acquire_and_release_lock() {
         let mgr = LockManager::new();
         let lock = mgr
-            .acquire_lock_sync(
-                "/test.txt",
-                "user1",
-                LockScope::Exclusive,
-                LockDepth::Zero,
-                None,
-            )
+            .acquire_lock_sync("/test.txt", "user1", LockScope::Exclusive, LockDepth::Zero, None)
             .unwrap();
         assert_eq!(mgr.lock_count(), 1);
 
@@ -380,44 +367,20 @@ mod tests {
     #[test]
     fn test_exclusive_lock_conflict() {
         let mgr = LockManager::new();
-        mgr.acquire_lock_sync(
-            "/test.txt",
-            "user1",
-            LockScope::Exclusive,
-            LockDepth::Zero,
-            None,
-        )
-        .unwrap();
+        mgr.acquire_lock_sync("/test.txt", "user1", LockScope::Exclusive, LockDepth::Zero, None)
+            .unwrap();
 
-        let result = mgr.acquire_lock_sync(
-            "/test.txt",
-            "user2",
-            LockScope::Exclusive,
-            LockDepth::Zero,
-            None,
-        );
+        let result = mgr.acquire_lock_sync("/test.txt", "user2", LockScope::Exclusive, LockDepth::Zero, None);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_shared_lock_allowed() {
         let mgr = LockManager::new();
-        mgr.acquire_lock_sync(
-            "/test.txt",
-            "user1",
-            LockScope::Shared,
-            LockDepth::Zero,
-            None,
-        )
-        .unwrap();
+        mgr.acquire_lock_sync("/test.txt", "user1", LockScope::Shared, LockDepth::Zero, None)
+            .unwrap();
 
-        let result = mgr.acquire_lock_sync(
-            "/test.txt",
-            "user2",
-            LockScope::Shared,
-            LockDepth::Zero,
-            None,
-        );
+        let result = mgr.acquire_lock_sync("/test.txt", "user2", LockScope::Shared, LockDepth::Zero, None);
         assert!(result.is_ok());
     }
 
@@ -425,18 +388,10 @@ mod tests {
     fn test_refresh_lock() {
         let mgr = LockManager::new();
         let lock = mgr
-            .acquire_lock_sync(
-                "/test.txt",
-                "user1",
-                LockScope::Exclusive,
-                LockDepth::Zero,
-                None,
-            )
+            .acquire_lock_sync("/test.txt", "user1", LockScope::Exclusive, LockDepth::Zero, None)
             .unwrap();
 
-        let refreshed = mgr
-            .refresh_lock_sync(&lock.token.as_str(), Some(120))
-            .unwrap();
+        let refreshed = mgr.refresh_lock_sync(&lock.token.as_str(), Some(120)).unwrap();
         assert_eq!(refreshed.timeout_seconds, 120);
         assert_eq!(refreshed.refresh_count, 1);
     }
@@ -451,14 +406,8 @@ mod tests {
     #[test]
     fn test_infinity_lock_blocks_child_write() {
         let mgr = LockManager::new();
-        mgr.acquire_lock_sync(
-            "/parent",
-            "user1",
-            LockScope::Exclusive,
-            LockDepth::Infinity,
-            None,
-        )
-        .unwrap();
+        mgr.acquire_lock_sync("/parent", "user1", LockScope::Exclusive, LockDepth::Infinity, None)
+            .unwrap();
 
         let result = mgr.check_lock_for_write_sync("/parent/child.txt");
         assert!(result.is_err());
@@ -467,14 +416,8 @@ mod tests {
     #[test]
     fn test_infinity_lock_blocks_deep_child_write() {
         let mgr = LockManager::new();
-        mgr.acquire_lock_sync(
-            "/a",
-            "user1",
-            LockScope::Exclusive,
-            LockDepth::Infinity,
-            None,
-        )
-        .unwrap();
+        mgr.acquire_lock_sync("/a", "user1", LockScope::Exclusive, LockDepth::Infinity, None)
+            .unwrap();
 
         assert!(mgr.check_lock_for_write_sync("/a/b/c/d/file.txt").is_err());
     }
@@ -482,14 +425,8 @@ mod tests {
     #[test]
     fn test_zero_lock_does_not_block_child_write() {
         let mgr = LockManager::new();
-        mgr.acquire_lock_sync(
-            "/parent",
-            "user1",
-            LockScope::Exclusive,
-            LockDepth::Zero,
-            None,
-        )
-        .unwrap();
+        mgr.acquire_lock_sync("/parent", "user1", LockScope::Exclusive, LockDepth::Zero, None)
+            .unwrap();
 
         assert!(mgr.check_lock_for_write_sync("/parent/child.txt").is_ok());
     }
@@ -505,13 +442,7 @@ mod tests {
     async fn test_trait_acquire_and_release() {
         let mgr = LockManager::new();
         let lock = mgr
-            .acquire_lock(
-                "/test.txt",
-                "user1",
-                LockScope::Exclusive,
-                LockDepth::Zero,
-                None,
-            )
+            .acquire_lock("/test.txt", "user1", LockScope::Exclusive, LockDepth::Zero, None)
             .await
             .unwrap();
         assert_eq!(mgr.lock_count(), 1);
@@ -523,15 +454,9 @@ mod tests {
     #[tokio::test]
     async fn test_trait_check_lock_for_write() {
         let mgr = LockManager::new();
-        mgr.acquire_lock(
-            "/parent",
-            "user1",
-            LockScope::Exclusive,
-            LockDepth::Infinity,
-            None,
-        )
-        .await
-        .unwrap();
+        mgr.acquire_lock("/parent", "user1", LockScope::Exclusive, LockDepth::Infinity, None)
+            .await
+            .unwrap();
 
         assert!(mgr.check_lock_for_write("/parent/child.txt").await.is_err());
     }

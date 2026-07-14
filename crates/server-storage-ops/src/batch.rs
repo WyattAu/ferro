@@ -73,11 +73,7 @@ pub async fn batch_copy_impl<S: HasStorage>(state: &S, operations: &[BatchOperat
         }
     }
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "results": results })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
 }
 
 pub async fn batch_move_impl<S: HasStorage>(state: &S, operations: &[BatchOperation]) -> Response {
@@ -136,16 +132,10 @@ pub async fn batch_move_impl<S: HasStorage>(state: &S, operations: &[BatchOperat
         }
     }
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "results": results })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // Tests are in the server crate since they require AppState
 }

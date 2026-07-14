@@ -2,10 +2,7 @@ use axum::http::{Request, Response, StatusCode};
 use axum::middleware::Next;
 
 /// Middleware that adds security headers (CSP, HSTS, X-Frame-Options, etc.) to responses.
-pub async fn security_headers_middleware(
-    req: Request<axum::body::Body>,
-    next: Next,
-) -> Response<axum::body::Body> {
+pub async fn security_headers_middleware(req: Request<axum::body::Body>, next: Next) -> Response<axum::body::Body> {
     let is_https = req
         .headers()
         .get("x-forwarded-proto")
@@ -25,10 +22,7 @@ pub async fn security_headers_middleware(
         axum::http::header::X_FRAME_OPTIONS,
         axum::http::HeaderValue::from_static("DENY"),
     );
-    headers.insert(
-        "X-XSS-Protection",
-        axum::http::HeaderValue::from_static("0"),
-    );
+    headers.insert("X-XSS-Protection", axum::http::HeaderValue::from_static("0"));
     headers.insert(
         axum::http::header::CONTENT_SECURITY_POLICY,
         axum::http::HeaderValue::from_static(
@@ -45,9 +39,7 @@ pub async fn security_headers_middleware(
     );
     headers.insert(
         "Permissions-Policy",
-        axum::http::HeaderValue::from_static(
-            "camera=(), microphone=(), geolocation=(), payment=()",
-        ),
+        axum::http::HeaderValue::from_static("camera=(), microphone=(), geolocation=(), payment=()"),
     );
 
     if is_https {
@@ -64,10 +56,7 @@ pub async fn security_headers_middleware(
 /// request path and method.  Axum already catches panics in handlers and
 /// converts them to 500 responses, so this middleware enriches panic logs
 /// with request context for diagnostics.
-pub async fn panic_handler_middleware(
-    req: Request<axum::body::Body>,
-    next: Next,
-) -> Response<axum::body::Body> {
+pub async fn panic_handler_middleware(req: Request<axum::body::Body>, next: Next) -> Response<axum::body::Body> {
     let path = req.uri().path().to_owned();
     let method = req.method().clone();
     let response = next.run(req).await;
@@ -114,11 +103,7 @@ mod tests {
         assert_eq!(headers.get("X-Content-Type-Options").unwrap(), "nosniff");
         assert_eq!(headers.get("X-Frame-Options").unwrap(), "DENY");
         assert_eq!(headers.get("X-XSS-Protection").unwrap(), "0");
-        let csp = headers
-            .get("Content-Security-Policy")
-            .unwrap()
-            .to_str()
-            .unwrap();
+        let csp = headers.get("Content-Security-Policy").unwrap().to_str().unwrap();
         assert!(csp.contains("default-src 'self'"));
         assert!(csp.contains("frame-ancestors 'none'"));
         assert_eq!(

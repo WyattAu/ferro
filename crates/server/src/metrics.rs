@@ -43,3 +43,47 @@ pub async fn metrics_handler_impl<S: HasStorage + HasUptime>(state: &S) -> Respo
 pub async fn metrics_handler(State(state): State<AppState>) -> Response {
     metrics_handler_impl(&state).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http_body_util::BodyExt;
+
+    async fn body_json(resp: Response) -> serde_json::Value {
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_metrics_handler_empty() {
+        let state = AppState::in_memory();
+        let resp = metrics_handler(State(state)).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = body_json(resp).await;
+        assert!(json["uptime_seconds"].is_number());
+        assert!(json["storage"]["files"].is_number());
+        assert!(json["storage"]["total_bytes"].is_number());
+        assert!(json["requests"]["total"].is_number());
+    }
+
+    #[tokio::test]
+    async fn test_metrics_handler_with_files() {
+        let state = AppState::in_memory();
+        state
+            .storage
+            .put("/test.txt", bytes::Bytes::from("hello"), "anon")
+            .await
+            .unwrap();
+        let resp = metrics_handler(State(state)).await;
+        let json = body_json(resp).await;
+        assert_eq!(json["storage"]["files"], 1);
+        assert_eq!(json["storage"]["total_bytes"], 5);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_impl_with_trait() {
+        let state = AppState::in_memory();
+        let resp = metrics_handler_impl(&state).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+}

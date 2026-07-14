@@ -49,22 +49,13 @@ impl HttpSignature {
         })
     }
 
-    pub fn signing_string(
-        &self,
-        method: &Method,
-        path: &str,
-        headers: &HeaderMap,
-    ) -> Result<String, String> {
+    pub fn signing_string(&self, method: &Method, path: &str, headers: &HeaderMap) -> Result<String, String> {
         let mut lines = Vec::new();
 
         for header_name in &self.headers {
             match header_name.as_str() {
                 "(request-target)" => {
-                    lines.push(format!(
-                        "(request-target): {} {}",
-                        method.as_str().to_lowercase(),
-                        path
-                    ));
+                    lines.push(format!("(request-target): {} {}", method.as_str().to_lowercase(), path));
                 }
                 "(created)" => {
                     lines.push(format!("(created): {}", chrono::Utc::now().timestamp()));
@@ -83,16 +74,9 @@ impl HttpSignature {
         Ok(lines.join("\n"))
     }
 
-    pub fn verify_hmac(
-        &self,
-        method: &Method,
-        path: &str,
-        headers: &HeaderMap,
-        secret: &str,
-    ) -> Result<bool, String> {
+    pub fn verify_hmac(&self, method: &Method, path: &str, headers: &HeaderMap, secret: &str) -> Result<bool, String> {
         let signing_string = self.signing_string(method, path, headers)?;
-        let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-            .map_err(|e| format!("HMAC error: {}", e))?;
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).map_err(|e| format!("HMAC error: {}", e))?;
         mac.update(signing_string.as_bytes());
         mac.verify_slice(&self.signature)
             .map(|_| true)
@@ -139,9 +123,7 @@ mod tests {
 
     #[test]
     fn test_signing_string_request_target() {
-        let sig =
-            HttpSignature::parse(r#"keyId="k",headers="(request-target)",signature="dGVzdA==""#)
-                .unwrap();
+        let sig = HttpSignature::parse(r#"keyId="k",headers="(request-target)",signature="dGVzdA==""#).unwrap();
         let string = sig
             .signing_string(&Method::POST, "/fed/inbox", &HeaderMap::new())
             .unwrap();
@@ -182,12 +164,7 @@ mod tests {
         ))
         .unwrap();
 
-        let result = sig.verify_hmac(
-            &Method::POST,
-            "/fed/inbox",
-            &HeaderMap::new(),
-            "wrong-secret",
-        );
+        let result = sig.verify_hmac(&Method::POST, "/fed/inbox", &HeaderMap::new(), "wrong-secret");
         assert!(result.is_err());
     }
 

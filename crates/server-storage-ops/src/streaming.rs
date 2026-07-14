@@ -128,18 +128,14 @@ pub fn normalize_api_path(path: &str) -> Result<String, String> {
     }
     for component in trimmed.split('/') {
         if component.is_empty() || component == "." || component == ".." {
-            return Err(format!("invalid path component: '{}'", component));
+            return Err(format!("invalid path component: '{component}'"));
         }
     }
-    Ok(format!("/{}", trimmed))
+    Ok(format!("/{trimmed}"))
 }
 
 /// GET /api/stream/{path} — Stream video with Range header support (206 Partial Content).
-pub async fn stream_video_impl<S: HasStorage>(
-    state: &S,
-    path: String,
-    headers: HeaderMap,
-) -> Response {
+pub async fn stream_video_impl<S: HasStorage>(state: &S, path: String, headers: HeaderMap) -> Response {
     let path = match normalize_api_path(&path) {
         Ok(p) => p,
         Err(e) => {
@@ -188,15 +184,12 @@ pub async fn stream_video_impl<S: HasStorage>(
     };
     response_headers.insert(header::CONTENT_TYPE, content_type_val);
     let filename = path.rsplit('/').next().unwrap_or("video");
-    let disposition_value = format!("inline; filename=\"{}\"", filename);
+    let disposition_value = format!("inline; filename=\"{filename}\"");
     if let Ok(disp_val) = HeaderValue::from_str(&disposition_value) {
         response_headers.insert(header::CONTENT_DISPOSITION, disp_val);
     }
     response_headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-    response_headers.insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static("public, max-age=3600"),
-    );
+    response_headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=3600"));
 
     // Check for Range header
     if let Some(range_value) = headers.get(header::RANGE) {
@@ -209,9 +202,7 @@ pub async fn stream_video_impl<S: HasStorage>(
                 if let Ok(cl_val) = HeaderValue::from_str(&content_length.to_string()) {
                     partial_headers.insert(header::CONTENT_LENGTH, cl_val);
                 }
-                if let Ok(cr_val) =
-                    HeaderValue::from_str(&format!("bytes {}-{}/{}", start, end, total_size))
-                {
+                if let Ok(cr_val) = HeaderValue::from_str(&format!("bytes {start}-{end}/{total_size}")) {
                     partial_headers.insert(header::CONTENT_RANGE, cr_val);
                 }
 
@@ -227,9 +218,7 @@ pub async fn stream_video_impl<S: HasStorage>(
                                 break;
                             }
                             let to_read = std::cmp::min(remaining, buf.len() as u64) as usize;
-                            match tokio::io::AsyncReadExt::read(&mut reader, &mut buf[..to_read])
-                                .await
-                            {
+                            match tokio::io::AsyncReadExt::read(&mut reader, &mut buf[..to_read]).await {
                                 Ok(0) => break,
                                 Ok(n) => {
                                     remaining -= n as u64;
@@ -307,10 +296,71 @@ mod tests {
     }
 
     #[test]
+    fn test_range_header_resolve_start_equals_end() {
+        // start > end should return None (invalid range)
+        let range = RangeHeader {
+            start: 500,
+            end: Some(500),
+        };
+        assert_eq!(range.resolve(1000), Some((500, 500)));
+    }
+
+    #[test]
+    fn test_range_header_resolve_start_exceeds_end() {
+        // start > end should return None (invalid range)
+        let range = RangeHeader {
+            start: 600,
+            end: Some(500),
+        };
+        assert_eq!(range.resolve(1000), None);
+    }
+
+    #[test]
+    fn test_range_header_resolve_start_exceeds_total_size() {
+        // start >= total_size should return None
+        let range = RangeHeader {
+            start: 1000,
+            end: Some(2000),
+        };
+        assert_eq!(range.resolve(1000), None);
+    }
+
+    #[test]
+    fn test_range_header_resolve_start_at_total_minus_one() {
+        // start = total_size - 1 should be valid
+        let range = RangeHeader {
+            start: 999,
+            end: Some(2000),
+        };
+        assert_eq!(range.resolve(1000), Some((999, 999)));
+    }
+
+    #[test]
+    fn test_range_header_resolve_open_ended_beyond_total() {
+        // open-ended range beyond total_size
+        let range = RangeHeader { start: 500, end: None };
+        assert_eq!(range.resolve(1000), Some((500, 999)));
+    }
+
+    #[test]
     fn test_guess_video_mime() {
         assert_eq!(guess_video_mime("test.mp4"), "video/mp4");
         assert_eq!(guess_video_mime("test.webm"), "video/webm");
         assert_eq!(guess_video_mime("test.mov"), "video/quicktime");
+        assert_eq!(guess_video_mime("test.ogg"), "video/ogg");
+        assert_eq!(guess_video_mime("test.ogv"), "video/ogg");
+        assert_eq!(guess_video_mime("test.m4v"), "video/x-m4v");
+        assert_eq!(guess_video_mime("test.mkv"), "video/x-matroska");
+        assert_eq!(guess_video_mime("test.avi"), "video/x-msvideo");
+        assert_eq!(guess_video_mime("test.txt"), "application/octet-stream");
+    }
+
+    #[test]
+    fn test_guess_video_mime_case_insensitive() {
+        assert_eq!(guess_video_mime("TEST.MP4"), "video/mp4");
+        assert_eq!(guess_video_mime("test.WEBM"), "video/webm");
+        assert_eq!(guess_video_mime("test.OGG"), "video/ogg");
+        assert_eq!(guess_video_mime("test.OGV"), "video/ogg");
     }
 
     #[test]

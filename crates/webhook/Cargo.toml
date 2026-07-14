@@ -7,7 +7,6 @@ license.workspace = true
 publish = false
 
 [dependencies]
-base64 = { workspace = true }
 chrono = { workspace = true }
 dashmap = "6"
 hmac = "0.12"
@@ -16,8 +15,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
 uuid = { version = "1", features = ["v4", "serde"] }
+zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

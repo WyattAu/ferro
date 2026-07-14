@@ -3,59 +3,53 @@ use leptos::prelude::*;
 
 /// Accessible button component with proper ARIA attributes and minimum touch target.
 ///
-/// Follows the leptix pattern: wraps a native `<button>` with consistent
-/// styling, focus management, and accessibility attributes.
-/// See: https://docs.rs/leptix for the upstream component library patterns.
+/// Supports 7 variants: Primary, Secondary, Danger, Ghost, Link, Outline, Soft.
 #[component]
 pub fn Button(
-    /// Button variant.
-    #[prop(default = ButtonVariant::Primary)]
-    variant: ButtonVariant,
-    /// Button size.
-    #[prop(default = ButtonSize::Md)]
-    size: ButtonSize,
-    /// Whether the button is disabled.
-    #[prop(default = false)]
-    disabled: bool,
-    /// Whether the button is loading (shows spinner, disables interaction).
-    #[prop(default = false)]
-    loading: bool,
-    /// Accessible label when button only contains an icon.
-    #[prop(default = None)]
-    aria_label: Option<String>,
-    /// Button type attribute.
-    #[prop(default = "button".to_string())]
-    button_type: String,
-    /// Called on click.
+    #[prop(default = ButtonVariant::Primary)] variant: ButtonVariant,
+    #[prop(default = ButtonSize::Md)] size: ButtonSize,
+    #[prop(default = false)] disabled: bool,
+    #[prop(default = false)] loading: bool,
+    #[prop(default = None)] aria_label: Option<String>,
+    #[prop(default = "button".to_string())] button_type: String,
     on_click: Option<Callback<ev::MouseEvent>>,
     children: Children,
 ) -> impl IntoView {
     let base = "inline-flex items-center justify-center font-medium transition-colors \
-        focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 \
+        focus:outline-none focus:ring-2 focus:ring-offset-2 \
         disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px]";
 
     let variant_class = match variant {
-        ButtonVariant::Primary => "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500",
-        ButtonVariant::Secondary => {
-            "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 focus:ring-gray-500"
+        ButtonVariant::Primary => {
+            "bg-[var(--accent)] text-[var(--text-on-accent)] hover:bg-[var(--accent-hover)] focus:ring-[var(--border-focus)]"
         }
-        ButtonVariant::Danger => "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
+        ButtonVariant::Secondary => {
+            "bg-[var(--bg-surface-raised)] text-[var(--text-primary)] border border-[var(--border-default)] hover:bg-[var(--interactive-hover)] hover:border-[var(--border-strong)] focus:ring-[var(--border-focus)]"
+        }
+        ButtonVariant::Danger => {
+            "bg-[var(--danger)] text-white hover:bg-[var(--danger-hover)] focus:ring-[var(--danger)]"
+        }
         ButtonVariant::Ghost => {
-            "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-gray-500"
+            "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] focus:ring-[var(--border-focus)]"
         }
         ButtonVariant::Link => {
-            "text-blue-600 hover:underline focus:ring-blue-500 p-0 min-w-0 min-h-0"
+            "text-[var(--accent)] hover:underline focus:ring-[var(--border-focus)] p-0 min-w-0 min-h-0"
+        }
+        ButtonVariant::Outline => {
+            "border border-[var(--border-default)] text-[var(--text-primary)] bg-transparent hover:bg-[var(--interactive-hover)] hover:border-[var(--border-strong)] focus:ring-[var(--border-focus)]"
+        }
+        ButtonVariant::Soft => {
+            "bg-[var(--accent-subtle)] text-[var(--accent)] hover:bg-[var(--accent-muted)] focus:ring-[var(--border-focus)]"
         }
     };
 
     let size_class = match size {
-        ButtonSize::Sm => "px-3 py-1.5 text-sm rounded",
+        ButtonSize::Sm => "px-3 py-1.5 text-sm rounded-md",
         ButtonSize::Md => "px-4 py-2 text-sm rounded-md",
-        ButtonSize::Lg => "px-6 py-3 text-base rounded-md",
+        ButtonSize::Lg => "px-6 py-3 text-base rounded-lg",
     };
 
     let class = format!("{} {} {}", base, variant_class, size_class);
-
     let on_click = on_click.unwrap_or_else(|| Callback::new(|_| {}));
 
     view! {
@@ -86,7 +80,6 @@ pub fn Button(
     }
 }
 
-/// Button variant.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ButtonVariant {
     Primary,
@@ -94,9 +87,10 @@ pub enum ButtonVariant {
     Danger,
     Ghost,
     Link,
+    Outline,
+    Soft,
 }
 
-/// Button size.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ButtonSize {
     Sm,
@@ -104,68 +98,38 @@ pub enum ButtonSize {
     Lg,
 }
 
-/// Accessible input component with label association.
-///
-/// Wraps a native `<input>` with a visually hidden or visible `<label>`,
-/// proper `id`/`for` association, and error/description support.
-/// Pattern inspired by leptix's `<TextField>` and `<NumberField>` primitives.
+/// Accessible input component with label, error, and help text support.
 #[component]
 pub fn Input(
-    /// Unique ID for the input (used to associate label).
-    #[prop(into)]
-    id: String,
-    /// Visible label text. If None, `aria_label` must be provided.
-    #[prop(default = None)]
-    label: Option<String>,
-    /// Accessible label when no visible label is used.
-    #[prop(default = None)]
-    aria_label: Option<String>,
-    /// Input type.
-    #[prop(default = "text".to_string())]
-    input_type: String,
-    /// Placeholder text.
-    #[prop(default = None)]
-    placeholder: Option<String>,
-    /// Current value (controlled).
-    #[prop(default = None)]
-    value: Option<String>,
-    /// Whether the input is disabled.
-    #[prop(default = false)]
-    disabled: bool,
-    /// Whether the input is required.
-    #[prop(default = false)]
-    required: bool,
-    /// Error message displayed below the input.
-    #[prop(default = None)]
-    error: Option<String>,
-    /// Help text displayed below the input.
-    #[prop(default = None)]
-    help_text: Option<String>,
-    /// Called when the input value changes.
-    #[prop(default = None)]
-    on_input: Option<Callback<String>>,
-    /// Called on blur.
-    #[prop(default = None)]
-    on_blur: Option<Callback<ev::FocusEvent>>,
-    /// Additional CSS classes for the input element.
-    #[prop(default = None)]
-    class: Option<String>,
+    #[prop(into)] id: String,
+    #[prop(default = None)] label: Option<String>,
+    #[prop(default = None)] aria_label: Option<String>,
+    #[prop(default = "text".to_string())] input_type: String,
+    #[prop(default = None)] placeholder: Option<String>,
+    #[prop(default = None)] value: Option<String>,
+    #[prop(default = false)] disabled: bool,
+    #[prop(default = false)] required: bool,
+    #[prop(default = None)] error: Option<String>,
+    #[prop(default = None)] help_text: Option<String>,
+    #[prop(default = None)] on_input: Option<Callback<String>>,
+    #[prop(default = None)] on_blur: Option<Callback<ev::FocusEvent>>,
+    #[prop(default = None)] class: Option<String>,
 ) -> impl IntoView {
     let input_id = id.clone();
     let error_id = format!("{}-error", id);
     let help_id = format!("{}-help", id);
-
     let has_error = error.is_some();
+
     let base_input_class = "block w-full rounded-md border px-3 py-2 text-sm \
-        placeholder-gray-400 dark:placeholder-gray-500 \
-        focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-800 \
-        disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed \
-        min-h-[44px]";
+        placeholder-[var(--text-tertiary)] \
+        focus:outline-none focus:ring-2 focus:ring-offset-1 \
+        disabled:bg-[var(--bg-surface-sunken)] disabled:cursor-not-allowed \
+        min-h-[44px] transition-colors";
 
     let border_class = if has_error {
-        "border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500"
+        "border-[var(--danger)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-[var(--danger)] focus:border-[var(--danger)]"
     } else {
-        "border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800"
+        "border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-[var(--border-focus)] focus:border-[var(--border-focus)]"
     };
 
     let input_class = match &class {
@@ -181,11 +145,7 @@ pub fn Input(
         if help_text.is_some() {
             ids.push(help_id.clone());
         }
-        if ids.is_empty() {
-            None
-        } else {
-            Some(ids.join(" "))
-        }
+        if ids.is_empty() { None } else { Some(ids.join(" ")) }
     };
 
     let on_input = on_input.unwrap_or_else(|| Callback::new(|_| {}));
@@ -194,7 +154,7 @@ pub fn Input(
     view! {
         <div class="w-full">
             {label.map(|label_text| view! {
-                <label for=input_id.clone() class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label for=input_id.clone() class="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
                     {label_text}
                 </label>
             })}
@@ -216,12 +176,12 @@ pub fn Input(
                 on:blur=move |ev| on_blur.run(ev)
             />
             {error.map(|err| view! {
-                <p id=error_id class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                <p id=error_id class="mt-1.5 text-sm text-[var(--danger)]" role="alert">
                     {err}
                 </p>
             })}
             {help_text.map(|help| view! {
-                <p id=help_id class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <p id=help_id class="mt-1.5 text-sm text-[var(--text-tertiary)]">
                     {help}
                 </p>
             })}
@@ -230,53 +190,32 @@ pub fn Input(
 }
 
 /// Accessible select/dropdown component.
-///
-/// Wraps a native `<select>` with label association and error support.
 #[component]
 pub fn Select(
-    /// Unique ID for the select.
-    #[prop(into)]
-    id: String,
-    /// Visible label text.
-    #[prop(default = None)]
-    label: Option<String>,
-    /// Accessible label when no visible label is used.
-    #[prop(default = None)]
-    aria_label: Option<String>,
-    /// Currently selected value.
-    #[prop(default = None)]
-    value: Option<String>,
-    /// Whether the select is disabled.
-    #[prop(default = false)]
-    disabled: bool,
-    /// Whether the select is required.
-    #[prop(default = false)]
-    required: bool,
-    /// Error message.
-    #[prop(default = None)]
-    error: Option<String>,
-    /// Called when selection changes.
-    #[prop(default = None)]
-    on_change: Option<Callback<String>>,
-    /// Select options as (value, label, disabled) tuples.
+    #[prop(into)] id: String,
+    #[prop(default = None)] label: Option<String>,
+    #[prop(default = None)] aria_label: Option<String>,
+    #[prop(default = None)] value: Option<String>,
+    #[prop(default = false)] disabled: bool,
+    #[prop(default = false)] required: bool,
+    #[prop(default = None)] error: Option<String>,
+    #[prop(default = None)] on_change: Option<Callback<String>>,
     options: Vec<SelectOption>,
-    /// Additional CSS classes.
-    #[prop(default = None)]
-    class: Option<String>,
+    #[prop(default = None)] class: Option<String>,
 ) -> impl IntoView {
     let select_id = id.clone();
     let error_id = format!("{}-error", id);
-
     let has_error = error.is_some();
+
     let base_class = "block w-full rounded-md border px-3 py-2 text-sm \
-        focus:outline-none focus:ring-2 focus:ring-offset-1 dark:focus:ring-offset-gray-800 \
-        disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed \
-        min-h-[44px]";
+        focus:outline-none focus:ring-2 focus:ring-offset-1 \
+        disabled:bg-[var(--bg-surface-sunken)] disabled:cursor-not-allowed \
+        min-h-[44px] transition-colors";
 
     let border_class = if has_error {
-        "border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500"
+        "border-[var(--danger)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-[var(--danger)] focus:border-[var(--danger)]"
     } else {
-        "border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800"
+        "border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-[var(--border-focus)] focus:border-[var(--border-focus)]"
     };
 
     let select_class = match &class {
@@ -289,7 +228,7 @@ pub fn Select(
     view! {
         <div class="w-full">
             {label.map(|label_text| view! {
-                <label for=select_id.clone() class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label for=select_id.clone() class="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
                     {label_text}
                 </label>
             })}
@@ -318,7 +257,7 @@ pub fn Select(
                 }).collect_view()}
             </select>
             {error.map(|err| view! {
-                <p id=error_id class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                <p id=error_id class="mt-1.5 text-sm text-[var(--danger)]" role="alert">
                     {err}
                 </p>
             })}
@@ -326,7 +265,6 @@ pub fn Select(
     }
 }
 
-/// Option for the Select component.
 #[derive(Clone, Debug)]
 pub struct SelectOption {
     pub value: String,
@@ -358,41 +296,28 @@ impl SelectOption {
     }
 }
 
-/// Accessible checkbox component with proper label association.
-///
-/// Renders a styled checkbox with a visible or associated label.
+/// Accessible checkbox with proper label association.
 #[component]
 pub fn Checkbox(
-    /// Unique ID for the checkbox.
-    #[prop(into)]
-    id: String,
-    /// Label text displayed next to the checkbox.
+    #[prop(into)] id: String,
     label: String,
-    /// Whether the checkbox is checked.
     checked: Signal<bool>,
-    /// Toggle the checked state.
     on_change: Callback<bool>,
-    /// Whether the checkbox is disabled.
-    #[prop(default = false)]
-    disabled: bool,
-    /// Whether the checkbox is required.
-    #[prop(default = false)]
-    required: bool,
-    /// Error message.
-    #[prop(default = None)]
-    error: Option<String>,
+    #[prop(default = false)] disabled: bool,
+    #[prop(default = false)] required: bool,
+    #[prop(default = None)] error: Option<String>,
 ) -> impl IntoView {
     let checkbox_id = id.clone();
 
     view! {
-        <div class="flex items-start gap-2">
+        <div class="flex items-start gap-2.5">
             <div class="flex items-center h-5">
                 <input
                     type="checkbox"
                     id=checkbox_id.clone()
-                    class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 \
-                        focus:ring-blue-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800 \
-                        disabled:cursor-not-allowed dark:bg-gray-800 min-w-[44px] min-h-[44px] \
+                    class="w-4 h-4 rounded border-[var(--border-default)] text-[var(--accent)] \
+                        focus:ring-[var(--border-focus)] focus:ring-offset-1 \
+                        disabled:cursor-not-allowed bg-[var(--bg-surface)] min-w-[44px] min-h-[44px] \
                         flex items-center justify-center cursor-pointer"
                     prop:checked=checked
                     disabled=disabled
@@ -404,14 +329,174 @@ pub fn Checkbox(
                     }
                 />
             </div>
-            <label for=checkbox_id class="text-sm text-gray-700 dark:text-gray-300 select-none cursor-pointer pt-0.5">
+            <label for=checkbox_id class="text-sm text-[var(--text-primary)] select-none cursor-pointer pt-0.5">
                 {label}
             </label>
             {error.map(|err| view! {
-                <p class="text-sm text-red-600 dark:text-red-400" role="alert">
+                <p class="text-sm text-[var(--danger)]" role="alert">
                     {err}
                 </p>
             })}
+        </div>
+    }
+}
+
+/// Card container component.
+#[component]
+pub fn Card(
+    #[prop(default = None)] class: Option<String>,
+    #[prop(default = None)] padding: Option<CardPadding>,
+    children: Children,
+) -> impl IntoView {
+    let padding_class = padding
+        .map(|p| match p {
+            CardPadding::None => "",
+            CardPadding::Sm => " p-4",
+            CardPadding::Md => " p-6",
+            CardPadding::Lg => " p-8",
+        })
+        .unwrap_or("");
+
+    let base_class = "bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-sm";
+    let class_str = match class {
+        Some(c) => format!("{} {}{}", base_class, c, padding_class),
+        None => format!("{}{}", base_class, padding_class),
+    };
+
+    view! {
+        <div class=class_str>
+            {children()}
+        </div>
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CardPadding {
+    None,
+    Sm,
+    Md,
+    Lg,
+}
+
+/// Badge/tag component.
+#[component]
+pub fn Badge(
+    #[prop(default = BadgeVariant::Default)] variant: BadgeVariant,
+    #[prop(default = None)] class: Option<String>,
+    children: Children,
+) -> impl IntoView {
+    let base = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+    let variant_class = match variant {
+        BadgeVariant::Default => {
+            "bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] border border-[var(--border-default)]"
+        }
+        BadgeVariant::Accent => "bg-[var(--accent-subtle)] text-[var(--accent)]",
+        BadgeVariant::Danger => "bg-[var(--danger-subtle)] text-[var(--danger)]",
+        BadgeVariant::Success => "bg-[var(--success-subtle)] text-[var(--success)]",
+        BadgeVariant::Warning => "bg-[var(--warning-subtle)] text-[var(--warning)]",
+    };
+
+    let class_str = match class {
+        Some(c) => format!("{} {} {}", base, variant_class, c),
+        None => format!("{} {}", base, variant_class),
+    };
+
+    view! {
+        <span class=class_str>
+            {children()}
+        </span>
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BadgeVariant {
+    Default,
+    Accent,
+    Danger,
+    Success,
+    Warning,
+}
+
+/// Skeleton loading placeholder.
+#[component]
+pub fn Skeleton(
+    #[prop(default = SkeletonVariant::Text)] variant: SkeletonVariant,
+    #[prop(default = None)] class: Option<String>,
+) -> impl IntoView {
+    let base = "skeleton rounded-md";
+    let (variant_class, extra_style) = match variant {
+        SkeletonVariant::Text => ("h-4 w-full".to_string(), String::new()),
+        SkeletonVariant::Heading => ("h-6 w-3/4".to_string(), String::new()),
+        SkeletonVariant::Avatar => ("h-10 w-10 rounded-full".to_string(), String::new()),
+        SkeletonVariant::Thumbnail => ("h-20 w-20 rounded-lg".to_string(), String::new()),
+        SkeletonVariant::Button => ("h-10 w-24 rounded-md".to_string(), String::new()),
+        SkeletonVariant::Custom(w, h) => ("rounded-md".to_string(), format!("width: {w}; height: {h};")),
+    };
+
+    let class_str = match &class {
+        Some(c) => format!("{} {} {}", base, variant_class, c),
+        None => format!("{} {}", base, variant_class),
+    };
+
+    view! {
+        <div class=class_str style=extra_style aria-hidden="true" />
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum SkeletonVariant {
+    Text,
+    Heading,
+    Avatar,
+    Thumbnail,
+    Button,
+    Custom(String, String),
+}
+
+/// Empty state component for when lists/views have no data.
+#[component]
+pub fn EmptyState(
+    /// Icon SVG path
+    icon: String,
+    /// Title text
+    title: String,
+    /// Description text
+    #[prop(default = None)]
+    description: Option<String>,
+    /// Optional action button label
+    #[prop(default = None)]
+    action_label: Option<String>,
+    /// Optional action callback
+    #[prop(default = None)]
+    on_action: Option<Callback<ev::MouseEvent>>,
+) -> impl IntoView {
+    view! {
+        <div class="flex flex-col items-center justify-center py-16 px-4 text-center">
+            <div class="w-16 h-16 rounded-full bg-[var(--bg-surface-raised)] flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d=icon />
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-1">{title}</h3>
+            {description.map(|desc| view! {
+                <p class="text-sm text-[var(--text-secondary)] max-w-sm mb-4">{desc}</p>
+            })}
+            {move || {
+                if let (Some(label), Some(cb)) = (&action_label, &on_action) {
+                    let label = label.clone();
+                    let cb = *cb;
+                    view! {
+                        <Button
+                            variant=ButtonVariant::Primary
+                            on_click=Some(cb)
+                        >
+                            {label}
+                        </Button>
+                    }.into_any()
+                } else {
+                    ().into_any()
+                }
+            }}
         </div>
     }
 }

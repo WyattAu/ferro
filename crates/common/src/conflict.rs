@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConflictType {
     EditEdit,
@@ -9,14 +10,12 @@ pub enum ConflictType {
     RenameConflict,
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConflictResolution {
     KeepLocal,
     KeepRemote,
-    KeepBoth {
-        local_name: String,
-        remote_name: String,
-    },
+    KeepBoth { local_name: String, remote_name: String },
     KeepNewer,
     Manual,
 }
@@ -31,6 +30,7 @@ pub struct SyncConflict {
 }
 
 impl SyncConflict {
+    #[must_use]
     pub fn new(
         local_path: String,
         local_modified: DateTime<Utc>,
@@ -55,19 +55,19 @@ impl SyncConflict {
 pub struct ConflictDetector;
 
 impl ConflictDetector {
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
 
+    #[must_use]
     pub fn detect_conflicts(
         &self,
         local_files: &[(String, DateTime<Utc>)],
         remote_files: &[(String, DateTime<Utc>)],
     ) -> Vec<SyncConflict> {
-        let remote_map: std::collections::HashMap<&str, &DateTime<Utc>> = remote_files
-            .iter()
-            .map(|(path, ts)| (path.as_str(), ts))
-            .collect();
+        let remote_map: std::collections::HashMap<&str, &DateTime<Utc>> =
+            remote_files.iter().map(|(path, ts)| (path.as_str(), ts)).collect();
 
         let mut conflicts = Vec::new();
         for (path, local_ts) in local_files {
@@ -75,29 +75,22 @@ impl ConflictDetector {
                 && local_ts != remote_ts
             {
                 let conflict_type = ConflictType::EditEdit;
-                conflicts.push(SyncConflict::new(
-                    path.clone(),
-                    *local_ts,
-                    *remote_ts,
-                    conflict_type,
-                ));
+                conflicts.push(SyncConflict::new(path.clone(), *local_ts, *remote_ts, conflict_type));
             }
         }
         conflicts
     }
 
+    #[must_use]
     pub fn detect_conflicts_with_deletions(
         &self,
         local_files: &[(String, Option<DateTime<Utc>>)],
         remote_files: &[(String, Option<DateTime<Utc>>)],
     ) -> Vec<SyncConflict> {
-        let remote_map: std::collections::HashMap<&str, &Option<DateTime<Utc>>> = remote_files
-            .iter()
-            .map(|(path, ts)| (path.as_str(), ts))
-            .collect();
+        let remote_map: std::collections::HashMap<&str, &Option<DateTime<Utc>>> =
+            remote_files.iter().map(|(path, ts)| (path.as_str(), ts)).collect();
 
-        let local_set: std::collections::HashSet<&str> =
-            local_files.iter().map(|(p, _)| p.as_str()).collect();
+        let local_set: std::collections::HashSet<&str> = local_files.iter().map(|(p, _)| p.as_str()).collect();
 
         let mut conflicts = Vec::new();
 
@@ -260,9 +253,138 @@ mod tests {
             local_name: "file (local).txt".to_string(),
             remote_name: "file (remote).txt".to_string(),
         });
-        assert!(matches!(
-            conflict.resolution,
-            Some(ConflictResolution::KeepBoth { .. })
-        ));
+        assert!(matches!(conflict.resolution, Some(ConflictResolution::KeepBoth { .. })));
+    }
+
+    #[test]
+    fn test_conflict_resolution_keep_local() {
+        let mut conflict = SyncConflict::new(
+            "file.txt".into(),
+            dt(2026, 1, 10),
+            dt(2026, 1, 12),
+            ConflictType::EditEdit,
+        );
+        conflict.resolve(ConflictResolution::KeepLocal);
+        assert_eq!(conflict.resolution, Some(ConflictResolution::KeepLocal));
+    }
+
+    #[test]
+    fn test_conflict_resolution_keep_remote() {
+        let mut conflict = SyncConflict::new(
+            "file.txt".into(),
+            dt(2026, 1, 10),
+            dt(2026, 1, 12),
+            ConflictType::EditEdit,
+        );
+        conflict.resolve(ConflictResolution::KeepRemote);
+        assert_eq!(conflict.resolution, Some(ConflictResolution::KeepRemote));
+    }
+
+    #[test]
+    fn test_conflict_resolution_manual() {
+        let mut conflict = SyncConflict::new(
+            "file.txt".into(),
+            dt(2026, 1, 10),
+            dt(2026, 1, 12),
+            ConflictType::EditEdit,
+        );
+        conflict.resolve(ConflictResolution::Manual);
+        assert_eq!(conflict.resolution, Some(ConflictResolution::Manual));
+    }
+
+    #[test]
+    fn test_no_conflicts_empty_lists() {
+        let detector = ConflictDetector::new();
+        let conflicts = detector.detect_conflicts(&[], &[]);
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_no_conflicts_different_files() {
+        let detector = ConflictDetector::new();
+        let local = vec![("a.txt".to_string(), dt(2026, 1, 1))];
+        let remote = vec![("b.txt".to_string(), dt(2026, 1, 1))];
+        let conflicts = detector.detect_conflicts(&local, &remote);
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_detect_conflicts_with_deletions_no_conflicts() {
+        let detector = ConflictDetector::new();
+        let local = vec![("a.txt".to_string(), Some(dt(2026, 1, 1)))];
+        let remote = vec![("a.txt".to_string(), Some(dt(2026, 1, 1)))];
+        let conflicts = detector.detect_conflicts_with_deletions(&local, &remote);
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_detect_conflicts_with_deletions_both_deleted() {
+        let detector = ConflictDetector::new();
+        let local = vec![("a.txt".to_string(), None)];
+        let remote = vec![("a.txt".to_string(), None)];
+        let conflicts = detector.detect_conflicts_with_deletions(&local, &remote);
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_detect_conflicts_with_deletions_remote_only() {
+        let detector = ConflictDetector::new();
+        let local = vec![];
+        let remote = vec![("a.txt".to_string(), Some(dt(2026, 1, 10)))];
+        let conflicts = detector.detect_conflicts_with_deletions(&local, &remote);
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].conflict_type, ConflictType::DeleteEdit);
+    }
+
+    #[test]
+    fn test_conflict_detector_default() {
+        let detector = ConflictDetector;
+        let conflicts = detector.detect_conflicts(&[], &[]);
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_sync_conflict_new() {
+        let conflict = SyncConflict::new(
+            "test.txt".into(),
+            dt(2026, 1, 1),
+            dt(2026, 1, 2),
+            ConflictType::RenameConflict,
+        );
+        assert_eq!(conflict.local_path, "test.txt");
+        assert_eq!(conflict.conflict_type, ConflictType::RenameConflict);
+        assert!(conflict.resolution.is_none());
+    }
+
+    #[test]
+    fn test_conflict_type_debug() {
+        let types = [
+            ConflictType::EditEdit,
+            ConflictType::EditDelete,
+            ConflictType::DeleteEdit,
+            ConflictType::RenameConflict,
+        ];
+        for t in types {
+            let debug = format!("{:?}", t);
+            assert!(!debug.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_conflict_resolution_debug() {
+        let resolutions = [
+            ConflictResolution::KeepLocal,
+            ConflictResolution::KeepRemote,
+            ConflictResolution::KeepBoth {
+                local_name: "local.txt".to_string(),
+                remote_name: "remote.txt".to_string(),
+            },
+            ConflictResolution::KeepNewer,
+            ConflictResolution::Manual,
+        ];
+        for r in resolutions {
+            let debug = format!("{:?}", r);
+            assert!(!debug.is_empty());
+        }
     }
 }

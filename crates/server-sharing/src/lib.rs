@@ -57,10 +57,7 @@ pub mod audit {
             }
         }
 
-        pub fn with_persistence(
-            mut self,
-            persistence: Arc<ferro_core::persistence::SqlitePersistence>,
-        ) -> Self {
+        pub fn with_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
             self.persistence = Some(persistence);
             self
         }
@@ -235,8 +232,7 @@ pub struct SharingState {
     pub external_url: String,
     pub federation_secret: String,
     #[allow(clippy::type_complexity)]
-    pub on_share_created:
-        Option<Arc<dyn Fn(&str, &str) -> futures::future::BoxFuture<'static, ()> + Send + Sync>>,
+    pub on_share_created: Option<Arc<dyn Fn(&str, &str) -> futures::future::BoxFuture<'static, ()> + Send + Sync>>,
 }
 
 #[async_trait::async_trait]
@@ -279,8 +275,7 @@ impl SharingStateTrait for SharingState {
     }
     fn on_share_created(
         &self,
-    ) -> &Option<Arc<dyn Fn(&str, &str) -> futures::future::BoxFuture<'static, ()> + Send + Sync>>
-    {
+    ) -> &Option<Arc<dyn Fn(&str, &str) -> futures::future::BoxFuture<'static, ()> + Send + Sync>> {
         &self.on_share_created
     }
 }

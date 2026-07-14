@@ -4,17 +4,28 @@ use bytes::Bytes;
 use common::metadata::FileMetadata;
 use quick_xml::Writer;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
+use std::borrow::Cow;
 
 /// Maximum allowed XML request body size (10 MiB).
 /// Prevents XML bomb / entity expansion memory exhaustion.
 const MAX_XML_BODY_SIZE: usize = 10 * 1024 * 1024;
 
-pub fn escape_xml(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
+pub fn escape_xml(s: &str) -> Cow<'_, str> {
+    if !s.contains(['&', '<', '>', '"', '\'']) {
+        return Cow::Borrowed(s);
+    }
+    let mut result = String::with_capacity(s.len() + s.len() / 4);
+    for ch in s.chars() {
+        match ch {
+            '&' => result.push_str("&amp;"),
+            '<' => result.push_str("&lt;"),
+            '>' => result.push_str("&gt;"),
+            '"' => result.push_str("&quot;"),
+            '\'' => result.push_str("&apos;"),
+            _ => result.push(ch),
+        }
+    }
+    Cow::Owned(result)
 }
 
 pub fn build_multistatus_xml(items: &[(String, FileMetadata)]) -> Bytes {
@@ -37,10 +48,7 @@ pub fn build_multistatus_xml(items: &[(String, FileMetadata)]) -> Bytes {
 
         let _ = writer.write_event(Event::Start(BytesStart::new("D:getlastmodified")));
         let _ = writer.write_event(Event::Text(BytesText::new(
-            &meta
-                .modified_at
-                .format("%a, %d %b %Y %H:%M:%S GMT")
-                .to_string(),
+            &meta.modified_at.format("%a, %d %b %Y %H:%M:%S GMT").to_string(),
         )));
         let _ = writer.write_event(Event::End(BytesEnd::new("D:getlastmodified")));
 
@@ -123,9 +131,7 @@ impl LockRequest {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
                     current_element = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                    let local = current_element
-                        .strip_prefix("D:")
-                        .unwrap_or(&current_element);
+                    let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
                     match local {
                         "exclusive" => request.scope = LockScope::Exclusive,
                         "shared" => request.scope = LockScope::Shared,
@@ -134,11 +140,8 @@ impl LockRequest {
                 }
                 Ok(Event::Text(ref e)) => {
                     let text =
-                        quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or(""))
-                            .unwrap_or_default();
-                    let local = current_element
-                        .strip_prefix("D:")
-                        .unwrap_or(&current_element);
+                        quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or("")).unwrap_or_default();
+                    let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
                     match local {
                         "href" => {
                             request.owner = Some(text.to_string());
@@ -167,13 +170,7 @@ impl LockRequest {
     }
 }
 
-pub fn build_lock_response_xml(
-    lock_token: &str,
-    depth: &str,
-    principal: &str,
-    timeout_secs: u32,
-    path: &str,
-) -> Bytes {
+pub fn build_lock_response_xml(lock_token: &str, depth: &str, principal: &str, timeout_secs: u32, path: &str) -> Bytes {
     let mut writer = Writer::new(Vec::new());
 
     let _ = writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)));
@@ -203,10 +200,7 @@ pub fn build_lock_response_xml(
     let _ = writer.write_event(Event::End(BytesEnd::new("D:owner")));
 
     let _ = writer.write_event(Event::Start(BytesStart::new("D:timeout")));
-    let _ = writer.write_event(Event::Text(BytesText::new(&format!(
-        "Second-{}",
-        timeout_secs
-    ))));
+    let _ = writer.write_event(Event::Text(BytesText::new(&format!("Second-{}", timeout_secs))));
     let _ = writer.write_event(Event::End(BytesEnd::new("D:timeout")));
 
     let _ = writer.write_event(Event::Start(BytesStart::new("D:locktoken")));
@@ -262,9 +256,7 @@ pub fn parse_proppatch(body: &[u8]) -> Vec<PropPatchOp> {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) | Ok(Event::Empty(ref e)) => {
                 current_element = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                let local = current_element
-                    .strip_prefix("D:")
-                    .unwrap_or(&current_element);
+                let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
                 match local {
                     "set" => {
                         in_set = true;
@@ -291,20 +283,15 @@ pub fn parse_proppatch(body: &[u8]) -> Vec<PropPatchOp> {
             Ok(Event::Text(ref e)) => {
                 if in_prop && in_set {
                     let text =
-                        quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or(""))
-                            .unwrap_or_default();
-                    let local = current_element
-                        .strip_prefix("D:")
-                        .unwrap_or(&current_element);
+                        quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or("")).unwrap_or_default();
+                    let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
                     ops.push(PropPatchOp {
                         name: local.to_string(),
                         value: Some(text.to_string()),
                         operation: current_operation.clone(),
                     });
                 } else if in_prop && in_remove {
-                    let local = current_element
-                        .strip_prefix("D:")
-                        .unwrap_or(&current_element);
+                    let local = current_element.strip_prefix("D:").unwrap_or(&current_element);
                     ops.push(PropPatchOp {
                         name: local.to_string(),
                         value: None,
@@ -414,14 +401,8 @@ mod tests {
 
     #[test]
     fn test_build_multistatus_xml() {
-        let hash =
-            common::metadata::ContentHash::new("a".repeat(64)).expect("valid hardcoded hash");
-        let meta = FileMetadata::new(
-            "/test.txt".to_string(),
-            hash.clone(),
-            42,
-            "user1".to_string(),
-        );
+        let hash = common::metadata::ContentHash::new("a".repeat(64)).expect("valid hardcoded hash");
+        let meta = FileMetadata::new("/test.txt".to_string(), hash.clone(), 42, "user1".to_string());
         let xml = build_multistatus_xml(&[("/test.txt".to_string(), meta)]);
         let xml_str = String::from_utf8(xml.to_vec()).unwrap();
         assert!(xml_str.contains("<D:multistatus"));

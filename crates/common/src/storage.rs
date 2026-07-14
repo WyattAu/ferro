@@ -8,13 +8,13 @@ use std::pin::Pin;
 use tokio::io::{AsyncRead, ReadBuf};
 
 #[doc = "An async reader wrapping Bytes for streaming file content."]
-#[non_exhaustive]
 pub struct StorageReader {
     inner: Pin<Box<dyn AsyncRead + Send>>,
 }
 
 impl StorageReader {
     /// Create a new storage reader wrapping an async read stream.
+    #[must_use]
     pub fn new(inner: Pin<Box<dyn AsyncRead + Send>>) -> Self {
         Self { inner }
     }
@@ -77,9 +77,52 @@ mod tests {
         assert_eq!(n2, 1);
         assert_eq!(&buf[..n2], b"c");
     }
+
+    #[tokio::test]
+    async fn test_storage_reader_empty() {
+        let data = Bytes::new();
+        let mut reader = StorageReader::new(Box::pin(Cursor::new(data)));
+        let mut buf = vec![0u8; 64];
+
+        use tokio::io::AsyncReadExt;
+        let n = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n, 0);
+    }
+
+    #[tokio::test]
+    async fn test_storage_reader_large_data() {
+        let data = Bytes::from(vec![42u8; 1024]);
+        let mut reader = StorageReader::new(Box::pin(Cursor::new(data)));
+        let mut buf = vec![0u8; 2048];
+
+        use tokio::io::AsyncReadExt;
+        let n = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n, 1024);
+        assert!(buf[..1024].iter().all(|&b| b == 42));
+    }
+
+    #[tokio::test]
+    async fn test_storage_reader_partial_read() {
+        let data = Bytes::from("hello world");
+        let mut reader = StorageReader::new(Box::pin(Cursor::new(data)));
+        let mut buf = vec![0u8; 5];
+
+        use tokio::io::AsyncReadExt;
+        let n1 = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n1, 5);
+        assert_eq!(&buf, b"hello");
+
+        let n2 = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n2, 5);
+        assert_eq!(&buf, b" worl");
+
+        let n3 = reader.read(&mut buf).await.unwrap();
+        assert_eq!(n3, 1);
+        assert_eq!(buf[0], b'd');
+    }
 }
 
-/// Trait for managing WebDAV locks across the server.
+/// Trait for managing `WebDAV` locks across the server.
 #[async_trait]
 pub trait LockManagerTrait: Send + Sync {
     async fn check_lock(&self, path: &str) -> Option<LockInfo>;
@@ -100,7 +143,7 @@ pub trait LockManagerTrait: Send + Sync {
 
 /// Core storage engine trait — all backends must implement this.
 /// This is the single source of truth for storage operations used by
-/// the server's WebDAV handler, API routes, and background workers.
+/// the server's `WebDAV` handler, API routes, and background workers.
 #[async_trait]
 pub trait StorageEngine: Send + Sync {
     /// Retrieve metadata for a file or collection.
@@ -109,7 +152,7 @@ pub trait StorageEngine: Send + Sync {
     /// Read the raw bytes of a file.
     async fn get(&self, path: &str) -> Result<Bytes>;
 
-    /// Stream a file's contents as an AsyncRead without loading the entire file into memory.
+    /// Stream a file's contents as an `AsyncRead` without loading the entire file into memory.
     /// Default implementation wraps the full `get()` result in a cursor.
     /// Backends should override this for true streaming (e.g., file I/O, S3 ranged GET).
     async fn get_stream(&self, path: &str) -> Result<StorageReader> {
@@ -139,17 +182,17 @@ pub trait StorageEngine: Send + Sync {
     async fn create_collection(&self, path: &str, owner: &str) -> Result<FileMetadata>;
 
     /// List all descendants recursively (used by PROPFIND depth:infinity).
-    /// Implementations should apply a max_depth guard to prevent DoS.
+    /// Implementations should apply a `max_depth` guard to prevent `DoS`.
     async fn list_all(&self, path: &str, max_depth: u32) -> Result<Vec<FileMetadata>>;
 
-    /// Upload a large file using multipart upload. Default: falls back to put().
+    /// Upload a large file using multipart upload. Default: falls back to `put()`.
     /// Backends should override for efficient large file uploads.
     async fn put_multipart(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata> {
         self.put(path, content, owner).await
     }
 
-    /// Stream a file upload from an AsyncRead without loading the entire file into memory.
-    /// Default implementation reads all bytes and calls put().
+    /// Stream a file upload from an `AsyncRead` without loading the entire file into memory.
+    /// Default implementation reads all bytes and calls `put()`.
     /// Backends should override for true streaming (e.g., S3 multipart upload from reader).
     async fn put_stream(
         &self,
@@ -160,9 +203,11 @@ pub trait StorageEngine: Send + Sync {
     ) -> Result<FileMetadata> {
         use tokio::io::AsyncReadExt;
         let mut buf = Vec::with_capacity(size as usize);
-        reader.take(size).read_to_end(&mut buf).await.map_err(|e| {
-            crate::error::FerroError::StorageBackend(format!("Stream read error: {e}"))
-        })?;
+        reader
+            .take(size)
+            .read_to_end(&mut buf)
+            .await
+            .map_err(|e| crate::error::FerroError::StorageBackend(format!("Stream read error: {e}")))?;
         self.put(path, Bytes::from(buf), owner).await
     }
 

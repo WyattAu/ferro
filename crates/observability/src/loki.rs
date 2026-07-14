@@ -19,10 +19,7 @@ pub struct LokiStream {
     pub values: Vec<(String, String)>,
 }
 
-pub async fn loki_push_handler(
-    State(buffer): State<Arc<LogBuffer>>,
-    Json(body): Json<LokiPushRequest>,
-) -> StatusCode {
+pub async fn loki_push_handler(State(buffer): State<Arc<LogBuffer>>, Json(body): Json<LokiPushRequest>) -> StatusCode {
     for stream in &body.streams {
         for (ts, line) in &stream.values {
             let timestamp = ts
@@ -86,9 +83,7 @@ pub async fn loki_query_handler(
             stream: entry.labels.clone(),
             values: Vec::new(),
         });
-        stream
-            .values
-            .push((entry.timestamp.to_string(), entry.line.clone()));
+        stream.values.push((entry.timestamp.to_string(), entry.line.clone()));
     }
 
     Json(LokiQueryResponse {

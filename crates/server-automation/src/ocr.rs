@@ -75,10 +75,7 @@ fn extract_pdf_text(content: &[u8]) -> String {
                     }
                 }
                 Err(e) => {
-                    debug!(
-                        "Failed to parse content stream for page {}: {}",
-                        page_idx, e
-                    );
+                    debug!("Failed to parse content stream for page {}: {}", page_idx, e);
                 }
             }
         }

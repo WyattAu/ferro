@@ -1,7 +1,5 @@
 use crate::error::MountError;
-use crate::traits::{
-    BackendType, FileMetadata, MountBackend, MountEntry, MountHandle, MountOptions, SpaceUsage,
-};
+use crate::traits::{BackendType, FileMetadata, MountBackend, MountEntry, MountHandle, MountOptions, SpaceUsage};
 use async_trait::async_trait;
 use chrono::Utc;
 use dashmap::DashMap;
@@ -13,9 +11,7 @@ pub struct MockBackend {
 
 impl MockBackend {
     pub fn new() -> Self {
-        Self {
-            store: DashMap::new(),
-        }
+        Self { store: DashMap::new() }
     }
 
     pub fn add_file(&self, path: &str, name: &str, content: Vec<u8>) {
@@ -41,11 +37,7 @@ impl MountBackend for MockBackend {
         _options: &MountOptions,
     ) -> Result<MountHandle, MountError> {
         if self.store.contains_key(remote_path) {
-            Ok(MountHandle::new(
-                remote_path,
-                local_path,
-                BackendType::WebDav,
-            ))
+            Ok(MountHandle::new(remote_path, local_path, BackendType::WebDav))
         } else {
             Err(MountError::NotFound {
                 path: remote_path.to_string(),
@@ -63,14 +55,11 @@ impl MountBackend for MockBackend {
         }
     }
 
-    async fn read_dir(
-        &self,
-        _handle: &MountHandle,
-        path: &str,
-    ) -> Result<Vec<MountEntry>, MountError> {
-        let entries = self.store.get(path).ok_or_else(|| MountError::NotFound {
-            path: path.to_string(),
-        })?;
+    async fn read_dir(&self, _handle: &MountHandle, path: &str) -> Result<Vec<MountEntry>, MountError> {
+        let entries = self
+            .store
+            .get(path)
+            .ok_or_else(|| MountError::NotFound { path: path.to_string() })?;
 
         Ok(entries
             .iter()
@@ -90,13 +79,14 @@ impl MountBackend for MockBackend {
         offset: u64,
         length: u64,
     ) -> Result<Vec<u8>, MountError> {
-        let (dir, file_name) = path.rsplit_once('/').ok_or_else(|| MountError::NotFound {
-            path: path.to_string(),
-        })?;
+        let (dir, file_name) = path
+            .rsplit_once('/')
+            .ok_or_else(|| MountError::NotFound { path: path.to_string() })?;
 
-        let entries = self.store.get(dir).ok_or_else(|| MountError::NotFound {
-            path: path.to_string(),
-        })?;
+        let entries = self
+            .store
+            .get(dir)
+            .ok_or_else(|| MountError::NotFound { path: path.to_string() })?;
 
         for (name, content) in entries.iter() {
             if name == file_name {
@@ -109,9 +99,7 @@ impl MountBackend for MockBackend {
             }
         }
 
-        Err(MountError::NotFound {
-            path: path.to_string(),
-        })
+        Err(MountError::NotFound { path: path.to_string() })
     }
 
     async fn metadata(&self, handle: &MountHandle, path: &str) -> Result<FileMetadata, MountError> {
@@ -201,10 +189,7 @@ mod tests {
             .await
             .unwrap();
 
-        let result = backend
-            .read_file(&handle, "/data/test.txt", 7, 5)
-            .await
-            .unwrap();
+        let result = backend.read_file(&handle, "/data/test.txt", 7, 5).await.unwrap();
         assert_eq!(result, b"World");
     }
 
@@ -218,10 +203,7 @@ mod tests {
             .await
             .unwrap();
 
-        let result = backend
-            .read_file(&handle, "/data/small.txt", 100, 10)
-            .await
-            .unwrap();
+        let result = backend.read_file(&handle, "/data/small.txt", 100, 10).await.unwrap();
         assert!(result.is_empty());
     }
 
@@ -245,9 +227,7 @@ mod tests {
     async fn test_read_nonexistent_file_returns_not_found() {
         let backend = MockBackend::new();
 
-        let result = backend
-            .mount("/nope", "/mnt/nope", &MountOptions::default())
-            .await;
+        let result = backend.mount("/nope", "/mnt/nope", &MountOptions::default()).await;
         assert!(result.is_err());
         match result.unwrap_err() {
             MountError::NotFound { path } => assert_eq!(path, "/nope"),

@@ -82,21 +82,9 @@ pub fn NotesPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(NoteMeta {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        title: v
-                                            .get("title")
-                                            .and_then(|t| t.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
-                                        folder: v
-                                            .get("folder")
-                                            .and_then(|f| f.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
-                                        tags: v
-                                            .get("tags")
-                                            .and_then(|t| t.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        title: v.get("title").and_then(|t| t.as_str()).unwrap_or("").to_string(),
+                                        folder: v.get("folder").and_then(|f| f.as_str()).unwrap_or("").to_string(),
+                                        tags: v.get("tags").and_then(|t| t.as_str()).unwrap_or("").to_string(),
                                         created_at: v
                                             .get("created_at")
                                             .and_then(|c| c.as_str())
@@ -184,20 +172,15 @@ pub fn NotesPage() -> impl IntoView {
                     "folder": folder,
                     "tags": tags,
                 });
-                let _ = api::fetch_json_with_method(
-                    &format!("/api/notes/{}", note_id),
-                    "PUT",
-                    Some(&body.to_string()),
-                )
-                .await;
+                let _ = api::fetch_json_with_method(&format!("/api/notes/{}", note_id), "PUT", Some(&body.to_string()))
+                    .await;
             });
         }
     };
 
     let delete_note = move |id: String| {
         spawn_local(async move {
-            let _ =
-                api::fetch_json_with_method(&format!("/api/notes/{}", id), "DELETE", None).await;
+            let _ = api::fetch_json_with_method(&format!("/api/notes/{}", id), "DELETE", None).await;
             set_selected_note_id.set(None);
             set_selected_note.set(None);
             fetch_notes();

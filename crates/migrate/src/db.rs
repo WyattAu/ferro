@@ -83,9 +83,9 @@ impl NextcloudDb {
     }
 
     pub fn read_users(&self) -> MigrateResult<Vec<NcUser>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT uid, displayname, email, quota, last_login, backend, state, home FROM oc_accounts",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT uid, displayname, email, quota, last_login, backend, state, home FROM oc_accounts")?;
         let rows = stmt.query_map(params![], |row| {
             Ok(NcUser {
                 uid: row.get(0)?,
@@ -98,8 +98,7 @@ impl NextcloudDb {
                 home: row.get(7)?,
             })
         })?;
-        rows.collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(Into::into)
+        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
     }
 
     pub fn read_filecache(&self) -> MigrateResult<Vec<NcFileCache>> {
@@ -160,8 +159,7 @@ impl NextcloudDb {
                 permissions: row.get(10)?,
             })
         })?;
-        rows.collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(Into::into)
+        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
     }
 
     pub fn read_system_tags(&self) -> MigrateResult<Vec<NcSystemTag>> {
@@ -172,8 +170,7 @@ impl NextcloudDb {
                 name: row.get(1)?,
             })
         })?;
-        rows.collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(Into::into)
+        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
     }
 
     pub fn read_tag_mappings(&self) -> MigrateResult<Vec<NcTagMapping>> {
@@ -187,8 +184,7 @@ impl NextcloudDb {
                 systemtag_id: row.get(2)?,
             })
         })?;
-        rows.collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(Into::into)
+        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
     }
 
     pub fn read_favorites(&self) -> MigrateResult<Vec<NcFavorite>> {
@@ -202,14 +198,11 @@ impl NextcloudDb {
                 category_id: row.get(2)?,
             })
         })?;
-        rows.collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(Into::into)
+        rows.collect::<std::result::Result<Vec<_>, _>>().map_err(Into::into)
     }
 
     fn read_favorites_set(&self) -> MigrateResult<HashMap<i64, bool>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT objid FROM oc_vcategory_to_object")?;
+        let mut stmt = self.conn.prepare("SELECT objid FROM oc_vcategory_to_object")?;
         let rows = stmt.query_map(params![], |row| {
             let id: i64 = row.get(0)?;
             Ok(id)

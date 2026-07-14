@@ -17,6 +17,9 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = "0.1"
 uuid = { version = "1", features = ["v4", "serde"] }
+hashbrown = { workspace = true, features = ["serde"] }
+ahash = { workspace = true }
+crossbeam = { workspace = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

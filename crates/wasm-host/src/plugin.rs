@@ -30,11 +30,7 @@ pub struct LoadedPlugin {
 static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 impl WasmHost {
-    pub fn load_plugin(
-        &self,
-        name: &str,
-        wasm_bytes: &[u8],
-    ) -> Result<PluginHandle, WasmHostError> {
+    pub fn load_plugin(&self, name: &str, wasm_bytes: &[u8]) -> Result<PluginHandle, WasmHostError> {
         if self.plugins.contains_key(name) {
             return Err(WasmHostError::AlreadyLoaded(name.to_string()));
         }
@@ -46,8 +42,7 @@ impl WasmHost {
             return Err(WasmHostError::InvalidPlugin("Validation failed".into()));
         }
 
-        let module = Module::new(&self.engine, wasm_bytes)
-            .map_err(|e| WasmHostError::CompileFailed(e.to_string()))?;
+        let module = Module::new(&self.engine, wasm_bytes).map_err(|e| WasmHostError::CompileFailed(e.to_string()))?;
 
         let checksum = compute_checksum(wasm_bytes);
 

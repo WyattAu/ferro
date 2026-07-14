@@ -537,9 +537,7 @@ pub static EN: &[(&str, &str)] = &[
 
 /// Binary search lookup by key.
 pub fn get(key: &str) -> Option<&'static str> {
-    EN.binary_search_by(|(k, _)| (*k).cmp(key))
-        .ok()
-        .map(|i| EN[i].1)
+    EN.binary_search_by(|(k, _)| (*k).cmp(key)).ok().map(|i| EN[i].1)
 }
 
 #[cfg(test)]

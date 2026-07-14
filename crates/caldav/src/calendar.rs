@@ -66,22 +66,14 @@ impl CalendarManager {
     }
 
     pub async fn get_calendar(&self, principal: &str, calendar_id: &str) -> Option<Calendar> {
-        self.store
-            .get_calendar(principal, calendar_id)
-            .await
-            .map(|info| {
-                let mut cal = Calendar::from(info.clone());
-                cal.uid = info.id;
-                cal
-            })
+        self.store.get_calendar(principal, calendar_id).await.map(|info| {
+            let mut cal = Calendar::from(info.clone());
+            cal.uid = info.id;
+            cal
+        })
     }
 
-    pub async fn create_calendar(
-        &self,
-        principal: &str,
-        name: &str,
-        color: &str,
-    ) -> Result<Calendar> {
+    pub async fn create_calendar(&self, principal: &str, name: &str, color: &str) -> Result<Calendar> {
         self.store
             .create_calendar(principal, name, color)
             .await
@@ -120,12 +112,7 @@ impl CalendarManager {
             .map_err(|e| CalDavError::Store(e.to_string()))
     }
 
-    pub async fn update_event(
-        &self,
-        calendar_id: &str,
-        event_uid: &str,
-        ical_data: &str,
-    ) -> Result<CalendarItem> {
+    pub async fn update_event(&self, calendar_id: &str, event_uid: &str, ical_data: &str) -> Result<CalendarItem> {
         self.store
             .update_event(calendar_id, event_uid, ical_data)
             .await
@@ -180,10 +167,7 @@ mod tests {
         let store = std::sync::Arc::new(InMemoryCalendarStore::new());
         let manager = CalendarManager::new(store);
 
-        let cal = manager
-            .create_calendar("user1", "Work", "#0000ff")
-            .await
-            .unwrap();
+        let cal = manager.create_calendar("user1", "Work", "#0000ff").await.unwrap();
 
         let ical = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:event-1\r\nSUMMARY:Meeting\r\nDTSTART:20240101T100000Z\r\nDTEND:20240101T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
 
@@ -192,5 +176,161 @@ mod tests {
 
         let retrieved = manager.get_event(&cal.uid, "event-1").await;
         assert!(retrieved.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_list_calendars_empty() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+        let calendars = manager.list_calendars("user1").await;
+        assert!(calendars.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_calendar_not_found() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+        let result = manager.get_calendar("user1", "nonexistent").await;
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_calendar() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+
+        let cal = manager.create_calendar("user1", "Temp", "#000000").await.unwrap();
+        manager.delete_calendar("user1", &cal.uid).await.unwrap();
+
+        let calendars = manager.list_calendars("user1").await;
+        assert!(calendars.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_events_empty() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+
+        let cal = manager.create_calendar("user1", "Empty", "#000000").await.unwrap();
+        let events = manager.list_events(&cal.uid).await;
+        assert!(events.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_event_not_found() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+
+        let cal = manager.create_calendar("user1", "Test", "#000000").await.unwrap();
+        let result = manager.get_event(&cal.uid, "nonexistent").await;
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_update_event() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+
+        let cal = manager.create_calendar("user1", "Test", "#000000").await.unwrap();
+        let ical = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:upd-1\r\nSUMMARY:Original\r\nDTSTART:20240101T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        manager.create_event(&cal.uid, ical).await.unwrap();
+
+        let updated_ical = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:upd-1\r\nSUMMARY:Updated\r\nDTSTART:20240101T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        let updated = manager.update_event(&cal.uid, "upd-1", updated_ical).await.unwrap();
+        assert_eq!(updated.uid, "upd-1");
+    }
+
+    #[tokio::test]
+    async fn test_delete_event() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+
+        let cal = manager.create_calendar("user1", "Test", "#000000").await.unwrap();
+        let ical = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:del-1\r\nSUMMARY:Delete Me\r\nDTSTART:20240101T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        manager.create_event(&cal.uid, ical).await.unwrap();
+
+        manager.delete_event(&cal.uid, "del-1").await.unwrap();
+        let result = manager.get_event(&cal.uid, "del-1").await;
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_create_multiple_calendars() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+
+        manager.create_calendar("user1", "Cal1", "#ff0000").await.unwrap();
+        manager.create_calendar("user1", "Cal2", "#00ff00").await.unwrap();
+
+        let calendars = manager.list_calendars("user1").await;
+        assert_eq!(calendars.len(), 2);
+    }
+
+    #[test]
+    fn test_calendar_debug() {
+        let cal = Calendar {
+            uid: "test".to_string(),
+            display_name: "Test".to_string(),
+            description: None,
+            color: None,
+            ctag: "1".to_string(),
+            items: vec![],
+        };
+        assert!(!format!("{:?}", cal).is_empty());
+    }
+
+    #[test]
+    fn test_calendar_clone() {
+        let cal = Calendar {
+            uid: "clone".to_string(),
+            display_name: "Clone".to_string(),
+            description: Some("desc".to_string()),
+            color: Some("#ff0000".to_string()),
+            ctag: "1".to_string(),
+            items: vec![],
+        };
+        let cloned = cal.clone();
+        assert_eq!(cloned.uid, "clone");
+    }
+
+    #[test]
+    fn test_calendar_item_debug() {
+        let item = CalendarItem {
+            uid: "item".to_string(),
+            etag: "1".to_string(),
+            data: vec![],
+            last_modified: Utc::now(),
+        };
+        assert!(!format!("{:?}", item).is_empty());
+    }
+
+    #[test]
+    fn test_calendar_item_clone() {
+        let item = CalendarItem {
+            uid: "item-cl".to_string(),
+            etag: "2".to_string(),
+            data: b"test".to_vec(),
+            last_modified: Utc::now(),
+        };
+        let cloned = item.clone();
+        assert_eq!(cloned.uid, "item-cl");
+    }
+
+    #[test]
+    fn test_parse_event_data() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+
+        let ical = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:parse-1\r\nSUMMARY:Parsed\r\nDTSTART:20240101T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        let event = manager.parse_event_data(ical).unwrap();
+        assert_eq!(event.uid, "parse-1");
+    }
+
+    #[test]
+    fn test_parse_event_data_invalid() {
+        let store = std::sync::Arc::new(InMemoryCalendarStore::new());
+        let manager = CalendarManager::new(store);
+        let result = manager.parse_event_data("not valid");
+        assert!(result.is_err());
     }
 }

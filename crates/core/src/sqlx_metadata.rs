@@ -10,6 +10,7 @@ use tracing::debug;
 use crate::metadata::MetadataStore;
 
 /// PostgreSQL-backed metadata store.
+#[derive(Debug)]
 #[cfg(feature = "postgres")]
 pub struct PgMetadataStore {
     pool: PgPool,
@@ -136,31 +137,31 @@ impl MetadataStore for PgMetadataStore {
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {
-        let result: (bool,) =
-            sqlx::query_as("SELECT EXISTS(SELECT 1 FROM file_metadata WHERE path = $1)")
-                .bind(path)
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|e| FerroError::Internal(format!("Exists check failed: {}", e)))?;
+        let result: (bool,) = sqlx::query_as("SELECT EXISTS(SELECT 1 FROM file_metadata WHERE path = $1)")
+            .bind(path)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| FerroError::Internal(format!("Exists check failed: {}", e)))?;
 
         Ok(result.0)
     }
 }
 
 /// SQLite-backed metadata store.
+#[derive(Debug)]
 pub struct SqliteMetadataStore {
     pool: SqlitePool,
 }
 
 impl SqliteMetadataStore {
-    /// Connect to SQLite and create the metadata table if it does not exist.
+    /// Connect to `SQLite` and create the metadata table if it does not exist.
     pub async fn new(database_url: &str) -> Result<Self> {
         let pool = SqlitePool::connect(database_url)
             .await
-            .map_err(|e| FerroError::Internal(format!("Failed to connect to SQLite: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to connect to SQLite: {e}")))?;
 
         sqlx::query(
-            r#"
+            r"
             CREATE TABLE IF NOT EXISTS file_metadata (
                 path TEXT PRIMARY KEY,
                 content_hash TEXT NOT NULL,
@@ -172,17 +173,17 @@ impl SqliteMetadataStore {
                 owner TEXT NOT NULL DEFAULT 'anonymous',
                 etag TEXT NOT NULL DEFAULT ''
             )
-        "#,
+        ",
         )
         .execute(&pool)
         .await
-        .map_err(|e| FerroError::Internal(format!("Migration failed: {}", e)))?;
+        .map_err(|e| FerroError::Internal(format!("Migration failed: {e}")))?;
 
         debug!("SqliteMetadataStore initialized");
         Ok(Self { pool })
     }
 
-    /// Create from an existing pool (e.g. shared with SqlitePersistence).
+    /// Create from an existing pool (e.g. shared with `SqlitePersistence`).
     /// Assumes the `file_metadata` table already exists.
     pub fn from_pool(pool: SqlitePool) -> Self {
         debug!("SqliteMetadataStore initialized from shared pool");
@@ -205,14 +206,14 @@ impl MetadataStore for SqliteMetadataStore {
     }
 
     async fn put(&self, metadata: FileMetadata) -> Result<()> {
-        sqlx::query(r#"
+        sqlx::query(r"
             INSERT INTO file_metadata (path, content_hash, size, mime_type, is_collection, created_at, modified_at, owner, etag)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (path) DO UPDATE SET
                 content_hash = excluded.content_hash, size = excluded.size, mime_type = excluded.mime_type,
                 is_collection = excluded.is_collection, modified_at = excluded.modified_at,
                 owner = excluded.owner, etag = excluded.etag
-        "#)
+        ")
         .bind(&metadata.path)
         .bind(metadata.content_hash.as_str())
         .bind(metadata.size as i64)
@@ -224,7 +225,7 @@ impl MetadataStore for SqliteMetadataStore {
         .bind(&metadata.etag)
         .execute(&self.pool)
         .await
-        .map_err(|e| FerroError::Internal(format!("Put failed: {}", e)))?;
+        .map_err(|e| FerroError::Internal(format!("Put failed: {e}")))?;
 
         Ok(())
     }
@@ -234,7 +235,7 @@ impl MetadataStore for SqliteMetadataStore {
             .bind(path)
             .execute(&self.pool)
             .await
-            .map_err(|e| FerroError::Internal(format!("Delete failed: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Delete failed: {e}")))?;
 
         if result.rows_affected() == 0 {
             return Err(FerroError::NotFound(path.to_string()));
@@ -248,11 +249,11 @@ impl MetadataStore for SqliteMetadataStore {
         } else {
             prefix.trim_end_matches('/')
         };
-        let pattern = format!("{}%", parent_prefix);
+        let pattern = format!("{parent_prefix}%");
         let exclude_pattern = if parent_prefix.is_empty() {
             "/%/%/%".to_string()
         } else {
-            format!("{}/%/%", parent_prefix)
+            format!("{parent_prefix}/%/%")
         };
 
         let rows = sqlx::query_as::<_, SqliteMetadataRow>(
@@ -262,18 +263,17 @@ impl MetadataStore for SqliteMetadataStore {
         .bind(&exclude_pattern)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| FerroError::Internal(format!("List failed: {}", e)))?;
+        .map_err(|e| FerroError::Internal(format!("List failed: {e}")))?;
 
-        Ok(rows.into_iter().map(|r| r.into()).collect())
+        Ok(rows.into_iter().map(std::convert::Into::into).collect())
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {
-        let result: (bool,) =
-            sqlx::query_as("SELECT EXISTS(SELECT 1 FROM file_metadata WHERE path = ?)")
-                .bind(path)
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|e| FerroError::Internal(format!("Exists check failed: {}", e)))?;
+        let result: (bool,) = sqlx::query_as("SELECT EXISTS(SELECT 1 FROM file_metadata WHERE path = ?)")
+            .bind(path)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| FerroError::Internal(format!("Exists check failed: {e}")))?;
 
         Ok(result.0)
     }
@@ -296,8 +296,7 @@ impl From<MetadataRow> for FileMetadata {
     fn from(row: MetadataRow) -> Self {
         Self {
             path: row.path,
-            content_hash: ContentHash::new(row.content_hash)
-                .expect("valid content hash from database"),
+            content_hash: ContentHash::new(row.content_hash).expect("valid content hash from database"),
             size: row.size as u64,
             mime_type: row.mime_type,
             is_collection: row.is_collection,
@@ -324,27 +323,24 @@ struct SqliteMetadataRow {
 
 impl From<SqliteMetadataRow> for FileMetadata {
     fn from(row: SqliteMetadataRow) -> Self {
-        let created = DateTime::parse_from_rfc3339(&row.created_at)
-            .map(|dt| dt.with_timezone(&Utc))
-            .unwrap_or_else(|e| {
+        let created = DateTime::parse_from_rfc3339(&row.created_at).map_or_else(
+            |e| {
                 tracing::warn!("Invalid created_at '{}' in database: {}", row.created_at, e);
                 Utc::now()
-            });
-        let modified = DateTime::parse_from_rfc3339(&row.modified_at)
-            .map(|dt| dt.with_timezone(&Utc))
-            .unwrap_or_else(|e| {
-                tracing::warn!(
-                    "Invalid modified_at '{}' in database: {}",
-                    row.modified_at,
-                    e
-                );
+            },
+            |dt| dt.with_timezone(&Utc),
+        );
+        let modified = DateTime::parse_from_rfc3339(&row.modified_at).map_or_else(
+            |e| {
+                tracing::warn!("Invalid modified_at '{}' in database: {}", row.modified_at, e);
                 Utc::now()
-            });
+            },
+            |dt| dt.with_timezone(&Utc),
+        );
 
         Self {
             path: row.path,
-            content_hash: ContentHash::new(row.content_hash)
-                .expect("valid content hash from database"),
+            content_hash: ContentHash::new(row.content_hash).expect("valid content hash from database"),
             size: row.size as u64,
             mime_type: row.mime_type,
             is_collection: row.is_collection,
@@ -376,9 +372,7 @@ mod tests {
         let path_str = db_path.to_string_lossy().to_string();
         std::mem::forget(dir);
         std::fs::File::create(&path_str).unwrap();
-        SqliteMetadataStore::new(&format!("sqlite:{}", path_str))
-            .await
-            .unwrap()
+        SqliteMetadataStore::new(&format!("sqlite:{}", path_str)).await.unwrap()
     }
 
     #[tokio::test]

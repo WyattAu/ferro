@@ -152,9 +152,8 @@ impl BuzHash {
         self.window[self.window_idx] = byte;
         self.window_idx = (self.window_idx + 1) % 48;
         // Buzhash: hash = rotate_left(hash, 1) ^ table[byte] ^ table_outgoing_shifted
-        self.hash = self.hash.rotate_left(1)
-            ^ self.table[byte as usize]
-            ^ self.table[outgoing as usize].rotate_left(48);
+        self.hash =
+            self.hash.rotate_left(1) ^ self.table[byte as usize] ^ self.table[outgoing as usize].rotate_left(48);
     }
 
     fn value(&self) -> u64 {
@@ -171,12 +170,7 @@ impl BuzHash {
 /// - `max_size`: Maximum block size (default 1MB)
 ///
 /// Returns a list of `(offset, length, hash)` tuples.
-pub fn chunk_data(
-    data: &[u8],
-    target_size: u64,
-    min_size: u64,
-    max_size: u64,
-) -> Vec<(u64, u64, String)> {
+pub fn chunk_data(data: &[u8], target_size: u64, min_size: u64, max_size: u64) -> Vec<(u64, u64, String)> {
     let mask = compute_mask(target_size);
     let mut buzhash = BuzHash::new();
     let mut blocks = Vec::new();
@@ -200,11 +194,7 @@ pub fn chunk_data(
             // The current byte will start the next block (processed again).
             let block_data = &data[block_start..i];
             let hash = ContentHash::compute(block_data);
-            blocks.push((
-                block_start as u64,
-                block_data.len() as u64,
-                hash.as_hex().to_string(),
-            ));
+            blocks.push((block_start as u64, block_data.len() as u64, hash.as_hex().to_string()));
             block_start = i; // Current byte starts the next block
             buzhash = BuzHash::new();
         // Don't continue - fall through so current byte is processed in the next block
@@ -213,11 +203,7 @@ pub fn chunk_data(
             if (buzhash.value() & mask) == 0 {
                 let block_data = &data[block_start..=i];
                 let hash = ContentHash::compute(block_data);
-                blocks.push((
-                    block_start as u64,
-                    block_data.len() as u64,
-                    hash.as_hex().to_string(),
-                ));
+                blocks.push((block_start as u64, block_data.len() as u64, hash.as_hex().to_string()));
                 block_start = i + 1;
                 buzhash = BuzHash::new();
             }
@@ -230,11 +216,7 @@ pub fn chunk_data(
     if block_start < data.len() {
         let block_data = &data[block_start..];
         let hash = ContentHash::compute(block_data);
-        blocks.push((
-            block_start as u64,
-            block_data.len() as u64,
-            hash.as_hex().to_string(),
-        ));
+        blocks.push((block_start as u64, block_data.len() as u64, hash.as_hex().to_string()));
     }
 
     blocks
@@ -255,10 +237,7 @@ fn compute_mask(target_size: u64) -> u64 {
 ///
 /// Computes the block manifest for a file on the server and returns which
 /// blocks the client needs to upload.
-pub async fn get_manifest(
-    State(state): State<AppState>,
-    Query(params): Query<ManifestQuery>,
-) -> Response {
+pub async fn get_manifest(State(state): State<AppState>, Query(params): Query<ManifestQuery>) -> Response {
     let path = params.path.trim_start_matches('/');
 
     // Fetch file content
@@ -344,10 +323,7 @@ pub async fn get_manifest(
 ///
 /// Upload individual blocks to the server's CAS store. Blocks are deduplicated
 /// by content hash.
-pub async fn upload_blocks(
-    State(state): State<AppState>,
-    Json(body): Json<UploadBlocksRequest>,
-) -> Response {
+pub async fn upload_blocks(State(state): State<AppState>, Json(body): Json<UploadBlocksRequest>) -> Response {
     let cas = match &state.cas_store {
         Some(cas) => cas,
         None => {
@@ -418,14 +394,7 @@ pub async fn upload_blocks(
         }
     }
 
-    (
-        StatusCode::OK,
-        Json(UploadBlocksResponse {
-            stored,
-            deduplicated,
-        }),
-    )
-        .into_response()
+    (StatusCode::OK, Json(UploadBlocksResponse { stored, deduplicated })).into_response()
 }
 
 /// `GET /api/v1/sync/blocks/check`
@@ -443,10 +412,7 @@ pub struct CheckBlocksResponse {
     pub present: usize,
 }
 
-pub async fn check_blocks(
-    State(state): State<AppState>,
-    Query(params): Query<CheckBlocksQuery>,
-) -> Response {
+pub async fn check_blocks(State(state): State<AppState>, Query(params): Query<CheckBlocksQuery>) -> Response {
     let cas = match &state.cas_store {
         Some(cas) => cas,
         None => {
@@ -485,20 +451,13 @@ pub async fn check_blocks(
         }
     }
 
-    (
-        StatusCode::OK,
-        Json(CheckBlocksResponse { missing, present }),
-    )
-        .into_response()
+    (StatusCode::OK, Json(CheckBlocksResponse { missing, present })).into_response()
 }
 
 /// `POST /api/v1/sync/blocks/assemble`
 ///
 /// Assemble a file from blocks already in the CAS store.
-pub async fn assemble_file(
-    State(state): State<AppState>,
-    Json(body): Json<AssembleRequest>,
-) -> Response {
+pub async fn assemble_file(State(state): State<AppState>, Json(body): Json<AssembleRequest>) -> Response {
     let cas = match &state.cas_store {
         Some(cas) => cas,
         None => {
@@ -666,12 +625,7 @@ mod tests {
         let max_size = 32_768; // 32KB max
         let blocks = chunk_data(&data, 65536, 4096, max_size);
         for (_, len, _) in &blocks {
-            assert!(
-                *len <= max_size,
-                "block size {} exceeds max {}",
-                len,
-                max_size
-            );
+            assert!(*len <= max_size, "block size {} exceeds max {}", len, max_size);
         }
     }
 
@@ -683,12 +637,7 @@ mod tests {
         // All blocks except possibly the last should be >= min_size
         for (i, (_, len, _)) in blocks.iter().enumerate() {
             if i < blocks.len() - 1 {
-                assert!(
-                    *len >= 8192,
-                    "non-final block {} has size {} < min_size 8192",
-                    i,
-                    len
-                );
+                assert!(*len >= 8192, "non-final block {} has size {} < min_size 8192", i, len);
             }
         }
     }
@@ -704,9 +653,7 @@ mod tests {
     fn test_block_determinism_different_ordering() {
         // Create a file with clear block boundaries (repeated patterns)
         // then insert a byte. CDC should re-chunk identically before the insertion.
-        let pattern: Vec<u8> = "The quick brown fox jumps over the lazy dog. "
-            .as_bytes()
-            .to_vec();
+        let pattern: Vec<u8> = "The quick brown fox jumps over the lazy dog. ".as_bytes().to_vec();
         let data1: Vec<u8> = pattern.iter().cycle().take(100_000).cloned().collect();
 
         let mut data2 = data1.clone();

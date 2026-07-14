@@ -62,10 +62,7 @@ pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
         let data = entries.get();
         let mut csv = String::from("Timestamp,User,Action,Resource,Status\n");
         for entry in &data {
-            let ts = entry
-                .get("timestamp")
-                .and_then(|t| t.as_str())
-                .unwrap_or("");
+            let ts = entry.get("timestamp").and_then(|t| t.as_str()).unwrap_or("");
             let user = entry.get("user").and_then(|u| u.as_str()).unwrap_or("");
             let action = entry.get("action").and_then(|a| a.as_str()).unwrap_or("");
             let resource = entry.get("resource").and_then(|r| r.as_str()).unwrap_or("");
@@ -83,9 +80,7 @@ pub fn AuditPage(api: RwSignal<ApiState>) -> impl IntoView {
                 && let Some(doc) = window.document()
             {
                 let el = doc.create_element("a");
-                let el2 = el
-                    .ok()
-                    .and_then(|e| e.dyn_into::<web_sys::HtmlAnchorElement>().ok());
+                let el2 = el.ok().and_then(|e| e.dyn_into::<web_sys::HtmlAnchorElement>().ok());
                 if let Some(el2) = el2 {
                     el2.set_href(&blob_url);
                     el2.set_download("audit_log.csv");

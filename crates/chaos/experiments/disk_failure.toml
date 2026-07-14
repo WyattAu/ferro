@@ -1,0 +1,18 @@
+[experiment]
+name = "Disk Failure Test"
+description = "Test system behavior during disk I/O errors"
+
+[[disk_faults]]
+type = "io_error"
+path = "/data"
+probability = 0.05
+
+[[disk_faults]]
+type = "slow_disk"
+path = "/data"
+delay_ms = 100
+
+[expectations]
+should_log_errors = true
+should_not_corrupt_data = true
+max_recovery_time_ms = 10000

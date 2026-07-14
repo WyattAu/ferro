@@ -16,7 +16,6 @@ pub const MULTIPART_THRESHOLD: usize = 10 * 1024 * 1024; // 10 MB
 pub const MULTIPART_CHUNK_SIZE: usize = 5 * 1024 * 1024;
 
 /// Storage engine backed by an `object_store` implementation (S3, GCS, Azure, local).
-#[non_exhaustive]
 pub struct ObjectStoreStorageEngine {
     store: Arc<dyn ObjectStore>,
     prefix: String,
@@ -64,11 +63,10 @@ impl ObjectStoreStorageEngine {
     fn to_virtual_path(&self, obj_path: &object_store::path::Path) -> String {
         let full = obj_path.as_ref();
         if self.prefix.is_empty() {
-            format!("/{}", full)
+            format!("/{full}")
         } else {
             full.strip_prefix(&format!("{}/", self.prefix))
-                .map(|s| format!("/{}", s))
-                .unwrap_or_else(|| format!("/{}", full))
+                .map_or_else(|| format!("/{full}"), |s| format!("/{s}"))
         }
     }
 }
@@ -114,7 +112,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
             reader
                 .read_to_end(&mut buf)
                 .await
-                .map_err(|e| FerroError::StorageBackend(format!("Failed to read stream: {}", e)))?;
+                .map_err(|e| FerroError::StorageBackend(format!("Failed to read stream: {e}")))?;
             let content = Bytes::from(buf);
             let hash = ContentHash::compute(&content);
             self.store
@@ -127,9 +125,11 @@ impl StorageEngine for ObjectStoreStorageEngine {
         }
 
         // For large files, use multipart upload from reader
-        let mut upload = self.store.put_multipart(&obj_path).await.map_err(|e| {
-            FerroError::StorageBackend(format!("Failed to initiate multipart upload: {}", e))
-        })?;
+        let mut upload = self
+            .store
+            .put_multipart(&obj_path)
+            .await
+            .map_err(|e| FerroError::StorageBackend(format!("Failed to initiate multipart upload: {e}")))?;
 
         let mut hasher = sha2::Sha256::new();
         use sha2::Digest;
@@ -144,25 +144,24 @@ impl StorageEngine for ObjectStoreStorageEngine {
             let n = reader
                 .read(&mut chunk_buf[..to_read])
                 .await
-                .map_err(|e| FerroError::StorageBackend(format!("Stream read error: {}", e)))?;
+                .map_err(|e| FerroError::StorageBackend(format!("Stream read error: {e}")))?;
             if n == 0 {
                 break;
             }
 
             hasher.update(&chunk_buf[..n]);
-            let part = upload.put_part(object_store::PutPayload::from_bytes(
-                Bytes::copy_from_slice(&chunk_buf[..n]),
-            ));
-            part.await.map_err(|e| {
-                FerroError::StorageBackend(format!("Multipart part upload failed: {}", e))
-            })?;
+            let part = upload.put_part(object_store::PutPayload::from_bytes(Bytes::copy_from_slice(
+                &chunk_buf[..n],
+            )));
+            part.await
+                .map_err(|e| FerroError::StorageBackend(format!("Multipart part upload failed: {e}")))?;
             total_read += n as u64;
         }
 
         upload
             .complete()
             .await
-            .map_err(|e| FerroError::StorageBackend(format!("Multipart complete failed: {}", e)))?;
+            .map_err(|e| FerroError::StorageBackend(format!("Multipart complete failed: {e}")))?;
 
         let hash = ContentHash::new_unchecked(hex::encode(hasher.finalize()));
         let meta = FileMetadata::new(path.to_string(), hash, size, owner.to_string());
@@ -175,28 +174,27 @@ impl StorageEngine for ObjectStoreStorageEngine {
         let hash = ContentHash::compute(&content);
         let size = content.len() as u64;
 
-        let mut upload = self.store.put_multipart(&obj_path).await.map_err(|e| {
-            FerroError::StorageBackend(format!("Failed to initiate multipart upload: {}", e))
-        })?;
+        let mut upload = self
+            .store
+            .put_multipart(&obj_path)
+            .await
+            .map_err(|e| FerroError::StorageBackend(format!("Failed to initiate multipart upload: {e}")))?;
 
         let mut parts = Vec::new();
         for chunk in content.chunks(MULTIPART_CHUNK_SIZE) {
-            let part = upload.put_part(object_store::PutPayload::from_bytes(
-                Bytes::copy_from_slice(chunk),
-            ));
+            let part = upload.put_part(object_store::PutPayload::from_bytes(Bytes::copy_from_slice(chunk)));
             parts.push(part);
         }
 
         for part in parts {
-            part.await.map_err(|e| {
-                FerroError::StorageBackend(format!("Multipart part upload failed: {}", e))
-            })?;
+            part.await
+                .map_err(|e| FerroError::StorageBackend(format!("Multipart part upload failed: {e}")))?;
         }
 
         upload
             .complete()
             .await
-            .map_err(|e| FerroError::StorageBackend(format!("Multipart complete failed: {}", e)))?;
+            .map_err(|e| FerroError::StorageBackend(format!("Multipart complete failed: {e}")))?;
 
         let meta = FileMetadata::new(path.to_string(), hash, size, owner.to_string());
         debug!("PUT multipart {} ({} bytes)", path, meta.size);
@@ -209,7 +207,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
             .store
             .get(&obj_path)
             .await
-            .map_err(|e| FerroError::NotFound(format!("{}: {}", path, e)))?;
+            .map_err(|e| FerroError::NotFound(format!("{path}: {e}")))?;
         let bytes = result
             .bytes()
             .await
@@ -223,7 +221,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
             .store
             .get(&obj_path)
             .await
-            .map_err(|e| FerroError::NotFound(format!("{}: {}", path, e)))?;
+            .map_err(|e| FerroError::NotFound(format!("{path}: {e}")))?;
         let stream = result.into_stream().map_err(std::io::Error::other);
         let reader = tokio_util::io::StreamReader::new(stream);
         Ok(StorageReader::new(Box::pin(reader)))
@@ -240,12 +238,12 @@ impl StorageEngine for ObjectStoreStorageEngine {
                 if fs_path.is_dir() {
                     tokio::fs::remove_dir(&fs_path)
                         .await
-                        .map_err(|e| FerroError::StorageBackend(format!("{}: {}", path, e)))?;
+                        .map_err(|e| FerroError::StorageBackend(format!("{path}: {e}")))?;
                     debug!("DELETE dir {}", path);
                     return Ok(());
                 }
             }
-            return Err(FerroError::NotFound(format!("{}: {}", path, e)));
+            return Err(FerroError::NotFound(format!("{path}: {e}")));
         }
         debug!("DELETE {}", path);
         Ok(())
@@ -280,7 +278,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                 created_at: obj_meta.last_modified,
                 modified_at: obj_meta.last_modified,
                 owner: "unknown".to_string(),
-                etag: format!("\"{}\"", etag),
+                etag: format!("\"{etag}\""),
             });
         }
 
@@ -332,13 +330,9 @@ impl StorageEngine for ObjectStoreStorageEngine {
                 // ETag (common for LocalFileSystem), derive a deterministic value from
                 // size + modified time so conditional requests remain usable.
                 let etag = if native_etag.is_empty() {
-                    format!(
-                        "\"size-{}-mtime-{}\"",
-                        meta.size,
-                        meta.last_modified.timestamp_millis()
-                    )
+                    format!("\"size-{}-mtime-{}\"", meta.size, meta.last_modified.timestamp_millis())
                 } else {
-                    format!("\"{}\"", native_etag)
+                    format!("\"{native_etag}\"")
                 };
 
                 Ok(FileMetadata {
@@ -354,7 +348,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                     created_at: meta.last_modified,
                     modified_at: meta.last_modified,
                     owner: "unknown".to_string(),
-                    etag: format!("\"{}\"", etag),
+                    etag: format!("\"{etag}\""),
                 })
             }
             Err(_) if self.local_base.is_some() => {
@@ -367,11 +361,9 @@ impl StorageEngine for ObjectStoreStorageEngine {
                     .join(clean);
                 let metadata = tokio::fs::metadata(&fs_path)
                     .await
-                    .map_err(|e| FerroError::NotFound(format!("{}: {}", path, e)))?;
+                    .map_err(|e| FerroError::NotFound(format!("{path}: {e}")))?;
                 if metadata.is_dir() {
-                    let modified = metadata
-                        .modified()
-                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    let modified = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
                     let chrono_modified: chrono::DateTime<chrono::Utc> = modified.into();
                     Ok(FileMetadata {
                         path: path.to_string(),
@@ -385,9 +377,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                         owner: "unknown".to_string(),
                     })
                 } else {
-                    let modified = metadata
-                        .modified()
-                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    let modified = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
                     let chrono_modified: chrono::DateTime<chrono::Utc> = modified.into();
                     Ok(FileMetadata {
                         path: path.to_string(),
@@ -409,7 +399,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                     })
                 }
             }
-            Err(e) => Err(FerroError::NotFound(format!("{}: {}", path, e))),
+            Err(e) => Err(FerroError::NotFound(format!("{path}: {e}"))),
         }
     }
 
@@ -436,18 +426,15 @@ impl StorageEngine for ObjectStoreStorageEngine {
         if let Some(ref base) = self.local_base {
             let clean = path.trim_start_matches('/');
             let dir_path = base.join(clean);
-            tokio::fs::create_dir_all(&dir_path).await.map_err(|e| {
-                FerroError::StorageBackend(format!(
-                    "Failed to create directory {:?}: {}",
-                    dir_path, e
-                ))
-            })?;
+            tokio::fs::create_dir_all(&dir_path)
+                .await
+                .map_err(|e| FerroError::StorageBackend(format!("Failed to create directory {dir_path:?}: {e}")))?;
         } else {
             // For cloud object stores, create an empty marker object (directory is implicit)
             let dir_path = if path.ends_with('/') {
                 path.to_string()
             } else {
-                format!("{}/", path)
+                format!("{path}/")
             };
             let obj_path = self.to_obj_path(&dir_path);
             self.store
@@ -456,10 +443,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                 .map_err(|e| FerroError::StorageBackend(e.to_string()))?;
         }
         debug!("MKCOL {}", path);
-        Ok(FileMetadata::new_collection(
-            path.to_string(),
-            owner.to_string(),
-        ))
+        Ok(FileMetadata::new_collection(path.to_string(), owner.to_string()))
     }
 
     async fn list_all(&self, prefix: &str, max_depth: u32) -> Result<Vec<FileMetadata>> {
@@ -479,10 +463,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
             } else {
                 prefix.trim_end_matches('/')
             };
-            let relative = vpath
-                .strip_prefix(base)
-                .unwrap_or(&vpath)
-                .trim_start_matches('/');
+            let relative = vpath.strip_prefix(base).unwrap_or(&vpath).trim_start_matches('/');
             let depth = relative.matches('/').count() as u32;
             if depth >= max_depth {
                 continue;
@@ -501,7 +482,7 @@ impl StorageEngine for ObjectStoreStorageEngine {
                 created_at: obj_meta.last_modified,
                 modified_at: obj_meta.last_modified,
                 owner: "unknown".to_string(),
-                etag: format!("\"{}\"", etag),
+                etag: format!("\"{etag}\""),
             });
         }
 
@@ -517,8 +498,7 @@ mod tests {
 
     fn make_test_engine() -> (ObjectStoreStorageEngine, TempDir) {
         let tmp = TempDir::new().unwrap();
-        let local: Arc<dyn ObjectStore> =
-            Arc::new(LocalFileSystem::new_with_prefix(tmp.path()).unwrap());
+        let local: Arc<dyn ObjectStore> = Arc::new(LocalFileSystem::new_with_prefix(tmp.path()).unwrap());
         let engine = ObjectStoreStorageEngine::new(local);
         (engine, tmp)
     }
@@ -528,10 +508,7 @@ mod tests {
         let (engine, _tmp) = make_test_engine();
         let content = Bytes::from("hello world");
 
-        let meta = engine
-            .put("/test.txt", content.clone(), "user1")
-            .await
-            .unwrap();
+        let meta = engine.put("/test.txt", content.clone(), "user1").await.unwrap();
         assert_eq!(meta.path, "/test.txt");
         assert_eq!(meta.size, 11);
         assert_eq!(meta.owner, "user1");
@@ -543,10 +520,7 @@ mod tests {
     #[tokio::test]
     async fn test_put_delete() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/test.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/test.txt", Bytes::from("hello"), "user1").await.unwrap();
         assert!(engine.exists("/test.txt").await.unwrap());
 
         engine.delete("/test.txt").await.unwrap();
@@ -556,14 +530,8 @@ mod tests {
     #[tokio::test]
     async fn test_create_collection_and_list() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/docs/a.txt", Bytes::from("aaa"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/docs/b.txt", Bytes::from("bbb"), "user1")
-            .await
-            .unwrap();
+        engine.put("/docs/a.txt", Bytes::from("aaa"), "user1").await.unwrap();
+        engine.put("/docs/b.txt", Bytes::from("bbb"), "user1").await.unwrap();
 
         let items = engine.list("/docs").await.unwrap();
         let files: Vec<&FileMetadata> = items.iter().filter(|m| !m.is_collection).collect();
@@ -573,10 +541,7 @@ mod tests {
     #[tokio::test]
     async fn test_copy() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/src.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/src.txt", Bytes::from("hello"), "user1").await.unwrap();
 
         engine.copy("/src.txt", "/dst.txt").await.unwrap();
         assert!(engine.exists("/src.txt").await.unwrap());
@@ -590,10 +555,7 @@ mod tests {
     #[tokio::test]
     async fn test_move_path() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/old.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/old.txt", Bytes::from("hello"), "user1").await.unwrap();
 
         engine.move_path("/old.txt", "/new.txt").await.unwrap();
         assert!(!engine.exists("/old.txt").await.unwrap());
@@ -608,10 +570,7 @@ mod tests {
         let (engine, _tmp) = make_test_engine();
         assert!(!engine.exists("/nope.txt").await.unwrap());
 
-        engine
-            .put("/yes.txt", Bytes::from("data"), "user1")
-            .await
-            .unwrap();
+        engine.put("/yes.txt", Bytes::from("data"), "user1").await.unwrap();
         assert!(engine.exists("/yes.txt").await.unwrap());
     }
 
@@ -630,14 +589,8 @@ mod tests {
     #[tokio::test]
     async fn test_list_all_descendants() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/root/f1.txt", Bytes::from("a"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/root/sub/f2.txt", Bytes::from("b"), "user1")
-            .await
-            .unwrap();
+        engine.put("/root/f1.txt", Bytes::from("a"), "user1").await.unwrap();
+        engine.put("/root/sub/f2.txt", Bytes::from("b"), "user1").await.unwrap();
         engine
             .put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1")
             .await
@@ -650,14 +603,8 @@ mod tests {
     #[tokio::test]
     async fn test_list_all_depth_limit() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/root/f1.txt", Bytes::from("a"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/root/sub/f2.txt", Bytes::from("b"), "user1")
-            .await
-            .unwrap();
+        engine.put("/root/f1.txt", Bytes::from("a"), "user1").await.unwrap();
+        engine.put("/root/sub/f2.txt", Bytes::from("b"), "user1").await.unwrap();
         engine
             .put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1")
             .await
@@ -682,10 +629,7 @@ mod tests {
     async fn test_get_stream_reads_correctly() {
         let (engine, _tmp) = make_test_engine();
         let content = Bytes::from("streaming test data");
-        engine
-            .put("/stream.txt", content.clone(), "user1")
-            .await
-            .unwrap();
+        engine.put("/stream.txt", content.clone(), "user1").await.unwrap();
 
         let mut reader = engine.get_stream("/stream.txt").await.unwrap();
         let mut buf = vec![0u8; 64];
@@ -706,10 +650,7 @@ mod tests {
     async fn test_get_stream_large_file() {
         let (engine, _tmp) = make_test_engine();
         let large_content = Bytes::from(vec![0xAB_u8; 100_000]);
-        engine
-            .put("/large.bin", large_content.clone(), "user1")
-            .await
-            .unwrap();
+        engine.put("/large.bin", large_content.clone(), "user1").await.unwrap();
 
         let mut reader = engine.get_stream("/large.bin").await.unwrap();
         let mut buf = vec![0u8; 8192];
@@ -773,24 +714,17 @@ mod tests {
         std::fs::write(tmp.path().join("file1.txt"), "hello").unwrap();
         std::fs::write(sub.join("file2.txt"), "world").unwrap();
 
-        let local: Arc<dyn ObjectStore> =
-            Arc::new(LocalFileSystem::new_with_prefix(tmp.path()).unwrap());
+        let local: Arc<dyn ObjectStore> = Arc::new(LocalFileSystem::new_with_prefix(tmp.path()).unwrap());
 
         // Direct object_store inspection
         let lr = local.list_with_delimiter(None).await.unwrap();
         println!(
             "direct objects: {:?}",
-            lr.objects
-                .iter()
-                .map(|o| o.location.to_string())
-                .collect::<Vec<_>>()
+            lr.objects.iter().map(|o| o.location.to_string()).collect::<Vec<_>>()
         );
         println!(
             "direct prefixes: {:?}",
-            lr.common_prefixes
-                .iter()
-                .map(|p| p.to_string())
-                .collect::<Vec<_>>()
+            lr.common_prefixes.iter().map(|p| p.to_string()).collect::<Vec<_>>()
         );
 
         let engine = ObjectStoreStorageEngine::new(local);
@@ -801,10 +735,7 @@ mod tests {
             "root items: {:?}",
             items.iter().map(|m| m.path.as_str()).collect::<Vec<_>>()
         );
-        assert!(
-            items.iter().any(|m| m.path == "/file1.txt"),
-            "should see file1.txt"
-        );
+        assert!(items.iter().any(|m| m.path == "/file1.txt"), "should see file1.txt");
         assert!(
             items.iter().any(|m| m.path == "/subdir" && m.is_collection),
             "should see subdir as collection"

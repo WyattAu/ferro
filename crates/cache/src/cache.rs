@@ -104,17 +104,10 @@ where
             self.stats.sub_size(existing.size_bytes);
         }
         self.stats.add_size(size_bytes);
-        self.entries
-            .insert(key, CacheEntry::new(value, ttl, size_bytes));
+        self.entries.insert(key, CacheEntry::new(value, ttl, size_bytes));
     }
 
-    pub fn set_with_size(
-        &self,
-        key: K,
-        value: V,
-        ttl: Option<Duration>,
-        size_bytes: u64,
-    ) -> Result<(), CacheError> {
+    pub fn set_with_size(&self, key: K, value: V, ttl: Option<Duration>, size_bytes: u64) -> Result<(), CacheError> {
         if let Some(max_entries) = self.max_entries
             && self.entries.len() >= max_entries
             && !self.entries.contains_key(&key)
@@ -224,9 +217,7 @@ where
     }
 
     fn contains_key(&self, key: &K) -> bool {
-        self.entries
-            .get(key)
-            .is_some_and(|entry| !entry.is_expired())
+        self.entries.get(key).is_some_and(|entry| !entry.is_expired())
     }
 
     fn len(&self) -> usize {

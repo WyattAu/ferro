@@ -28,10 +28,7 @@ pub async fn index_file(state: &AppState, metadata: &FileMetadata) {
         return;
     }
     if let Err(e) = engine.commit() {
-        warn!(
-            "Auto-index: failed to commit after indexing {}: {}",
-            metadata.path, e
-        );
+        warn!("Auto-index: failed to commit after indexing {}: {}", metadata.path, e);
         return;
     }
     debug!("Auto-indexed: {}", metadata.path);
@@ -65,10 +62,7 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
         if let Ok(content_str) = std::str::from_utf8(content) {
             let truncated = &content_str[..content_str.len().min(1_000_000)];
             if let Err(e) = engine.index_content(metadata, truncated) {
-                warn!(
-                    "Auto-index: failed to index content for {}: {}",
-                    metadata.path, e
-                );
+                warn!("Auto-index: failed to index content for {}: {}", metadata.path, e);
                 return;
             }
             content_to_index = Some(truncated);
@@ -105,10 +99,7 @@ pub async fn index_file_with_content(state: &AppState, metadata: &FileMetadata, 
     }
 
     if let Err(e) = engine.commit() {
-        warn!(
-            "Auto-index: failed to commit after indexing {}: {}",
-            metadata.path, e
-        );
+        warn!("Auto-index: failed to commit after indexing {}: {}", metadata.path, e);
         return;
     }
     debug!("Auto-indexed with content: {}", metadata.path);
@@ -126,20 +117,13 @@ pub async fn remove_file(state: &AppState, path: &str) {
         return;
     }
     if let Err(e) = engine.commit() {
-        warn!(
-            "Auto-index: failed to commit after removing {}: {}",
-            path, e
-        );
+        warn!("Auto-index: failed to commit after removing {}: {}", path, e);
         return;
     }
     debug!("Auto-removed from index: {}", path);
 }
 
-pub fn spawn_indexer(
-    state: Arc<AppState>,
-    interval_secs: u64,
-    cancel: tokio_util::sync::CancellationToken,
-) {
+pub fn spawn_indexer(state: Arc<AppState>, interval_secs: u64, cancel: tokio_util::sync::CancellationToken) {
     tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(interval_secs));
 

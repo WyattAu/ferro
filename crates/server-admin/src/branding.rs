@@ -97,9 +97,7 @@ pub async fn update_branding(
     }
     if let Some(primary_color) = req.primary_color {
         // Validate hex color format
-        if !primary_color.starts_with('#')
-            || !(primary_color.len() == 7 || primary_color.len() == 4)
-        {
+        if !primary_color.starts_with('#') || !(primary_color.len() == 7 || primary_color.len() == 4) {
             return (
                 StatusCode::BAD_REQUEST,
                 axum::Json(serde_json::json!({
@@ -151,11 +149,9 @@ pub async fn reset_branding(State(state): State<AppState>) -> Response {
 pub fn load_branding(state: &AppState) -> BrandingConfig {
     if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        if let Ok(value) = conn.query_row(
-            "SELECT value FROM preferences WHERE key = 'branding'",
-            [],
-            |row| row.get::<_, String>(0),
-        ) && let Ok(config) = serde_json::from_str::<BrandingConfig>(&value)
+        if let Ok(value) = conn.query_row("SELECT value FROM preferences WHERE key = 'branding'", [], |row| {
+            row.get::<_, String>(0)
+        }) && let Ok(config) = serde_json::from_str::<BrandingConfig>(&value)
         {
             return config;
         }

@@ -19,9 +19,6 @@ serde_json = "1"
 tokio = { version = "1", features = ["rt", "sync"] }
 thiserror = "2"
 url = "2"
-chrono = { version = "0.4", default-features = false, features = ["serde"] }
-base64 = "0.22"
-urlencoding = "2"
 ferro-selective-sync = { path = "../selective-sync" }
 
 [features]

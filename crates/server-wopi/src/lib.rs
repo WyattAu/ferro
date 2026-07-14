@@ -133,13 +133,7 @@ fn validate_access_token(state: &WopiState, token: &Option<String>) -> Result<St
 
     let expected_sig = {
         let mut mac = hmac::Hmac::<Sha256>::new_from_slice(state.wopi_token_secret.as_bytes())
-            .map_err(|_| {
-                wopi_error(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "INTERNAL_ERROR",
-                    "HMAC error",
-                )
-            })?;
+            .map_err(|_| wopi_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "HMAC error"))?;
         mac.update(payload_str.as_bytes());
         let sig = mac.finalize();
         hex::encode(sig.into_bytes())
@@ -292,12 +286,7 @@ async fn check_file_info_inner(state: &WopiState, path: &str) -> Response {
         Err(_) => return wopi_error(StatusCode::NOT_FOUND, "FILE_NOT_FOUND", "File not found"),
     };
 
-    let file_name = meta
-        .path
-        .rsplit('/')
-        .next()
-        .unwrap_or("unknown")
-        .to_string();
+    let file_name = meta.path.rsplit('/').next().unwrap_or("unknown").to_string();
 
     let response = WopiCheckFileInfoResponse {
         base_file_name: file_name,
@@ -354,11 +343,7 @@ async fn put_file_inner(
         let lock_token = headers.get("X-WOPI-Lock").and_then(|v| v.to_str().ok());
         if let Some(token) = lock_token {
             if lock.token.as_opaque() != token {
-                return wopi_error(
-                    StatusCode::CONFLICT,
-                    "FILE_LOCKED",
-                    "File locked by another user",
-                );
+                return wopi_error(StatusCode::CONFLICT, "FILE_LOCKED", "File locked by another user");
             }
         } else {
             return wopi_error_with_details(
@@ -380,11 +365,7 @@ async fn put_file_inner(
             info!("WOPI PutFile: {}", full_path);
             (StatusCode::OK, "").into_response()
         }
-        Err(e) => wopi_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "INTERNAL_ERROR",
-            e.to_string(),
-        ),
+        Err(e) => wopi_error(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", e.to_string()),
     }
 }
 
@@ -416,17 +397,10 @@ async fn lock_file_inner(state: &WopiState, path: &str) -> Response {
     }
 }
 
-async fn unlock_file_inner(
-    state: &WopiState,
-    path: &str,
-    headers: &axum::http::HeaderMap,
-) -> Response {
+async fn unlock_file_inner(state: &WopiState, path: &str, headers: &axum::http::HeaderMap) -> Response {
     let _full_path = format!("/{}", path);
 
-    let lock_token = headers
-        .get("X-WOPI-LockId")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
+    let lock_token = headers.get("X-WOPI-LockId").and_then(|v| v.to_str().ok()).unwrap_or("");
 
     match state.lock_manager.release_lock(lock_token).await {
         Ok(()) => (StatusCode::OK, "").into_response(),
@@ -440,9 +414,7 @@ pub async fn wopi_issue_token(
     Path(path): Path<String>,
 ) -> Response {
     if state.wopi_token_secret.is_empty() {
-        tracing::error!(
-            "WOPI token secret is not configured. Set --wopi-token-secret to a strong random value."
-        );
+        tracing::error!("WOPI token secret is not configured. Set --wopi-token-secret to a strong random value.");
         return wopi_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "WOPI_TOKEN_SECRET_NOT_SET",
@@ -478,8 +450,7 @@ pub async fn wopi_issue_token(
     let signature = mac.finalize();
     let sig_hex = hex::encode(signature.into_bytes());
 
-    let token =
-        base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", payload_str, sig_hex));
+    let token = base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", payload_str, sig_hex));
 
     (
         StatusCode::OK,
@@ -551,12 +522,7 @@ mod tests {
                 .ok_or_else(|| FerroError::NotFound(path.to_string()))
         }
 
-        async fn put(
-            &self,
-            path: &str,
-            content: bytes::Bytes,
-            _owner: &str,
-        ) -> common::error::Result<FileMetadata> {
+        async fn put(&self, path: &str, content: bytes::Bytes, _owner: &str) -> common::error::Result<FileMetadata> {
             self.files.write().await.insert(path.to_string(), content);
             self.head(path).await
         }
@@ -580,23 +546,12 @@ mod tests {
             Ok(self.files.read().await.contains_key(path))
         }
 
-        async fn create_collection(
-            &self,
-            path: &str,
-            _owner: &str,
-        ) -> common::error::Result<FileMetadata> {
-            self.files
-                .write()
-                .await
-                .insert(path.to_string(), bytes::Bytes::new());
+        async fn create_collection(&self, path: &str, _owner: &str) -> common::error::Result<FileMetadata> {
+            self.files.write().await.insert(path.to_string(), bytes::Bytes::new());
             self.head(path).await
         }
 
-        async fn list_all(
-            &self,
-            _path: &str,
-            _max_depth: u32,
-        ) -> common::error::Result<Vec<FileMetadata>> {
+        async fn list_all(&self, _path: &str, _max_depth: u32) -> common::error::Result<Vec<FileMetadata>> {
             Ok(vec![])
         }
     }
@@ -635,10 +590,7 @@ mod tests {
                 created_at: chrono::Utc::now(),
                 refresh_count: 0,
             };
-            self.locks
-                .write()
-                .await
-                .insert(path.to_string(), info.clone());
+            self.locks.write().await.insert(path.to_string(), info.clone());
             Ok(info)
         }
 
@@ -656,11 +608,7 @@ mod tests {
             }
         }
 
-        async fn refresh_lock(
-            &self,
-            _token: &str,
-            _timeout_secs: Option<u32>,
-        ) -> common::error::Result<LockInfo> {
+        async fn refresh_lock(&self, _token: &str, _timeout_secs: Option<u32>) -> common::error::Result<LockInfo> {
             Err(FerroError::NotFound("lock not found".to_string()))
         }
 
@@ -688,10 +636,7 @@ mod tests {
         let token_a = sign_token(&payload, secret_a);
         let token_b = sign_token(&payload, secret_b);
 
-        assert_ne!(
-            token_a, token_b,
-            "Tokens signed with different secrets must differ"
-        );
+        assert_ne!(token_a, token_b, "Tokens signed with different secrets must differ");
 
         let state_a = make_wopi_state(secret_a);
         let state_b = make_wopi_state(secret_b);
@@ -706,9 +651,7 @@ mod tests {
         let payload = build_token_payload("/docs/report.odt", "alice", 4000000000);
         let token = sign_token(&payload, secret);
 
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(&token)
-            .unwrap();
+        let decoded = base64::engine::general_purpose::STANDARD.decode(&token).unwrap();
         let decoded_str = String::from_utf8(decoded).unwrap();
         let sep_idx = decoded_str.rfind(':').unwrap();
         let (recovered_payload, recovered_sig) = decoded_str.split_at(sep_idx);
@@ -824,11 +767,7 @@ mod tests {
 
         state
             .storage
-            .put(
-                "/hello.txt",
-                bytes::Bytes::from_static(b"hello world"),
-                "owner",
-            )
+            .put("/hello.txt", bytes::Bytes::from_static(b"hello world"), "owner")
             .await
             .unwrap();
 
@@ -865,11 +804,7 @@ mod tests {
 
         state
             .storage
-            .put(
-                "/doc.txt",
-                bytes::Bytes::from_static(b"content here"),
-                "owner",
-            )
+            .put("/doc.txt", bytes::Bytes::from_static(b"content here"), "owner")
             .await
             .unwrap();
 
@@ -952,12 +887,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(lock_response.status(), StatusCode::OK);
-        let lock_body = lock_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
+        let lock_body = lock_response.into_body().collect().await.unwrap().to_bytes();
         let lock_json: serde_json::Value = serde_json::from_slice(&lock_body).unwrap();
         let lock_id = lock_json["lock_id"].as_str().unwrap().to_string();
 

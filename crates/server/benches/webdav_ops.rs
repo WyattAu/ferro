@@ -37,8 +37,7 @@ fn bench_webdav_ops(c: &mut Criterion) {
                         // Populate with items
                         for i in 0..item_count {
                             let body = generate_test_body(64);
-                            make_request(&app, "PUT", &format!("/bench_dir/file_{}.txt", i), body)
-                                .await;
+                            make_request(&app, "PUT", &format!("/bench_dir/file_{}.txt", i), body).await;
                         }
 
                         // Benchmark the PROPFIND
@@ -77,19 +76,12 @@ fn bench_webdav_ops(c: &mut Criterion) {
                         make_request(&app, "MKCOL", "/del_dir", Bytes::new()).await;
                         for i in 0..child_count {
                             let body = generate_test_body(64);
-                            make_request(&app, "PUT", &format!("/del_dir/file_{}.txt", i), body)
-                                .await;
+                            make_request(&app, "PUT", &format!("/del_dir/file_{}.txt", i), body).await;
                         }
 
                         // Benchmark recursive delete (delete collection + children)
                         for i in 0..child_count {
-                            make_request(
-                                &app,
-                                "DELETE",
-                                &format!("/del_dir/file_{}.txt", i),
-                                Bytes::new(),
-                            )
-                            .await;
+                            make_request(&app, "DELETE", &format!("/del_dir/file_{}.txt", i), Bytes::new()).await;
                         }
                         make_request(&app, "DELETE", "/del_dir", Bytes::new()).await;
                     })

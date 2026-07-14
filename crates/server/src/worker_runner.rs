@@ -5,11 +5,7 @@ use tokio::time;
 use tracing::{debug, info, warn};
 
 /// Spawn a background task that periodically scans for changed files and triggers matching WASM workers.
-pub fn spawn_worker_runner(
-    state: Arc<AppState>,
-    interval_secs: u64,
-    cancel: tokio_util::sync::CancellationToken,
-) {
+pub fn spawn_worker_runner(state: Arc<AppState>, interval_secs: u64, cancel: tokio_util::sync::CancellationToken) {
     if state.wasm_runtime.is_none() {
         return;
     }

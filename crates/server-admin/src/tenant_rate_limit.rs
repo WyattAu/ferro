@@ -30,16 +30,10 @@ pub struct TenantRateLimitResponse {
 /// GET /api/admin/tenants/:id/rate-limit
 ///
 /// Returns the rate limit configuration for a specific tenant.
-pub async fn get_tenant_rate_limit(
-    State(state): State<AppState>,
-    Path(tenant_id): Path<String>,
-) -> Response {
+pub async fn get_tenant_rate_limit(State(state): State<AppState>, Path(tenant_id): Path<String>) -> Response {
     let Some(store) = &state.tenant_rate_limit_store else {
-        return ApiError::not_found(
-            "TENANT_RATE_LIMIT_DISABLED",
-            "Tenant rate limiting is not configured",
-        )
-        .into_response();
+        return ApiError::not_found("TENANT_RATE_LIMIT_DISABLED", "Tenant rate limiting is not configured")
+            .into_response();
     };
 
     let config = store.get_config(&tenant_id);
@@ -62,11 +56,8 @@ pub async fn update_tenant_rate_limit(
     Json(req): Json<UpdateTenantRateLimitRequest>,
 ) -> Response {
     let Some(store) = &state.tenant_rate_limit_store else {
-        return ApiError::not_found(
-            "TENANT_RATE_LIMIT_DISABLED",
-            "Tenant rate limiting is not configured",
-        )
-        .into_response();
+        return ApiError::not_found("TENANT_RATE_LIMIT_DISABLED", "Tenant rate limiting is not configured")
+            .into_response();
     };
 
     let mut config = store.get_config(&tenant_id);
@@ -100,24 +91,15 @@ pub async fn update_tenant_rate_limit(
 /// GET /api/admin/tenants/:id/rate-limit/status
 ///
 /// Returns the current rate limit usage status for a tenant.
-pub async fn get_tenant_rate_limit_status(
-    State(state): State<AppState>,
-    Path(tenant_id): Path<String>,
-) -> Response {
+pub async fn get_tenant_rate_limit_status(State(state): State<AppState>, Path(tenant_id): Path<String>) -> Response {
     let Some(limiter) = &state.tenant_rate_limiter else {
-        return ApiError::not_found(
-            "TENANT_RATE_LIMIT_DISABLED",
-            "Tenant rate limiting is not configured",
-        )
-        .into_response();
+        return ApiError::not_found("TENANT_RATE_LIMIT_DISABLED", "Tenant rate limiting is not configured")
+            .into_response();
     };
 
     let Some(store) = &state.tenant_rate_limit_store else {
-        return ApiError::not_found(
-            "TENANT_RATE_LIMIT_DISABLED",
-            "Tenant rate limiting is not configured",
-        )
-        .into_response();
+        return ApiError::not_found("TENANT_RATE_LIMIT_DISABLED", "Tenant rate limiting is not configured")
+            .into_response();
     };
 
     let config = store.get_config(&tenant_id);
@@ -133,27 +115,19 @@ pub async fn get_tenant_rate_limit_status(
             "reset_at": status.reset_at.elapsed().as_secs(),
         }))
         .into_response(),
-        Err(e) => ApiError::internal(
-            "RATE_LIMIT_CHECK_FAILED",
-            format!("Rate limit check failed: {e}"),
-        )
-        .into_response(),
+        Err(e) => {
+            ApiError::internal("RATE_LIMIT_CHECK_FAILED", format!("Rate limit check failed: {e}")).into_response()
+        }
     }
 }
 
 /// DELETE /api/admin/tenants/:id/rate-limit
 ///
 /// Removes a tenant's custom rate limit configuration, reverting to defaults.
-pub async fn delete_tenant_rate_limit(
-    State(state): State<AppState>,
-    Path(tenant_id): Path<String>,
-) -> Response {
+pub async fn delete_tenant_rate_limit(State(state): State<AppState>, Path(tenant_id): Path<String>) -> Response {
     let Some(store) = &state.tenant_rate_limit_store else {
-        return ApiError::not_found(
-            "TENANT_RATE_LIMIT_DISABLED",
-            "Tenant rate limiting is not configured",
-        )
-        .into_response();
+        return ApiError::not_found("TENANT_RATE_LIMIT_DISABLED", "Tenant rate limiting is not configured")
+            .into_response();
     };
 
     store.remove_config(&tenant_id);
@@ -170,11 +144,8 @@ pub async fn delete_tenant_rate_limit(
 /// Lists all configured tenant rate limits.
 pub async fn list_tenant_rate_limits(State(state): State<AppState>) -> Response {
     let Some(store) = &state.tenant_rate_limit_store else {
-        return ApiError::not_found(
-            "TENANT_RATE_LIMIT_DISABLED",
-            "Tenant rate limiting is not configured",
-        )
-        .into_response();
+        return ApiError::not_found("TENANT_RATE_LIMIT_DISABLED", "Tenant rate limiting is not configured")
+            .into_response();
     };
 
     let configs: Vec<TenantRateLimitResponse> = store
@@ -207,9 +178,7 @@ mod tests {
         let mut state = AppState::in_memory();
         let store = Arc::new(ferro_rate_limiter::tenant::TenantRateLimitStore::new());
         state.tenant_rate_limit_store = Some(store.clone());
-        state.tenant_rate_limiter = Some(Arc::new(
-            ferro_rate_limiter::tenant::TenantAwareRateLimiter::new(store),
-        ));
+        state.tenant_rate_limiter = Some(Arc::new(ferro_rate_limiter::tenant::TenantAwareRateLimiter::new(store)));
         state
     }
 
@@ -313,9 +282,7 @@ mod tests {
                     .method("PUT")
                     .uri("/admin/tenants/tenant-1/rate-limit")
                     .header("content-type", "application/json")
-                    .body(Body::from(
-                        serde_json::json!({"max_requests": 100}).to_string(),
-                    ))
+                    .body(Body::from(serde_json::json!({"max_requests": 100}).to_string()))
                     .unwrap(),
             )
             .await
@@ -364,9 +331,7 @@ mod tests {
                         .method("PUT")
                         .uri(format!("/admin/tenants/{tenant_id}/rate-limit"))
                         .header("content-type", "application/json")
-                        .body(Body::from(
-                            serde_json::json!({"max_requests": 200}).to_string(),
-                        ))
+                        .body(Body::from(serde_json::json!({"max_requests": 200}).to_string()))
                         .unwrap(),
                 )
                 .await

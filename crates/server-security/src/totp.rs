@@ -43,22 +43,14 @@ fn extract_username<S: SecurityAppState>(state: &S) -> Option<String> {
     state.admin_user().clone()
 }
 
-async fn verify_user_password<S: SecurityAppState>(
-    state: &S,
-    username: &str,
-    password: &str,
-) -> bool {
+async fn verify_user_password<S: SecurityAppState>(state: &S, username: &str, password: &str) -> bool {
     #[allow(clippy::collapsible_if)]
     if let (Some(admin_pw), Some(admin_user)) = (state.admin_password(), state.admin_user()) {
         if username == admin_user.as_str() {
             return password.as_bytes().ct_eq(admin_pw.as_bytes()).into();
         }
     }
-    state
-        .user_store()
-        .authenticate(username, password)
-        .await
-        .is_ok()
+    state.user_store().authenticate(username, password).await.is_ok()
 }
 
 async fn get_user_id<S: SecurityAppState>(state: &S, username: &str) -> Option<String> {
@@ -84,7 +76,7 @@ async fn get_totp_secret<S: SecurityAppState>(state: &S, username: &str) -> Opti
         .user_store()
         .get_user_by_username_blocking(username)
         .ok()
-        .and_then(|u| u.totp_secret)
+        .and_then(|u| u.totp_secret.map(|s| s.into_inner()))
 }
 
 async fn is_totp_enabled<S: SecurityAppState>(state: &S, username: &str) -> bool {
@@ -92,14 +84,10 @@ async fn is_totp_enabled<S: SecurityAppState>(state: &S, username: &str) -> bool
         .user_store()
         .get_user_by_username_blocking(username)
         .ok()
-        .map(|u| u.totp_enabled)
-        .unwrap_or(false)
+        .is_some_and(|u| u.totp_enabled)
 }
 
-pub async fn totp_setup<S: SecurityAppState>(
-    State(state): State<S>,
-    Json(body): Json<TotpSetupRequest>,
-) -> Response {
+pub async fn totp_setup<S: SecurityAppState>(State(state): State<S>, Json(body): Json<TotpSetupRequest>) -> Response {
     let username = match extract_username(&state) {
         Some(u) => u,
         None => {
@@ -144,7 +132,7 @@ pub async fn totp_setup<S: SecurityAppState>(
     };
 
     if let Some(db) = state.db() {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Err(e) = conn.execute(
             "UPDATE users SET totp_secret = ?1 WHERE id = ?2",
             rusqlite::params![secret_b32, user_id],
@@ -171,10 +159,7 @@ pub async fn totp_setup<S: SecurityAppState>(
         .into_response()
 }
 
-pub async fn totp_enable<S: SecurityAppState>(
-    State(state): State<S>,
-    Json(body): Json<TotpVerifyRequest>,
-) -> Response {
+pub async fn totp_enable<S: SecurityAppState>(State(state): State<S>, Json(body): Json<TotpVerifyRequest>) -> Response {
     let username = match extract_username(&state) {
         Some(u) => u,
         None => {
@@ -269,7 +254,7 @@ pub async fn totp_enable<S: SecurityAppState>(
     };
 
     if let Some(db) = state.db() {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Err(e) = conn.execute(
             "UPDATE users SET totp_enabled = 1 WHERE id = ?1",
             rusqlite::params![user_id],
@@ -340,7 +325,7 @@ pub async fn totp_disable<S: SecurityAppState>(
     };
 
     if let Some(db) = state.db() {
-        let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+        let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Err(e) = conn.execute(
             "UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?1",
             rusqlite::params![user_id],

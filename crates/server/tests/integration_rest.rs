@@ -34,12 +34,7 @@ fn auth_app() -> axum::Router {
 async fn test_get_config_returns_version_and_features() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -62,12 +57,7 @@ async fn test_get_config_deprecated_endpoint() {
     let app = test_app();
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -75,12 +65,7 @@ async fn test_get_config_deprecated_endpoint() {
     assert_eq!(resp.headers().get("deprecation").unwrap(), "true");
     let v1_resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
     let deprecated_json = body_json(resp).await;
@@ -93,12 +78,7 @@ async fn test_get_config_deprecated_endpoint() {
 async fn test_healthz_returns_ok() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/healthz")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/healthz").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -112,12 +92,7 @@ async fn test_healthz_returns_ok() {
 async fn test_readyz_returns_json_status() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/readyz")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/readyz").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -160,12 +135,7 @@ async fn test_well_known_ferro_returns_version_and_subsystems() {
 async fn test_list_files_root_empty() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/files")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/files").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -221,13 +191,7 @@ async fn test_mkdir_creates_directory() {
         .unwrap();
 
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let location = resp
-        .headers()
-        .get("location")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let location = resp.headers().get("location").unwrap().to_str().unwrap().to_string();
     let json = body_json(resp).await;
     assert_eq!(json["path"], "/newfolder");
     assert!(json.get("created_at").is_some());
@@ -387,12 +351,7 @@ async fn test_download_file_returns_content_disposition() {
         .unwrap();
 
     assert_eq!(resp.status(), StatusCode::OK);
-    let disposition = resp
-        .headers()
-        .get("content-disposition")
-        .unwrap()
-        .to_str()
-        .unwrap();
+    let disposition = resp.headers().get("content-disposition").unwrap().to_str().unwrap();
     assert!(disposition.contains("my-report.pdf"));
 }
 
@@ -499,12 +458,7 @@ async fn test_search_without_engine_returns_empty_results() {
 async fn test_search_empty_query_returns_400() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/search?q=")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/search?q=").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -516,12 +470,7 @@ async fn test_search_empty_query_returns_400() {
 async fn test_quota_unlimited_by_default() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/quota")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/quota").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -575,12 +524,7 @@ async fn test_delete_nonexistent_file_returns_404() {
 async fn test_auth_protected_endpoint_without_credentials_returns_401() {
     let app = auth_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/files")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/files").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -611,12 +555,7 @@ async fn test_auth_valid_credentials_accepted() {
 async fn test_auth_public_paths_bypass_auth() {
     let app = auth_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -906,12 +845,7 @@ async fn test_patch_file_returns_method_not_allowed() {
 async fn test_auth_info_anonymous() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/auth/info")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/auth/info").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -927,12 +861,7 @@ async fn test_auth_info_anonymous() {
 async fn test_audit_log_returns_entries() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/audit")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/audit").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -949,12 +878,7 @@ async fn test_audit_log_returns_entries() {
 async fn test_tags_endpoint() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/tags")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/tags").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -966,12 +890,7 @@ async fn test_tags_endpoint() {
 async fn test_trash_list() {
     let app = test_app();
     let resp = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/trash")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/trash").body(Body::empty()).unwrap())
         .await
         .unwrap();
 

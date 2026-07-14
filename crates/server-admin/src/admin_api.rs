@@ -130,10 +130,7 @@ pub struct StorageQueryParams {
     ),
     tags = ["admin"],
 )]
-pub async fn admin_storage(
-    State(state): State<AppState>,
-    Query(_params): Query<StorageQueryParams>,
-) -> Response {
+pub async fn admin_storage(State(state): State<AppState>, Query(_params): Query<StorageQueryParams>) -> Response {
     let mut file_count = 0u64;
     let mut collection_count = 0u64;
     let mut total_bytes = 0u64;
@@ -213,10 +210,7 @@ pub struct AuditQueryParams {
     ),
     tags = ["admin"],
 )]
-pub async fn admin_audit(
-    State(state): State<AppState>,
-    Query(params): Query<AuditQueryParams>,
-) -> Response {
+pub async fn admin_audit(State(state): State<AppState>, Query(params): Query<AuditQueryParams>) -> Response {
     let limit: usize = params.limit.unwrap_or(100);
     let offset: usize = params.offset.unwrap_or(0);
 
@@ -281,16 +275,11 @@ pub async fn admin_audit(
 /// GET /api/admin/maintenance — check current maintenance mode status.
 /// POST /api/admin/maintenance — toggle maintenance mode on/off.
 /// The body should be `{ "enabled": true }` or `{ "enabled": false }`.
-pub async fn admin_maintenance(
-    State(state): State<AppState>,
-    req: axum::extract::Request,
-) -> Response {
+pub async fn admin_maintenance(State(state): State<AppState>, req: axum::extract::Request) -> Response {
     let method = req.method().clone();
 
     if method == axum::http::Method::GET {
-        let enabled = state
-            .maintenance_mode
-            .load(std::sync::atomic::Ordering::Relaxed);
+        let enabled = state.maintenance_mode.load(std::sync::atomic::Ordering::Relaxed);
         return (
             StatusCode::OK,
             axum::Json(serde_json::json!({
@@ -369,10 +358,7 @@ pub struct GdprErasureResponse {
     ),
     tags = ["admin"],
 )]
-pub async fn admin_export_user_data(
-    State(state): State<AppState>,
-    Path(user_id): Path<String>,
-) -> Response {
+pub async fn admin_export_user_data(State(state): State<AppState>, Path(user_id): Path<String>) -> Response {
     let user = match state.user_store.get_user(&user_id).await {
         Ok(u) => u,
         Err(_) => {
@@ -384,10 +370,7 @@ pub async fn admin_export_user_data(
         Ok(d) => d,
         Err(e) => {
             tracing::warn!(error = %e, "failed to create temp dir for GDPR export");
-            return ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                "Failed to create export directory",
-            );
+            return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create export directory");
         }
     };
 
@@ -444,8 +427,7 @@ pub async fn admin_export_user_data(
             })
             .collect()
     };
-    let audit_json =
-        serde_json::to_string_pretty(&audit_entries).unwrap_or_else(|_| "[]".to_string());
+    let audit_json = serde_json::to_string_pretty(&audit_entries).unwrap_or_else(|_| "[]".to_string());
     std::fs::write(tmp_dir.path().join("audit_log.json"), &audit_json).ok();
 
     let shares_list: Vec<serde_json::Value> = {
@@ -466,13 +448,11 @@ pub async fn admin_export_user_data(
             })
             .collect()
     };
-    let shares_json =
-        serde_json::to_string_pretty(&shares_list).unwrap_or_else(|_| "[]".to_string());
+    let shares_json = serde_json::to_string_pretty(&shares_list).unwrap_or_else(|_| "[]".to_string());
     std::fs::write(tmp_dir.path().join("shares.json"), &shares_json).ok();
 
     let favorites_list: Vec<String> = state.favorites.list().await;
-    let fav_json =
-        serde_json::to_string_pretty(&favorites_list).unwrap_or_else(|_| "[]".to_string());
+    let fav_json = serde_json::to_string_pretty(&favorites_list).unwrap_or_else(|_| "[]".to_string());
     std::fs::write(tmp_dir.path().join("favorites.json"), &fav_json).ok();
 
     let tags_list: Vec<serde_json::Value> = state
@@ -498,9 +478,7 @@ pub async fn admin_export_user_data(
         .compression_method(zip::CompressionMethod::Deflated)
         .compression_level(Some(6));
 
-    for entry in std::fs::read_dir(tmp_dir.path())
-        .unwrap_or_else(|_| std::fs::read_dir(tmp_dir.path()).unwrap())
-    {
+    for entry in std::fs::read_dir(tmp_dir.path()).unwrap_or_else(|_| std::fs::read_dir(tmp_dir.path()).unwrap()) {
         let entry = match entry {
             Ok(e) => e,
             Err(_) => continue,
@@ -509,11 +487,7 @@ pub async fn admin_export_user_data(
         if !path.is_file() {
             continue;
         }
-        let name = path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
         if let Err(e) = zip_writer.start_file(&name, options) {
             tracing::warn!(error = %e, file = %name, "failed to start zip entry");
             continue;
@@ -556,9 +530,7 @@ pub async fn admin_export_user_data(
     headers.insert(
         axum::http::header::CONTENT_DISPOSITION,
         axum::http::HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename))
-            .unwrap_or_else(|_| {
-                axum::http::HeaderValue::from_static("attachment; filename=\"export.zip\"")
-            }),
+            .unwrap_or_else(|_| axum::http::HeaderValue::from_static("attachment; filename=\"export.zip\"")),
     );
     (headers, axum::body::Body::from(zip_bytes)).into_response()
 }
@@ -573,10 +545,7 @@ pub async fn admin_export_user_data(
     ),
     tags = ["admin"],
 )]
-pub async fn admin_erase_user_data(
-    State(state): State<AppState>,
-    Path(user_id): Path<String>,
-) -> Response {
+pub async fn admin_erase_user_data(State(state): State<AppState>, Path(user_id): Path<String>) -> Response {
     let user = match state.user_store.get_user(&user_id).await {
         Ok(u) => u,
         Err(_) => {
@@ -629,9 +598,7 @@ pub async fn admin_erase_user_data(
             .iter()
             .flat_map(|entry| {
                 let (path, tags) = entry.pair();
-                tags.iter()
-                    .map(|tag| (path.clone(), tag.clone()))
-                    .collect::<Vec<_>>()
+                tags.iter().map(|tag| (path.clone(), tag.clone())).collect::<Vec<_>>()
             })
             .collect();
         let count = tag_entries.len() as u64;
@@ -727,11 +694,7 @@ pub async fn admin_list_users(State(state): State<AppState>) -> Response {
         })
         .collect();
 
-    (
-        StatusCode::OK,
-        axum::Json(AdminUsersResponse { users: summaries }),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(AdminUsersResponse { users: summaries })).into_response()
 }
 
 #[utoipa::path(
@@ -754,9 +717,7 @@ pub async fn admin_get_user(State(state): State<AppState>, Path(id): Path<String
             (StatusCode::OK, axum::Json(v)).into_response()
         }
         Err(e) => match e.kind {
-            ferro_server::users::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
+            ferro_server::users::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
@@ -814,9 +775,7 @@ pub async fn admin_set_user_role(
             (StatusCode::OK, axum::Json(v)).into_response()
         }
         Err(e) => match e.kind {
-            ferro_server::users::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
+            ferro_server::users::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
@@ -1016,10 +975,7 @@ pub async fn admin_audit_summary(State(state): State<AppState>) -> Response {
         *by_action.entry(entry.method.clone()).or_insert(0) += 1;
         *by_user.entry(entry.user.clone()).or_insert(0) += 1;
         if let Ok(ts) = chrono::DateTime::parse_from_rfc3339(&entry.timestamp) {
-            let day = ts
-                .with_timezone(&chrono::Utc)
-                .format("%Y-%m-%d")
-                .to_string();
+            let day = ts.with_timezone(&chrono::Utc).format("%Y-%m-%d").to_string();
             *by_day.entry(day).or_insert(0) += 1;
         }
     }
@@ -1067,10 +1023,7 @@ mod tests {
                 "/admin/users/:id",
                 axum::routing::get(super::admin_get_user).delete(super::admin_delete_user),
             )
-            .route(
-                "/admin/users/:id/role",
-                axum::routing::put(super::admin_set_user_role),
-            )
+            .route("/admin/users/:id/role", axum::routing::put(super::admin_set_user_role))
             .with_state(state)
     }
 
@@ -1108,12 +1061,7 @@ mod tests {
         let app = ferro_server::build_router(state);
 
         let resp = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/admin/stats")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/api/admin/stats").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -1283,7 +1231,9 @@ mod tests {
             storage_quota_bytes: None,
             storage_used_bytes: 0,
             is_ldap: false,
-            password_hash: Some(ferro_server::users::hash_password("pw").unwrap()),
+            password_hash: Some(ferro_server::users::ZeroizeString::new(
+                ferro_server::users::hash_password("pw").unwrap(),
+            )),
             totp_secret: None,
             totp_enabled: false,
         };
@@ -1324,7 +1274,9 @@ mod tests {
             storage_quota_bytes: None,
             storage_used_bytes: 0,
             is_ldap: false,
-            password_hash: Some(ferro_server::users::hash_password("pw").unwrap()),
+            password_hash: Some(ferro_server::users::ZeroizeString::new(
+                ferro_server::users::hash_password("pw").unwrap(),
+            )),
             totp_secret: None,
             totp_enabled: false,
         };
@@ -1366,7 +1318,9 @@ mod tests {
             storage_quota_bytes: None,
             storage_used_bytes: 0,
             is_ldap: false,
-            password_hash: Some(ferro_server::users::hash_password("pw").unwrap()),
+            password_hash: Some(ferro_server::users::ZeroizeString::new(
+                ferro_server::users::hash_password("pw").unwrap(),
+            )),
             totp_secret: None,
             totp_enabled: false,
         };

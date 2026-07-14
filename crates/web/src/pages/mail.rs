@@ -109,21 +109,13 @@ pub fn MailPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(MailAccount {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        email: v
-                                            .get("email")
-                                            .and_then(|e| e.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        email: v.get("email").and_then(|e| e.as_str()).unwrap_or("").to_string(),
                                         display_name: v
                                             .get("display_name")
                                             .and_then(|d| d.as_str())
                                             .unwrap_or("")
                                             .to_string(),
-                                        provider: v
-                                            .get("provider")
-                                            .and_then(|p| p.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        provider: v.get("provider").and_then(|p| p.as_str()).unwrap_or("").to_string(),
                                     })
                                 })
                                 .collect()
@@ -153,16 +145,8 @@ pub fn MailPage() -> impl IntoView {
                             .filter_map(|v| {
                                 Some(MailFolder {
                                     id: v.get("id")?.as_str()?.to_string(),
-                                    name: v
-                                        .get("name")
-                                        .and_then(|n| n.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    unread_count: v
-                                        .get("unread_count")
-                                        .and_then(|u| u.as_u64())
-                                        .unwrap_or(0)
-                                        as u32,
+                                    name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
+                                    unread_count: v.get("unread_count").and_then(|u| u.as_u64()).unwrap_or(0) as u32,
                                     folder_type: v
                                         .get("folder_type")
                                         .and_then(|t| t.as_str())
@@ -192,34 +176,15 @@ pub fn MailPage() -> impl IntoView {
                             .filter_map(|v| {
                                 Some(MailMessage {
                                     id: v.get("id")?.as_str()?.to_string(),
-                                    subject: v
-                                        .get("subject")
-                                        .and_then(|s| s.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    from: v
-                                        .get("from")
-                                        .and_then(|f| f.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    date: v
-                                        .get("date")
-                                        .and_then(|d| d.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    is_read: v
-                                        .get("is_read")
-                                        .and_then(|r| r.as_bool())
-                                        .unwrap_or(false),
+                                    subject: v.get("subject").and_then(|s| s.as_str()).unwrap_or("").to_string(),
+                                    from: v.get("from").and_then(|f| f.as_str()).unwrap_or("").to_string(),
+                                    date: v.get("date").and_then(|d| d.as_str()).unwrap_or("").to_string(),
+                                    is_read: v.get("is_read").and_then(|r| r.as_bool()).unwrap_or(false),
                                     has_attachments: v
                                         .get("has_attachments")
                                         .and_then(|a| a.as_bool())
                                         .unwrap_or(false),
-                                    snippet: v
-                                        .get("snippet")
-                                        .and_then(|s| s.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
+                                    snippet: v.get("snippet").and_then(|s| s.as_str()).unwrap_or("").to_string(),
                                 })
                             })
                             .collect()
@@ -253,58 +218,25 @@ pub fn MailPage() -> impl IntoView {
         let fid = selected_folder.get().unwrap_or_default();
         let mid = message_id.clone();
         spawn_local(async move {
-            let url = format!(
-                "/api/mail/accounts/{}/folders/{}/messages/{}",
-                aid, fid, mid
-            );
+            let url = format!("/api/mail/accounts/{}/folders/{}/messages/{}", aid, fid, mid);
             if let Ok(val) = api::fetch_json(&url).await {
                 let detail = MailMessageDetail {
-                    id: val
-                        .get("id")
-                        .and_then(|i| i.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    subject: val
-                        .get("subject")
-                        .and_then(|s| s.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    from: val
-                        .get("from")
-                        .and_then(|f| f.as_str())
-                        .unwrap_or("")
-                        .to_string(),
+                    id: val.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string(),
+                    subject: val.get("subject").and_then(|s| s.as_str()).unwrap_or("").to_string(),
+                    from: val.get("from").and_then(|f| f.as_str()).unwrap_or("").to_string(),
                     to: val
                         .get("to")
                         .and_then(|t| t.as_array())
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| v.as_str().map(String::from))
-                                .collect()
-                        })
+                        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                         .unwrap_or_default(),
                     cc: val
                         .get("cc")
                         .and_then(|c| c.as_array())
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| v.as_str().map(String::from))
-                                .collect()
-                        })
+                        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                         .unwrap_or_default(),
-                    date: val
-                        .get("date")
-                        .and_then(|d| d.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    body_html: val
-                        .get("body_html")
-                        .and_then(|h| h.as_str())
-                        .map(String::from),
-                    body_text: val
-                        .get("body_text")
-                        .and_then(|t| t.as_str())
-                        .map(String::from),
+                    date: val.get("date").and_then(|d| d.as_str()).unwrap_or("").to_string(),
+                    body_html: val.get("body_html").and_then(|h| h.as_str()).map(String::from),
+                    body_text: val.get("body_text").and_then(|t| t.as_str()).map(String::from),
                     attachments: val
                         .get("attachments")
                         .and_then(|a| a.as_array())
@@ -313,11 +245,7 @@ pub fn MailPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(MailAttachment {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        filename: v
-                                            .get("filename")
-                                            .and_then(|f| f.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        filename: v.get("filename").and_then(|f| f.as_str()).unwrap_or("").to_string(),
                                         size: v.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
                                         mime_type: v
                                             .get("mime_type")
@@ -350,9 +278,7 @@ pub fn MailPage() -> impl IntoView {
                 "subject": subject,
                 "body": body,
             });
-            let _ =
-                api::fetch_json_with_method("/api/mail/send", "POST", Some(&body_json.to_string()))
-                    .await;
+            let _ = api::fetch_json_with_method("/api/mail/send", "POST", Some(&body_json.to_string())).await;
         });
     };
 

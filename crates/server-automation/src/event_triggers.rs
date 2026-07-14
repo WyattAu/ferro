@@ -149,9 +149,7 @@ impl EventTriggerStore for WasmEventTriggerStore {
         let triggers = self.triggers.read().await;
         triggers
             .iter()
-            .filter(|t| {
-                t.enabled && t.event_type == event_type && glob_match(&t.path_pattern, path)
-            })
+            .filter(|t| t.enabled && t.event_type == event_type && glob_match(&t.path_pattern, path))
             .cloned()
             .collect()
     }
@@ -261,9 +259,7 @@ impl WasmEventTriggerStore {
     fn persist_delete(&self, id: &str) {
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-            if let Err(e) =
-                conn.execute("DELETE FROM wasm_event_triggers WHERE id = ?1", params![id])
-            {
+            if let Err(e) = conn.execute("DELETE FROM wasm_event_triggers WHERE id = ?1", params![id]) {
                 tracing::warn!(error = %e, "failed to delete wasm event trigger");
             }
         }
@@ -281,9 +277,7 @@ fn error_not_found(msg: &str) -> Response {
         .into_response()
 }
 
-pub async fn create_event_trigger(
-    axum::Json(req): axum::Json<CreateEventTriggerRequest>,
-) -> Response {
+pub async fn create_event_trigger(axum::Json(req): axum::Json<CreateEventTriggerRequest>) -> Response {
     let trigger = EventTrigger {
         id: uuid::Uuid::new_v4().to_string(),
         event_type: req.event_type,
@@ -313,11 +307,7 @@ pub async fn create_event_trigger(
 
 pub async fn list_event_triggers() -> Response {
     let triggers = trigger_store().list().await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "triggers": triggers })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "triggers": triggers }))).into_response()
 }
 
 pub async fn delete_event_trigger(Path(id): Path<String>) -> Response {
@@ -331,11 +321,7 @@ pub async fn delete_event_trigger(Path(id): Path<String>) -> Response {
 pub async fn toggle_event_trigger(Path(id): Path<String>) -> Response {
     if trigger_store().toggle(&id).await {
         let triggers = trigger_store().list().await;
-        let enabled = triggers
-            .iter()
-            .find(|t| t.id == id)
-            .map(|t| t.enabled)
-            .unwrap_or(false);
+        let enabled = triggers.iter().find(|t| t.id == id).map(|t| t.enabled).unwrap_or(false);
         (
             StatusCode::OK,
             axum::Json(serde_json::json!({ "id": id, "enabled": enabled })),
@@ -346,12 +332,7 @@ pub async fn toggle_event_trigger(Path(id): Path<String>) -> Response {
     }
 }
 
-pub async fn fire_event_triggers(
-    state: &crate::AutomationState,
-    event_type: EventType,
-    path: &str,
-    owner: &str,
-) {
+pub async fn fire_event_triggers(state: &crate::AutomationState, event_type: EventType, path: &str, owner: &str) {
     let matching = trigger_store().find_matching(event_type, path).await;
     if matching.is_empty() {
         return;
@@ -396,13 +377,9 @@ pub async fn fire_event_triggers(
             let input = event_data.to_string().into_bytes();
 
             dispatch_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            match runtime
-                .execute(&module_path_str, "handle_event", &input, None)
-                .await
-            {
+            match runtime.execute(&module_path_str, "handle_event", &input, None).await {
                 Ok(result) => {
-                    fuel_total
-                        .fetch_add(result.fuel_consumed, std::sync::atomic::Ordering::Relaxed);
+                    fuel_total.fetch_add(result.fuel_consumed, std::sync::atomic::Ordering::Relaxed);
                     if result.success {
                         tracing::info!(
                             trigger_id = %trigger_id,
@@ -438,21 +415,14 @@ pub async fn fire_event_triggers(
     }
 }
 
-fn find_module_path(
-    workers_dir: &Option<std::path::PathBuf>,
-    worker_name: &str,
-) -> Option<std::path::PathBuf> {
+fn find_module_path(workers_dir: &Option<std::path::PathBuf>, worker_name: &str) -> Option<std::path::PathBuf> {
     let dir = workers_dir.as_ref()?;
     let expected_suffix = format!("-{}", worker_name);
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
             if (name == worker_name || name.ends_with(&expected_suffix))
-                && entry
-                    .path()
-                    .extension()
-                    .map(|e| e == "wasm")
-                    .unwrap_or(false)
+                && entry.path().extension().map(|e| e == "wasm").unwrap_or(false)
             {
                 return Some(entry.path());
             }

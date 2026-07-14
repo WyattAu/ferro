@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Merges the public path lists from `simple_auth`, `cedar`, and `oidc` modules
 /// into a single source of truth.
+#[must_use]
 pub fn is_public_auth_path(path: &str) -> bool {
     path == "/healthz"
         || path == "/.well-known/ferro"
@@ -47,6 +48,7 @@ pub struct Claims {
 
 impl Claims {
     /// Create anonymous claims for unauthenticated requests.
+    #[must_use]
     pub fn anonymous() -> Self {
         Self {
             sub: "anonymous".to_string(),
@@ -63,7 +65,6 @@ impl Claims {
 }
 
 /// Result of an authorization policy evaluation.
-#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AuthDecision {
     /// The request is allowed, optionally with the matching policy ID.

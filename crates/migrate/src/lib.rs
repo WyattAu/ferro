@@ -135,16 +135,16 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
     let ferro = FerroTarget::new(&config.target.url, &config.target.admin_token)?;
 
     tracing::info!("Validating Ferro target connection...");
-    ferro.validate().await.map_err(|e| {
-        MigrationError::connection(format!("Cannot connect to Ferro target: {}", e))
-    })?;
+    ferro
+        .validate()
+        .await
+        .map_err(|e| MigrationError::connection(format!("Cannot connect to Ferro target: {}", e)))?;
 
     let progress = ProgressTracker::new();
 
     match config.source {
         MigrationSource::Nextcloud(source) => {
-            run_nextcloud_migration(&source, &ferro, &config.options, &progress, &mut report)
-                .await?;
+            run_nextcloud_migration(&source, &ferro, &config.options, &progress, &mut report).await?;
         }
         MigrationSource::Ocis(source) => {
             run_ocis_migration(&source, &ferro, &config.options, &progress, &mut report).await?;
@@ -216,12 +216,7 @@ async fn run_nextcloud_migration(
 
     if !options.skip_files {
         tracing::info!("Migrating files...");
-        let pipeline = WebDavPipeline::new(
-            &webdav_source,
-            ferro,
-            options.max_file_size,
-            options.batch_size,
-        );
+        let pipeline = WebDavPipeline::new(&webdav_source, ferro, options.max_file_size, options.batch_size);
         match pipeline.copy_all_files(&source.username, progress).await {
             Ok(stats) => {
                 report.files_migrated = stats.migrated;
@@ -295,9 +290,7 @@ async fn run_nextcloud_migration(
                         let ferro_tags = mapper::map_tags(&tags, &mapped_mappings);
                         progress.set_tag_total(ferro_tags.len() as u64);
                         for tag in &ferro_tags {
-                            if let Err(e) =
-                                ferro.apply_tags("/", std::slice::from_ref(&tag.name)).await
-                            {
+                            if let Err(e) = ferro.apply_tags("/", std::slice::from_ref(&tag.name)).await {
                                 tracing::warn!("Tag migration failed: {}", e);
                             } else {
                                 report.tags_migrated += 1;
@@ -362,10 +355,7 @@ async fn run_ocis_migration(
         tracing::info!("Using Bearer token authentication for oCIS");
         OcisClient::with_token(&source.url, &source.username, token)?
     } else if let Some(ref client_id) = source.oidc_client_id {
-        tracing::info!(
-            "Acquiring OIDC token via ROPC grant (client_id={})...",
-            client_id
-        );
+        tracing::info!("Acquiring OIDC token via ROPC grant (client_id={})...", client_id);
         OcisClient::with_oidc(&source.url, &source.username, &source.password, client_id).await?
     } else if !source.password.is_empty() {
         tracing::info!("Using Basic authentication for oCIS");
@@ -387,21 +377,14 @@ async fn run_ocis_migration(
 
     if !options.skip_users {
         tracing::info!("oCIS user migration via WebDAV is not supported (no database access)");
-        tracing::info!(
-            "Skipping user migration (oCIS users must be created manually or via oCIS API)"
-        );
+        tracing::info!("Skipping user migration (oCIS users must be created manually or via oCIS API)");
     } else {
         tracing::info!("Skipping user migration");
     }
 
     if !options.skip_files {
         tracing::info!("Migrating files from oCIS...");
-        let pipeline = WebDavPipeline::new(
-            &webdav_source,
-            ferro,
-            options.max_file_size,
-            options.batch_size,
-        );
+        let pipeline = WebDavPipeline::new(&webdav_source, ferro, options.max_file_size, options.batch_size);
         match pipeline.copy_all_files(&source.username, progress).await {
             Ok(stats) => {
                 report.files_migrated = stats.migrated;

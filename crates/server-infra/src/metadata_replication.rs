@@ -101,12 +101,7 @@ impl MetadataChangeLog for InMemoryChangeLog {
         self.changes.insert(id, change);
         if self.changes.len() > self.max_entries {
             let to_remove = self.changes.len() - self.max_entries;
-            let keys: Vec<String> = self
-                .changes
-                .iter()
-                .take(to_remove)
-                .map(|e| e.key().clone())
-                .collect();
+            let keys: Vec<String> = self.changes.iter().take(to_remove).map(|e| e.key().clone()).collect();
             for key in keys {
                 self.changes.remove(&key);
             }
@@ -117,20 +112,14 @@ impl MetadataChangeLog for InMemoryChangeLog {
         self.changes
             .iter()
             .filter(|entry| {
-                entry.value().timestamp > since
-                    && site_id
-                        .map(|sid| entry.value().site_id != sid)
-                        .unwrap_or(true)
+                entry.value().timestamp > since && site_id.map(|sid| entry.value().site_id != sid).unwrap_or(true)
             })
             .map(|entry| entry.value().clone())
             .collect()
     }
 
     fn all_changes(&self) -> Vec<MetadataChange> {
-        self.changes
-            .iter()
-            .map(|entry| entry.value().clone())
-            .collect()
+        self.changes.iter().map(|entry| entry.value().clone()).collect()
     }
 
     fn latest_for_path(&self, path: &str) -> Option<MetadataChange> {
@@ -145,11 +134,7 @@ impl MetadataChangeLog for InMemoryChangeLog {
 #[async_trait]
 pub trait MetadataTransport: Send + Sync {
     async fn send_changes(&self, peer: &str, changes: &[MetadataChange]) -> Result<(), String>;
-    async fn request_changes(
-        &self,
-        peer: &str,
-        since: DateTime<Utc>,
-    ) -> Result<Vec<MetadataChange>, String>;
+    async fn request_changes(&self, peer: &str, since: DateTime<Utc>) -> Result<Vec<MetadataChange>, String>;
 }
 
 pub struct HttpMetadataTransport {
@@ -181,16 +166,8 @@ impl MetadataTransport for HttpMetadataTransport {
         Ok(())
     }
 
-    async fn request_changes(
-        &self,
-        peer: &str,
-        since: DateTime<Utc>,
-    ) -> Result<Vec<MetadataChange>, String> {
-        let url = format!(
-            "{}/api/v1/sync/metadata/changes?since={}",
-            peer,
-            since.to_rfc3339()
-        );
+    async fn request_changes(&self, peer: &str, since: DateTime<Utc>) -> Result<Vec<MetadataChange>, String> {
+        let url = format!("{}/api/v1/sync/metadata/changes?since={}", peer, since.to_rfc3339());
         let response = self
             .client
             .get(&url)
@@ -234,19 +211,12 @@ impl MetadataReplicator {
 
         let peers = self.config.peer_endpoints.clone();
         for peer in &peers {
-            match self
-                .transport
-                .send_changes(peer, std::slice::from_ref(&change))
-                .await
-            {
+            match self.transport.send_changes(peer, std::slice::from_ref(&change)).await {
                 Ok(()) => {
                     info!("Replicated change {} to {}", change.id, peer);
                 }
                 Err(e) => {
-                    warn!(
-                        "Failed to replicate change {} to {}: {}",
-                        change.id, peer, e
-                    );
+                    warn!("Failed to replicate change {} to {}: {}", change.id, peer, e);
                 }
             }
         }
@@ -349,10 +319,7 @@ impl MetadataReplicator {
     }
 
     pub fn get_peer_states(&self) -> Vec<NodeMetadata> {
-        self.peer_states
-            .iter()
-            .map(|entry| entry.value().clone())
-            .collect()
+        self.peer_states.iter().map(|entry| entry.value().clone()).collect()
     }
 }
 
@@ -372,17 +339,10 @@ pub enum ConflictResolution {
     MissingRemotely,
 }
 
-pub async fn start_metadata_replication<S: InfraState>(
-    state: Arc<S>,
-    config: MetadataReplicationConfig,
-) {
+pub async fn start_metadata_replication<S: InfraState>(state: Arc<S>, config: MetadataReplicationConfig) {
     let change_log = Arc::new(InMemoryChangeLog::new());
     let transport = Arc::new(HttpMetadataTransport::new(config.http_timeout_secs));
-    let replicator = Arc::new(MetadataReplicator::new(
-        config.clone(),
-        change_log,
-        transport,
-    ));
+    let replicator = Arc::new(MetadataReplicator::new(config.clone(), change_log, transport));
 
     let interval_secs = config.sync_interval_secs;
     tokio::spawn(async move {
@@ -397,10 +357,7 @@ pub async fn start_metadata_replication<S: InfraState>(
                 for issue in &issues {
                     info!(
                         "  {} - local: {}, remote: {} ({})",
-                        issue.path,
-                        issue.local_timestamp,
-                        issue.remote_timestamp,
-                        issue.remote_node
+                        issue.path, issue.local_timestamp, issue.remote_timestamp, issue.remote_node
                     );
                 }
             }

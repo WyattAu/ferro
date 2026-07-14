@@ -188,10 +188,7 @@ mod tests {
     #[tokio::test]
     async fn test_duplicate_slug() {
         let store = make_store();
-        store
-            .create(make_tenant("acme-prod", "org-1", "user-1"))
-            .await
-            .unwrap();
+        store.create(make_tenant("acme-prod", "org-1", "user-1")).await.unwrap();
         let err = store
             .create(make_tenant("acme-prod", "org-2", "user-2"))
             .await
@@ -207,18 +204,9 @@ mod tests {
     #[tokio::test]
     async fn test_list_by_org() {
         let store = make_store();
-        store
-            .create(make_tenant("prod-1", "org-1", "user-1"))
-            .await
-            .unwrap();
-        store
-            .create(make_tenant("staging", "org-1", "user-1"))
-            .await
-            .unwrap();
-        store
-            .create(make_tenant("prod-2", "org-2", "user-2"))
-            .await
-            .unwrap();
+        store.create(make_tenant("prod-1", "org-1", "user-1")).await.unwrap();
+        store.create(make_tenant("staging", "org-1", "user-1")).await.unwrap();
+        store.create(make_tenant("prod-2", "org-2", "user-2")).await.unwrap();
 
         let tenants = store.list_by_organization("org-1").await.unwrap();
         assert_eq!(tenants.len(), 2);

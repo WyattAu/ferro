@@ -99,8 +99,8 @@ impl ConnectionMonitor {
         } else {
             self.set_offline();
             let failures = self.consecutive_failures.fetch_add(1, Ordering::Relaxed) + 1;
-            let backoff_secs = (self.base_backoff.as_secs() * 2u64.pow(failures.min(8)))
-                .min(self.max_backoff.as_secs());
+            let backoff_secs =
+                (self.base_backoff.as_secs() * 2u64.pow(failures.min(8))).min(self.max_backoff.as_secs());
             Duration::from_secs(backoff_secs)
         }
     }
@@ -108,8 +108,7 @@ impl ConnectionMonitor {
     /// Get the current backoff interval based on consecutive failures.
     pub fn current_backoff(&self) -> Duration {
         let failures = self.consecutive_failures.load(Ordering::Relaxed);
-        let backoff_secs = (self.base_backoff.as_secs() * 2u64.pow(failures.min(8)))
-            .min(self.max_backoff.as_secs());
+        let backoff_secs = (self.base_backoff.as_secs() * 2u64.pow(failures.min(8))).min(self.max_backoff.as_secs());
         Duration::from_secs(backoff_secs)
     }
 
@@ -192,8 +191,7 @@ mod tests {
 
     #[test]
     fn test_record_check_failure_increments_backoff() {
-        let monitor =
-            ConnectionMonitor::with_backoff(Duration::from_secs(1), Duration::from_secs(60));
+        let monitor = ConnectionMonitor::with_backoff(Duration::from_secs(1), Duration::from_secs(60));
         let b0 = monitor.current_backoff();
         assert_eq!(b0, Duration::from_secs(1));
 
@@ -216,8 +214,7 @@ mod tests {
 
     #[test]
     fn test_backoff_caps_at_max() {
-        let monitor =
-            ConnectionMonitor::with_backoff(Duration::from_secs(10), Duration::from_secs(30));
+        let monitor = ConnectionMonitor::with_backoff(Duration::from_secs(10), Duration::from_secs(30));
 
         for _ in 0..10 {
             monitor.record_check(false);
@@ -228,8 +225,7 @@ mod tests {
 
     #[test]
     fn test_backoff_from_failure() {
-        let monitor =
-            ConnectionMonitor::with_backoff(Duration::from_secs(1), Duration::from_secs(300));
+        let monitor = ConnectionMonitor::with_backoff(Duration::from_secs(1), Duration::from_secs(300));
         monitor.record_check(false);
         let backoff = monitor.record_check(false);
         assert_eq!(backoff, Duration::from_secs(4));

@@ -66,10 +66,7 @@ pub async fn create_api_key<S: SecurityAppState>(
     axum::Json(body): axum::Json<CreateApiKeyBody>,
 ) -> Response {
     if user_info.role == UserRole::ReadOnly {
-        return ApiError::forbidden(
-            ApiError::ADMIN_REQUIRED,
-            "Read-only users cannot create API keys",
-        );
+        return ApiError::forbidden(ApiError::ADMIN_REQUIRED, "Read-only users cannot create API keys");
     }
 
     if body.name.trim().is_empty() {
@@ -82,11 +79,7 @@ pub async fn create_api_key<S: SecurityAppState>(
         expires_at: body.expires_at,
     };
 
-    match state
-        .api_key_store()
-        .create_key(&user_info.user_id, request)
-        .await
-    {
+    match state.api_key_store().create_key(&user_info.user_id, request).await {
         Ok((key, raw_key)) => {
             let resp = CreateApiKeyResponse {
                 id: key.id,
@@ -114,11 +107,7 @@ pub async fn delete_api_key<S: SecurityAppState>(
     axum::Extension(user_info): axum::Extension<UserInfo>,
     Path(key_id): Path<String>,
 ) -> Response {
-    match state
-        .api_key_store()
-        .revoke_key(&key_id, &user_info.user_id)
-        .await
-    {
+    match state.api_key_store().revoke_key(&key_id, &user_info.user_id).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => match e.kind {
             ferro_auth::api_keys::ApiKeyErrorKind::NotFound => {

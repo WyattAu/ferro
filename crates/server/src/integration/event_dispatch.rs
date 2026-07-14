@@ -11,13 +11,7 @@ pub fn create_event_bus() -> EventBus {
     EventBus::new()
 }
 
-pub async fn publish_file_created(
-    bus: &EventBus,
-    path: &str,
-    user_id: &str,
-    size: u64,
-    content_type: &str,
-) {
+pub async fn publish_file_created(bus: &EventBus, path: &str, user_id: &str, size: u64, content_type: &str) {
     let mut event = FileEvent::new("file.created", path, user_id);
     event.size = Some(size);
     event.content_type = Some(content_type.to_string());
@@ -79,12 +73,7 @@ impl EventHandler<FileEvent> for WebhookBusHandler {
             user: Some(event.user_id.clone()),
             etag: None,
         };
-        crate::webhooks::fire_webhooks(
-            self.webhooks.clone(),
-            webhook_event,
-            self.delivery_store.clone(),
-        )
-        .await;
+        crate::webhooks::fire_webhooks(self.webhooks.clone(), webhook_event, self.delivery_store.clone()).await;
         Ok(())
     }
 
@@ -100,9 +89,7 @@ struct NotificationBusHandler {
 
 impl NotificationBusHandler {
     fn new(
-        push_store: Option<
-            Arc<tokio::sync::RwLock<crate::push_notifications::PushNotificationStore>>,
-        >,
+        push_store: Option<Arc<tokio::sync::RwLock<crate::push_notifications::PushNotificationStore>>>,
         push_config: crate::push_notifications::PushNotificationConfig,
     ) -> Self {
         Self {
@@ -209,13 +196,6 @@ mod tests {
     #[tokio::test]
     async fn test_publish_file_modified() {
         let bus = create_event_bus();
-        publish_file_modified(
-            &bus,
-            "/docs/note.txt",
-            "carol",
-            Some(512),
-            Some("text/plain"),
-        )
-        .await;
+        publish_file_modified(&bus, "/docs/note.txt", "carol", Some(512), Some("text/plain")).await;
     }
 }

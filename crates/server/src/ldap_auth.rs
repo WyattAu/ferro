@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct LdapConfig {
     pub url: String,
     pub bind_dn: String,
@@ -31,9 +32,7 @@ impl std::fmt::Display for LdapError {
 
 impl LdapError {
     pub fn new(msg: impl Into<String>) -> Self {
-        Self {
-            message: msg.into(),
-        }
+        Self { message: msg.into() }
     }
 }
 
@@ -42,8 +41,7 @@ pub async fn ldap_authenticate(
     username: &str,
     password: &str,
 ) -> Result<crate::users::User, LdapError> {
-    let settings =
-        ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
+    let settings = ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
 
     let (_conn, mut ldap) = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
@@ -78,11 +76,7 @@ pub async fn ldap_authenticate(
             &config.user_search_base,
             ldap3::Scope::Subtree,
             &filter,
-            vec![
-                &config.email_attribute,
-                &config.display_name_attribute,
-                "uid",
-            ],
+            vec![&config.email_attribute, &config.display_name_attribute, "uid"],
         ),
     )
     .await
@@ -109,8 +103,7 @@ pub async fn ldap_authenticate(
         tracing::warn!("LDAP unbind failed: {}", e);
     }
 
-    let settings2 =
-        ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
+    let settings2 = ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
     let (_conn2, mut ldap_user) = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
         ldap3::LdapConnAsync::with_settings(settings2, &config.url),
@@ -197,8 +190,7 @@ async fn resolve_role_from_groups(config: &LdapConfig, user_dn: &str) -> crate::
         .unwrap_or("(member={dn})")
         .replace("{dn}", user_dn);
 
-    let settings =
-        ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
+    let settings = ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
 
     let (_conn, mut ldap) = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
@@ -213,11 +205,7 @@ async fn resolve_role_from_groups(config: &LdapConfig, user_dn: &str) -> crate::
         }
     };
 
-    if ldap
-        .simple_bind(&config.bind_dn, &config.bind_password)
-        .await
-        .is_err()
-    {
+    if ldap.simple_bind(&config.bind_dn, &config.bind_password).await.is_err() {
         tracing::warn!("LDAP group lookup: service bind failed");
         return crate::users::UserRole::User;
     }

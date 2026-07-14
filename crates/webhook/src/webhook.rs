@@ -3,12 +3,13 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration as StdDuration;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::delivery::{DeliveryRecord, DeliveryResult, DeliveryStatus, calculate_backoff};
 use crate::error::WebhookError;
 use crate::signer;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct Webhook {
     pub id: String,
     pub url: String,
@@ -16,9 +17,27 @@ pub struct Webhook {
     pub events: Vec<String>,
     pub tenant_id: Option<String>,
     pub enabled: bool,
+    #[zeroize(skip)]
     pub created_at: DateTime<Utc>,
+    #[zeroize(skip)]
     pub last_delivery_at: Option<DateTime<Utc>>,
     pub failure_count: u32,
+}
+
+impl std::fmt::Debug for Webhook {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Webhook")
+            .field("id", &self.id)
+            .field("url", &self.url)
+            .field("secret", &"[REDACTED]")
+            .field("events", &self.events)
+            .field("tenant_id", &self.tenant_id)
+            .field("enabled", &self.enabled)
+            .field("created_at", &self.created_at)
+            .field("last_delivery_at", &self.last_delivery_at)
+            .field("failure_count", &self.failure_count)
+            .finish()
+    }
 }
 
 impl Webhook {
@@ -136,9 +155,7 @@ impl WebhookManager {
 
     pub fn register(&self, webhook: Webhook) -> Result<String, WebhookError> {
         if webhook.url.is_empty() {
-            return Err(WebhookError::InvalidUrl(
-                "URL must not be empty".to_string(),
-            ));
+            return Err(WebhookError::InvalidUrl("URL must not be empty".to_string()));
         }
         if self.webhooks.contains_key(&webhook.id) {
             return Err(WebhookError::AlreadyExists(webhook.id.clone()));
@@ -183,12 +200,7 @@ impl WebhookManager {
         let mut results = Vec::new();
         for webhook in &matching {
             let wp = WebhookPayload::new(event_type.to_string(), payload.clone());
-            let result = DeliveryResult::succeeded(
-                webhook.id.clone(),
-                wp.id.clone(),
-                200,
-                StdDuration::from_millis(5),
-            );
+            let result = DeliveryResult::succeeded(webhook.id.clone(), wp.id.clone(), 200, StdDuration::from_millis(5));
             if let Some(mut wh) = self.webhooks.get_mut(&webhook.id) {
                 wh.record_success();
             }
@@ -205,10 +217,7 @@ impl WebhookManager {
         let signature = signer::sign_payload(&webhook.secret, &body, &timestamp);
         let mut headers = HashMap::new();
         headers.insert("Content-Type".to_string(), "application/json".to_string());
-        headers.insert(
-            "X-Webhook-Signature".to_string(),
-            format!("sha256={signature}"),
-        );
+        headers.insert("X-Webhook-Signature".to_string(), format!("sha256={signature}"));
         headers.insert("X-Webhook-Timestamp".to_string(), timestamp);
         headers.insert("X-Webhook-ID".to_string(), webhook.id.clone());
         headers.insert("X-Webhook-Event".to_string(), payload.event_type.clone());
@@ -227,13 +236,7 @@ impl WebhookManager {
         (timestamp, signature)
     }
 
-    pub fn verify_signature(
-        &self,
-        secret: &str,
-        payload: &[u8],
-        timestamp: &str,
-        signature: &str,
-    ) -> bool {
+    pub fn verify_signature(&self, secret: &str, payload: &[u8], timestamp: &str, signature: &str) -> bool {
         signer::verify_signature(secret, payload, timestamp, signature)
     }
 
@@ -290,21 +293,12 @@ impl WebhookManager {
     pub fn record_delivery_failure(&self, webhook_id: &str, payload_id: &str, attempt: u32) {
         if attempt + 1 < self.config.max_retries {
             let backoff = calculate_backoff(attempt, self.config.retry_backoff_base);
-            let result = DeliveryResult::retrying(
-                webhook_id.to_string(),
-                payload_id.to_string(),
-                attempt,
-                backoff,
-            );
+            let result = DeliveryResult::retrying(webhook_id.to_string(), payload_id.to_string(), attempt, backoff);
             let mut records = self.deliveries.entry(webhook_id.to_string()).or_default();
             records.push(DeliveryRecord::from_result(&result));
         } else {
-            let result = DeliveryResult::failed(
-                webhook_id.to_string(),
-                payload_id.to_string(),
-                None,
-                StdDuration::ZERO,
-            );
+            let result =
+                DeliveryResult::failed(webhook_id.to_string(), payload_id.to_string(), None, StdDuration::ZERO);
             let mut records = self.deliveries.entry(webhook_id.to_string()).or_default();
             records.push(DeliveryRecord::from_result(&result));
         }

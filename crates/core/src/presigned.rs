@@ -16,8 +16,8 @@ pub trait PresignedUrlGenerator: Send + Sync {
 /// Presigned URL generator that uses a server base URL.
 /// Generates direct server URLs for PUT/GET operations.
 /// For cloud backends (S3, GCS, Azure), presigned URLs can be generated
-/// by the cloud-specific ObjectStore implementations at a later date.
-#[non_exhaustive]
+/// by the cloud-specific `ObjectStore` implementations at a later date.
+#[derive(Debug)]
 pub struct ServerPresignedUrlGenerator {
     base_url: Url,
 }
@@ -25,8 +25,7 @@ pub struct ServerPresignedUrlGenerator {
 impl ServerPresignedUrlGenerator {
     /// Create a new server-based presigned URL generator.
     pub fn new(base_url: &str) -> Result<Self> {
-        let base = Url::parse(base_url)
-            .map_err(|e| FerroError::Internal(format!("Invalid base URL: {}", e)))?;
+        let base = Url::parse(base_url).map_err(|e| FerroError::Internal(format!("Invalid base URL: {e}")))?;
         Ok(Self { base_url: base })
     }
 }
@@ -35,47 +34,38 @@ impl ServerPresignedUrlGenerator {
 impl PresignedUrlGenerator for ServerPresignedUrlGenerator {
     async fn generate_put_url(&self, path: &str, _expires_in_secs: u32) -> Result<Url> {
         let clean_path = path.trim_start_matches('/');
-        let full = format!(
-            "{}/{}",
-            self.base_url.as_str().trim_end_matches('/'),
-            clean_path
-        );
-        Url::parse(&full).map_err(|e| FerroError::Internal(format!("Invalid URL: {}", e)))
+        let full = format!("{}/{}", self.base_url.as_str().trim_end_matches('/'), clean_path);
+        Url::parse(&full).map_err(|e| FerroError::Internal(format!("Invalid URL: {e}")))
     }
 
     async fn generate_get_url(&self, path: &str, _expires_in_secs: u32) -> Result<Url> {
         let clean_path = path.trim_start_matches('/');
-        let full = format!(
-            "{}/{}",
-            self.base_url.as_str().trim_end_matches('/'),
-            clean_path
-        );
-        Url::parse(&full).map_err(|e| FerroError::Internal(format!("Invalid URL: {}", e)))
+        let full = format!("{}/{}", self.base_url.as_str().trim_end_matches('/'), clean_path);
+        Url::parse(&full).map_err(|e| FerroError::Internal(format!("Invalid URL: {e}")))
     }
 }
 
 // ── No-op generator (testing) ──────────────────────────────────────────────
 
 /// No-op presigned URL generator (returns localhost URLs, for testing).
-#[non_exhaustive]
+#[derive(Debug)]
 pub struct NoOpPresignedUrlGenerator;
 
 #[async_trait]
 impl PresignedUrlGenerator for NoOpPresignedUrlGenerator {
     async fn generate_put_url(&self, path: &str, _expires_in_secs: u32) -> Result<Url> {
-        Url::parse(&format!("http://localhost:8080/storage{}", path))
-            .map_err(|e| FerroError::Internal(e.to_string()))
+        Url::parse(&format!("http://localhost:8080/storage{path}")).map_err(|e| FerroError::Internal(e.to_string()))
     }
 
     async fn generate_get_url(&self, path: &str, _expires_in_secs: u32) -> Result<Url> {
-        Url::parse(&format!("http://localhost:8080/storage{}", path))
-            .map_err(|e| FerroError::Internal(e.to_string()))
+        Url::parse(&format!("http://localhost:8080/storage{path}")).map_err(|e| FerroError::Internal(e.to_string()))
     }
 }
 
 // ── Cloud generators ───────────────────────────────────────────────────────
 
 /// S3-backed presigned URL generator.
+#[derive(Debug)]
 #[cfg(feature = "s3")]
 pub struct S3PresignedUrlGenerator {
     store: std::sync::Arc<object_store::aws::AmazonS3>,
@@ -120,6 +110,7 @@ impl PresignedUrlGenerator for S3PresignedUrlGenerator {
 }
 
 /// GCS-backed presigned URL generator.
+#[derive(Debug)]
 #[cfg(feature = "gcs")]
 pub struct GcsPresignedUrlGenerator {
     store: std::sync::Arc<object_store::gcp::GoogleCloudStorage>,
@@ -164,6 +155,7 @@ impl PresignedUrlGenerator for GcsPresignedUrlGenerator {
 }
 
 /// Azure Blob Storage-backed presigned URL generator.
+#[derive(Debug)]
 #[cfg(feature = "azure")]
 pub struct AzurePresignedUrlGenerator {
     store: std::sync::Arc<object_store::azure::MicrosoftAzure>,
@@ -230,30 +222,21 @@ mod tests {
     #[tokio::test]
     async fn test_server_presigned_url() {
         let generator = ServerPresignedUrlGenerator::new("http://example.com/files").unwrap();
-        let url = generator
-            .generate_get_url("/docs/report.pdf", 3600)
-            .await
-            .unwrap();
+        let url = generator.generate_get_url("/docs/report.pdf", 3600).await.unwrap();
         assert_eq!(url.as_str(), "http://example.com/files/docs/report.pdf");
     }
 
     #[tokio::test]
     async fn test_server_presigned_url_trailing_slash() {
         let generator = ServerPresignedUrlGenerator::new("http://example.com/files/").unwrap();
-        let url = generator
-            .generate_get_url("/docs/report.pdf", 3600)
-            .await
-            .unwrap();
+        let url = generator.generate_get_url("/docs/report.pdf", 3600).await.unwrap();
         assert_eq!(url.as_str(), "http://example.com/files/docs/report.pdf");
     }
 
     #[tokio::test]
     async fn test_server_presigned_url_nested() {
         let generator = ServerPresignedUrlGenerator::new("http://example.com/").unwrap();
-        let url = generator
-            .generate_put_url("/a/b/c/file.txt", 7200)
-            .await
-            .unwrap();
+        let url = generator.generate_put_url("/a/b/c/file.txt", 7200).await.unwrap();
         assert_eq!(url.as_str(), "http://example.com/a/b/c/file.txt");
     }
 

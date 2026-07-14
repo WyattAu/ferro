@@ -5,6 +5,7 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::AutomationState;
 
@@ -68,13 +69,25 @@ pub struct NotificationPayload {
     pub data: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub struct PushNotificationConfig {
     pub fcm_server_key: Option<String>,
     pub apns_key_path: Option<String>,
     pub apns_team_id: Option<String>,
     pub apns_bundle_id: String,
     pub apns_production: bool,
+}
+
+impl std::fmt::Debug for PushNotificationConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PushNotificationConfig")
+            .field("fcm_server_key", &self.fcm_server_key.as_ref().map(|_| "[REDACTED]"))
+            .field("apns_key_path", &self.apns_key_path)
+            .field("apns_team_id", &self.apns_team_id)
+            .field("apns_bundle_id", &self.apns_bundle_id)
+            .field("apns_production", &self.apns_production)
+            .finish()
+    }
 }
 
 pub struct PushNotificationStore {
@@ -132,9 +145,8 @@ impl PushNotificationStore {
 
     pub fn list_tokens(&self) -> Result<Vec<PushToken>, rusqlite::Error> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = conn.prepare(
-            "SELECT id, user_id, token, platform, created_at FROM push_tokens ORDER BY created_at DESC",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT id, user_id, token, platform, created_at FROM push_tokens ORDER BY created_at DESC")?;
         let rows = stmt.query_map([], |row| {
             let platform_str: String = row.get(3)?;
             Ok(PushToken {
@@ -150,9 +162,8 @@ impl PushNotificationStore {
 
     pub fn list_tokens_for_user(&self, user_id: &str) -> Result<Vec<PushToken>, rusqlite::Error> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = conn.prepare(
-            "SELECT id, user_id, token, platform, created_at FROM push_tokens WHERE user_id = ?1",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT id, user_id, token, platform, created_at FROM push_tokens WHERE user_id = ?1")?;
         let rows = stmt.query_map(params![user_id], |row| {
             let platform_str: String = row.get(3)?;
             Ok(PushToken {
@@ -166,14 +177,10 @@ impl PushNotificationStore {
         rows.collect()
     }
 
-    pub fn list_tokens_by_platform(
-        &self,
-        platform: &PushPlatform,
-    ) -> Result<Vec<PushToken>, rusqlite::Error> {
+    pub fn list_tokens_by_platform(&self, platform: &PushPlatform) -> Result<Vec<PushToken>, rusqlite::Error> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = conn.prepare(
-            "SELECT id, user_id, token, platform, created_at FROM push_tokens WHERE platform = ?1",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT id, user_id, token, platform, created_at FROM push_tokens WHERE platform = ?1")?;
         let rows = stmt.query_map(params![platform.as_str()], |row| {
             let platform_str: String = row.get(3)?;
             Ok(PushToken {
@@ -235,14 +242,8 @@ impl FcmClient {
             Ok(())
         } else {
             let status = response.status();
-            let text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "unknown error".to_string());
-            Err(PushError::Provider(format!(
-                "FCM returned {}: {}",
-                status, text
-            )))
+            let text = response.text().await.unwrap_or_else(|_| "unknown error".to_string());
+            Err(PushError::Provider(format!("FCM returned {}: {}", status, text)))
         }
     }
 }
@@ -274,8 +275,11 @@ impl ApnsClient {
         }
     }
 
-    fn generate_token(&self) -> Result<String, PushError> {
-        let key_bytes = std::fs::read(&self.key_path)
+    async fn generate_token(&self) -> Result<String, PushError> {
+        let key_path = self.key_path.clone();
+        let key_bytes = tokio::task::spawn_blocking(move || std::fs::read(&key_path))
+            .await
+            .map_err(|e| PushError::Config(format!("Failed to spawn APNS key read: {}", e)))?
             .map_err(|e| PushError::Config(format!("Failed to read APNS key: {}", e)))?;
 
         let header = serde_json::json!({
@@ -315,18 +319,13 @@ impl ApnsClient {
         sig.extend_from_slice(&hash[..32]);
         sig.extend_from_slice(key_slice.get(32..64).unwrap_or(&[0u8; 32]));
 
-        let sig_b64 =
-            base64::Engine::encode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, &sig);
+        let sig_b64 = base64::Engine::encode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, &sig);
 
         Ok(format!("{}.{}.{}", header_b64, payload_b64, sig_b64))
     }
 
-    pub async fn send(
-        &self,
-        device_token: &str,
-        payload: &NotificationPayload,
-    ) -> Result<(), PushError> {
-        let jwt = self.generate_token()?;
+    pub async fn send(&self, device_token: &str, payload: &NotificationPayload) -> Result<(), PushError> {
+        let jwt = self.generate_token().await?;
 
         let body = serde_json::json!({
             "aps": {
@@ -358,14 +357,8 @@ impl ApnsClient {
             Ok(())
         } else {
             let status = response.status();
-            let text = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "unknown error".to_string());
-            Err(PushError::Provider(format!(
-                "APNS returned {}: {}",
-                status, text
-            )))
+            let text = response.text().await.unwrap_or_else(|_| "unknown error".to_string());
+            Err(PushError::Provider(format!("APNS returned {}: {}", status, text)))
         }
     }
 }
@@ -442,10 +435,7 @@ pub async fn dispatch_push_notifications(
                 }
             }
             PushPlatform::Web => {
-                tracing::debug!(
-                    "Web push not yet implemented for token {}",
-                    push_token.token
-                );
+                tracing::debug!("Web push not yet implemented for token {}", push_token.token);
                 continue;
             }
         };
@@ -502,11 +492,7 @@ pub async fn unregister_push_token(
     match store.unregister_token(&req.token) {
         Ok(deleted) => {
             if deleted {
-                (
-                    StatusCode::OK,
-                    axum::Json(serde_json::json!({"status": "removed"})),
-                )
-                    .into_response()
+                (StatusCode::OK, axum::Json(serde_json::json!({"status": "removed"}))).into_response()
             } else {
                 (
                     StatusCode::NOT_FOUND,
@@ -531,11 +517,7 @@ pub async fn list_push_tokens(Extension(state): Extension<Arc<AutomationState>>)
 
     let store = store.read().await;
     match store.list_tokens() {
-        Ok(tokens) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({"tokens": tokens})),
-        )
-            .into_response(),
+        Ok(tokens) => (StatusCode::OK, axum::Json(serde_json::json!({"tokens": tokens}))).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({"error": format!("Failed to list tokens: {}", e)})),
@@ -562,9 +544,7 @@ mod tests {
     fn test_register_and_list_tokens() {
         let db = test_db();
         let store = PushNotificationStore::new(db);
-        let token = store
-            .register_token("user1", "abc123", &PushPlatform::Android)
-            .unwrap();
+        let token = store.register_token("user1", "abc123", &PushPlatform::Android).unwrap();
         assert_eq!(token.user_id, "user1");
         assert_eq!(token.platform, PushPlatform::Android);
 
@@ -577,9 +557,7 @@ mod tests {
     fn test_unregister_token() {
         let db = test_db();
         let store = PushNotificationStore::new(db);
-        store
-            .register_token("user1", "abc123", &PushPlatform::Ios)
-            .unwrap();
+        store.register_token("user1", "abc123", &PushPlatform::Ios).unwrap();
         let removed = store.unregister_token("abc123").unwrap();
         assert!(removed);
         let tokens = store.list_tokens().unwrap();
@@ -593,12 +571,8 @@ mod tests {
         store
             .register_token("user1", "token_a", &PushPlatform::Android)
             .unwrap();
-        store
-            .register_token("user2", "token_b", &PushPlatform::Ios)
-            .unwrap();
-        store
-            .register_token("user1", "token_c", &PushPlatform::Ios)
-            .unwrap();
+        store.register_token("user2", "token_b", &PushPlatform::Ios).unwrap();
+        store.register_token("user1", "token_c", &PushPlatform::Ios).unwrap();
 
         let user1_tokens = store.list_tokens_for_user("user1").unwrap();
         assert_eq!(user1_tokens.len(), 2);
@@ -609,10 +583,7 @@ mod tests {
         assert_eq!(PushPlatform::Android.as_str(), "android");
         assert_eq!(PushPlatform::Ios.as_str(), "ios");
         assert_eq!(PushPlatform::Web.as_str(), "web");
-        assert_eq!(
-            PushPlatform::parse_platform("android"),
-            Some(PushPlatform::Android)
-        );
+        assert_eq!(PushPlatform::parse_platform("android"), Some(PushPlatform::Android));
         assert_eq!(PushPlatform::parse_platform("ios"), Some(PushPlatform::Ios));
         assert_eq!(PushPlatform::parse_platform("web"), Some(PushPlatform::Web));
         assert_eq!(PushPlatform::parse_platform("unknown"), None);

@@ -180,10 +180,7 @@ impl GuestStore {
         result.map_err(|e| format!("Failed to check guest expiry: {}", e))
     }
 
-    pub fn create_retention_policy(
-        &self,
-        req: &CreateRetentionPolicyRequest,
-    ) -> Result<RetentionPolicyRecord, String> {
+    pub fn create_retention_policy(&self, req: &CreateRetentionPolicyRequest) -> Result<RetentionPolicyRecord, String> {
         let policy_id = uuid::Uuid::new_v4().to_string();
         let Some(db) = &self.db else {
             return Err("Database not available".to_string());
@@ -385,20 +382,13 @@ pub async fn list_guests<S: UserMgmtState>(State(state): State<S>) -> Response {
 
     let guests = store.list_guests().unwrap_or_default();
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "guests": guests })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "guests": guests }))).into_response()
 }
 
 /// `DELETE /api/admin/guests/{id}`
 ///
 /// Revoke a guest account immediately.
-pub async fn revoke_guest<S: UserMgmtState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn revoke_guest<S: UserMgmtState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let store = match state.db() {
         Some(db) => GuestStore::new().with_db(db.clone()),
         None => {
@@ -471,20 +461,13 @@ pub async fn list_retention_policies<S: UserMgmtState>(State(state): State<S>) -
 
     let policies = store.list_retention_policies().unwrap_or_default();
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "policies": policies })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "policies": policies }))).into_response()
 }
 
 /// `DELETE /api/admin/retention/{id}`
 ///
 /// Delete a retention policy.
-pub async fn delete_retention_policy<S: UserMgmtState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_retention_policy<S: UserMgmtState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let store = match state.db() {
         Some(db) => GuestStore::new().with_db(db.clone()),
         None => {
@@ -542,10 +525,7 @@ async fn cleanup_expired_guests<S: UserMgmtState>(state: &S) -> u32 {
 
     let count = disabled_ids.len() as u32;
     if count > 0 {
-        info!(
-            expired_count = count,
-            "guest cleanup: disabled expired guest accounts"
-        );
+        info!(expired_count = count, "guest cleanup: disabled expired guest accounts");
     }
     count
 }
@@ -582,10 +562,7 @@ pub fn spawn_guest_cleanup_daemon<S: UserMgmtState + 'static>(
         }
     });
 
-    info!(
-        "Guest cleanup daemon started (interval: {}s)",
-        interval_secs
-    );
+    info!("Guest cleanup daemon started (interval: {}s)", interval_secs);
 }
 
 // ---------------------------------------------------------------------------
@@ -603,10 +580,7 @@ pub async fn guest_expiry_middleware<S: UserMgmtState>(
     req: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> Response {
-    let user_info = req
-        .extensions()
-        .get::<crate::UserInfo>()
-        .map(|u| u.username.clone());
+    let user_info = req.extensions().get::<crate::UserInfo>().map(|u| u.username.clone());
 
     let expired = if let Some(ref username) = user_info {
         if username.starts_with("guest_") {

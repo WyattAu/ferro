@@ -68,6 +68,7 @@ pub trait MetadataChangeLog: Send + Sync {
     fn latest_for_path(&self, path: &str) -> Option<MetadataChange>;
 }
 
+#[derive(Debug)]
 pub struct InMemoryChangeLog {
     changes: DashMap<String, MetadataChange>,
     max_entries: usize,

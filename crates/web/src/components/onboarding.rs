@@ -187,7 +187,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
                 </svg>
             }.into_any(),
             OnboardingStep::Settings => view! {
-                <svg class="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-12 h-12 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
@@ -209,7 +209,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
                     <div class="p-6 sm:p-8">
                         <div class="flex justify-end mb-2">
                             <button
-                                class="text-sm text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 font-mono text-label"
+                                class="text-sm text-[var(--text-tertiary)] hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded px-2 py-1 font-mono text-label"
                                 on:click=handle_skip
                             >
                                 {t!("onboarding.skip_tour")}
@@ -221,26 +221,26 @@ pub fn OnboardingOverlay() -> impl IntoView {
                             <h2 class="text-xl font-bold font-mono text-gray-900 mt-4 tracking-tight">
                                 {current_step().title()}
                             </h2>
-                            <div class="w-full bg-gray-200 rounded-sm h-3 mt-4">
+                            <div class="w-full bg-[var(--border-default)] rounded-sm h-3 mt-4">
                                 <div
-                                    class="bg-blue-600 h-3 rounded-sm transition-all duration-300"
+                                    class="bg-[var(--accent)] h-3 rounded-sm transition-all duration-300"
                                     style=move || format!("width: {}%", progress())
                                 ></div>
                             </div>
-                            <span class="text-xs text-gray-400 mt-1 block font-mono">
+                            <span class="text-xs text-[var(--text-tertiary)] mt-1 block font-mono">
                                 {move || format!("Step {} of {}", current_step().index() + 1, OnboardingStep::total())}
                             </span>
                         </div>
 
-                        <p class="text-sm text-gray-600 text-center leading-relaxed mb-8 font-mono">
+                        <p class="text-sm text-[var(--text-secondary)] text-center leading-relaxed mb-8 font-mono">
                             {current_step().description()}
                         </p>
 
                         <div class="flex items-center justify-between gap-3">
                             <button
                                 class=move || format!(
-                                    "px-4 py-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 {}",
-                                    if is_first() { "invisible" } else { "text-gray-600 hover:text-gray-800 hover:bg-gray-100" }
+                                    "px-4 py-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 {}",
+                                    if is_first() { "invisible" } else { "text-[var(--text-secondary)] hover:text-gray-800 hover:bg-gray-100" }
                                 )
                                 on:click=handle_back
                                 disabled=is_first()
@@ -253,7 +253,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
                                     <div
                                         class=move || format!(
                                             "w-2 h-2 rounded-full transition-colors {}",
-                                            if i == current_step().index() { "bg-blue-500" } else { "bg-gray-300 dark:bg-gray-600" }
+                                            if i == current_step().index() { "bg-blue-500" } else { "bg-[var(--text-tertiary)]" }
                                         )
                                     ></div>
                                 }).collect::<Vec<_>>()
@@ -262,8 +262,8 @@ pub fn OnboardingOverlay() -> impl IntoView {
 
                             <button
                                 class=move || format!(
-                                    "px-5 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 brutal-border font-bold uppercase {}",
-                                    if is_last() { "bg-green-600 text-white hover:bg-green-700" } else { "bg-blue-600 text-white hover:bg-blue-700" }
+                                    "px-5 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 brutal-border font-bold uppercase {}",
+                                    if is_last() { "bg-green-600 text-white hover:bg-green-700" } else { "bg-[var(--accent)] text-[var(--text-on-accent)] hover:bg-blue-700" }
                                 )
                                 on:click=handle_next
                             >

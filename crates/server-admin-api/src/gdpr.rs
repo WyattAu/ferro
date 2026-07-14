@@ -62,11 +62,9 @@ impl GdprStore {
             return false;
         };
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT COUNT(*) FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get::<_, i32>(0),
-        )
+        conn.query_row("SELECT COUNT(*) FROM users WHERE id = ?1", params![user_id], |row| {
+            row.get::<_, i32>(0)
+        })
         .unwrap_or(0)
             > 0
     }
@@ -76,11 +74,9 @@ impl GdprStore {
             return false;
         };
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT role FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get::<_, String>(0),
-        )
+        conn.query_row("SELECT role FROM users WHERE id = ?1", params![user_id], |row| {
+            row.get::<_, String>(0)
+        })
         .unwrap_or_default()
             == "Admin"
     }
@@ -99,11 +95,7 @@ impl GdprStore {
             > 0
     }
 
-    pub fn get_latest_request(
-        &self,
-        user_id: &str,
-        request_type: &str,
-    ) -> Option<(String, String, Option<String>)> {
+    pub fn get_latest_request(&self, user_id: &str, request_type: &str) -> Option<(String, String, Option<String>)> {
         let Some(db) = &self.db else {
             return None;
         };
@@ -273,10 +265,7 @@ impl GdprStore {
         let tables_to_clean = ["favorites", "file_tags", "locks"];
         for table in &tables_to_clean {
             if let Err(e) = conn.execute(
-                &format!(
-                    "DELETE FROM {} WHERE path IN (SELECT 'unknown' WHERE 0)",
-                    table
-                ),
+                &format!("DELETE FROM {} WHERE path IN (SELECT 'unknown' WHERE 0)", table),
                 [],
             ) {
                 tracing::warn!(error = %e, table = table, "failed to clean table during erasure");
@@ -295,11 +284,9 @@ impl GdprStore {
             return None;
         };
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT username FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get::<_, String>(0),
-        )
+        conn.query_row("SELECT username FROM users WHERE id = ?1", params![user_id], |row| {
+            row.get::<_, String>(0)
+        })
         .ok()
     }
 }
@@ -312,10 +299,7 @@ impl GdprStore {
 ///
 /// Initiate a GDPR data export for a user.
 /// Creates a ZIP archive containing all user data (files, metadata, audit log).
-pub async fn request_data_export<S: AdminState>(
-    State(state): State<S>,
-    Path(user_id): Path<String>,
-) -> Response {
+pub async fn request_data_export<S: AdminState>(State(state): State<S>, Path(user_id): Path<String>) -> Response {
     let store = match state.db() {
         Some(db) => GdprStore::new().with_db(db.clone()),
         None => {
@@ -370,10 +354,7 @@ pub async fn request_data_export<S: AdminState>(
 /// `GET /api/admin/users/{id}/export`
 ///
 /// Get the status of a GDPR data export request.
-pub async fn get_data_export_status<S: AdminState>(
-    State(state): State<S>,
-    Path(user_id): Path<String>,
-) -> Response {
+pub async fn get_data_export_status<S: AdminState>(State(state): State<S>, Path(user_id): Path<String>) -> Response {
     let store = match state.db() {
         Some(db) => GdprStore::new().with_db(db.clone()),
         None => {
@@ -405,10 +386,7 @@ pub async fn get_data_export_status<S: AdminState>(
 ///
 /// Initiate GDPR data erasure for a user (right to be forgotten).
 /// Permanently deletes all user data including files, metadata, and audit log entries.
-pub async fn request_data_erasure<S: AdminState>(
-    State(state): State<S>,
-    Path(user_id): Path<String>,
-) -> Response {
+pub async fn request_data_erasure<S: AdminState>(State(state): State<S>, Path(user_id): Path<String>) -> Response {
     let store = match state.db() {
         Some(db) => GdprStore::new().with_db(db.clone()),
         None => {
@@ -473,11 +451,7 @@ pub async fn list_gdpr_requests<S: AdminState>(State(state): State<S>) -> Respon
 
     let requests = store.list_requests().unwrap_or_default();
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "requests": requests })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "requests": requests }))).into_response()
 }
 
 // ---------------------------------------------------------------------------
@@ -494,13 +468,18 @@ async fn process_data_export<S: AdminState>(state: &S, request_id: &str, user_id
     store.update_status(request_id, "processing", None, None);
 
     // Get user info for the export
-    let _username = store
-        .get_username(user_id)
-        .unwrap_or_else(|| "unknown".to_string());
+    let _username = store.get_username(user_id).unwrap_or_else(|| "unknown".to_string());
 
     // Create a data directory for the export
     let export_dir = std::path::PathBuf::from(format!("/tmp/ferro-gdpr-export-{}", request_id));
-    if let Err(e) = std::fs::create_dir_all(&export_dir) {
+    if let Err(e) = tokio::task::spawn_blocking({
+        let export_dir = export_dir.clone();
+        move || std::fs::create_dir_all(export_dir)
+    })
+    .await
+    .map_err(|e| format!("join error: {}", e))
+    .and_then(|r| r.map_err(|e| format!("{}", e)))
+    {
         tracing::warn!(error = %e, path = %export_dir.display(), "failed to create GDPR export directory");
     }
 
@@ -510,7 +489,13 @@ async fn process_data_export<S: AdminState>(state: &S, request_id: &str, user_id
         .unwrap_or_else(|| serde_json::json!({"error": "user not found"}));
     let metadata_path = export_dir.join("user_metadata.json");
     if let Ok(json) = serde_json::to_string_pretty(&user_data)
-        && let Err(e) = std::fs::write(&metadata_path, &json)
+        && let Err(e) = {
+            let p = metadata_path.clone();
+            tokio::task::spawn_blocking(move || std::fs::write(p, json))
+                .await
+                .map_err(|e| format!("join error: {}", e))
+                .and_then(|r| r.map_err(|e| format!("{}", e)))
+        }
     {
         tracing::warn!(error = %e, path = %metadata_path.display(), "failed to write GDPR user metadata");
     }
@@ -519,7 +504,13 @@ async fn process_data_export<S: AdminState>(state: &S, request_id: &str, user_id
     let audit_entries = store.collect_audit_log(user_id);
     let audit_path = export_dir.join("audit_log.json");
     if let Ok(json) = serde_json::to_string_pretty(&audit_entries)
-        && let Err(e) = std::fs::write(&audit_path, &json)
+        && let Err(e) = {
+            let p = audit_path.clone();
+            tokio::task::spawn_blocking(move || std::fs::write(p, json))
+                .await
+                .map_err(|e| format!("join error: {}", e))
+                .and_then(|r| r.map_err(|e| format!("{}", e)))
+        }
     {
         tracing::warn!(error = %e, path = %audit_path.display(), "failed to write GDPR audit log");
     }
@@ -547,8 +538,12 @@ async fn process_data_export<S: AdminState>(state: &S, request_id: &str, user_id
     }
 
     // Clean up temp directory
-    if let Err(e) = std::fs::remove_dir_all(&export_dir) {
-        tracing::warn!(error = %e, path = %export_dir.display(), "failed to clean up GDPR export directory");
+    if let Err(e) = tokio::task::spawn_blocking(move || std::fs::remove_dir_all(export_dir))
+        .await
+        .map_err(|e| format!("join error: {}", e))
+        .and_then(|r| r.map_err(|e| format!("{}", e)))
+    {
+        tracing::warn!(error = %e, "failed to clean up GDPR export directory");
     }
 }
 

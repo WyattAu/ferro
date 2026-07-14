@@ -33,21 +33,16 @@ pub fn Thumbnail(
         }
         use wasm_bindgen::JsCast;
 
-        let callback: wasm_bindgen::closure::Closure<
-            dyn Fn(js_sys::Array, web_sys::IntersectionObserver),
-        > = wasm_bindgen::closure::Closure::new(
-            move |entries: js_sys::Array, _: web_sys::IntersectionObserver| {
+        let callback: wasm_bindgen::closure::Closure<dyn Fn(js_sys::Array, web_sys::IntersectionObserver)> =
+            wasm_bindgen::closure::Closure::new(move |entries: js_sys::Array, _: web_sys::IntersectionObserver| {
                 for i in 0..entries.length() {
-                    if let Ok(entry) = entries
-                        .get(i)
-                        .dyn_into::<web_sys::IntersectionObserverEntry>()
+                    if let Ok(entry) = entries.get(i).dyn_into::<web_sys::IntersectionObserverEntry>()
                         && entry.is_intersecting()
                     {
                         set_in_view.set(true);
                     }
                 }
-            },
-        );
+            });
         let callback_fn: &js_sys::Function = callback.as_ref().unchecked_ref();
         let opts = web_sys::IntersectionObserverInit::new();
         opts.set_root_margin("100px");

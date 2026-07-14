@@ -34,10 +34,10 @@ pub fn ActivitySidebar(
     view! {
         {move || open.get().then(|| view! {
             <div class="w-72 brutal-border border-l surface overflow-y-auto transition-all duration-200">
-                <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                    <h3 class="text-label font-mono text-gray-900">{t!("aria.activity_heading")}</h3>
+                <div class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
+                    <h3 class="text-label font-mono text-[var(--text-primary)]">{t!("aria.activity_heading")}</h3>
                     <button
-                        class="p-1 text-gray-400 hover:text-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-1 text-[var(--text-tertiary)] hover:text-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
                         on:click=move |_| set_open.set(false)
                         aria-label=t!("aria.close_activity")
                     >
@@ -72,7 +72,7 @@ pub fn ActivitySidebar(
                                         <div class="text-sm font-mono text-gray-900 truncate" title=entry_path.clone()>
                                             {file_name}
                                         </div>
-                                        <div class="text-xs text-gray-500 font-mono">
+                                        <div class="text-xs text-[var(--text-tertiary)] font-mono">
                                             {action} " " {ts_display}
                                         </div>
                                     </div>
@@ -81,7 +81,7 @@ pub fn ActivitySidebar(
                         }
                     </For>
                     {move || entries.with(Vec::is_empty).then(|| view! {
-                        <div class="text-sm text-gray-500 text-center py-4">{t!("empty.recent")}</div>
+                        <div class="text-sm text-[var(--text-tertiary)] text-center py-4">{t!("empty.recent")}</div>
                     })}
                  </div>
              </div>

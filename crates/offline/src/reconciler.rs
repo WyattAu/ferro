@@ -40,12 +40,7 @@ pub struct RemoteFileSnapshot {
 
 impl RemoteFileSnapshot {
     /// Create a snapshot for an existing file.
-    pub fn existing(
-        path: &str,
-        content_hash: &str,
-        size: u64,
-        modified_at: chrono::DateTime<chrono::Utc>,
-    ) -> Self {
+    pub fn existing(path: &str, content_hash: &str, size: u64, modified_at: chrono::DateTime<chrono::Utc>) -> Self {
         Self {
             path: path.to_string(),
             content_hash: Some(content_hash.to_string()),
@@ -141,10 +136,7 @@ impl Reconciler {
                     }
                 }
                 crate::change_queue::OperationType::Move => {
-                    if let Some(dest) = op
-                        .dest_path
-                        .as_ref()
-                        .and_then(|d| remote_map.get(d.as_str()))
+                    if let Some(dest) = op.dest_path.as_ref().and_then(|d| remote_map.get(d.as_str()))
                         && dest.exists
                     {
                         conflicts.push(SyncConflict {
@@ -157,10 +149,7 @@ impl Reconciler {
                     }
                 }
                 crate::change_queue::OperationType::Copy => {
-                    if let Some(dest) = op
-                        .dest_path
-                        .as_ref()
-                        .and_then(|d| remote_map.get(d.as_str()))
+                    if let Some(dest) = op.dest_path.as_ref().and_then(|d| remote_map.get(d.as_str()))
                         && dest.exists
                     {
                         conflicts.push(SyncConflict {
@@ -184,11 +173,7 @@ impl Reconciler {
     /// Compute a block-level diff between local chunks and remote chunks.
     ///
     /// Returns the chunks that need to be uploaded and downloaded.
-    pub fn compute_chunk_diff(
-        &self,
-        local_chunks: &[ChunkInfo],
-        remote_chunks: &[ChunkInfo],
-    ) -> BlockDiffResult {
+    pub fn compute_chunk_diff(&self, local_chunks: &[ChunkInfo], remote_chunks: &[ChunkInfo]) -> BlockDiffResult {
         compute_block_diff(&BlockDiffRequest {
             local_chunks: local_chunks.to_vec(),
             new_chunks: remote_chunks.to_vec(),
@@ -202,8 +187,7 @@ impl Reconciler {
         remote_files: &[RemoteFileSnapshot],
     ) -> Vec<QueuedOperation> {
         let conflicts = self.detect_conflicts(pending_ops, remote_files);
-        let conflict_ids: std::collections::HashSet<&str> =
-            conflicts.iter().map(|c| c.local_path.as_str()).collect();
+        let conflict_ids: std::collections::HashSet<&str> = conflicts.iter().map(|c| c.local_path.as_str()).collect();
 
         pending_ops
             .iter()
@@ -219,8 +203,7 @@ impl Reconciler {
         remote_files: &[RemoteFileSnapshot],
     ) -> (Vec<QueuedOperation>, Vec<SyncConflict>) {
         let conflicts = self.detect_conflicts(pending_ops, remote_files);
-        let conflict_ids: std::collections::HashSet<&str> =
-            conflicts.iter().map(|c| c.local_path.as_str()).collect();
+        let conflict_ids: std::collections::HashSet<&str> = conflicts.iter().map(|c| c.local_path.as_str()).collect();
 
         let syncable = pending_ops
             .iter()
@@ -265,12 +248,7 @@ mod tests {
     #[test]
     fn test_no_conflict_new_file() {
         let r = Reconciler::new();
-        let ops = vec![QueuedOperation::put(
-            "/new.txt",
-            Some("h1".into()),
-            Some(10),
-            "u",
-        )];
+        let ops = vec![QueuedOperation::put("/new.txt", Some("h1".into()), Some(10), "u")];
         let remote = vec![];
         let conflicts = r.detect_conflicts(&ops, &remote);
         assert!(conflicts.is_empty());
@@ -279,12 +257,7 @@ mod tests {
     #[test]
     fn test_no_conflict_same_hash() {
         let r = Reconciler::new();
-        let ops = vec![QueuedOperation::put(
-            "/file.txt",
-            Some("hash123".into()),
-            Some(10),
-            "u",
-        )];
+        let ops = vec![QueuedOperation::put("/file.txt", Some("hash123".into()), Some(10), "u")];
         let remote = vec![make_snapshot("/file.txt", Some("hash123"), 10, now(), true)];
         let conflicts = r.detect_conflicts(&ops, &remote);
         assert!(conflicts.is_empty());
@@ -308,19 +281,11 @@ mod tests {
     #[test]
     fn test_conflict_edit_delete() {
         let r = Reconciler::new();
-        let ops = vec![QueuedOperation::put(
-            "/file.txt",
-            Some("h".into()),
-            Some(10),
-            "u",
-        )];
+        let ops = vec![QueuedOperation::put("/file.txt", Some("h".into()), Some(10), "u")];
         let remote = vec![make_snapshot("/file.txt", None, 0, now(), false)];
         let conflicts = r.detect_conflicts(&ops, &remote);
         assert_eq!(conflicts.len(), 1);
-        assert!(matches!(
-            conflicts[0].conflict_type,
-            ConflictType::EditDelete
-        ));
+        assert!(matches!(conflicts[0].conflict_type, ConflictType::EditDelete));
     }
 
     #[test]
@@ -330,10 +295,7 @@ mod tests {
         let remote = vec![make_snapshot("/file.txt", Some("h"), 10, now(), true)];
         let conflicts = r.detect_conflicts(&ops, &remote);
         assert_eq!(conflicts.len(), 1);
-        assert!(matches!(
-            conflicts[0].conflict_type,
-            ConflictType::DeleteEdit
-        ));
+        assert!(matches!(conflicts[0].conflict_type, ConflictType::DeleteEdit));
     }
 
     #[test]
@@ -352,13 +314,7 @@ mod tests {
             QueuedOperation::put("/safe.txt", Some("h1".into()), Some(10), "u"),
             QueuedOperation::put("/conflict.txt", Some("local".into()), Some(10), "u"),
         ];
-        let remote = vec![make_snapshot(
-            "/conflict.txt",
-            Some("remote"),
-            10,
-            now(),
-            true,
-        )];
+        let remote = vec![make_snapshot("/conflict.txt", Some("remote"), 10, now(), true)];
 
         let syncable = r.filter_syncable_ops(&ops, &remote);
         assert_eq!(syncable.len(), 1);
@@ -372,13 +328,7 @@ mod tests {
             QueuedOperation::put("/safe.txt", Some("h1".into()), Some(10), "u"),
             QueuedOperation::put("/conflict.txt", Some("local".into()), Some(10), "u"),
         ];
-        let remote = vec![make_snapshot(
-            "/conflict.txt",
-            Some("remote"),
-            10,
-            now(),
-            true,
-        )];
+        let remote = vec![make_snapshot("/conflict.txt", Some("remote"), 10, now(), true)];
 
         let (syncable, conflicts) = r.plan(&ops, &remote);
         assert_eq!(syncable.len(), 1);

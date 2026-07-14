@@ -1,0 +1,66 @@
+# Canary Analysis Template for Ferro
+# Monitors error rate, latency, and availability during canary deployment
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-analysis
+  namespace: ferro
+spec:
+  args:
+    - name: service-name
+      value: ferro-server
+    - name: prometheus-url
+      value: http://prometheus.monitoring:9090
+  metrics:
+    # Check error rate - must be < 1%
+    - name: error-rate
+      interval: 60s
+      count: 5
+      successCondition: result[0] < 0.01
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: "{{args.prometheus-url}}"
+          query: |
+            sum(rate(http_requests_total{service="{{args.service-name}}",status=~"5.."}[2m]))
+            /
+            sum(rate(http_requests_total{service="{{args.service-name}}"}[2m]))
+    # Check p99 latency - must be < 500ms
+    - name: latency-p99
+      interval: 60s
+      count: 5
+      successCondition: result[0] < 0.5
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: "{{args.prometheus-url}}"
+          query: |
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{service="{{args.service-name}}"}[2m])) by (le)
+            )
+    # Check availability - must be > 99.9%
+    - name: availability
+      interval: 60s
+      count: 5
+      successCondition: result[0] > 0.999
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: "{{args.prometheus-url}}"
+          query: |
+            sum(rate(http_requests_total{service="{{args.service-name}}",status!~"5.."}[2m]))
+            /
+            sum(rate(http_requests_total{service="{{args.service-name}}"}[2m]))
+    # Check memory usage - must be < 80% of limit
+    - name: memory-usage
+      interval: 60s
+      count: 3
+      successCondition: result[0] < 0.8
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: "{{args.prometheus-url}}"
+          query: |
+            sum(container_memory_working_set_bytes{container="ferro-server",namespace="ferro"})
+            /
+            sum(kube_pod_container_resource_limits{container="ferro-server",namespace="ferro",resource="memory"})

@@ -36,13 +36,7 @@ async fn put_file(app: &axum::Router, path: &str, content: &[u8]) -> StatusCode 
 async fn get_file(app: &axum::Router, path: &str) -> (StatusCode, bytes::Bytes) {
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(path)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().method("GET").uri(path).body(Body::empty()).unwrap())
         .await
         .unwrap();
     let status = resp.status();
@@ -89,10 +83,7 @@ async fn test_unicode_cjk_filename() {
     let app = make_app();
     let path = "/文档/报告.txt";
     assert_eq!(mkcol(&app, "/文档").await, StatusCode::CREATED);
-    assert_eq!(
-        put_file(&app, path, "中文内容".as_bytes()).await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, path, "中文内容".as_bytes()).await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, path).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(&bytes[..], "中文内容".as_bytes());
@@ -103,10 +94,7 @@ async fn test_unicode_emoji_filename() {
     let app = make_app();
     let path = "/📁/🎉report.pdf";
     assert_eq!(mkcol(&app, "/📁").await, StatusCode::CREATED);
-    assert_eq!(
-        put_file(&app, path, b"emoji content").await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, path, b"emoji content").await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, path).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(&bytes[..], b"emoji content");
@@ -130,10 +118,7 @@ async fn test_unicode_zero_width_chars() {
     let app = make_app();
     // Zero-width joiner + variation selector
     let path = "/test/file\u{200D}\u{FE0F}.txt";
-    assert_eq!(
-        put_file(&app, path, b"zero-width content").await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, path, b"zero-width content").await, StatusCode::CREATED);
     let (status, _) = get_file(&app, path).await;
     assert_eq!(status, StatusCode::OK);
 }
@@ -187,10 +172,7 @@ async fn test_filename_with_spaces() {
     let app = make_app();
     // Spaces must be percent-encoded in URIs
     let path = "/my%20documents/report%202024.txt";
-    assert_eq!(
-        put_file(&app, path, b"spaced content").await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, path, b"spaced content").await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, path).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(&bytes[..], b"spaced content");
@@ -200,10 +182,7 @@ async fn test_filename_with_spaces() {
 async fn test_filename_with_dots() {
     let app = make_app();
     // Multiple dots, leading dots (but not path traversal)
-    assert_eq!(
-        put_file(&app, "/.hidden", b"hidden").await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, "/.hidden", b"hidden").await, StatusCode::CREATED);
     assert_eq!(
         put_file(&app, "/file.with.many.dots.ext", b"dots").await,
         StatusCode::CREATED
@@ -231,10 +210,7 @@ async fn test_filename_with_parentheses_brackets() {
 async fn test_filename_with_hash() {
     let app = make_app();
     let path = "/data/file%231.txt"; // %23 = #
-    assert_eq!(
-        put_file(&app, path, b"hash content").await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, path, b"hash content").await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, path).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(&bytes[..], b"hash content");
@@ -267,10 +243,7 @@ async fn test_empty_file() {
 async fn test_binary_file_png() {
     let app = make_app();
     let png_header: &[u8] = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR";
-    assert_eq!(
-        put_file(&app, "/image.png", png_header).await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, "/image.png", png_header).await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, "/image.png").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(&bytes[..], png_header);
@@ -280,10 +253,7 @@ async fn test_binary_file_png() {
 async fn test_binary_file_pdf() {
     let app = make_app();
     let pdf_header: &[u8] = b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n";
-    assert_eq!(
-        put_file(&app, "/doc.pdf", pdf_header).await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, "/doc.pdf", pdf_header).await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, "/doc.pdf").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(&bytes[..pdf_header.len()], pdf_header);
@@ -293,10 +263,7 @@ async fn test_binary_file_pdf() {
 async fn test_binary_file_all_bytes() {
     let app = make_app();
     let content: Vec<u8> = (0u8..=255).collect();
-    assert_eq!(
-        put_file(&app, "/allbytes.bin", &content).await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, "/allbytes.bin", &content).await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, "/allbytes.bin").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(bytes.len(), 256);
@@ -307,10 +274,7 @@ async fn test_binary_file_all_bytes() {
 async fn test_binary_file_with_null_bytes() {
     let app = make_app();
     let content: &[u8] = b"before\x00null\x00after";
-    assert_eq!(
-        put_file(&app, "/nulls.bin", content).await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, "/nulls.bin", content).await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, "/nulls.bin").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(&bytes[..], content);
@@ -325,10 +289,7 @@ async fn test_long_filename() {
     let app = make_app();
     let name = "a".repeat(200);
     let path = format!("/{}", name);
-    assert_eq!(
-        put_file(&app, &path, b"long name").await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, &path, b"long name").await, StatusCode::CREATED);
     let (status, _) = get_file(&app, &path).await;
     assert_eq!(status, StatusCode::OK);
 }
@@ -343,10 +304,7 @@ async fn test_deep_nested_path() {
         assert_eq!(mkcol(&app, &path).await, StatusCode::CREATED);
     }
     path.push_str("/file.txt");
-    assert_eq!(
-        put_file(&app, &path, b"deep content").await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, &path, b"deep content").await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, &path).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(&bytes[..], b"deep content");
@@ -385,14 +343,8 @@ async fn test_delete_then_get_returns_404() {
 async fn test_double_delete_returns_404() {
     let app = make_app();
     put_file(&app, "/double.txt", b"x").await;
-    assert_eq!(
-        delete_file(&app, "/double.txt").await,
-        StatusCode::NO_CONTENT
-    );
-    assert_eq!(
-        delete_file(&app, "/double.txt").await,
-        StatusCode::NOT_FOUND
-    );
+    assert_eq!(delete_file(&app, "/double.txt").await, StatusCode::NO_CONTENT);
+    assert_eq!(delete_file(&app, "/double.txt").await, StatusCode::NOT_FOUND);
 }
 
 // ---------------------------------------------------------------------------
@@ -424,9 +376,7 @@ async fn test_mkcol_under_nonexistent_parent() {
     let status = mkcol(&app, "/noexist/child").await;
     // Should either create intermediate dirs or return 409
     assert!(
-        status == StatusCode::CREATED
-            || status == StatusCode::CONFLICT
-            || status == StatusCode::NOT_FOUND,
+        status == StatusCode::CREATED || status == StatusCode::CONFLICT || status == StatusCode::NOT_FOUND,
         "MKCOL under nonexistent parent got {}",
         status
     );
@@ -534,10 +484,7 @@ async fn test_content_type_html() {
 async fn test_large_file_1mb() {
     let app = make_app();
     let content = vec![0xABu8; 1024 * 1024]; // 1 MB
-    assert_eq!(
-        put_file(&app, "/large.bin", &content).await,
-        StatusCode::CREATED
-    );
+    assert_eq!(put_file(&app, "/large.bin", &content).await, StatusCode::CREATED);
     let (status, bytes) = get_file(&app, "/large.bin").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(bytes.len(), 1024 * 1024);
@@ -673,11 +620,7 @@ async fn test_move_source_gone_dest_exists() {
     assert_eq!(resp.status(), StatusCode::CREATED);
 
     let (s1, _) = get_file(&app, "/moveme.txt").await;
-    assert_eq!(
-        s1,
-        StatusCode::NOT_FOUND,
-        "Source should be gone after MOVE"
-    );
+    assert_eq!(s1, StatusCode::NOT_FOUND, "Source should be gone after MOVE");
 
     let (s2, b2) = get_file(&app, "/moved.txt").await;
     assert_eq!(s2, StatusCode::OK);

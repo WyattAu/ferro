@@ -136,10 +136,7 @@ impl RetentionStore {
         Ok(result)
     }
 
-    pub fn create_policy(
-        &self,
-        req: &CreateRetentionPolicyRequest,
-    ) -> Result<RetentionPolicy, String> {
+    pub fn create_policy(&self, req: &CreateRetentionPolicyRequest) -> Result<RetentionPolicy, String> {
         let db = self.db.as_ref().ok_or("Database not available")?;
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
 
@@ -207,11 +204,7 @@ impl RetentionStore {
 pub async fn list_policies<S: ComplianceState>(State(state): State<S>) -> Response {
     let policies = state.retention_store().list_policies().unwrap_or_default();
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "policies": policies })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "policies": policies }))).into_response()
 }
 
 pub async fn create_policy<S: ComplianceState>(
@@ -246,10 +239,7 @@ pub async fn create_policy<S: ComplianceState>(
     }
 }
 
-pub async fn delete_policy<S: ComplianceState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_policy<S: ComplianceState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     use crate::ApiError;
 
     match state.retention_store().delete_policy(&id) {
@@ -260,10 +250,7 @@ pub async fn delete_policy<S: ComplianceState>(
 }
 
 pub async fn execute_policies<S: ComplianceState>(State(state): State<S>) -> Response {
-    let policies = state
-        .retention_store()
-        .list_enabled_policies()
-        .unwrap_or_default();
+    let policies = state.retention_store().list_enabled_policies().unwrap_or_default();
     if policies.is_empty() {
         return (
             StatusCode::OK,
@@ -283,17 +270,10 @@ pub async fn execute_policies<S: ComplianceState>(State(state): State<S>) -> Res
 
     state.retention_store().update_last_run();
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "results": results })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
 }
 
-async fn execute_single_policy<S: ComplianceState>(
-    state: &S,
-    policy: &RetentionPolicy,
-) -> RetentionExecutionResult {
+async fn execute_single_policy<S: ComplianceState>(state: &S, policy: &RetentionPolicy) -> RetentionExecutionResult {
     let mut result = RetentionExecutionResult {
         policy_id: policy.id.clone(),
         policy_name: policy.name.clone(),
@@ -330,10 +310,7 @@ async fn execute_single_policy<S: ComplianceState>(
             continue;
         }
 
-        let age_secs = now
-            .signed_duration_since(meta.modified_at)
-            .num_seconds()
-            .max(0) as u64;
+        let age_secs = now.signed_duration_since(meta.modified_at).num_seconds().max(0) as u64;
 
         if policy.max_age_seconds > 0 && age_secs > policy.max_age_seconds {
             to_delete_paths.push((meta.path.clone(), meta.size));
@@ -352,9 +329,7 @@ async fn execute_single_policy<S: ComplianceState>(
 
     if let Some(min_free) = policy.min_free_bytes {
         let total_bytes: u64 = file_entries.iter().map(|m| m.size).sum();
-        let used = state
-            .used_bytes()
-            .load(std::sync::atomic::Ordering::Relaxed);
+        let used = state.used_bytes().load(std::sync::atomic::Ordering::Relaxed);
         if used + total_bytes > min_free {
             let deficit = (used + total_bytes).saturating_sub(min_free);
             let mut freed: u64 = 0;
@@ -418,11 +393,7 @@ async fn execute_single_policy<S: ComplianceState>(
     result
 }
 
-pub fn spawn_retention_daemon<S: ComplianceState>(
-    state: Arc<S>,
-    interval_secs: u64,
-    cancel: CancellationToken,
-) {
+pub fn spawn_retention_daemon<S: ComplianceState>(state: Arc<S>, interval_secs: u64, cancel: CancellationToken) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
 
@@ -469,6 +440,56 @@ async fn run_retention_check<S: ComplianceState>(state: &S) {
 mod tests {
     use super::*;
 
+    fn make_request(name: &str, path_prefix: &str, max_age_seconds: u64) -> CreateRetentionPolicyRequest {
+        CreateRetentionPolicyRequest {
+            name: name.to_string(),
+            path_prefix: path_prefix.to_string(),
+            max_age_seconds,
+            max_file_count: None,
+            min_free_bytes: None,
+            dry_run: false,
+            enabled: true,
+        }
+    }
+
+    fn make_request_with_counts(
+        name: &str,
+        path_prefix: &str,
+        max_file_count: Option<u64>,
+        min_free_bytes: Option<u64>,
+    ) -> CreateRetentionPolicyRequest {
+        CreateRetentionPolicyRequest {
+            name: name.to_string(),
+            path_prefix: path_prefix.to_string(),
+            max_age_seconds: 0,
+            max_file_count,
+            min_free_bytes,
+            dry_run: false,
+            enabled: true,
+        }
+    }
+
+    fn init_db() -> crate::DbHandle {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS retention_policies (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                path_prefix TEXT NOT NULL,
+                max_age_days INTEGER NOT NULL DEFAULT 0,
+                max_age_seconds INTEGER NOT NULL DEFAULT 0,
+                max_file_count INTEGER,
+                min_free_bytes INTEGER,
+                dry_run INTEGER NOT NULL DEFAULT 0,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                last_run_at TEXT
+            );",
+        )
+        .unwrap();
+        std::sync::Arc::new(std::sync::Mutex::new(conn))
+    }
+
     #[test]
     fn test_create_request_validation() {
         let req = CreateRetentionPolicyRequest {
@@ -495,5 +516,241 @@ mod tests {
     #[test]
     fn test_default_enabled() {
         assert!(default_true());
+    }
+
+    #[test]
+    fn test_retention_store_new_no_db() {
+        let store = RetentionStore::new();
+        assert!(store.db.is_none());
+    }
+
+    #[test]
+    fn test_retention_store_list_policies_no_db() {
+        let store = RetentionStore::new();
+        let result = store.list_policies();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Database not available");
+    }
+
+    #[test]
+    fn test_retention_store_list_policies_empty_db() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+        let policies = store.list_policies().unwrap();
+        assert!(policies.is_empty());
+    }
+
+    #[test]
+    fn test_retention_store_list_enabled_policies_no_db() {
+        let store = RetentionStore::new();
+        let result = store.list_enabled_policies();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_retention_store_list_enabled_policies_empty_db() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+        let policies = store.list_enabled_policies().unwrap();
+        assert!(policies.is_empty());
+    }
+
+    #[test]
+    fn test_retention_store_create_policy_no_db() {
+        let store = RetentionStore::new();
+        let req = make_request("test", "/logs", 3600);
+        let result = store.create_policy(&req);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_retention_store_create_and_list_policy() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+        let req = make_request("daily-cleanup", "/logs/app", 86400);
+        let policy = store.create_policy(&req).unwrap();
+
+        assert_eq!(policy.name, "daily-cleanup");
+        assert_eq!(policy.path_prefix, "/logs/app");
+        assert_eq!(policy.max_age_seconds, 86400);
+        assert!(policy.enabled);
+        assert!(!policy.dry_run);
+        assert!(!policy.id.is_empty());
+
+        let policies = store.list_policies().unwrap();
+        assert_eq!(policies.len(), 1);
+        assert_eq!(policies[0].name, "daily-cleanup");
+    }
+
+    #[test]
+    fn test_retention_store_create_multiple_policies() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+
+        let req1 = make_request("daily", "/logs", 86400);
+        let req2 = make_request("weekly", "/logs", 604800);
+        store.create_policy(&req1).unwrap();
+        store.create_policy(&req2).unwrap();
+
+        let policies = store.list_policies().unwrap();
+        assert_eq!(policies.len(), 2);
+    }
+
+    #[test]
+    fn test_retention_store_create_policy_with_counts() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+        let req = make_request_with_counts("count-limit", "/data", Some(1000), Some(1_000_000_000));
+        let policy = store.create_policy(&req).unwrap();
+
+        assert_eq!(policy.max_file_count, Some(1000));
+        assert_eq!(policy.min_free_bytes, Some(1_000_000_000));
+        assert_eq!(policy.max_age_seconds, 0);
+    }
+
+    #[test]
+    fn test_retention_store_delete_policy_not_found() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+        let result = store.delete_policy("nonexistent-id").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_retention_store_delete_policy_success() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+        let req = make_request("to-delete", "/tmp", 3600);
+        let policy = store.create_policy(&req).unwrap();
+
+        let deleted = store.delete_policy(&policy.id).unwrap();
+        assert!(deleted);
+
+        let policies = store.list_policies().unwrap();
+        assert!(policies.is_empty());
+    }
+
+    #[test]
+    fn test_retention_store_list_enabled_filters_disabled() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+
+        let req_enabled = make_request("enabled", "/logs", 3600);
+        store.create_policy(&req_enabled).unwrap();
+
+        let mut req_disabled = make_request("disabled", "/data", 3600);
+        req_disabled.enabled = false;
+        store.create_policy(&req_disabled).unwrap();
+
+        let all = store.list_policies().unwrap();
+        assert_eq!(all.len(), 2);
+
+        let enabled = store.list_enabled_policies().unwrap();
+        assert_eq!(enabled.len(), 1);
+        assert_eq!(enabled[0].name, "enabled");
+    }
+
+    #[test]
+    fn test_retention_store_update_last_run_no_db() {
+        let store = RetentionStore::new();
+        store.update_last_run();
+    }
+
+    #[test]
+    fn test_retention_store_update_last_run_with_db() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+        store.update_last_run();
+    }
+
+    #[test]
+    fn test_retention_policy_from_row_negative_age_clamped() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE retention_policies (
+                id TEXT, name TEXT, path_prefix TEXT, max_age_days INTEGER,
+                max_age_seconds INTEGER, max_file_count INTEGER, min_free_bytes INTEGER,
+                dry_run INTEGER, enabled INTEGER, created_at TEXT
+            );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO retention_policies (id, name, path_prefix, max_age_seconds, max_file_count, min_free_bytes, dry_run, enabled) VALUES ('1', 'test', '/logs', -100, NULL, NULL, 0, 1)",
+            [],
+        )
+        .unwrap();
+
+        let policy: RetentionPolicy = conn
+            .query_row(
+                "SELECT id, name, path_prefix, max_age_seconds, max_file_count, min_free_bytes, dry_run, enabled FROM retention_policies WHERE id = '1'",
+                [],
+                RetentionPolicy::from_row,
+            )
+            .unwrap();
+
+        assert_eq!(policy.max_age_seconds, 0);
+        assert_eq!(policy.max_file_count, None);
+        assert_eq!(policy.min_free_bytes, None);
+    }
+
+    #[test]
+    fn test_retention_store_default() {
+        let store = RetentionStore::default();
+        assert!(store.db.is_none());
+    }
+
+    #[test]
+    fn test_retention_store_create_and_delete_cycle() {
+        let db = init_db();
+        let store = RetentionStore::new().with_db(db);
+
+        let req = make_request("cycle-test", "/archive", 2592000);
+        let policy = store.create_policy(&req).unwrap();
+        assert_eq!(store.list_policies().unwrap().len(), 1);
+
+        store.delete_policy(&policy.id).unwrap();
+        assert_eq!(store.list_policies().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_retention_policy_serialization() {
+        let policy = RetentionPolicy {
+            id: "test-id".into(),
+            name: "test-policy".into(),
+            path_prefix: "/data".into(),
+            max_age_seconds: 86400,
+            max_file_count: Some(500),
+            min_free_bytes: Some(500_000_000),
+            dry_run: true,
+            enabled: false,
+        };
+        let json = serde_json::to_value(&policy).unwrap();
+        assert_eq!(json["id"], "test-id");
+        assert_eq!(json["name"], "test-policy");
+        assert_eq!(json["path_prefix"], "/data");
+        assert_eq!(json["max_age_seconds"], 86400);
+        assert_eq!(json["max_file_count"], 500);
+        assert_eq!(json["min_free_bytes"], 500_000_000);
+        assert_eq!(json["dry_run"], true);
+        assert_eq!(json["enabled"], false);
+    }
+
+    #[test]
+    fn test_retention_execution_result_serialization() {
+        let result = RetentionExecutionResult {
+            policy_id: "p1".into(),
+            policy_name: "test".into(),
+            scanned_files: 100,
+            deleted_files: 5,
+            deleted_bytes: 1024,
+            dry_run: false,
+            errors: vec!["some error".into()],
+        };
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["scanned_files"], 100);
+        assert_eq!(json["deleted_files"], 5);
+        assert_eq!(json["deleted_bytes"], 1024);
+        assert_eq!(json["dry_run"], false);
+        assert_eq!(json["errors"][0], "some error");
     }
 }

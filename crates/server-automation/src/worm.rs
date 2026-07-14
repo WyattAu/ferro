@@ -56,12 +56,11 @@ impl SqliteWormStore {
 impl WormStoreTrait for SqliteWormStore {
     fn list_policies(&self) -> Vec<WormPolicy> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = match conn.prepare(
-            "SELECT id, path_prefix, enabled, created_at FROM worm_policies ORDER BY created_at",
-        ) {
-            Ok(s) => s,
-            Err(_) => return Vec::new(),
-        };
+        let mut stmt =
+            match conn.prepare("SELECT id, path_prefix, enabled, created_at FROM worm_policies ORDER BY created_at") {
+                Ok(s) => s,
+                Err(_) => return Vec::new(),
+            };
         let rows = stmt.query_map([], WormPolicy::from_row);
         let mut result = Vec::new();
         if let Ok(rows) = rows {
@@ -157,20 +156,14 @@ fn error_internal(msg: &str) -> Response {
         .into_response()
 }
 
-pub async fn list_policies(
-    Extension(state): Extension<std::sync::Arc<AutomationState>>,
-) -> Response {
+pub async fn list_policies(Extension(state): Extension<std::sync::Arc<AutomationState>>) -> Response {
     let policies = load_policies(&state);
     let json: Vec<serde_json::Value> = policies
         .iter()
         .map(|p| serde_json::to_value(p).unwrap_or_default())
         .collect();
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "policies": json })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "policies": json }))).into_response()
 }
 
 pub async fn create_policy(

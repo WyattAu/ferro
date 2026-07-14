@@ -13,7 +13,6 @@ default = []
 webauthn = ["ferro-server-security/webauthn"]
 
 [dependencies]
-ferro-common = { path = "../common" }
 ferro-auth = { path = "../auth" }
 ferro-server-security = { path = "../server-security" }
 axum = { workspace = true }
@@ -22,8 +21,6 @@ serde_json = "1"
 tokio = { workspace = true }
 tracing = "0.1"
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
-hyper = { version = "1", features = ["http1", "http2"] }
 base64 = "0.22"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 uuid = { version = "1", features = ["v4"] }

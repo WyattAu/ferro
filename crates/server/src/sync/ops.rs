@@ -40,6 +40,17 @@ pub struct SyncStore {
     db: Option<DbHandle>,
 }
 
+impl std::fmt::Debug for SyncStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SyncStore")
+            .field("ops", &self.ops)
+            .field("max_ops", &self.max_ops)
+            .field("global_clock", &self.global_clock)
+            .field("db", &self.db.as_ref().map(|_| "..."))
+            .finish()
+    }
+}
+
 impl SyncStore {
     pub fn new() -> Self {
         Self {
@@ -68,12 +79,7 @@ impl SyncStore {
         let id = op.id.clone();
         if self.ops.len() >= self.max_ops {
             let to_remove = self.ops.len() - self.max_ops + 1;
-            let keys: Vec<String> = self
-                .ops
-                .iter()
-                .take(to_remove)
-                .map(|e| e.key().clone())
-                .collect();
+            let keys: Vec<String> = self.ops.iter().take(to_remove).map(|e| e.key().clone()).collect();
             for key in keys {
                 self.ops.remove(&key);
             }
@@ -111,18 +117,15 @@ impl SyncStore {
     }
 
     pub fn current_clock(&self) -> u64 {
-        self.global_clock.load(Ordering::SeqCst)
+        self.global_clock.load(Ordering::Relaxed)
     }
 
     pub fn next_op_id(&self) -> (String, u64) {
-        let clock = self.global_clock.fetch_add(1, Ordering::SeqCst);
+        let clock = self.global_clock.fetch_add(1, Ordering::Relaxed);
         (format!("op-{}", clock), clock)
     }
 
-    pub fn load_all_from_db(
-        &self,
-        conn: &rusqlite::Connection,
-    ) -> std::result::Result<(), rusqlite::Error> {
+    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT op_id, site_id, clock_counter, op_type, path, new_path, size, mime_type, owner, checksum, timestamp FROM sync_ops ORDER BY clock_counter ASC",
         )?;
@@ -161,7 +164,7 @@ impl SyncStore {
             self.ops.insert(op.id.clone(), op);
         }
         if max_clock > 0 {
-            self.global_clock.store(max_clock + 1, Ordering::SeqCst);
+            self.global_clock.store(max_clock + 1, Ordering::Relaxed);
         }
         Ok(())
     }

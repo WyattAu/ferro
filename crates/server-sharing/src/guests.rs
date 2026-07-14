@@ -113,17 +113,10 @@ pub async fn list_guests(Extension(state): Extension<SharingState>) -> Response 
         Vec::new()
     };
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "guests": guests })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "guests": guests }))).into_response()
 }
 
-pub async fn revoke_guest(
-    Extension(state): Extension<SharingState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn revoke_guest(Extension(state): Extension<SharingState>, Path(id): Path<String>) -> Response {
     if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         let affected = conn.execute(
@@ -135,10 +128,7 @@ pub async fn revoke_guest(
             Ok(_) => return (StatusCode::NO_CONTENT, "").into_response(),
             Err(e) => {
                 tracing::warn!(error = %e, "failed to revoke guest");
-                return ApiError::internal(
-                    ApiError::INTERNAL_ERROR,
-                    "Failed to revoke guest account",
-                );
+                return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to revoke guest account");
             }
         }
     }
@@ -245,19 +235,12 @@ async fn cleanup_expired_guests(state: &SharingState) -> u32 {
 
     let count = disabled_ids.len() as u32;
     if count > 0 {
-        info!(
-            expired_count = count,
-            "guest cleanup: disabled expired guest accounts"
-        );
+        info!(expired_count = count, "guest cleanup: disabled expired guest accounts");
     }
     count
 }
 
-pub fn spawn_guest_cleanup_daemon(
-    state: Arc<SharingState>,
-    interval_secs: u64,
-    cancel: CancellationToken,
-) {
+pub fn spawn_guest_cleanup_daemon(state: Arc<SharingState>, interval_secs: u64, cancel: CancellationToken) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
 
@@ -281,10 +264,7 @@ pub fn spawn_guest_cleanup_daemon(
         }
     });
 
-    info!(
-        "Guest cleanup daemon started (interval: {}s)",
-        interval_secs
-    );
+    info!("Guest cleanup daemon started (interval: {}s)", interval_secs);
 }
 
 pub async fn guest_expiry_middleware(

@@ -17,15 +17,16 @@ pub fn FileRow(
     on_toggle_favorite: Callback<String>,
     #[prop(default = false)] show_checkbox: bool,
     #[prop(default = false)] is_selected: bool,
-    #[prop(default = Callback::new(move |_: (String, usize, bool, bool)| {}))]
-    on_toggle_select: Callback<(String, usize, bool, bool)>,
+    #[prop(default = Callback::new(move |_: (String, usize, bool, bool)| {}))] on_toggle_select: Callback<(
+        String,
+        usize,
+        bool,
+        bool,
+    )>,
     #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
-    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(
-        String,
-        bool,
-    )>,
+    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(String, bool)>,
     #[prop(default = false)] is_locked: bool,
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
@@ -37,7 +38,7 @@ pub fn FileRow(
         </svg>
     };
     let file_icon = view! {
-        <svg class="w-5 h-5 text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-[var(--text-tertiary)]" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
     };
@@ -167,9 +168,9 @@ pub fn FileRow(
         <tr
             class=move || format!(
                 "border-b border-gray-100 md:group cursor-pointer transition-colors {} {} block md:table-row mb-2 md:mb-0 px-3 py-2 md:px-0 md:py-0 rounded md:rounded-none mx-2 md:mx-0 md:border-0 md:first:border-t-0 {}",
-                if is_selected { "bg-blue-50 dark:bg-blue-900/20" } else { "hover:bg-gray-50 md:hover:bg-gray-50" },
+                if is_selected { "bg-[var(--accent-subtle)]" } else { "hover:bg-[var(--interactive-hover)] md:hover:bg-[var(--interactive-hover)]" },
                 if show_checkbox { "select-none" } else { "" },
-                if entry_is_collection && folder_hovering.get() { "ring-2 ring-blue-400 border-blue-400 bg-blue-50 dark:bg-blue-900/30" } else { "" }
+                if entry_is_collection && folder_hovering.get() { "ring-2 ring-blue-400 border-blue-400 bg-[var(--accent-subtle)]" } else { "" }
             )
             role="row"
             draggable=move || !entry_is_collection && !is_locked
@@ -199,7 +200,7 @@ pub fn FileRow(
             <td class="hidden md:table-cell px-4 py-2.5" role="gridcell" hidden=move || !show_checkbox>
                 <input
                     type="checkbox"
-                    class="rounded border text-blue-600 focus:ring-blue-500"
+                    class="rounded border text-[var(--accent)] focus:ring-[var(--border-focus)]"
                     prop:checked=is_selected
                     attr:aria-label=format!("Select {}", name_for_delete)
                     on:click=handle_checkbox_click_desktop
@@ -228,7 +229,7 @@ pub fn FileRow(
                             }.into_any()
                         } else {
                             view! {
-                                <svg class="w-5 h-5 text-gray-400" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 text-[var(--text-tertiary)]" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                             }.into_any()
@@ -239,7 +240,7 @@ pub fn FileRow(
                             </svg>
                         })}
                     </span>
-                    <span class={if entry_is_collection { "font-semibold font-mono text-gray-900 truncate" } else { "text-gray-700 truncate" }}>
+                    <span class={if entry_is_collection { "font-semibold font-mono text-[var(--text-primary)] truncate" } else { "text-[var(--text-secondary)] truncate" }}>
                         {entry_name.clone()}
                     </span>
                     {is_locked.then(|| view! {
@@ -247,18 +248,18 @@ pub fn FileRow(
                     })}
                 </div>
             </td>
-            <td class="px-1 py-0 md:px-4 md:py-2.5 text-gray-500 text-sm font-mono tabular-nums md:table-cell block" role="gridcell">
+            <td class="px-1 py-0 md:px-4 md:py-2.5 text-[var(--text-tertiary)] text-sm font-mono tabular-nums md:table-cell block" role="gridcell">
                 <span class="md:hidden text-xs">{entry_size.clone()}</span>
                 <span class="hidden md:inline">{entry_size.clone()}</span>
             </td>
-            <td class="px-1 py-0 md:px-4 md:py-2.5 text-gray-500 text-sm font-mono tabular-nums hidden lg:table-cell" role="gridcell">{entry_modified.clone()}</td>
+            <td class="px-1 py-0 md:px-4 md:py-2.5 text-[var(--text-tertiary)] text-sm font-mono tabular-nums hidden lg:table-cell" role="gridcell">{entry_modified.clone()}</td>
             <td class="px-1 py-1 md:px-4 md:py-2.5 text-right md:table-cell block" role="gridcell">
                 <div class="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     {show_checkbox.then(|| view! {
                         <div class="md:hidden mr-1">
                             <input
                                 type="checkbox"
-                                class="rounded border text-blue-600 focus:ring-blue-500 min-w-[44px] min-h-[44px]"
+                                class="rounded border text-[var(--accent)] focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px]"
                                 prop:checked=is_selected
                                 attr:aria-label=format!("Select {}", name_for_delete)
                                 on:click=handle_checkbox_click_mobile
@@ -267,7 +268,7 @@ pub fn FileRow(
                     })}
                     <button
                         class=move || {
-                            let base = "p-2 md:p-1.5 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center";
+                            let base = "p-2 md:p-1.5 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center";
                             let color = if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50" };
                             format!("{} {}", base, color)
                         }
@@ -284,7 +285,7 @@ pub fn FileRow(
                     </button>
                     {(!entry.is_collection && !is_locked).then(|| view! {
                         <button
-                            class="p-2 md:p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                            class="p-2 md:p-1.5 text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                             attr:aria-label=format!("Download {}", name_for_download)
                             title=t!("common.download")
                             on:click=move |ev| {
@@ -299,7 +300,7 @@ pub fn FileRow(
                     })}
                     {(!entry.is_collection && !is_locked).then(|| view! {
                         <button
-                            class="p-2 md:p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                            class="p-2 md:p-1.5 text-[var(--text-tertiary)] hover:text-green-600 hover:bg-[var(--success-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                             attr:aria-label=format!("Share {}", name_for_share)
                             title=t!("common.share")
                             on:click=move |ev| {
@@ -314,7 +315,7 @@ pub fn FileRow(
                     })}
                     {(!entry.is_collection).then(|| view! {
                         <button
-                            class="p-2 md:p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                            class="p-2 md:p-1.5 text-[var(--text-tertiary)] hover:text-indigo-600 hover:bg-indigo-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                             attr:aria-label=format!("Version history for {}", entry.name)
                             title=t!("dialog.version_history.title")
                             on:click=move |ev| {
@@ -328,7 +329,7 @@ pub fn FileRow(
                         </button>
                     })}
                     <button
-                        class="p-2 md:p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                        class="p-2 md:p-1.5 text-[var(--text-tertiary)] hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                         attr:aria-label=format!("Copy {}", name_for_copy)
                         title=t!("common.copy")
                         on:click=move |ev| {
@@ -341,7 +342,7 @@ pub fn FileRow(
                         </svg>
                     </button>
                     <button
-                        class="p-2 md:p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                        class="p-2 md:p-1.5 text-[var(--text-tertiary)] hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                         attr:aria-label=format!("Move {}", name_for_move)
                         title=t!("common.move")
                         on:click=move |ev| {
@@ -355,7 +356,7 @@ pub fn FileRow(
                     </button>
                     {(!entry.is_collection && !is_locked).then(|| view! {
                         <button
-                            class="p-2 md:p-1.5 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                            class="p-2 md:p-1.5 text-[var(--text-tertiary)] hover:text-cyan-600 hover:bg-cyan-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                             attr:aria-label=format!("Rename {}", entry.name)
                             title=t!("common.rename")
                             on:click=move |ev| {
@@ -373,7 +374,7 @@ pub fn FileRow(
                     })}
                     {(!is_locked).then(|| view! {
                         <button
-                            class="p-2 md:p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                            class="p-2 md:p-1.5 text-[var(--text-tertiary)] hover:text-[var(--danger)] hover:bg-[var(--danger-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                             attr:aria-label=format!("Delete {}", name_for_delete)
                             title=t!("common.delete")
                             on:click=move |ev| {

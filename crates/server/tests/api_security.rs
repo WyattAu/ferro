@@ -67,11 +67,7 @@ async fn test_path_traversal_blocked_on_webdav_endpoints() {
         if *method == "COPY" || *method == "MOVE" {
             builder = builder.header("Destination", "/../../tmp/b");
         }
-        let resp = app
-            .clone()
-            .oneshot(builder.body(Body::empty()).unwrap())
-            .await
-            .unwrap();
+        let resp = app.clone().oneshot(builder.body(Body::empty()).unwrap()).await.unwrap();
 
         assert!(
             resp.status() == StatusCode::BAD_REQUEST
@@ -106,12 +102,7 @@ async fn test_url_decoded_path_still_reachable() {
     if created {
         let get = app
             .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/etc/passwd")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/etc/passwd").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(

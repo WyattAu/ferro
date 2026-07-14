@@ -16,7 +16,6 @@ chrono = { workspace = true }
 uuid = { version = "1", features = ["v4", "serde"] }
 rusqlite = { workspace = true }
 thiserror = { workspace = true }
-tracing = "0.1"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

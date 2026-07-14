@@ -42,25 +42,21 @@ fn bench_upload(c: &mut Criterion) {
         });
 
         group.throughput(Throughput::Elements(1));
-        group.bench_with_input(
-            BenchmarkId::new("put_throughput_mb", label),
-            &size_mb,
-            |b, _size_mb| {
-                let storage = Arc::new(InMemoryStorageEngine::new());
-                let content = make_content(*size);
-                b.iter(|| {
-                    let data = content.clone();
-                    let path = format!("/owncloud/sync/{}", uuid::Uuid::new_v4());
-                    let start = Instant::now();
-                    rt.block_on(async {
-                        storage.put(&path, data, &make_owner()).await.unwrap();
-                    });
-                    let elapsed = start.elapsed().as_secs_f64();
-                    let throughput = size_mb / elapsed;
-                    std::hint::black_box(throughput);
+        group.bench_with_input(BenchmarkId::new("put_throughput_mb", label), &size_mb, |b, _size_mb| {
+            let storage = Arc::new(InMemoryStorageEngine::new());
+            let content = make_content(*size);
+            b.iter(|| {
+                let data = content.clone();
+                let path = format!("/owncloud/sync/{}", uuid::Uuid::new_v4());
+                let start = Instant::now();
+                rt.block_on(async {
+                    storage.put(&path, data, &make_owner()).await.unwrap();
                 });
-            },
-        );
+                let elapsed = start.elapsed().as_secs_f64();
+                let throughput = size_mb / elapsed;
+                std::hint::black_box(throughput);
+            });
+        });
     }
     group.finish();
 }
@@ -100,25 +96,21 @@ fn bench_download(c: &mut Criterion) {
             })
         });
 
-        group.bench_with_input(
-            BenchmarkId::new("get_throughput_mb", label),
-            &size_mb,
-            |b, _size_mb| {
+        group.bench_with_input(BenchmarkId::new("get_throughput_mb", label), &size_mb, |b, _size_mb| {
+            let storage = storage.clone();
+            let path = path.clone();
+            b.iter(|| {
                 let storage = storage.clone();
                 let path = path.clone();
-                b.iter(|| {
-                    let storage = storage.clone();
-                    let path = path.clone();
-                    let start = Instant::now();
-                    rt.block_on(async {
-                        let _ = storage.get(&path).await.unwrap();
-                    });
-                    let elapsed = start.elapsed().as_secs_f64();
-                    let throughput = size_mb / elapsed;
-                    std::hint::black_box(throughput);
+                let start = Instant::now();
+                rt.block_on(async {
+                    let _ = storage.get(&path).await.unwrap();
                 });
-            },
-        );
+                let elapsed = start.elapsed().as_secs_f64();
+                let throughput = size_mb / elapsed;
+                std::hint::black_box(throughput);
+            });
+        });
     }
     group.finish();
 }
@@ -160,10 +152,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                 rt.block_on(async {
                     for i in 0..concurrency {
                         let path = format!("/owncloud/concurrent/file_{}.dat", i);
-                        storage
-                            .put(&path, make_content(10_240), &make_owner())
-                            .await
-                            .unwrap();
+                        storage.put(&path, make_content(10_240), &make_owner()).await.unwrap();
                     }
                 });
 
@@ -207,10 +196,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                             let storage = storage.clone();
                             handles.push(tokio::spawn(async move {
                                 let path = format!("/owncloud/mixed/read_{}.dat", i);
-                                storage
-                                    .put(&path, make_content(10_240), &make_owner())
-                                    .await
-                                    .unwrap();
+                                storage.put(&path, make_content(10_240), &make_owner()).await.unwrap();
                                 let _ = storage.get(&path).await.unwrap();
                             }));
                         }
@@ -231,19 +217,13 @@ fn bench_propfind(c: &mut Criterion) {
 
     use ferro_dav::xml_ext::{DavProp, DavResponse, PropStat};
 
-    let entry_counts: Vec<(usize, &str)> = vec![
-        (100, "100_entries"),
-        (1000, "1000_entries"),
-        (10_000, "10000_entries"),
-    ];
+    let entry_counts: Vec<(usize, &str)> =
+        vec![(100, "100_entries"), (1000, "1000_entries"), (10_000, "10000_entries")];
 
     for (count, label) in &entry_counts {
         let responses: Vec<DavResponse> = (0..*count)
             .map(|i| DavResponse {
-                href: format!(
-                    "/owncloud/remote.php/dav/files/user/Photos/photo_{:06}.jpg",
-                    i
-                ),
+                href: format!("/owncloud/remote.php/dav/files/user/Photos/photo_{:06}.jpg", i),
                 propstats: vec![PropStat {
                     status: 200,
                     props: vec![
@@ -292,10 +272,7 @@ fn bench_propfind(c: &mut Criterion) {
         let storage = Arc::new(InMemoryStorageEngine::new());
         rt.block_on(async {
             for i in 0..*count {
-                let path = format!(
-                    "/owncloud/remote.php/dav/files/user/Photos/photo_{:06}.jpg",
-                    i
-                );
+                let path = format!("/owncloud/remote.php/dav/files/user/Photos/photo_{:06}.jpg", i);
                 let content = make_content(1024);
                 storage.put(&path, content, &make_owner()).await.unwrap();
             }
@@ -314,41 +291,30 @@ fn bench_propfind(c: &mut Criterion) {
             });
         });
 
-        group.bench_with_input(
-            BenchmarkId::new("list_all_depth_1", label),
-            count,
-            |b, _| {
+        group.bench_with_input(BenchmarkId::new("list_all_depth_1", label), count, |b, _| {
+            let storage = storage.clone();
+            b.to_async(&rt).iter(|| {
                 let storage = storage.clone();
-                b.to_async(&rt).iter(|| {
-                    let storage = storage.clone();
-                    async move {
-                        let _ = storage
-                            .list_all("/owncloud/remote.php/dav/files/user/", 2)
-                            .await
-                            .unwrap();
-                    }
-                });
-            },
-        );
+                async move {
+                    let _ = storage
+                        .list_all("/owncloud/remote.php/dav/files/user/", 2)
+                        .await
+                        .unwrap();
+                }
+            });
+        });
 
-        group.bench_with_input(
-            BenchmarkId::new("head_operation", label),
-            count,
-            |b, &count| {
+        group.bench_with_input(BenchmarkId::new("head_operation", label), count, |b, &count| {
+            let storage = storage.clone();
+            let target = format!("/owncloud/remote.php/dav/files/user/Photos/photo_{:06}.jpg", count / 2);
+            b.to_async(&rt).iter(|| {
                 let storage = storage.clone();
-                let target = format!(
-                    "/owncloud/remote.php/dav/files/user/Photos/photo_{:06}.jpg",
-                    count / 2
-                );
-                b.to_async(&rt).iter(|| {
-                    let storage = storage.clone();
-                    let target = target.clone();
-                    async move {
-                        let _ = storage.head(&target).await.unwrap();
-                    }
-                });
-            },
-        );
+                let target = target.clone();
+                async move {
+                    let _ = storage.head(&target).await.unwrap();
+                }
+            });
+        });
     }
     group.finish();
 }
@@ -364,10 +330,7 @@ fn bench_sync_workflow(c: &mut Criterion) {
             async move {
                 let path = "/owncloud/sync/doc.txt";
                 let content = make_content(10240);
-                let meta = storage
-                    .put(path, content.clone(), &make_owner())
-                    .await
-                    .unwrap();
+                let meta = storage.put(path, content.clone(), &make_owner()).await.unwrap();
                 let _ = storage.head(path).await.unwrap();
                 let _ = storage.get(path).await.unwrap();
                 let _ = storage.exists(path).await.unwrap();
@@ -399,11 +362,7 @@ fn bench_sync_workflow(c: &mut Criterion) {
         let storage = Arc::new(InMemoryStorageEngine::new());
         rt.block_on(async {
             storage
-                .put(
-                    "/owncloud/rename/original.txt",
-                    make_content(8192),
-                    &make_owner(),
-                )
+                .put("/owncloud/rename/original.txt", make_content(8192), &make_owner())
                 .await
                 .unwrap();
         });
@@ -412,18 +371,12 @@ fn bench_sync_workflow(c: &mut Criterion) {
             let storage = storage.clone();
             async move {
                 storage
-                    .move_path(
-                        "/owncloud/rename/original.txt",
-                        "/owncloud/rename/renamed.txt",
-                    )
+                    .move_path("/owncloud/rename/original.txt", "/owncloud/rename/renamed.txt")
                     .await
                     .unwrap();
                 let _ = storage.get("/owncloud/rename/renamed.txt").await.unwrap();
                 storage
-                    .move_path(
-                        "/owncloud/rename/renamed.txt",
-                        "/owncloud/rename/original.txt",
-                    )
+                    .move_path("/owncloud/rename/renamed.txt", "/owncloud/rename/original.txt")
                     .await
                     .unwrap();
             }
@@ -439,8 +392,7 @@ fn bench_sync_workflow(c: &mut Criterion) {
                     let storage = storage.clone();
                     handles.push(tokio::spawn(async move {
                         for i in 0..10 {
-                            let path =
-                                format!("/owncloud/clients/client_{}/file_{}.txt", client, i);
+                            let path = format!("/owncloud/clients/client_{}/file_{}.txt", client, i);
                             let content = make_content(2048);
                             let _ = storage.put(&path, content, &make_owner()).await;
                             let _ = storage.get(&path).await;
@@ -460,10 +412,7 @@ fn bench_sync_workflow(c: &mut Criterion) {
             rt.block_on(async {
                 for i in 0..100 {
                     let path = format!("/owncloud/delete/file_{:03}.txt", i);
-                    storage
-                        .put(&path, make_content(512), &make_owner())
-                        .await
-                        .unwrap();
+                    storage.put(&path, make_content(512), &make_owner()).await.unwrap();
                 }
                 for i in 0..100 {
                     let path = format!("/owncloud/delete/file_{:03}.txt", i);

@@ -1,3 +1,5 @@
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 pub struct LdapConfig {
     pub url: String,
     pub bind_dn: String,
@@ -18,6 +20,29 @@ pub struct LdapConfig {
     pub group_role_map: std::collections::HashMap<String, String>,
 }
 
+impl Drop for LdapConfig {
+    fn drop(&mut self) {
+        self.bind_password.zeroize();
+    }
+}
+
+impl std::fmt::Debug for LdapConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LdapConfig")
+            .field("url", &self.url)
+            .field("bind_dn", &self.bind_dn)
+            .field("bind_password", &"[REDACTED]")
+            .field("user_search_base", &self.user_search_base)
+            .field("user_filter", &self.user_filter)
+            .field("email_attribute", &self.email_attribute)
+            .field("display_name_attribute", &self.display_name_attribute)
+            .field("group_search_base", &self.group_search_base)
+            .field("group_filter", &self.group_filter)
+            .field("group_role_map", &self.group_role_map)
+            .finish()
+    }
+}
+
 #[derive(Debug)]
 pub struct LdapError {
     pub message: String,
@@ -31,9 +56,7 @@ impl std::fmt::Display for LdapError {
 
 impl LdapError {
     pub fn new(msg: impl Into<String>) -> Self {
-        Self {
-            message: msg.into(),
-        }
+        Self { message: msg.into() }
     }
 }
 
@@ -42,8 +65,7 @@ pub async fn ldap_authenticate(
     username: &str,
     password: &str,
 ) -> Result<ferro_server::users::User, LdapError> {
-    let settings =
-        ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
+    let settings = ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
 
     let (_conn, mut ldap) = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
@@ -78,11 +100,7 @@ pub async fn ldap_authenticate(
             &config.user_search_base,
             ldap3::Scope::Subtree,
             &filter,
-            vec![
-                &config.email_attribute,
-                &config.display_name_attribute,
-                "uid",
-            ],
+            vec![&config.email_attribute, &config.display_name_attribute, "uid"],
         ),
     )
     .await
@@ -109,8 +127,7 @@ pub async fn ldap_authenticate(
         tracing::warn!("LDAP unbind failed: {}", e);
     }
 
-    let settings2 =
-        ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
+    let settings2 = ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
     let (_conn2, mut ldap_user) = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
         ldap3::LdapConnAsync::with_settings(settings2, &config.url),
@@ -185,10 +202,7 @@ pub async fn ldap_authenticate(
 /// Connects with the service account, searches for groups containing the user DN,
 /// then matches group CNs against the configured `group_role_map`.
 /// Returns the highest-privilege matching role, or `UserRole::User` as default.
-async fn resolve_role_from_groups(
-    config: &LdapConfig,
-    user_dn: &str,
-) -> ferro_server::users::UserRole {
+async fn resolve_role_from_groups(config: &LdapConfig, user_dn: &str) -> ferro_server::users::UserRole {
     let group_base = match &config.group_search_base {
         Some(b) => b,
         None => return ferro_server::users::UserRole::User,
@@ -200,8 +214,7 @@ async fn resolve_role_from_groups(
         .unwrap_or("(member={dn})")
         .replace("{dn}", user_dn);
 
-    let settings =
-        ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
+    let settings = ldap3::LdapConnSettings::new().set_conn_timeout(std::time::Duration::from_secs(5));
 
     let (_conn, mut ldap) = match tokio::time::timeout(
         std::time::Duration::from_secs(5),
@@ -216,11 +229,7 @@ async fn resolve_role_from_groups(
         }
     };
 
-    if ldap
-        .simple_bind(&config.bind_dn, &config.bind_password)
-        .await
-        .is_err()
-    {
+    if ldap.simple_bind(&config.bind_dn, &config.bind_password).await.is_err() {
         tracing::warn!("LDAP group lookup: service bind failed");
         return ferro_server::users::UserRole::User;
     }

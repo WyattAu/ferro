@@ -48,14 +48,8 @@ impl std::fmt::Display for ConflictStrategy {
 /// Given `/path/to/file.txt`, produces `/path/to/file (conflict 2026-05-29).txt`.
 pub fn conflict_path(local_path: &Path) -> std::path::PathBuf {
     let parent = local_path.parent().unwrap_or(Path::new("."));
-    let stem = local_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("file");
-    let ext = local_path
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
+    let stem = local_path.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
+    let ext = local_path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
     let date = chrono::Local::now().format("%Y-%m-%d");
     let conflict_name = if ext.is_empty() {
@@ -85,22 +79,13 @@ mod tests {
 
     #[test]
     fn test_conflict_strategy_parsing() {
-        assert_eq!(
-            ConflictStrategy::parse("local"),
-            Some(ConflictStrategy::LocalWins)
-        );
+        assert_eq!(ConflictStrategy::parse("local"), Some(ConflictStrategy::LocalWins));
         assert_eq!(
             ConflictStrategy::parse("remote-wins"),
             Some(ConflictStrategy::RemoteWins)
         );
-        assert_eq!(
-            ConflictStrategy::parse("both"),
-            Some(ConflictStrategy::KeepBoth)
-        );
-        assert_eq!(
-            ConflictStrategy::parse("skip"),
-            Some(ConflictStrategy::Skip)
-        );
+        assert_eq!(ConflictStrategy::parse("both"), Some(ConflictStrategy::KeepBoth));
+        assert_eq!(ConflictStrategy::parse("skip"), Some(ConflictStrategy::Skip));
         assert_eq!(ConflictStrategy::parse("unknown"), None);
     }
 

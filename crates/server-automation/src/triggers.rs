@@ -199,11 +199,7 @@ pub async fn create_trigger(axum::Json(req): axum::Json<CreateTriggerRequest>) -
 
 pub async fn list_triggers() -> Response {
     let triggers = trigger_store().list().await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "triggers": triggers })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "triggers": triggers }))).into_response()
 }
 
 pub async fn delete_trigger(Path(id): Path<String>) -> Response {
@@ -319,14 +315,10 @@ mod tests {
             };
             store.add(trigger).await;
 
-            let matching = store
-                .find_matching("file.upload", "/documents/report.pdf")
-                .await;
+            let matching = store.find_matching("file.upload", "/documents/report.pdf").await;
             assert_eq!(matching.len(), 1);
 
-            let no_match = store
-                .find_matching("file.upload", "/images/photo.jpg")
-                .await;
+            let no_match = store.find_matching("file.upload", "/images/photo.jpg").await;
             assert!(no_match.is_empty());
         });
     }

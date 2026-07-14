@@ -528,9 +528,7 @@ impl OverlayManager for MacosOverlayManager {
         if !self.initialized {
             return Err(OverlayError::InitFailed("not initialized".to_string()));
         }
-        let output = Command::new("xattr")
-            .args(["-d", Self::XATTR_KEY, path])
-            .output();
+        let output = Command::new("xattr").args(["-d", Self::XATTR_KEY, path]).output();
         match output {
             Ok(o) if o.status.success() => Ok(()),
             Ok(o) => {
@@ -710,18 +708,15 @@ impl LinuxOverlayManager {
         if !self.config.enable_nautilus_extension {
             return Ok(());
         }
-        let home = dirs::home_dir().ok_or_else(|| {
-            OverlayError::InitFailed("cannot determine home directory".to_string())
-        })?;
+        let home =
+            dirs::home_dir().ok_or_else(|| OverlayError::InitFailed("cannot determine home directory".to_string()))?;
         let ext_dir = home.join(".local/share/nautilus-python/extensions");
-        std::fs::create_dir_all(&ext_dir).map_err(|e| {
-            OverlayError::InitFailed(format!("failed to create nautilus extension dir: {}", e))
-        })?;
+        std::fs::create_dir_all(&ext_dir)
+            .map_err(|e| OverlayError::InitFailed(format!("failed to create nautilus extension dir: {}", e)))?;
         let script_path = ext_dir.join("ferro_sync_extension.py");
         let script = include_str!("nautilus_extension.py");
-        std::fs::write(&script_path, script).map_err(|e| {
-            OverlayError::InitFailed(format!("failed to write nautilus extension: {}", e))
-        })?;
+        std::fs::write(&script_path, script)
+            .map_err(|e| OverlayError::InitFailed(format!("failed to write nautilus extension: {}", e)))?;
         tracing::info!("nautilus extension installed to {}", script_path.display());
         Ok(())
     }
@@ -757,11 +752,7 @@ impl OverlayManager for LinuxOverlayManager {
         match output {
             Ok(o) if o.status.success() => Ok(()),
             Ok(o) => {
-                tracing::debug!(
-                    "gio set failed for {}: {}",
-                    path,
-                    String::from_utf8_lossy(&o.stderr)
-                );
+                tracing::debug!("gio set failed for {}: {}", path, String::from_utf8_lossy(&o.stderr));
                 Ok(())
             }
             Err(e) => {
@@ -781,11 +772,7 @@ impl OverlayManager for LinuxOverlayManager {
         match output {
             Ok(o) if o.status.success() => Ok(()),
             Ok(o) => {
-                tracing::debug!(
-                    "gio unset failed for {}: {}",
-                    path,
-                    String::from_utf8_lossy(&o.stderr)
-                );
+                tracing::debug!("gio unset failed for {}: {}", path, String::from_utf8_lossy(&o.stderr));
                 Ok(())
             }
             Err(e) => {

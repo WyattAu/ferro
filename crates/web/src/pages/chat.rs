@@ -54,11 +54,7 @@ pub fn ChatPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(ChatRoom {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        name: v
-                                            .get("name")
-                                            .and_then(|n| n.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
                                         room_type: v
                                             .get("room_type")
                                             .and_then(|t| t.as_str())
@@ -97,30 +93,15 @@ pub fn ChatPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(ChatMessage {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        room_id: v
-                                            .get("room_id")
-                                            .and_then(|r| r.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
-                                        user_id: v
-                                            .get("user_id")
-                                            .and_then(|u| u.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
-                                        content: v
-                                            .get("content")
-                                            .and_then(|c| c.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        room_id: v.get("room_id").and_then(|r| r.as_str()).unwrap_or("").to_string(),
+                                        user_id: v.get("user_id").and_then(|u| u.as_str()).unwrap_or("").to_string(),
+                                        content: v.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string(),
                                         timestamp: v
                                             .get("timestamp")
                                             .and_then(|t| t.as_str())
                                             .unwrap_or("")
                                             .to_string(),
-                                        reply_to: v
-                                            .get("reply_to")
-                                            .and_then(|r| r.as_str())
-                                            .map(|s| s.to_string()),
+                                        reply_to: v.get("reply_to").and_then(|r| r.as_str()).map(|s| s.to_string()),
                                         attachment_path: v
                                             .get("attachment_path")
                                             .and_then(|a| a.as_str())
@@ -222,9 +203,7 @@ pub fn ChatPage() -> impl IntoView {
                 "name": name,
                 "room_type": "global",
             });
-            match api::fetch_json_with_method("/api/chat/rooms", "POST", Some(&body.to_string()))
-                .await
-            {
+            match api::fetch_json_with_method("/api/chat/rooms", "POST", Some(&body.to_string())).await {
                 Ok(_) => {
                     fetch_rooms();
                 }

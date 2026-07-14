@@ -23,9 +23,31 @@ thiserror = "2"
 sha2 = "0.11"
 hex = "0.4"
 uuid = { version = "1", features = ["v4", "serde"] }
-url = "2"
 serde_json = "1"
 async-trait = "0.1"
 bytes = "1"
+zeroize = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["io-util", "macros", "rt"] }
 mime_guess = "2"
+bumpalo = "3.12"
+dashmap = "6"
+
+[features]
+default = ["simd"]
+simd = []
+
+[dev-dependencies]
+proptest = "1"
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[[bench]]
+name = "path_bench"
+harness = false
+
+[[bench]]
+name = "xml_bench"
+harness = false
+
+[[bench]]
+name = "simd_bench"
+harness = false

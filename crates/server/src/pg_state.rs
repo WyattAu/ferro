@@ -6,6 +6,7 @@ use tracing::{debug, warn};
 use crate::search::UserPreferences;
 use crate::shares::{CreateShareRequest, ShareLink};
 
+#[derive(Debug)]
 pub struct PgShareStore {
     pool: PgPool,
 }
@@ -153,6 +154,7 @@ impl crate::shares::ShareStoreTrait for PgShareStore {
     }
 }
 
+#[derive(Debug)]
 pub struct PgFavoriteStore {
     pool: PgPool,
 }
@@ -221,6 +223,7 @@ impl crate::favorites::FavoriteStore for PgFavoriteStore {
     }
 }
 
+#[derive(Debug)]
 pub struct PgPreferenceStore {
     pool: PgPool,
 }

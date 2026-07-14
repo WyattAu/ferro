@@ -136,6 +136,42 @@ mod tests {
     }
 
     #[test]
+    fn test_range_spec_resolve_suffix_zero() {
+        let spec = RangeSpec {
+            start: None,
+            end: Some(0),
+        };
+        assert_eq!(spec.resolve(10000), None);
+    }
+
+    #[test]
+    fn test_range_spec_resolve_start_past_end() {
+        let spec = RangeSpec {
+            start: Some(100),
+            end: Some(50),
+        };
+        assert_eq!(spec.resolve(1000), None);
+    }
+
+    #[test]
+    fn test_range_spec_resolve_start_past_content() {
+        let spec = RangeSpec {
+            start: Some(1000),
+            end: Some(1500),
+        };
+        assert_eq!(spec.resolve(1000), None);
+    }
+
+    #[test]
+    fn test_range_spec_resolve_end_clamped() {
+        let spec = RangeSpec {
+            start: Some(0),
+            end: Some(2000),
+        };
+        assert_eq!(spec.resolve(1000), Some((0, 999)));
+    }
+
+    #[test]
     fn test_parse_range_header_simple() {
         let mut headers = HeaderMap::new();
         headers.insert("Range", HeaderValue::from_static("bytes=0-499"));
@@ -145,10 +181,84 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_range_header_suffix() {
+        let mut headers = HeaderMap::new();
+        headers.insert("Range", HeaderValue::from_static("bytes=-500"));
+        let parsed = parse_range_header(&headers, 1000).unwrap();
+        assert_eq!(parsed.ranges.len(), 1);
+        assert_eq!(parsed.ranges[0].resolve(1000), Some((500, 999)));
+    }
+
+    #[test]
+    fn test_parse_range_header_start_only() {
+        let mut headers = HeaderMap::new();
+        headers.insert("Range", HeaderValue::from_static("bytes=500-"));
+        let parsed = parse_range_header(&headers, 1000).unwrap();
+        assert_eq!(parsed.ranges.len(), 1);
+        assert_eq!(parsed.ranges[0].resolve(1000), Some((500, 999)));
+    }
+
+    #[test]
+    fn test_parse_range_header_multiple() {
+        let mut headers = HeaderMap::new();
+        headers.insert("Range", HeaderValue::from_static("bytes=0-499, 500-999"));
+        let parsed = parse_range_header(&headers, 1000).unwrap();
+        assert_eq!(parsed.ranges.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_range_header_no_prefix() {
+        let mut headers = HeaderMap::new();
+        headers.insert("Range", HeaderValue::from_static("0-499"));
+        assert!(parse_range_header(&headers, 1000).is_none());
+    }
+
+    #[test]
+    fn test_parse_range_header_empty() {
+        let mut headers = HeaderMap::new();
+        headers.insert("Range", HeaderValue::from_static("bytes="));
+        assert!(parse_range_header(&headers, 1000).is_none());
+    }
+
+    #[test]
+    fn test_parse_range_header_no_range() {
+        let headers = HeaderMap::new();
+        assert!(parse_range_header(&headers, 1000).is_none());
+    }
+
+    #[test]
     fn test_build_range_headers() {
         let headers = build_range_headers(0, 499, 1000);
         assert_eq!(headers.get("Content-Range").unwrap(), "bytes 0-499/1000");
         assert_eq!(headers.get("Content-Length").unwrap(), "500");
         assert_eq!(headers.get("Accept-Ranges").unwrap(), "bytes");
+    }
+
+    #[test]
+    fn test_accept_ranges_header() {
+        assert_eq!(accept_ranges_header(), "bytes");
+    }
+
+    #[test]
+    fn test_range_spec_clone() {
+        let spec = RangeSpec {
+            start: Some(100),
+            end: Some(200),
+        };
+        let cloned = spec.clone();
+        assert_eq!(cloned.start, Some(100));
+        assert_eq!(cloned.end, Some(200));
+    }
+
+    #[test]
+    fn test_range_request_clone() {
+        let req = RangeRequest {
+            ranges: vec![
+                RangeSpec { start: Some(0), end: Some(100) },
+                RangeSpec { start: Some(200), end: Some(300) },
+            ],
+        };
+        let cloned = req.clone();
+        assert_eq!(cloned.ranges.len(), 2);
     }
 }

@@ -13,10 +13,7 @@ fn fed_state(s: &crate::AppState) -> FederationState {
     }
 }
 
-pub async fn get_actor(
-    State(s): State<crate::AppState>,
-    path: axum::extract::Path<String>,
-) -> Response {
+pub async fn get_actor(State(s): State<crate::AppState>, path: axum::extract::Path<String>) -> Response {
     ferro_server_activitypub::get_actor(State(fed_state(&s)), path).await
 }
 
@@ -24,10 +21,7 @@ pub async fn nodeinfo(State(s): State<crate::AppState>) -> Response {
     ferro_server_activitypub::nodeinfo(State(fed_state(&s))).await
 }
 
-pub async fn inbox(
-    State(s): State<crate::AppState>,
-    req: axum::http::Request<axum::body::Body>,
-) -> Response {
+pub async fn inbox(State(s): State<crate::AppState>, req: axum::http::Request<axum::body::Body>) -> Response {
     ferro_server_activitypub::inbox(State(fed_state(&s)), req).await
 }
 
@@ -45,17 +39,11 @@ pub async fn list_outbox(
     ferro_server_activitypub::list_outbox(State(fed_state(&s)), q).await
 }
 
-pub async fn list_followers(
-    State(s): State<crate::AppState>,
-    path: axum::extract::Path<String>,
-) -> Response {
+pub async fn list_followers(State(s): State<crate::AppState>, path: axum::extract::Path<String>) -> Response {
     ferro_server_activitypub::list_followers(State(fed_state(&s)), path).await
 }
 
-pub async fn list_following(
-    State(s): State<crate::AppState>,
-    path: axum::extract::Path<String>,
-) -> Response {
+pub async fn list_following(State(s): State<crate::AppState>, path: axum::extract::Path<String>) -> Response {
     ferro_server_activitypub::list_following(State(fed_state(&s)), path).await
 }
 

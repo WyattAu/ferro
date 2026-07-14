@@ -30,10 +30,7 @@ pub struct ActivityParams {
 }
 
 /// GET /api/activity — return recent activity from the audit log.
-pub async fn get_activity<S: AdminState>(
-    State(state): State<S>,
-    Query(params): Query<ActivityParams>,
-) -> Response {
+pub async fn get_activity<S: AdminState>(State(state): State<S>, Query(params): Query<ActivityParams>) -> Response {
     let limit = params.limit.unwrap_or(50) as usize;
     let offset = params.offset.unwrap_or(0) as usize;
 
@@ -59,11 +56,7 @@ pub async fn get_activity<S: AdminState>(
         })
         .collect();
 
-    (
-        StatusCode::OK,
-        axum::Json(ActivityResponse { entries, total }),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(ActivityResponse { entries, total })).into_response()
 }
 
 fn classify_action(method: &str, status: u16) -> String {

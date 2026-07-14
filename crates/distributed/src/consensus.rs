@@ -3,9 +3,7 @@ use std::time::Duration;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct NodeId(pub String);
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct Term(pub u64);
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -127,10 +125,7 @@ impl RaftNode {
             self.step_down(resp.term);
             return false;
         }
-        if resp.vote_granted
-            && resp.term == self.current_term
-            && self.state == ConsensusState::Candidate
-        {
+        if resp.vote_granted && resp.term == self.current_term && self.state == ConsensusState::Candidate {
             if !self.votes_received.contains(&resp.voter_id) {
                 self.votes_received.push(resp.voter_id.clone());
             }

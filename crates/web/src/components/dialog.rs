@@ -53,7 +53,7 @@ pub fn Dialog(
     view! {
         {move || open.get().then(|| view! {
             <div
-                class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4 transition-opacity duration-200"
+                class="fixed inset-0 bg-[var(--overlay)] z-40 flex items-center justify-center p-4 transition-opacity duration-200"
                 on:click=on_backdrop_click
                 on:keydown=on_keydown
             >
@@ -66,11 +66,11 @@ pub fn Dialog(
                         tabindex="-1"
                     >
                         <div class="flex items-center justify-between mb-4">
-                            <h3 id="dialog-title" class="text-lg font-semibold font-mono text-gray-900">
+                            <h3 id="dialog-title" class="text-lg font-semibold font-mono text-[var(--text-primary)]">
                                 {title}
                             </h3>
                             <button
-                                class="p-1 rounded-sm text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                class="p-1 rounded-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
                                 aria-label=t!("aria.close_dialog")
                                 on:click=close
                             >
@@ -107,15 +107,15 @@ pub fn DialogFooter(
     confirm_disabled: bool,
 ) -> impl IntoView {
     let confirm_class = if destructive {
-        "px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+        "px-4 py-2 text-sm bg-[var(--danger)] text-white brutal-border rounded-sm font-bold uppercase hover:bg-[var(--danger-hover)] focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
     } else {
-        "px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+        "px-4 py-2 text-sm bg-[var(--accent)] text-white brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
     };
 
     view! {
         <div class="flex justify-end gap-2 mt-6">
             <button
-                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
+                class="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
                 on:click=move |ev| on_cancel.run(ev)
             >
                 {cancel_label}

@@ -116,14 +116,8 @@ impl ShareStore {
     fn persist_create(&self, link: &ShareLink) {
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-            let allow_download_val = link
-                .allow_download
-                .map(|v| if v { 1i32 } else { 0i32 })
-                .unwrap_or(-1);
-            let _allow_upload_val = link
-                .allow_upload
-                .map(|v| if v { 1i32 } else { 0i32 })
-                .unwrap_or(-1);
+            let allow_download_val = link.allow_download.map(|v| if v { 1i32 } else { 0i32 }).unwrap_or(-1);
+            let _allow_upload_val = link.allow_upload.map(|v| if v { 1i32 } else { 0i32 }).unwrap_or(-1);
             if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO shares (token, file_path, password, expires_at, created_at, created_by, download_count, max_downloads, is_public, share_type, allow_download, upload_target) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 params![
@@ -175,12 +169,8 @@ impl ShareStore {
         }
     }
 
-    pub fn load_all_from_db(
-        conn: &rusqlite::Connection,
-    ) -> Result<Vec<ShareLink>, rusqlite::Error> {
-        let has_extended = conn
-            .prepare("SELECT share_type FROM shares LIMIT 0")
-            .is_ok();
+    pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<ShareLink>, rusqlite::Error> {
+        let has_extended = conn.prepare("SELECT share_type FROM shares LIMIT 0").is_ok();
         let mut stmt = if has_extended {
             conn.prepare(
                 "SELECT token, file_path, password, expires_at, created_by, download_count, max_downloads, allow_download, allow_upload FROM shares",
@@ -296,11 +286,7 @@ impl ShareStoreTrait for ShareStore {
 
     async fn list(&self) -> Vec<ShareLink> {
         let links = self.links.read().await;
-        links
-            .iter()
-            .filter(|l| l.expires_at > Utc::now())
-            .cloned()
-            .collect()
+        links.iter().filter(|l| l.expires_at > Utc::now()).cloned().collect()
     }
 
     async fn increment_download(&self, token: &str) -> bool {
@@ -383,17 +369,10 @@ pub async fn list_shares(Extension(state): Extension<SharingState>) -> Response 
             })
         })
         .collect();
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "shares": items })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "shares": items }))).into_response()
 }
 
-pub async fn delete_share(
-    Extension(state): Extension<SharingState>,
-    Path(token): Path<String>,
-) -> Response {
+pub async fn delete_share(Extension(state): Extension<SharingState>, Path(token): Path<String>) -> Response {
     if state.share_store.delete(&token).await {
         (StatusCode::NO_CONTENT, "").into_response()
     } else {
@@ -442,10 +421,7 @@ pub async fn serve_share(
             }
             Some(_) => {
                 state.share_store.record_failed_attempt(&token);
-                return ApiError::unauthorized(
-                    ApiError::SHARE_PASSWORD_INVALID,
-                    "Invalid password",
-                );
+                return ApiError::unauthorized(ApiError::SHARE_PASSWORD_INVALID, "Invalid password");
             }
             None => {
                 return ApiError::with_details(
@@ -532,10 +508,7 @@ pub async fn handle_share_upload(
     }
 
     if link.allow_upload != Some(true) {
-        return ApiError::bad_request(
-            ApiError::INVALID_INPUT,
-            "This share link does not accept uploads",
-        );
+        return ApiError::bad_request(ApiError::INVALID_INPUT, "This share link does not accept uploads");
     }
 
     let field = match multipart.next_field().await {
@@ -582,24 +555,14 @@ pub async fn handle_share_upload(
     let target_path = format!("{}/{}", link.path.trim_end_matches('/'), file_name);
 
     if state.storage.head(&link.path).await.is_err()
-        && let Err(e) = state
-            .storage
-            .create_collection(&link.path, "anonymous")
-            .await
+        && let Err(e) = state.storage.create_collection(&link.path, "anonymous").await
     {
         tracing::warn!(error = %e, path = %link.path, "failed to create upload target directory");
-        return ApiError::internal(
-            ApiError::INTERNAL_ERROR,
-            "Failed to create upload directory",
-        );
+        return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create upload directory");
     }
 
     let content_type = crate::shares_ext::sniff_mime_type(&file_name);
-    if let Err(e) = state
-        .storage
-        .put(&target_path, bytes.clone(), "anonymous")
-        .await
-    {
+    if let Err(e) = state.storage.put(&target_path, bytes.clone(), "anonymous").await {
         tracing::warn!(error = %e, path = %target_path, "failed to store uploaded file");
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to store uploaded file");
     }
@@ -636,4 +599,431 @@ pub async fn handle_share_upload(
         })),
     )
         .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_store() -> ShareStore {
+        ShareStore::new()
+    }
+
+    fn make_req(path: &str) -> CreateShareRequest {
+        CreateShareRequest {
+            path: path.to_string(),
+            password: None,
+            expires_in_hours: None,
+            max_downloads: None,
+            allow_download: None,
+            allow_upload: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_share_basic() {
+        let store = make_store();
+        let req = make_req("/documents/report.pdf");
+        let link = store.create(req, "alice".to_string()).await;
+        assert_eq!(link.path, "/documents/report.pdf");
+        assert_eq!(link.created_by, "alice");
+        assert!(!link.token.is_empty());
+        assert_eq!(link.download_count, 0);
+        assert!(link.password.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_create_share_with_password() {
+        let store = make_store();
+        let req = CreateShareRequest {
+            path: "/secret.txt".to_string(),
+            password: Some("my_password".to_string()),
+            expires_in_hours: None,
+            max_downloads: None,
+            allow_download: None,
+            allow_upload: None,
+        };
+        let link = store.create(req, "bob".to_string()).await;
+        assert!(link.password.is_some());
+        assert!(verify_share_password("my_password", link.password.as_ref().unwrap()));
+        assert!(!verify_share_password("wrong", link.password.as_ref().unwrap()));
+    }
+
+    #[tokio::test]
+    async fn test_create_share_with_expiry() {
+        let store = make_store();
+        let req = CreateShareRequest {
+            path: "/temp.dat".to_string(),
+            password: None,
+            expires_in_hours: Some(1),
+            max_downloads: None,
+            allow_download: None,
+            allow_upload: None,
+        };
+        let link = store.create(req, "carol".to_string()).await;
+        let diff = link.expires_at - Utc::now();
+        assert!(diff.num_hours() >= 0 && diff.num_hours() <= 2);
+    }
+
+    #[tokio::test]
+    async fn test_create_share_with_max_downloads() {
+        let store = make_store();
+        let req = CreateShareRequest {
+            path: "/limited.txt".to_string(),
+            password: None,
+            expires_in_hours: None,
+            max_downloads: Some(5),
+            allow_download: None,
+            allow_upload: None,
+        };
+        let link = store.create(req, "dave".to_string()).await;
+        assert_eq!(link.max_downloads, Some(5));
+    }
+
+    #[tokio::test]
+    async fn test_create_share_with_permissions() {
+        let store = make_store();
+        let req = CreateShareRequest {
+            path: "/upload_dir".to_string(),
+            password: None,
+            expires_in_hours: None,
+            max_downloads: None,
+            allow_download: Some(false),
+            allow_upload: Some(true),
+        };
+        let link = store.create(req, "eve".to_string()).await;
+        assert_eq!(link.allow_download, Some(false));
+        assert_eq!(link.allow_upload, Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_get_share_by_token() {
+        let store = make_store();
+        let req = make_req("/file.txt");
+        let link = store.create(req, "alice".to_string()).await;
+        let found = store.get(&link.token).await;
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().path, "/file.txt");
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_share() {
+        let store = make_store();
+        let found = store.get("nonexistent-token").await;
+        assert!(found.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_share() {
+        let store = make_store();
+        let req = make_req("/to_delete.txt");
+        let link = store.create(req, "alice".to_string()).await;
+        assert!(store.delete(&link.token).await);
+        assert!(store.get(&link.token).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_nonexistent_share() {
+        let store = make_store();
+        assert!(!store.delete("no-such-token").await);
+    }
+
+    #[tokio::test]
+    async fn test_list_shares_filters_expired() {
+        let store = make_store();
+        let active_req = CreateShareRequest {
+            path: "/active.txt".to_string(),
+            password: None,
+            expires_in_hours: Some(24),
+            max_downloads: None,
+            allow_download: None,
+            allow_upload: None,
+        };
+        let expired_req = CreateShareRequest {
+            path: "/expired.txt".to_string(),
+            password: None,
+            expires_in_hours: Some(-1),
+            max_downloads: None,
+            allow_download: None,
+            allow_upload: None,
+        };
+        store.create(active_req, "alice".to_string()).await;
+        store.create(expired_req, "alice".to_string()).await;
+        let links = store.list().await;
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].path, "/active.txt");
+    }
+
+    #[tokio::test]
+    async fn test_list_shares_empty() {
+        let store = make_store();
+        let links = store.list().await;
+        assert!(links.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_increment_download() {
+        let store = make_store();
+        let req = make_req("/download.txt");
+        let link = store.create(req, "alice".to_string()).await;
+        assert!(store.increment_download(&link.token).await);
+        let updated = store.get(&link.token).await.unwrap();
+        assert_eq!(updated.download_count, 1);
+        store.increment_download(&link.token).await;
+        let updated = store.get(&link.token).await.unwrap();
+        assert_eq!(updated.download_count, 2);
+    }
+
+    #[tokio::test]
+    async fn test_increment_download_nonexistent() {
+        let store = make_store();
+        assert!(!store.increment_download("fake-token").await);
+    }
+
+    #[tokio::test]
+    async fn test_share_store_default() {
+        let store = ShareStore::default();
+        let links = store.list().await;
+        assert!(links.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_load_link() {
+        let store = make_store();
+        let link = ShareLink {
+            token: "test-token-1".to_string(),
+            path: "/loaded.txt".to_string(),
+            password: None,
+            expires_at: Utc::now() + Duration::days(1),
+            max_downloads: None,
+            download_count: 0,
+            created_by: "admin".to_string(),
+            allow_download: None,
+            allow_upload: None,
+        };
+        store.load_link(link.clone()).await;
+        let found = store.get("test-token-1").await;
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().path, "/loaded.txt");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_load_links_blocking() {
+        let store = make_store();
+        let links = vec![
+            ShareLink {
+                token: "bulk-1".to_string(),
+                path: "/a.txt".to_string(),
+                password: None,
+                expires_at: Utc::now() + Duration::days(1),
+                max_downloads: None,
+                download_count: 0,
+                created_by: "admin".to_string(),
+                allow_download: None,
+                allow_upload: None,
+            },
+            ShareLink {
+                token: "bulk-2".to_string(),
+                path: "/b.txt".to_string(),
+                password: None,
+                expires_at: Utc::now() + Duration::days(1),
+                max_downloads: None,
+                download_count: 0,
+                created_by: "admin".to_string(),
+                allow_download: None,
+                allow_upload: None,
+            },
+        ];
+        store.load_links_blocking(links);
+        assert!(store.get("bulk-1").await.is_some());
+        assert!(store.get("bulk-2").await.is_some());
+    }
+
+    #[test]
+    fn test_hash_share_password_deterministic() {
+        let h1 = hash_share_password("test123");
+        let h2 = hash_share_password("test123");
+        assert_eq!(h1, h2);
+    }
+
+    #[test]
+    fn test_hash_share_password_different_inputs() {
+        let h1 = hash_share_password("abc");
+        let h2 = hash_share_password("xyz");
+        assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn test_verify_share_password_correct() {
+        let hash = hash_share_password("correct");
+        assert!(verify_share_password("correct", &hash));
+    }
+
+    #[test]
+    fn test_verify_share_password_incorrect() {
+        let hash = hash_share_password("correct");
+        assert!(!verify_share_password("incorrect", &hash));
+    }
+
+    #[test]
+    fn test_constant_time_eq_equal() {
+        assert!(constant_time_eq("abc", "abc"));
+    }
+
+    #[test]
+    fn test_constant_time_eq_not_equal() {
+        assert!(!constant_time_eq("abc", "def"));
+    }
+
+    #[test]
+    fn test_constant_time_eq_different_length() {
+        assert!(!constant_time_eq("abc", "abcd"));
+    }
+
+    #[tokio::test]
+    async fn test_record_failed_attempts() {
+        let store = make_store();
+        store.record_failed_attempt("token1");
+        store.record_failed_attempt("token1");
+        assert_eq!(store.failed_attempts.get("token1").unwrap().value().0, 2);
+    }
+
+    #[tokio::test]
+    async fn test_clear_failed_attempts() {
+        let store = make_store();
+        store.record_failed_attempt("token1");
+        store.clear_failed_attempts("token1");
+        assert!(store.failed_attempts.get("token1").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_is_share_locked_false_initially() {
+        let store = make_store();
+        assert!(!store.is_share_locked("any-token"));
+    }
+
+    #[tokio::test]
+    async fn test_is_share_locked_after_max_attempts() {
+        let store = make_store();
+        for _ in 0..MAX_SHARE_PASSWORD_ATTEMPTS {
+            store.record_failed_attempt("token1");
+        }
+        assert!(store.is_share_locked("token1"));
+    }
+
+    #[tokio::test]
+    async fn test_is_share_locked_resets_after_timeout() {
+        let store = make_store();
+        for _ in 0..MAX_SHARE_PASSWORD_ATTEMPTS {
+            store.record_failed_attempt("token1");
+        }
+        // Simulate old failure by modifying timestamp
+        {
+            let mut entry = store.failed_attempts.get_mut("token1").unwrap();
+            *entry.value_mut() = (
+                MAX_SHARE_PASSWORD_ATTEMPTS,
+                Utc::now() - Duration::seconds(SHARE_LOCKOUT_SECS + 1),
+            );
+        }
+        assert!(!store.is_share_locked("token1"));
+    }
+
+    #[tokio::test]
+    async fn test_create_multiple_shares() {
+        let store = make_store();
+        for i in 0..5 {
+            let req = make_req(&format!("/file_{}.txt", i));
+            store.create(req, "user".to_string()).await;
+        }
+        let links = store.list().await;
+        assert_eq!(links.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_share_default_expiry() {
+        let store = make_store();
+        let req = make_req("/default_expiry.txt");
+        let link = store.create(req, "alice".to_string()).await;
+        let diff = link.expires_at - Utc::now();
+        assert!(diff.num_days() >= 6 && diff.num_days() <= 8);
+    }
+
+    #[tokio::test]
+    async fn test_share_download_count_persists() {
+        let store = make_store();
+        let req = make_req("/counter.txt");
+        let link = store.create(req, "alice".to_string()).await;
+        store.increment_download(&link.token).await;
+        store.increment_download(&link.token).await;
+        store.increment_download(&link.token).await;
+        let found = store.get(&link.token).await.unwrap();
+        assert_eq!(found.download_count, 3);
+    }
+
+    #[tokio::test]
+    async fn test_delete_then_list() {
+        let store = make_store();
+        let link1 = store.create(make_req("/a.txt"), "alice".to_string()).await;
+        store.create(make_req("/b.txt"), "alice".to_string()).await;
+        store.delete(&link1.token).await;
+        let links = store.list().await;
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].path, "/b.txt");
+    }
+
+    #[test]
+    fn test_hash_password_is_hex() {
+        let hash = hash_share_password("test");
+        assert_eq!(hash.len(), 64);
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[tokio::test]
+    async fn test_share_token_unique() {
+        let store = make_store();
+        let link1 = store.create(make_req("/a.txt"), "alice".to_string()).await;
+        let link2 = store.create(make_req("/b.txt"), "alice".to_string()).await;
+        assert_ne!(link1.token, link2.token);
+    }
+
+    #[tokio::test]
+    async fn test_list_only_non_expired() {
+        let store = make_store();
+        store
+            .create(
+                CreateShareRequest {
+                    path: "/future.txt".to_string(),
+                    password: None,
+                    expires_in_hours: Some(100),
+                    max_downloads: None,
+                    allow_download: None,
+                    allow_upload: None,
+                },
+                "alice".to_string(),
+            )
+            .await;
+        store
+            .create(
+                CreateShareRequest {
+                    path: "/past.txt".to_string(),
+                    password: None,
+                    expires_in_hours: Some(-100),
+                    max_downloads: None,
+                    allow_download: None,
+                    allow_upload: None,
+                },
+                "alice".to_string(),
+            )
+            .await;
+        let links = store.list().await;
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].path, "/future.txt");
+    }
+
+    #[test]
+    fn test_share_store_lockout_constants() {
+        assert_eq!(MAX_SHARE_LINKS, 10_000);
+        assert_eq!(MAX_SHARE_PASSWORD_ATTEMPTS, 10);
+        assert_eq!(SHARE_LOCKOUT_SECS, 300);
+    }
 }

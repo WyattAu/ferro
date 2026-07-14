@@ -1,7 +1,4 @@
-#![cfg_attr(
-    all(not(debug_assertions), feature = "tauri"),
-    windows_subsystem = "windows"
-)]
+#![cfg_attr(all(not(debug_assertions), feature = "tauri"), windows_subsystem = "windows")]
 
 #[cfg(feature = "tauri")]
 mod gui;
@@ -40,8 +37,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| cli.log_level.clone().into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| cli.log_level.clone().into()),
         )
         .init();
 
@@ -104,6 +100,7 @@ fn main() {
     // software compositing as a fallback.
     #[cfg(target_os = "linux")]
     if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+        // SAFETY: Called at startup before any threads are spawned; no concurrent access to env.
         unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
     }
 
@@ -112,12 +109,10 @@ fn main() {
     // Initialize tracing before GUI setup.
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                match args.debug {
-                    0 => "info".into(),
-                    1 => "ferro_desktop=debug".into(),
-                    _ => "debug".into(),
-                }
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| match args.debug {
+                0 => "info".into(),
+                1 => "ferro_desktop=debug".into(),
+                _ => "debug".into(),
             }),
         )
         .with_writer(std::io::stderr)

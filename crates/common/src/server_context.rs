@@ -28,17 +28,9 @@ pub trait HasUptime: Send + Sync {
 
 /// Provides access to the favorites store (list/add/remove).
 pub trait HasFavorites: Send + Sync {
-    fn list_favorites(
-        &self,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<String>> + Send + '_>>;
-    fn add_favorite(
-        &self,
-        path: String,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>>;
-    fn remove_favorite(
-        &self,
-        path: &str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>>;
+    fn list_favorites(&self) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<String>> + Send + '_>>;
+    fn add_favorite(&self, path: String) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>>;
+    fn remove_favorite(&self, path: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>>;
 }
 
 /// Provides access to the storage engine.

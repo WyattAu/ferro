@@ -280,20 +280,16 @@ impl SyncEngine {
     ///
     /// Updates progress counters as it processes the sync plan.
     /// Returns the progress summary on completion.
-    pub async fn run_with_progress(
-        &self,
-        progress: &SyncProgress,
-    ) -> Result<super::progress::SyncSummary> {
+    pub async fn run_with_progress(&self, progress: &SyncProgress) -> Result<super::progress::SyncSummary> {
         let summary = self.sync().await?;
 
         progress.total_files.store(
             summary.uploaded + summary.downloaded,
             std::sync::atomic::Ordering::SeqCst,
         );
-        progress.total_bytes.store(
-            summary.bytes_transferred,
-            std::sync::atomic::Ordering::SeqCst,
-        );
+        progress
+            .total_bytes
+            .store(summary.bytes_transferred, std::sync::atomic::Ordering::SeqCst);
 
         for _ in 0..summary.uploaded {
             progress.record_file(0);
@@ -356,9 +352,7 @@ impl SyncEngine {
             ConflictStrategy::KeepBoth => {
                 // Rename local file, then download remote
                 let local = self.config.local_path.join(relative_path);
-                let _conflict_path =
-                    tokio::task::spawn_blocking(move || resolve_conflict_keep_both(&local))
-                        .await??;
+                let _conflict_path = tokio::task::spawn_blocking(move || resolve_conflict_keep_both(&local)).await??;
                 self.download_file(relative_path).await?;
                 self.state.write().await.mark_synced(relative_path);
             }
@@ -406,11 +400,7 @@ impl SyncEngine {
             .await?;
 
         if !response.status().is_success() {
-            anyhow::bail!(
-                "download failed: {} for {}",
-                response.status(),
-                relative_path
-            );
+            anyhow::bail!("download failed: {} for {}", response.status(), relative_path);
         }
 
         let data = response.bytes().await?;
@@ -445,11 +435,7 @@ impl SyncEngine {
             .await?;
 
         if !response.status().is_success() && response.status().as_u16() != 204 {
-            anyhow::bail!(
-                "remote delete failed: {} for {}",
-                response.status(),
-                relative_path
-            );
+            anyhow::bail!("remote delete failed: {} for {}", response.status(), relative_path);
         }
         Ok(())
     }
@@ -472,10 +458,7 @@ impl SyncEngine {
         format!(
             "{}/{}{}",
             self.config.server_url.trim_end_matches('/'),
-            self.config
-                .remote_path
-                .trim_start_matches('/')
-                .trim_end_matches('/'),
+            self.config.remote_path.trim_start_matches('/').trim_end_matches('/'),
             if relative_path.starts_with('/') {
                 relative_path.to_string()
             } else {
@@ -534,10 +517,7 @@ mod tests {
         })
         .unwrap();
 
-        assert_eq!(
-            engine.remote_url("file.txt"),
-            "http://localhost:8080/docs/file.txt"
-        );
+        assert_eq!(engine.remote_url("file.txt"), "http://localhost:8080/docs/file.txt");
         assert_eq!(
             engine.remote_url("sub/file.txt"),
             "http://localhost:8080/docs/sub/file.txt"

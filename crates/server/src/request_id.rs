@@ -34,3 +34,63 @@ pub async fn request_id_middleware(mut req: Request<Body>, next: Next) -> Respon
 /// Extracted request ID extension.
 #[derive(Debug, Clone)]
 pub struct RequestId(pub String);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use axum::routing::get;
+    use tower::ServiceExt;
+
+    fn make_app() -> axum::Router {
+        axum::Router::new()
+            .route("/test", get(|| async { "ok" }))
+            .layer(axum::middleware::from_fn(request_id_middleware))
+    }
+
+    #[tokio::test]
+    async fn test_generates_id_when_no_header() {
+        let app = make_app();
+        let resp = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let header_val = resp.headers().get("x-request-id").unwrap().to_str().unwrap();
+        assert!(!header_val.is_empty());
+        assert!(header_val.parse::<uuid::Uuid>().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_uses_existing_header() {
+        let app = make_app();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/test")
+                    .header("x-request-id", "my-custom-id")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            resp.headers().get("x-request-id").unwrap().to_str().unwrap(),
+            "my-custom-id"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_response_always_contains_request_id() {
+        let app = make_app();
+        let resp = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert!(resp.headers().get("x-request-id").is_some());
+    }
+}

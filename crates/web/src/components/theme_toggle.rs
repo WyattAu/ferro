@@ -5,32 +5,7 @@ use leptos::task::spawn_local;
 
 #[cfg(target_arch = "wasm32")]
 use crate::styles::dark_mode;
-use crate::t;
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Theme {
-    #[default]
-    Light,
-    Dark,
-}
-
-impl Theme {
-    #[allow(dead_code)] // Used by WASM runtime
-    fn as_str(&self) -> &'static str {
-        match self {
-            Theme::Light => "light",
-            Theme::Dark => "dark",
-        }
-    }
-
-    #[allow(dead_code)] // Used by WASM runtime
-    fn from_str(s: &str) -> Self {
-        match s {
-            "dark" => Theme::Dark,
-            _ => Theme::Light,
-        }
-    }
-}
+use crate::styles::dark_mode::Theme;
 
 #[derive(Clone)]
 pub struct ThemeState {
@@ -48,7 +23,23 @@ impl ThemeState {
     }
 
     pub fn is_dark(&self) -> bool {
-        self.theme.get() == Theme::Dark
+        matches!(self.theme.get(), Theme::Dark | Theme::Midnight)
+    }
+
+    pub fn effective_is_dark(&self) -> bool {
+        let t = self.theme.get();
+        match t {
+            Theme::System => {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    dark_mode::detect_system_theme() == "dark"
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                false
+            }
+            Theme::Dark | Theme::Midnight => true,
+            Theme::Light => false,
+        }
     }
 }
 
@@ -60,40 +51,34 @@ pub fn provide_theme_state() -> ThemeState {
 
     #[cfg(target_arch = "wasm32")]
     {
-        // Inject dark mode CSS
-        dark_mode::inject_dark_mode_css();
+        // Inject theme CSS
+        dark_mode::inject_theme_css();
 
         // Resolve initial theme from localStorage > system preference
-        let initial_theme_str = dark_mode::resolve_initial_theme();
-        let initial = Theme::from_str(initial_theme_str);
+        let initial = dark_mode::resolve_initial_theme();
         state.set_theme(initial);
 
-        // Apply initial theme with data-theme attribute
-        dark_mode::apply_theme(initial_theme_str);
-        dark_mode::persist_theme(initial_theme_str);
+        // Apply initial theme
+        let effective = dark_mode::resolve_effective_theme(initial);
+        dark_mode::apply_theme(effective);
+        dark_mode::persist_theme(initial.as_str());
 
         // Listen for system theme changes
-        let listen_state = state.clone();
+        let _listen_state = state.clone();
         spawn_local(async move {
             if let Some(window) = web_sys::window() {
                 use wasm_bindgen::JsCast;
                 if let Ok(Some(mql)) = window.match_media("(prefers-color-scheme: dark)") {
                     let mql = std::rc::Rc::new(mql);
                     let mql_ref = mql.clone();
-                    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
-                        move |_e: web_sys::MediaQueryListEvent| {
-                            let prefers_dark = mql_ref.matches();
-                            let theme = if prefers_dark {
-                                Theme::Dark
-                            } else {
-                                Theme::Light
-                            };
-                            listen_state.set_theme(theme);
-                        },
-                    )
+                    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move |_e: web_sys::MediaQueryListEvent| {
+                        // When system theme changes and user has "system" selected,
+                        // re-apply the effective theme
+                        let _prefers_dark = mql_ref.matches();
+                        // The Effect below handles re-application
+                    })
                         as Box<dyn Fn(web_sys::MediaQueryListEvent)>);
-                    let _ =
-                        mql.add_event_listener_with_callback("change", cb.as_ref().unchecked_ref());
+                    let _ = mql.add_event_listener_with_callback("change", cb.as_ref().unchecked_ref());
                     cb.forget();
                 }
             }
@@ -103,9 +88,9 @@ pub fn provide_theme_state() -> ThemeState {
         let sync_state = state.clone();
         Effect::new(move |_| {
             let current = sync_state.theme.get();
-            let theme_str = current.as_str();
-            dark_mode::apply_theme(theme_str);
-            dark_mode::persist_theme(theme_str);
+            let effective = dark_mode::resolve_effective_theme(current);
+            dark_mode::apply_theme(effective);
+            dark_mode::persist_theme(current.as_str());
         });
     }
 
@@ -120,34 +105,82 @@ pub fn use_theme_state() -> ThemeState {
 pub fn ThemeToggle() -> impl IntoView {
     let theme_state = use_theme_state();
     let ts_for_view = theme_state.clone();
+    let ts_for_cycle = theme_state.clone();
 
-    let toggle = move |_: ev::MouseEvent| {
-        let current = theme_state.theme.get();
+    // Cycle through themes: Light -> Dark -> Midnight -> System -> Light
+    let cycle_theme = move |_: ev::MouseEvent| {
+        let current = ts_for_cycle.theme.get();
         let next = match current {
             Theme::Light => Theme::Dark,
-            Theme::Dark => Theme::Light,
+            Theme::Dark => Theme::Midnight,
+            Theme::Midnight => Theme::System,
+            Theme::System => Theme::Light,
         };
-        theme_state.set_theme(next);
+        ts_for_cycle.set_theme(next);
     };
 
     view! {
         <button
-            class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded surface brutal-border shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
-            on:click=toggle
-            aria-label=t!("aria.toggle_theme")
+            class="p-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-colors focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center"
+            on:click=cycle_theme
+            aria-label=move || format!("Theme: {}", ts_for_view.theme.get().display_name())
+            title=move || format!("Current theme: {}. Click to cycle.", ts_for_view.theme.get().display_name())
         >
             {move || match ts_for_view.theme.get() {
                 Theme::Light => view! {
                     <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                 }.into_any(),
                 Theme::Dark => view! {
                     <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                }.into_any(),
+                Theme::Midnight => view! {
+                    <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                }.into_any(),
+                Theme::System => view! {
+                    <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                 }.into_any(),
             }}
         </button>
+    }
+}
+
+/// Full theme picker with all options visible.
+#[component]
+pub fn ThemePicker() -> impl IntoView {
+    let theme_state = use_theme_state();
+
+    view! {
+        <div class="flex gap-2" role="radiogroup" aria-label="Select theme">
+            {Theme::all().iter().map(|t| {
+                let theme = *t;
+                let ts = theme_state.clone();
+                let is_active = move || ts.theme.get() == theme;
+                view! {
+                    <button
+                        class=move || {
+                            let base = "px-3 py-2 rounded-md text-sm font-medium transition-colors min-w-[44px] min-h-[44px] focus-ring";
+                            if is_active() {
+                                format!("{} bg-[var(--accent)] text-[var(--text-on-accent)]", base)
+                            } else {
+                                format!("{} bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]", base)
+                            }
+                        }
+                        on:click=move |_| ts.set_theme(theme)
+                        aria-checked=is_active
+                        role="radio"
+                    >
+                        {theme.display_name()}
+                    </button>
+                }
+            }).collect_view()}
+        </div>
     }
 }

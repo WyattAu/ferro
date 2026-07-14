@@ -39,10 +39,7 @@ impl From<wasmtime::Error> for WasmHostError {
         if msg.contains("fuel") || msg.contains("out of fuel") {
             WasmHostError::FuelExhausted
         } else if msg.contains("memory") {
-            WasmHostError::MemoryLimit {
-                requested: 0,
-                limit: 0,
-            }
+            WasmHostError::MemoryLimit { requested: 0, limit: 0 }
         } else {
             WasmHostError::RuntimeError(msg)
         }

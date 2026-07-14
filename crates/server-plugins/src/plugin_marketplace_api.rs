@@ -120,10 +120,7 @@ pub async fn list_marketplace_plugins<S: PluginState>(State(_state): State<S>) -
     (StatusCode::OK, axum::Json(MarketplaceResponse { plugins })).into_response()
 }
 
-pub async fn install_plugin<S: PluginState>(
-    State(_state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn install_plugin<S: PluginState>(State(_state): State<S>, Path(id): Path<String>) -> Response {
     tracing::info!(plugin_id = %id, "install plugin requested");
     (
         StatusCode::OK,
@@ -136,10 +133,7 @@ pub async fn install_plugin<S: PluginState>(
         .into_response()
 }
 
-pub async fn uninstall_plugin<S: PluginState>(
-    State(_state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn uninstall_plugin<S: PluginState>(State(_state): State<S>, Path(id): Path<String>) -> Response {
     tracing::info!(plugin_id = %id, "uninstall plugin requested");
     (
         StatusCode::OK,
@@ -152,10 +146,7 @@ pub async fn uninstall_plugin<S: PluginState>(
         .into_response()
 }
 
-pub async fn enable_plugin<S: PluginState>(
-    State(_state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn enable_plugin<S: PluginState>(State(_state): State<S>, Path(id): Path<String>) -> Response {
     tracing::info!(plugin_id = %id, "enable plugin requested");
     (
         StatusCode::OK,
@@ -168,10 +159,7 @@ pub async fn enable_plugin<S: PluginState>(
         .into_response()
 }
 
-pub async fn disable_plugin<S: PluginState>(
-    State(_state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn disable_plugin<S: PluginState>(State(_state): State<S>, Path(id): Path<String>) -> Response {
     tracing::info!(plugin_id = %id, "disable plugin requested");
     (
         StatusCode::OK,
@@ -219,11 +207,7 @@ mod tests {
 
     #[test]
     fn test_plugin_status_serde_roundtrip() {
-        let statuses = vec![
-            PluginStatus::Available,
-            PluginStatus::Installed,
-            PluginStatus::Enabled,
-        ];
+        let statuses = vec![PluginStatus::Available, PluginStatus::Installed, PluginStatus::Enabled];
         let json = serde_json::to_string(&statuses).unwrap();
         let parsed: Vec<PluginStatus> = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, statuses);

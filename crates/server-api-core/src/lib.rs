@@ -82,16 +82,8 @@ pub trait ApiCoreState: Clone + Send + Sync + 'static {
     fn email_config(&self) -> &email::EmailConfig;
     fn push_notification_store(
         &self,
-    ) -> &Option<
-        Arc<
-            tokio::sync::RwLock<
-                ferro_server_integrations::push_notifications::PushNotificationStore,
-            >,
-        >,
-    >;
-    fn push_notification_config(
-        &self,
-    ) -> &ferro_server_integrations::push_notifications::PushNotificationConfig;
+    ) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>>;
+    fn push_notification_config(&self) -> &ferro_server_integrations::push_notifications::PushNotificationConfig;
     fn event_bus(&self) -> &Arc<ferro_event_bus::EventBus>;
 
     // event_triggers
@@ -106,9 +98,7 @@ pub trait ApiCoreState: Clone + Send + Sync + 'static {
 
     // search
     fn search(&self) -> &Option<Arc<tokio::sync::RwLock<ferro_core::search::SearchEngine>>>;
-    fn search_ranking_config(
-        &self,
-    ) -> &Arc<tokio::sync::RwLock<ferro_core::search::SearchRankingConfig>>;
+    fn search_ranking_config(&self) -> &Arc<tokio::sync::RwLock<ferro_core::search::SearchRankingConfig>>;
     fn ai_search(&self) -> &Option<Arc<dyn AiSearchBridgeTrait>>;
     fn lock_manager(&self) -> &Arc<dyn common::storage::LockManagerTrait>;
     fn preferences(&self) -> &Arc<dyn search::PreferenceStore>;

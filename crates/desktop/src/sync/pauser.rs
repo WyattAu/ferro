@@ -16,16 +16,16 @@ impl SyncPauser {
 
     pub fn pause(&self, reason: &str) {
         *self.pause_reason.write().unwrap() = Some(reason.to_string());
-        self.paused.store(true, Ordering::SeqCst);
+        self.paused.store(true, Ordering::Release);
     }
 
     pub fn resume(&self) {
         *self.pause_reason.write().unwrap() = None;
-        self.paused.store(false, Ordering::SeqCst);
+        self.paused.store(false, Ordering::Release);
     }
 
     pub fn is_paused(&self) -> bool {
-        self.paused.load(Ordering::SeqCst)
+        self.paused.load(Ordering::Acquire)
     }
 
     pub fn pause_reason(&self) -> Option<String> {

@@ -11,7 +11,6 @@ publish = false
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
 ferro-core = { path = "../core", features = ["wasm"] }
-async-trait = "0.1"
 ferro-auth = { path = "../auth" }
 axum = { workspace = true, features = ["macros"] }
 serde = { workspace = true }
@@ -28,10 +27,10 @@ hex = "0.4"
 rand = "0.9"
 url = "2"
 base64 = "0.22"
-bytes = "1"
 pdf = "0.9"
 tokio-util = { version = "0.7", features = ["rt"] }
 utoipa = { version = "5", features = ["axum_extras"] }
+zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

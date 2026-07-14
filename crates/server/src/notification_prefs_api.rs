@@ -40,6 +40,14 @@ pub struct NotificationPrefsStore {
     db: Option<DbHandle>,
 }
 
+impl std::fmt::Debug for NotificationPrefsStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NotificationPrefsStore")
+            .field("db", &self.db.as_ref().map(|_| "..."))
+            .finish()
+    }
+}
+
 impl Default for NotificationPrefsStore {
     fn default() -> Self {
         Self::new()
@@ -143,31 +151,15 @@ impl NotificationPrefsStore {
         // Get current prefs or defaults
         let current = self.get_prefs(user_id)?;
 
-        let share_received_email = updates
-            .share_received_email
-            .unwrap_or(current.share_received_email);
-        let share_received_push = updates
-            .share_received_push
-            .unwrap_or(current.share_received_push);
-        let comment_added_email = updates
-            .comment_added_email
-            .unwrap_or(current.comment_added_email);
-        let comment_added_push = updates
-            .comment_added_push
-            .unwrap_or(current.comment_added_push);
-        let task_assigned_email = updates
-            .task_assigned_email
-            .unwrap_or(current.task_assigned_email);
-        let task_assigned_push = updates
-            .task_assigned_push
-            .unwrap_or(current.task_assigned_push);
+        let share_received_email = updates.share_received_email.unwrap_or(current.share_received_email);
+        let share_received_push = updates.share_received_push.unwrap_or(current.share_received_push);
+        let comment_added_email = updates.comment_added_email.unwrap_or(current.comment_added_email);
+        let comment_added_push = updates.comment_added_push.unwrap_or(current.comment_added_push);
+        let task_assigned_email = updates.task_assigned_email.unwrap_or(current.task_assigned_email);
+        let task_assigned_push = updates.task_assigned_push.unwrap_or(current.task_assigned_push);
         let mention_push = updates.mention_push.unwrap_or(current.mention_push);
-        let system_alert_push = updates
-            .system_alert_push
-            .unwrap_or(current.system_alert_push);
-        let daily_digest_email = updates
-            .daily_digest_email
-            .unwrap_or(current.daily_digest_email);
+        let system_alert_push = updates.system_alert_push.unwrap_or(current.system_alert_push);
+        let daily_digest_email = updates.daily_digest_email.unwrap_or(current.daily_digest_email);
 
         let result = NotificationPrefs {
             user_id: user_id.to_string(),

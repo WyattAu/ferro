@@ -8,15 +8,12 @@ use crate::AppState;
 use crate::api_error::ApiError;
 
 pub use ferro_server_sharing::shares::{
-    CreateShareRequest, SHARE_LOCKOUT_SECS, ShareLink, ShareStore, ShareStoreTrait,
-    hash_share_password, verify_share_password,
+    CreateShareRequest, SHARE_LOCKOUT_SECS, ShareLink, ShareStore, ShareStoreTrait, hash_share_password,
+    verify_share_password,
 };
 
 /// Create a new share link.
-pub async fn create_share(
-    State(state): State<AppState>,
-    axum::Json(req): axum::Json<CreateShareRequest>,
-) -> Response {
+pub async fn create_share(State(state): State<AppState>, axum::Json(req): axum::Json<CreateShareRequest>) -> Response {
     for component in std::path::Path::new(&req.path).components() {
         match component {
             std::path::Component::ParentDir | std::path::Component::CurDir => {
@@ -77,11 +74,7 @@ pub async fn list_shares(State(state): State<AppState>) -> Response {
             })
         })
         .collect();
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "shares": items })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "shares": items }))).into_response()
 }
 
 /// Delete a share link by token.
@@ -139,10 +132,7 @@ pub async fn serve_share(
             }
             Some(_) => {
                 state.share_store.record_failed_attempt(&token);
-                return ApiError::unauthorized(
-                    ApiError::SHARE_PASSWORD_INVALID,
-                    "Invalid password",
-                );
+                return ApiError::unauthorized(ApiError::SHARE_PASSWORD_INVALID, "Invalid password");
             }
             None => {
                 return ApiError::with_details(
@@ -215,10 +205,7 @@ pub async fn handle_share_upload(
     }
 
     if link.allow_upload != Some(true) {
-        return ApiError::bad_request(
-            ApiError::INVALID_INPUT,
-            "This share link does not accept uploads",
-        );
+        return ApiError::bad_request(ApiError::INVALID_INPUT, "This share link does not accept uploads");
     }
 
     let field = match multipart.next_field().await {
@@ -265,24 +252,14 @@ pub async fn handle_share_upload(
     let target_path = format!("{}/{}", link.path.trim_end_matches('/'), file_name);
 
     if state.storage.head(&link.path).await.is_err()
-        && let Err(e) = state
-            .storage
-            .create_collection(&link.path, "anonymous")
-            .await
+        && let Err(e) = state.storage.create_collection(&link.path, "anonymous").await
     {
         tracing::warn!(error = %e, path = %link.path, "failed to create upload target directory");
-        return ApiError::internal(
-            ApiError::INTERNAL_ERROR,
-            "Failed to create upload directory",
-        );
+        return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create upload directory");
     }
 
     let content_type = crate::shares_ext::sniff_mime_type(&file_name);
-    if let Err(e) = state
-        .storage
-        .put(&target_path, bytes.clone(), "anonymous")
-        .await
-    {
+    if let Err(e) = state.storage.put(&target_path, bytes.clone(), "anonymous").await {
         tracing::warn!(error = %e, path = %target_path, "failed to store uploaded file");
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to store uploaded file");
     }

@@ -22,7 +22,6 @@ tracing = "0.1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
-dashmap = "6"
 async-trait = "0.1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 hmac = "0.13"
@@ -30,7 +29,7 @@ sha2 = "0.11"
 hex = "0.4"
 rand = "0.9"
 lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1-rustls", "builder", "tokio1", "aws-lc-rs", "webpki-roots"] }
-utoipa = { version = "5", features = ["axum_extras"] }
+zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

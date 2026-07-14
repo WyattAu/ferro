@@ -95,10 +95,7 @@ REV:20260427T000000Z\r\n\
 END:VCARD\r\n";
 
     let vcard = parse_vcard(input).unwrap();
-    assert_eq!(
-        vcard.photo,
-        Some("data:image/jpeg;base64,/9j/4AAQ".to_string())
-    );
+    assert_eq!(vcard.photo, Some("data:image/jpeg;base64,/9j/4AAQ".to_string()));
     assert_eq!(vcard.rev, Some("20260427T000000Z".to_string()));
 }
 
@@ -129,7 +126,7 @@ fn test_serialize_vcard_roundtrip() {
         photo: None,
         rev: Some("20260427T000000Z".to_string()),
         version: Some("3.0".to_string()),
-        properties: std::collections::HashMap::new(),
+        properties: hashbrown::HashMap::new(),
     };
 
     let output = crate::vcard::serialize_vcard(&vcard);
@@ -159,4 +156,149 @@ END:VCARD\r\n";
     assert_eq!(vcard.addresses[0].types, vec!["HOME"]);
     assert_eq!(vcard.addresses[1].street, "789 Office Blvd");
     assert_eq!(vcard.addresses[1].types, vec!["WORK"]);
+}
+
+#[test]
+fn test_parse_vcard_empty() {
+    let input = "BEGIN:VCARD\r\n\
+VERSION:3.0\r\n\
+END:VCARD\r\n";
+
+    let vcard = parse_vcard(input).unwrap();
+    assert!(vcard.fn_name.is_empty());
+    assert!(vcard.emails.is_empty());
+    assert!(vcard.phones.is_empty());
+}
+
+#[test]
+fn test_parse_vcard_no_begin() {
+    let input = "VERSION:3.0\r\n\
+FN:No Begin\r\n\
+END:VCARD\r\n";
+
+    let vcard = parse_vcard(input).unwrap();
+    assert!(vcard.fn_name.is_empty());
+}
+
+#[test]
+fn test_parse_vcard_custom_properties() {
+    let input = "BEGIN:VCARD\r\n\
+VERSION:3.0\r\n\
+FN:Custom Props\r\n\
+X-CUSTOM:value1\r\n\
+X-OTHER:value2\r\n\
+END:VCARD\r\n";
+
+    let vcard = parse_vcard(input).unwrap();
+    assert_eq!(vcard.fn_name, "Custom Props");
+    assert!(vcard.properties.contains_key("X-CUSTOM"));
+    assert!(vcard.properties.contains_key("X-OTHER"));
+}
+
+#[test]
+fn test_serialize_vcard_default_version() {
+    let vcard = Vcard {
+        uid: None,
+        fn_name: "No Version".to_string(),
+        family_name: String::new(),
+        given_name: String::new(),
+        additional_names: String::new(),
+        prefix: String::new(),
+        suffix: String::new(),
+        emails: vec![],
+        phones: vec![],
+        addresses: vec![],
+        org: None,
+        title: None,
+        role: None,
+        photo: None,
+        rev: None,
+        version: None,
+        properties: hashbrown::HashMap::new(),
+    };
+
+    let output = crate::vcard::serialize_vcard(&vcard);
+    assert!(output.contains("VERSION:3.0"));
+}
+
+#[test]
+fn test_serialize_vcard_with_all_fields() {
+    let vcard = Vcard {
+        uid: Some("uid-123".to_string()),
+        fn_name: "Full Name".to_string(),
+        family_name: "Name".to_string(),
+        given_name: "Full".to_string(),
+        additional_names: "Middle".to_string(),
+        prefix: "Dr.".to_string(),
+        suffix: "Jr.".to_string(),
+        emails: vec![VcardValue {
+            value: "test@example.com".to_string(),
+            types: vec!["HOME".to_string()],
+            pref: Some(1),
+        }],
+        phones: vec![VcardValue {
+            value: "+1-555-0000".to_string(),
+            types: vec!["CELL".to_string()],
+            pref: None,
+        }],
+        addresses: vec![VcardAddress {
+            po_box: "12345".to_string(),
+            extended: "Apt 1".to_string(),
+            street: "123 Main St".to_string(),
+            city: "Springfield".to_string(),
+            region: "IL".to_string(),
+            postal_code: "62704".to_string(),
+            country: "USA".to_string(),
+            types: vec!["HOME".to_string()],
+        }],
+        org: Some("Test Org".to_string()),
+        title: Some("Engineer".to_string()),
+        role: Some("Developer".to_string()),
+        photo: Some("http://example.com/photo.jpg".to_string()),
+        rev: Some("20260427T000000Z".to_string()),
+        version: Some("4.0".to_string()),
+        properties: hashbrown::HashMap::new(),
+    };
+
+    let output = crate::vcard::serialize_vcard(&vcard);
+    assert!(output.contains("BEGIN:VCARD"));
+    assert!(output.contains("END:VCARD"));
+    assert!(output.contains("VERSION:4.0"));
+    assert!(output.contains("UID:uid-123"));
+    assert!(output.contains("FN:Full Name"));
+    assert!(output.contains("ORG:Test Org"));
+    assert!(output.contains("TITLE:Engineer"));
+    assert!(output.contains("ROLE:Developer"));
+    assert!(output.contains("PHOTO:http://example.com/photo.jpg"));
+    assert!(output.contains("REV:20260427T000000Z"));
+}
+
+#[test]
+fn test_vcard_escape_special_chars() {
+    let vcard = Vcard {
+        uid: None,
+        fn_name: "Name with;semicolons".to_string(),
+        family_name: String::new(),
+        given_name: String::new(),
+        additional_names: String::new(),
+        prefix: String::new(),
+        suffix: String::new(),
+        emails: vec![VcardValue {
+            value: "test@example.com".to_string(),
+            types: vec![],
+            pref: None,
+        }],
+        phones: vec![],
+        addresses: vec![],
+        org: None,
+        title: None,
+        role: None,
+        photo: None,
+        rev: None,
+        version: None,
+        properties: hashbrown::HashMap::new(),
+    };
+
+    let output = crate::vcard::serialize_vcard(&vcard);
+    assert!(output.contains("FN:Name with\\;semicolons"));
 }

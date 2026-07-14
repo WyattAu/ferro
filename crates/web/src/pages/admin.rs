@@ -173,30 +173,11 @@ pub fn AdminPage() -> impl IntoView {
                             .filter_map(|v| {
                                 Some(AdminUser {
                                     id: v.get("id")?.as_str()?.to_string(),
-                                    username: v
-                                        .get("username")
-                                        .and_then(|u| u.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    email: v
-                                        .get("email")
-                                        .and_then(|e| e.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    role: v
-                                        .get("role")
-                                        .and_then(|r| r.as_str())
-                                        .unwrap_or("user")
-                                        .to_string(),
-                                    created_at: v
-                                        .get("created_at")
-                                        .and_then(|c| c.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    is_active: v
-                                        .get("is_active")
-                                        .and_then(|a| a.as_bool())
-                                        .unwrap_or(true),
+                                    username: v.get("username").and_then(|u| u.as_str()).unwrap_or("").to_string(),
+                                    email: v.get("email").and_then(|e| e.as_str()).unwrap_or("").to_string(),
+                                    role: v.get("role").and_then(|r| r.as_str()).unwrap_or("user").to_string(),
+                                    created_at: v.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
+                                    is_active: v.get("is_active").and_then(|a| a.as_bool()).unwrap_or(true),
                                 })
                             })
                             .collect()
@@ -220,25 +201,14 @@ pub fn AdminPage() -> impl IntoView {
                             .filter_map(|v| {
                                 Some(AdminDevice {
                                     id: v.get("id")?.as_str()?.to_string(),
-                                    name: v
-                                        .get("name")
-                                        .and_then(|n| n.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
+                                    name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
                                     device_type: v
                                         .get("device_type")
                                         .and_then(|d| d.as_str())
                                         .unwrap_or("")
                                         .to_string(),
-                                    last_seen: v
-                                        .get("last_seen")
-                                        .and_then(|l| l.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    is_active: v
-                                        .get("is_active")
-                                        .and_then(|a| a.as_bool())
-                                        .unwrap_or(true),
+                                    last_seen: v.get("last_seen").and_then(|l| l.as_str()).unwrap_or("").to_string(),
+                                    is_active: v.get("is_active").and_then(|a| a.as_bool()).unwrap_or(true),
                                 })
                             })
                             .collect()
@@ -260,30 +230,15 @@ pub fn AdminPage() -> impl IntoView {
                             .filter_map(|v| {
                                 Some(DlpPolicy {
                                     id: v.get("id")?.as_str()?.to_string(),
-                                    name: v
-                                        .get("name")
-                                        .and_then(|n| n.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
+                                    name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
                                     description: v
                                         .get("description")
                                         .and_then(|d| d.as_str())
                                         .unwrap_or("")
                                         .to_string(),
-                                    rule_type: v
-                                        .get("rule_type")
-                                        .and_then(|r| r.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    action: v
-                                        .get("action")
-                                        .and_then(|a| a.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    enabled: v
-                                        .get("enabled")
-                                        .and_then(|e| e.as_bool())
-                                        .unwrap_or(true),
+                                    rule_type: v.get("rule_type").and_then(|r| r.as_str()).unwrap_or("").to_string(),
+                                    action: v.get("action").and_then(|a| a.as_str()).unwrap_or("").to_string(),
+                                    enabled: v.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true),
                                 })
                             })
                             .collect()
@@ -305,26 +260,14 @@ pub fn AdminPage() -> impl IntoView {
                                         .and_then(|p| p.as_str())
                                         .unwrap_or("")
                                         .to_string(),
-                                    user: v
-                                        .get("user")
-                                        .and_then(|u| u.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    filename: v
-                                        .get("filename")
-                                        .and_then(|f| f.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
+                                    user: v.get("user").and_then(|u| u.as_str()).unwrap_or("").to_string(),
+                                    filename: v.get("filename").and_then(|f| f.as_str()).unwrap_or("").to_string(),
                                     detected_at: v
                                         .get("detected_at")
                                         .and_then(|d| d.as_str())
                                         .unwrap_or("")
                                         .to_string(),
-                                    status: v
-                                        .get("status")
-                                        .and_then(|s| s.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
+                                    status: v.get("status").and_then(|s| s.as_str()).unwrap_or("").to_string(),
                                 })
                             })
                             .collect()
@@ -346,24 +289,10 @@ pub fn AdminPage() -> impl IntoView {
                             .filter_map(|v| {
                                 Some(AntivirusScan {
                                     id: v.get("id")?.as_str()?.to_string(),
-                                    status: v
-                                        .get("status")
-                                        .and_then(|s| s.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    scanned_at: v
-                                        .get("scanned_at")
-                                        .and_then(|s| s.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    files_scanned: v
-                                        .get("files_scanned")
-                                        .and_then(|f| f.as_u64())
-                                        .unwrap_or(0),
-                                    threats_found: v
-                                        .get("threats_found")
-                                        .and_then(|t| t.as_u64())
-                                        .unwrap_or(0),
+                                    status: v.get("status").and_then(|s| s.as_str()).unwrap_or("").to_string(),
+                                    scanned_at: v.get("scanned_at").and_then(|s| s.as_str()).unwrap_or("").to_string(),
+                                    files_scanned: v.get("files_scanned").and_then(|f| f.as_u64()).unwrap_or(0),
+                                    threats_found: v.get("threats_found").and_then(|t| t.as_u64()).unwrap_or(0),
                                 })
                             })
                             .collect()
@@ -385,24 +314,10 @@ pub fn AdminPage() -> impl IntoView {
                             .filter_map(|v| {
                                 Some(WatermarkPolicy {
                                     id: v.get("id")?.as_str()?.to_string(),
-                                    name: v
-                                        .get("name")
-                                        .and_then(|n| n.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    pattern: v
-                                        .get("pattern")
-                                        .and_then(|p| p.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    opacity: v
-                                        .get("opacity")
-                                        .and_then(|o| o.as_f64())
-                                        .unwrap_or(0.3),
-                                    enabled: v
-                                        .get("enabled")
-                                        .and_then(|e| e.as_bool())
-                                        .unwrap_or(true),
+                                    name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
+                                    pattern: v.get("pattern").and_then(|p| p.as_str()).unwrap_or("").to_string(),
+                                    opacity: v.get("opacity").and_then(|o| o.as_f64()).unwrap_or(0.3),
+                                    enabled: v.get("enabled").and_then(|e| e.as_bool()).unwrap_or(true),
                                 })
                             })
                             .collect()
@@ -422,19 +337,9 @@ pub fn AdminPage() -> impl IntoView {
                     .map(|arr| {
                         arr.iter()
                             .map(|v| NotificationPreference {
-                                event_type: v
-                                    .get("event_type")
-                                    .and_then(|e| e.as_str())
-                                    .unwrap_or("")
-                                    .to_string(),
-                                email_enabled: v
-                                    .get("email_enabled")
-                                    .and_then(|e| e.as_bool())
-                                    .unwrap_or(false),
-                                push_enabled: v
-                                    .get("push_enabled")
-                                    .and_then(|p| p.as_bool())
-                                    .unwrap_or(false),
+                                event_type: v.get("event_type").and_then(|e| e.as_str()).unwrap_or("").to_string(),
+                                email_enabled: v.get("email_enabled").and_then(|e| e.as_bool()).unwrap_or(false),
+                                push_enabled: v.get("push_enabled").and_then(|p| p.as_bool()).unwrap_or(false),
                             })
                             .collect()
                     })

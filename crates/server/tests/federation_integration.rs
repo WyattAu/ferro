@@ -47,23 +47,13 @@ async fn test_webfinger_returns_jrd_json() {
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(json["subject"], "acct:alice@example.com");
     assert!(json["aliases"].is_array());
-    assert!(
-        json["aliases"][0]
-            .as_str()
-            .unwrap()
-            .contains("/fed/actor/alice")
-    );
+    assert!(json["aliases"][0].as_str().unwrap().contains("/fed/actor/alice"));
     assert!(json["links"].is_array());
     let links = json["links"].as_array().unwrap();
     assert_eq!(links.len(), 1);
     assert_eq!(links[0]["rel"], "self");
     assert_eq!(links[0]["type"], "application/activity+json");
-    assert!(
-        links[0]["href"]
-            .as_str()
-            .unwrap()
-            .contains("/fed/actor/alice")
-    );
+    assert!(links[0]["href"].as_str().unwrap().contains("/fed/actor/alice"));
 }
 
 #[tokio::test]
@@ -89,14 +79,10 @@ async fn test_actor_endpoint_returns_activitypub_actor() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
-        axum::serve(listener, app.into_make_service())
-            .await
-            .unwrap();
+        axum::serve(listener, app.into_make_service()).await.unwrap();
     });
 
-    let resp = reqwest::get(format!("http://{}/fed/actor/admin", addr))
-        .await
-        .unwrap();
+    let resp = reqwest::get(format!("http://{}/fed/actor/admin", addr)).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let json: serde_json::Value = resp.json().await.unwrap();
     assert_eq!(json["type"], "Service");
@@ -109,14 +95,10 @@ async fn test_actor_endpoint_different_username() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
-        axum::serve(listener, app.into_make_service())
-            .await
-            .unwrap();
+        axum::serve(listener, app.into_make_service()).await.unwrap();
     });
 
-    let resp = reqwest::get(format!("http://{}/fed/actor/alice", addr))
-        .await
-        .unwrap();
+    let resp = reqwest::get(format!("http://{}/fed/actor/alice", addr)).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let json: serde_json::Value = resp.json().await.unwrap();
     assert_eq!(json["preferred_username"], "alice");
@@ -144,8 +126,7 @@ async fn test_inbox_disabled_returns_503() {
 
 #[tokio::test]
 async fn test_inbox_accepts_valid_signed_follow_activity() {
-    let state = ferro_server::AppState::in_memory()
-        .with_federation_secret("test-integration-secret".to_string());
+    let state = ferro_server::AppState::in_memory().with_federation_secret("test-integration-secret".to_string());
     let app = ferro_server::build_router(state);
 
     let remote_actor = "https://remote.example.com/actor/bob";
@@ -184,8 +165,7 @@ async fn test_inbox_accepts_valid_signed_follow_activity() {
 
 #[tokio::test]
 async fn test_inbox_rejects_missing_signature() {
-    let state = ferro_server::AppState::in_memory()
-        .with_federation_secret("test-integration-secret".to_string());
+    let state = ferro_server::AppState::in_memory().with_federation_secret("test-integration-secret".to_string());
     let app = ferro_server::build_router(state);
 
     let resp = app
@@ -205,8 +185,7 @@ async fn test_inbox_rejects_missing_signature() {
 
 #[tokio::test]
 async fn test_inbox_rejects_bad_signature() {
-    let state = ferro_server::AppState::in_memory()
-        .with_federation_secret("test-integration-secret".to_string());
+    let state = ferro_server::AppState::in_memory().with_federation_secret("test-integration-secret".to_string());
     let app = ferro_server::build_router(state);
 
     let activity = serde_json::json!({
@@ -244,12 +223,7 @@ async fn test_nodeinfo_returns_proper_json() {
 
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/fed/nodeinfo")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/fed/nodeinfo").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
@@ -272,12 +246,7 @@ async fn test_outbox_returns_activity_array() {
 
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/fed/outbox")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/fed/outbox").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
@@ -289,8 +258,7 @@ async fn test_outbox_returns_activity_array() {
 
 #[tokio::test]
 async fn test_outbox_with_follow_returns_ordered_items() {
-    let state = ferro_server::AppState::in_memory()
-        .with_federation_secret("test-integration-secret".to_string());
+    let state = ferro_server::AppState::in_memory().with_federation_secret("test-integration-secret".to_string());
     let app = ferro_server::build_router(state);
 
     let remote_actor = "https://remote.example.com/actor/bob";
@@ -328,12 +296,7 @@ async fn test_outbox_with_follow_returns_ordered_items() {
 
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/fed/outbox")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/fed/outbox").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
@@ -348,8 +311,7 @@ async fn test_outbox_with_follow_returns_ordered_items() {
 
 #[tokio::test]
 async fn test_list_inbox_returns_stored_activities() {
-    let state = ferro_server::AppState::in_memory()
-        .with_federation_secret("test-integration-secret".to_string());
+    let state = ferro_server::AppState::in_memory().with_federation_secret("test-integration-secret".to_string());
     let app = ferro_server::build_router(state);
 
     let remote_actor = "https://remote.example.com/actor/carol";
@@ -387,12 +349,7 @@ async fn test_list_inbox_returns_stored_activities() {
 
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/fed/inbox")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/fed/inbox").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);

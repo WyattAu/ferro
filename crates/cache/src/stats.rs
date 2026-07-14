@@ -1,5 +1,4 @@
-use parking_lot::Mutex;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, Clone)]
 pub struct CacheStats {
@@ -11,61 +10,65 @@ pub struct CacheStats {
     pub hit_rate: f64,
 }
 
-#[derive(Debug, Default)]
-pub(crate) struct StatsInner {
-    pub hits: u64,
-    pub misses: u64,
-    pub evictions: u64,
-    pub size_bytes: u64,
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct StatsTracker {
-    inner: Arc<Mutex<StatsInner>>,
+    hits: AtomicU64,
+    misses: AtomicU64,
+    evictions: AtomicU64,
+    size_bytes: AtomicU64,
 }
 
 impl StatsTracker {
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(StatsInner::default())),
+            hits: AtomicU64::new(0),
+            misses: AtomicU64::new(0),
+            evictions: AtomicU64::new(0),
+            size_bytes: AtomicU64::new(0),
         }
     }
 
     pub fn record_hit(&self) {
-        self.inner.lock().hits += 1;
+        self.hits.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_miss(&self) {
-        self.inner.lock().misses += 1;
+        self.misses.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_eviction(&self) {
-        self.inner.lock().evictions += 1;
+        self.evictions.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn add_size(&self, bytes: u64) {
-        self.inner.lock().size_bytes += bytes;
+        self.size_bytes.fetch_add(bytes, Ordering::Relaxed);
     }
 
     pub fn sub_size(&self, bytes: u64) {
-        let new_size = self.inner.lock().size_bytes.saturating_sub(bytes);
-        self.inner.lock().size_bytes = new_size;
+        let mut current = self.size_bytes.load(Ordering::Relaxed);
+        loop {
+            let new = current.saturating_sub(bytes);
+            match self
+                .size_bytes
+                .compare_exchange_weak(current, new, Ordering::Relaxed, Ordering::Relaxed)
+            {
+                Ok(_) => break,
+                Err(actual) => current = actual,
+            }
+        }
     }
 
     pub fn snapshot(&self, entries: usize) -> CacheStats {
-        let inner = self.inner.lock();
-        let total = inner.hits + inner.misses;
+        let hits = self.hits.load(Ordering::Relaxed);
+        let misses = self.misses.load(Ordering::Relaxed);
+        let total = hits + misses;
         CacheStats {
             entries,
-            hits: inner.hits,
-            misses: inner.misses,
-            evictions: inner.evictions,
-            size_bytes: inner.size_bytes,
-            hit_rate: if total > 0 {
-                inner.hits as f64 / total as f64
-            } else {
-                0.0
-            },
+            hits,
+            misses,
+            evictions: self.evictions.load(Ordering::Relaxed),
+            size_bytes: self.size_bytes.load(Ordering::Relaxed),
+            hit_rate: if total > 0 { hits as f64 / total as f64 } else { 0.0 },
         }
     }
 }

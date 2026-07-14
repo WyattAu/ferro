@@ -1,7 +1,5 @@
 use crate::error::MountError;
-use crate::traits::{
-    BackendType, FileMetadata, MountBackend, MountEntry, MountHandle, MountOptions, SpaceUsage,
-};
+use crate::traits::{BackendType, FileMetadata, MountBackend, MountEntry, MountHandle, MountOptions, SpaceUsage};
 use async_trait::async_trait;
 use std::time::Duration;
 
@@ -76,12 +74,7 @@ impl NfsBackend {
 
     /// Perform the actual OS mount syscall.
     #[cfg(all(unix, feature = "ffi"))]
-    fn do_mount(
-        local_path: &str,
-        source: &str,
-        fstype: &str,
-        options: &str,
-    ) -> Result<(), MountError> {
+    fn do_mount(local_path: &str, source: &str, fstype: &str, options: &str) -> Result<(), MountError> {
         use std::ffi::CString;
         let source_c = CString::new(source).map_err(|e| MountError::Io {
             source: std::io::Error::new(std::io::ErrorKind::InvalidInput, e),
@@ -142,12 +135,7 @@ impl NfsBackend {
     }
 
     #[cfg(not(all(unix, feature = "ffi")))]
-    fn do_mount(
-        _local_path: &str,
-        _source: &str,
-        _fstype: &str,
-        _options: &str,
-    ) -> Result<(), MountError> {
+    fn do_mount(_local_path: &str, _source: &str, _fstype: &str, _options: &str) -> Result<(), MountError> {
         // Without FFI, assume the share is pre-mounted or this is a test.
         Ok(())
     }
@@ -188,17 +176,11 @@ impl MountBackend for NfsBackend {
         Self::do_unmount(&handle.local_path)
     }
 
-    async fn read_dir(
-        &self,
-        handle: &MountHandle,
-        path: &str,
-    ) -> Result<Vec<MountEntry>, MountError> {
+    async fn read_dir(&self, handle: &MountHandle, path: &str) -> Result<Vec<MountEntry>, MountError> {
         let dir = Self::resolve_path(handle, path);
-        let mut entries = tokio::fs::read_dir(&dir)
-            .await
-            .map_err(|_e| MountError::NotFound {
-                path: dir.display().to_string(),
-            })?;
+        let mut entries = tokio::fs::read_dir(&dir).await.map_err(|_e| MountError::NotFound {
+            path: dir.display().to_string(),
+        })?;
 
         let mut result = Vec::new();
         while let Some(entry) = entries.next_entry().await.map_err(|e| MountError::Io {
@@ -210,10 +192,7 @@ impl MountBackend for NfsBackend {
                 context: format!("metadata: {}", entry.path().display()),
             })?;
             let name = entry.file_name().to_string_lossy().into_owned();
-            let modified = metadata
-                .modified()
-                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                .into();
+            let modified = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH).into();
             result.push(MountEntry {
                 name,
                 is_dir: metadata.is_dir(),
@@ -234,12 +213,11 @@ impl MountBackend for NfsBackend {
         let file_path = Self::resolve_path(handle, path);
         use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-        let mut file =
-            tokio::fs::File::open(&file_path)
-                .await
-                .map_err(|_e| MountError::NotFound {
-                    path: file_path.display().to_string(),
-                })?;
+        let mut file = tokio::fs::File::open(&file_path)
+            .await
+            .map_err(|_e| MountError::NotFound {
+                path: file_path.display().to_string(),
+            })?;
 
         if offset > 0 {
             file.seek(std::io::SeekFrom::Start(offset))
@@ -273,10 +251,7 @@ impl MountBackend for NfsBackend {
             .into();
         Ok(FileMetadata {
             size: meta.len(),
-            modified: meta
-                .modified()
-                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                .into(),
+            modified: meta.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH).into(),
             created,
             is_dir: meta.is_dir(),
             permissions: 0o755, // default; real permissions need platform FFI
@@ -289,12 +264,10 @@ impl MountBackend for NfsBackend {
         // on some platforms. For accurate NFS space info we'd need statvfs,
         // but tokio::fs doesn't expose it directly.
         let mount_dir = &handle.local_path;
-        let meta = tokio::fs::metadata(mount_dir)
-            .await
-            .map_err(|e| MountError::Io {
-                source: e,
-                context: format!("stat: {}", mount_dir),
-            })?;
+        let meta = tokio::fs::metadata(mount_dir).await.map_err(|e| MountError::Io {
+            source: e,
+            context: format!("stat: {}", mount_dir),
+        })?;
 
         // This gives a rough estimate. For accurate space info on Linux,
         // statvfs() would be used via libc.
@@ -365,20 +338,14 @@ mod tests {
     fn test_resolve_path_subdir() {
         let handle = MountHandle::new("/export/data", "/mnt/nfs", BackendType::Nfs);
         let resolved = NfsBackend::resolve_path(&handle, "subdir/file.txt");
-        assert_eq!(
-            resolved,
-            std::path::PathBuf::from("/mnt/nfs/subdir/file.txt")
-        );
+        assert_eq!(resolved, std::path::PathBuf::from("/mnt/nfs/subdir/file.txt"));
     }
 
     #[test]
     fn test_resolve_path_leading_slash() {
         let handle = MountHandle::new("/export/data", "/mnt/nfs", BackendType::Nfs);
         let resolved = NfsBackend::resolve_path(&handle, "/subdir/file.txt");
-        assert_eq!(
-            resolved,
-            std::path::PathBuf::from("/mnt/nfs/subdir/file.txt")
-        );
+        assert_eq!(resolved, std::path::PathBuf::from("/mnt/nfs/subdir/file.txt"));
     }
 
     #[test]

@@ -5,6 +5,7 @@
 /// Uses binary prefixes (KiB, MiB, GiB, TiB) but labels them as
 /// KB, MB, GB, TB for user familiarity, consistent with the existing
 /// convention across the codebase.
+#[must_use]
 pub fn format_size(bytes: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = 1024 * KB;
@@ -12,7 +13,7 @@ pub fn format_size(bytes: u64) -> String {
     const TB: u64 = 1024 * GB;
 
     if bytes < KB {
-        format!("{} B", bytes)
+        format!("{bytes} B")
     } else if bytes < MB {
         format!("{:.1} KB", bytes as f64 / KB as f64)
     } else if bytes < GB {

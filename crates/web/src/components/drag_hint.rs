@@ -27,8 +27,8 @@ pub fn DragHint(
 
             if is_dragging.get() {
                 view! {
-                    <div class="border-t-2 border-dashed border-blue-400 bg-blue-50 dark:bg-blue-900/20 px-6 py-4 text-center transition-colors duration-200">
-                        <div class="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400">
+                    <div class="border-t-2 border-dashed border-blue-400 bg-[var(--accent-subtle)] px-6 py-4 text-center transition-colors duration-200">
+                        <div class="flex items-center justify-center gap-2 text-[var(--accent)]">
                             <svg class="w-5 h-5 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                             </svg>
@@ -39,7 +39,7 @@ pub fn DragHint(
             } else if has_entries.get() {
                 view! {
                     <div class="border-t border-gray-100 dark:border-gray-800 px-6 py-2 text-center">
-                        <span class="text-xs text-gray-400 dark:text-gray-500">{t!("drop.hint")}</span>
+                        <span class="text-xs text-[var(--text-tertiary)] dark:text-gray-500">{t!("drop.hint")}</span>
                     </div>
                 }.into_any()
             } else {

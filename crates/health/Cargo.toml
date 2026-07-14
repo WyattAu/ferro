@@ -8,6 +8,10 @@ license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
 publish = false
 
+[features]
+default = []
+redis = ["dep:redis"]
+
 [dependencies]
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -17,6 +21,9 @@ chrono = { workspace = true }
 dashmap = "6"
 async-trait = "0.1"
 libc = "0.2"
+rusqlite = { version = "0.32", features = ["bundled"] }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"], optional = true }
+common = { package = "ferro-common", path = "../common" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

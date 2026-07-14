@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Email configuration for SMTP delivery.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct EmailConfig {
     /// Whether email sending is enabled.
     pub enabled: bool,
@@ -17,6 +18,20 @@ pub struct EmailConfig {
     pub from_address: String,
     /// From display name for outgoing emails.
     pub from_name: String,
+}
+
+impl std::fmt::Debug for EmailConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EmailConfig")
+            .field("enabled", &self.enabled)
+            .field("smtp_host", &self.smtp_host)
+            .field("smtp_port", &self.smtp_port)
+            .field("smtp_username", &self.smtp_username)
+            .field("smtp_password", &self.smtp_password.as_ref().map(|_| "[REDACTED]"))
+            .field("from_address", &self.from_address)
+            .field("from_name", &self.from_name)
+            .finish()
+    }
 }
 
 impl Default for EmailConfig {
@@ -58,9 +73,10 @@ pub async fn send_email(config: &EmailConfig, msg: &EmailMessage) -> common::err
     let from = format!("{} <{}>", config.from_name, config.from_address);
 
     let email_builder = lettre::Message::builder()
-        .from(from.parse().map_err(|e| {
-            common::error::FerroError::Internal(format!("Invalid from address: {e}"))
-        })?)
+        .from(
+            from.parse()
+                .map_err(|e| common::error::FerroError::Internal(format!("Invalid from address: {e}")))?,
+        )
         .to(msg
             .to
             .parse()
@@ -82,29 +98,26 @@ pub async fn send_email(config: &EmailConfig, msg: &EmailMessage) -> common::err
 
     use lettre::AsyncTransport;
 
-    let tls_params =
-        lettre::transport::smtp::client::TlsParameters::builder(config.smtp_host.clone())
-            .build()
-            .map_err(|e| common::error::FerroError::Internal(format!("TLS config error: {e}")))?;
+    let tls_params = lettre::transport::smtp::client::TlsParameters::builder(config.smtp_host.clone())
+        .build()
+        .map_err(|e| common::error::FerroError::Internal(format!("TLS config error: {e}")))?;
 
     let tls_mode = lettre::transport::smtp::client::Tls::Required(tls_params);
 
-    let transport_builder =
-        lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(&config.smtp_host)
-            .port(config.smtp_port)
-            .tls(tls_mode);
+    let transport_builder = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(&config.smtp_host)
+        .port(config.smtp_port)
+        .tls(tls_mode);
 
-    let transport =
-        if let (Some(username), Some(password)) = (&config.smtp_username, &config.smtp_password) {
-            transport_builder
-                .credentials(lettre::transport::smtp::authentication::Credentials::new(
-                    username.clone(),
-                    password.clone(),
-                ))
-                .build()
-        } else {
-            transport_builder.build()
-        };
+    let transport = if let (Some(username), Some(password)) = (&config.smtp_username, &config.smtp_password) {
+        transport_builder
+            .credentials(lettre::transport::smtp::authentication::Credentials::new(
+                username.clone(),
+                password.clone(),
+            ))
+            .build()
+    } else {
+        transport_builder.build()
+    };
 
     match transport.send(email).await {
         Ok(_) => {
@@ -122,9 +135,7 @@ pub async fn send_email(config: &EmailConfig, msg: &EmailMessage) -> common::err
                 error = %e,
                 "Failed to send email via SMTP"
             );
-            Err(common::error::FerroError::Internal(format!(
-                "SMTP send error: {e}"
-            )))
+            Err(common::error::FerroError::Internal(format!("SMTP send error: {e}")))
         }
     }
 }
@@ -164,7 +175,10 @@ mod tests {
             enabled: true,
             smtp_host: "127.0.0.1".to_string(),
             smtp_port: 25999,
-            ..Default::default()
+            smtp_username: None,
+            smtp_password: None,
+            from_address: "noreply@ferro.local".to_string(),
+            from_name: "Ferro".to_string(),
         };
         let msg = EmailMessage {
             to: "user@example.com".to_string(),

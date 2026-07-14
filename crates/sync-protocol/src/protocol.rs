@@ -153,10 +153,7 @@ pub enum ConflictResolution {
     /// Keep the remote version.
     KeepRemote,
     /// Keep both, renaming one with a conflict suffix.
-    KeepBoth {
-        local_name: String,
-        remote_name: String,
-    },
+    KeepBoth { local_name: String, remote_name: String },
     /// Hand off to the user for manual resolution.
     Manual,
 }

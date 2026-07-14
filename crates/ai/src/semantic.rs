@@ -65,12 +65,7 @@ impl SemanticIndex {
         self.entries.remove(id).is_some()
     }
 
-    pub fn search(
-        &self,
-        query: &str,
-        top_k: usize,
-        min_similarity: f32,
-    ) -> Result<Vec<SearchResult>, AiError> {
+    pub fn search(&self, query: &str, top_k: usize, min_similarity: f32) -> Result<Vec<SearchResult>, AiError> {
         let query_embedding = self.model.embed_text(query)?;
         if query_embedding.len() != self.dimension {
             return Err(AiError::EmbeddingFailed {
@@ -111,12 +106,9 @@ impl SemanticIndex {
     }
 
     pub fn reindex(&self, id: &str, content: &str) -> Result<(), AiError> {
-        let mut entry = self
-            .entries
-            .get_mut(id)
-            .ok_or_else(|| AiError::InvalidInput {
-                reason: format!("entry '{}' not found for reindexing", id),
-            })?;
+        let mut entry = self.entries.get_mut(id).ok_or_else(|| AiError::InvalidInput {
+            reason: format!("entry '{}' not found for reindexing", id),
+        })?;
         let embedding = self.model.embed_text(content)?;
         let hash = Sha256::digest(content.as_bytes());
         entry.embedding = embedding;
@@ -137,13 +129,8 @@ mod tests {
     #[test]
     fn test_add_and_search() {
         let idx = make_index();
-        idx.add(
-            "doc1",
-            "/docs/report.txt",
-            "quarterly financial report",
-            Value::Null,
-        )
-        .unwrap();
+        idx.add("doc1", "/docs/report.txt", "quarterly financial report", Value::Null)
+            .unwrap();
         let results = idx.search("quarterly report", 5, 0.0).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "doc1");
@@ -155,15 +142,9 @@ mod tests {
         let idx = make_index();
         idx.add("a", "/a.txt", "rust programming language", Value::Null)
             .unwrap();
-        idx.add("b", "/b.txt", "cooking recipes pasta", Value::Null)
+        idx.add("b", "/b.txt", "cooking recipes pasta", Value::Null).unwrap();
+        idx.add("c", "/c.txt", "advanced rust systems programming", Value::Null)
             .unwrap();
-        idx.add(
-            "c",
-            "/c.txt",
-            "advanced rust systems programming",
-            Value::Null,
-        )
-        .unwrap();
 
         let results = idx.search("rust programming", 5, 0.0).unwrap();
         assert!(results.len() >= 2);
@@ -178,8 +159,7 @@ mod tests {
     #[test]
     fn test_min_similarity_threshold() {
         let idx = make_index();
-        idx.add("doc1", "/a.txt", "quantum physics", Value::Null)
-            .unwrap();
+        idx.add("doc1", "/a.txt", "quantum physics", Value::Null).unwrap();
         let results = idx.search("quantum physics", 5, 0.99).unwrap();
         assert_eq!(results.len(), 1);
         let results2 = idx.search("baking cookies", 5, 0.5).unwrap();
@@ -189,8 +169,7 @@ mod tests {
     #[test]
     fn test_remove() {
         let idx = make_index();
-        idx.add("doc1", "/a.txt", "hello world", Value::Null)
-            .unwrap();
+        idx.add("doc1", "/a.txt", "hello world", Value::Null).unwrap();
         assert!(idx.remove("doc1"));
         assert!(!idx.remove("doc1"));
         let results = idx.search("hello", 5, 0.0).unwrap();
@@ -200,13 +179,11 @@ mod tests {
     #[test]
     fn test_reindex() {
         let idx = make_index();
-        idx.add("doc1", "/a.txt", "original content here", Value::Null)
-            .unwrap();
+        idx.add("doc1", "/a.txt", "original content here", Value::Null).unwrap();
         let before = idx.search("original content", 1, 0.0).unwrap();
         assert_eq!(before.len(), 1);
 
-        idx.reindex("doc1", "completely different text now")
-            .unwrap();
+        idx.reindex("doc1", "completely different text now").unwrap();
         let after_orig = idx.search("original content", 1, 0.5).unwrap();
         assert_eq!(after_orig.len(), 0);
     }
@@ -221,12 +198,10 @@ mod tests {
     #[test]
     fn test_multiple_results() {
         let idx = make_index();
-        idx.add("d1", "/a.txt", "machine learning", Value::Null)
-            .unwrap();
+        idx.add("d1", "/a.txt", "machine learning", Value::Null).unwrap();
         idx.add("d2", "/b.txt", "deep learning neural networks", Value::Null)
             .unwrap();
-        idx.add("d3", "/c.txt", "data science statistics", Value::Null)
-            .unwrap();
+        idx.add("d3", "/c.txt", "data science statistics", Value::Null).unwrap();
         let results = idx.search("learning", 10, 0.0).unwrap();
         assert!(results.len() >= 2);
     }

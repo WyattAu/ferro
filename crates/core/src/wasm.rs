@@ -28,7 +28,6 @@ impl Default for WorkerConfig {
 }
 
 /// Result of a WASM worker execution.
-#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct WorkerResult {
     pub success: bool,
@@ -48,7 +47,6 @@ pub struct WorkerEvent {
 }
 
 /// WASM worker runtime using Wasmtime with WASI support.
-#[non_exhaustive]
 pub struct WasmWorkerRuntime {
     engine: Engine,
     workers: Arc<RwLock<Vec<WorkerEvent>>>,
@@ -115,13 +113,7 @@ impl WasmWorkerRuntime {
 
         // Move all heavy work to the blocking thread pool
         let result = tokio::task::spawn_blocking(move || {
-            execute_blocking(
-                &engine,
-                &module_path_owned,
-                &function_name_owned,
-                &input_owned,
-                &config,
-            )
+            execute_blocking(&engine, &module_path_owned, &function_name_owned, &input_owned, &config)
         });
 
         // Apply time limit
@@ -301,11 +293,7 @@ fn execute_blocking(
 
 /// Load input bytes into the WASM module's exported memory.
 /// Returns (pointer, length) for passing to the WASM function.
-fn load_input_into_memory(
-    store: &mut Store<WasiP1Ctx>,
-    instance: &Instance,
-    input: &[u8],
-) -> Result<(u32, u32)> {
+fn load_input_into_memory(store: &mut Store<WasiP1Ctx>, instance: &Instance, input: &[u8]) -> Result<(u32, u32)> {
     if input.is_empty() {
         return Ok((0, 0));
     }

@@ -43,18 +43,11 @@ impl OfflineCache {
         })
     }
 
-    pub async fn put(
-        &self,
-        remote_path: &str,
-        data: &[u8],
-        etag: Option<&str>,
-    ) -> Result<u64, String> {
+    pub async fn put(&self, remote_path: &str, data: &[u8], etag: Option<&str>) -> Result<u64, String> {
         let cache_key = Self::hash_content(data);
         let blob_path = self.blobs_dir.join(&cache_key);
 
-        fs::write(&blob_path, data)
-            .await
-            .map_err(|e| e.to_string())?;
+        fs::write(&blob_path, data).await.map_err(|e| e.to_string())?;
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -108,9 +101,7 @@ impl OfflineCache {
     pub async fn queue_write(&self, remote_path: &str, data: &[u8]) -> Result<(), String> {
         let cache_key = Self::hash_content(data);
         let blob_path = self.blobs_dir.join(&cache_key);
-        fs::write(&blob_path, data)
-            .await
-            .map_err(|e| e.to_string())?;
+        fs::write(&blob_path, data).await.map_err(|e| e.to_string())?;
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -121,7 +112,8 @@ impl OfflineCache {
         db.execute(
             "INSERT INTO pending_writes (remote_path, local_blob_key, queued_at) VALUES (?1, ?2, ?3)",
             params![remote_path, cache_key, now],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         Ok(())
     }
@@ -130,17 +122,12 @@ impl OfflineCache {
     pub fn get_pending_writes(&self) -> Result<Vec<(String, String)>, String> {
         let db = self.db.lock().map_err(|e| e.to_string())?;
         let mut stmt = db
-            .prepare(
-                "SELECT remote_path, local_blob_key FROM pending_writes ORDER BY queued_at ASC",
-            )
+            .prepare("SELECT remote_path, local_blob_key FROM pending_writes ORDER BY queued_at ASC")
             .map_err(|e| e.to_string())?;
         let rows = stmt
-            .query_map([], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-            })
+            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
             .map_err(|e| e.to_string())?;
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.to_string())
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
     }
 
     #[allow(dead_code)]
@@ -156,11 +143,8 @@ impl OfflineCache {
 
     pub fn invalidate(&self, remote_path: &str) -> Result<(), String> {
         let db = self.db.lock().map_err(|e| e.to_string())?;
-        db.execute(
-            "DELETE FROM cache_entries WHERE remote_path = ?1",
-            params![remote_path],
-        )
-        .map_err(|e| e.to_string())?;
+        db.execute("DELETE FROM cache_entries WHERE remote_path = ?1", params![remote_path])
+            .map_err(|e| e.to_string())?;
         Ok(())
     }
 
@@ -174,11 +158,7 @@ impl OfflineCache {
             .query_row("SELECT COUNT(*) FROM pending_writes", [], |row| row.get(0))
             .unwrap_or(0);
         let total_size: i64 = db
-            .query_row(
-                "SELECT COALESCE(SUM(size), 0) FROM cache_entries",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT COALESCE(SUM(size), 0) FROM cache_entries", [], |row| row.get(0))
             .unwrap_or(0);
         Ok(CacheStats {
             cached_files,
@@ -246,14 +226,8 @@ mod tests {
         let dir = tempdir().unwrap();
         let cache = OfflineCache::new(dir.path().to_path_buf()).unwrap();
 
-        cache
-            .queue_write("/queued/file.txt", b"pending data")
-            .await
-            .unwrap();
-        cache
-            .queue_write("/queued/other.txt", b"more pending")
-            .await
-            .unwrap();
+        cache.queue_write("/queued/file.txt", b"pending data").await.unwrap();
+        cache.queue_write("/queued/other.txt", b"more pending").await.unwrap();
 
         let pending = cache.get_pending_writes().unwrap();
         assert_eq!(pending.len(), 2);
@@ -295,14 +269,8 @@ mod tests {
         let dir = tempdir().unwrap();
         let cache = OfflineCache::new(dir.path().to_path_buf()).unwrap();
 
-        cache
-            .put("/path1.txt", b"same content", None)
-            .await
-            .unwrap();
-        cache
-            .put("/path2.txt", b"same content", None)
-            .await
-            .unwrap();
+        cache.put("/path1.txt", b"same content", None).await.unwrap();
+        cache.put("/path2.txt", b"same content", None).await.unwrap();
 
         assert!(cache.get("/path1.txt").await.unwrap().is_some());
         assert!(cache.get("/path2.txt").await.unwrap().is_some());

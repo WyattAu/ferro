@@ -20,13 +20,9 @@ pub async fn get_quota_impl<S: HasQuota>(state: &S) -> Response {
     let quota_bytes = state.quota_bytes().unwrap_or(0);
     let unlimited = state.quota_bytes().is_none();
 
-    let used_bytes = state
-        .used_bytes()
-        .load(std::sync::atomic::Ordering::Relaxed);
+    let used_bytes = state.used_bytes().load(std::sync::atomic::Ordering::Relaxed);
 
-    let file_count = state
-        .file_count()
-        .load(std::sync::atomic::Ordering::Relaxed);
+    let file_count = state.file_count().load(std::sync::atomic::Ordering::Relaxed);
 
     let used_percent = if unlimited || quota_bytes == 0 {
         0.0
@@ -48,6 +44,7 @@ pub async fn get_quota_impl<S: HasQuota>(state: &S) -> Response {
 }
 
 /// Parse a human-readable size string (e.g., "10GB") into bytes.
+#[must_use]
 pub fn parse_human_size(s: &str) -> Option<u64> {
     let s = s.trim().to_uppercase();
     let (num_str, multiplier) = if let Some(n) = s.strip_suffix("TB") {
@@ -88,5 +85,22 @@ mod tests {
         assert_eq!(parse_human_size("Gb"), None);
         assert_eq!(parse_human_size("1Gb"), Some(1_073_741_824));
         assert_eq!(parse_human_size("500mb"), Some(524_288_000));
+    }
+
+    #[test]
+    fn test_parse_human_size_bytes() {
+        assert_eq!(parse_human_size("100B"), Some(100));
+        assert_eq!(parse_human_size("0B"), Some(0));
+    }
+
+    #[test]
+    fn test_parse_human_size_plain_number() {
+        // Plain number defaults to bytes multiplier
+        assert_eq!(parse_human_size("500"), Some(500));
+    }
+
+    #[test]
+    fn test_parse_human_size_whitespace() {
+        assert_eq!(parse_human_size(" 10GB "), Some(10_737_418_240));
     }
 }

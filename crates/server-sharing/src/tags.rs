@@ -48,10 +48,7 @@ impl TagStore {
             return Err("Tag exceeds 100 character limit".to_string());
         }
         if !self.entries.contains_key(path) && self.entries.len() >= MAX_TAGGED_FILES {
-            return Err(format!(
-                "Maximum tagged files limit ({}) reached",
-                MAX_TAGGED_FILES
-            ));
+            return Err(format!("Maximum tagged files limit ({}) reached", MAX_TAGGED_FILES));
         }
         let mut entry = self.entries.entry(path.to_string()).or_default();
         if entry.value().len() >= MAX_TAGS_PER_FILE {
@@ -96,10 +93,7 @@ impl TagStore {
     }
 
     pub fn get_tags(&self, path: &str) -> HashSet<String> {
-        self.entries
-            .get(path)
-            .map(|e| e.value().clone())
-            .unwrap_or_default()
+        self.entries.get(path).map(|e| e.value().clone()).unwrap_or_default()
     }
 
     pub fn list_all_tags(&self) -> Vec<(String, usize)> {
@@ -134,21 +128,12 @@ impl TagStore {
         }
     }
 
-    pub fn load_all_from_db(
-        &self,
-        conn: &rusqlite::Connection,
-    ) -> std::result::Result<(), rusqlite::Error> {
+    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
         let mut stmt = conn.prepare("SELECT file_path, tag FROM file_tags")?;
-        let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?;
+        let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
         for row in rows {
             let (path, tag): (String, String) = row?;
-            self.entries
-                .entry(path)
-                .or_default()
-                .value_mut()
-                .insert(tag);
+            self.entries.entry(path).or_default().value_mut().insert(tag);
         }
         Ok(())
     }
@@ -176,17 +161,10 @@ pub async fn list_tags(Extension(state): Extension<SharingState>) -> Response {
         .into_iter()
         .map(|(tag, count)| serde_json::json!({ "tag": tag, "count": count }))
         .collect();
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "tags": tags_json })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "tags": tags_json }))).into_response()
 }
 
-pub async fn get_tags(
-    Extension(state): Extension<SharingState>,
-    Path(path): Path<String>,
-) -> Response {
+pub async fn get_tags(Extension(state): Extension<SharingState>, Path(path): Path<String>) -> Response {
     let tags = state.tags.get_tags(&path);
     (
         StatusCode::OK,
@@ -237,11 +215,7 @@ pub async fn remove_tag(
 ) -> Response {
     let removed = state.tags.remove_tag(&path, &tag);
     if removed {
-        (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "status": "ok" })),
-        )
-            .into_response()
+        (StatusCode::OK, axum::Json(serde_json::json!({ "status": "ok" }))).into_response()
     } else {
         ApiError::not_found(ApiError::NOT_FOUND, "Tag not found on file")
     }

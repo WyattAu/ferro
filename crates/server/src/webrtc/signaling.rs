@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::offers::SignalingOffer;
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateOfferRequest {
     pub sdp: String,
     pub file_path: String,
@@ -13,7 +13,7 @@ pub struct CreateOfferRequest {
     pub file_size: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct CreateOfferResponse {
     pub session_id: String,
     pub watch_url: String,
@@ -56,12 +56,12 @@ pub async fn get_offer(
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct AnswerRequest {
     pub sdp: String,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct AnswerResponse {
     pub ice_candidates: Vec<String>,
 }
@@ -88,7 +88,7 @@ pub async fn submit_answer(
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct IceRequest {
     pub candidate: String,
 }

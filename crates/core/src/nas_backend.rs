@@ -10,7 +10,7 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::RwLock;
 use tracing::debug;
 
-/// Maximum depth for `list_all` to prevent DoS on deeply nested trees.
+/// Maximum depth for `list_all` to prevent `DoS` on deeply nested trees.
 const MAX_LIST_ALL_DEPTH: u32 = 100;
 
 /// The number of retries for NAS operations that may fail due to stale file handles.
@@ -21,7 +21,7 @@ const NAS_RETRY_COUNT: u32 = 3;
 /// The engine operates on a local mount point, handling NAS-specific concerns:
 /// - NFS: stale file handles, permission errors, file locking
 /// - SMB/CIFS: case insensitivity, special characters, locked files
-#[non_exhaustive]
+#[derive(Debug)]
 pub struct NasStorageEngine {
     base_path: PathBuf,
     /// Normalized virtual root (e.g., "/" or "/subdir").
@@ -42,6 +42,7 @@ pub enum NasProtocol {
 }
 
 impl NasProtocol {
+    #[must_use]
     pub fn from_prefix(s: &str) -> Self {
         if s.contains("smb") || s.contains("cifs") || s.contains("samba") {
             Self::Smb
@@ -84,6 +85,7 @@ impl NasStorageConfig {
     /// Parse a `--storage` value into a NAS config.
     ///
     /// Returns `None` if the value doesn't match `nas:` prefix.
+    #[must_use]
     pub fn parse(storage_str: &str) -> Option<Self> {
         let (protocol, path_part) = if let Some(rest) = storage_str.strip_prefix("nas-nfs:") {
             (NasProtocol::Nfs, rest)
@@ -96,10 +98,7 @@ impl NasStorageConfig {
         };
 
         let base_path = Self::resolve_path(path_part);
-        Some(Self {
-            base_path,
-            protocol,
-        })
+        Some(Self { base_path, protocol })
     }
 
     /// Resolve a path, handling UNC-style `//server/share` paths by
@@ -157,17 +156,12 @@ impl NasStorageEngine {
 
         let base = config.base_path.join(sub.trim_start_matches('/'));
         if !base.exists() {
-            std::fs::create_dir_all(&base).map_err(|e| {
-                FerroError::StorageBackend(format!(
-                    "Failed to create NAS subroot {:?}: {}",
-                    base, e
-                ))
-            })?;
+            std::fs::create_dir_all(&base)
+                .map_err(|e| FerroError::StorageBackend(format!("Failed to create NAS subroot {base:?}: {e}")))?;
         }
         if !base.is_dir() {
             return Err(FerroError::StorageBackend(format!(
-                "NAS subroot is not a directory: {:?}",
-                base
+                "NAS subroot is not a directory: {base:?}"
             )));
         }
 
@@ -194,40 +188,26 @@ impl NasStorageEngine {
     /// Validate a virtual path for security (no traversal).
     fn validate_path(path: &str) -> Result<()> {
         if path.contains("..") {
-            return Err(FerroError::InvalidArgument(
-                "Path traversal not allowed".to_string(),
-            ));
+            return Err(FerroError::InvalidArgument("Path traversal not allowed".to_string()));
         }
         if path.is_empty() {
-            return Err(FerroError::InvalidArgument(
-                "Path must not be empty".to_string(),
-            ));
+            return Err(FerroError::InvalidArgument("Path must not be empty".to_string()));
         }
         Ok(())
     }
 
-    /// Map OS errors to appropriate FerroError variants with NAS-specific context.
+    /// Map OS errors to appropriate `FerroError` variants with NAS-specific context.
     fn map_io_error(e: std::io::Error, path: &str, operation: &str) -> FerroError {
         match e.kind() {
-            std::io::ErrorKind::NotFound => FerroError::NotFound(format!("{}: {}", path, e)),
-            std::io::ErrorKind::PermissionDenied => {
-                FerroError::PermissionDenied(format!("{}: {}", path, e))
-            }
-            std::io::ErrorKind::BrokenPipe | std::io::ErrorKind::ConnectionReset => {
-                FerroError::StorageBackend(format!(
-                    "NAS {} failed for {}: stale file handle or connection lost ({})",
-                    operation, path, e
-                ))
-            }
+            std::io::ErrorKind::NotFound => FerroError::NotFound(format!("{path}: {e}")),
+            std::io::ErrorKind::PermissionDenied => FerroError::PermissionDenied(format!("{path}: {e}")),
+            std::io::ErrorKind::BrokenPipe | std::io::ErrorKind::ConnectionReset => FerroError::StorageBackend(
+                format!("NAS {operation} failed for {path}: stale file handle or connection lost ({e})"),
+            ),
             std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut => {
-                FerroError::StorageBackend(format!(
-                    "NAS {} timed out for {}: {}",
-                    operation, path, e
-                ))
+                FerroError::StorageBackend(format!("NAS {operation} timed out for {path}: {e}"))
             }
-            _ => {
-                FerroError::StorageBackend(format!("NAS {} failed for {}: {}", operation, path, e))
-            }
+            _ => FerroError::StorageBackend(format!("NAS {operation} failed for {path}: {e}")),
         }
     }
 
@@ -258,10 +238,7 @@ impl NasStorageEngine {
                             path,
                             e
                         );
-                        tokio::time::sleep(std::time::Duration::from_millis(
-                            50 * 2u64.pow(attempt),
-                        ))
-                        .await;
+                        tokio::time::sleep(std::time::Duration::from_millis(50 * 2u64.pow(attempt))).await;
                     } else {
                         last_err = Some(e);
                     }
@@ -275,16 +252,14 @@ impl NasStorageEngine {
         ))
     }
 
-    /// Build FileMetadata from filesystem metadata.
+    /// Build `FileMetadata` from filesystem metadata.
     fn fs_metadata_to_file_with_owner(
         &self,
         virtual_path: &str,
         fs_meta: &std::fs::Metadata,
         owner: &str,
     ) -> FileMetadata {
-        let modified = fs_meta
-            .modified()
-            .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+        let modified = fs_meta.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
         let chrono_modified: chrono::DateTime<Utc> = modified.into();
 
         let is_dir = fs_meta.is_dir();
@@ -308,7 +283,7 @@ impl NasStorageEngine {
 
             FileMetadata {
                 path: virtual_path.to_string(),
-                etag: format!("\"{}\"", etag_str),
+                etag: format!("\"{etag_str}\""),
                 content_hash,
                 size,
                 mime_type: "application/octet-stream".to_string(),
@@ -320,7 +295,7 @@ impl NasStorageEngine {
         }
     }
 
-    /// Build FileMetadata from filesystem metadata (owner unknown).
+    /// Build `FileMetadata` from filesystem metadata (owner unknown).
     fn fs_metadata_to_file(&self, virtual_path: &str, fs_meta: &std::fs::Metadata) -> FileMetadata {
         self.fs_metadata_to_file_with_owner(virtual_path, fs_meta, "unknown")
     }
@@ -329,9 +304,7 @@ impl NasStorageEngine {
     async fn invalidate_stale_cache(&self) {
         let mut cache = self.metadata_cache.write().await;
         let now = std::time::Instant::now();
-        cache.retain(|_, entry| {
-            now.duration_since(entry.cached_at) < std::time::Duration::from_secs(30)
-        });
+        cache.retain(|_, entry| now.duration_since(entry.cached_at) < std::time::Duration::from_secs(30));
     }
 
     /// SMB-specific: sanitize filename for case-insensitive filesystems.
@@ -485,7 +458,7 @@ impl StorageEngine for NasStorageEngine {
             let entry_name = entry.file_name();
             let name_str = entry_name.to_string_lossy();
             let virtual_path = if path_owned == "/" || path_owned.is_empty() {
-                format!("/{}", name_str)
+                format!("/{name_str}")
             } else {
                 format!("{}/{}", path_owned.trim_end_matches('/'), name_str)
             };
@@ -674,7 +647,7 @@ impl StorageEngine for NasStorageEngine {
         reader
             .read_to_end(&mut buf)
             .await
-            .map_err(|e| FerroError::StorageBackend(format!("Stream read error: {}", e)))?;
+            .map_err(|e| FerroError::StorageBackend(format!("Stream read error: {e}")))?;
 
         let bytes = Bytes::from(buf);
         self.put(path, bytes, &owner_owned).await
@@ -728,7 +701,7 @@ impl NasStorageEngine {
             let name_str = entry_name.to_string_lossy();
 
             let virtual_path = if virtual_prefix == "/" || virtual_prefix.is_empty() {
-                format!("/{}", name_str)
+                format!("/{name_str}")
             } else {
                 format!("{}/{}", virtual_prefix.trim_end_matches('/'), name_str)
             };
@@ -739,9 +712,7 @@ impl NasStorageEngine {
 
             match tokio::fs::metadata(entry.path()).await {
                 Ok(meta) => {
-                    if !meta.is_dir() {
-                        items.push(self.fs_metadata_to_file(&virtual_path, &meta));
-                    } else {
+                    if meta.is_dir() {
                         // Recurse into directories but don't add them to results
                         let child_relative = relative_base.join(&*name_str);
                         Box::pin(self.list_all_recursive(
@@ -752,6 +723,8 @@ impl NasStorageEngine {
                             items,
                         ))
                         .await?;
+                    } else {
+                        items.push(self.fs_metadata_to_file(&virtual_path, &meta));
                     }
                 }
                 Err(e) => {
@@ -800,10 +773,7 @@ mod tests {
         let (engine, _tmp) = make_test_engine();
         let content = Bytes::from("hello world");
 
-        let meta = engine
-            .put("/test.txt", content.clone(), "user1")
-            .await
-            .unwrap();
+        let meta = engine.put("/test.txt", content.clone(), "user1").await.unwrap();
         assert_eq!(meta.path, "/test.txt");
         assert_eq!(meta.size, 11);
         assert_eq!(meta.owner, "user1");
@@ -815,10 +785,7 @@ mod tests {
     #[tokio::test]
     async fn test_put_delete() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/test.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/test.txt", Bytes::from("hello"), "user1").await.unwrap();
         assert!(engine.exists("/test.txt").await.unwrap());
 
         engine.delete("/test.txt").await.unwrap();
@@ -828,14 +795,8 @@ mod tests {
     #[tokio::test]
     async fn test_create_collection_and_list() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/docs/a.txt", Bytes::from("aaa"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/docs/b.txt", Bytes::from("bbb"), "user1")
-            .await
-            .unwrap();
+        engine.put("/docs/a.txt", Bytes::from("aaa"), "user1").await.unwrap();
+        engine.put("/docs/b.txt", Bytes::from("bbb"), "user1").await.unwrap();
 
         let items = engine.list("/docs").await.unwrap();
         assert_eq!(items.len(), 2);
@@ -844,10 +805,7 @@ mod tests {
     #[tokio::test]
     async fn test_copy() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/src.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/src.txt", Bytes::from("hello"), "user1").await.unwrap();
 
         engine.copy("/src.txt", "/dst.txt").await.unwrap();
         assert!(engine.exists("/src.txt").await.unwrap());
@@ -861,10 +819,7 @@ mod tests {
     #[tokio::test]
     async fn test_move_path() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/old.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/old.txt", Bytes::from("hello"), "user1").await.unwrap();
 
         engine.move_path("/old.txt", "/new.txt").await.unwrap();
         assert!(!engine.exists("/old.txt").await.unwrap());
@@ -879,10 +834,7 @@ mod tests {
         let (engine, _tmp) = make_test_engine();
         assert!(!engine.exists("/nope.txt").await.unwrap());
 
-        engine
-            .put("/yes.txt", Bytes::from("data"), "user1")
-            .await
-            .unwrap();
+        engine.put("/yes.txt", Bytes::from("data"), "user1").await.unwrap();
         assert!(engine.exists("/yes.txt").await.unwrap());
     }
 
@@ -901,14 +853,8 @@ mod tests {
     #[tokio::test]
     async fn test_list_all_descendants() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/root/f1.txt", Bytes::from("a"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/root/sub/f2.txt", Bytes::from("b"), "user1")
-            .await
-            .unwrap();
+        engine.put("/root/f1.txt", Bytes::from("a"), "user1").await.unwrap();
+        engine.put("/root/sub/f2.txt", Bytes::from("b"), "user1").await.unwrap();
         engine
             .put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1")
             .await
@@ -921,14 +867,8 @@ mod tests {
     #[tokio::test]
     async fn test_list_all_depth_limit() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/root/f1.txt", Bytes::from("a"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/root/sub/f2.txt", Bytes::from("b"), "user1")
-            .await
-            .unwrap();
+        engine.put("/root/f1.txt", Bytes::from("a"), "user1").await.unwrap();
+        engine.put("/root/sub/f2.txt", Bytes::from("b"), "user1").await.unwrap();
         engine
             .put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1")
             .await
@@ -944,10 +884,7 @@ mod tests {
     #[tokio::test]
     async fn test_head_metadata() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/meta.txt", Bytes::from("data"), "user1")
-            .await
-            .unwrap();
+        engine.put("/meta.txt", Bytes::from("data"), "user1").await.unwrap();
 
         let meta = engine.head("/meta.txt").await.unwrap();
         assert_eq!(meta.path, "/meta.txt");
@@ -965,9 +902,7 @@ mod tests {
     #[tokio::test]
     async fn test_path_traversal_double_dot() {
         let (engine, _tmp) = make_test_engine();
-        let result = engine
-            .put("/../../etc/shadow", Bytes::from("bad"), "user1")
-            .await;
+        let result = engine.put("/../../etc/shadow", Bytes::from("bad"), "user1").await;
         assert!(result.is_err());
     }
 
@@ -975,10 +910,7 @@ mod tests {
     async fn test_get_stream() {
         let (engine, _tmp) = make_test_engine();
         let content = Bytes::from("streaming test data");
-        engine
-            .put("/stream.txt", content.clone(), "user1")
-            .await
-            .unwrap();
+        engine.put("/stream.txt", content.clone(), "user1").await.unwrap();
 
         let mut reader = engine.get_stream("/stream.txt").await.unwrap();
         let mut buf = vec![0u8; 64];
@@ -997,14 +929,8 @@ mod tests {
     #[tokio::test]
     async fn test_put_overwrite() {
         let (engine, _tmp) = make_test_engine();
-        engine
-            .put("/test.txt", Bytes::from("v1"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/test.txt", Bytes::from("v2"), "user1")
-            .await
-            .unwrap();
+        engine.put("/test.txt", Bytes::from("v1"), "user1").await.unwrap();
+        engine.put("/test.txt", Bytes::from("v2"), "user1").await.unwrap();
 
         let content = engine.get("/test.txt").await.unwrap();
         assert_eq!(content, Bytes::from("v2"));
@@ -1069,10 +995,7 @@ mod tests {
     #[tokio::test]
     async fn test_smb_sanitize() {
         assert_eq!(NasStorageEngine::smb_sanitize_name("file.txt"), "file.txt");
-        assert_eq!(
-            NasStorageEngine::smb_sanitize_name("file:name.txt"),
-            "file_name.txt"
-        );
+        assert_eq!(NasStorageEngine::smb_sanitize_name("file:name.txt"), "file_name.txt");
         assert_eq!(NasStorageEngine::smb_sanitize_name("a/b"), "a_b");
     }
 }

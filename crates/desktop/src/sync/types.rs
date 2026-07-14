@@ -115,10 +115,7 @@ impl SyncEntry {
             }
         }
         // No last_synced_hash: treat as conflict (both sides have content we haven't seen)
-        if self.last_synced_hash.is_empty()
-            && !self.local_hash.is_empty()
-            && !self.remote_hash.is_empty()
-        {
+        if self.last_synced_hash.is_empty() && !self.local_hash.is_empty() && !self.remote_hash.is_empty() {
             return FileSyncStatus::Conflict;
         }
         FileSyncStatus::Synced

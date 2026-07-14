@@ -22,10 +22,7 @@ impl BadgeVariant {
 }
 
 #[component]
-pub fn Badge(
-    text: String,
-    #[prop(default = BadgeVariant::Neutral)] variant: BadgeVariant,
-) -> impl IntoView {
+pub fn Badge(text: String, #[prop(default = BadgeVariant::Neutral)] variant: BadgeVariant) -> impl IntoView {
     let aria_label = format!("Status: {}", text);
     view! {
         <span class=variant.class() aria-label=aria_label>{text}</span>

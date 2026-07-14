@@ -9,11 +9,11 @@ use crate::dead_letter::{DeadLetterEntry, DeadLetterQueue};
 use crate::error::EventBusError;
 use crate::event::Event;
 use crate::handler::{ErasedHandler, HandlerEraser, HandlerResult};
+use crate::queue::{EventQueue, QueuedEvent};
 
 #[async_trait]
 pub trait EventInterceptor: Send + Sync {
-    async fn before_publish(&self, event_type: &str, event_json: &str)
-    -> Result<(), EventBusError>;
+    async fn before_publish(&self, event_type: &str, event_json: &str) -> Result<(), EventBusError>;
     async fn after_publish(&self, event_type: &str, event_json: &str, results: &[HandlerResult]);
 }
 
@@ -73,6 +73,7 @@ impl EventBusBuilder {
             dead_letter,
             store,
             interceptor: Arc::new(Mutex::new(self.interceptor)),
+            event_queue: Arc::new(EventQueue::new(1024)),
         }
     }
 }
@@ -88,6 +89,7 @@ pub struct EventBus {
     dead_letter: Option<DeadLetterQueue>,
     store: Option<Arc<crate::replay::EventStore>>,
     interceptor: Arc<Mutex<Option<Box<dyn EventInterceptor>>>>,
+    event_queue: Arc<EventQueue>,
 }
 
 impl EventBus {
@@ -99,11 +101,7 @@ impl EventBus {
         EventBusBuilder::new()
     }
 
-    pub fn subscribe<E: Event>(
-        &self,
-        event_type: &str,
-        handler: Box<dyn crate::handler::EventHandler<E>>,
-    ) {
+    pub fn subscribe<E: Event>(&self, event_type: &str, handler: Box<dyn crate::handler::EventHandler<E>>) {
         let erased = Arc::new(ErasedHandler::new(handler));
         let mut handlers = self.handlers.entry(event_type.to_string()).or_default();
         handlers.push(erased);
@@ -120,14 +118,18 @@ impl EventBus {
         let event_json = match event.to_json() {
             Ok(json) => json,
             Err(err) => {
-                eprintln!(
-                    "[event-bus] failed to serialize event '{}': {}",
-                    event_type, err
-                );
+                eprintln!("[event-bus] failed to serialize event '{}': {}", event_type, err);
                 return;
             }
         };
         let timestamp = event.timestamp();
+
+        let queued = QueuedEvent {
+            event_type: event_type.clone(),
+            event_json: event_json.clone(),
+            timestamp: Utc::now(),
+        };
+        self.event_queue.push(queued);
 
         let interceptor_ref = self.interceptor.clone();
         let has_interceptor = interceptor_ref.lock().await.is_some();
@@ -137,10 +139,7 @@ impl EventBus {
             if let Some(ref ic) = *guard
                 && let Err(err) = ic.before_publish(&event_type, &event_json).await
             {
-                eprintln!(
-                    "[event-bus] interceptor rejected event '{}': {}",
-                    event_type, err
-                );
+                eprintln!("[event-bus] interceptor rejected event '{}': {}", event_type, err);
                 return;
             }
             drop(guard);
@@ -151,8 +150,7 @@ impl EventBus {
         if let Some(handlers) = self.handlers.get(&event_type) {
             for handler in handlers.iter() {
                 let name = handler.name().to_string();
-                let et = event_type.clone();
-                match handler.handle_erased(&event_json, &et).await {
+                match handler.handle_erased(&event_json, &event_type).await {
                     Ok(()) => {
                         results.push(HandlerResult::ok(&name));
                     }
@@ -164,7 +162,7 @@ impl EventBus {
                         if let Some(ref dlq) = self.dead_letter {
                             dlq.push(DeadLetterEntry {
                                 event_json: event_json.clone(),
-                                event_type: et.clone(),
+                                event_type: event_type.clone(),
                                 handler_name: name.clone(),
                                 error: err.to_string(),
                                 timestamp: Utc::now(),
@@ -204,6 +202,13 @@ impl EventBus {
         };
         let timestamp = event.timestamp();
 
+        let queued = QueuedEvent {
+            event_type: event_type.clone(),
+            event_json: event_json.clone(),
+            timestamp: Utc::now(),
+        };
+        self.event_queue.push(queued);
+
         let interceptor_ref = self.interceptor.clone();
         let has_interceptor = interceptor_ref.lock().await.is_some();
 
@@ -222,8 +227,7 @@ impl EventBus {
         if let Some(handlers) = self.handlers.get(&event_type) {
             for handler in handlers.iter() {
                 let name = handler.name().to_string();
-                let et = event_type.clone();
-                match handler.handle_erased(&event_json, &et).await {
+                match handler.handle_erased(&event_json, &event_type).await {
                     Ok(()) => {
                         results.push(HandlerResult::ok(&name));
                     }
@@ -231,7 +235,7 @@ impl EventBus {
                         if let Some(ref dlq) = self.dead_letter {
                             dlq.push(DeadLetterEntry {
                                 event_json: event_json.clone(),
-                                event_type: et.clone(),
+                                event_type: event_type.clone(),
                                 handler_name: name.clone(),
                                 error: err.to_string(),
                                 timestamp: Utc::now(),
@@ -279,6 +283,10 @@ impl EventBus {
         self.store.as_ref()
     }
 
+    pub fn event_queue(&self) -> &Arc<EventQueue> {
+        &self.event_queue
+    }
+
     pub async fn retry_dead_letters(&self) {
         let Some(dlq) = &self.dead_letter else {
             return;
@@ -320,10 +328,13 @@ impl EventBus {
             let event_type = stored.event_type.clone();
             if let Some(handlers) = self.handlers.get(&event_type) {
                 for handler in handlers.iter() {
-                    let _ = handler.handle_erased(&stored.event_json, &event_type).await.map_err(|e| {
-                        tracing::warn!(event_type = %event_type, error = %e, "event replay handler failed");
-                        e
-                    });
+                    let _ = handler
+                        .handle_erased(&stored.event_json, &event_type)
+                        .await
+                        .map_err(|e| {
+                            tracing::warn!(event_type = %event_type, error = %e, "event replay handler failed");
+                            e
+                        });
                 }
             }
         }
@@ -364,8 +375,7 @@ mod tests {
     #[async_trait]
     impl EventHandler<FileEvent> for CounterHandler {
         async fn handle(&self, _event: &FileEvent) -> Result<(), EventBusError> {
-            self.count
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             Ok(())
         }
 
@@ -416,12 +426,7 @@ mod tests {
     #[tokio::test]
     async fn handler_error_goes_to_dead_letter() {
         let bus = EventBus::new();
-        bus.subscribe(
-            "file.created",
-            Box::new(FailHandler {
-                name: "fail".into(),
-            }),
-        );
+        bus.subscribe("file.created", Box::new(FailHandler { name: "fail".into() }));
         let event = FileEvent::new("file.created", "/test.txt", "user1");
         bus.publish(event).await;
         let dlq = bus.dead_letter_queue().unwrap();
@@ -476,12 +481,7 @@ mod tests {
     #[tokio::test]
     async fn dead_letter_drain_and_retry() {
         let bus = EventBus::new();
-        bus.subscribe(
-            "file.created",
-            Box::new(FailHandler {
-                name: "fail".into(),
-            }),
-        );
+        bus.subscribe("file.created", Box::new(FailHandler { name: "fail".into() }));
         let event = FileEvent::new("file.created", "/test.txt", "user1");
         bus.publish(event).await;
         let dlq = bus.dead_letter_queue().unwrap();
@@ -505,12 +505,7 @@ mod tests {
     async fn builder_without_dead_letter() {
         let bus = EventBus::builder().without_dead_letter().build();
         assert!(bus.dead_letter_queue().is_none());
-        bus.subscribe(
-            "file.created",
-            Box::new(FailHandler {
-                name: "fail".into(),
-            }),
-        );
+        bus.subscribe("file.created", Box::new(FailHandler { name: "fail".into() }));
         let event = FileEvent::new("file.created", "/test.txt", "user1");
         bus.publish(event).await;
     }
@@ -535,24 +530,13 @@ mod tests {
 
         #[async_trait]
         impl EventInterceptor for MockInterceptor {
-            async fn before_publish(
-                &self,
-                _event_type: &str,
-                _event_json: &str,
-            ) -> Result<(), EventBusError> {
-                self.before_called
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
+            async fn before_publish(&self, _event_type: &str, _event_json: &str) -> Result<(), EventBusError> {
+                self.before_called.store(true, std::sync::atomic::Ordering::Relaxed);
                 Ok(())
             }
 
-            async fn after_publish(
-                &self,
-                _event_type: &str,
-                _event_json: &str,
-                _results: &[HandlerResult],
-            ) {
-                self.after_called
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
+            async fn after_publish(&self, _event_type: &str, _event_json: &str, _results: &[HandlerResult]) {
+                self.after_called.store(true, std::sync::atomic::Ordering::Relaxed);
             }
         }
 
@@ -560,9 +544,7 @@ mod tests {
             before_called: AtomicBool::new(false),
             after_called: AtomicBool::new(false),
         };
-        let bus = EventBus::builder()
-            .with_interceptor(Box::new(interceptor))
-            .build();
+        let bus = EventBus::builder().with_interceptor(Box::new(interceptor)).build();
         bus.subscribe("file.created", Box::new(CounterHandler::new("h")));
         let event = FileEvent::new("file.created", "/test.txt", "user1");
         bus.publish(event).await;

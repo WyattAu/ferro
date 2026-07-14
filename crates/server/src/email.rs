@@ -4,11 +4,12 @@
 //! Falls back to logging when SMTP is not configured or disabled.
 
 use serde::{Deserialize, Serialize};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use common::error::Result;
 
 /// Email configuration for SMTP delivery.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct EmailConfig {
     /// Whether email sending is enabled.
     pub enabled: bool,
@@ -24,6 +25,20 @@ pub struct EmailConfig {
     pub from_address: String,
     /// From display name for outgoing emails.
     pub from_name: String,
+}
+
+impl std::fmt::Debug for EmailConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EmailConfig")
+            .field("enabled", &self.enabled)
+            .field("smtp_host", &self.smtp_host)
+            .field("smtp_port", &self.smtp_port)
+            .field("smtp_username", &self.smtp_username)
+            .field("smtp_password", &self.smtp_password.as_ref().map(|_| "[REDACTED]"))
+            .field("from_address", &self.from_address)
+            .field("from_name", &self.from_name)
+            .finish()
+    }
 }
 
 impl Default for EmailConfig {
@@ -176,7 +191,10 @@ mod tests {
             enabled: true,
             smtp_host: "127.0.0.1".to_string(),
             smtp_port: 25999, // unlikely to have SMTP running here
-            ..Default::default()
+            smtp_username: None,
+            smtp_password: None,
+            from_address: "noreply@ferro.local".to_string(),
+            from_name: "Ferro".to_string(),
         };
         let msg = EmailMessage {
             to: "user@example.com".to_string(),

@@ -102,11 +102,7 @@ pub async fn create_event<S: ProductivityState>(
         req.calendar_id
     };
 
-    match state
-        .calendar_store()
-        .create_event(&calendar_id, &req.ical_data)
-        .await
-    {
+    match state.calendar_store().create_event(&calendar_id, &req.ical_data).await {
         Ok(event) => (
             StatusCode::CREATED,
             Json(CalendarEventResponse {
@@ -135,17 +131,8 @@ pub async fn update_event<S: ProductivityState>(
     let calendars = state.calendar_store().list_calendars("default").await;
 
     for cal in &calendars {
-        if state
-            .calendar_store()
-            .get_event(&cal.id, &uid)
-            .await
-            .is_some()
-        {
-            match state
-                .calendar_store()
-                .update_event(&cal.id, &uid, &req.ical_data)
-                .await
-            {
+        if state.calendar_store().get_event(&cal.id, &uid).await.is_some() {
+            match state.calendar_store().update_event(&cal.id, &uid, &req.ical_data).await {
                 Ok(updated) => {
                     return Json(CalendarEventResponse {
                         uid: updated.uid,
@@ -175,19 +162,11 @@ pub async fn update_event<S: ProductivityState>(
         .into_response()
 }
 
-pub async fn delete_event<S: ProductivityState>(
-    State(state): State<S>,
-    Path(uid): Path<String>,
-) -> impl IntoResponse {
+pub async fn delete_event<S: ProductivityState>(State(state): State<S>, Path(uid): Path<String>) -> impl IntoResponse {
     let calendars = state.calendar_store().list_calendars("default").await;
 
     for cal in &calendars {
-        if state
-            .calendar_store()
-            .get_event(&cal.id, &uid)
-            .await
-            .is_some()
-        {
+        if state.calendar_store().get_event(&cal.id, &uid).await.is_some() {
             match state.calendar_store().delete_event(&cal.id, &uid).await {
                 Ok(()) => return StatusCode::NO_CONTENT.into_response(),
                 Err(e) => {

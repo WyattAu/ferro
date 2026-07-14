@@ -14,11 +14,7 @@ pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
 pub struct ApiError;
 
 impl ApiError {
-    pub fn respond(
-        status: axum::http::StatusCode,
-        code: &str,
-        message: impl Into<String>,
-    ) -> axum::response::Response {
+    pub fn respond(status: axum::http::StatusCode, code: &str, message: impl Into<String>) -> axum::response::Response {
         ferro_server_security::ApiError::respond(status, code, message)
     }
 
@@ -39,11 +35,7 @@ impl ApiError {
     }
 
     pub fn service_unavailable(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::respond(
-            axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            code,
-            message,
-        )
+        ferro_server_security::ApiError::respond(axum::http::StatusCode::SERVICE_UNAVAILABLE, code, message)
     }
 
     pub const BAD_REQUEST: &'static str = "BAD_REQUEST";
@@ -83,9 +75,7 @@ pub trait AuditLogTrait: Send + Sync {
 ///
 /// This allows collaboration handler functions to be generic over the trait,
 /// avoiding a circular dependency on `ferro-server`.
-pub trait CollaborationState:
-    Send + Sync + Clone + 'static + common::server_context::HasDataDir
-{
+pub trait CollaborationState: Send + Sync + Clone + 'static + common::server_context::HasDataDir {
     fn admin_user(&self) -> Option<&str>;
     fn audit_log(&self) -> &Arc<dyn AuditLogTrait>;
     fn comments(&self) -> &Arc<comments::CommentStore>;
@@ -153,27 +143,27 @@ pub(crate) mod tests {
     #[async_trait::async_trait]
     impl StorageEngine for InMemoryStorageEngine {
         async fn head(&self, path: &str) -> Result<FileMetadata> {
-            let path = normalize_path(path);
+            let path = normalize_path(path).into_owned();
             self.metadata
                 .read()
                 .await
                 .get(&path)
                 .map(|m| m.value().clone())
-                .ok_or_else(|| FerroError::NotFound(path.to_string()))
+                .ok_or(FerroError::NotFound(path))
         }
 
         async fn get(&self, path: &str) -> Result<Bytes> {
-            let path = normalize_path(path);
+            let path = normalize_path(path).into_owned();
             self.data
                 .read()
                 .await
                 .get(&path)
                 .map(|d| d.value().clone())
-                .ok_or_else(|| FerroError::NotFound(path.to_string()))
+                .ok_or(FerroError::NotFound(path))
         }
 
         async fn put(&self, path: &str, data: Bytes, owner: &str) -> Result<FileMetadata> {
-            let path = normalize_path(path);
+            let path = normalize_path(path).into_owned();
             let now = chrono::Utc::now();
             let hash = ContentHash::compute(data.as_ref());
             let meta = FileMetadata {
@@ -188,22 +178,19 @@ pub(crate) mod tests {
                 etag: format!("\"{}\"", hash.as_str()),
             };
             self.data.write().await.insert(path.clone(), data);
-            self.metadata
-                .write()
-                .await
-                .insert(path.clone(), meta.clone());
+            self.metadata.write().await.insert(path.clone(), meta.clone());
             Ok(meta)
         }
 
         async fn delete(&self, path: &str) -> Result<()> {
-            let path = normalize_path(path);
+            let path = normalize_path(path).into_owned();
             self.data.write().await.remove(&path);
             self.metadata.write().await.remove(&path);
             Ok(())
         }
 
         async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>> {
-            let prefix = normalize_path(prefix);
+            let prefix = normalize_path(prefix).into_owned();
             let metadata = self.metadata.read().await;
             Ok(metadata
                 .iter()
@@ -221,7 +208,7 @@ pub(crate) mod tests {
         }
 
         async fn exists(&self, path: &str) -> Result<bool> {
-            let path = normalize_path(path);
+            let path = normalize_path(path).into_owned();
             Ok(self.data.read().await.contains_key(&path))
         }
 
@@ -249,10 +236,8 @@ pub(crate) mod tests {
     pub fn open_test_db(data_dir: &str) -> rusqlite::Connection {
         let db_path = std::path::Path::new(data_dir).join("test.db");
         let conn = rusqlite::Connection::open(&db_path).unwrap();
-        conn.execute_batch(
-            "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;",
-        )
-        .unwrap();
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;")
+            .unwrap();
 
         // Create the comments table for tests.
         conn.execute_batch(

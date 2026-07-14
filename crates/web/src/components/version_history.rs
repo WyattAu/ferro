@@ -142,9 +142,9 @@ pub fn VersionHistory(
                         tabindex="-1"
                     >
                         // Header
-                        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)]">
                             <div class="flex items-center gap-2">
-                                <Icon name=IconName::Clock class="w-5 h-5 text-gray-500".to_string() />
+                                <Icon name=IconName::Clock class="w-5 h-5 text-[var(--text-tertiary)]".to_string() />
                                 <h3 id="version-history-title" class="text-lg font-semibold font-mono text-gray-900">
                                     {t!("dialog.version_history.title")}
                                 </h3>
@@ -152,11 +152,11 @@ pub fn VersionHistory(
                             <div class="flex items-center gap-2">
                                 <button
                                     class=move || {
-                                        let base = "px-3 py-1.5 text-xs font-bold uppercase rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[36px]";
+                                        let base = "px-3 py-1.5 text-xs font-bold uppercase rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[36px]";
                                         if compare_mode.get() {
-                                            format!("{} bg-blue-600 text-white hover:bg-blue-700", base)
+                                            format!("{} bg-[var(--accent)] text-[var(--text-on-accent)] hover:bg-blue-700", base)
                                         } else {
-                                            format!("{} text-gray-600 hover:text-gray-800 hover:bg-gray-100", base)
+                                            format!("{} text-gray-600 hover:text-gray-800 hover:bg-[var(--interactive-hover)]", base)
                                         }
                                     }
                                     on:click=move |ev| {
@@ -173,7 +173,7 @@ pub fn VersionHistory(
                                     {t!("dialog.version_history.compare")}
                                 </button>
                                 <button
-                                    class="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                    class="p-1 text-[var(--text-tertiary)] hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
                                     aria-label=t!("aria.close_dialog")
                                     on:click=close_panel
                                 >
@@ -186,7 +186,7 @@ pub fn VersionHistory(
 
                         // Compare bar
                         {move || compare_mode.get().then(|| view! {
-                            <div class="px-4 py-2 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
+                            <div class="px-4 py-2 bg-[var(--accent-subtle)] border-b border-blue-200 flex items-center justify-between">
                                 <span class="text-sm text-blue-700 font-mono">
                                     {move || {
                                         let count = selected_for_compare.with(|s| s.len());
@@ -198,7 +198,7 @@ pub fn VersionHistory(
                                     }}
                                 </span>
                                 <button
-                                    class="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    class="px-3 py-1.5 text-xs font-bold uppercase bg-[var(--accent)] text-[var(--text-on-accent)] rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                                     disabled=move || selected_for_compare.with(|s| s.len()) != 2
                                     on:click=do_compare
                                 >
@@ -216,16 +216,16 @@ pub fn VersionHistory(
                             })}
 
                             {move || error.get().map(|e| view! {
-                                <div class="p-3 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
+                                <div class="p-3 bg-[var(--danger-subtle)] border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
                                     {e}
                                 </div>
                             })}
 
                             {move || (!loading.get() && error.get().is_none() && versions.with(Vec::is_empty)).then(|| view! {
-                                <div class="text-center py-8 text-gray-500" role="status">
+                                <div class="text-center py-8 text-[var(--text-tertiary)]" role="status">
                                     <Icon name=IconName::Clock class="w-12 h-12 mx-auto mb-3 text-gray-300".to_string() />
                                     <div class="text-sm font-medium">{t!("dialog.version_history.empty")}</div>
-                                    <div class="text-xs text-gray-400 mt-1">{t!("dialog.version_history.empty_hint")}</div>
+                                    <div class="text-xs text-[var(--text-tertiary)] mt-1">{t!("dialog.version_history.empty_hint")}</div>
                                 </div>
                             })}
 
@@ -256,9 +256,9 @@ pub fn VersionHistory(
                                             class=move || {
                                                 let base = "flex items-center gap-3 p-3 rounded-lg border transition-colors";
                                                 if is_selected() {
-                                                    format!("{} bg-blue-50 border-blue-300", base)
+                                                    format!("{} bg-[var(--accent-subtle)] border-blue-300", base)
                                                 } else {
-                                                    format!("{} bg-white border-gray-200 hover:bg-gray-50", base)
+                                                    format!("{} bg-[var(--bg-surface)] border-[var(--border-default)] hover:bg-[var(--interactive-hover)]", base)
                                                 }
                                             }
                                             role="listitem"
@@ -266,7 +266,7 @@ pub fn VersionHistory(
                                             {compare_mode.get().then(|| view! {
                                                 <input
                                                     type="checkbox"
-                                                    class="rounded border text-blue-600 focus:ring-blue-500 shrink-0"
+                                                    class="rounded border text-[var(--accent)] focus:ring-[var(--border-focus)] shrink-0"
                                                     prop:checked=is_selected
                                                     on:click=move |ev| {
                                                         ev.stop_propagation();
@@ -287,7 +287,7 @@ pub fn VersionHistory(
                                                         </span>
                                                     })}
                                                 </div>
-                                                <div class="text-xs text-gray-500 font-mono mt-0.5">
+                                                <div class="text-xs text-[var(--text-tertiary)] font-mono mt-0.5">
                                                     <span>{ts_display}</span>
                                                     <span class="mx-1">"·"</span>
                                                     <span>{vsize}</span>
@@ -295,13 +295,13 @@ pub fn VersionHistory(
                                                     <span>{vauthor}</span>
                                                 </div>
                                                 {vnote.as_ref().map(|n| view! {
-                                                    <div class="text-xs text-gray-400 mt-0.5 italic">{n.clone()}</div>
+                                                    <div class="text-xs text-[var(--text-tertiary)] mt-0.5 italic">{n.clone()}</div>
                                                 })}
                                             </div>
 
                                             {(!compare_mode.get()).then(|| view! {
                                                 <button
-                                                    class="px-3 py-1.5 text-xs font-bold uppercase bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[36px] whitespace-nowrap"
+                                                    class="px-3 py-1.5 text-xs font-bold uppercase bg-[var(--accent)] text-[var(--text-on-accent)] rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[36px] whitespace-nowrap"
                                                     disabled=is_restoring
                                                     on:click=move |ev| {
                                                         ev.stop_propagation();
@@ -324,13 +324,13 @@ pub fn VersionHistory(
 
                         // Diff result
                         {move || diff_result.get().map(|diff| view! {
-                            <div class="border-t border-gray-200 px-4 py-3 max-h-[40vh] overflow-y-auto">
+                            <div class="border-t border-[var(--border-default)] px-4 py-3 max-h-[40vh] overflow-y-auto">
                                 <div class="flex items-center justify-between mb-2">
                                     <h4 class="text-sm font-semibold font-mono text-gray-900">
                                         {format!("Diff: v{} → v{}", diff.from_version, diff.to_version)}
                                     </h4>
                                     <button
-                                        class="text-xs text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1"
+                                        class="text-xs text-[var(--text-tertiary)] hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded px-2 py-1"
                                         on:click=move |_| set_diff_result.set(None)
                                         aria-label="Close diff"
                                     >
@@ -339,16 +339,16 @@ pub fn VersionHistory(
                                         </svg>
                                     </button>
                                 </div>
-                                <div class="text-xs text-gray-500 font-mono mb-2">
+                                <div class="text-xs text-[var(--text-tertiary)] font-mono mb-2">
                                     <span class="text-green-600">+{diff.stats.additions}</span>
                                     <span class="mx-1">/</span>
-                                    <span class="text-red-600">-{diff.stats.deletions}</span>
+                                    <span class="text-[var(--danger)]">-{diff.stats.deletions}</span>
                                     <span class="mx-1">/</span>
                                     <span>{diff.stats.unchanged} unchanged</span>
                                 </div>
                                 {if diff.is_binary {
                                     view! {
-                                        <div class="text-sm text-gray-500 italic py-2">
+                                        <div class="text-sm text-[var(--text-tertiary)] italic py-2">
                                             {t!("dialog.version_history.binary_diff")}
                                         </div>
                                     }.into_any()
@@ -357,8 +357,8 @@ pub fn VersionHistory(
                                         <pre class="text-xs font-mono bg-gray-50 rounded p-2 overflow-x-auto"><code>
                                             {diff.lines.iter().map(|line| {
                                                 let class = match line.type_.as_str() {
-                                                    "added" => "text-green-700 bg-green-50",
-                                                    "removed" => "text-red-700 bg-red-50",
+                                                    "added" => "text-green-700 bg-[var(--success-subtle)]",
+                                                    "removed" => "text-red-700 bg-[var(--danger-subtle)]",
                                                     _ => "text-gray-600",
                                                 };
                                                 let prefix = match line.type_.as_str() {
@@ -368,7 +368,7 @@ pub fn VersionHistory(
                                                 };
                                                 view! {
                                                     <div class=class>
-                                                        <span class="inline-block w-6 text-gray-400 text-right mr-2">{prefix}</span>
+                                                        <span class="inline-block w-6 text-[var(--text-tertiary)] text-right mr-2">{prefix}</span>
                                                         {line.content.clone()}
                                                     </div>
                                                 }

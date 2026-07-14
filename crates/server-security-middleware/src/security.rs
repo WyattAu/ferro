@@ -9,10 +9,5 @@ pub async fn auth_guard_middleware<S: ferro_server_security::SecurityAppState>(
     req: axum::http::Request<axum::body::Body>,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    ferro_server_security::security::auth_guard_middleware::<S>(
-        axum::extract::State(state),
-        req,
-        next,
-    )
-    .await
+    ferro_server_security::security::auth_guard_middleware::<S>(axum::extract::State(state), req, next).await
 }

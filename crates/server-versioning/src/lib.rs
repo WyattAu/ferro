@@ -183,22 +183,14 @@ fn read_meta(data_dir: &str, path: &str) -> Vec<VersionMeta> {
     let content = match std::fs::read_to_string(&meta_path) {
         Ok(c) => c,
         Err(e) => {
-            warn!(
-                "Failed to read versions metadata file {}: {}",
-                meta_path.display(),
-                e
-            );
+            warn!("Failed to read versions metadata file {}: {}", meta_path.display(), e);
             return Vec::new();
         }
     };
     let metas: Vec<VersionMeta> = match serde_json::from_str(&content) {
         Ok(m) => m,
         Err(e) => {
-            warn!(
-                "Failed to parse versions metadata for {}: {}",
-                meta_path.display(),
-                e
-            );
+            warn!("Failed to parse versions metadata for {}: {}", meta_path.display(), e);
             return Vec::new();
         }
     };
@@ -209,8 +201,7 @@ fn write_meta(data_dir: &str, path: &str, metas: &[VersionMeta]) -> Result<(), s
     let dir = versions_dir_for(data_dir, path);
     std::fs::create_dir_all(&dir)?;
     let meta_path = meta_file_path(data_dir, path);
-    let content =
-        serde_json::to_string_pretty(metas).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e));
+    let content = serde_json::to_string_pretty(metas).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e));
     std::fs::write(&meta_path, content)
 }
 
@@ -226,10 +217,7 @@ fn require_data_dir(state: &VersioningState) -> Result<String, axum::http::Statu
 }
 
 fn author_or_anon(state: &VersioningState) -> String {
-    state
-        .admin_user
-        .clone()
-        .unwrap_or_else(|| "anonymous".to_string())
+    state.admin_user.clone().unwrap_or_else(|| "anonymous".to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -237,11 +225,8 @@ fn author_or_anon(state: &VersioningState) -> String {
 // ---------------------------------------------------------------------------
 
 /// GET /api/files/:path/versions — list file versions.
-pub async fn list_versions(
-    Extension(state): Extension<VersioningState>,
-    Path(path): Path<String>,
-) -> Response {
-    let normalized = common::path::normalize_path(&path);
+pub async fn list_versions(Extension(state): Extension<VersioningState>, Path(path): Path<String>) -> Response {
+    let normalized = common::path::normalize_path(&path).into_owned();
     let data_dir = match require_data_dir(&state) {
         Ok(d) => d,
         Err(status) => {
@@ -254,11 +239,7 @@ pub async fn list_versions(
         .unwrap_or_else(|_| Vec::new());
 
     let versions: Vec<VersionResponse> = metas.iter().map(VersionResponse::from).collect();
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "versions": versions })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "versions": versions }))).into_response()
 }
 
 /// GET /api/files/:path/versions/:version_id — download a specific version.
@@ -266,7 +247,7 @@ pub async fn get_version(
     Extension(state): Extension<VersioningState>,
     Path((path, version_id)): Path<(String, u64)>,
 ) -> Response {
-    let normalized = common::path::normalize_path(&path);
+    let normalized = common::path::normalize_path(&path).into_owned();
     let data_dir = match require_data_dir(&state) {
         Ok(d) => d,
         Err(status) => {
@@ -282,10 +263,7 @@ pub async fn get_version(
                 let content = std::fs::read(&m.file_path)?;
                 Ok::<_, std::io::Error>((m.clone(), content))
             }
-            None => Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "version not found",
-            )),
+            None => Err(std::io::Error::new(std::io::ErrorKind::NotFound, "version not found")),
         }
     })
     .await;
@@ -295,29 +273,20 @@ pub async fn get_version(
             let body = axum::body::Body::from(content);
             (StatusCode::OK, body).into_response()
         }
-        Ok(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => error_response(
-            StatusCode::NOT_FOUND,
-            "VERSION_NOT_FOUND",
-            "Version not found",
-        ),
+        Ok(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+            error_response(StatusCode::NOT_FOUND, "VERSION_NOT_FOUND", "Version not found")
+        }
         Ok(Err(e)) => error_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             "VERSION_READ_ERROR",
             format!("Failed to read version: {}", e),
         ),
-        Err(_) => error_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "VERSION_ERROR",
-            "Internal error",
-        ),
+        Err(_) => error_response(StatusCode::INTERNAL_SERVER_ERROR, "VERSION_ERROR", "Internal error"),
     }
 }
 
 /// POST /api/files/:path/versions — create a new file version.
-pub async fn create_version(
-    Extension(state): Extension<VersioningState>,
-    Path(path): Path<String>,
-) -> Response {
+pub async fn create_version(Extension(state): Extension<VersioningState>, Path(path): Path<String>) -> Response {
     let normalized = common::path::normalize_path(&path);
     let data_dir = match require_data_dir(&state) {
         Ok(d) => d,
@@ -334,7 +303,7 @@ pub async fn create_version(
     };
 
     let max_versions = state.max_file_versions;
-    let norm = normalized.clone();
+    let norm = normalized.to_string();
     let dd = data_dir.clone();
 
     let result = tokio::task::spawn_blocking(move || {
@@ -389,11 +358,7 @@ pub async fn create_version(
         )
             .into_response(),
         Ok(Err(e)) => error_response(StatusCode::INTERNAL_SERVER_ERROR, "VERSION_CREATE_ERROR", e),
-        Err(_) => error_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "VERSION_ERROR",
-            "Internal error",
-        ),
+        Err(_) => error_response(StatusCode::INTERNAL_SERVER_ERROR, "VERSION_ERROR", "Internal error"),
     }
 }
 
@@ -402,7 +367,7 @@ pub async fn delete_version(
     Extension(state): Extension<VersioningState>,
     Path((path, version_id)): Path<(String, u64)>,
 ) -> Response {
-    let normalized = common::path::normalize_path(&path);
+    let normalized = common::path::normalize_path(&path).into_owned();
     let data_dir = match require_data_dir(&state) {
         Ok(d) => d,
         Err(status) => {
@@ -420,35 +385,22 @@ pub async fn delete_version(
                 write_meta(&data_dir, &normalized, &metas)?;
                 Ok::<_, std::io::Error>(())
             }
-            None => Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "version not found",
-            )),
+            None => Err(std::io::Error::new(std::io::ErrorKind::NotFound, "version not found")),
         }
     })
     .await;
 
     match result {
-        Ok(Ok(())) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "ok": true })),
-        )
-            .into_response(),
-        Ok(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => error_response(
-            StatusCode::NOT_FOUND,
-            "VERSION_NOT_FOUND",
-            "Version not found",
-        ),
+        Ok(Ok(())) => (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response(),
+        Ok(Err(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+            error_response(StatusCode::NOT_FOUND, "VERSION_NOT_FOUND", "Version not found")
+        }
         Ok(Err(e)) => error_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             "VERSION_DELETE_ERROR",
             format!("Failed to delete version: {}", e),
         ),
-        Err(_) => error_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "VERSION_ERROR",
-            "Internal error",
-        ),
+        Err(_) => error_response(StatusCode::INTERNAL_SERVER_ERROR, "VERSION_ERROR", "Internal error"),
     }
 }
 
@@ -537,25 +489,17 @@ pub async fn diff_versions(
     let from_id: u64 = match params.from.parse() {
         Ok(id) => id,
         Err(_) => {
-            return error_response(
-                StatusCode::BAD_REQUEST,
-                "INVALID_VERSION",
-                "Invalid 'from' version ID",
-            );
+            return error_response(StatusCode::BAD_REQUEST, "INVALID_VERSION", "Invalid 'from' version ID");
         }
     };
     let to_id: u64 = match params.to.parse() {
         Ok(id) => id,
         Err(_) => {
-            return error_response(
-                StatusCode::BAD_REQUEST,
-                "INVALID_VERSION",
-                "Invalid 'to' version ID",
-            );
+            return error_response(StatusCode::BAD_REQUEST, "INVALID_VERSION", "Invalid 'to' version ID");
         }
     };
 
-    let norm = normalized.clone();
+    let norm = normalized.to_string();
     let dd = data_dir.clone();
     let result = tokio::task::spawn_blocking(move || {
         let metas = read_meta(&dd, &norm);
@@ -576,12 +520,10 @@ pub async fn diff_versions(
 
     match result {
         Ok(Ok((content1, content2))) => {
-            let mime = mime_guess::from_path(&normalized)
+            let mime = mime_guess::from_path(normalized.as_ref())
                 .first_or_octet_stream()
                 .to_string();
-            let is_text = mime.starts_with("text/")
-                || mime == "application/json"
-                || mime == "application/xml";
+            let is_text = mime.starts_with("text/") || mime == "application/json" || mime == "application/xml";
 
             let diff = if is_text {
                 compute_line_diff(
@@ -603,11 +545,7 @@ pub async fn diff_versions(
                 error_response(StatusCode::INTERNAL_SERVER_ERROR, "DIFF_ERROR", msg)
             }
         }
-        Err(_) => error_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "DIFF_ERROR",
-            "Internal error",
-        ),
+        Err(_) => error_response(StatusCode::INTERNAL_SERVER_ERROR, "DIFF_ERROR", "Internal error"),
     }
 }
 
@@ -901,8 +839,7 @@ mod tests {
         let json = body_json(resp).await;
         let id = json["id"].as_u64().unwrap();
 
-        let resp =
-            delete_version(Extension(state.clone()), Path(("del.txt".to_string(), id))).await;
+        let resp = delete_version(Extension(state.clone()), Path(("del.txt".to_string(), id))).await;
         assert_eq!(resp.status(), StatusCode::OK);
 
         let resp = list_versions(Extension(state.clone()), Path("del.txt".to_string())).await;
@@ -967,11 +904,7 @@ mod tests {
 
         state
             .storage
-            .put(
-                "/diff.txt",
-                bytes::Bytes::from("hello\nferro\nworld\n"),
-                "test",
-            )
+            .put("/diff.txt", bytes::Bytes::from("hello\nferro\nworld\n"), "test")
             .await
             .unwrap();
         let resp = create_version(Extension(state.clone()), Path("diff.txt".to_string())).await;
@@ -1018,11 +951,7 @@ mod tests {
         let (state, _tmp) = versioned_state();
         state
             .storage
-            .put(
-                "/img.png",
-                bytes::Bytes::from_static(b"\x89PNG\r\n\x1a\n"),
-                "test",
-            )
+            .put("/img.png", bytes::Bytes::from_static(b"\x89PNG\r\n\x1a\n"), "test")
             .await
             .unwrap();
 
@@ -1119,11 +1048,7 @@ mod tests {
         assert_eq!(added.len(), 1);
         assert_eq!(added[0].content, "line2.5");
 
-        let removed: Vec<_> = result
-            .lines
-            .iter()
-            .filter(|l| l.type_ == "removed")
-            .collect();
+        let removed: Vec<_> = result.lines.iter().filter(|l| l.type_ == "removed").collect();
         assert_eq!(removed.len(), 1);
         assert_eq!(removed[0].content, "line2");
     }

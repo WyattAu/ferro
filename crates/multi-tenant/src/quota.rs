@@ -28,9 +28,7 @@ pub struct InMemoryUsageTracker {
 
 impl InMemoryUsageTracker {
     pub fn new() -> Self {
-        Self {
-            usage: DashMap::new(),
-        }
+        Self { usage: DashMap::new() }
     }
 }
 
@@ -81,11 +79,7 @@ impl QuotaManager {
         }
     }
 
-    pub async fn check_quota(
-        &self,
-        tenant_id: &str,
-        additional_bytes: u64,
-    ) -> Result<(), TenantError> {
+    pub async fn check_quota(&self, tenant_id: &str, additional_bytes: u64) -> Result<(), TenantError> {
         let tenant = self.tenant_store.get(tenant_id).await?;
         let current = self.usage_tracker.get_storage_usage(tenant_id).await?;
 
@@ -146,10 +140,7 @@ mod tests {
     fn setup() -> (QuotaManager, Arc<InMemoryUsageTracker>) {
         let tenant_store: Arc<dyn TenantStore> = Arc::new(InMemoryTenantStore::new());
         let usage_tracker: Arc<InMemoryUsageTracker> = Arc::new(InMemoryUsageTracker::new());
-        let manager = QuotaManager::new(
-            tenant_store.clone(),
-            usage_tracker.clone() as Arc<dyn UsageTracker>,
-        );
+        let manager = QuotaManager::new(tenant_store.clone(), usage_tracker.clone() as Arc<dyn UsageTracker>);
         (manager, usage_tracker)
     }
 
@@ -157,10 +148,7 @@ mod tests {
     async fn test_under_quota_succeeds() {
         let (manager, tracker) = setup();
         let store = manager.tenant_store.clone();
-        store
-            .create(make_test_tenant("t1", "tenant-1"))
-            .await
-            .unwrap();
+        store.create(make_test_tenant("t1", "tenant-1")).await.unwrap();
         tracker.record_upload("t1", 100).await.unwrap();
 
         manager.check_quota("t1", 50).await.unwrap();
@@ -170,10 +158,7 @@ mod tests {
     async fn test_over_quota_fails() {
         let (manager, tracker) = setup();
         let store = manager.tenant_store.clone();
-        store
-            .create(make_test_tenant("t1", "tenant-1"))
-            .await
-            .unwrap();
+        store.create(make_test_tenant("t1", "tenant-1")).await.unwrap();
 
         let ten_gb = 10u64 * 1024 * 1024 * 1024;
         tracker.record_upload("t1", ten_gb - 1).await.unwrap();
@@ -184,10 +169,7 @@ mod tests {
     async fn test_exact_quota_boundary() {
         let (manager, tracker) = setup();
         let store = manager.tenant_store.clone();
-        store
-            .create(make_test_tenant("t1", "tenant-1"))
-            .await
-            .unwrap();
+        store.create(make_test_tenant("t1", "tenant-1")).await.unwrap();
 
         let ten_gb = 10u64 * 1024 * 1024 * 1024;
         tracker.record_upload("t1", ten_gb - 100).await.unwrap();
@@ -200,10 +182,7 @@ mod tests {
     async fn test_zero_quota() {
         let (manager, tracker) = setup();
         let store = manager.tenant_store.clone();
-        store
-            .create(make_test_tenant("t1", "tenant-1"))
-            .await
-            .unwrap();
+        store.create(make_test_tenant("t1", "tenant-1")).await.unwrap();
 
         tracker.record_upload("t1", 0).await.unwrap();
         assert!(manager.check_quota("t1", 1).await.is_ok());
@@ -213,29 +192,20 @@ mod tests {
     async fn test_get_quota_info() {
         let (manager, tracker) = setup();
         let store = manager.tenant_store.clone();
-        store
-            .create(make_test_tenant("t1", "tenant-1"))
-            .await
-            .unwrap();
+        store.create(make_test_tenant("t1", "tenant-1")).await.unwrap();
         tracker.record_upload("t1", 1024).await.unwrap();
 
         let info = manager.get_quota_info("t1").await.unwrap();
         assert_eq!(info.used_bytes, 1024);
         assert_eq!(info.quota_bytes, 10u64 * 1024 * 1024 * 1024);
-        assert_eq!(
-            info.available_bytes,
-            (10u64 * 1024 * 1024 * 1024 - 1024) as i64
-        );
+        assert_eq!(info.available_bytes, (10u64 * 1024 * 1024 * 1024 - 1024) as i64);
     }
 
     #[tokio::test]
     async fn test_record_delete() {
         let (manager, tracker) = setup();
         let store = manager.tenant_store.clone();
-        store
-            .create(make_test_tenant("t1", "tenant-1"))
-            .await
-            .unwrap();
+        store.create(make_test_tenant("t1", "tenant-1")).await.unwrap();
         tracker.record_upload("t1", 1000).await.unwrap();
         tracker.record_delete("t1", 400).await.unwrap();
 

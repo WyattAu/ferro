@@ -24,8 +24,7 @@ impl HealthProbe for MockProbe {
     }
 
     async fn check(&self) -> ProbeResult {
-        ProbeResult::healthy(&self.probe_name, Duration::from_micros(10))
-            .with_status(self.result_status)
+        ProbeResult::healthy(&self.probe_name, Duration::from_micros(10)).with_status(self.result_status)
     }
 
     fn probe_type(&self) -> ProbeType {
@@ -154,11 +153,7 @@ async fn check_all_includes_everything() {
         )))
         .unwrap();
     checker
-        .register(Box::new(MockProbe::new(
-            "c",
-            ProbeType::Startup,
-            HealthStatus::Healthy,
-        )))
+        .register(Box::new(MockProbe::new("c", ProbeType::Startup, HealthStatus::Healthy)))
         .unwrap();
 
     let response = checker.check_all().await;
@@ -346,14 +341,8 @@ async fn global_status_applies_to_all_checks() {
         .set_global_status(HealthStatus::Degraded, "partial outage")
         .await;
 
-    assert_eq!(
-        checker.check_liveness().await.status,
-        HealthStatus::Degraded
-    );
-    assert_eq!(
-        checker.check_readiness().await.status,
-        HealthStatus::Degraded
-    );
+    assert_eq!(checker.check_liveness().await.status, HealthStatus::Degraded);
+    assert_eq!(checker.check_readiness().await.status, HealthStatus::Degraded);
     assert_eq!(checker.check_all().await.status, HealthStatus::Degraded);
 }
 
@@ -386,8 +375,7 @@ async fn database_probe() {
 
 #[tokio::test]
 async fn database_probe_unhealthy() {
-    let probe =
-        DatabaseProbe::new("mysql").with_status(HealthStatus::Unhealthy, "connection refused");
+    let probe = DatabaseProbe::new("mysql").with_status(HealthStatus::Unhealthy, "connection refused");
     let result = probe.check().await;
     assert_eq!(result.status, HealthStatus::Unhealthy);
     assert_eq!(result.message, Some("connection refused".to_string()));
@@ -472,11 +460,7 @@ fn health_status_serde_roundtrip() {
 
 #[test]
 fn probe_type_serde_roundtrip() {
-    let types = [
-        ProbeType::Liveness,
-        ProbeType::Readiness,
-        ProbeType::Startup,
-    ];
+    let types = [ProbeType::Liveness, ProbeType::Readiness, ProbeType::Startup];
     for pt in &types {
         let json = serde_json::to_string(pt).unwrap();
         let de: ProbeType = serde_json::from_str(&json).unwrap();

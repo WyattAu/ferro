@@ -38,12 +38,11 @@ impl WormPolicyStore {
             return Ok(Vec::new());
         };
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = match conn.prepare(
-            "SELECT id, path_prefix, enabled, created_at FROM worm_policies ORDER BY created_at",
-        ) {
-            Ok(s) => s,
-            Err(_) => return Ok(Vec::new()),
-        };
+        let mut stmt =
+            match conn.prepare("SELECT id, path_prefix, enabled, created_at FROM worm_policies ORDER BY created_at") {
+                Ok(s) => s,
+                Err(_) => return Ok(Vec::new()),
+            };
         let rows = stmt.query_map([], WormPolicy::from_row);
         let mut result = Vec::new();
         if let Ok(rows) = rows {
@@ -169,12 +168,11 @@ impl SqliteWormStore {
 impl WormStoreTrait for SqliteWormStore {
     fn list_policies(&self) -> Vec<WormPolicy> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
-        let mut stmt = match conn.prepare(
-            "SELECT id, path_prefix, enabled, created_at FROM worm_policies ORDER BY created_at",
-        ) {
-            Ok(s) => s,
-            Err(_) => return Vec::new(),
-        };
+        let mut stmt =
+            match conn.prepare("SELECT id, path_prefix, enabled, created_at FROM worm_policies ORDER BY created_at") {
+                Ok(s) => s,
+                Err(_) => return Vec::new(),
+            };
         let rows = stmt.query_map([], WormPolicy::from_row);
         let mut result = Vec::new();
         if let Ok(rows) = rows {
@@ -202,10 +200,7 @@ impl WormStoreTrait for SqliteWormStore {
 }
 
 pub fn load_policies<S: ComplianceState>(state: &S) -> Vec<WormPolicy> {
-    state
-        .worm_store()
-        .list_enabled_policies()
-        .unwrap_or_default()
+    state.worm_store().list_enabled_policies().unwrap_or_default()
 }
 
 pub fn is_worm_protected(path: &str, policies: &[WormPolicy]) -> bool {
@@ -235,11 +230,7 @@ pub async fn list_policies<S: ComplianceState>(State(state): State<S>) -> Respon
         .map(|p| serde_json::to_value(p).unwrap_or_default())
         .collect();
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "policies": json })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "policies": json }))).into_response()
 }
 
 pub async fn create_policy<S: ComplianceState>(
@@ -266,10 +257,7 @@ pub async fn create_policy<S: ComplianceState>(
     }
 }
 
-pub async fn delete_policy<S: ComplianceState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_policy<S: ComplianceState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     match state.worm_store().delete_policy(&id) {
         Ok(_) => (StatusCode::NO_CONTENT, "").into_response(),
         Err(e) => {
@@ -286,6 +274,29 @@ pub async fn delete_policy<S: ComplianceState>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn init_db() -> crate::DbHandle {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS worm_policies (
+                id TEXT PRIMARY KEY,
+                path_prefix TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL
+            );",
+        )
+        .unwrap();
+        std::sync::Arc::new(std::sync::Mutex::new(conn))
+    }
+
+    fn make_request(path_prefix: &str) -> CreateWormPolicyRequest {
+        CreateWormPolicyRequest {
+            path_prefix: path_prefix.to_string(),
+            enabled: true,
+        }
+    }
+
+    // --- is_worm_protected tests ---
 
     #[test]
     fn test_is_worm_protected_exact_match() {
@@ -360,5 +371,243 @@ mod tests {
         assert!(is_worm_protected("/archive/doc.txt", &policies));
         assert!(is_worm_protected("/legal/contract.pdf", &policies));
         assert!(!is_worm_protected("/tmp/file.txt", &policies));
+    }
+
+    // --- WormPolicyStore tests ---
+
+    #[test]
+    fn test_worm_store_new_no_db() {
+        let store = WormPolicyStore::new();
+        let policies = store.list_policies().unwrap();
+        assert!(policies.is_empty());
+    }
+
+    #[test]
+    fn test_worm_store_list_policies_empty_db() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+        let policies = store.list_policies().unwrap();
+        assert!(policies.is_empty());
+    }
+
+    #[test]
+    fn test_worm_store_list_enabled_policies_no_db() {
+        let store = WormPolicyStore::new();
+        let policies = store.list_enabled_policies().unwrap();
+        assert!(policies.is_empty());
+    }
+
+    #[test]
+    fn test_worm_store_list_enabled_policies_empty_db() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+        let policies = store.list_enabled_policies().unwrap();
+        assert!(policies.is_empty());
+    }
+
+    #[test]
+    fn test_worm_store_create_policy_empty_prefix() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+        let req = CreateWormPolicyRequest {
+            path_prefix: "  ".to_string(),
+            enabled: true,
+        };
+        let result = store.create_policy(&req);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Path prefix must not be empty");
+    }
+
+    #[test]
+    fn test_worm_store_create_policy_no_db() {
+        let store = WormPolicyStore::new();
+        let req = make_request("/archive");
+        let result = store.create_policy(&req);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Database not available");
+    }
+
+    #[test]
+    fn test_worm_store_create_policy_with_db() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+        let req = make_request("/archive");
+        let policy = store.create_policy(&req).unwrap();
+
+        assert_eq!(policy.path_prefix, "/archive");
+        assert!(policy.enabled);
+        assert!(!policy.id.is_empty());
+        assert!(!policy.created_at.is_empty());
+    }
+
+    #[test]
+    fn test_worm_store_create_and_list_policy() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+
+        let req = make_request("/archive");
+        store.create_policy(&req).unwrap();
+
+        let policies = store.list_policies().unwrap();
+        assert_eq!(policies.len(), 1);
+        assert_eq!(policies[0].path_prefix, "/archive");
+    }
+
+    #[test]
+    fn test_worm_store_create_multiple_policies() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+
+        store.create_policy(&make_request("/archive")).unwrap();
+        store.create_policy(&make_request("/legal")).unwrap();
+
+        let policies = store.list_policies().unwrap();
+        assert_eq!(policies.len(), 2);
+    }
+
+    #[test]
+    fn test_worm_store_list_enabled_filters_disabled() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+
+        store.create_policy(&make_request("/archive")).unwrap();
+
+        let mut disabled_req = make_request("/legal");
+        disabled_req.enabled = false;
+        store.create_policy(&disabled_req).unwrap();
+
+        let all = store.list_policies().unwrap();
+        assert_eq!(all.len(), 2);
+
+        let enabled = store.list_enabled_policies().unwrap();
+        assert_eq!(enabled.len(), 1);
+        assert_eq!(enabled[0].path_prefix, "/archive");
+    }
+
+    #[test]
+    fn test_worm_store_delete_policy_no_db() {
+        let store = WormPolicyStore::new();
+        let result = store.delete_policy("some-id");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_worm_store_delete_policy_not_found() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+        let result = store.delete_policy("nonexistent-id");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "WORM policy not found");
+    }
+
+    #[test]
+    fn test_worm_store_delete_policy_success() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+
+        let policy = store.create_policy(&make_request("/archive")).unwrap();
+        let deleted = store.delete_policy(&policy.id).unwrap();
+        assert!(deleted);
+
+        let policies = store.list_policies().unwrap();
+        assert!(policies.is_empty());
+    }
+
+    #[test]
+    fn test_worm_store_delete_and_recreate() {
+        let db = init_db();
+        let store = WormPolicyStore::new().with_db(db);
+
+        let policy = store.create_policy(&make_request("/archive")).unwrap();
+        store.delete_policy(&policy.id).unwrap();
+
+        let policy2 = store.create_policy(&make_request("/archive")).unwrap();
+        assert_ne!(policy.id, policy2.id);
+    }
+
+    #[test]
+    fn test_worm_policy_serialization() {
+        let policy = WormPolicy {
+            id: "test-id".into(),
+            path_prefix: "/archive".into(),
+            enabled: true,
+            created_at: "2025-01-01T00:00:00+00:00".into(),
+        };
+        let json = serde_json::to_value(&policy).unwrap();
+        assert_eq!(json["id"], "test-id");
+        assert_eq!(json["path_prefix"], "/archive");
+        assert_eq!(json["enabled"], true);
+    }
+
+    #[test]
+    fn test_worm_policy_deserialization() {
+        let json = r#"{"id":"abc","path_prefix":"/data","enabled":false,"created_at":"2025-06-01T00:00:00+00:00"}"#;
+        let policy: WormPolicy = serde_json::from_str(json).unwrap();
+        assert_eq!(policy.id, "abc");
+        assert_eq!(policy.path_prefix, "/data");
+        assert!(!policy.enabled);
+    }
+
+    #[test]
+    fn test_default_true() {
+        assert!(default_true());
+    }
+
+    #[test]
+    fn test_worm_store_default() {
+        let store = WormPolicyStore::default();
+        assert!(store.db.is_none());
+    }
+
+    // --- SqliteWormStore tests ---
+
+    #[test]
+    fn test_sqlite_worm_store_list_policies() {
+        let db = init_db();
+        let store = SqliteWormStore::new(db);
+        let policies = store.list_policies();
+        assert!(policies.is_empty());
+    }
+
+    #[test]
+    fn test_sqlite_worm_store_create_policy() {
+        let db = init_db();
+        let store = SqliteWormStore::new(db);
+        let policy = WormPolicy {
+            id: "test-id".into(),
+            path_prefix: "/archive".into(),
+            enabled: true,
+            created_at: "2025-01-01T00:00:00+00:00".into(),
+        };
+        store.create_policy(&policy).unwrap();
+
+        let policies = store.list_policies();
+        assert_eq!(policies.len(), 1);
+        assert_eq!(policies[0].id, "test-id");
+    }
+
+    #[test]
+    fn test_sqlite_worm_store_delete_policy() {
+        let db = init_db();
+        let store = SqliteWormStore::new(db);
+        let policy = WormPolicy {
+            id: "to-delete".into(),
+            path_prefix: "/temp".into(),
+            enabled: true,
+            created_at: "2025-01-01T00:00:00+00:00".into(),
+        };
+        store.create_policy(&policy).unwrap();
+
+        let deleted = store.delete_policy("to-delete").unwrap();
+        assert!(deleted);
+        assert!(store.list_policies().is_empty());
+    }
+
+    #[test]
+    fn test_sqlite_worm_store_delete_policy_not_found() {
+        let db = init_db();
+        let store = SqliteWormStore::new(db);
+        let deleted = store.delete_policy("nonexistent").unwrap();
+        assert!(!deleted);
     }
 }

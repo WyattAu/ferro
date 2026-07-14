@@ -1,7 +1,7 @@
 //! Role-Based Access Control (RBAC) presets for the Cedar policy engine.
 //!
 //! Provides pre-built Cedar policies for common role assignments:
-//! Admin, User, ReadOnly. These presets generate Cedar policy text that
+//! Admin, User, `ReadOnly`. These presets generate Cedar policy text that
 //! can be loaded via [`CedarAuthorizer::load_policies`].
 //!
 //! Roles map directly to [`crate::users::UserRole`] but provide a
@@ -12,7 +12,6 @@ use crate::users::UserRole;
 use serde::{Deserialize, Serialize};
 
 /// A role preset with a human-readable name and Cedar policy.
-#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RolePreset {
     /// Role identifier (matches `UserRole` name).
@@ -26,6 +25,7 @@ pub struct RolePreset {
 }
 
 /// Pre-defined system roles. Cannot be modified or deleted by users.
+#[must_use]
 pub fn system_roles() -> Vec<RolePreset> {
     vec![
         RolePreset {
@@ -62,6 +62,7 @@ pub fn system_roles() -> Vec<RolePreset> {
 ///
 /// # Arguments
 /// * `roles` - Map of user ID -> role assignment
+#[must_use]
 pub fn generate_role_policies(roles: &[(String, UserRole)]) -> String {
     if roles.is_empty() {
         // No role assignments = permissive default
@@ -89,49 +90,45 @@ permit (
 /// Generate a single Cedar policy for a specific user-role assignment.
 ///
 /// Useful for incremental policy updates without rebuilding the entire set.
+#[must_use]
 pub fn generate_single_role_policy(user_id: &str, role: &UserRole) -> String {
     let safe_id = user_id.replace('"', "_");
     match role {
         UserRole::Admin => format!(
             r#"
-@id("role_{}_admin")
+@id("role_{safe_id}_admin")
 permit (
-    principal == User::"{uid}",
+    principal == User::"{user_id}",
     action in [Action::"read", Action::"write", Action::"delete", Action::"list", Action::"admin"],
     resource
 );
-"#,
-            safe_id,
-            uid = user_id
+"#
         ),
         UserRole::User => format!(
             r#"
-@id("role_{}_user")
+@id("role_{safe_id}_user")
 permit (
-    principal == User::"{uid}",
+    principal == User::"{user_id}",
     action in [Action::"read", Action::"write", Action::"delete", Action::"list"],
     resource
 );
-"#,
-            safe_id,
-            uid = user_id
+"#
         ),
         UserRole::ReadOnly => format!(
             r#"
-@id("role_{}_readonly")
+@id("role_{safe_id}_readonly")
 permit (
-    principal == User::"{uid}",
+    principal == User::"{user_id}",
     action in [Action::"read", Action::"list"],
     resource
 );
-"#,
-            safe_id,
-            uid = user_id
+"#
         ),
     }
 }
 
-/// Get the system role preset for a given UserRole.
+/// Get the system role preset for a given `UserRole`.
+#[must_use]
 pub fn role_preset_for(role: &UserRole) -> RolePreset {
     let roles = system_roles();
     let role_id = match role {
@@ -146,9 +143,10 @@ pub fn role_preset_for(role: &UserRole) -> RolePreset {
         .expect("system roles must include Admin, User, and ReadOnly presets")
 }
 
-/// Parse a role name string into a UserRole.
+/// Parse a role name string into a `UserRole`.
 ///
 /// Case-insensitive. Returns `None` for unrecognized role names.
+#[must_use]
 pub fn parse_role_name(name: &str) -> Option<UserRole> {
     match name.to_lowercase().as_str() {
         "admin" | "administrator" => Some(UserRole::Admin),
@@ -258,33 +256,21 @@ mod tests {
     #[test]
     fn test_parse_role_name() {
         assert!(matches!(parse_role_name("admin"), Some(UserRole::Admin)));
-        assert!(matches!(
-            parse_role_name("Administrator"),
-            Some(UserRole::Admin)
-        ));
+        assert!(matches!(parse_role_name("Administrator"), Some(UserRole::Admin)));
         assert!(matches!(parse_role_name("user"), Some(UserRole::User)));
         assert!(matches!(parse_role_name("Standard"), Some(UserRole::User)));
-        assert!(matches!(
-            parse_role_name("readonly"),
-            Some(UserRole::ReadOnly)
-        ));
-        assert!(matches!(
-            parse_role_name("Read-Only"),
-            Some(UserRole::ReadOnly)
-        ));
+        assert!(matches!(parse_role_name("Member"), Some(UserRole::User)));
+        assert!(matches!(parse_role_name("readonly"), Some(UserRole::ReadOnly)));
+        assert!(matches!(parse_role_name("Read-Only"), Some(UserRole::ReadOnly)));
         assert!(matches!(parse_role_name("Guest"), Some(UserRole::ReadOnly)));
         assert!(parse_role_name("nonexistent").is_none());
+        assert!(parse_role_name("").is_none());
     }
 
     #[test]
     fn test_generated_policy_parses_as_cedar() {
-        let policy = generate_role_policies(&[
-            ("alice".into(), UserRole::Admin),
-            ("bob".into(), UserRole::User),
-        ]);
-        let ps: cedar_policy::PolicySet = policy
-            .parse()
-            .expect("Generated policy must parse as valid Cedar");
+        let policy = generate_role_policies(&[("alice".into(), UserRole::Admin), ("bob".into(), UserRole::User)]);
+        let ps: cedar_policy::PolicySet = policy.parse().expect("Generated policy must parse as valid Cedar");
         assert!(ps.policies().count() >= 2);
     }
 }

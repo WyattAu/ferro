@@ -101,11 +101,7 @@ fn format_ical_datetime(dt: &str) -> String {
 }
 
 fn days_in_month(year: i32, month: u32) -> u32 {
-    let (y, m) = if month == 12 {
-        (year + 1, 1)
-    } else {
-        (year, month + 1)
-    };
+    let (y, m) = if month == 12 { (year + 1, 1) } else { (year, month + 1) };
     (chrono::NaiveDate::from_ymd_opt(y, m, 1).unwrap() - chrono::TimeDelta::days(1)).day()
 }
 
@@ -183,11 +179,7 @@ pub fn CalendarPage() -> impl IntoView {
                                             .and_then(|i| i.as_str())
                                             .unwrap_or("")
                                             .to_string(),
-                                        etag: v
-                                            .get("etag")
-                                            .and_then(|e| e.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        etag: v.get("etag").and_then(|e| e.as_str()).unwrap_or("").to_string(),
                                         created_at: v
                                             .get("created_at")
                                             .and_then(|c| c.as_str())
@@ -299,12 +291,7 @@ pub fn CalendarPage() -> impl IntoView {
                     "calendar_id": "",
                     "ical_data": ical
                 });
-                let _ = api::fetch_json_with_method(
-                    "/api/calendar/events",
-                    "POST",
-                    Some(&body.to_string()),
-                )
-                .await;
+                let _ = api::fetch_json_with_method("/api/calendar/events", "POST", Some(&body.to_string())).await;
             }
             fetch_events();
         });
@@ -312,12 +299,7 @@ pub fn CalendarPage() -> impl IntoView {
 
     let delete_event = move |uid: String| {
         spawn_local(async move {
-            let _ = api::fetch_json_with_method(
-                &format!("/api/calendar/events/{}", uid),
-                "DELETE",
-                None,
-            )
-            .await;
+            let _ = api::fetch_json_with_method(&format!("/api/calendar/events/{}", uid), "DELETE", None).await;
             fetch_events();
         });
     };

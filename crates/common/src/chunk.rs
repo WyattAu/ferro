@@ -22,6 +22,7 @@ pub struct BlockDiffResult {
     pub chunks_common: Vec<ChunkInfo>,
 }
 
+#[must_use]
 pub fn compute_block_diff(request: &BlockDiffRequest) -> BlockDiffResult {
     let local_hashes: HashSet<[u8; 32]> = request.local_chunks.iter().map(|c| c.hash).collect();
 
@@ -134,5 +135,116 @@ mod tests {
         assert_eq!(result.chunks_to_upload[0].hash[0], 4);
         assert_eq!(result.chunks_to_download.len(), 1);
         assert_eq!(result.chunks_to_download[0].hash[0], 1);
+    }
+
+    #[test]
+    fn test_empty_request() {
+        let request = BlockDiffRequest {
+            local_chunks: vec![],
+            new_chunks: vec![],
+        };
+        let result = compute_block_diff(&request);
+        assert!(result.chunks_to_upload.is_empty());
+        assert!(result.chunks_to_download.is_empty());
+        assert!(result.chunks_common.is_empty());
+    }
+
+    #[test]
+    fn test_single_chunk_same() {
+        let chunk = make_chunk(1, 0, 100, 0);
+        let request = BlockDiffRequest {
+            local_chunks: vec![chunk.clone()],
+            new_chunks: vec![chunk],
+        };
+        let result = compute_block_diff(&request);
+        assert_eq!(result.chunks_common.len(), 1);
+        assert!(result.chunks_to_upload.is_empty());
+        assert!(result.chunks_to_download.is_empty());
+    }
+
+    #[test]
+    fn test_single_chunk_different() {
+        let local = make_chunk(1, 0, 100, 0);
+        let new = make_chunk(2, 0, 100, 0);
+        let request = BlockDiffRequest {
+            local_chunks: vec![local],
+            new_chunks: vec![new],
+        };
+        let result = compute_block_diff(&request);
+        assert!(result.chunks_common.is_empty());
+        assert_eq!(result.chunks_to_upload.len(), 1);
+        assert_eq!(result.chunks_to_download.len(), 1);
+    }
+
+    #[test]
+    fn test_chunk_info_debug() {
+        let chunk = make_chunk(1, 0, 100, 0);
+        let debug = format!("{:?}", chunk);
+        assert!(debug.contains("ChunkInfo"));
+    }
+
+    #[test]
+    fn test_chunk_info_clone() {
+        let chunk1 = make_chunk(1, 0, 100, 0);
+        let chunk2 = chunk1.clone();
+        assert_eq!(chunk1.hash, chunk2.hash);
+        assert_eq!(chunk1.offset, chunk2.offset);
+        assert_eq!(chunk1.size, chunk2.size);
+        assert_eq!(chunk1.index, chunk2.index);
+    }
+
+    #[test]
+    fn test_chunk_info_serialize_deserialize() {
+        let chunk = make_chunk(1, 0, 100, 0);
+        let json = serde_json::to_string(&chunk).unwrap();
+        let deserialized: ChunkInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(chunk.hash, deserialized.hash);
+        assert_eq!(chunk.offset, deserialized.offset);
+    }
+
+    #[test]
+    fn test_block_diff_request_debug() {
+        let request = BlockDiffRequest {
+            local_chunks: vec![],
+            new_chunks: vec![],
+        };
+        let debug = format!("{:?}", request);
+        assert!(debug.contains("BlockDiffRequest"));
+    }
+
+    #[test]
+    fn test_block_diff_result_debug() {
+        let result = BlockDiffResult {
+            chunks_to_upload: vec![],
+            chunks_to_download: vec![],
+            chunks_common: vec![],
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("BlockDiffResult"));
+    }
+
+    #[test]
+    fn test_block_diff_result_clone() {
+        let result1 = BlockDiffResult {
+            chunks_to_upload: vec![make_chunk(1, 0, 100, 0)],
+            chunks_to_download: vec![make_chunk(2, 100, 200, 1)],
+            chunks_common: vec![make_chunk(3, 300, 150, 2)],
+        };
+        let result2 = result1.clone();
+        assert_eq!(result1.chunks_to_upload.len(), result2.chunks_to_upload.len());
+        assert_eq!(result1.chunks_to_download.len(), result2.chunks_to_download.len());
+        assert_eq!(result1.chunks_common.len(), result2.chunks_common.len());
+    }
+
+    #[test]
+    fn test_block_diff_result_serialize_deserialize() {
+        let result = BlockDiffResult {
+            chunks_to_upload: vec![make_chunk(1, 0, 100, 0)],
+            chunks_to_download: vec![],
+            chunks_common: vec![],
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: BlockDiffResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(result.chunks_to_upload.len(), deserialized.chunks_to_upload.len());
     }
 }

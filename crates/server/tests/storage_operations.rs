@@ -90,12 +90,7 @@ async fn test_put_get_delete_with_audit() {
 
     let audit_resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/audit")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/audit").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(audit_resp.status(), StatusCode::OK);
@@ -129,9 +124,7 @@ async fn test_full_file_lifecycle_with_events() {
             Request::builder()
                 .method("PUT")
                 .uri("/api/v1/files/lifecycle-events/readme.md")
-                .body(Body::from(
-                    "# Lifecycle Events\n\nIntegration test content.",
-                ))
+                .body(Body::from("# Lifecycle Events\n\nIntegration test content."))
                 .unwrap(),
         )
         .await
@@ -214,12 +207,7 @@ async fn test_full_file_lifecycle_with_events() {
 
     let audit_resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/audit")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/audit").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(audit_resp.status(), StatusCode::OK);
@@ -240,20 +228,12 @@ async fn test_storage_operations_consistency() {
                     .method("POST")
                     .uri("/api/v1/files/mkdir")
                     .header("content-type", "application/json")
-                    .body(Body::from(format!(
-                        r#"{{"path": "/consistency-dir-{}"}}"#,
-                        i
-                    )))
+                    .body(Body::from(format!(r#"{{"path": "/consistency-dir-{}"}}"#, i)))
                     .unwrap(),
             )
             .await
             .unwrap();
-        assert_eq!(
-            resp.status(),
-            StatusCode::CREATED,
-            "MKCOL dir-{} should succeed",
-            i
-        );
+        assert_eq!(resp.status(), StatusCode::CREATED, "MKCOL dir-{} should succeed", i);
     }
 
     for i in 0..10 {
@@ -268,12 +248,7 @@ async fn test_storage_operations_consistency() {
             )
             .await
             .unwrap();
-        assert_eq!(
-            resp.status(),
-            StatusCode::CREATED,
-            "PUT dir-{} file should succeed",
-            i
-        );
+        assert_eq!(resp.status(), StatusCode::CREATED, "PUT dir-{} file should succeed", i);
     }
 
     for i in 0..10 {
@@ -416,12 +391,7 @@ async fn test_snapshot_and_audit_integration() {
 
     let snap_list = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/snapshots")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/snapshots").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(snap_list.status(), StatusCode::OK);
@@ -452,12 +422,7 @@ async fn test_snapshot_and_audit_integration() {
 
     let audit_resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/audit")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/audit").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(audit_resp.status(), StatusCode::OK);

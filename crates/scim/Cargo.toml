@@ -2,13 +2,15 @@
 name = "ferro-scim"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
 
 [dependencies]
+anyhow = "1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }
-uuid = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 dashmap = "6"

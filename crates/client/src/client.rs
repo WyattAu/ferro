@@ -4,7 +4,6 @@ use ferro_selective_sync::profile::{FilterPreviewRequest, SyncProfile, SyncRule}
 use reqwest::header::CONTENT_TYPE;
 use roxmltree::Document;
 
-#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct FerroClient {
     base_url: String,
@@ -103,11 +102,7 @@ impl FerroClient {
         let response = self.http.get(&url).bearer_auth(&self.token).send().await?;
 
         match response.status().as_u16() {
-            200 => Ok(response
-                .bytes()
-                .await
-                .map_err(ClientError::Network)?
-                .to_vec()),
+            200 => Ok(response.bytes().await.map_err(ClientError::Network)?.to_vec()),
             404 => Err(ClientError::NotFound(path.to_string())),
             401 => Err(ClientError::AuthFailed),
             status => {
@@ -119,8 +114,7 @@ impl FerroClient {
 
     pub async fn get_text(&self, path: &str) -> Result<String, ClientError> {
         let bytes = self.get(path).await?;
-        String::from_utf8(bytes)
-            .map_err(|e| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
+        String::from_utf8(bytes).map_err(|e| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
     }
 
     pub async fn put(&self, path: &str, data: &[u8]) -> Result<(), ClientError> {
@@ -154,12 +148,7 @@ impl FerroClient {
 
     pub async fn delete(&self, path: &str) -> Result<(), ClientError> {
         let url = self.build_url(path);
-        let response = self
-            .http
-            .delete(&url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
+        let response = self.http.delete(&url).bearer_auth(&self.token).send().await?;
 
         match response.status().as_u16() {
             204 => Ok(()),
@@ -176,10 +165,7 @@ impl FerroClient {
         let url = self.build_url(path);
         let response = self
             .http
-            .request(
-                reqwest::Method::from_bytes(b"MKCOL").expect("valid HTTP method"),
-                &url,
-            )
+            .request(reqwest::Method::from_bytes(b"MKCOL").expect("valid HTTP method"), &url)
             .bearer_auth(&self.token)
             .send()
             .await?;
@@ -203,10 +189,7 @@ impl FerroClient {
         let destination = self.build_url(to);
         let response = self
             .http
-            .request(
-                reqwest::Method::from_bytes(b"MOVE").expect("valid HTTP method"),
-                &url,
-            )
+            .request(reqwest::Method::from_bytes(b"MOVE").expect("valid HTTP method"), &url)
             .bearer_auth(&self.token)
             .header("Destination", &destination)
             .send()
@@ -228,10 +211,7 @@ impl FerroClient {
         let destination = self.build_url(to);
         let response = self
             .http
-            .request(
-                reqwest::Method::from_bytes(b"COPY").expect("valid HTTP method"),
-                &url,
-            )
+            .request(reqwest::Method::from_bytes(b"COPY").expect("valid HTTP method"), &url)
             .bearer_auth(&self.token)
             .header("Destination", &destination)
             .send()
@@ -262,16 +242,13 @@ impl FerroClient {
 
         match response.status().as_u16() {
             200 => {
-                let body: serde_json::Value =
-                    response.json().await.map_err(ClientError::Network)?;
+                let body: serde_json::Value = response.json().await.map_err(ClientError::Network)?;
                 let profiles: Vec<SyncProfile> = serde_json::from_value(
                     body.get("profiles")
                         .cloned()
                         .unwrap_or(serde_json::Value::Array(vec![])),
                 )
-                .map_err(|e| {
-                    ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                })?;
+                .map_err(|e| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
                 Ok(profiles)
             }
             status => {
@@ -308,23 +285,14 @@ impl FerroClient {
             body["path_prefix"] = serde_json::Value::String(prefix.to_string());
         }
 
-        let response = self
-            .http
-            .post(&url)
-            .bearer_auth(&self.token)
-            .json(&body)
-            .send()
-            .await?;
+        let response = self.http.post(&url).bearer_auth(&self.token).json(&body).send().await?;
 
         match response.status().as_u16() {
             201 => {
-                let resp_body: serde_json::Value =
-                    response.json().await.map_err(ClientError::Network)?;
+                let resp_body: serde_json::Value = response.json().await.map_err(ClientError::Network)?;
                 let profile: SyncProfile =
                     serde_json::from_value(resp_body.get("profile").cloned().unwrap_or_default())
-                        .map_err(|e| {
-                        ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                    })?;
+                        .map_err(|e| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
                 Ok(profile)
             }
             status => {
@@ -365,23 +333,14 @@ impl FerroClient {
             body["enabled"] = serde_json::Value::Bool(e);
         }
 
-        let response = self
-            .http
-            .put(&url)
-            .bearer_auth(&self.token)
-            .json(&body)
-            .send()
-            .await?;
+        let response = self.http.put(&url).bearer_auth(&self.token).json(&body).send().await?;
 
         match response.status().as_u16() {
             200 => {
-                let resp_body: serde_json::Value =
-                    response.json().await.map_err(ClientError::Network)?;
+                let resp_body: serde_json::Value = response.json().await.map_err(ClientError::Network)?;
                 let profile: SyncProfile =
                     serde_json::from_value(resp_body.get("profile").cloned().unwrap_or_default())
-                        .map_err(|e| {
-                        ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                    })?;
+                        .map_err(|e| ClientError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
                 Ok(profile)
             }
             status => {
@@ -393,12 +352,7 @@ impl FerroClient {
 
     pub async fn delete_sync_profile(&self, id: &str) -> Result<(), ClientError> {
         let url = format!("{}/api/v1/sync/profiles/{}", self.base_url, id);
-        let response = self
-            .http
-            .delete(&url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
+        let response = self.http.delete(&url).bearer_auth(&self.token).send().await?;
 
         match response.status().as_u16() {
             200 => Ok(()),
@@ -433,18 +387,11 @@ impl FerroClient {
             "paths": paths,
         });
 
-        let response = self
-            .http
-            .post(&url)
-            .bearer_auth(&self.token)
-            .json(&body)
-            .send()
-            .await?;
+        let response = self.http.post(&url).bearer_auth(&self.token).json(&body).send().await?;
 
         match response.status().as_u16() {
             200 => {
-                let resp_body: FilterPreviewRequest =
-                    response.json().await.map_err(ClientError::Network)?;
+                let resp_body: FilterPreviewRequest = response.json().await.map_err(ClientError::Network)?;
                 Ok(resp_body)
             }
             status => {
@@ -548,12 +495,7 @@ fn parse_multistatus(xml: &str, base_path: &str) -> Vec<FileEntry> {
             }
         }
 
-        let name = href
-            .trim_matches('/')
-            .rsplit('/')
-            .next()
-            .unwrap_or("")
-            .to_string();
+        let name = href.trim_matches('/').rsplit('/').next().unwrap_or("").to_string();
 
         entries.push(FileEntry {
             name,

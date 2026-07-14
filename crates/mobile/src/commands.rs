@@ -169,8 +169,7 @@ pub async fn unpin_file_offline(path: String) -> Result<(), String> {
 pub async fn get_storage_stats() -> Result<StorageStats, String> {
     let config = get_config().map_err(|e| e.to_string())?;
 
-    let local_cache_bytes =
-        dir_size_recursive(&std::path::PathBuf::from(&config.local_cache_path).join("files"));
+    let local_cache_bytes = dir_size_recursive(&std::path::PathBuf::from(&config.local_cache_path).join("files"));
 
     let cache_limit = config.max_cache_size_mb * 1024 * 1024;
 
@@ -220,10 +219,7 @@ pub async fn register_push_token(token: String) -> Result<(), String> {
     let config = get_config().map_err(|e| e.to_string())?;
     let client = build_client(&config.auth_token).map_err(|e| e.to_string())?;
 
-    let url = format!(
-        "{}/api/push/register",
-        config.server_url.trim_end_matches('/')
-    );
+    let url = format!("{}/api/push/register", config.server_url.trim_end_matches('/'));
 
     #[derive(Serialize)]
     struct PushRegistration {
@@ -294,13 +290,8 @@ fn scan_directory(
         if path.is_dir() {
             scan_directory(base, &path, entries)?;
         } else {
-            let metadata =
-                std::fs::metadata(&path).map_err(|e| MobileError::NotFound(e.to_string()))?;
-            let name = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_string();
+            let metadata = std::fs::metadata(&path).map_err(|e| MobileError::NotFound(e.to_string()))?;
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
             let modified = metadata
                 .modified()
                 .map(|t| {

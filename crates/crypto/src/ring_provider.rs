@@ -74,8 +74,7 @@ impl CryptoProvider for RingProvider {
     async fn hash_password(&self, password: &str) -> Result<String> {
         let password = password.to_string();
         tokio::task::spawn_blocking(move || {
-            bcrypt::hash(&password, bcrypt::DEFAULT_COST)
-                .map_err(|e| CryptoError::PasswordHash(e.to_string()))
+            bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(|e| CryptoError::PasswordHash(e.to_string()))
         })
         .await
         .map_err(|e| CryptoError::Internal(format!("Hash task error: {e}")))?

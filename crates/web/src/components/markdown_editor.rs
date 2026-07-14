@@ -172,7 +172,9 @@ fn render_markdown(text: &str) -> String {
                 html.push_str("</code></pre>");
                 in_code_block = false;
             } else {
-                html.push_str("<pre class=\"bg-gray-100 dark:bg-gray-800 rounded p-2 font-mono text-xs overflow-x-auto\"><code>");
+                html.push_str(
+                    "<pre class=\"bg-gray-100 dark:bg-gray-800 rounded p-2 font-mono text-xs overflow-x-auto\"><code>",
+                );
                 in_code_block = true;
             }
             continue;
@@ -335,10 +337,7 @@ mod tests {
 
     #[test]
     fn test_render_inline_bold() {
-        assert_eq!(
-            render_inline("hello **world**"),
-            "hello <strong>world</strong>"
-        );
+        assert_eq!(render_inline("hello **world**"), "hello <strong>world</strong>");
     }
 
     #[test]

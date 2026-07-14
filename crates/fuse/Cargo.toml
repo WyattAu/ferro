@@ -25,15 +25,11 @@ default = ["offline-cache"]
 offline-cache = ["dep:rusqlite", "dep:sha2", "dep:hex"]
 
 [dependencies]
-ferro-common = { path = "../common" }
 tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4", features = ["derive", "env"] }
 bytes = "1"
-chrono = { version = "0.4", features = ["serde"] }
 libc = "0.2"
 futures = "0.3"
 anyhow = "1"
@@ -41,7 +37,6 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 base64 = "0.22"
 urlencoding = "2"
 lazy-regex = "3"
-async-trait = "0.1"
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 sha2 = { version = "0.11", optional = true }
 hex = { version = "0.4", optional = true }

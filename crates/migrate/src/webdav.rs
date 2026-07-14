@@ -33,11 +33,7 @@ impl WebDavSource {
         }
     }
 
-    pub async fn list_directory_recursive(
-        &self,
-        user: &str,
-        path: &str,
-    ) -> MigrateResult<Vec<DavEntry>> {
+    pub async fn list_directory_recursive(&self, user: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {
         match self {
             WebDavSource::Nextcloud(nc) => nc.list_directory_recursive(user, path).await,
             WebDavSource::Ocis(oc) => oc.list_directory_recursive(user, path).await,
@@ -60,12 +56,7 @@ pub struct WebDavPipeline<'a> {
 }
 
 impl<'a> WebDavPipeline<'a> {
-    pub fn new(
-        source: &'a WebDavSource,
-        target: &'a FerroTarget,
-        max_file_size: u64,
-        batch_size: usize,
-    ) -> Self {
+    pub fn new(source: &'a WebDavSource, target: &'a FerroTarget, max_file_size: u64, batch_size: usize) -> Self {
         Self {
             source,
             target,
@@ -107,15 +98,13 @@ impl<'a> WebDavPipeline<'a> {
             batch.push(file);
 
             if batch.len() >= self.batch_size {
-                self.process_batch(user, &batch, &mut stats, progress)
-                    .await?;
+                self.process_batch(user, &batch, &mut stats, progress).await?;
                 batch.clear();
             }
         }
 
         if !batch.is_empty() {
-            self.process_batch(user, &batch, &mut stats, progress)
-                .await?;
+            self.process_batch(user, &batch, &mut stats, progress).await?;
         }
 
         Ok(stats)
@@ -180,8 +169,7 @@ pub fn parse_propfind(xml: &str) -> MigrateResult<Vec<DavEntry>> {
 
     let mut entries = Vec::new();
     let mut current_href = String::new();
-    let mut current_props: std::collections::HashMap<String, String> =
-        std::collections::HashMap::new();
+    let mut current_props: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     let mut in_prop = false;
     let mut current_tag = String::new();
     let mut capture_text = false;
@@ -251,8 +239,7 @@ pub fn parse_propfind(xml: &str) -> MigrateResult<Vec<DavEntry>> {
             }
             Ok(Event::Text(ref e)) if capture_text => {
                 text_buf.push_str(
-                    &quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or(""))
-                        .unwrap_or_default(),
+                    &quick_xml::escape::unescape(std::str::from_utf8(e.as_ref()).unwrap_or("")).unwrap_or_default(),
                 );
             }
             Ok(Event::Eof) => break,

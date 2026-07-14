@@ -5,9 +5,10 @@ use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 use dashmap::DashMap;
+use ferro_circuit_breaker::CircuitBreaker;
 use http_body_util::BodyExt;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use crate::ApiError;
 use crate::DbHandle;
@@ -15,6 +16,9 @@ use crate::IntegrationsState;
 
 const CONNECT_TIMEOUT_SECS: u64 = 10;
 const READ_TIMEOUT_SECS: u64 = 30;
+
+static REMOTE_MOUNT_CB: LazyLock<CircuitBreaker> =
+    LazyLock::new(|| CircuitBreaker::new(5, std::time::Duration::from_secs(30)));
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RemoteMount {
@@ -142,11 +146,8 @@ impl RemoteMountStore {
 
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-            conn.execute(
-                "DELETE FROM remote_mounts WHERE id = ?1",
-                rusqlite::params![id],
-            )
-            .map_err(|e| e.to_string())?;
+            conn.execute("DELETE FROM remote_mounts WHERE id = ?1", rusqlite::params![id])
+                .map_err(|e| e.to_string())?;
         }
 
         if let Some(name) = mount_name {
@@ -202,10 +203,7 @@ pub async fn proxy_remote_mount<S: IntegrationsState>(
     let mount = match state.remote_mounts().get_by_name(mount_name) {
         Some(m) => m,
         None => {
-            return ApiError::not_found(
-                ApiError::NOT_FOUND,
-                format!("Remote mount '{}' not found", mount_name),
-            );
+            return ApiError::not_found(ApiError::NOT_FOUND, format!("Remote mount '{}' not found", mount_name));
         }
     };
 
@@ -259,28 +257,32 @@ pub async fn proxy_remote_mount<S: IntegrationsState>(
         let body_bytes = match body.collect().await {
             Ok(collected) => collected.to_bytes(),
             Err(e) => {
-                return ApiError::internal(
-                    ApiError::INTERNAL_ERROR,
-                    format!("Failed to read request body: {}", e),
-                );
+                return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to read request body: {}", e));
             }
         };
         req_builder = req_builder.body(body_bytes.to_vec());
     }
 
-    let response = match req_builder.send().await {
+    let response = match REMOTE_MOUNT_CB
+        .call(|| {
+            let req_builder = req_builder.try_clone().unwrap();
+            async move { req_builder.send().await }
+        })
+        .await
+    {
         Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                mount = %mount_name,
-                remote_url = %remote_path,
-                "failed to proxy request to remote WebDAV server"
-            );
-            return ApiError::bad_gateway(
-                ApiError::BAD_GATEWAY,
-                format!("Remote server unreachable: {}", e),
-            );
+        Err(cb_err) => {
+            if let Some(e) = cb_err.inner {
+                return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("Remote server unreachable: {}", e));
+            } else {
+                return (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    axum::Json(serde_json::json!({
+                        "error": "Remote mount circuit breaker is open: service unavailable",
+                    })),
+                )
+                    .into_response();
+            }
         }
     };
 
@@ -319,10 +321,7 @@ pub async fn proxy_remote_mount<S: IntegrationsState>(
         let bytes = match response.bytes().await {
             Ok(b) => b,
             Err(e) => {
-                return ApiError::bad_gateway(
-                    ApiError::BAD_GATEWAY,
-                    format!("Failed to read remote response: {}", e),
-                );
+                return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("Failed to read remote response: {}", e));
             }
         };
 
@@ -341,10 +340,7 @@ pub async fn proxy_remote_mount<S: IntegrationsState>(
     let body_bytes = match response.bytes().await {
         Ok(b) => b,
         Err(e) => {
-            return ApiError::bad_gateway(
-                ApiError::BAD_GATEWAY,
-                format!("Failed to read remote response: {}", e),
-            );
+            return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("Failed to read remote response: {}", e));
         }
     };
 
@@ -415,25 +411,15 @@ pub async fn create_mount<S: IntegrationsState>(
     }
 }
 
-pub async fn delete_mount<S: IntegrationsState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_mount<S: IntegrationsState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     match state.remote_mounts().delete(&id) {
         Ok(()) => (StatusCode::NO_CONTENT, "").into_response(),
         Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, e),
     }
 }
 
-pub async fn test_mount<S: IntegrationsState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
-    let mount = state
-        .remote_mounts()
-        .list_all()
-        .into_iter()
-        .find(|m| m.id == id);
+pub async fn test_mount<S: IntegrationsState>(State(state): State<S>, Path(id): Path<String>) -> Response {
+    let mount = state.remote_mounts().list_all().into_iter().find(|m| m.id == id);
     let mount = match mount {
         Some(m) => m,
         None => {
@@ -450,7 +436,13 @@ pub async fn test_mount<S: IntegrationsState>(
         req = req.header("Authorization", format!("Basic {}", encoded));
     }
 
-    match req.send().await {
+    match REMOTE_MOUNT_CB
+        .call(|| {
+            let req = req.try_clone().unwrap();
+            async move { req.send().await }
+        })
+        .await
+    {
         Ok(resp) => {
             let status = resp.status().as_u16();
             (
@@ -463,15 +455,22 @@ pub async fn test_mount<S: IntegrationsState>(
             )
                 .into_response()
         }
-        Err(e) => (
-            StatusCode::OK,
-            axum::Json(MountTestResponse {
-                reachable: false,
-                status: 0,
-                error: Some(e.to_string()),
-            }),
-        )
-            .into_response(),
+        Err(cb_err) => {
+            let error_msg = if let Some(e) = cb_err.inner {
+                e.to_string()
+            } else {
+                "Circuit breaker is open".to_string()
+            };
+            (
+                StatusCode::OK,
+                axum::Json(MountTestResponse {
+                    reachable: false,
+                    status: 0,
+                    error: Some(error_msg),
+                }),
+            )
+                .into_response()
+        }
     }
 }
 

@@ -11,8 +11,8 @@ pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
 
 // Re-export types needed by handlers
 pub use ferro_auth::users::{
-    CreateUserRequest, ResetPasswordRequest, UpdateSelfRequest, UpdateUserRequest, User, UserError,
-    UserErrorKind, UserRole, UserStatus, hash_password,
+    CreateUserRequest, ResetPasswordRequest, UpdateSelfRequest, UpdateUserRequest, User, UserError, UserErrorKind,
+    UserRole, UserStatus, ZeroizeString, hash_password,
 };
 pub use ferro_server_security::ApiError;
 
@@ -35,18 +35,10 @@ impl<S: UserMgmtState> UserMgmtState for Arc<S> {
     }
     fn push_notification_store(
         &self,
-    ) -> &Option<
-        Arc<
-            tokio::sync::RwLock<
-                ferro_server_integrations::push_notifications::PushNotificationStore,
-            >,
-        >,
-    > {
+    ) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>> {
         (**self).push_notification_store()
     }
-    fn push_notification_config(
-        &self,
-    ) -> &ferro_server_integrations::push_notifications::PushNotificationConfig {
+    fn push_notification_config(&self) -> &ferro_server_integrations::push_notifications::PushNotificationConfig {
         (**self).push_notification_config()
     }
 }
@@ -66,10 +58,7 @@ pub struct AuditEntry {
 
 /// Adapter trait for audit logging that doesn't pull in the full server AuditLog.
 pub trait AuditLog: Send + Sync {
-    fn log(
-        &self,
-        entry: AuditEntry,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>>;
+    fn log(&self, entry: AuditEntry) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>>;
 }
 
 /// Trait abstracting AppState for user management handlers.
@@ -82,14 +71,6 @@ pub trait UserMgmtState: Clone + Send + Sync + 'static {
     fn audit_log(&self) -> &Arc<dyn AuditLog>;
     fn push_notification_store(
         &self,
-    ) -> &Option<
-        Arc<
-            tokio::sync::RwLock<
-                ferro_server_integrations::push_notifications::PushNotificationStore,
-            >,
-        >,
-    >;
-    fn push_notification_config(
-        &self,
-    ) -> &ferro_server_integrations::push_notifications::PushNotificationConfig;
+    ) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>>;
+    fn push_notification_config(&self) -> &ferro_server_integrations::push_notifications::PushNotificationConfig;
 }

@@ -46,10 +46,7 @@ pub async fn vl_insert_handler(
             line: entry.msg.clone().unwrap_or_default(),
             labels,
             level: entry.level.clone().unwrap_or_else(|| "info".to_string()),
-            source: entry
-                .source
-                .clone()
-                .unwrap_or_else(|| "victorialogs".to_string()),
+            source: entry.source.clone().unwrap_or_else(|| "victorialogs".to_string()),
         });
     }
     StatusCode::NO_CONTENT

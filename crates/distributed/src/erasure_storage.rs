@@ -61,11 +61,7 @@ impl ErasureStorageEngine {
             shard_size: 1024 * 1024,
         };
         let coder = ReedSolomonErasureCoder::new(erasure_config);
-        Self {
-            inner,
-            coder,
-            config,
-        }
+        Self { inner, coder, config }
     }
 
     fn shard_path(&self, backend_idx: usize, file_key: &str, shard_idx: usize) -> String {
@@ -87,12 +83,7 @@ impl ErasureStorageEngine {
         hex::encode(hash)
     }
 
-    async fn write_shard(
-        &self,
-        backend_idx: usize,
-        file_key: &str,
-        shard: &Shard,
-    ) -> Result<ShardInfo> {
+    async fn write_shard(&self, backend_idx: usize, file_key: &str, shard: &Shard) -> Result<ShardInfo> {
         let shard_path = self.shard_path(backend_idx, file_key, shard.index as usize);
         let shard_dir = std::path::Path::new(&shard_path)
             .parent()
@@ -108,16 +99,11 @@ impl ErasureStorageEngine {
             .map_err(|e| FerroError::StorageBackend(format!("Failed to write shard: {}", e)))?;
 
         let shard_size = shard.data.len() as u64;
-        debug!(
-            "Wrote shard {} ({} bytes) to {}",
-            shard.index, shard_size, shard_path
-        );
+        debug!("Wrote shard {} ({} bytes) to {}", shard.index, shard_size, shard_path);
 
         Ok(ShardInfo {
             index: shard.index,
-            backend_path: self.config.shard_backends
-                [backend_idx % self.config.shard_backends.len()]
-            .clone(),
+            backend_path: self.config.shard_backends[backend_idx % self.config.shard_backends.len()].clone(),
             shard_path,
             checksum: hex::encode(shard.checksum),
             is_parity: shard.is_parity,
@@ -150,15 +136,10 @@ impl ErasureStorageEngine {
     }
 
     async fn store_metadata(&self, path: &str, erasure_meta: &ErasureFileMetadata) -> Result<()> {
-        let meta_json = serde_json::to_vec_pretty(erasure_meta).map_err(|e| {
-            FerroError::StorageBackend(format!("Failed to serialize metadata: {}", e))
-        })?;
+        let meta_json = serde_json::to_vec_pretty(erasure_meta)
+            .map_err(|e| FerroError::StorageBackend(format!("Failed to serialize metadata: {}", e)))?;
         self.inner
-            .put(
-                &self.meta_path(path),
-                Bytes::from(meta_json),
-                &erasure_meta.owner,
-            )
+            .put(&self.meta_path(path), Bytes::from(meta_json), &erasure_meta.owner)
             .await?;
         Ok(())
     }
@@ -195,8 +176,7 @@ impl StorageEngine for ErasureStorageEngine {
             }
         };
 
-        let mut shards: Vec<Option<Shard>> =
-            Vec::with_capacity(erasure_meta.data_shards + erasure_meta.parity_shards);
+        let mut shards: Vec<Option<Shard>> = Vec::with_capacity(erasure_meta.data_shards + erasure_meta.parity_shards);
         for shard_info in &erasure_meta.shard_infos {
             shards.push(self.read_shard(shard_info).await?);
         }
@@ -251,12 +231,7 @@ impl StorageEngine for ErasureStorageEngine {
         self.store_metadata(path, &erasure_meta).await?;
 
         let content_hash = ContentHash::compute(&content);
-        let meta = FileMetadata::new(
-            path.to_string(),
-            content_hash,
-            content.len() as u64,
-            owner.to_string(),
-        );
+        let meta = FileMetadata::new(path.to_string(), content_hash, content.len() as u64, owner.to_string());
 
         info!(
             "Encoded {} into {} shards ({} bytes total)",
@@ -392,17 +367,9 @@ mod tests {
 
         async fn put(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata> {
             let hash = ContentHash::compute(&content);
-            let meta = FileMetadata::new(
-                path.to_string(),
-                hash,
-                content.len() as u64,
-                owner.to_string(),
-            );
+            let meta = FileMetadata::new(path.to_string(), hash, content.len() as u64, owner.to_string());
             self.data.write().await.insert(path.to_string(), content);
-            self.metadata
-                .write()
-                .await
-                .insert(path.to_string(), meta.clone());
+            self.metadata.write().await.insert(path.to_string(), meta.clone());
             Ok(meta)
         }
 
@@ -444,16 +411,8 @@ mod tests {
         }
 
         async fn create_collection(&self, path: &str, owner: &str) -> Result<FileMetadata> {
-            let meta = FileMetadata::new(
-                path.to_string(),
-                ContentHash::compute(&[]),
-                0,
-                owner.to_string(),
-            );
-            self.metadata
-                .write()
-                .await
-                .insert(path.to_string(), meta.clone());
+            let meta = FileMetadata::new(path.to_string(), ContentHash::compute(&[]), 0, owner.to_string());
+            self.metadata.write().await.insert(path.to_string(), meta.clone());
             Ok(meta)
         }
 
@@ -494,10 +453,7 @@ mod tests {
         let engine = ErasureStorageEngine::new(inner, config);
 
         let data = b"delete me".to_vec();
-        engine
-            .put("/delete.txt", Bytes::from(data), "alice")
-            .await
-            .unwrap();
+        engine.put("/delete.txt", Bytes::from(data), "alice").await.unwrap();
 
         engine.delete("/delete.txt").await.unwrap();
         assert!(engine.get("/delete.txt").await.is_err());

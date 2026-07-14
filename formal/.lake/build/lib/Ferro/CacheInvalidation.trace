@@ -1,0 +1,8 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH= /home/wyatt/.elan/toolchains/leanprover--lean4---v4.12.0/bin/lean -DautoImplicit=false ././././Ferro/CacheInvalidation.lean -R ./././. -o ././.lake/build/lib/Ferro/CacheInvalidation.olean -i ././.lake/build/lib/Ferro/CacheInvalidation.ilean -c ././.lake/build/ir/Ferro/CacheInvalidation.c --json",
+   "level": "trace"},
+  {"message":
+   "././././Ferro/CacheInvalidation.lean:30:5: unused variable `h`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"}],
+ "depHash": "18344288032376052977"}

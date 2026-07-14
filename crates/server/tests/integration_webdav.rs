@@ -42,10 +42,7 @@ async fn test_propfind_root_returns_multistatus_with_collection() {
     );
 
     let xml = body_string(response).await;
-    assert!(
-        xml.contains("<D:multistatus"),
-        "Response should be a multistatus XML"
-    );
+    assert!(xml.contains("<D:multistatus"), "Response should be a multistatus XML");
     assert!(
         xml.contains("<D:collection/>"),
         "Root should be reported as a collection"
@@ -222,12 +219,7 @@ async fn test_move_file_old_404_new_200() {
         .unwrap();
     assert_eq!(move_resp.status(), StatusCode::CREATED);
     assert_eq!(
-        move_resp
-            .headers()
-            .get("Location")
-            .unwrap()
-            .to_str()
-            .unwrap(),
+        move_resp.headers().get("Location").unwrap().to_str().unwrap(),
         "/dst.txt"
     );
 
@@ -350,25 +342,14 @@ async fn test_put_get_roundtrip_content_matches() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let cl = response
-        .headers()
-        .get("Content-Length")
-        .unwrap()
-        .to_str()
-        .unwrap();
+    let cl = response.headers().get("Content-Length").unwrap().to_str().unwrap();
     assert_eq!(
         cl,
         content.len().to_string().as_str(),
         "Content-Length should match uploaded size"
     );
 
-    let etag = response
-        .headers()
-        .get("ETag")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let etag = response.headers().get("ETag").unwrap().to_str().unwrap().to_string();
 
     let body = body_bytes(response).await;
     assert_eq!(
@@ -471,10 +452,7 @@ async fn test_propfind_depth_infinity_lists_recursively() {
     assert_eq!(response.status(), StatusCode::MULTI_STATUS);
     let xml = body_string(response).await;
 
-    assert!(
-        xml.contains("/tree/a.txt"),
-        "Depth:infinity should list /tree/a.txt"
-    );
+    assert!(xml.contains("/tree/a.txt"), "Depth:infinity should list /tree/a.txt");
     assert!(
         xml.contains("/tree/sub/b.txt"),
         "Depth:infinity should list /tree/sub/b.txt"
@@ -512,13 +490,7 @@ async fn test_put_overwrite_updates_content() {
         .await
         .unwrap();
     assert_eq!(put1.status(), StatusCode::CREATED);
-    let etag1 = put1
-        .headers()
-        .get("ETag")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let etag1 = put1.headers().get("ETag").unwrap().to_str().unwrap().to_string();
 
     let get1 = app
         .clone()
@@ -551,13 +523,7 @@ async fn test_put_overwrite_updates_content() {
         StatusCode::NO_CONTENT,
         "Overwrite PUT should return 204 No Content"
     );
-    let etag2 = put2
-        .headers()
-        .get("ETag")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let etag2 = put2.headers().get("ETag").unwrap().to_str().unwrap().to_string();
     assert_ne!(etag1, etag2, "ETag must change after overwrite");
 
     let get2 = app
@@ -572,9 +538,5 @@ async fn test_put_overwrite_updates_content() {
         .unwrap();
     assert_eq!(get2.status(), StatusCode::OK);
     let body2 = body_bytes(get2).await;
-    assert_eq!(
-        &body2[..],
-        b"updated content",
-        "Content should reflect the overwrite"
-    );
+    assert_eq!(&body2[..], b"updated content", "Content should reflect the overwrite");
 }

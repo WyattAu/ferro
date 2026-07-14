@@ -42,14 +42,8 @@ pub fn routes(state: ScimState) -> Router {
                 .put(handler::replace_group)
                 .delete(handler::delete_group),
         )
-        .route(
-            "/scim/v2/ServiceProviderConfig",
-            axum::routing::get(handler::sp_config),
-        )
+        .route("/scim/v2/ServiceProviderConfig", axum::routing::get(handler::sp_config))
         .route("/scim/v2/Schemas", axum::routing::get(handler::schemas))
-        .route(
-            "/scim/v2/ResourceTypes",
-            axum::routing::get(handler::resource_types),
-        )
+        .route("/scim/v2/ResourceTypes", axum::routing::get(handler::resource_types))
         .with_state(state)
 }

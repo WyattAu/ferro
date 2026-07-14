@@ -17,10 +17,7 @@ serde_json = { workspace = true }
 rusqlite = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
-tokio = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
-sha2 = "0.11"
-hex = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
 pdf = "0.9"

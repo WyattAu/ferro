@@ -5,12 +5,13 @@ use sha2::{Digest, Sha256};
 /// Compute a content-aware hash for deduplication.
 /// For images: uses average hash (aHash) for perceptual similarity.
 /// For all files: falls back to SHA-256 content hash.
+#[must_use]
 pub fn compute_dedup_hash(content: &[u8], content_type: &str) -> String {
     if content_type.starts_with("image/")
         && content.len() < 10 * 1024 * 1024
         && let Some(hash) = compute_average_hash(content)
     {
-        return format!("ahash:{}", hash);
+        return format!("ahash:{hash}");
     }
     let mut hasher = Sha256::new();
     hasher.update(content);
@@ -57,5 +58,29 @@ mod tests {
         let h1 = compute_dedup_hash(b"content a", "application/octet-stream");
         let h2 = compute_dedup_hash(b"content b", "application/octet-stream");
         assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn test_dedup_hash_non_image_uses_sha256() {
+        let content = b"test data";
+        let hash = compute_dedup_hash(content, "text/plain");
+        assert!(!hash.starts_with("ahash:"));
+        // SHA-256 hex is 64 chars
+        assert_eq!(hash.len(), 64);
+    }
+
+    #[test]
+    fn test_dedup_hash_image_too_large_falls_back() {
+        // Content larger than 10MB threshold
+        let content = vec![0u8; 11 * 1024 * 1024];
+        let hash = compute_dedup_hash(&content, "image/png");
+        assert!(!hash.starts_with("ahash:"));
+    }
+
+    #[test]
+    fn test_compute_average_hash_placeholder() {
+        // The placeholder always returns None
+        let result = compute_average_hash(b"any data");
+        assert!(result.is_none());
     }
 }

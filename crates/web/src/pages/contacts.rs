@@ -1,7 +1,9 @@
 use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 use crate::api;
@@ -91,14 +93,7 @@ fn parse_vcard_photo(vcard: &str) -> Option<String> {
     None
 }
 
-fn build_vcard(
-    fn_name: &str,
-    emails: &[String],
-    phones: &[String],
-    org: &str,
-    note: &str,
-    uid: &str,
-) -> String {
+fn build_vcard(fn_name: &str, emails: &[String], phones: &[String], org: &str, note: &str, uid: &str) -> String {
     let mut vcard = format!(
         "BEGIN:VCARD\r\n\
          VERSION:3.0\r\n\
@@ -180,11 +175,7 @@ pub fn ContactsPage() -> impl IntoView {
                                             .and_then(|v| v.as_str())
                                             .unwrap_or("")
                                             .to_string(),
-                                        etag: v
-                                            .get("etag")
-                                            .and_then(|e| e.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        etag: v.get("etag").and_then(|e| e.as_str()).unwrap_or("").to_string(),
                                         created_at: v
                                             .get("created_at")
                                             .and_then(|c| c.as_str())
@@ -226,9 +217,7 @@ pub fn ContactsPage() -> impl IntoView {
                     let name = parse_vcard_fn(&c.vcard_data).to_lowercase();
                     let emails = parse_vcard_emails(&c.vcard_data);
                     let org = parse_vcard_org(&c.vcard_data).to_lowercase();
-                    name.contains(&q)
-                        || org.contains(&q)
-                        || emails.iter().any(|e| e.to_lowercase().contains(&q))
+                    name.contains(&q) || org.contains(&q) || emails.iter().any(|e| e.to_lowercase().contains(&q))
                 })
                 .collect()
         }
@@ -295,9 +284,7 @@ pub fn ContactsPage() -> impl IntoView {
                     "address_book_id": "",
                     "vcard_data": vcard
                 });
-                let _ =
-                    api::fetch_json_with_method("/api/contacts", "POST", Some(&body.to_string()))
-                        .await;
+                let _ = api::fetch_json_with_method("/api/contacts", "POST", Some(&body.to_string())).await;
             }
             fetch_contacts();
         });
@@ -305,8 +292,7 @@ pub fn ContactsPage() -> impl IntoView {
 
     let delete_contact = move |uid: String| {
         spawn_local(async move {
-            let _ = api::fetch_json_with_method(&format!("/api/contacts/{}", uid), "DELETE", None)
-                .await;
+            let _ = api::fetch_json_with_method(&format!("/api/contacts/{}", uid), "DELETE", None).await;
             set_selected_contact.set(None);
             fetch_contacts();
         });
@@ -330,7 +316,7 @@ pub fn ContactsPage() -> impl IntoView {
                 .expect("failed to cast");
             input.set_type("file");
             input.set_accept(".vcf");
-            let set_contacts_clone = set_contacts;
+            let _set_contacts_clone = set_contacts;
             let input_clone = input.clone();
             let on_change = Closure::wrap(Box::new(move |_: web_sys::Event| {
                 if let Some(files) = input_clone.files() {
@@ -342,12 +328,9 @@ pub fn ContactsPage() -> impl IntoView {
                                 if let Some(text_str) = text.as_string() {
                                     spawn_local(async move {
                                         let body = text_str;
-                                        let _ = api::fetch_json_with_method(
-                                            "/api/contacts/import",
-                                            "POST",
-                                            Some(&body),
-                                        )
-                                        .await;
+                                        let _ =
+                                            api::fetch_json_with_method("/api/contacts/import", "POST", Some(&body))
+                                                .await;
                                     });
                                 }
                             }

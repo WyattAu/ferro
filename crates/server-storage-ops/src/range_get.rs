@@ -23,18 +23,18 @@ pub struct RangeSpec {
 impl RangeSpec {
     /// Resolve this range spec against a given content length.
     /// Returns (start, end) inclusive, or None if invalid.
+    #[must_use]
     pub fn resolve(&self, content_length: u64) -> Option<(u64, u64)> {
-        let (start, end) = match self.start {
-            Some(s) => (s, self.end.unwrap_or(content_length.saturating_sub(1))),
-            None => {
-                // suffix range: -N means last N bytes
-                let suffix = self.end?;
-                if suffix == 0 {
-                    return None;
-                }
-                let s = content_length.saturating_sub(suffix);
-                (s, content_length.saturating_sub(1))
+        let (start, end) = if let Some(s) = self.start {
+            (s, self.end.unwrap_or(content_length.saturating_sub(1)))
+        } else {
+            // suffix range: -N means last N bytes
+            let suffix = self.end?;
+            if suffix == 0 {
+                return None;
             }
+            let s = content_length.saturating_sub(suffix);
+            (s, content_length.saturating_sub(1))
         };
         if start > end || start >= content_length {
             return None;
@@ -45,6 +45,7 @@ impl RangeSpec {
 
 /// Parse a Range header value.
 /// Supports: `bytes=0-499`, `bytes=500-999`, `bytes=-500`, `bytes=9500-`
+#[must_use]
 pub fn parse_range_header(headers: &HeaderMap, _content_length: u64) -> Option<RangeRequest> {
     let range_header = headers.get("Range")?.to_str().ok()?;
     if !range_header.starts_with("bytes=") {
@@ -61,18 +62,17 @@ pub fn parse_range_header(headers: &HeaderMap, _content_length: u64) -> Option<R
         if spec.is_empty() {
             continue;
         }
-        let (start_str, end_str): (Option<&str>, Option<&str>) =
-            if let Some(rest) = spec.strip_prefix('-') {
-                (None, Some(rest.trim()))
-            } else if let Some(rest) = spec.strip_suffix('-') {
-                (Some(rest.trim()), None)
-            } else {
-                let parts: Vec<&str> = spec.splitn(2, '-').collect();
-                if parts.len() != 2 {
-                    continue;
-                }
-                (Some(parts[0].trim()), Some(parts[1].trim()))
-            };
+        let (start_str, end_str): (Option<&str>, Option<&str>) = if let Some(rest) = spec.strip_prefix('-') {
+            (None, Some(rest.trim()))
+        } else if let Some(rest) = spec.strip_suffix('-') {
+            (Some(rest.trim()), None)
+        } else {
+            let parts: Vec<&str> = spec.splitn(2, '-').collect();
+            if parts.len() != 2 {
+                continue;
+            }
+            (Some(parts[0].trim()), Some(parts[1].trim()))
+        };
 
         let start = start_str.and_then(|s| u64::from_str(s).ok());
         let end = end_str.and_then(|s| u64::from_str(s).ok());
@@ -88,23 +88,24 @@ pub fn parse_range_header(headers: &HeaderMap, _content_length: u64) -> Option<R
 }
 
 /// Build response headers for a partial content (206) response.
+#[must_use]
 pub fn build_range_headers(start: u64, end: u64, content_length: u64) -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
         "Content-Range",
-        HeaderValue::from_str(&format!("bytes {}-{}/{}", start, end, content_length))
+        HeaderValue::from_str(&format!("bytes {start}-{end}/{content_length}"))
             .unwrap_or_else(|_| HeaderValue::from_static("bytes */*")),
     );
     headers.insert("Accept-Ranges", HeaderValue::from_static("bytes"));
     headers.insert(
         "Content-Length",
-        HeaderValue::from_str(&(end - start + 1).to_string())
-            .unwrap_or_else(|_| HeaderValue::from_static("0")),
+        HeaderValue::from_str(&(end - start + 1).to_string()).unwrap_or_else(|_| HeaderValue::from_static("0")),
     );
     headers
 }
 
 /// Build Accept-Ranges header for full responses.
+#[must_use]
 pub fn accept_ranges_header() -> HeaderValue {
     HeaderValue::from_static("bytes")
 }

@@ -97,12 +97,7 @@ async fn wait_for_server(port: u16, max_wait: Duration) {
     let url = format!("http://127.0.0.1:{}/.well-known/ferro", port);
     let start = Instant::now();
     loop {
-        if client
-            .get(&url)
-            .send()
-            .await
-            .is_ok_and(|r| r.status().is_success())
-        {
+        if client.get(&url).send().await.is_ok_and(|r| r.status().is_success()) {
             return;
         }
         if start.elapsed() > max_wait {
@@ -197,10 +192,7 @@ async fn worker(
     // Seed initial directory
     {
         let resp = client
-            .request(
-                Method::from_bytes(b"MKCOL").unwrap(),
-                format!("{}{}", base_url, prefix),
-            )
+            .request(Method::from_bytes(b"MKCOL").unwrap(), format!("{}{}", base_url, prefix))
             .send()
             .await;
         let _ = resp;
@@ -217,12 +209,7 @@ async fn worker(
                 let body: Vec<u8> = (0..size).map(|_| rng.random::<u8>()).collect();
                 let fname = format!("file_{}", rng.random::<u64>());
                 let path = format!("{}/{}", prefix, fname);
-                if let Ok(resp) = client
-                    .put(format!("{}{}", base_url, path))
-                    .body(body)
-                    .send()
-                    .await
-                {
+                if let Ok(resp) = client.put(format!("{}{}", base_url, path)).body(body).send().await {
                     success = is_success(resp.status().as_u16());
                     if success {
                         existing_files.push(path);
@@ -385,10 +372,7 @@ async fn soak_test() {
             let elapsed = prog_start.elapsed().as_secs_f64();
             let ops = prog_ops.load(Ordering::Relaxed);
             let rps = ops as f64 / elapsed;
-            eprintln!(
-                "[soak] {:.0}s elapsed | {} ops | {:.1} req/s",
-                elapsed, ops, rps
-            );
+            eprintln!("[soak] {:.0}s elapsed | {} ops | {:.1} req/s", elapsed, ops, rps);
         }
     });
 
@@ -540,10 +524,7 @@ async fn soak_test() {
     let mut failed = false;
 
     if error_rate > 1.0 {
-        eprintln!(
-            "\n[FAIL] Error rate {:.2}% exceeds 1% threshold",
-            error_rate
-        );
+        eprintln!("\n[FAIL] Error rate {:.2}% exceeds 1% threshold", error_rate);
         failed = true;
     }
 
@@ -552,10 +533,7 @@ async fn soak_test() {
         if let Some(s) = results.by_op.get(*op_name) {
             let op_p99 = percentile(&s.latencies_ms, 99.0);
             if op_p99 > 100.0 {
-                eprintln!(
-                    "\n[FAIL] {} P99 {:.2}ms exceeds 100ms threshold",
-                    op_name, op_p99
-                );
+                eprintln!("\n[FAIL] {} P99 {:.2}ms exceeds 100ms threshold", op_name, op_p99);
                 failed = true;
             }
         }

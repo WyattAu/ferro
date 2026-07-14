@@ -124,9 +124,7 @@ pub async fn dispatch_post_op<S: ApiCoreState>(state: &S, event: FileEvent) {
             body_html: None,
         };
         tokio::spawn(async move {
-            if let Err(e) =
-                crate::email::send_email(&crate::email::EmailConfig::default(), &msg).await
-            {
+            if let Err(e) = crate::email::send_email(&crate::email::EmailConfig::default(), &msg).await {
                 tracing::warn!("Email notification failed: {}", e);
             }
         });
@@ -164,9 +162,7 @@ pub async fn dispatch_post_op<S: ApiCoreState>(state: &S, event: FileEvent) {
     bus_event.size = event.size;
     bus_event.content_type = event.mime_type.map(|s| s.to_string());
     if let Some(ref new_path) = event.new_path {
-        bus_event
-            .metadata
-            .insert("new_path".to_string(), new_path.clone());
+        bus_event.metadata.insert("new_path".to_string(), new_path.clone());
     }
     if let Some(ref etag) = event.etag {
         bus_event.metadata.insert("etag".to_string(), etag.clone());

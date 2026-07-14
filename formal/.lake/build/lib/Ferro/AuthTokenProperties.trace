@@ -1,0 +1,5 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=././.lake/build/lib LD_LIBRARY_PATH= /home/wyatt/.elan/toolchains/leanprover--lean4---v4.12.0/bin/lean -DautoImplicit=false ././././Ferro/AuthTokenProperties.lean -R ./././. -o ././.lake/build/lib/Ferro/AuthTokenProperties.olean -i ././.lake/build/lib/Ferro/AuthTokenProperties.ilean -c ././.lake/build/ir/Ferro/AuthTokenProperties.c --json",
+   "level": "trace"}],
+ "depHash": "5646842386295514670"}

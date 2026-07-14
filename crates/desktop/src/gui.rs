@@ -76,9 +76,7 @@ impl CliArgs {
                     println!("Options:");
                     println!("  -s, --server-url <URL>    Server URL (auto-connects, skips form)");
                     println!("  -t, --auth-token <TOKEN>  Auth token (Bearer or user:pass)");
-                    println!(
-                        "  -d, --debug              Enable debug logging to /tmp/ferro-desktop.log"
-                    );
+                    println!("  -d, --debug              Enable debug logging to /tmp/ferro-desktop.log");
                     println!("  -dd                      Verbose debug logging");
                     println!("  -h, --help               Show this help");
                     std::process::exit(0);
@@ -144,8 +142,7 @@ fn build_client(token: &str) -> Result<reqwest::Client, String> {
     // - Otherwise treat as Bearer token
     let auth_header = if token.contains(':') {
         // Raw user:pass -- base64 encode as Basic
-        const BASE64_CHARS: &[u8] =
-            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        const BASE64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         let input = token.as_bytes();
         let mut output = Vec::with_capacity((input.len() + 2) / 3 * 4);
         for chunk in input.chunks(3) {
@@ -178,8 +175,7 @@ fn build_client(token: &str) -> Result<reqwest::Client, String> {
         format!("Bearer {token}")
     };
 
-    let value = reqwest::header::HeaderValue::from_str(&auth_header)
-        .map_err(|e| format!("Invalid token: {}", e))?;
+    let value = reqwest::header::HeaderValue::from_str(&auth_header).map_err(|e| format!("Invalid token: {}", e))?;
     headers.insert(reqwest::header::AUTHORIZATION, value);
     reqwest::Client::builder()
         .default_headers(headers)
@@ -303,10 +299,7 @@ fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<FileEntry> {
         let prop = node
             .children()
             .find(|n| n.is_element() && n.tag_name().name() == "propstat")
-            .and_then(|ps| {
-                ps.children()
-                    .find(|n| n.is_element() && n.tag_name().name() == "prop")
-            });
+            .and_then(|ps| ps.children().find(|n| n.is_element() && n.tag_name().name() == "prop"));
 
         let is_dir = prop.is_some_and(|p| {
             p.descendants()
@@ -367,12 +360,7 @@ const PROPFIND_BODY: &str = r#"<?xml version="1.0" encoding="utf-8"?>
   </D:prop>
 </D:propfind>"#;
 
-async fn do_propfind(
-    client: &reqwest::Client,
-    base_url: &str,
-    path: &str,
-    depth: &str,
-) -> Result<String, String> {
+async fn do_propfind(client: &reqwest::Client, base_url: &str, path: &str, depth: &str) -> Result<String, String> {
     let url = format!("{}{}", base_url.trim_end_matches('/'), path);
     let response = client
         .request(
@@ -397,12 +385,7 @@ async fn do_propfind(
 }
 
 #[tauri::command]
-pub async fn list_directory(
-    url: String,
-    token: String,
-    path: String,
-    depth: Option<String>,
-) -> Result<String, String> {
+pub async fn list_directory(url: String, token: String, path: String, depth: Option<String>) -> Result<String, String> {
     let client = build_client(&token)?;
     let depth_val = depth.as_deref().unwrap_or("1");
     let xml = do_propfind(&client, &url, &path, depth_val).await?;
@@ -432,12 +415,7 @@ pub async fn get_file(url: String, token: String, path: String) -> Result<Vec<u8
 }
 
 #[tauri::command]
-pub async fn put_file(
-    url: String,
-    token: String,
-    path: String,
-    data: Vec<u8>,
-) -> Result<(), String> {
+pub async fn put_file(url: String, token: String, path: String, data: Vec<u8>) -> Result<(), String> {
     let client = build_client(&token)?;
     let full_url = format!("{}{}", url.trim_end_matches('/'), path);
     let response = client
@@ -514,9 +492,7 @@ pub async fn move_item(url: String, token: String, from: String, to: String) -> 
 }
 
 fn extract_host_from_url(url: &str) -> String {
-    let stripped = url
-        .trim_start_matches("http://")
-        .trim_start_matches("https://");
+    let stripped = url.trim_start_matches("http://").trim_start_matches("https://");
     let host = stripped.split('/').next().unwrap_or(stripped);
     let hostname = host.split(':').next().unwrap_or(host);
     if hostname.is_empty() {
@@ -553,10 +529,7 @@ fn parse_server_name_from_propfind(xml: &str, url: &str) -> String {
         if let Some(prop) = node
             .children()
             .find(|n| n.is_element() && n.tag_name().name() == "propstat")
-            .and_then(|ps| {
-                ps.children()
-                    .find(|n| n.is_element() && n.tag_name().name() == "prop")
-            })
+            .and_then(|ps| ps.children().find(|n| n.is_element() && n.tag_name().name() == "prop"))
         {
             for child in prop.children() {
                 if child.is_element()
@@ -576,16 +549,11 @@ fn parse_server_name_from_propfind(xml: &str, url: &str) -> String {
 #[tauri::command]
 pub async fn test_connection(url: String, token: String) -> Result<ConnectInfo, String> {
     if url.starts_with("http://") {
-        let host_part = url
-            .trim_start_matches("http://")
-            .split('/')
-            .next()
-            .unwrap_or("");
+        let host_part = url.trim_start_matches("http://").split('/').next().unwrap_or("");
         let hostname = host_part.split(':').next().unwrap_or(host_part);
         if hostname != "localhost" && hostname != "127.0.0.1" && hostname != "::1" {
             return Err(
-                "HTTPS recommended for non-localhost connections. Use https:// instead of http://."
-                    .to_string(),
+                "HTTPS recommended for non-localhost connections. Use https:// instead of http://.".to_string(),
             );
         }
     }
@@ -617,9 +585,7 @@ async fn cmd_unmount(state: State<'_, DesktopState>) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn cmd_get_mount_status(
-    state: State<'_, DesktopState>,
-) -> Result<MountStatusResponse, String> {
+async fn cmd_get_mount_status(state: State<'_, DesktopState>) -> Result<MountStatusResponse, String> {
     Ok(state.get_mount_status().await)
 }
 
@@ -629,10 +595,7 @@ async fn cmd_get_config(state: State<'_, DesktopState>) -> Result<ConfigResponse
 }
 
 #[tauri::command]
-async fn cmd_save_config(
-    state: State<'_, DesktopState>,
-    request: SaveConfigRequest,
-) -> Result<(), String> {
+async fn cmd_save_config(state: State<'_, DesktopState>, request: SaveConfigRequest) -> Result<(), String> {
     state.save_config(request).await
 }
 
@@ -668,11 +631,7 @@ async fn cmd_open_path(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn cmd_show_notification(
-    title: String,
-    body: String,
-    app_handle: tauri::AppHandle,
-) -> Result<(), String> {
+async fn cmd_show_notification(title: String, body: String, app_handle: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_notification::NotificationExt;
     app_handle
         .notification()
@@ -835,10 +794,7 @@ async fn cmd_update_tray_tooltip(
             } else if let Some(ref err) = sync_status.error {
                 tooltip = format!("Ferro - Sync Error: {}", err);
             } else if let Some(ref summary) = sync_status.last_summary {
-                tooltip = format!(
-                    "Ferro - Synced: {} up, {} down",
-                    summary.uploaded, summary.downloaded
-                );
+                tooltip = format!("Ferro - Synced: {} up, {} down", summary.uploaded, summary.downloaded);
             } else {
                 tooltip = "Ferro - Syncing...".to_string();
             }
@@ -954,29 +910,22 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
         .setup(|app| {
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
-            let open_folder =
-                MenuItem::with_id(app, "open_folder", "Open Folder", true, None::<&str>)?;
-            let open_settings =
-                MenuItem::with_id(app, "open_settings", "Settings", true, None::<&str>)?;
-            let check_update =
-                MenuItem::with_id(app, "check_update", "Check for Updates", true, None::<&str>)?;
+            let open_folder = MenuItem::with_id(app, "open_folder", "Open Folder", true, None::<&str>)?;
+            let open_settings = MenuItem::with_id(app, "open_settings", "Settings", true, None::<&str>)?;
+            let check_update = MenuItem::with_id(app, "check_update", "Check for Updates", true, None::<&str>)?;
             let separator = PredefinedMenuItem::separator(app)?;
 
             #[cfg(all(feature = "sync", feature = "tauri"))]
             let sync_now = MenuItem::with_id(app, "sync_now", "Sync Now", true, None::<&str>)?;
             #[cfg(all(feature = "sync", feature = "tauri"))]
-            let pause_sync =
-                MenuItem::with_id(app, "pause_sync", "Pause Sync", true, None::<&str>)?;
+            let pause_sync = MenuItem::with_id(app, "pause_sync", "Pause Sync", true, None::<&str>)?;
             #[cfg(all(feature = "sync", feature = "tauri"))]
-            let resume_sync =
-                MenuItem::with_id(app, "resume_sync", "Resume Sync", true, None::<&str>)?;
+            let resume_sync = MenuItem::with_id(app, "resume_sync", "Resume Sync", true, None::<&str>)?;
 
             #[cfg(all(feature = "android", feature = "tauri"))]
-            let share_file =
-                MenuItem::with_id(app, "share_file", "Share File", true, None::<&str>)?;
+            let share_file = MenuItem::with_id(app, "share_file", "Share File", true, None::<&str>)?;
             #[cfg(all(feature = "android", feature = "tauri"))]
-            let open_in_files =
-                MenuItem::with_id(app, "open_in_files", "Open in Files", true, None::<&str>)?;
+            let open_in_files = MenuItem::with_id(app, "open_in_files", "Open in Files", true, None::<&str>)?;
 
             #[cfg(all(feature = "sync", feature = "tauri", not(feature = "android")))]
             let menu = Menu::with_items(
@@ -1103,10 +1052,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                                         .notification()
                                         .builder()
                                         .title("No Updates")
-                                        .body(format!(
-                                            "You are running the latest version ({})",
-                                            current_version
-                                        ))
+                                        .body(format!("You are running the latest version ({})", current_version))
                                         .show();
                                 }
                                 Err(e) => {
@@ -1184,9 +1130,8 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                 tokio::spawn(async move {
                     let state = handle.state::<DesktopState>();
                     let config = state.config.read().await;
-                    let should_start = config.sync_interval_secs > 0
-                        && !config.username.is_empty()
-                        && !config.password.is_empty();
+                    let should_start =
+                        config.sync_interval_secs > 0 && !config.username.is_empty() && !config.password.is_empty();
                     drop(config);
                     if should_start {
                         // Give the app a moment to fully initialize
@@ -1214,10 +1159,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                                     let _ = window.emit("update-available", &version);
                                 }
                                 if let Some(tray) = handle.tray_by_id("main") {
-                                    let _ = tray.set_tooltip(Some(&format!(
-                                        "Ferro - Update Available: v{}",
-                                        version
-                                    )));
+                                    let _ = tray.set_tooltip(Some(&format!("Ferro - Update Available: v{}", version)));
                                 }
                             }
                             Ok(None) => {
@@ -1400,10 +1342,7 @@ mod tests {
             extract_host_from_url("https://my-server.example.com/path"),
             "my-server.example.com"
         );
-        assert_eq!(
-            extract_host_from_url("http://192.168.1.1:9090/"),
-            "192.168.1.1"
-        );
+        assert_eq!(extract_host_from_url("http://192.168.1.1:9090/"), "192.168.1.1");
     }
 
     #[test]

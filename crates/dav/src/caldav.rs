@@ -7,7 +7,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 
-/// Shared state for CalDAV Axum handlers.
+/// Shared state for `CalDAV` Axum handlers.
 #[derive(Clone)]
 pub struct CalDavState {
     /// The calendar store backend.
@@ -16,15 +16,10 @@ pub struct CalDavState {
     pub principal: String,
 }
 
-/// Handle HTTP OPTIONS for CalDAV capability discovery.
+/// Handle HTTP OPTIONS for `CalDAV` capability discovery.
 pub async fn options_handler() -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "DAV",
-        "1, 2, calendar-access"
-            .parse()
-            .expect("static DAV header value"),
-    );
+    headers.insert("DAV", "1, 2, calendar-access".parse().expect("static DAV header value"));
     headers.insert(
         "Allow",
         "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT, MKCALENDAR"
@@ -104,14 +99,12 @@ pub async fn list_calendars(State(state): State<CalDavState>) -> Response {
                     DavProp {
                         name: "D:resourcetype".to_string(),
                         namespace: None,
-                        value: Some(
-                            "<C:calendar xmlns:C=\"urn:ietf:params:xml:ns:caldav\"/>".to_string(),
-                        ),
+                        value: Some("<C:calendar xmlns:C=\"urn:ietf:params:xml:ns:caldav\"/>".to_string()),
                     },
                     DavProp {
                         name: "D:displayname".to_string(),
                         namespace: None,
-                        value: Some(xml_ext::escape_xml(&cal.name)),
+                        value: Some(xml_ext::escape_xml(&cal.name).into_owned()),
                     },
                     DavProp {
                         name: "C:getctag".to_string(),
@@ -127,30 +120,25 @@ pub async fn list_calendars(State(state): State<CalDavState>) -> Response {
 }
 
 /// Retrieve properties of a specific calendar.
-pub async fn calendar_properties(
-    State(state): State<CalDavState>,
-    Path(calendar): Path<String>,
-) -> Response {
+pub async fn calendar_properties(State(state): State<CalDavState>, Path(calendar): Path<String>) -> Response {
     let Some(cal) = state.store.get_calendar(&state.principal, &calendar).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
     let response = DavResponse {
-        href: format!("/dav/cal/{}/", calendar),
+        href: format!("/dav/cal/{calendar}/"),
         propstats: vec![PropStat {
             status: 200,
             props: vec![
                 DavProp {
                     name: "D:resourcetype".to_string(),
                     namespace: None,
-                    value: Some(
-                        "<C:calendar xmlns:C=\"urn:ietf:params:xml:ns:caldav\"/>".to_string(),
-                    ),
+                    value: Some("<C:calendar xmlns:C=\"urn:ietf:params:xml:ns:caldav\"/>".to_string()),
                 },
                 DavProp {
                     name: "D:displayname".to_string(),
                     namespace: None,
-                    value: Some(xml_ext::escape_xml(&cal.name)),
+                    value: Some(xml_ext::escape_xml(&cal.name).into_owned()),
                 },
                 DavProp {
                     name: "C:getctag".to_string(),
@@ -183,25 +171,15 @@ pub async fn create_calendar_handler(State(state): State<CalDavState>) -> Respon
 }
 
 /// Delete a calendar.
-pub async fn delete_calendar_handler(
-    State(state): State<CalDavState>,
-    Path(calendar): Path<String>,
-) -> Response {
-    match state
-        .store
-        .delete_calendar(&state.principal, &calendar)
-        .await
-    {
+pub async fn delete_calendar_handler(State(state): State<CalDavState>, Path(calendar): Path<String>) -> Response {
+    match state.store.delete_calendar(&state.principal, &calendar).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
 }
 
 /// Retrieve a calendar event by calendar ID and UID.
-pub async fn get_event(
-    State(state): State<CalDavState>,
-    Path((calendar, uid)): Path<(String, String)>,
-) -> Response {
+pub async fn get_event(State(state): State<CalDavState>, Path((calendar, uid)): Path<(String, String)>) -> Response {
     let Some(event) = state.store.get_event(&calendar, &uid).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -231,21 +209,15 @@ pub async fn put_event(
 }
 
 /// Delete a calendar event.
-pub async fn delete_event(
-    State(state): State<CalDavState>,
-    Path((calendar, uid)): Path<(String, String)>,
-) -> Response {
+pub async fn delete_event(State(state): State<CalDavState>, Path((calendar, uid)): Path<(String, String)>) -> Response {
     match state.store.delete_event(&calendar, &uid).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
 }
 
-/// Handle a CalDAV REPORT request (calendar-query).
-pub async fn handle_report(
-    State(state): State<CalDavState>,
-    Extension(body): Extension<Bytes>,
-) -> Response {
+/// Handle a `CalDAV` REPORT request (calendar-query).
+pub async fn handle_report(State(state): State<CalDavState>, Extension(body): Extension<Bytes>) -> Response {
     let time_range = xml_ext::parse_calendar_query_time_range(&body);
 
     let filter = if let Some((start_str, end_str)) = time_range {
@@ -254,10 +226,7 @@ pub async fn handle_report(
             end: parse_ical_timestamp(&end_str),
         }
     } else {
-        CalFilter {
-            start: None,
-            end: None,
-        }
+        CalFilter { start: None, end: None }
     };
 
     let calendars = state.store.list_calendars(&state.principal).await;
@@ -311,12 +280,9 @@ fn parse_ical_timestamp(s: &str) -> Option<chrono::DateTime<Utc>> {
     }
 }
 
-/// Handle a CalDAV calendar-multiget REPORT request (RFC 4791 Section 7.9).
+/// Handle a `CalDAV` calendar-multiget REPORT request (RFC 4791 Section 7.9).
 /// Retrieves specific calendar objects by href.
-pub async fn handle_multiget(
-    State(state): State<CalDavState>,
-    Extension(body): Extension<Bytes>,
-) -> Response {
+pub async fn handle_multiget(State(state): State<CalDavState>, Extension(body): Extension<Bytes>) -> Response {
     let hrefs = xml_ext::parse_multiget_hrefs(&body);
     let mut responses = Vec::new();
 

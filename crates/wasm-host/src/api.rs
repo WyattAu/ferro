@@ -35,13 +35,7 @@ fn host_storage_get(mut caller: Caller<WasmState>, key_ptr: u32, key_len: u32) -
     }
 }
 
-fn host_storage_set(
-    mut caller: Caller<WasmState>,
-    key_ptr: u32,
-    key_len: u32,
-    val_ptr: u32,
-    val_len: u32,
-) {
+fn host_storage_set(mut caller: Caller<WasmState>, key_ptr: u32, key_len: u32, val_ptr: u32, val_len: u32) {
     let key = match read_string(&mut caller, key_ptr, key_len) {
         Some(k) => k,
         None => return,

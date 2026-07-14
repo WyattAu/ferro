@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-07-07
+
+### Added
+- **Circuit breaker pattern** (`ferro-circuit-breaker` crate): Three-state (Closed/Open/HalfOpen) circuit breaker for external dependency protection. Wired into Redis, ClamAV, and remote mount operations.
+- **OpenTelemetry distributed tracing** (`otel` feature flag): End-to-end trace export to Jaeger via gRPC/OTLP. Configurable endpoint and service name via `--otlp-endpoint` and `--otel-service-name` CLI flags. Instrumented spans on health, auth, file operations, and WebDAV handlers.
+- **Deep health probes**: Health endpoint now checks SQLite connectivity, storage backend reachability, and Redis availability with per-subsystem status, duration, and error messages.
+- **DAVx5 CalDAV/CardDAV sync-collection**: Implemented sync-collection REPORT method per RFC 6578. Enables bidirectional sync with DAVx5 Android client and other CalDAV clients. Handles sync-token based incremental sync and full resync fallback.
+- **REST API integration test suite** (26 tests): Full CRUD coverage for file operations, batch copy/move/delete, WebDAV PROPFIND/MKCOL/PUT/GET/DELETE, auth endpoints, and error handling.
+- **Server lifecycle integration tests** (4 tests): Server startup, health check, WebDAV round-trip, auth rejection, and concurrent request deadlock detection.
+- **k6 load testing benchmarks** (`benchmarks/k6/`): WebDAV and REST API load test scripts with configurable auth, thresholds, and ramp stages.
+- **Productivity crate tests** (70 tests): Task and note CRUD operations, edge cases, error paths, and mock store infrastructure.
+- **Compliance crate tests** (117 tests): Retention policies, WORM storage, antivirus scanning, DLP policies with full CRUD coverage.
+- **Sharing crate tests** (86 tests): Share creation, expiry, password hashing, constant-time comparison, lockout, and download tracking.
+- **Admin API tests** (84 tests): User management, audit logging, GDPR, backup integrity, storage stats.
+- **Mutation tests** (26 new): ferro-auth (17 tests covering API key lifecycle, OIDC PKCE, SAML fingerprint, TOTP/HOTP RFC 4226 vectors) and ferro-server-storage-ops (9 tests covering dedup hashing, range headers, quota parsing).
+
+### Changed
+- Architecture decomposition: `main.rs` 54 lines (was 1,578), `lib.rs` 227 lines (was 2,340), `state.rs` 412 lines (was 1,822), `webdav.rs` 213 lines (was 1,776).
+- Server now rejects CORS wildcard (`*`) when authentication is enabled (security hardening).
+- Benchmark regression CI gate tightened from 120% to 105% threshold with `fail-on-alert: true`.
+- Code coverage CI threshold raised from 80% to 85%.
+- CI quality pipeline expanded: fuzz testing (10s per target), mutation testing (cargo-mutants), security scanning (cargo-machete, semver-checks, Miri, gitleaks).
+- 35 unused dependencies removed across 16 crates.
+- Workspace coverage: ~45% -> ~58% overall (estimated).
+- Total test count: 885 (was 496).
+
+### Fixed
+- Circuit breaker deadlock: `parking_lot::Mutex` reentrant lock in `state()` and `record_success()` — wrapped first lock in block scope to drop before re-lock.
+- Benchmark CI regression detection: tightened from 120% to 105% alert threshold, set to fail on alert.
+- k6 load test scripts: fixed auth header encoding and health endpoint path.
+
 ### Fixed (Cycle 16 - WASM Frontend & Static Serving)
 - Fixed static file serving: WebDAV catch-all route at `/` was intercepting requests before static files could be served. Now skips WebDAV catch-all when `--static-dir` is set.
 - SPA middleware correctly handles `/` (serve index.html), `/ui/*` (static files with SPA fallback), and falls through to API/WebDAV for other paths.

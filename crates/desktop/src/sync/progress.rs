@@ -39,20 +39,20 @@ impl SyncProgress {
     }
 
     pub fn record_file(&self, size: u64) {
-        self.completed_files.fetch_add(1, Ordering::SeqCst);
-        self.completed_bytes.fetch_add(size, Ordering::SeqCst);
+        self.completed_files.fetch_add(1, Ordering::Relaxed);
+        self.completed_bytes.fetch_add(size, Ordering::Relaxed);
     }
 
     pub fn record_error(&self) {
-        self.errors.fetch_add(1, Ordering::SeqCst);
+        self.errors.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn to_summary(&self) -> SyncSummary {
-        let total_files = self.total_files.load(Ordering::SeqCst);
-        let completed_files = self.completed_files.load(Ordering::SeqCst);
-        let total_bytes = self.total_bytes.load(Ordering::SeqCst);
-        let completed_bytes = self.completed_bytes.load(Ordering::SeqCst);
-        let errors = self.errors.load(Ordering::SeqCst);
+        let total_files = self.total_files.load(Ordering::Relaxed);
+        let completed_files = self.completed_files.load(Ordering::Relaxed);
+        let total_bytes = self.total_bytes.load(Ordering::Relaxed);
+        let completed_bytes = self.completed_bytes.load(Ordering::Relaxed);
+        let errors = self.errors.load(Ordering::Relaxed);
         let elapsed = self.start_time.elapsed();
         let bytes_per_second = self.bytes_per_second();
 
@@ -68,12 +68,12 @@ impl SyncProgress {
     }
 
     pub fn is_complete(&self) -> bool {
-        self.total_files.load(Ordering::SeqCst) == self.completed_files.load(Ordering::SeqCst)
-            && self.total_files.load(Ordering::SeqCst) > 0
+        self.total_files.load(Ordering::Relaxed) == self.completed_files.load(Ordering::Relaxed)
+            && self.total_files.load(Ordering::Relaxed) > 0
     }
 
     pub fn bytes_per_second(&self) -> f64 {
-        let completed_bytes = self.completed_bytes.load(Ordering::SeqCst) as f64;
+        let completed_bytes = self.completed_bytes.load(Ordering::Relaxed) as f64;
         let elapsed_secs = self.start_time.elapsed().as_secs_f64();
         if elapsed_secs > 0.0 {
             completed_bytes / elapsed_secs
@@ -96,21 +96,21 @@ mod tests {
     #[test]
     fn test_progress_initial_state() {
         let progress = SyncProgress::new();
-        assert_eq!(progress.total_files.load(Ordering::SeqCst), 0);
-        assert_eq!(progress.completed_files.load(Ordering::SeqCst), 0);
-        assert_eq!(progress.errors.load(Ordering::SeqCst), 0);
+        assert_eq!(progress.total_files.load(Ordering::Relaxed), 0);
+        assert_eq!(progress.completed_files.load(Ordering::Relaxed), 0);
+        assert_eq!(progress.errors.load(Ordering::Relaxed), 0);
     }
 
     #[test]
     fn test_record_file() {
         let progress = SyncProgress::new();
         progress.record_file(1024);
-        assert_eq!(progress.completed_files.load(Ordering::SeqCst), 1);
-        assert_eq!(progress.completed_bytes.load(Ordering::SeqCst), 1024);
+        assert_eq!(progress.completed_files.load(Ordering::Relaxed), 1);
+        assert_eq!(progress.completed_bytes.load(Ordering::Relaxed), 1024);
 
         progress.record_file(2048);
-        assert_eq!(progress.completed_files.load(Ordering::SeqCst), 2);
-        assert_eq!(progress.completed_bytes.load(Ordering::SeqCst), 3072);
+        assert_eq!(progress.completed_files.load(Ordering::Relaxed), 2);
+        assert_eq!(progress.completed_bytes.load(Ordering::Relaxed), 3072);
     }
 
     #[test]
@@ -118,14 +118,14 @@ mod tests {
         let progress = SyncProgress::new();
         progress.record_error();
         progress.record_error();
-        assert_eq!(progress.errors.load(Ordering::SeqCst), 2);
+        assert_eq!(progress.errors.load(Ordering::Relaxed), 2);
     }
 
     #[test]
     fn test_to_summary() {
         let progress = SyncProgress::new();
-        progress.total_files.store(10, Ordering::SeqCst);
-        progress.total_bytes.store(5000, Ordering::SeqCst);
+        progress.total_files.store(10, Ordering::Relaxed);
+        progress.total_bytes.store(5000, Ordering::Relaxed);
         progress.record_file(1000);
         progress.record_file(2000);
         progress.record_error();
@@ -142,14 +142,14 @@ mod tests {
     fn test_is_complete() {
         let progress = SyncProgress::new();
 
-        progress.total_files.store(0, Ordering::SeqCst);
+        progress.total_files.store(0, Ordering::Relaxed);
         assert!(!progress.is_complete());
 
-        progress.total_files.store(3, Ordering::SeqCst);
-        progress.completed_files.store(3, Ordering::SeqCst);
+        progress.total_files.store(3, Ordering::Relaxed);
+        progress.completed_files.store(3, Ordering::Relaxed);
         assert!(progress.is_complete());
 
-        progress.completed_files.store(2, Ordering::SeqCst);
+        progress.completed_files.store(2, Ordering::Relaxed);
         assert!(!progress.is_complete());
     }
 
@@ -180,6 +180,6 @@ mod tests {
     #[test]
     fn test_default_trait() {
         let progress = SyncProgress::default();
-        assert_eq!(progress.total_files.load(Ordering::SeqCst), 0);
+        assert_eq!(progress.total_files.load(Ordering::Relaxed), 0);
     }
 }

@@ -80,9 +80,7 @@ use crate::workers;
 use crate::worm;
 use crate::ws;
 
-use crate::{
-    audit_handler, health_check, health_endpoint, liveness, readiness, startup, storage_stats,
-};
+use crate::{audit_handler, health_check, health_endpoint, liveness, readiness, startup, storage_stats};
 
 use std::sync::Arc;
 
@@ -101,22 +99,13 @@ pub fn build_router(state: AppState) -> Router {
     build_router_with_static(state, None, "*", "v1")
 }
 
-fn api_routes(
-    state: &AppState,
-    webrtc_offers: Arc<ferro_server_webrtc::offers::OfferStore>,
-) -> Router<AppState> {
+fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::OfferStore>) -> Router<AppState> {
     Router::new()
         .route("/auth/info", axum::routing::get(api::auth_info))
         .route("/auth/login", axum::routing::get(api::auth_login))
         .route("/auth/callback", axum::routing::get(api::auth_callback))
-        .route(
-            "/auth/refresh",
-            axum::routing::post(api::auth_refresh_token),
-        )
-        .route(
-            "/auth/change-password",
-            axum::routing::post(api::auth_change_password),
-        )
+        .route("/auth/refresh", axum::routing::post(api::auth_refresh_token))
+        .route("/auth/change-password", axum::routing::post(api::auth_change_password))
         // TOTP two-factor authentication
         .route(
             "/auth/totp/setup",
@@ -161,14 +150,10 @@ fn api_routes(
                 axum::Router::new()
             }
         })
-        .route(
-            "/search",
-            axum::routing::get(search::handle_search::<AppState>),
-        )
+        .route("/search", axum::routing::get(search::handle_search::<AppState>))
         .route(
             "/workers",
-            axum::routing::get(workers::list_workers::<AppState>)
-                .post(workers::register_worker::<AppState>),
+            axum::routing::get(workers::list_workers::<AppState>).post(workers::register_worker::<AppState>),
         )
         .route(
             "/workers/upload",
@@ -219,33 +204,20 @@ fn api_routes(
         )
         .route("/files", axum::routing::get(api::list_files))
         .route("/files/mkdir", axum::routing::post(api::mkdir))
-        .route(
-            "/files/move",
-            axum::routing::post(move_copy::move_file::<AppState>),
-        )
-        .route(
-            "/files/copy",
-            axum::routing::post(move_copy::copy_file::<AppState>),
-        )
+        .route("/files/move", axum::routing::post(move_copy::move_file::<AppState>))
+        .route("/files/copy", axum::routing::post(move_copy::copy_file::<AppState>))
         .route("/upload-url", axum::routing::get(presigned::get_upload_url))
-        .route(
-            "/download-url",
-            axum::routing::get(presigned::get_download_url),
-        )
+        .route("/download-url", axum::routing::get(presigned::get_download_url))
         .route(
             "/shares",
             axum::routing::get(shares::list_shares).post(shares::create_share),
         )
-        .route(
-            "/shares/:token",
-            axum::routing::delete(shares::delete_share),
-        )
+        .route("/shares/:token", axum::routing::delete(shares::delete_share))
         .route("/audit", axum::routing::get(audit_handler))
         .route("/storage/stats", axum::routing::get(storage_stats))
         .route(
             "/snapshots",
-            axum::routing::get(snapshots::list_snapshots::<AppState>)
-                .post(snapshots::create_snapshot::<AppState>),
+            axum::routing::get(snapshots::list_snapshots::<AppState>).post(snapshots::create_snapshot::<AppState>),
         )
         .route(
             "/snapshots/:id",
@@ -263,31 +235,16 @@ fn api_routes(
         )
         .route("/recent", axum::routing::get(favorites::list_recent))
         .route("/trash", axum::routing::get(trash::list_trash::<AppState>))
-        .route(
-            "/trash/:path",
-            axum::routing::delete(trash::move_to_trash::<AppState>),
-        )
-        .route(
-            "/trash/restore",
-            axum::routing::post(trash::restore_trash::<AppState>),
-        )
-        .route(
-            "/trash/purge",
-            axum::routing::delete(trash::purge_trash::<AppState>),
-        )
-        .route(
-            "/trash/empty",
-            axum::routing::delete(trash::empty_trash::<AppState>),
-        )
+        .route("/trash/:path", axum::routing::delete(trash::move_to_trash::<AppState>))
+        .route("/trash/restore", axum::routing::post(trash::restore_trash::<AppState>))
+        .route("/trash/purge", axum::routing::delete(trash::purge_trash::<AppState>))
+        .route("/trash/empty", axum::routing::delete(trash::empty_trash::<AppState>))
         .route("/bulk/delete", axum::routing::post(bulk::bulk_delete))
         .route("/batch/copy", axum::routing::post(batch::batch_copy))
         .route("/batch/move", axum::routing::post(batch::batch_move))
         .route("/batch/delete", axum::routing::post(batch::batch_delete))
         .route("/batch/share", axum::routing::post(batch::batch_share))
-        .route(
-            "/fed/share",
-            axum::routing::post(federation::federated_share),
-        )
+        .route("/fed/share", axum::routing::post(federation::federated_share))
         .merge(api_federation::routes::<AppState>())
         .route(
             "/files/encrypt",
@@ -298,29 +255,17 @@ fn api_routes(
             axum::routing::post(encryption::decrypt_file::<AppState>),
         )
         .route("/e2ee/encrypt", axum::routing::post(e2ee::e2ee_encrypt))
-        .route(
-            "/e2ee/key/generate",
-            axum::routing::post(e2ee::e2ee_key_generate),
-        )
+        .route("/e2ee/key/generate", axum::routing::post(e2ee::e2ee_key_generate))
         .route("/quota", axum::routing::get(quota::get_quota))
         .route("/dashboard", axum::routing::get(dashboard::get_dashboard))
-        .route(
-            "/activity",
-            axum::routing::get(activity::get_activity::<AppState>),
-        )
+        .route("/activity", axum::routing::get(activity::get_activity::<AppState>))
         .route("/tags", axum::routing::get(tags::list_tags::<AppState>))
         .route(
             "/tags/:path",
             axum::routing::get(tags::get_tags::<AppState>).post(tags::add_tags::<AppState>),
         )
-        .route(
-            "/tags/:path/:tag",
-            axum::routing::delete(tags::remove_tag::<AppState>),
-        )
-        .route(
-            "/tags/search",
-            axum::routing::get(tags::search_by_tag::<AppState>),
-        )
+        .route("/tags/:path/:tag", axum::routing::delete(tags::remove_tag::<AppState>))
+        .route("/tags/search", axum::routing::get(tags::search_by_tag::<AppState>))
         .route(
             "/comments",
             axum::routing::get(comments::list_comments_handler::<AppState>)
@@ -348,10 +293,7 @@ fn api_routes(
             axum::routing::get(search::handle_get_preferences::<AppState>)
                 .put(search::handle_update_preferences::<AppState>),
         )
-        .route(
-            "/locks",
-            axum::routing::get(search::handle_list_locks::<AppState>),
-        )
+        .route("/locks", axum::routing::get(search::handle_list_locks::<AppState>))
         .route(
             "/locks/force-unlock",
             axum::routing::post(search::handle_force_unlock::<AppState>),
@@ -360,10 +302,7 @@ fn api_routes(
             "/locks/:token",
             axum::routing::delete(search::handle_unlock_by_token::<AppState>),
         )
-        .route(
-            "/admin/stats",
-            axum::routing::get(admin_api::admin_stats::<AppState>),
-        )
+        .route("/admin/stats", axum::routing::get(admin_api::admin_stats::<AppState>))
         .route(
             "/admin/storage",
             axum::routing::get(admin_api::admin_storage::<AppState>),
@@ -372,27 +311,20 @@ fn api_routes(
             "/admin/storage/stats",
             axum::routing::get(admin_api::admin_storage_stats::<AppState>),
         )
-        .route(
-            "/admin/audit",
-            axum::routing::get(admin_api::admin_audit::<AppState>),
-        )
+        .route("/admin/audit", axum::routing::get(admin_api::admin_audit::<AppState>))
         .route(
             "/admin/audit/summary",
             axum::routing::get(admin_api::admin_audit_summary::<AppState>),
         )
         .route(
             "/admin/maintenance",
-            axum::routing::get(admin_api::admin_maintenance::<AppState>)
-                .post(admin_api::admin_maintenance::<AppState>),
+            axum::routing::get(admin_api::admin_maintenance::<AppState>).post(admin_api::admin_maintenance::<AppState>),
         )
         .route(
             "/admin/backup/:id",
             axum::routing::delete(backup::delete_backup::<AppState>),
         )
-        .route(
-            "/admin/backup",
-            axum::routing::post(backup::create_backup::<AppState>),
-        )
+        .route("/admin/backup", axum::routing::post(backup::create_backup::<AppState>))
         .route(
             "/admin/backup/latest",
             axum::routing::get(backup::get_latest_backup::<AppState>),
@@ -405,10 +337,7 @@ fn api_routes(
             "/admin/backup/restore",
             axum::routing::post(backup::restore_from_archive::<AppState>),
         )
-        .route(
-            "/admin/backups",
-            axum::routing::get(backup::list_backups::<AppState>),
-        )
+        .route("/admin/backups", axum::routing::get(backup::list_backups::<AppState>))
         .route(
             "/admin/integrity",
             axum::routing::get(backup::audit_integrity::<AppState>),
@@ -427,8 +356,7 @@ fn api_routes(
         )
         .route(
             "/admin/webhooks",
-            axum::routing::post(webhooks::create_webhook::<AppState>)
-                .get(webhooks::list_webhooks::<AppState>),
+            axum::routing::post(webhooks::create_webhook::<AppState>).get(webhooks::list_webhooks::<AppState>),
         )
         .route(
             "/admin/webhooks/:id/deliveries",
@@ -440,8 +368,7 @@ fn api_routes(
         )
         .route(
             "/admin/users",
-            axum::routing::post(user_api::create_user::<AppState>)
-                .get(admin_api::admin_list_users::<AppState>),
+            axum::routing::post(user_api::create_user::<AppState>).get(admin_api::admin_list_users::<AppState>),
         )
         .route(
             "/admin/users/:id",
@@ -467,8 +394,7 @@ fn api_routes(
         // Guest accounts (G-10)
         .route(
             "/admin/guests",
-            axum::routing::post(guests::create_guest::<AppState>)
-                .get(guests::list_guests::<AppState>),
+            axum::routing::post(guests::create_guest::<AppState>).get(guests::list_guests::<AppState>),
         )
         .route(
             "/admin/guests/:id",
@@ -477,8 +403,7 @@ fn api_routes(
         // Data retention policies (G-23)
         .route(
             "/admin/retention/policies",
-            axum::routing::get(retention::list_policies::<AppState>)
-                .post(retention::create_policy::<AppState>),
+            axum::routing::get(retention::list_policies::<AppState>).post(retention::create_policy::<AppState>),
         )
         .route(
             "/admin/retention/policies/:id",
@@ -491,18 +416,14 @@ fn api_routes(
         // WORM policies
         .route(
             "/admin/worm/policies",
-            axum::routing::get(worm::list_policies::<AppState>)
-                .post(worm::create_policy::<AppState>),
+            axum::routing::get(worm::list_policies::<AppState>).post(worm::create_policy::<AppState>),
         )
         .route(
             "/admin/worm/policies/:id",
             axum::routing::delete(worm::delete_policy::<AppState>),
         )
         // GDPR compliance (G-13)
-        .route(
-            "/admin/gdpr",
-            axum::routing::get(gdpr::list_gdpr_requests::<AppState>),
-        )
+        .route("/admin/gdpr", axum::routing::get(gdpr::list_gdpr_requests::<AppState>))
         .route(
             "/admin/users/:id/export",
             axum::routing::post(gdpr::request_data_export::<AppState>)
@@ -515,8 +436,7 @@ fn api_routes(
         // Event triggers (G-16)
         .route(
             "/admin/triggers",
-            axum::routing::post(event_triggers::create_event_trigger)
-                .get(event_triggers::list_event_triggers),
+            axum::routing::post(event_triggers::create_event_trigger).get(event_triggers::list_event_triggers),
         )
         .route(
             "/admin/triggers/:id",
@@ -574,77 +494,48 @@ fn api_routes(
             axum::routing::post(search::handle_reindex::<AppState>),
         )
         // Extended shares (G-24, G-25)
-        .route(
-            "/shares/ext",
-            axum::routing::post(shares_ext::create_share_ext),
-        )
+        .route("/shares/ext", axum::routing::post(shares_ext::create_share_ext))
         .route(
             "/users/me",
-            axum::routing::get(user_api::get_current_user::<AppState>)
-                .put(user_api::update_current_user::<AppState>),
+            axum::routing::get(user_api::get_current_user::<AppState>).put(user_api::update_current_user::<AppState>),
         )
         .nest(
             "",
-            ferro_server_versioning::routes().layer(axum::Extension(
-                ferro_server_versioning::VersioningState {
-                    data_dir: state.data_dir.clone(),
-                    admin_user: state.admin_user.clone(),
-                    storage: state.storage.clone(),
-                    max_file_versions: state.max_file_versions,
-                },
-            )),
+            ferro_server_versioning::routes().layer(axum::Extension(ferro_server_versioning::VersioningState {
+                data_dir: state.data_dir.clone(),
+                admin_user: state.admin_user.clone(),
+                storage: state.storage.clone(),
+                max_file_versions: state.max_file_versions,
+            })),
         )
         .nest(
             "/webrtc",
-            ferro_server_webrtc::routes(ferro_server_webrtc::WebRtcState {
-                offers: webrtc_offers,
-            }),
+            ferro_server_webrtc::routes(ferro_server_webrtc::WebRtcState { offers: webrtc_offers }),
         )
         .route(
             "/graphql",
-            axum::routing::get(ferro_graphql::graphql_playground)
-                .post(ferro_graphql::graphql_handler),
+            axum::routing::get(ferro_graphql::graphql_playground).post(ferro_graphql::graphql_handler),
         )
-        .route(
-            "/sync/events",
-            axum::routing::get(sync::events::sync_events),
-        )
+        .route("/sync/events", axum::routing::get(sync::events::sync_events))
         .route("/sync/delta", axum::routing::get(sync::events::sync_delta))
-        .route(
-            "/sync/status",
-            axum::routing::get(sync::events::sync_status),
-        )
+        .route("/sync/status", axum::routing::get(sync::events::sync_status))
         // Block sync protocol
-        .route(
-            "/sync/blocks/manifest",
-            axum::routing::get(sync::blocks::get_manifest),
-        )
-        .route(
-            "/sync/blocks/upload",
-            axum::routing::post(sync::blocks::upload_blocks),
-        )
-        .route(
-            "/sync/blocks/check",
-            axum::routing::get(sync::blocks::check_blocks),
-        )
+        .route("/sync/blocks/manifest", axum::routing::get(sync::blocks::get_manifest))
+        .route("/sync/blocks/upload", axum::routing::post(sync::blocks::upload_blocks))
+        .route("/sync/blocks/check", axum::routing::get(sync::blocks::check_blocks))
         .route(
             "/sync/blocks/assemble",
             axum::routing::post(sync::blocks::assemble_file),
         )
-        .route(
-            "/sync/blocks/:hash",
-            axum::routing::get(sync::blocks::get_block),
-        )
+        .route("/sync/blocks/:hash", axum::routing::get(sync::blocks::get_block))
         // Selective sync profiles
         .route(
             "/sync/profiles",
-            axum::routing::get(selective_sync_api::list_profiles)
-                .post(selective_sync_api::create_profile),
+            axum::routing::get(selective_sync_api::list_profiles).post(selective_sync_api::create_profile),
         )
         .route(
             "/sync/profiles/:id",
-            axum::routing::put(selective_sync_api::update_profile)
-                .delete(selective_sync_api::delete_profile),
+            axum::routing::put(selective_sync_api::update_profile).delete(selective_sync_api::delete_profile),
         )
         .route(
             "/sync/filter-preview",
@@ -660,10 +551,7 @@ fn api_routes(
             "/upload/:upload_id/complete",
             axum::routing::post(upload::complete_upload),
         )
-        .route(
-            "/upload/:upload_id",
-            axum::routing::delete(upload::cancel_upload),
-        )
+        .route("/upload/:upload_id", axum::routing::delete(upload::cancel_upload))
         .route("/uploads", axum::routing::get(upload::list_uploads))
         // API key management
         .route(
@@ -693,10 +581,7 @@ fn api_routes(
             axum::routing::delete(calendar_api::delete_event::<AppState>),
         )
         // Contacts REST API bridge
-        .route(
-            "/contacts",
-            axum::routing::get(contacts_api::list_contacts::<AppState>),
-        )
+        .route("/contacts", axum::routing::get(contacts_api::list_contacts::<AppState>))
         .route(
             "/contacts",
             axum::routing::post(contacts_api::create_contact::<AppState>),
@@ -720,23 +605,17 @@ fn api_routes(
         // Chat REST API
         .route(
             "/chat/rooms",
-            axum::routing::get(chat_api::list_rooms::<AppState>)
-                .post(chat_api::create_room::<AppState>),
+            axum::routing::get(chat_api::list_rooms::<AppState>).post(chat_api::create_room::<AppState>),
         )
         .route(
             "/chat/rooms/:room_id/messages",
-            axum::routing::get(chat_api::get_messages::<AppState>)
-                .post(chat_api::send_message::<AppState>),
+            axum::routing::get(chat_api::get_messages::<AppState>).post(chat_api::send_message::<AppState>),
         )
         // Photos REST API
-        .route(
-            "/photos",
-            axum::routing::get(photos_api::list_photos::<AppState>),
-        )
+        .route("/photos", axum::routing::get(photos_api::list_photos::<AppState>))
         .route(
             "/photos/albums",
-            axum::routing::get(photos_api::list_albums::<AppState>)
-                .post(photos_api::create_album::<AppState>),
+            axum::routing::get(photos_api::list_albums::<AppState>).post(photos_api::create_album::<AppState>),
         )
         .route(
             "/photos/thumbnail/:path",
@@ -749,13 +628,9 @@ fn api_routes(
         // Notes REST API
         .route(
             "/notes",
-            axum::routing::get(notes_api::list_notes::<AppState>)
-                .post(notes_api::create_note::<AppState>),
+            axum::routing::get(notes_api::list_notes::<AppState>).post(notes_api::create_note::<AppState>),
         )
-        .route(
-            "/notes/search",
-            axum::routing::get(notes_api::search_notes::<AppState>),
-        )
+        .route("/notes/search", axum::routing::get(notes_api::search_notes::<AppState>))
         .route(
             "/notes/:id",
             axum::routing::get(notes_api::get_note::<AppState>)
@@ -765,8 +640,7 @@ fn api_routes(
         // Tasks REST API
         .route(
             "/tasks",
-            axum::routing::get(tasks_api::list_tasks::<AppState>)
-                .post(tasks_api::create_task::<AppState>),
+            axum::routing::get(tasks_api::list_tasks::<AppState>).post(tasks_api::create_task::<AppState>),
         )
         .route(
             "/tasks/:id",
@@ -840,22 +714,17 @@ fn api_routes(
         // DLP endpoints
         .route(
             "/dlp/policies",
-            axum::routing::get(dlp_api::list_policies::<AppState>)
-                .post(dlp_api::create_policy::<AppState>),
+            axum::routing::get(dlp_api::list_policies::<AppState>).post(dlp_api::create_policy::<AppState>),
         )
         .route(
             "/dlp/policies/:id",
-            axum::routing::put(dlp_api::update_policy::<AppState>)
-                .delete(dlp_api::delete_policy::<AppState>),
+            axum::routing::put(dlp_api::update_policy::<AppState>).delete(dlp_api::delete_policy::<AppState>),
         )
         .route(
             "/dlp/scan/:path",
             axum::routing::post(dlp_api::scan_file_dlp::<AppState>),
         )
-        .route(
-            "/dlp/alerts",
-            axum::routing::get(dlp_api::list_alerts::<AppState>),
-        )
+        .route("/dlp/alerts", axum::routing::get(dlp_api::list_alerts::<AppState>))
         .route(
             "/whiteboard/:id",
             axum::routing::get(whiteboard_api::get_whiteboard::<AppState>)
@@ -868,8 +737,7 @@ fn api_routes(
         // Mail API (P3-03)
         .route(
             "/mail/accounts",
-            axum::routing::get(mail_api::list_accounts::<AppState>)
-                .post(mail_api::create_account::<AppState>),
+            axum::routing::get(mail_api::list_accounts::<AppState>).post(mail_api::create_account::<AppState>),
         )
         .route(
             "/mail/accounts/:id",
@@ -919,8 +787,7 @@ fn api_routes(
         )
         .route(
             "/watermark/policies",
-            axum::routing::get(watermark_api::list_policies::<AppState>)
-                .post(watermark_api::create_policy::<AppState>),
+            axum::routing::get(watermark_api::list_policies::<AppState>).post(watermark_api::create_policy::<AppState>),
         )
         .merge(Router::from(openapi::swagger_ui()))
 }
@@ -940,22 +807,19 @@ pub fn build_router_with_static(
     let oidc = state.oidc.clone();
     let cedar = state.cedar.clone();
     let auth_layer = axum::middleware::from_fn(move |req, next| {
-        let fut: std::pin::Pin<
-            Box<dyn std::future::Future<Output = axum::response::Response> + Send>,
-        > = if auth_enabled {
+        let fut: std::pin::Pin<Box<dyn std::future::Future<Output = axum::response::Response> + Send>> = if auth_enabled
+        {
             Box::pin(auth::oidc::auth_middleware(oidc.clone(), req, next))
         } else {
             let mut req = req;
-            req.extensions_mut()
-                .insert(common::auth::Claims::anonymous());
+            req.extensions_mut().insert(common::auth::Claims::anonymous());
             Box::pin(next.run(req))
         };
         fut
     });
 
-    let cedar_layer = axum::middleware::from_fn(move |req, next| {
-        Box::pin(auth::cedar::cedar_middleware(cedar.clone(), req, next))
-    });
+    let cedar_layer =
+        axum::middleware::from_fn(move |req, next| Box::pin(auth::cedar::cedar_middleware(cedar.clone(), req, next)));
 
     let admin_user = state.admin_user.clone();
     let admin_password = state.admin_password.clone();
@@ -963,65 +827,57 @@ pub fn build_router_with_static(
     let admin_password_rotated = state.admin_password_rotated.clone();
     let user_store = state.user_store.clone();
     let api_key_store = state.api_key_store.clone();
-    let simple_auth_layer =
-        axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-            simple_auth::simple_auth_middleware_with_api_keys(
-                req,
-                admin_user.clone(),
-                admin_password.clone(),
-                user_store.clone(),
-                Some(api_key_store.clone()),
-                next,
-            )
-        });
+    let simple_auth_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
+        simple_auth::simple_auth_middleware_with_api_keys(
+            req,
+            admin_user.clone(),
+            admin_password.clone(),
+            user_store.clone(),
+            Some(api_key_store.clone()),
+            next,
+        )
+    });
 
     // Enforce password change when default password is in use.
     // This runs AFTER simple_auth, so we know the request passed authentication.
-    let default_password_layer =
-        axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-            let pw = admin_password_for_default_check.clone();
-            let rotated = admin_password_rotated.clone();
-            async move {
-                if !rotated.load(std::sync::atomic::Ordering::Relaxed)
-                    && let Some(ref pw_val) = pw
-                    && security::is_default_password(pw_val)
-                {
-                    let path = req.uri().path();
-                    if !security::is_password_change_allowed_path(path) {
-                        return Ok::<_, std::convert::Infallible>(
-                            security::response_require_password_change(),
-                        );
-                    }
+    let default_password_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
+        let pw = admin_password_for_default_check.clone();
+        let rotated = admin_password_rotated.clone();
+        async move {
+            if !rotated.load(std::sync::atomic::Ordering::Relaxed)
+                && let Some(ref pw_val) = pw
+                && security::is_default_password(pw_val)
+            {
+                let path = req.uri().path();
+                if !security::is_password_change_allowed_path(path) {
+                    return Ok::<_, std::convert::Infallible>(security::response_require_password_change());
                 }
-                Ok(next.run(req).await)
             }
-        });
+            Ok(next.run(req).await)
+        }
+    });
 
     let maintenance_mode = state.maintenance_mode.clone();
-    let maintenance_layer = axum::middleware::from_fn(
-        move |req: axum::http::Request<Body>, next: Next| {
-            let flag = maintenance_mode.clone();
-            async move {
-                if flag.load(std::sync::atomic::Ordering::Relaxed) {
-                    let method = req.method();
-                    let path = req.uri().path();
-                    // Allow read operations and the maintenance toggle endpoint.
-                    let is_read = matches!(method.as_str(), "GET" | "HEAD" | "OPTIONS");
-                    // Allow the admin maintenance toggle even during maintenance.
-                    let is_maintenance_toggle = path == "/api/admin/maintenance";
-                    if !is_read && !is_maintenance_toggle {
-                        return Ok::<_, std::convert::Infallible>(
-                            crate::api_error::ApiError::service_unavailable(
-                                crate::api_error::ApiError::MAINTENANCE_MODE,
-                                "Server is in maintenance mode. Write operations are temporarily disabled.",
-                            ),
-                        );
-                    }
+    let maintenance_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
+        let flag = maintenance_mode.clone();
+        async move {
+            if flag.load(std::sync::atomic::Ordering::Relaxed) {
+                let method = req.method();
+                let path = req.uri().path();
+                // Allow read operations and the maintenance toggle endpoint.
+                let is_read = matches!(method.as_str(), "GET" | "HEAD" | "OPTIONS");
+                // Allow the admin maintenance toggle even during maintenance.
+                let is_maintenance_toggle = path == "/api/admin/maintenance";
+                if !is_read && !is_maintenance_toggle {
+                    return Ok::<_, std::convert::Infallible>(crate::api_error::ApiError::service_unavailable(
+                        crate::api_error::ApiError::MAINTENANCE_MODE,
+                        "Server is in maintenance mode. Write operations are temporarily disabled.",
+                    ));
                 }
-                Ok(next.run(req).await)
             }
-        },
-    );
+            Ok(next.run(req).await)
+        }
+    });
 
     let cors_origins = cors_allowed_origins.to_string();
     if cors_origins == "*" {
@@ -1044,11 +900,7 @@ pub fn build_router_with_static(
                 let origin_value = if allowed == "*" {
                     axum::http::HeaderValue::from_static("*")
                 } else {
-                    let req_origin = req
-                        .headers()
-                        .get("origin")
-                        .and_then(|v| v.to_str().ok())
-                        .unwrap_or("");
+                    let req_origin = req.headers().get("origin").and_then(|v| v.to_str().ok()).unwrap_or("");
                     let origin_str = if allowed.split(',').any(|o| o.trim() == req_origin) {
                         req_origin
                     } else {
@@ -1057,8 +909,7 @@ pub fn build_router_with_static(
                     match axum::http::HeaderValue::from_str(origin_str) {
                         Ok(v) if !origin_str.is_empty() => v,
                         _ => {
-                            return (StatusCode::FORBIDDEN, "CORS origin not allowed")
-                                .into_response();
+                            return (StatusCode::FORBIDDEN, "CORS origin not allowed").into_response();
                         }
                     }
                 };
@@ -1072,10 +923,7 @@ pub fn build_router_with_static(
                     headers.insert("Access-Control-Allow-Headers", axum::http::HeaderValue::from_static(
                         "Content-Type, Authorization, Depth, Destination, If, If-Match, If-None-Match, Lock-Token, Overwrite"
                     ));
-                    headers.insert(
-                        "Access-Control-Max-Age",
-                        axum::http::HeaderValue::from_static("86400"),
-                    );
+                    headers.insert("Access-Control-Max-Age", axum::http::HeaderValue::from_static("86400"));
                     return (StatusCode::NO_CONTENT, headers, "").into_response();
                 }
 
@@ -1099,33 +947,29 @@ pub fn build_router_with_static(
         state.rate_limit_refill,
         std::time::Duration::from_secs(1),
     ));
-    let rate_limit_layer =
-        axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-            let limiter = rate_limiter.clone();
-            async move {
-                let client_ip = req
-                    .headers()
-                    .get("x-forwarded-for")
-                    .and_then(|v: &axum::http::HeaderValue| v.to_str().ok())
-                    .and_then(|s: &str| s.split(',').next())
-                    .map(|s: &str| s.trim().to_string())
-                    .unwrap_or_else(|| "unknown".to_string());
+    let rate_limit_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
+        let limiter = rate_limiter.clone();
+        async move {
+            let client_ip = req
+                .headers()
+                .get("x-forwarded-for")
+                .and_then(|v: &axum::http::HeaderValue| v.to_str().ok())
+                .and_then(|s: &str| s.split(',').next())
+                .map(|s: &str| s.trim().to_string())
+                .unwrap_or_else(|| "unknown".to_string());
 
-                use ferro_rate_limiter::RateLimiter;
-                match limiter.check(&client_ip).await {
-                    Ok(result) if result.allowed => next.run(req).await,
-                    _ => api_error::ApiError::too_many_requests(
-                        api_error::ApiError::RATE_LIMITED,
-                        "Rate limit exceeded",
-                    ),
-                }
+            use ferro_rate_limiter::RateLimiter;
+            match limiter.check(&client_ip).await {
+                Ok(result) if result.allowed => next.run(req).await,
+                _ => api_error::ApiError::too_many_requests(api_error::ApiError::RATE_LIMITED, "Rate limit exceeded"),
             }
-        });
+        }
+    });
 
     let versioned_api_path = format!("/api/{}", api_version);
     let api_version_for_header = api_version.to_string();
-    let deprecation_layer = axum::middleware::from_fn(
-        move |req: axum::extract::Request, next: axum::middleware::Next| {
+    let deprecation_layer =
+        axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
             let ver = api_version_for_header.clone();
             async move {
                 let mut response = next.run(req).await;
@@ -1140,13 +984,10 @@ pub fn build_router_with_static(
                 let link = format!("</api/{}>; rel=\"successor-version\"", ver);
                 let header_value = axum::http::HeaderValue::from_str(&link)
                     .unwrap_or_else(|_| axum::http::HeaderValue::from_static("invalid-version"));
-                response
-                    .headers_mut()
-                    .insert(axum::http::header::LINK, header_value);
+                response.headers_mut().insert(axum::http::header::LINK, header_value);
                 response
             }
-        },
-    );
+        });
 
     let mut router_builder = Router::new();
     // Always register WebDAV catch-all at /
@@ -1166,8 +1007,7 @@ pub fn build_router_with_static(
         // Remote mount management
         .route(
             "/admin/mounts",
-            axum::routing::get(remote_mount::list_mounts::<AppState>)
-                .post(remote_mount::create_mount::<AppState>),
+            axum::routing::get(remote_mount::list_mounts::<AppState>).post(remote_mount::create_mount::<AppState>),
         )
         .route(
             "/admin/mounts/:id",
@@ -1178,53 +1018,34 @@ pub fn build_router_with_static(
             axum::routing::get(remote_mount::test_mount::<AppState>),
         )
         // Extended share endpoints (G-24, G-25)
-        .route(
-            "/s/:token/upload",
-            axum::routing::post(shares_ext::upload_to_share),
-        )
-        .route(
-            "/s/:token/uploads",
-            axum::routing::get(shares_ext::list_share_uploads),
-        )
-        .route(
-            "/s/:token/view",
-            axum::routing::get(shares_ext::serve_view_share),
-        )
+        .route("/s/:token/upload", axum::routing::post(shares_ext::upload_to_share))
+        .route("/s/:token/uploads", axum::routing::get(shares_ext::list_share_uploads))
+        .route("/s/:token/view", axum::routing::get(shares_ext::serve_view_share))
         .nest(
             "/wopi",
-            ferro_server_wopi::routes::<AppState>().layer(axum::Extension(
-                ferro_server_wopi::WopiState {
-                    storage: state.storage.clone(),
-                    lock_manager: state.lock_manager.clone(),
-                    wopi_token_secret: state.wopi_token_secret.clone(),
-                    wopi_office_url: state.wopi_office_url.clone(),
-                },
-            )),
+            ferro_server_wopi::routes::<AppState>().layer(axum::Extension(ferro_server_wopi::WopiState {
+                storage: state.storage.clone(),
+                lock_manager: state.lock_manager.clone(),
+                wopi_token_secret: state.wopi_token_secret.clone(),
+                wopi_office_url: state.wopi_office_url.clone(),
+            })),
         )
         .nest(
             "/hosting",
-            ferro_server_wopi::discovery_route::<AppState>().layer(axum::Extension(
-                ferro_server_wopi::WopiState {
-                    storage: state.storage.clone(),
-                    lock_manager: state.lock_manager.clone(),
-                    wopi_token_secret: state.wopi_token_secret.clone(),
-                    wopi_office_url: state.wopi_office_url.clone(),
-                },
-            )),
+            ferro_server_wopi::discovery_route::<AppState>().layer(axum::Extension(ferro_server_wopi::WopiState {
+                storage: state.storage.clone(),
+                lock_manager: state.lock_manager.clone(),
+                wopi_token_secret: state.wopi_token_secret.clone(),
+                wopi_office_url: state.wopi_office_url.clone(),
+            })),
         )
         .route("/metrics", axum::routing::get(metrics::metrics_handler))
         .route(
             "/metrics/prometheus",
             axum::routing::get(prometheus_metrics::prometheus_metrics_handler),
         )
-        .route(
-            "/.well-known/webfinger",
-            axum::routing::get(federation::webfinger),
-        )
-        .route(
-            "/fed/actor/:username",
-            axum::routing::get(federation::get_actor),
-        )
+        .route("/.well-known/webfinger", axum::routing::get(federation::webfinger))
+        .route("/fed/actor/:username", axum::routing::get(federation::get_actor))
         .route(
             "/fed/actor/:username/followers",
             axum::routing::get(federation::list_followers),
@@ -1239,10 +1060,7 @@ pub fn build_router_with_static(
         )
         .route("/fed/outbox", axum::routing::get(federation::list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
-        .nest(
-            &versioned_api_path,
-            api_routes(&state, state.webrtc_offers.clone()),
-        )
+        .nest(&versioned_api_path, api_routes(&state, state.webrtc_offers.clone()))
         .nest(
             "/api",
             api_routes(&state, state.webrtc_offers.clone()).layer(deprecation_layer),
@@ -1328,9 +1146,7 @@ pub fn build_router_with_static(
                     match limiter.check(&tid).await {
                         Ok(result) if result.allowed => {
                             let mut response = next.run(req).await;
-                            if let Ok(val) =
-                                axum::http::HeaderValue::from_str(&result.remaining.to_string())
-                            {
+                            if let Ok(val) = axum::http::HeaderValue::from_str(&result.remaining.to_string()) {
                                 response.headers_mut().insert("X-RateLimit-Remaining", val);
                             }
                             response
@@ -1346,6 +1162,7 @@ pub fn build_router_with_static(
         .layer(cedar_layer)
         .layer(auth_layer)
         .layer(simple_auth_layer)
+        .layer(axum::middleware::from_fn(security::csrf_middleware))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             guests::guest_expiry_middleware::<AppState>,
@@ -1358,43 +1175,25 @@ pub fn build_router_with_static(
         ))
         .layer(cors_layer)
         .layer(axum::middleware::from_fn(request_id::request_id_middleware))
-        .layer(axum::middleware::from_fn(
-            move |req: Request<Body>, next: Next| {
-                let counter = request_counter.clone();
-                let buckets = duration_buckets.clone();
-                let statuses = status_counts.clone();
-                let storage_ops = storage_op_counts.clone();
-                let sum = duration_sum_ms.clone();
-                request_logging::request_logging_middleware(
-                    counter,
-                    buckets,
-                    sum,
-                    statuses,
-                    Some(storage_ops),
-                    req,
-                    next,
-                )
-            },
-        ))
-        .layer(axum::middleware::from_fn(
-            security_headers::security_headers_middleware,
-        ))
-        .layer(axum::middleware::from_fn(
-            security_headers::panic_handler_middleware,
-        ))
+        .layer(axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
+            let counter = request_counter.clone();
+            let buckets = duration_buckets.clone();
+            let statuses = status_counts.clone();
+            let storage_ops = storage_op_counts.clone();
+            let sum = duration_sum_ms.clone();
+            request_logging::request_logging_middleware(counter, buckets, sum, statuses, Some(storage_ops), req, next)
+        }))
+        .layer(axum::middleware::from_fn(security_headers::security_headers_middleware))
+        .layer(axum::middleware::from_fn(security_headers::panic_handler_middleware))
         .layer(CompressionLayer::new())
-        .layer(axum::extract::DefaultBodyLimit::max(
-            state.max_body_size as usize,
-        ))
+        .layer(axum::extract::DefaultBodyLimit::max(state.max_body_size as usize))
         // Cap concurrent in-flight requests to prevent the tokio runtime and
         // storage backend from being overwhelmed. Excess connections queue in
         // the kernel listen backlog instead of competing for resources.
         .layer(ConcurrencyLimitLayer::new(state.max_concurrent_requests))
         // Reject requests with both Content-Length and Transfer-Encoding
         // to prevent HTTP request smuggling (CL-TE / TE-CL desync).
-        .layer(axum::middleware::from_fn(
-            security::smuggling_rejection_middleware,
-        ))
+        .layer(axum::middleware::from_fn(security::smuggling_rejection_middleware))
         .with_state(state.clone())
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -1457,11 +1256,7 @@ pub fn build_router_with_static(
                                     Ok(content) => {
                                         let ct = mime_guess(&rel);
                                         Some(
-                                            (
-                                                StatusCode::OK,
-                                                [(axum::http::header::CONTENT_TYPE, ct)],
-                                                content,
-                                            )
+                                            (StatusCode::OK, [(axum::http::header::CONTENT_TYPE, ct)], content)
                                                 .into_response(),
                                         )
                                     }
@@ -1590,11 +1385,7 @@ pub(crate) async fn api_and_webdav_fallback(
                         )
                         .await
                     }
-                    _ => (
-                        axum::http::StatusCode::METHOD_NOT_ALLOWED,
-                        "Method not allowed",
-                    )
-                        .into_response(),
+                    _ => (axum::http::StatusCode::METHOD_NOT_ALLOWED, "Method not allowed").into_response(),
                 };
             }
         }
@@ -1666,11 +1457,7 @@ pub(crate) async fn api_and_webdav_fallback(
         let body_bytes = match http_body_util::BodyExt::collect(body).await {
             Ok(collected) => collected.to_bytes(),
             Err(_) => {
-                return (
-                    axum::http::StatusCode::BAD_REQUEST,
-                    "Failed to read request body",
-                )
-                    .into_response();
+                return (axum::http::StatusCode::BAD_REQUEST, "Failed to read request body").into_response();
             }
         };
         return api::files_content_handler(
@@ -1722,14 +1509,7 @@ pub(crate) async fn api_and_webdav_fallback(
     // Remote mount proxy: /remote/{*path}
     // Dispatched here instead of as an explicit route to avoid matchit 0.7.3 bug.
     if path_str.starts_with("/remote/") {
-        return remote_mount::proxy_remote_mount::<AppState>(
-            method,
-            uri,
-            State(state),
-            headers,
-            body,
-        )
-        .await;
+        return remote_mount::proxy_remote_mount::<AppState>(method, uri, State(state), headers, body).await;
     }
     // Fall through to WebDAV handler
     webdav::handle_any::<AppState>(method, uri, State(state), None, headers, body).await

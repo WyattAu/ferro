@@ -5,21 +5,13 @@ use serde::Deserialize;
 
 use crate::AppState;
 
-pub use ferro_server_storage_ops::batch::{
-    BatchCopyMoveRequest, BatchOperation, batch_copy_impl, batch_move_impl,
-};
+pub use ferro_server_storage_ops::batch::{BatchCopyMoveRequest, BatchOperation, batch_copy_impl, batch_move_impl};
 
-pub async fn batch_copy(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<BatchCopyMoveRequest>,
-) -> Response {
+pub async fn batch_copy(State(state): State<AppState>, axum::Json(body): axum::Json<BatchCopyMoveRequest>) -> Response {
     batch_copy_impl(&state, &body.operations).await
 }
 
-pub async fn batch_move(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<BatchCopyMoveRequest>,
-) -> Response {
+pub async fn batch_move(State(state): State<AppState>, axum::Json(body): axum::Json<BatchCopyMoveRequest>) -> Response {
     batch_move_impl(&state, &body.operations).await
 }
 
@@ -28,10 +20,7 @@ pub struct BatchDeleteRequest {
     pub paths: Vec<String>,
 }
 
-pub async fn batch_delete(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<BatchDeleteRequest>,
-) -> Response {
+pub async fn batch_delete(State(state): State<AppState>, axum::Json(body): axum::Json<BatchDeleteRequest>) -> Response {
     let mut succeeded: Vec<String> = Vec::new();
     let mut failed: Vec<serde_json::Value> = Vec::new();
 
@@ -78,10 +67,7 @@ pub struct BatchShareRequest {
     pub expiry: Option<i64>,
 }
 
-pub async fn batch_share(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<BatchShareRequest>,
-) -> Response {
+pub async fn batch_share(State(state): State<AppState>, axum::Json(body): axum::Json<BatchShareRequest>) -> Response {
     let mut results: Vec<serde_json::Value> = Vec::new();
 
     for path in &body.paths {
@@ -97,7 +83,7 @@ pub async fn batch_share(
         }
 
         let req = crate::shares::CreateShareRequest {
-            path: normalized.clone(),
+            path: normalized.to_string(),
             password: None,
             expires_in_hours: body.expiry,
             max_downloads: None,
@@ -114,11 +100,7 @@ pub async fn batch_share(
         }));
     }
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "results": results })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
 }
 
 #[cfg(test)]

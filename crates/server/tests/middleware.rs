@@ -105,12 +105,7 @@ async fn test_health_probes_respond() {
 
     let liveness = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/healthz")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/healthz").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(liveness.status(), StatusCode::OK);
@@ -119,12 +114,7 @@ async fn test_health_probes_respond() {
 
     let readiness = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/readyz")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/readyz").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(readiness.status(), StatusCode::OK);
@@ -155,12 +145,7 @@ async fn test_security_headers_on_api_response() {
 
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -182,12 +167,7 @@ async fn test_hsts_not_set_on_http() {
 
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -219,18 +199,12 @@ async fn test_hsts_set_on_https() {
 
 #[tokio::test]
 async fn test_deprecation_headers_present() {
-    let state =
-        ferro_server::AppState::in_memory().with_wopi_token_secret("bench-secret".to_string());
+    let state = ferro_server::AppState::in_memory().with_wopi_token_secret("bench-secret".to_string());
     let app = build_router(state);
 
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
@@ -243,38 +217,22 @@ async fn test_deprecation_headers_present() {
 
 #[tokio::test]
 async fn test_request_metrics_incremented() {
-    let state =
-        ferro_server::AppState::in_memory().with_wopi_token_secret("bench-secret".to_string());
+    let state = ferro_server::AppState::in_memory().with_wopi_token_secret("bench-secret".to_string());
     let app = build_router(state);
 
     app.clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
     app.clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
     let metrics = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/metrics")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/metrics").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(metrics.status(), StatusCode::OK);
@@ -283,10 +241,7 @@ async fn test_request_metrics_incremented() {
         json.get("uptime_seconds").is_some(),
         "metrics should include uptime_seconds"
     );
-    assert!(
-        json.get("storage").is_some(),
-        "metrics should include storage stats"
-    );
+    assert!(json.get("storage").is_some(), "metrics should include storage stats");
     assert!(
         json["requests"].get("total").is_some(),
         "metrics should include requests.total"
@@ -296,19 +251,12 @@ async fn test_request_metrics_incremented() {
 #[tokio::test]
 async fn test_maintenance_mode_blocks_writes() {
     let state = AppState::in_memory();
-    state
-        .maintenance_mode
-        .store(true, std::sync::atomic::Ordering::Relaxed);
+    state.maintenance_mode.store(true, std::sync::atomic::Ordering::Relaxed);
     let app = build_router(state);
 
     let get_resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/api/v1/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/v1/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(get_resp.status(), StatusCode::OK);

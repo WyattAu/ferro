@@ -60,9 +60,7 @@ pub fn clear_connection() {
 
 pub fn provide_api_state() -> RwSignal<ApiState> {
     let initial = match load_connection() {
-        Some(config) => ApiState {
-            config: Some(config),
-        },
+        Some(config) => ApiState { config: Some(config) },
         None => ApiState::new(),
     };
     let state = RwSignal::new(initial);

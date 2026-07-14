@@ -31,7 +31,7 @@ pub fn atomic_write(path: &Path, data: &[u8]) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Async version of `atomic_write`. Runs the blocking I/O on a spawn_blocking
+/// Async version of `atomic_write`. Runs the blocking I/O on a `spawn_blocking`
 /// thread.
 pub async fn atomic_write_async(path: std::path::PathBuf, data: Vec<u8>) -> std::io::Result<()> {
     tokio::task::spawn_blocking(move || atomic_write(&path, &data)).await?
@@ -70,11 +70,7 @@ mod tests {
 
         // Try to write to a path inside a non-existent deeply nested dir
         // that would fail (can't create temp file)
-        let bad_path = dir
-            .path()
-            .join("nonexistent")
-            .join("subdir")
-            .join("file.txt");
+        let bad_path = dir.path().join("nonexistent").join("subdir").join("file.txt");
         let result = atomic_write(&bad_path, b"should fail");
         assert!(result.is_err());
 

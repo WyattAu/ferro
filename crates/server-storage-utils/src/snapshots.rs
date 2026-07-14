@@ -38,19 +38,12 @@ impl SnapshotStore {
         }
     }
 
-    pub fn with_persistence(
-        mut self,
-        persistence: Arc<ferro_core::persistence::SqlitePersistence>,
-    ) -> Self {
+    pub fn with_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
         self.persistence = Some(persistence);
         self
     }
 
-    pub async fn create(
-        &self,
-        description: String,
-        entries: Vec<common::metadata::FileMetadata>,
-    ) -> Snapshot {
+    pub async fn create(&self, description: String, entries: Vec<common::metadata::FileMetadata>) -> Snapshot {
         let snapshot = Snapshot {
             id: uuid::Uuid::new_v4().to_string(),
             created_at: Utc::now().to_rfc3339(),
@@ -83,12 +76,9 @@ impl SnapshotStore {
         if let Some(ref p) = self.persistence
             && let Ok(persisted) = p.get(id).await
         {
-            let entries: Vec<common::metadata::FileMetadata> =
-                serde_json::from_str(&persisted.entries_json).unwrap_or_else(|e| {
-                    tracing::warn!(
-                        "snapshot {}: corrupt entries_json, discarding: {e}",
-                        persisted.id
-                    );
+            let entries: Vec<common::metadata::FileMetadata> = serde_json::from_str(&persisted.entries_json)
+                .unwrap_or_else(|e| {
+                    tracing::warn!("snapshot {}: corrupt entries_json, discarding: {e}", persisted.id);
                     Vec::new()
                 });
             return Some(Snapshot {
@@ -99,12 +89,7 @@ impl SnapshotStore {
                 entries,
             });
         }
-        self.snapshots
-            .read()
-            .await
-            .iter()
-            .find(|s| s.id == id)
-            .cloned()
+        self.snapshots.read().await.iter().find(|s| s.id == id).cloned()
     }
 
     pub async fn list(&self) -> Vec<Snapshot> {
@@ -166,18 +151,14 @@ pub async fn create_snapshot<S: StorageUtilsState>(
     let entries = match state.storage().list_all("/", 1000).await {
         Ok(e) => e,
         Err(e) => {
-            return ApiError::internal(
-                "SNAPSHOT_LIST_FAILED",
-                format!("Failed to list files: {}", e),
-            );
+            return ApiError::internal("SNAPSHOT_LIST_FAILED", format!("Failed to list files: {}", e));
         }
     };
 
     let snapshot = state
         .snapshot_store()
         .create(
-            req.description
-                .unwrap_or_else(|| "Manual snapshot".to_string()),
+            req.description.unwrap_or_else(|| "Manual snapshot".to_string()),
             entries,
         )
         .await;
@@ -207,11 +188,7 @@ pub async fn list_snapshots<S: StorageUtilsState>(State(state): State<S>) -> Res
             })
         })
         .collect();
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "snapshots": items })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "snapshots": items }))).into_response()
 }
 
 pub async fn delete_snapshot_by_id<S: StorageUtilsState>(
@@ -242,11 +219,7 @@ pub async fn restore_snapshot<S: StorageUtilsState>(
     for entry in &snapshot.entries {
         if entry.is_collection {
             if !state.storage().exists(&entry.path).await.unwrap_or(false) {
-                if let Err(e) = state
-                    .storage()
-                    .create_collection(&entry.path, &entry.owner)
-                    .await
-                {
+                if let Err(e) = state.storage().create_collection(&entry.path, &entry.owner).await {
                     tracing::warn!(error = %e, path = %entry.path, "failed to recreate collection during snapshot restore");
                 }
                 collections_created += 1;

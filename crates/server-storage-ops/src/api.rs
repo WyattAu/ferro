@@ -58,17 +58,15 @@ pub struct FileEntryJson {
     pub created_at: String,
 }
 
-/// GET /api/v1/files — JSON file listing (alternative to WebDAV PROPFIND).
+/// GET /api/v1/files — JSON file listing (alternative to `WebDAV` PROPFIND).
 pub async fn list_files_impl<S: HasStorage>(state: &S, params: &ListFilesParams) -> Response {
     let path = params.path.as_deref().unwrap_or("/").trim_matches('/');
-    let normalized = if path.is_empty() {
-        "/"
-    } else {
-        &format!("/{path}")
-    };
+    let normalized = if path.is_empty() { "/" } else { &format!("/{path}") };
     let depth = params.depth.unwrap_or(1);
 
-    if normalized != "/" {
+    if normalized == "/" {
+        let _ = state.storage().head("/").await;
+    } else {
         match state.storage().head(normalized).await {
             Ok(meta) if meta.is_collection => {}
             Ok(_) => {
@@ -92,8 +90,6 @@ pub async fn list_files_impl<S: HasStorage>(state: &S, params: &ListFilesParams)
                     .into_response();
             }
         }
-    } else {
-        let _ = state.storage().head("/").await;
     }
 
     let entries = if depth == 0 {
@@ -132,13 +128,7 @@ pub async fn list_files_impl<S: HasStorage>(state: &S, params: &ListFilesParams)
         })
         .collect();
 
-    (
-        StatusCode::OK,
-        axum::Json(ListFilesResponse {
-            entries: json_entries,
-        }),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(ListFilesResponse { entries: json_entries })).into_response()
 }
 
 pub async fn mkdir_impl<S: HasStorage>(state: &S, path: &str) -> Response {

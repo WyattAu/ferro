@@ -7,10 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::ApiCoreState;
 use crate::ApiError;
 
-pub async fn handle_search<S: ApiCoreState>(
-    State(state): State<S>,
-    Query(params): Query<SearchParams>,
-) -> Response {
+pub async fn handle_search<S: ApiCoreState>(State(state): State<S>, Query(params): Query<SearchParams>) -> Response {
     if params.q.is_empty() {
         return ApiError::bad_request(ApiError::BAD_REQUEST, "Missing query parameter 'q'");
     }
@@ -48,6 +45,7 @@ pub async fn handle_search<S: ApiCoreState>(
                                 ferro_core::search::MatchLocation::Name => "name",
                                 ferro_core::search::MatchLocation::Path => "path",
                                 ferro_core::search::MatchLocation::Content => "content",
+                                _ => "unknown",
                             }).collect::<Vec<_>>(),
                             "source": "text",
                         })
@@ -90,8 +88,7 @@ pub async fn handle_search<S: ApiCoreState>(
     }
 
     let mut merged: Vec<serde_json::Value> = if semantic_used && !semantic_results.is_empty() {
-        let mut score_map: std::collections::HashMap<String, serde_json::Value> =
-            std::collections::HashMap::new();
+        let mut score_map: std::collections::HashMap<String, serde_json::Value> = std::collections::HashMap::new();
 
         for item in text_results {
             let path = item.get("path").and_then(|v| v.as_str()).unwrap_or("");
@@ -101,10 +98,7 @@ pub async fn handle_search<S: ApiCoreState>(
         for item in &semantic_results {
             let path = item.get("path").and_then(|v| v.as_str()).unwrap_or("");
             if let Some(existing) = score_map.get_mut(path) {
-                let text_score = existing
-                    .get("score")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0);
+                let text_score = existing.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 let sem_score = item.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 existing["score"] = serde_json::json!(text_score * 0.6 + sem_score * 0.4);
                 existing["source"] = serde_json::json!("combined");
@@ -233,10 +227,7 @@ pub async fn handle_update_search_config<S: ApiCoreState>(
     if let Some(v) = body.get("recent_file_boost").and_then(|v| v.as_f64()) {
         config.recent_file_boost = v;
     }
-    if let Some(v) = body
-        .get("recent_file_threshold_days")
-        .and_then(|v| v.as_u64())
-    {
+    if let Some(v) = body.get("recent_file_threshold_days").and_then(|v| v.as_u64()) {
         config.recent_file_threshold_days = v;
     }
     if let Some(v) = body.get("document_type_boost").and_then(|v| v.as_f64()) {
@@ -258,9 +249,7 @@ pub async fn handle_reindex<S: ApiCoreState>(State(state): State<S>) -> Response
                 })),
             )
                 .into_response(),
-            Err(e) => {
-                ApiError::internal(ApiError::INTERNAL_ERROR, format!("Reindex failed: {}", e))
-            }
+            Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, format!("Reindex failed: {}", e)),
         }
     } else {
         ApiError::bad_request(ApiError::BAD_REQUEST, "Search engine not configured")
@@ -397,16 +386,9 @@ pub async fn handle_list_locks<S: ApiCoreState>(State(state): State<S>) -> Respo
         .into_response()
 }
 
-pub async fn handle_unlock_by_token<S: ApiCoreState>(
-    State(state): State<S>,
-    Path(token): Path<String>,
-) -> Response {
+pub async fn handle_unlock_by_token<S: ApiCoreState>(State(state): State<S>, Path(token): Path<String>) -> Response {
     match state.lock_manager().release_lock(&token).await {
-        Ok(()) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "released": true })),
-        )
-            .into_response(),
+        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "released": true }))).into_response(),
         Err(e) => ApiError::not_found(ApiError::NOT_FOUND, format!("Lock not found: {}", e)),
     }
 }
@@ -432,9 +414,7 @@ pub async fn handle_force_unlock<S: ApiCoreState>(
                 })),
             )
                 .into_response(),
-            Err(e) => {
-                ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to unlock: {}", e))
-            }
+            Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to unlock: {}", e)),
         }
     } else {
         ApiError::not_found(ApiError::NOT_FOUND, format!("No active lock on {}", path))

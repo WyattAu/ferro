@@ -19,15 +19,16 @@ pub fn GridCard(
     on_toggle_favorite: Callback<String>,
     #[prop(default = false)] show_checkbox: bool,
     #[prop(default = false)] is_selected: bool,
-    #[prop(default = Callback::new(move |_: (String, usize, bool, bool)| {}))]
-    on_toggle_select: Callback<(String, usize, bool, bool)>,
+    #[prop(default = Callback::new(move |_: (String, usize, bool, bool)| {}))] on_toggle_select: Callback<(
+        String,
+        usize,
+        bool,
+        bool,
+    )>,
     #[prop(default = Callback::new(move |_: String| {}))] on_copy: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_move: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
-    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(
-        String,
-        bool,
-    )>,
+    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(String, bool)>,
     #[prop(default = false)] is_locked: bool,
     #[prop(default = String::new())] lock_owner: String,
     #[prop(default = String::new())] lock_expires: String,
@@ -204,7 +205,7 @@ pub fn GridCard(
                     if is_selected { "border-blue-500 dark:border-blue-400 ring-2 ring-200" } else { "" }
                 );
                 if entry_is_collection && folder_hovering.get() {
-                    format!("{} ring-2 ring-blue-400 border-blue-400 bg-blue-50 dark:bg-blue-900/30 scale-[1.02]", base)
+                    format!("{} ring-2 ring-blue-400 border-blue-400 bg-[var(--accent-subtle)] scale-[1.02]", base)
                 } else if entry_is_collection {
                     format!("{} hover:ring-1 hover:ring-blue-200", base)
                 } else {
@@ -246,7 +247,7 @@ pub fn GridCard(
                 <div class="absolute top-2 left-2 z-10">
                     <input
                         type="checkbox"
-                        class="rounded border text-blue-600 focus:ring-blue-500 w-4 h-4"
+                        class="rounded border text-[var(--accent)] focus:ring-[var(--border-focus)] w-4 h-4"
                         prop:checked=is_selected
                         attr:aria-label=format!("Select {}", name_for_actions)
                         on:click=handle_checkbox_click
@@ -256,7 +257,7 @@ pub fn GridCard(
 
             <button
                 class=move || {
-                    let base = "absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500";
+                            let base = "absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]";
                     let color = if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 opacity-0 group-hover:opacity-100" };
                     format!("{} {}", base, color)
                 }
@@ -297,14 +298,14 @@ pub fn GridCard(
                     </span>
                 </div>
 
-                <span class="text-[10px] sm:text-xs text-gray-500">{size_str.clone()}</span>
-                <span class="text-[10px] text-gray-500 hidden sm:block">{modified_display.clone()}</span>
+                <span class="text-[10px] sm:text-xs text-[var(--text-tertiary)]">{size_str.clone()}</span>
+                <span class="text-[10px] text-[var(--text-tertiary)] hidden sm:block">{modified_display.clone()}</span>
             </div>
 
             <div class="flex items-center justify-center gap-1 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
-                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                         attr:aria-label=format!("Download {}", name_for_actions)
                         title=t!("common.download")
                         on:click=handle_download_click
@@ -316,7 +317,7 @@ pub fn GridCard(
                 })}
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
-                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-green-600 hover:bg-[var(--success-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                         attr:aria-label=format!("Share {}", name_for_actions)
                         title=t!("common.share")
                         on:click=handle_share_click
@@ -327,7 +328,7 @@ pub fn GridCard(
                     </button>
                 })}
                 <button
-                    class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-orange-600 hover:bg-orange-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                     attr:aria-label=format!("Copy {}", name_for_actions)
                     title=t!("common.copy")
                     on:click=handle_copy_click
@@ -337,7 +338,7 @@ pub fn GridCard(
                     </svg>
                 </button>
                 <button
-                    class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-purple-600 hover:bg-purple-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                     attr:aria-label=format!("Move {}", name_for_actions)
                     title=t!("common.move")
                     on:click=handle_move_click
@@ -348,7 +349,7 @@ pub fn GridCard(
                 </button>
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
-                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-cyan-600 hover:bg-cyan-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                         attr:aria-label=format!("Rename {}", name_for_actions)
                         title=t!("common.rename")
                         on:click=handle_rename_click
@@ -360,7 +361,7 @@ pub fn GridCard(
                 })}
                 {(!is_locked).then(|| view! {
                     <button
-                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--danger)] hover:bg-[var(--danger-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                         attr:aria-label=format!("Delete {}", name_for_actions)
                         title=t!("common.delete")
                         on:click=handle_delete_click
@@ -391,10 +392,7 @@ pub fn GridView(
     on_copy: Callback<String>,
     on_move: Callback<String>,
     #[prop(default = Callback::new(move |_: String| {}))] on_rename: Callback<String>,
-    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(
-        String,
-        bool,
-    )>,
+    #[prop(default = Callback::new(move |_: (String, bool)| {}))] on_drop_on_folder: Callback<(String, bool)>,
     locks: ReadSignal<std::collections::HashMap<String, LockInfo>>,
 ) -> impl IntoView {
     let entries_for_each = entries;

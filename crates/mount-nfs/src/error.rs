@@ -31,10 +31,7 @@ pub enum MountError {
 impl fmt::Display for MountError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ConnectionFailed {
-                source,
-                mount_point,
-            } => {
+            Self::ConnectionFailed { source, mount_point } => {
                 write!(f, "connection to '{}' failed: {}", mount_point, source)
             }
             Self::NotMounted { mount_point } => {

@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 use tracing::debug;
 
 /// Server-side in-memory storage engine with path normalization.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct InMemoryStorageEngine {
     data: Arc<RwLock<DashMap<String, Bytes>>>,
     metadata: Arc<RwLock<DashMap<String, FileMetadata>>>,
@@ -35,52 +35,49 @@ impl Default for InMemoryStorageEngine {
 #[async_trait::async_trait]
 impl StorageEngine for InMemoryStorageEngine {
     async fn head(&self, path: &str) -> Result<FileMetadata> {
-        let path = normalize_path(path);
+        let path = normalize_path(path).into_owned();
         let meta = self
             .metadata
             .read()
             .await
             .get(&path)
             .map(|m| m.value().clone())
-            .ok_or_else(|| FerroError::NotFound(path.to_string()))?;
+            .ok_or(FerroError::NotFound(path))?;
         Ok(meta)
     }
 
     async fn get(&self, path: &str) -> Result<Bytes> {
-        let path = normalize_path(path);
+        let path = normalize_path(path).into_owned();
         let data = self
             .data
             .read()
             .await
             .get(&path)
             .map(|d| d.value().clone())
-            .ok_or_else(|| FerroError::NotFound(path.to_string()))?;
+            .ok_or(FerroError::NotFound(path))?;
         Ok(data)
     }
 
     async fn put(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata> {
-        let path = normalize_path(path);
+        let path = normalize_path(path).into_owned();
         let content_hash = ContentHash::compute(&content);
         let size = content.len() as u64;
 
         let meta = FileMetadata::new(path.clone(), content_hash, size, owner.to_string());
 
         self.data.write().await.insert(path.clone(), content);
-        self.metadata
-            .write()
-            .await
-            .insert(path.clone(), meta.clone());
+        self.metadata.write().await.insert(path.clone(), meta.clone());
 
         debug!("PUT {} ({} bytes)", path, size);
         Ok(meta)
     }
 
     async fn delete(&self, path: &str) -> Result<()> {
-        let path = normalize_path(path);
+        let path = normalize_path(path).into_owned();
 
         let meta_guard = self.metadata.read().await;
         if !meta_guard.contains_key(&path) {
-            return Err(FerroError::NotFound(path.to_string()));
+            return Err(FerroError::NotFound(path));
         }
         drop(meta_guard);
 
@@ -104,7 +101,7 @@ impl StorageEngine for InMemoryStorageEngine {
             .iter()
             .filter_map(|entry| {
                 let key = entry.key();
-                if key.starts_with(&prefix) && key != &path {
+                if key.starts_with(&prefix) && key != path.as_ref() {
                     let remaining = &key[prefix.len()..];
                     if !remaining.contains('/') {
                         return Some(entry.value().clone());
@@ -119,13 +116,13 @@ impl StorageEngine for InMemoryStorageEngine {
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {
-        let path = normalize_path(path);
+        let path = normalize_path(path).into_owned();
         Ok(self.metadata.read().await.contains_key(&path))
     }
 
     async fn copy(&self, from: &str, to: &str) -> Result<()> {
-        let from = normalize_path(from);
-        let to = normalize_path(to);
+        let from = normalize_path(from).into_owned();
+        let to = normalize_path(to).into_owned();
 
         let data_guard = self.data.read().await;
         let meta_guard = self.metadata.read().await;
@@ -133,11 +130,11 @@ impl StorageEngine for InMemoryStorageEngine {
         let content = data_guard
             .get(&from)
             .map(|d| d.value().clone())
-            .ok_or_else(|| FerroError::NotFound(from.to_string()))?;
+            .ok_or_else(|| FerroError::NotFound(from.clone()))?;
         let mut meta = meta_guard
             .get(&from)
             .map(|m| m.value().clone())
-            .ok_or_else(|| FerroError::NotFound(from.to_string()))?;
+            .ok_or_else(|| FerroError::NotFound(from.clone()))?;
 
         drop(data_guard);
         drop(meta_guard);
@@ -154,8 +151,8 @@ impl StorageEngine for InMemoryStorageEngine {
     }
 
     async fn move_path(&self, from: &str, to: &str) -> Result<()> {
-        let from = normalize_path(from);
-        let to = normalize_path(to);
+        let from = normalize_path(from).into_owned();
+        let to = normalize_path(to).into_owned();
 
         let data_guard = self.data.write().await;
         let meta_guard = self.metadata.write().await;
@@ -163,11 +160,11 @@ impl StorageEngine for InMemoryStorageEngine {
         let content = data_guard
             .remove(&from)
             .map(|(_, v)| v)
-            .ok_or_else(|| FerroError::NotFound(from.to_string()))?;
+            .ok_or_else(|| FerroError::NotFound(from.clone()))?;
         let mut meta = meta_guard
             .remove(&from)
             .map(|(_, v)| v)
-            .ok_or_else(|| FerroError::NotFound(from.to_string()))?;
+            .ok_or_else(|| FerroError::NotFound(from.clone()))?;
 
         meta.path = to.clone();
         meta.etag = format!("\"{}\"", meta.content_hash.as_str());
@@ -181,18 +178,15 @@ impl StorageEngine for InMemoryStorageEngine {
     }
 
     async fn create_collection(&self, path: &str, owner: &str) -> Result<FileMetadata> {
-        let path = normalize_path(path);
+        let path = normalize_path(path).into_owned();
 
         if self.metadata.read().await.contains_key(&path) {
-            return Err(FerroError::AlreadyExists(path.to_string()));
+            return Err(FerroError::AlreadyExists(path.clone()));
         }
 
         let meta = FileMetadata::new_collection(path.clone(), owner.to_string());
         self.data.write().await.insert(path.clone(), Bytes::new());
-        self.metadata
-            .write()
-            .await
-            .insert(path.clone(), meta.clone());
+        self.metadata.write().await.insert(path.clone(), meta.clone());
 
         debug!("MKCOL {}", path);
         Ok(meta)
@@ -239,10 +233,7 @@ mod tests {
     async fn test_put_get_delete() {
         let engine = InMemoryStorageEngine::new();
 
-        engine
-            .put("/hello.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/hello.txt", Bytes::from("hello"), "user1").await.unwrap();
 
         let meta = engine.head("/hello.txt").await.unwrap();
         assert_eq!(meta.size, 5);
@@ -259,14 +250,8 @@ mod tests {
         let engine = InMemoryStorageEngine::new();
 
         engine.create_collection("/docs", "user1").await.unwrap();
-        engine
-            .put("/docs/a.txt", Bytes::from("a"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/docs/b.txt", Bytes::from("b"), "user1")
-            .await
-            .unwrap();
+        engine.put("/docs/a.txt", Bytes::from("a"), "user1").await.unwrap();
+        engine.put("/docs/b.txt", Bytes::from("b"), "user1").await.unwrap();
 
         let items = engine.list("/docs").await.unwrap();
         assert_eq!(items.len(), 2);
@@ -276,10 +261,7 @@ mod tests {
     async fn test_copy() {
         let engine = InMemoryStorageEngine::new();
 
-        engine
-            .put("/original.txt", Bytes::from("data"), "user1")
-            .await
-            .unwrap();
+        engine.put("/original.txt", Bytes::from("data"), "user1").await.unwrap();
         engine.copy("/original.txt", "/copy.txt").await.unwrap();
 
         let content = engine.get("/copy.txt").await.unwrap();
@@ -292,10 +274,7 @@ mod tests {
     async fn test_move_path() {
         let engine = InMemoryStorageEngine::new();
 
-        engine
-            .put("/source.txt", Bytes::from("data"), "user1")
-            .await
-            .unwrap();
+        engine.put("/source.txt", Bytes::from("data"), "user1").await.unwrap();
         engine.move_path("/source.txt", "/dest.txt").await.unwrap();
 
         assert!(!engine.exists("/source.txt").await.unwrap());
@@ -315,22 +294,10 @@ mod tests {
     async fn test_list_all_with_depth_limit() {
         let engine = InMemoryStorageEngine::new();
         engine.create_collection("/root", "user1").await.unwrap();
-        engine
-            .create_collection("/root/sub", "user1")
-            .await
-            .unwrap();
-        engine
-            .create_collection("/root/sub/deep", "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/root/f1.txt", Bytes::from("a"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/root/sub/f2.txt", Bytes::from("b"), "user1")
-            .await
-            .unwrap();
+        engine.create_collection("/root/sub", "user1").await.unwrap();
+        engine.create_collection("/root/sub/deep", "user1").await.unwrap();
+        engine.put("/root/f1.txt", Bytes::from("a"), "user1").await.unwrap();
+        engine.put("/root/sub/f2.txt", Bytes::from("b"), "user1").await.unwrap();
         engine
             .put("/root/sub/deep/f3.txt", Bytes::from("c"), "user1")
             .await

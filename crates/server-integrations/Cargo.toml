@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
+ferro-circuit-breaker = { path = "../circuit-breaker" }
 ferro-offline = { path = "../offline" }
 axum = { workspace = true }
 serde = { workspace = true }
@@ -30,6 +31,7 @@ http-body-util = "0.1"
 utoipa = { version = "5", features = ["axum_extras"] }
 bytes = "1"
 rand = "0.9"
+zeroize = { workspace = true, features = ["derive"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 
 [dev-dependencies]

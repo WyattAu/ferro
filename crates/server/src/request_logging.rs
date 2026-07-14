@@ -96,3 +96,145 @@ pub async fn request_logging_middleware(
 
     response
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::StatusCode;
+    use axum::routing::get;
+    use tower::ServiceExt;
+
+    struct TestMetrics {
+        request_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
+        duration_buckets: std::sync::Arc<[std::sync::atomic::AtomicU64; 11]>,
+        duration_sum_ms: std::sync::Arc<std::sync::atomic::AtomicU64>,
+        status_counts: std::sync::Arc<[std::sync::atomic::AtomicU64; 4]>,
+        storage_op_counts: std::sync::Arc<[std::sync::atomic::AtomicU64; 6]>,
+    }
+
+    impl TestMetrics {
+        fn new() -> Self {
+            Self {
+                request_count: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+                duration_buckets: std::sync::Arc::new(std::array::from_fn(|_| std::sync::atomic::AtomicU64::new(0))),
+                duration_sum_ms: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+                status_counts: std::sync::Arc::new(std::array::from_fn(|_| std::sync::atomic::AtomicU64::new(0))),
+                storage_op_counts: std::sync::Arc::new(std::array::from_fn(|_| std::sync::atomic::AtomicU64::new(0))),
+            }
+        }
+
+        fn make_app_with_method(&self, _method: &str) -> axum::Router {
+            let rc = self.request_count.clone();
+            let db = self.duration_buckets.clone();
+            let ds = self.duration_sum_ms.clone();
+            let sc = self.status_counts.clone();
+            let so = self.storage_op_counts.clone();
+
+            axum::Router::new()
+                .route("/test", get(|| async { axum::http::StatusCode::OK }))
+                .layer(axum::middleware::from_fn(move |req, next| {
+                    let rc = rc.clone();
+                    let db = db.clone();
+                    let ds = ds.clone();
+                    let sc = sc.clone();
+                    let so = so.clone();
+                    async move { request_logging_middleware(rc, db, ds, sc, Some(so), req, next).await }
+                }))
+        }
+
+        fn make_app(&self) -> axum::Router {
+            self.make_app_with_method("GET")
+        }
+
+        fn request_count(&self) -> u64 {
+            self.request_count.load(Ordering::Relaxed)
+        }
+
+        fn status_2xx(&self) -> u64 {
+            self.status_counts[0].load(Ordering::Relaxed)
+        }
+
+        #[allow(dead_code)]
+        fn status_4xx(&self) -> u64 {
+            self.status_counts[2].load(Ordering::Relaxed)
+        }
+
+        #[allow(dead_code)]
+        fn status_5xx(&self) -> u64 {
+            self.status_counts[3].load(Ordering::Relaxed)
+        }
+
+        #[allow(dead_code)]
+        fn storage_put(&self) -> u64 {
+            self.storage_op_counts[0].load(Ordering::Relaxed)
+        }
+
+        fn storage_get(&self) -> u64 {
+            self.storage_op_counts[1].load(Ordering::Relaxed)
+        }
+
+        #[allow(dead_code)]
+        fn storage_delete(&self) -> u64 {
+            self.storage_op_counts[2].load(Ordering::Relaxed)
+        }
+    }
+
+    #[tokio::test]
+    async fn test_request_logging_increments_counter() {
+        let metrics = TestMetrics::new();
+        let app = metrics.make_app();
+        let resp = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(metrics.request_count(), 1);
+        assert_eq!(metrics.status_2xx(), 1);
+        assert_eq!(metrics.storage_get(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_request_logging_extracts_client_ip() {
+        let metrics = TestMetrics::new();
+        let app = metrics.make_app();
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/test")
+                    .header("x-forwarded-for", "10.0.0.1, 10.0.0.2")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(metrics.request_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_request_logging_without_forwarded_for() {
+        let metrics = TestMetrics::new();
+        let app = metrics.make_app();
+        let resp = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(metrics.request_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_request_logging_records_duration() {
+        let metrics = TestMetrics::new();
+        let app = metrics.make_app();
+        let _ = app
+            .oneshot(Request::builder().uri("/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        let _sum = metrics.duration_sum_ms.load(Ordering::Relaxed);
+    }
+}

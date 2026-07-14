@@ -13,6 +13,7 @@ pub struct IdempotentResponse {
     pub created_at: Instant,
 }
 
+#[derive(Debug)]
 pub struct IdempotencyStore {
     cache: Arc<DashMap<String, IdempotentResponse>>,
     ttl: Duration,

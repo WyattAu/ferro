@@ -38,9 +38,7 @@ enum SortBy {
 
 fn priority_color(priority: &str) -> &'static str {
     match priority {
-        "urgent" => {
-            "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
-        }
+        "urgent" => "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700",
         "high" => {
             "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700"
         }
@@ -50,9 +48,7 @@ fn priority_color(priority: &str) -> &'static str {
         "low" => {
             "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700"
         }
-        _ => {
-            "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
-        }
+        _ => "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600",
     }
 }
 
@@ -141,40 +137,21 @@ pub fn TasksPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(Task {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        title: v
-                                            .get("title")
-                                            .and_then(|t| t.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        title: v.get("title").and_then(|t| t.as_str()).unwrap_or("").to_string(),
                                         description: v
                                             .get("description")
                                             .and_then(|d| d.as_str())
                                             .unwrap_or("")
                                             .to_string(),
-                                        status: v
-                                            .get("status")
-                                            .and_then(|s| s.as_str())
-                                            .unwrap_or("todo")
-                                            .to_string(),
-                                        assignee: v
-                                            .get("assignee")
-                                            .and_then(|a| a.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
-                                        due_date: v
-                                            .get("due_date")
-                                            .and_then(|d| d.as_str())
-                                            .map(String::from),
+                                        status: v.get("status").and_then(|s| s.as_str()).unwrap_or("todo").to_string(),
+                                        assignee: v.get("assignee").and_then(|a| a.as_str()).unwrap_or("").to_string(),
+                                        due_date: v.get("due_date").and_then(|d| d.as_str()).map(String::from),
                                         priority: v
                                             .get("priority")
                                             .and_then(|p| p.as_str())
                                             .unwrap_or("medium")
                                             .to_string(),
-                                        tags: v
-                                            .get("tags")
-                                            .and_then(|t| t.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        tags: v.get("tags").and_then(|t| t.as_str()).unwrap_or("").to_string(),
                                         created_at: v
                                             .get("created_at")
                                             .and_then(|c| c.as_str())
@@ -209,19 +186,11 @@ pub fn TasksPage() -> impl IntoView {
         fetch_tasks();
     });
 
-    let columns = vec![
-        ("todo", "To Do"),
-        ("in_progress", "In Progress"),
-        ("done", "Done"),
-    ];
+    let columns = vec![("todo", "To Do"), ("in_progress", "In Progress"), ("done", "Done")];
 
     let tasks_for_column = move |status: &str| -> Vec<Task> {
         let status = status.to_string();
-        tasks
-            .get()
-            .into_iter()
-            .filter(|t| t.status == status)
-            .collect()
+        tasks.get().into_iter().filter(|t| t.status == status).collect()
     };
 
     let open_detail = move |task: Task| {
@@ -297,12 +266,8 @@ pub fn TasksPage() -> impl IntoView {
                     "priority": priority,
                     "tags": tags,
                 });
-                let _ = api::fetch_json_with_method(
-                    &format!("/api/tasks/{}", task_id),
-                    "PUT",
-                    Some(&body.to_string()),
-                )
-                .await;
+                let _ = api::fetch_json_with_method(&format!("/api/tasks/{}", task_id), "PUT", Some(&body.to_string()))
+                    .await;
                 fetch_tasks();
             });
         }
@@ -310,8 +275,7 @@ pub fn TasksPage() -> impl IntoView {
 
     let delete_task = move |id: String| {
         spawn_local(async move {
-            let _ =
-                api::fetch_json_with_method(&format!("/api/tasks/{}", id), "DELETE", None).await;
+            let _ = api::fetch_json_with_method(&format!("/api/tasks/{}", id), "DELETE", None).await;
             set_selected_task.set(None);
             set_show_detail_modal.set(false);
             fetch_tasks();
@@ -336,8 +300,7 @@ pub fn TasksPage() -> impl IntoView {
         move |task_id: String, ev: ev::DragEvent| {
             set_dragging_task_id.set(Some(task_id));
             if let Some(data_transfer) = ev.data_transfer() {
-                let _ = data_transfer
-                    .set_data("text/plain", &dragging_task_id.get().unwrap_or_default());
+                let _ = data_transfer.set_data("text/plain", &dragging_task_id.get().unwrap_or_default());
                 data_transfer.set_effect_allowed("move");
             }
         }

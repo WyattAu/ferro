@@ -23,6 +23,7 @@ struct AuthAttemptState {
 }
 
 impl AuthAttemptTracker {
+    #[must_use]
     pub fn new(max_failures: u32, lockout_duration: Duration) -> Self {
         Self {
             attempts: DashMap::new(),
@@ -34,13 +35,14 @@ impl AuthAttemptTracker {
 
 impl Default for AuthAttemptTracker {
     fn default() -> Self {
-        Self::new(10, Duration::from_secs(15 * 60))
+        Self::new(10, Duration::from_mins(15))
     }
 }
 
 impl AuthAttemptTracker {
+    #[must_use]
     pub fn record_failure(&self, client_ip: &str, username: &str) -> bool {
-        let key = format!("{}:{}", client_ip, username);
+        let key = format!("{client_ip}:{username}");
         let mut entry = self.attempts.entry(key).or_insert(AuthAttemptState {
             fail_count: 0,
             first_fail_time: Instant::now(),
@@ -65,8 +67,9 @@ impl AuthAttemptTracker {
         false
     }
 
+    #[must_use]
     pub fn is_locked_out(&self, client_ip: &str, username: &str) -> bool {
-        let key = format!("{}:{}", client_ip, username);
+        let key = format!("{client_ip}:{username}");
         if let Some(entry) = self.attempts.get(&key)
             && let Some(locked_until) = entry.locked_until
             && Instant::now() < locked_until
@@ -77,15 +80,14 @@ impl AuthAttemptTracker {
     }
 
     pub fn record_success(&self, client_ip: &str, username: &str) {
-        let key = format!("{}:{}", client_ip, username);
+        let key = format!("{client_ip}:{username}");
         self.attempts.remove(&key);
     }
 
     pub fn cleanup(&self, max_age: Duration) {
-        let cutoff = Instant::now() - max_age;
-        self.attempts.retain(|_, state| {
-            state.first_fail_time > cutoff && state.locked_until.is_none_or(|t| t > cutoff)
-        });
+        let cutoff = Instant::now().checked_sub(max_age).unwrap();
+        self.attempts
+            .retain(|_, state| state.first_fail_time > cutoff && state.locked_until.is_none_or(|t| t > cutoff));
     }
 }
 
@@ -101,6 +103,7 @@ struct LoginBucket {
 }
 
 impl LoginRateLimiter {
+    #[must_use]
     pub fn new(max_attempts: u32, window: Duration) -> Self {
         Self {
             buckets: DashMap::new(),
@@ -112,24 +115,20 @@ impl LoginRateLimiter {
 
 impl Default for LoginRateLimiter {
     fn default() -> Self {
-        Self::new(5, Duration::from_secs(60))
+        Self::new(5, Duration::from_mins(1))
     }
 }
 
 impl LoginRateLimiter {
     pub async fn check(&self, client_ip: &str) -> bool {
-        let mut bucket = self
-            .buckets
-            .entry(client_ip.to_string())
-            .or_insert(LoginBucket {
-                tokens: self.max_attempts,
-                last_refill: Instant::now(),
-            });
+        let mut bucket = self.buckets.entry(client_ip.to_string()).or_insert(LoginBucket {
+            tokens: self.max_attempts,
+            last_refill: Instant::now(),
+        });
 
         let now = Instant::now();
         let elapsed = now.duration_since(bucket.last_refill);
-        let tokens_to_add =
-            (elapsed.as_secs_f64() / self.window.as_secs_f64() * self.max_attempts as f64) as u32;
+        let tokens_to_add = (elapsed.as_secs_f64() / self.window.as_secs_f64() * f64::from(self.max_attempts)) as u32;
 
         if tokens_to_add > 0 {
             bucket.tokens = (bucket.tokens + tokens_to_add).min(self.max_attempts);
@@ -145,14 +144,14 @@ impl LoginRateLimiter {
     }
 
     pub fn cleanup(&self, max_age: Duration) {
-        let cutoff = Instant::now() - max_age;
+        let cutoff = Instant::now().checked_sub(max_age).unwrap();
         self.buckets.retain(|_, b| b.last_refill > cutoff);
     }
 }
 
 const RESERVED_NAMES: &[&str] = &[
-    "CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
-    "COM8", "COM9", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    "CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT0",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
 ];
 
 fn is_invalid_char(c: char) -> bool {
@@ -339,18 +338,14 @@ static MAGIC_SIGNATURES: &[MagicSignature] = &[
     },
 ];
 
+#[must_use]
 pub fn verify_content_type(declared: &str, data: &[u8]) -> Option<String> {
-    if declared.is_empty()
-        || declared.starts_with("multipart/")
-        || declared == "application/octet-stream"
-    {
+    if declared.is_empty() || declared.starts_with("multipart/") || declared == "application/octet-stream" {
         return None;
     }
 
     for sig in MAGIC_SIGNATURES {
-        if data.len() >= sig.offset + sig.bytes.len()
-            && &data[sig.offset..sig.offset + sig.bytes.len()] == sig.bytes
-        {
+        if data.len() >= sig.offset + sig.bytes.len() && &data[sig.offset..sig.offset + sig.bytes.len()] == sig.bytes {
             if types_compatible(declared, sig.content_type) {
                 return None;
             }
@@ -379,8 +374,7 @@ fn types_compatible(declared: &str, detected: &str) -> bool {
     }
 
     if detected == "application/zip"
-        && (declared.starts_with("application/vnd.openxmlformats")
-            || declared.starts_with("application/vnd.oasis"))
+        && (declared.starts_with("application/vnd.openxmlformats") || declared.starts_with("application/vnd.oasis"))
     {
         return true;
     }
@@ -396,23 +390,24 @@ fn types_compatible(declared: &str, detected: &str) -> bool {
     false
 }
 
+#[must_use]
 pub fn detect_content_type(data: &[u8]) -> Option<&'static str> {
     for sig in MAGIC_SIGNATURES {
-        if data.len() >= sig.offset + sig.bytes.len()
-            && &data[sig.offset..sig.offset + sig.bytes.len()] == sig.bytes
-        {
+        if data.len() >= sig.offset + sig.bytes.len() && &data[sig.offset..sig.offset + sig.bytes.len()] == sig.bytes {
             return Some(sig.content_type);
         }
     }
     None
 }
 
+#[must_use]
 pub fn generate_csrf_token() -> String {
     let mut buf = [0u8; 32];
     rand::rng().fill(&mut buf);
     hex::encode(buf)
 }
 
+#[must_use]
 pub fn verify_csrf_token(expected: &str, provided: &str) -> bool {
     use subtle::ConstantTimeEq;
     let expected_bytes = expected.as_bytes();
@@ -420,10 +415,12 @@ pub fn verify_csrf_token(expected: &str, provided: &str) -> bool {
     expected_bytes.ct_eq(provided_bytes).into()
 }
 
+#[must_use]
 pub fn is_default_password(password: &str) -> bool {
     matches!(password, "changeme" | "admin" | "password" | "ferro" | "")
 }
 
+#[must_use]
 pub fn is_password_change_allowed_path(path: &str) -> bool {
     path == "/api/auth/change-password"
         || path == "/.well-known/ferro"
@@ -436,6 +433,7 @@ pub fn is_password_change_allowed_path(path: &str) -> bool {
         || path == "/ui"
 }
 
+#[must_use]
 pub fn response_require_password_change() -> axum::response::Response {
     let body = axum::Json(serde_json::json!({
         "error": "Default password in use. Password change required before accessing this resource.",
@@ -455,8 +453,7 @@ fn extract_client_ip(req: &axum::http::Request<axum::body::Body>) -> String {
         .get("x-forwarded-for")
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.split(',').next())
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "unknown".to_string())
+        .map_or_else(|| "unknown".to_string(), |s| s.trim().to_string())
 }
 
 fn extract_username(req: &axum::http::Request<axum::body::Body>) -> Option<String> {
@@ -468,9 +465,7 @@ fn extract_username(req: &axum::http::Request<axum::body::Body>) -> Option<Strin
     if !auth.starts_with("Basic ") {
         return None;
     }
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(&auth[6..])
-        .ok()?;
+    let decoded = base64::engine::general_purpose::STANDARD.decode(&auth[6..]).ok()?;
     let creds = String::from_utf8_lossy(&decoded);
     creds.split_once(':').map(|(u, _)| u.to_string())
 }
@@ -500,10 +495,7 @@ pub async fn auth_guard_middleware<S: crate::SecurityAppState>(
     let client_ip = extract_client_ip(&req);
     let username = extract_username(&req).unwrap_or_default();
 
-    if state
-        .auth_attempt_tracker()
-        .is_locked_out(&client_ip, &username)
-    {
+    if state.auth_attempt_tracker().is_locked_out(&client_ip, &username) {
         tracing::warn!(
             %client_ip,
             %username,
@@ -538,13 +530,9 @@ pub async fn auth_guard_middleware<S: crate::SecurityAppState>(
             )
                 .into_response();
         }
-        state
-            .auth_attempt_tracker()
-            .record_failure(&client_ip, &username);
+        let _ = state.auth_attempt_tracker().record_failure(&client_ip, &username);
     } else if status.is_success() {
-        state
-            .auth_attempt_tracker()
-            .record_success(&client_ip, &username);
+        state.auth_attempt_tracker().record_success(&client_ip, &username);
     }
 
     response
@@ -579,22 +567,18 @@ const ALLOWED_URL_SCHEMES: &[&str] = &["http", "https"];
 
 pub fn validate_url(url: &str) -> Result<(), String> {
     if url.len() > MAX_URL_LENGTH {
-        return Err(format!(
-            "URL exceeds maximum length of {} characters",
-            MAX_URL_LENGTH
-        ));
+        return Err(format!("URL exceeds maximum length of {MAX_URL_LENGTH} characters"));
     }
     if url.is_empty() {
         return Err("URL must not be empty".to_string());
     }
 
-    let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {}", e))?;
+    let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
 
     let scheme = parsed.scheme();
     if !ALLOWED_URL_SCHEMES.contains(&scheme) {
         return Err(format!(
-            "URL scheme '{}' is not allowed. Only http and https are permitted.",
-            scheme
+            "URL scheme '{scheme}' is not allowed. Only http and https are permitted."
         ));
     }
 
@@ -602,9 +586,7 @@ pub fn validate_url(url: &str) -> Result<(), String> {
         return Err("URL must not contain credentials (user:pass@host)".to_string());
     }
 
-    let host = parsed
-        .host_str()
-        .ok_or_else(|| "URL must have a host".to_string())?;
+    let host = parsed.host_str().ok_or_else(|| "URL must have a host".to_string())?;
 
     let host_lower = host.to_lowercase();
     if host_lower == "localhost"
@@ -612,16 +594,15 @@ pub fn validate_url(url: &str) -> Result<(), String> {
         || host_lower.ends_with(".local")
         || host_lower.ends_with(".internal")
     {
-        return Err(format!("URL host '{}' is not allowed", host));
+        return Err(format!("URL host '{host}' is not allowed"));
     }
 
     let port = parsed.port().unwrap_or(80);
-    if let Ok(addrs) = format!("{}:{}", host, port).to_socket_addrs() {
+    if let Ok(addrs) = format!("{host}:{port}").to_socket_addrs() {
         for addr in addrs {
             if is_private_ip(addr.ip()) {
                 return Err(format!(
-                    "URL host '{}' resolves to a private/reserved IP address, which is not allowed",
-                    host
+                    "URL host '{host}' resolves to a private/reserved IP address, which is not allowed"
                 ));
             }
         }
@@ -630,6 +611,7 @@ pub fn validate_url(url: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[must_use]
 pub fn sanitize_control_chars(input: &str) -> String {
     input
         .chars()
@@ -637,6 +619,7 @@ pub fn sanitize_control_chars(input: &str) -> String {
         .collect()
 }
 
+#[must_use]
 pub fn contains_html(input: &str) -> bool {
     let lower = input.to_lowercase();
     lower.contains("<script")
@@ -658,6 +641,7 @@ pub fn contains_html(input: &str) -> bool {
         || lower.contains("window.")
 }
 
+#[must_use]
 pub fn is_smuggling_request(headers: &axum::http::HeaderMap) -> bool {
     let has_content_length = headers.contains_key("content-length");
     let has_transfer_encoding = headers.contains_key("transfer-encoding");
@@ -753,8 +737,8 @@ mod tests {
     #[test]
     fn test_auth_tracker_success_clears() {
         let tracker = AuthAttemptTracker::new(3, Duration::from_secs(10));
-        tracker.record_failure("1.2.3.4", "admin");
-        tracker.record_failure("1.2.3.4", "admin");
+        let _ = tracker.record_failure("1.2.3.4", "admin");
+        let _ = tracker.record_failure("1.2.3.4", "admin");
         tracker.record_success("1.2.3.4", "admin");
         assert!(!tracker.is_locked_out("1.2.3.4", "admin"));
         assert!(!tracker.record_failure("1.2.3.4", "admin"));

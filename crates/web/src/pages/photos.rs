@@ -94,39 +94,22 @@ pub fn PhotosPage() -> impl IntoView {
                                 .filter_map(|v| {
                                     Some(Photo {
                                         id: v.get("id")?.as_str()?.to_string(),
-                                        path: v
-                                            .get("path")
-                                            .and_then(|p| p.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
-                                        name: v
-                                            .get("name")
-                                            .and_then(|n| n.as_str())
-                                            .unwrap_or("")
-                                            .to_string(),
+                                        path: v.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
+                                        name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
                                         size: v.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
                                         mime_type: v
                                             .get("mime_type")
                                             .and_then(|m| m.as_str())
                                             .unwrap_or("")
                                             .to_string(),
-                                        taken_at: v
-                                            .get("taken_at")
-                                            .and_then(|t| t.as_str())
-                                            .map(|s| s.to_string()),
+                                        taken_at: v.get("taken_at").and_then(|t| t.as_str()).map(|s| s.to_string()),
                                         modified_at: v
                                             .get("modified_at")
                                             .and_then(|m| m.as_str())
                                             .unwrap_or("")
                                             .to_string(),
-                                        width: v
-                                            .get("width")
-                                            .and_then(|w| w.as_u64())
-                                            .map(|v| v as u32),
-                                        height: v
-                                            .get("height")
-                                            .and_then(|h| h.as_u64())
-                                            .map(|v| v as u32),
+                                        width: v.get("width").and_then(|w| w.as_u64()).map(|v| v as u32),
+                                        height: v.get("height").and_then(|h| h.as_u64()).map(|v| v as u32),
                                     })
                                 })
                                 .collect()
@@ -154,11 +137,7 @@ pub fn PhotosPage() -> impl IntoView {
                             .filter_map(|v| {
                                 Some(Album {
                                     id: v.get("id")?.as_str()?.to_string(),
-                                    name: v
-                                        .get("name")
-                                        .and_then(|n| n.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
+                                    name: v.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string(),
                                     description: v
                                         .get("description")
                                         .and_then(|d| d.as_str())
@@ -168,16 +147,10 @@ pub fn PhotosPage() -> impl IntoView {
                                         .get("photo_paths")
                                         .and_then(|p| p.as_array())
                                         .map(|arr| {
-                                            arr.iter()
-                                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                                .collect()
+                                            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
                                         })
                                         .unwrap_or_default(),
-                                    created_at: v
-                                        .get("created_at")
-                                        .and_then(|c| c.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
+                                    created_at: v.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
                                 })
                             })
                             .collect()
@@ -190,12 +163,7 @@ pub fn PhotosPage() -> impl IntoView {
 
     let fetch_exif = move |photo_path: String| {
         spawn_local(async move {
-            match api::fetch_json(&format!(
-                "/api/photos/exif/{}",
-                photo_path.trim_start_matches('/')
-            ))
-            .await
-            {
+            match api::fetch_json(&format!("/api/photos/exif/{}", photo_path.trim_start_matches('/'))).await {
                 Ok(val) => {
                     if let Ok(exif) = serde_json::from_value::<ExifData>(val) {
                         set_exif_data.set(Some(exif));
@@ -230,9 +198,7 @@ pub fn PhotosPage() -> impl IntoView {
                 "name": name,
                 "description": new_album_description.get(),
             });
-            match api::fetch_json_with_method("/api/photos/albums", "POST", Some(&body.to_string()))
-                .await
-            {
+            match api::fetch_json_with_method("/api/photos/albums", "POST", Some(&body.to_string())).await {
                 Ok(_) => {
                     fetch_albums();
                 }
@@ -244,8 +210,7 @@ pub fn PhotosPage() -> impl IntoView {
     };
 
     let group_by_date = move || -> Vec<(String, Vec<Photo>)> {
-        let mut groups: std::collections::BTreeMap<String, Vec<Photo>> =
-            std::collections::BTreeMap::new();
+        let mut groups: std::collections::BTreeMap<String, Vec<Photo>> = std::collections::BTreeMap::new();
         for photo in photos.get() {
             let date = photo.modified_at[..10.min(photo.modified_at.len())].to_string();
             groups.entry(date).or_default().push(photo);

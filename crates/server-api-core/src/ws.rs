@@ -6,39 +6,13 @@ const MAX_WS_CONNECTIONS: usize = 1000;
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WsEvent {
-    FileCreated {
-        path: String,
-        size: u64,
-        owner: String,
-    },
-    FileUpdated {
-        path: String,
-        size: u64,
-        owner: String,
-    },
-    FileDeleted {
-        path: String,
-        owner: String,
-    },
-    FileMoved {
-        from: String,
-        to: String,
-        owner: String,
-    },
-    FileShared {
-        path: String,
-        token: String,
-        owner: String,
-    },
-    SyncOp {
-        clock: u64,
-        op_type: String,
-        path: String,
-    },
-    StorageHealth {
-        healthy: bool,
-        backend: String,
-    },
+    FileCreated { path: String, size: u64, owner: String },
+    FileUpdated { path: String, size: u64, owner: String },
+    FileDeleted { path: String, owner: String },
+    FileMoved { from: String, to: String, owner: String },
+    FileShared { path: String, token: String, owner: String },
+    SyncOp { clock: u64, op_type: String, path: String },
+    StorageHealth { healthy: bool, backend: String },
 }
 
 #[derive(Debug, Clone)]
@@ -57,19 +31,15 @@ impl WsManager {
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<String> {
-        let count = self
-            .connection_count
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let count = self.connection_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if count as usize >= MAX_WS_CONNECTIONS {
-            self.connection_count
-                .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            self.connection_count.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
         }
         self.tx.subscribe()
     }
 
     pub fn unsubscribe(&self) {
-        self.connection_count
-            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        self.connection_count.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn broadcast(&self, event: &WsEvent) {
@@ -79,8 +49,7 @@ impl WsManager {
     }
 
     pub fn connection_count(&self) -> u64 {
-        self.connection_count
-            .load(std::sync::atomic::Ordering::SeqCst)
+        self.connection_count.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 

@@ -156,11 +156,7 @@ fn status_text(status: &PluginStatus) -> String {
 fn sort_plugins(plugins: &mut [MarketplacePlugin], sort_by: &SortBy) {
     match sort_by {
         SortBy::Name => plugins.sort_by(|a, b| a.name.cmp(&b.name)),
-        SortBy::Rating => plugins.sort_by(|a, b| {
-            b.rating
-                .partial_cmp(&a.rating)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        }),
+        SortBy::Rating => plugins.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap_or(std::cmp::Ordering::Equal)),
         SortBy::Downloads => plugins.sort_by_key(|b| std::cmp::Reverse(b.downloads)),
         SortBy::Recent => plugins.reverse(),
     }
@@ -242,34 +238,22 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
             let result = match action.as_str() {
                 "install" => {
                     api_clone
-                        .post::<serde_json::Value>(
-                            &format!("/api/v1/admin/plugins/{}/install", plugin_id),
-                            &body,
-                        )
+                        .post::<serde_json::Value>(&format!("/api/v1/admin/plugins/{}/install", plugin_id), &body)
                         .await
                 }
                 "uninstall" => {
                     api_clone
-                        .post::<serde_json::Value>(
-                            &format!("/api/v1/admin/plugins/{}/uninstall", plugin_id),
-                            &body,
-                        )
+                        .post::<serde_json::Value>(&format!("/api/v1/admin/plugins/{}/uninstall", plugin_id), &body)
                         .await
                 }
                 "enable" => {
                     api_clone
-                        .post::<serde_json::Value>(
-                            &format!("/api/v1/admin/plugins/{}/enable", plugin_id),
-                            &body,
-                        )
+                        .post::<serde_json::Value>(&format!("/api/v1/admin/plugins/{}/enable", plugin_id), &body)
                         .await
                 }
                 "disable" => {
                     api_clone
-                        .post::<serde_json::Value>(
-                            &format!("/api/v1/admin/plugins/{}/disable", plugin_id),
-                            &body,
-                        )
+                        .post::<serde_json::Value>(&format!("/api/v1/admin/plugins/{}/disable", plugin_id), &body)
                         .await
                 }
                 _ => Err("Unknown action".to_string()),
@@ -319,17 +303,11 @@ pub fn PluginMarketplace(api: RwSignal<ApiState>) -> impl IntoView {
                 Ok(resp) => {
                     let mut updates = Vec::new();
                     for plugin in &resp.plugins {
-                        if matches!(
-                            plugin.status,
-                            PluginStatus::Installed | PluginStatus::Enabled
-                        ) && let Some(local) =
-                            plugins.get_untracked().iter().find(|p| p.id == plugin.id)
+                        if matches!(plugin.status, PluginStatus::Installed | PluginStatus::Enabled)
+                            && let Some(local) = plugins.get_untracked().iter().find(|p| p.id == plugin.id)
                             && plugin.version != local.version
                         {
-                            updates.push(format!(
-                                "{}: {} -> {}",
-                                plugin.name, local.version, plugin.version
-                            ));
+                            updates.push(format!("{}: {} -> {}", plugin.name, local.version, plugin.version));
                         }
                     }
                     set_update_results.set(Some(updates));

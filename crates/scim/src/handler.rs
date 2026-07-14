@@ -4,9 +4,7 @@ use crate::schema::*;
 use axum::Json;
 use axum::extract::{Path, State};
 
-pub async fn list_users(
-    State(_state): State<ScimState>,
-) -> Result<Json<ScimListResponse<ScimUser>>, ScimError> {
+pub async fn list_users(State(_state): State<ScimState>) -> Result<Json<ScimListResponse<ScimUser>>, ScimError> {
     Ok(Json(ScimListResponse {
         schemas: vec!["urn:ietf:params:scim:api:messages:2.0:ListResponse".into()],
         total_results: 0,
@@ -23,10 +21,7 @@ pub async fn create_user(
     Ok((axum::http::StatusCode::CREATED, Json(user)))
 }
 
-pub async fn get_user(
-    Path(_id): Path<String>,
-    State(_state): State<ScimState>,
-) -> Result<Json<ScimUser>, ScimError> {
+pub async fn get_user(Path(_id): Path<String>, State(_state): State<ScimState>) -> Result<Json<ScimUser>, ScimError> {
     Err(ScimError::NotFound)
 }
 
@@ -45,9 +40,7 @@ pub async fn delete_user(
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
-pub async fn list_groups(
-    State(state): State<ScimState>,
-) -> Result<Json<ScimListResponse<ScimGroup>>, ScimError> {
+pub async fn list_groups(State(state): State<ScimState>) -> Result<Json<ScimListResponse<ScimGroup>>, ScimError> {
     let groups = state.group_store.list(0, 100);
     Ok(Json(ScimListResponse {
         schemas: vec!["urn:ietf:params:scim:api:messages:2.0:ListResponse".into()],
@@ -66,10 +59,7 @@ pub async fn create_group(
     Ok((axum::http::StatusCode::CREATED, Json(created)))
 }
 
-pub async fn get_group(
-    Path(id): Path<String>,
-    State(state): State<ScimState>,
-) -> Result<Json<ScimGroup>, ScimError> {
+pub async fn get_group(Path(id): Path<String>, State(state): State<ScimState>) -> Result<Json<ScimGroup>, ScimError> {
     let group = state.group_store.get(&id)?;
     Ok(Json(group))
 }

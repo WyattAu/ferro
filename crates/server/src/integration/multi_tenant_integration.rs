@@ -5,13 +5,7 @@
 use ferro_multi_tenant::organization::OrganizationId;
 use ferro_multi_tenant::tenant::{InMemoryTenantStore, Tenant, TenantId, TenantStatus};
 
-pub fn create_tenant_record(
-    org_id: &str,
-    name: &str,
-    slug: &str,
-    storage_path: &str,
-    owner_id: &str,
-) -> Tenant {
+pub fn create_tenant_record(org_id: &str, name: &str, slug: &str, storage_path: &str, owner_id: &str) -> Tenant {
     Tenant {
         id: TenantId(uuid::Uuid::new_v4().to_string()),
         organization_id: OrganizationId(org_id.to_string()),

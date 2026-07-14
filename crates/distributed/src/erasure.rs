@@ -142,12 +142,11 @@ impl ErasureCoder for XorErasureCoder {
             }
             Ok(result)
         } else if data_shard_count == expected_data - 1 && parity_found {
-            let parity_shard = shards
-                .iter()
-                .find_map(|s| s.as_ref().filter(|s| s.is_parity))
-                .ok_or(DistributedError::DecodingFailed {
+            let parity_shard = shards.iter().find_map(|s| s.as_ref().filter(|s| s.is_parity)).ok_or(
+                DistributedError::DecodingFailed {
                     reason: "parity shard not found despite parity_found flag".into(),
-                })?;
+                },
+            )?;
 
             let mut data_shards_map: Vec<(u8, &Shard)> = Vec::new();
             for s in shards {
@@ -303,14 +302,12 @@ impl ErasureCoder for ReedSolomonErasureCoder {
         }
 
         // Encode parity shards in-place
-        let rs = ReedSolomon::<Field>::new(data_shards, parity_shards).map_err(|e| {
-            DistributedError::EncodingFailed {
+        let rs =
+            ReedSolomon::<Field>::new(data_shards, parity_shards).map_err(|e| DistributedError::EncodingFailed {
                 reason: format!("Reed-Solomon init error: {e}"),
-            }
-        })?;
+            })?;
 
-        let mut shards_mut: Vec<&mut [u8]> =
-            shards_buf.iter_mut().map(|s| s.as_mut_slice()).collect();
+        let mut shards_mut: Vec<&mut [u8]> = shards_buf.iter_mut().map(|s| s.as_mut_slice()).collect();
         rs.encode(&mut shards_mut)
             .map_err(|e| DistributedError::EncodingFailed {
                 reason: format!("Reed-Solomon encode error: {e}"),
@@ -402,11 +399,10 @@ impl ErasureCoder for ReedSolomonErasureCoder {
             return Ok(None); // No missing shards
         };
 
-        let rs = ReedSolomon::<Field>::new(data_shards, parity_shards).map_err(|e| {
-            DistributedError::DecodingFailed {
+        let rs =
+            ReedSolomon::<Field>::new(data_shards, parity_shards).map_err(|e| DistributedError::DecodingFailed {
                 reason: format!("Reed-Solomon init error: {e}"),
-            }
-        })?;
+            })?;
 
         rs.reconstruct(&mut shards_opt)
             .map_err(|e| DistributedError::DecodingFailed {
@@ -637,8 +633,8 @@ mod tests {
         assert_eq!(recovered.index, original.index);
         assert_eq!(
             recovered.data,
-            expected[original.index as usize * (expected.len() / 4)
-                ..(original.index as usize + 1) * (expected.len() / 4)]
+            expected
+                [original.index as usize * (expected.len() / 4)..(original.index as usize + 1) * (expected.len() / 4)]
         );
         assert!(!recovered.is_parity);
     }

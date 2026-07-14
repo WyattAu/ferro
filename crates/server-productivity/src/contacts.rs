@@ -28,10 +28,7 @@ pub struct UpdateContactRequest {
 }
 
 pub async fn list_contacts<S: ProductivityState>(State(state): State<S>) -> impl IntoResponse {
-    let books = state
-        .address_book_store()
-        .list_address_books("default")
-        .await;
+    let books = state.address_book_store().list_address_books("default").await;
     let mut all_contacts = Vec::new();
 
     for book in &books {
@@ -58,10 +55,7 @@ pub async fn create_contact<S: ProductivityState>(
     State(state): State<S>,
     Json(req): Json<CreateContactRequest>,
 ) -> impl IntoResponse {
-    let books = state
-        .address_book_store()
-        .list_address_books("default")
-        .await;
+    let books = state.address_book_store().list_address_books("default").await;
     let book_id = if req.address_book_id.is_empty() {
         if let Some(book) = books.first() {
             book.id.clone()
@@ -115,18 +109,10 @@ pub async fn update_contact<S: ProductivityState>(
     Path(uid): Path<String>,
     Json(req): Json<UpdateContactRequest>,
 ) -> impl IntoResponse {
-    let books = state
-        .address_book_store()
-        .list_address_books("default")
-        .await;
+    let books = state.address_book_store().list_address_books("default").await;
 
     for book in &books {
-        if state
-            .address_book_store()
-            .get_contact(&book.id, &uid)
-            .await
-            .is_some()
-        {
+        if state.address_book_store().get_contact(&book.id, &uid).await.is_some() {
             match state
                 .address_book_store()
                 .update_contact(&book.id, &uid, &req.vcard_data)
@@ -165,23 +151,11 @@ pub async fn delete_contact<S: ProductivityState>(
     State(state): State<S>,
     Path(uid): Path<String>,
 ) -> impl IntoResponse {
-    let books = state
-        .address_book_store()
-        .list_address_books("default")
-        .await;
+    let books = state.address_book_store().list_address_books("default").await;
 
     for book in &books {
-        if state
-            .address_book_store()
-            .get_contact(&book.id, &uid)
-            .await
-            .is_some()
-        {
-            match state
-                .address_book_store()
-                .delete_contact(&book.id, &uid)
-                .await
-            {
+        if state.address_book_store().get_contact(&book.id, &uid).await.is_some() {
+            match state.address_book_store().delete_contact(&book.id, &uid).await {
                 Ok(()) => return StatusCode::NO_CONTENT.into_response(),
                 Err(e) => {
                     return (
@@ -202,10 +176,7 @@ pub async fn delete_contact<S: ProductivityState>(
 }
 
 pub async fn export_contacts<S: ProductivityState>(State(state): State<S>) -> impl IntoResponse {
-    let books = state
-        .address_book_store()
-        .list_address_books("default")
-        .await;
+    let books = state.address_book_store().list_address_books("default").await;
     let mut vcard_data = String::from("BEGIN:VCARD\r\nVERSION:3.0\r\n");
 
     for book in &books {
@@ -223,10 +194,7 @@ pub async fn export_contacts<S: ProductivityState>(State(state): State<S>) -> im
     (
         StatusCode::OK,
         [
-            (
-                axum::http::header::CONTENT_TYPE,
-                "text/vcard; charset=utf-8",
-            ),
+            (axum::http::header::CONTENT_TYPE, "text/vcard; charset=utf-8"),
             (
                 axum::http::header::CONTENT_DISPOSITION,
                 "attachment; filename=\"contacts.vcf\"",
@@ -237,14 +205,8 @@ pub async fn export_contacts<S: ProductivityState>(State(state): State<S>) -> im
         .into_response()
 }
 
-pub async fn import_contacts<S: ProductivityState>(
-    State(state): State<S>,
-    body: String,
-) -> impl IntoResponse {
-    let books = state
-        .address_book_store()
-        .list_address_books("default")
-        .await;
+pub async fn import_contacts<S: ProductivityState>(State(state): State<S>, body: String) -> impl IntoResponse {
+    let books = state.address_book_store().list_address_books("default").await;
     let book_id = if let Some(book) = books.first() {
         book.id.clone()
     } else {
@@ -273,11 +235,7 @@ pub async fn import_contacts<S: ProductivityState>(
             continue;
         }
         let full_vcard = format!("BEGIN:VCARD\r\n{}", vcard);
-        if let Err(e) = state
-            .address_book_store()
-            .create_contact(&book_id, &full_vcard)
-            .await
-        {
+        if let Err(e) = state.address_book_store().create_contact(&book_id, &full_vcard).await {
             errors.push(e.to_string());
         } else {
             imported += 1;

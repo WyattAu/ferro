@@ -110,10 +110,7 @@ fn test_sync_state_persistence_round_trip() {
         assert_eq!(loaded.len(), 2);
 
         let entry = loaded.get("documents/report.pdf").unwrap();
-        assert_eq!(
-            entry.status(),
-            ferro_desktop::sync::types::FileSyncStatus::Synced
-        );
+        assert_eq!(entry.status(), ferro_desktop::sync::types::FileSyncStatus::Synced);
 
         let dir_entry = loaded.get("photos").unwrap();
         assert!(dir_entry.is_dir);

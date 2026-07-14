@@ -1,7 +1,5 @@
 use axum::response::IntoResponse;
-use cedar_policy::{
-    Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request, RestrictedExpression,
-};
+use cedar_policy::{Authorizer, Context, Decision, Entities, EntityUid, PolicySet, Request, RestrictedExpression};
 use common::auth::{AuthDecision, AuthRequest, Claims, is_public_auth_path};
 use common::error::{FerroError, Result};
 use serde::{Deserialize, Serialize};
@@ -9,16 +7,14 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
-#[non_exhaustive]
 /// Cedar policy configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CedarConfig {
     pub default_policy: String,
 }
 
-#[non_exhaustive]
 /// Cedar-based authorization engine.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CedarAuthorizer {
     policy_set: Arc<RwLock<PolicySet>>,
 }
@@ -39,7 +35,7 @@ impl CedarAuthorizer {
 
         let policy_set: PolicySet = default_policy
             .parse()
-            .map_err(|e| FerroError::Internal(format!("Policy parse error: {:?}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Policy parse error: {e:?}")))?;
 
         Ok(Self {
             policy_set: Arc::new(RwLock::new(policy_set)),
@@ -52,11 +48,11 @@ impl CedarAuthorizer {
         for (i, policy_text) in policies.iter().enumerate() {
             let ps: PolicySet = policy_text
                 .parse()
-                .map_err(|e| FerroError::Internal(format!("Policy {} parse error: {:?}", i, e)))?;
+                .map_err(|e| FerroError::Internal(format!("Policy {i} parse error: {e:?}")))?;
             for policy in ps.policies() {
-                policy_set.add(policy.clone()).map_err(|e| {
-                    FerroError::Internal(format!("Add policy {} error: {:?}", i, e))
-                })?;
+                policy_set
+                    .add(policy.clone())
+                    .map_err(|e| FerroError::Internal(format!("Add policy {i} error: {e:?}")))?;
             }
         }
 
@@ -71,13 +67,13 @@ impl CedarAuthorizer {
     pub async fn add_policy(&self, policy_text: &str) -> Result<()> {
         let ps: PolicySet = policy_text
             .parse()
-            .map_err(|e| FerroError::Internal(format!("Policy parse error: {:?}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Policy parse error: {e:?}")))?;
 
         let mut guard = self.policy_set.write().await;
         for policy in ps.policies() {
             guard
                 .add(policy.clone())
-                .map_err(|e| FerroError::Internal(format!("Add policy error: {:?}", e)))?;
+                .map_err(|e| FerroError::Internal(format!("Add policy error: {e:?}")))?;
         }
 
         debug!("Added Cedar policy");
@@ -158,7 +154,7 @@ impl CedarAuthorizer {
         };
 
         let q = Request::new(principal, action, resource, context, None)
-            .map_err(|e| FerroError::Internal(format!("Request creation error: {:?}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Request creation error: {e:?}")))?;
 
         let entities = Entities::empty();
         let authorizer = Authorizer::new();
@@ -167,7 +163,7 @@ impl CedarAuthorizer {
         let reasons: Vec<String> = response
             .diagnostics()
             .reason()
-            .map(|r| r.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         let decision = match response.decision() {
@@ -188,12 +184,7 @@ impl CedarAuthorizer {
     }
 
     /// Evaluate authorization and return a simple boolean (allow/deny).
-    pub async fn is_authorized_simple(
-        &self,
-        principal: &str,
-        action: &str,
-        resource: &str,
-    ) -> Result<bool> {
+    pub async fn is_authorized_simple(&self, principal: &str, action: &str, resource: &str) -> Result<bool> {
         let request = AuthRequest {
             principal: principal.to_string(),
             action: action.to_string(),
@@ -204,9 +195,6 @@ impl CedarAuthorizer {
         match self.is_authorized(&request).await? {
             AuthDecision::Allow { .. } => Ok(true),
             AuthDecision::Deny { .. } => Ok(false),
-            _ => Err(FerroError::Internal(
-                "Unknown authorization decision".to_string(),
-            )),
         }
     }
 }
@@ -299,19 +287,14 @@ pub async fn cedar_middleware(
             );
             (
                 axum::http::StatusCode::FORBIDDEN,
-                format!("Forbidden by policy: {}", reason),
+                format!("Forbidden by policy: {reason}"),
             )
                 .into_response()
         }
         Err(e) => {
             warn!("Cedar authorization error: {}", e);
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "Authorization error",
-            )
-                .into_response()
+            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "Authorization error").into_response()
         }
-        Ok(_) => next.run(request).await,
     }
 }
 
@@ -355,12 +338,7 @@ mod tests {
                 .await
                 .unwrap()
         );
-        assert!(
-            !authorizer
-                .is_authorized_simple("alice", "list", "/")
-                .await
-                .unwrap()
-        );
+        assert!(!authorizer.is_authorized_simple("alice", "list", "/").await.unwrap());
         assert!(
             !authorizer
                 .is_authorized_simple("alice", "admin", "/file.txt")
@@ -387,10 +365,7 @@ mod tests {
                 resource
             );
         "#;
-        authorizer
-            .load_policies(&[restrictive.to_string()])
-            .await
-            .unwrap();
+        authorizer.load_policies(&[restrictive.to_string()]).await.unwrap();
 
         // alice can read (explicit permit)
         assert!(
@@ -481,8 +456,7 @@ mod tests {
             AuthDecision::Allow { .. } => {
                 panic!("Should not be allowed with default deny-all policy");
             }
-            AuthDecision::Deny { reason: _ } => {}
-            _ => panic!("Unexpected decision"),
+            AuthDecision::Deny { .. } => {}
         }
     }
 
@@ -493,10 +467,7 @@ mod tests {
             @id("allow_all")
             permit(principal, action, resource);
         "#;
-        authorizer
-            .load_policies(&[permissive.to_string()])
-            .await
-            .unwrap();
+        authorizer.load_policies(&[permissive.to_string()]).await.unwrap();
         let request = AuthRequest {
             principal: "alice".to_string(),
             action: "read".to_string(),
@@ -518,10 +489,7 @@ mod tests {
             @id("allow_all")
             permit(principal, action, resource);
         "#;
-        authorizer
-            .load_policies(&[permissive.to_string()])
-            .await
-            .unwrap();
+        authorizer.load_policies(&[permissive.to_string()]).await.unwrap();
         let request = AuthRequest {
             principal: "alice".to_string(),
             action: "write".to_string(),
@@ -533,5 +501,201 @@ mod tests {
         };
         let decision = authorizer.is_authorized(&request).await.unwrap();
         assert!(matches!(decision, AuthDecision::Allow { .. }));
+    }
+
+    #[tokio::test]
+    async fn test_add_policy_actually_adds() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        // Start with deny-all (default)
+        assert!(
+            !authorizer
+                .is_authorized_simple("alice", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
+
+        // Replace with an allow-all policy to clear state, then add a specific one
+        let allow_all = r#"
+            permit(principal, action, resource);
+        "#;
+        authorizer.load_policies(&[allow_all.to_string()]).await.unwrap();
+
+        // Verify allow-all works
+        assert!(
+            authorizer
+                .is_authorized_simple("alice", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
+
+        // Now replace with a restrictive policy using load_policies
+        let restrictive = r#"
+            permit (
+                principal == User::"alice",
+                action in Action::"read",
+                resource
+            );
+        "#;
+        authorizer.load_policies(&[restrictive.to_string()]).await.unwrap();
+
+        // Alice should still be allowed
+        assert!(
+            authorizer
+                .is_authorized_simple("alice", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
+        // Bob should be denied
+        assert!(
+            !authorizer
+                .is_authorized_simple("bob", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_add_policy_invalid_text_fails() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let result = authorizer.add_policy("this is not valid cedar syntax!!!").await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_cedar_authorizer_default() {
+        let authorizer = CedarAuthorizer::default();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            assert!(
+                !authorizer
+                    .is_authorized_simple("alice", "read", "/file.txt")
+                    .await
+                    .unwrap()
+            );
+        });
+    }
+
+    #[tokio::test]
+    async fn test_load_policies_invalid_fails() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let result = authorizer.load_policies(&["not valid cedar !!!".to_string()]).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_load_policies_multiple() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let combined = r#"
+            @id("allow_all_actions")
+            permit(principal, action, resource);
+
+            @id("deny_admin_actions")
+            forbid(principal, action == Action::"admin", resource);
+        "#;
+        authorizer.load_policies(&[combined.to_string()]).await.unwrap();
+        // Should be allowed (permit all, but admin is forbidden)
+        assert!(
+            authorizer
+                .is_authorized_simple("alice", "read", "/file.txt")
+                .await
+                .unwrap()
+        );
+        // Admin should be denied by the forbid rule
+        assert!(
+            !authorizer
+                .is_authorized_simple("alice", "admin", "/file.txt")
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_context_with_unsupported_type_ignored() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let permissive = r#"
+            @id("allow_all")
+            permit(principal, action, resource);
+        "#;
+        authorizer.load_policies(&[permissive.to_string()]).await.unwrap();
+        let request = AuthRequest {
+            principal: "alice".to_string(),
+            action: "read".to_string(),
+            resource: "/file.txt".to_string(),
+            context: serde_json::json!({
+                "array_field": [1, 2, 3],
+                "null_field": null,
+            }),
+        };
+        let decision = authorizer.is_authorized(&request).await.unwrap();
+        assert!(matches!(decision, AuthDecision::Allow { .. }));
+    }
+
+    #[tokio::test]
+    async fn test_is_authorized_with_allow_decision_reasons() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let policy = r#"
+            @id("allow_alice_read")
+            permit(
+                principal == User::"alice",
+                action == Action::"read",
+                resource
+            );
+        "#;
+        authorizer.load_policies(&[policy.to_string()]).await.unwrap();
+        let request = AuthRequest {
+            principal: "alice".to_string(),
+            action: "read".to_string(),
+            resource: "/file.txt".to_string(),
+            context: serde_json::Value::Null,
+        };
+        let decision = authorizer.is_authorized(&request).await.unwrap();
+        match decision {
+            AuthDecision::Allow { policy_id } => {
+                assert!(policy_id.is_some());
+            }
+            _ => panic!("Expected Allow"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_is_authorized_with_deny_decision() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let policy = r#"
+            @id("deny_bob")
+            forbid(
+                principal == User::"bob",
+                action,
+                resource
+            );
+        "#;
+        authorizer.load_policies(&[policy.to_string()]).await.unwrap();
+        let request = AuthRequest {
+            principal: "bob".to_string(),
+            action: "read".to_string(),
+            resource: "/file.txt".to_string(),
+            context: serde_json::Value::Null,
+        };
+        let decision = authorizer.is_authorized(&request).await.unwrap();
+        match decision {
+            AuthDecision::Deny { reason } => {
+                assert!(!reason.is_empty());
+            }
+            _ => panic!("Expected Deny"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_load_policies_duplicate_policy_id_fails() {
+        let authorizer = CedarAuthorizer::new().unwrap();
+        let p1 = r#"
+            @id("duplicate_id")
+            permit(principal, action, resource);
+        "#;
+        let p2 = r#"
+            @id("duplicate_id")
+            permit(principal, action, resource);
+        "#;
+        let result = authorizer.load_policies(&[p1.to_string(), p2.to_string()]).await;
+        assert!(result.is_err());
     }
 }

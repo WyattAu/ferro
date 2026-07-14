@@ -1,5 +1,6 @@
 use common::auth::{Claims, is_public_auth_path};
 use common::error::{FerroError, Result};
+use dashmap::DashMap;
 use jsonwebtoken::{Validation, decode_header};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -26,18 +27,17 @@ struct JwksCache {
     ttl: Duration,
 }
 
-#[non_exhaustive]
 /// Validates OIDC tokens and manages PKCE sessions.
 #[derive(Clone)]
 pub struct OidcValidator {
     config: Arc<OidcConfig>,
     jwks: Arc<RwLock<JwksCache>>,
-    pkce_sessions: Arc<RwLock<HashMap<String, PkceSession>>>,
+    pkce_sessions: Arc<DashMap<String, PkceSession>>,
     http_client: reqwest::Client,
 }
 
-#[non_exhaustive]
 /// A PKCE OAuth session stored between the login redirect and callback.
+#[derive(Debug)]
 pub struct PkceSession {
     pub code_verifier: String,
     pub redirect_uri: String,
@@ -47,34 +47,31 @@ pub struct PkceSession {
 
 impl OidcValidator {
     /// Create a new validator with the given OIDC configuration.
+    #[must_use]
     pub fn new(config: OidcConfig) -> Self {
         Self {
             config: Arc::new(config),
             jwks: Arc::new(RwLock::new(JwksCache {
                 keys: HashMap::new(),
                 fetched_at: Instant::now(),
-                ttl: Duration::from_secs(86400),
+                ttl: Duration::from_hours(24),
             })),
-            pkce_sessions: Arc::new(RwLock::new(HashMap::new())),
+            pkce_sessions: Arc::new(DashMap::new()),
             http_client: reqwest::Client::new(),
         }
     }
 
     /// Return a reference to the OIDC configuration.
+    #[must_use]
     pub fn config(&self) -> &OidcConfig {
         &self.config
     }
 
     /// Store a PKCE session for later retrieval during the OAuth callback.
-    pub async fn store_pkce_session(
-        &self,
-        state: &str,
-        code_verifier: &str,
-        redirect_uri: &str,
-        callback_url: &str,
-    ) {
-        let mut sessions = self.pkce_sessions.write().await;
-        sessions.insert(
+    pub async fn store_pkce_session(&self, state: &str, code_verifier: &str, redirect_uri: &str, callback_url: &str) {
+        let cutoff = Instant::now().checked_sub(Duration::from_mins(10)).unwrap();
+        self.pkce_sessions.retain(|_, s| s.created_at > cutoff);
+        self.pkce_sessions.insert(
             state.to_string(),
             PkceSession {
                 code_verifier: code_verifier.to_string(),
@@ -83,16 +80,13 @@ impl OidcValidator {
                 created_at: Instant::now(),
             },
         );
-        let cutoff = Instant::now() - Duration::from_secs(600);
-        sessions.retain(|_, s| s.created_at > cutoff);
     }
 
     /// Consume and return a PKCE session by state token (one-time use).
     pub async fn consume_pkce_session(&self, state: &str) -> Option<PkceSession> {
-        let mut sessions = self.pkce_sessions.write().await;
-        let cutoff = Instant::now() - Duration::from_secs(600);
-        sessions.retain(|_, s| s.created_at > cutoff);
-        sessions.remove(state)
+        let cutoff = Instant::now().checked_sub(Duration::from_mins(10)).unwrap();
+        self.pkce_sessions.retain(|_, s| s.created_at > cutoff);
+        self.pkce_sessions.remove(state).map(|(_, v)| v)
     }
 
     /// Exchange an authorization code for tokens using the OIDC token endpoint.
@@ -111,10 +105,10 @@ impl OidcValidator {
             .get(&discovery_url)
             .send()
             .await
-            .map_err(|e| FerroError::Internal(format!("OIDC discovery failed: {}", e)))?
+            .map_err(|e| FerroError::Internal(format!("OIDC discovery failed: {e}")))?
             .json()
             .await
-            .map_err(|e| FerroError::Internal(format!("OIDC discovery parse failed: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("OIDC discovery parse failed: {e}")))?;
 
         let token_endpoint = discovery
             .get("token_endpoint")
@@ -135,12 +129,10 @@ impl OidcValidator {
             .form(&params)
             .send()
             .await
-            .map_err(|e| FerroError::Internal(format!("Token exchange request failed: {}", e)))?
+            .map_err(|e| FerroError::Internal(format!("Token exchange request failed: {e}")))?
             .json::<serde_json::Value>()
             .await
-            .map_err(|e| {
-                FerroError::Internal(format!("Token exchange response parse failed: {}", e))
-            })?;
+            .map_err(|e| FerroError::Internal(format!("Token exchange response parse failed: {e}")))?;
 
         Ok(response)
     }
@@ -159,10 +151,10 @@ impl OidcValidator {
             .get(&discovery_url)
             .send()
             .await
-            .map_err(|e| FerroError::Internal(format!("OIDC discovery failed: {}", e)))?
+            .map_err(|e| FerroError::Internal(format!("OIDC discovery failed: {e}")))?
             .json()
             .await
-            .map_err(|e| FerroError::Internal(format!("OIDC discovery parse failed: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("OIDC discovery parse failed: {e}")))?;
 
         let token_endpoint = discovery
             .get("token_endpoint")
@@ -181,7 +173,7 @@ impl OidcValidator {
             .form(&params)
             .send()
             .await
-            .map_err(|e| FerroError::Internal(format!("Token refresh request failed: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Token refresh request failed: {e}")))?;
 
         let status = response.status();
         if !status.is_success() {
@@ -189,9 +181,10 @@ impl OidcValidator {
             return Err(FerroError::Unauthorized);
         }
 
-        response.json::<serde_json::Value>().await.map_err(|e| {
-            FerroError::Internal(format!("Token refresh response parse failed: {}", e))
-        })
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| FerroError::Internal(format!("Token refresh response parse failed: {e}")))
     }
 
     /// Validate a JWT access token and extract its claims.
@@ -212,11 +205,7 @@ impl OidcValidator {
             .ok_or(FerroError::Unauthorized)
     }
 
-    fn try_validate_with_keys(
-        &self,
-        token: &str,
-        keys: &HashMap<String, jsonwebtoken::DecodingKey>,
-    ) -> Option<Claims> {
+    fn try_validate_with_keys(&self, token: &str, keys: &HashMap<String, jsonwebtoken::DecodingKey>) -> Option<Claims> {
         let header = decode_header(token).ok()?;
         let kid = header.kid?;
         let decoding_key = keys.get(&kid)?;
@@ -250,17 +239,15 @@ impl OidcValidator {
                 .get(&jwks_uri)
                 .send()
                 .await
-                .map_err(|e| FerroError::Internal(format!("OIDC discovery failed: {}", e)))?
+                .map_err(|e| FerroError::Internal(format!("OIDC discovery failed: {e}")))?
                 .json()
                 .await
-                .map_err(|e| FerroError::Internal(format!("OIDC discovery parse failed: {}", e)))?;
+                .map_err(|e| FerroError::Internal(format!("OIDC discovery parse failed: {e}")))?;
 
             discovery
                 .get("jwks_uri")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    FerroError::Internal("No jwks_uri in discovery document".to_string())
-                })?
+                .ok_or_else(|| FerroError::Internal("No jwks_uri in discovery document".to_string()))?
                 .to_string()
         } else {
             jwks_uri
@@ -271,16 +258,16 @@ impl OidcValidator {
             .get(&actual_jwks_uri)
             .send()
             .await
-            .map_err(|e| FerroError::Internal(format!("JWKS fetch failed: {}", e)))?
+            .map_err(|e| FerroError::Internal(format!("JWKS fetch failed: {e}")))?
             .json()
             .await
-            .map_err(|e| FerroError::Internal(format!("JWKS parse failed: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("JWKS parse failed: {e}")))?;
 
         let jwk_set: jsonwebtoken::jwk::JwkSet = serde_json::from_value(jwks_response)
-            .map_err(|e| FerroError::Internal(format!("JWKS deserialize failed: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("JWKS deserialize failed: {e}")))?;
 
         let mut keys = HashMap::new();
-        for jwk in jwk_set.keys.into_iter() {
+        for jwk in jwk_set.keys {
             let kid = jwk.common.key_id.clone().unwrap_or_default();
             if kid.is_empty() {
                 continue;
@@ -305,6 +292,19 @@ impl OidcValidator {
     }
 }
 
+/// Decode and validate a JWT claims payload without cryptographic signature verification.
+///
+/// This is intended for testing only. It decodes the header and payload,
+/// checks expiration, and returns the claims. The signature is **not** verified.
+///
+/// # Errors
+///
+/// Returns `FerroError::Unauthorized` if the token is malformed, has invalid base64,
+/// contains invalid JSON, or is expired.
+///
+/// # Panics
+///
+/// This function never panics.
 #[cfg(test)]
 pub fn decode_claims_unsafe(token: &str) -> Result<Claims> {
     use base64::Engine;
@@ -319,8 +319,7 @@ pub fn decode_claims_unsafe(token: &str) -> Result<Claims> {
         .decode(parts[1])
         .map_err(|_| FerroError::Unauthorized)?;
 
-    let claims: Claims =
-        serde_json::from_slice(&payload_bytes).map_err(|_| FerroError::Unauthorized)?;
+    let claims: Claims = serde_json::from_slice(&payload_bytes).map_err(|_| FerroError::Unauthorized)?;
 
     let now = jsonwebtoken::get_current_timestamp();
     if claims.exp != 0 && claims.exp < now {
@@ -331,6 +330,19 @@ pub fn decode_claims_unsafe(token: &str) -> Result<Claims> {
 }
 
 /// Axum middleware that validates Bearer tokens via OIDC.
+///
+/// Extracts the `Authorization: Bearer <token>` header, validates the token
+/// against the OIDC provider, and inserts the [`Claims`] into request extensions.
+/// Public paths (login, callback, healthz, etc.) are passed through without
+/// authentication.
+///
+/// # Errors
+///
+/// Returns a 401 response if the token is missing, invalid, or expired.
+///
+/// # Panics
+///
+/// This function never panics.
 #[cfg(feature = "handlers")]
 pub async fn auth_middleware(
     oidc: Option<Arc<OidcValidator>>,
@@ -373,6 +385,11 @@ pub async fn auth_middleware(
     next.run(request).await
 }
 
+/// Create a 401 Unauthorized JSON response with an error code and message.
+///
+/// # Panics
+///
+/// This function never panics.
 #[cfg(feature = "handlers")]
 fn unauthorized_response(code: &str, message: &str) -> axum::response::Response {
     use axum::response::IntoResponse;
@@ -407,10 +424,8 @@ mod tests {
         let header_json = serde_json::to_string(&header).unwrap();
         let claims_json = serde_json::to_string(claims).unwrap();
 
-        let header_b64 =
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header_json.as_bytes());
-        let claims_b64 =
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(claims_json.as_bytes());
+        let header_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header_json.as_bytes());
+        let claims_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(claims_json.as_bytes());
 
         let signature = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b"fake-signature");
 
@@ -499,5 +514,154 @@ mod tests {
         };
 
         let _validator = OidcValidator::new(config);
+    }
+
+    #[tokio::test]
+    async fn test_pkce_session_store_and_consume() {
+        let config = OidcConfig {
+            issuer: "https://auth.example.com".to_string(),
+            client_id: "ferro-client".to_string(),
+            audience: "ferro".to_string(),
+            jwks_uri: None,
+        };
+        let validator = OidcValidator::new(config);
+
+        validator
+            .store_pkce_session("state1", "verifier1", "redirect1", "callback1")
+            .await;
+        let session = validator.consume_pkce_session("state1").await;
+        assert!(session.is_some(), "Stored PKCE session should be consumable");
+        let s = session.unwrap();
+        assert_eq!(s.code_verifier, "verifier1");
+        assert_eq!(s.redirect_uri, "redirect1");
+        assert_eq!(s.callback_url, "callback1");
+    }
+
+    #[tokio::test]
+    async fn test_pkce_session_consume_removes() {
+        let config = OidcConfig {
+            issuer: "https://auth.example.com".to_string(),
+            client_id: "ferro-client".to_string(),
+            audience: "ferro".to_string(),
+            jwks_uri: None,
+        };
+        let validator = OidcValidator::new(config);
+
+        validator
+            .store_pkce_session("state1", "verifier1", "redirect1", "callback1")
+            .await;
+        // First consume succeeds
+        assert!(validator.consume_pkce_session("state1").await.is_some());
+        // Second consume fails (one-time use)
+        assert!(
+            validator.consume_pkce_session("state1").await.is_none(),
+            "PKCE session should be consumed (one-time use)"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_pkce_session_nonexistent_returns_none() {
+        let config = OidcConfig {
+            issuer: "https://auth.example.com".to_string(),
+            client_id: "ferro-client".to_string(),
+            audience: "ferro".to_string(),
+            jwks_uri: None,
+        };
+        let validator = OidcValidator::new(config);
+        assert!(
+            validator.consume_pkce_session("nonexistent").await.is_none(),
+            "Non-existent state should return None"
+        );
+    }
+
+    #[test]
+    fn test_oidc_config_accessor() {
+        let config = OidcConfig {
+            issuer: "https://issuer.example.com".to_string(),
+            client_id: "client123".to_string(),
+            audience: "aud123".to_string(),
+            jwks_uri: Some("https://jwks.example.com".to_string()),
+        };
+        let validator = OidcValidator::new(config);
+        assert_eq!(validator.config().issuer, "https://issuer.example.com");
+        assert_eq!(validator.config().client_id, "client123");
+        assert_eq!(validator.config().audience, "aud123");
+        assert!(validator.config().jwks_uri.is_some());
+    }
+
+    #[test]
+    fn test_decode_claims_unsafe_bad_base64_payload() {
+        // Valid header, but payload is not valid base64
+        let token = "eyJhbGciOiJSUzI1NiJ9.NOT_VALID_BASE64!!!.sig";
+        assert!(decode_claims_unsafe(token).is_err());
+    }
+
+    #[test]
+    fn test_decode_claims_unsafe_bad_json_payload() {
+        use base64::Engine;
+        let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
+        let header_json = serde_json::to_string(&header).unwrap();
+        let header_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header_json.as_bytes());
+        // Valid base64 but not valid JSON
+        let payload_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b"not json");
+        let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b"sig");
+        let token = format!("{}.{}.{}", header_b64, payload_b64, sig_b64);
+        assert!(decode_claims_unsafe(&token).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_pkce_session_multiple() {
+        let config = OidcConfig {
+            issuer: "https://auth.example.com".to_string(),
+            client_id: "ferro-client".to_string(),
+            audience: "ferro".to_string(),
+            jwks_uri: None,
+        };
+        let validator = OidcValidator::new(config);
+
+        validator.store_pkce_session("s1", "v1", "r1", "c1").await;
+        validator.store_pkce_session("s2", "v2", "r2", "c2").await;
+
+        let s1 = validator.consume_pkce_session("s1").await.unwrap();
+        assert_eq!(s1.code_verifier, "v1");
+
+        let s2 = validator.consume_pkce_session("s2").await.unwrap();
+        assert_eq!(s2.code_verifier, "v2");
+
+        // Both consumed
+        assert!(validator.consume_pkce_session("s1").await.is_none());
+        assert!(validator.consume_pkce_session("s2").await.is_none());
+    }
+
+    #[test]
+    fn test_pkce_session_fields() {
+        let session = PkceSession {
+            code_verifier: "verifier".to_string(),
+            redirect_uri: "https://example.com/callback".to_string(),
+            callback_url: "https://example.com/callback".to_string(),
+            created_at: Instant::now(),
+        };
+        assert_eq!(session.code_verifier, "verifier");
+        assert_eq!(session.redirect_uri, "https://example.com/callback");
+    }
+
+    #[test]
+    fn test_oidc_validator_clone() {
+        let config = OidcConfig {
+            issuer: "https://auth.example.com".to_string(),
+            client_id: "client".to_string(),
+            audience: "aud".to_string(),
+            jwks_uri: None,
+        };
+        let v1 = OidcValidator::new(config);
+        let v2 = v1.clone();
+        assert_eq!(v1.config().issuer, v2.config().issuer);
+    }
+
+    #[test]
+    fn test_decode_claims_unsafe_bad_header() {
+        // Invalid base64 in header
+        let token = "NOT_VALID.eyJzdWIiOiIxIn0.[]";
+        assert!(decode_claims_unsafe(token).is_err());
     }
 }

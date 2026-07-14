@@ -2,7 +2,9 @@ use async_trait::async_trait;
 use chrono::Utc;
 use common::error::{FerroError, Result};
 use common::webdav::{LockDepth, LockInfo, LockScope, LockToken, LockType};
+use ferro_circuit_breaker::{CircuitBreaker, CircuitBreakerError, CircuitState};
 use redis::aio::ConnectionManager;
+use std::sync::LazyLock;
 use std::time::Duration;
 use tracing::debug;
 
@@ -13,6 +15,9 @@ const DEFAULT_TIMEOUT_SECS: u32 = 86400;
 const REDIS_OP_TIMEOUT: Duration = Duration::from_secs(5);
 const KEY_PREFIX: &str = "ferro:lock";
 const TOKEN_INDEX_PREFIX: &str = "ferro:lock:token";
+
+static REDIS_CB: LazyLock<CircuitBreaker> =
+    LazyLock::new(|| CircuitBreaker::new(5, Duration::from_secs(30)));
 
 pub struct RedisLockManager {
     client: ConnectionManager,
@@ -156,13 +161,24 @@ impl LockManagerTrait for RedisLockManager {
         let lock = self.get_lock_info(path).await?;
         if lock.is_expired() {
             let key = Self::lock_key(path);
-            let _ = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
-                redis::cmd("DEL")
-                    .arg(&key)
-                    .query_async::<()>(&mut self.client.clone())
-                    .await
-            })
-            .await;
+            let client = self.client.clone();
+            let _ = REDIS_CB
+                .call(|| {
+                    let key = key.clone();
+                    let mut conn = client.clone();
+                    async move {
+                        tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+                            redis::cmd("DEL")
+                                .arg(&key)
+                                .query_async::<()>(&mut conn)
+                                .await
+                        })
+                        .await
+                        .map_err(|_| FerroError::Timeout)?
+                        .map_err(|e| FerroError::Internal(format!("Redis DEL failed: {}", e)))
+                    }
+                })
+                .await;
             return None;
         }
         Some(lock)
@@ -229,7 +245,16 @@ impl LockManagerTrait for RedisLockManager {
             refresh_count: 0,
         };
 
-        self.store_lock(&lock).await?;
+        REDIS_CB
+            .call(|| async { self.store_lock(&lock).await })
+            .await
+            .map_err(|e| match e {
+                CircuitBreakerError { state: CircuitState::Open, .. } => {
+                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
+                }
+                CircuitBreakerError { inner: Some(inner), .. } => inner,
+                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
+            })?;
 
         debug!(
             "LOCK acquired (Redis): {} by {} (scope={:?}, timeout={}s)",
@@ -242,15 +267,30 @@ impl LockManagerTrait for RedisLockManager {
     async fn release_lock(&self, token: &str) -> Result<()> {
         let token_index_key = Self::token_index_key(token);
 
-        let path: Option<String> = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
-            redis::cmd("GET")
-                .arg(&token_index_key)
-                .query_async(&mut self.client.clone())
-                .await
-        })
-        .await
-        .map_err(|_| FerroError::Timeout)?
-        .map_err(|e| FerroError::Internal(format!("Redis GET failed: {}", e)))?;
+        let path: Option<String> = REDIS_CB
+            .call(|| {
+                let key = token_index_key.clone();
+                let mut conn = self.client.clone();
+                async move {
+                    tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+                        redis::cmd("GET")
+                            .arg(&key)
+                            .query_async(&mut conn)
+                            .await
+                    })
+                    .await
+                    .map_err(|_| FerroError::Timeout)?
+                    .map_err(|e| FerroError::Internal(format!("Redis GET failed: {}", e)))
+                }
+            })
+            .await
+            .map_err(|e| match e {
+                CircuitBreakerError { state: CircuitState::Open, .. } => {
+                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
+                }
+                CircuitBreakerError { inner: Some(inner), .. } => inner,
+                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
+            })?;
 
         let path = match path {
             Some(p) => p,
@@ -272,24 +312,61 @@ impl LockManagerTrait for RedisLockManager {
         );
 
         let mut conn = self.client.clone();
-        let deleted: i32 = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
-            script
-                .key(&lock_key)
-                .arg(token)
-                .invoke_async(&mut conn)
-                .await
-        })
-        .await
-        .map_err(|_| FerroError::Timeout)?
-        .map_err(|e| FerroError::Internal(format!("Redis Lua script failed: {}", e)))?;
+        let deleted: i32 = REDIS_CB
+            .call(|| {
+                let script = redis::Script::new(
+                    r#"
+                    local token = ARGV[1]
+                    local actual = redis.call('HGET', KEYS[1], 'token')
+                    if actual and string.find(actual, token) then
+                        return redis.call('DEL', KEYS[1])
+                    else
+                        return 0
+                    end
+                    "#,
+                );
+                let mut conn = self.client.clone();
+                let token = token.to_string();
+                async move {
+                    tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+                        script
+                            .key(&lock_key)
+                            .arg(token)
+                            .invoke_async(&mut conn)
+                            .await
+                    })
+                    .await
+                    .map_err(|_| FerroError::Timeout)?
+                    .map_err(|e| FerroError::Internal(format!("Redis Lua script failed: {}", e)))
+                }
+            })
+            .await
+            .map_err(|e| match e {
+                CircuitBreakerError { state: CircuitState::Open, .. } => {
+                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
+                }
+                CircuitBreakerError { inner: Some(inner), .. } => inner,
+                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
+            })?;
 
-        let _ = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
-            redis::cmd("DEL")
-                .arg(&token_index_key)
-                .query_async::<()>(&mut self.client.clone())
-                .await
-        })
-        .await;
+        let token_index_key_cleanup = Self::token_index_key(token);
+        let _ = REDIS_CB
+            .call(|| {
+                let key = token_index_key_cleanup.clone();
+                let mut conn = self.client.clone();
+                async move {
+                    tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+                        redis::cmd("DEL")
+                            .arg(&key)
+                            .query_async::<()>(&mut conn)
+                            .await
+                    })
+                    .await
+                    .map_err(|_| FerroError::Timeout)?
+                    .map_err(|e| FerroError::Internal(format!("Redis DEL failed: {}", e)))
+                }
+            })
+            .await;
 
         if deleted > 0 {
             debug!("LOCK released (Redis): {}", path);
@@ -302,15 +379,30 @@ impl LockManagerTrait for RedisLockManager {
     async fn refresh_lock(&self, token: &str, timeout_secs: Option<u32>) -> Result<LockInfo> {
         let token_index_key = Self::token_index_key(token);
 
-        let path: Option<String> = tokio::time::timeout(REDIS_OP_TIMEOUT, async {
-            redis::cmd("GET")
-                .arg(&token_index_key)
-                .query_async(&mut self.client.clone())
-                .await
-        })
-        .await
-        .map_err(|_| FerroError::Timeout)?
-        .map_err(|e| FerroError::Internal(format!("Redis GET failed: {}", e)))?;
+        let path: Option<String> = REDIS_CB
+            .call(|| {
+                let key = token_index_key.clone();
+                let mut conn = self.client.clone();
+                async move {
+                    tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+                        redis::cmd("GET")
+                            .arg(&key)
+                            .query_async(&mut conn)
+                            .await
+                    })
+                    .await
+                    .map_err(|_| FerroError::Timeout)?
+                    .map_err(|e| FerroError::Internal(format!("Redis GET failed: {}", e)))
+                }
+            })
+            .await
+            .map_err(|e| match e {
+                CircuitBreakerError { state: CircuitState::Open, .. } => {
+                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
+                }
+                CircuitBreakerError { inner: Some(inner), .. } => inner,
+                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
+            })?;
 
         let path = match path {
             Some(p) => p,
@@ -327,7 +419,16 @@ impl LockManagerTrait for RedisLockManager {
         lock.created_at = Utc::now();
         lock.refresh_count += 1;
 
-        self.store_lock(&lock).await?;
+        REDIS_CB
+            .call(|| async { self.store_lock(&lock).await })
+            .await
+            .map_err(|e| match e {
+                CircuitBreakerError { state: CircuitState::Open, .. } => {
+                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
+                }
+                CircuitBreakerError { inner: Some(inner), .. } => inner,
+                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
+            })?;
 
         debug!(
             "LOCK refreshed (Redis): {} (refresh #{})",
@@ -343,22 +444,31 @@ impl LockManagerTrait for RedisLockManager {
         let mut cursor: u64 = 0;
 
         loop {
-            let (new_cursor, keys): (u64, Vec<String>) =
-                match tokio::time::timeout(REDIS_OP_TIMEOUT, async {
-                    redis::cmd("SCAN")
-                        .arg(cursor)
-                        .arg("MATCH")
-                        .arg(&pattern)
-                        .arg("COUNT")
-                        .arg(100)
-                        .query_async(&mut self.client.clone())
+            let (new_cursor, keys): (u64, Vec<String>) = match REDIS_CB
+                .call(|| {
+                    let pattern = pattern.clone();
+                    let mut conn = self.client.clone();
+                    async move {
+                        tokio::time::timeout(REDIS_OP_TIMEOUT, async {
+                            redis::cmd("SCAN")
+                                .arg(cursor)
+                                .arg("MATCH")
+                                .arg(&pattern)
+                                .arg("COUNT")
+                                .arg(100)
+                                .query_async(&mut conn)
+                                .await
+                        })
                         .await
+                        .map_err(|_| FerroError::Timeout)?
+                        .map_err(|e| FerroError::Internal(format!("Redis SCAN failed: {}", e)))
+                    }
                 })
                 .await
-                {
-                    Ok(Ok(result)) => result,
-                    _ => break,
-                };
+            {
+                Ok(Ok(result)) => result,
+                _ => break,
+            };
 
             cursor = new_cursor;
             for key in keys {

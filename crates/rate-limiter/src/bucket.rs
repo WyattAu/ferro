@@ -29,12 +29,7 @@ impl TokenBucketLimiter {
         }
     }
 
-    fn refill_tokens(
-        state: &mut BucketState,
-        refill_rate: u32,
-        refill_interval: Duration,
-        max_tokens: u32,
-    ) {
+    fn refill_tokens(state: &mut BucketState, refill_rate: u32, refill_interval: Duration, max_tokens: u32) {
         let now = Instant::now();
         let elapsed = now.duration_since(state.last_refill);
         if elapsed >= refill_interval && refill_interval.as_nanos() > 0 {
@@ -49,22 +44,14 @@ impl TokenBucketLimiter {
 #[async_trait]
 impl RateLimiter for TokenBucketLimiter {
     async fn check(&self, key: &str) -> Result<RateLimitResult, RateLimitError> {
-        let mut entry = self
-            .buckets
-            .entry(key.to_owned())
-            .or_insert_with(|| BucketState {
-                tokens: self.max_tokens,
-                max_tokens: self.max_tokens,
-                last_refill: Instant::now(),
-            });
+        let mut entry = self.buckets.entry(key.to_owned()).or_insert_with(|| BucketState {
+            tokens: self.max_tokens,
+            max_tokens: self.max_tokens,
+            last_refill: Instant::now(),
+        });
 
         let state = entry.value_mut();
-        Self::refill_tokens(
-            state,
-            self.refill_rate,
-            self.refill_interval,
-            self.max_tokens,
-        );
+        Self::refill_tokens(state, self.refill_rate, self.refill_interval, self.max_tokens);
 
         if state.tokens > 0 {
             state.tokens -= 1;
@@ -89,22 +76,14 @@ impl RateLimiter for TokenBucketLimiter {
     }
 
     async fn record(&self, key: &str, cost: u32) -> Result<(), RateLimitError> {
-        let mut entry = self
-            .buckets
-            .entry(key.to_owned())
-            .or_insert_with(|| BucketState {
-                tokens: self.max_tokens,
-                max_tokens: self.max_tokens,
-                last_refill: Instant::now(),
-            });
+        let mut entry = self.buckets.entry(key.to_owned()).or_insert_with(|| BucketState {
+            tokens: self.max_tokens,
+            max_tokens: self.max_tokens,
+            last_refill: Instant::now(),
+        });
 
         let state = entry.value_mut();
-        Self::refill_tokens(
-            state,
-            self.refill_rate,
-            self.refill_interval,
-            self.max_tokens,
-        );
+        Self::refill_tokens(state, self.refill_rate, self.refill_interval, self.max_tokens);
         state.tokens = state.tokens.saturating_sub(cost);
         Ok(())
     }

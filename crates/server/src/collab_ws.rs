@@ -10,12 +10,8 @@ pub async fn collab_ws_handler(
     Path(document_id): Path<String>,
     State(state): State<crate::AppState>,
 ) -> Response {
-    ferro_server_collaboration::collab_ws::collab_ws_handler::<crate::AppState>(
-        ws,
-        Path(document_id),
-        State(state),
-    )
-    .await
+    ferro_server_collaboration::collab_ws::collab_ws_handler::<crate::AppState>(ws, Path(document_id), State(state))
+        .await
 }
 
 #[cfg(test)]

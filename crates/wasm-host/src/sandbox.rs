@@ -63,16 +63,12 @@ pub fn validate_plugin(wasm_bytes: &[u8]) -> Result<ValidationResult, WasmHostEr
     }
 
     if wasm_bytes.len() < 8 {
-        return Err(WasmHostError::InvalidPlugin(
-            "WASM module too small to be valid".into(),
-        ));
+        return Err(WasmHostError::InvalidPlugin("WASM module too small to be valid".into()));
     }
 
     let magic = &wasm_bytes[0..4];
     if magic != [0x00, 0x61, 0x73, 0x6d] {
-        return Err(WasmHostError::InvalidPlugin(
-            "Invalid WASM magic number".into(),
-        ));
+        return Err(WasmHostError::InvalidPlugin("Invalid WASM magic number".into()));
     }
 
     let engine = wasmtime::Engine::default();
@@ -104,10 +100,7 @@ pub fn validate_plugin(wasm_bytes: &[u8]) -> Result<ValidationResult, WasmHostEr
     })
 }
 
-pub fn check_instance_limit(
-    current_count: usize,
-    config: &WasmHostConfig,
-) -> Result<(), WasmHostError> {
+pub fn check_instance_limit(current_count: usize, config: &WasmHostConfig) -> Result<(), WasmHostError> {
     if current_count >= config.max_instances {
         Err(WasmHostError::InvalidPlugin(format!(
             "Max instances ({}) reached",

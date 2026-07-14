@@ -44,8 +44,7 @@ impl WebDavCompliance {
         if condition {
             self.passed += 1;
         } else {
-            self.failed
-                .push(format!("class {} :: {} FAILED", self.class, name));
+            self.failed.push(format!("class {} :: {} FAILED", self.class, name));
         }
     }
 
@@ -79,15 +78,12 @@ fn count_propfind_responses(xml: &str) -> usize {
 }
 
 fn extract_lock_token(resp: &axum::response::Response) -> Option<String> {
-    resp.headers()
-        .get("Lock-Token")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| {
-            s.strip_prefix('<')
-                .and_then(|r| r.strip_suffix('>'))
-                .unwrap_or(s)
-                .to_string()
-        })
+    resp.headers().get("Lock-Token").and_then(|v| v.to_str().ok()).map(|s| {
+        s.strip_prefix('<')
+            .and_then(|r| r.strip_suffix('>'))
+            .unwrap_or(s)
+            .to_string()
+    })
 }
 
 // ── Class 1: Core WebDAV ─────────────────────────────────────────────
@@ -136,11 +132,7 @@ async fn test_class1_put_get_delete() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "PUT overwrite returns 204",
-        resp.status(),
-        StatusCode::NO_CONTENT,
-    );
+    report.check_status("PUT overwrite returns 204", resp.status(), StatusCode::NO_CONTENT);
 
     let resp = app
         .clone()
@@ -154,10 +146,7 @@ async fn test_class1_put_get_delete() {
         .await
         .unwrap();
     let body = body_bytes(resp).await;
-    report.check(
-        "PUT overwrite updates content",
-        &body[..] == b"updated content",
-    );
+    report.check("PUT overwrite updates content", &body[..] == b"updated content");
 
     let resp = app
         .clone()
@@ -187,11 +176,7 @@ async fn test_class1_put_get_delete() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "GET deleted resource returns 404",
-        resp.status(),
-        StatusCode::NOT_FOUND,
-    );
+    report.check_status("GET deleted resource returns 404", resp.status(), StatusCode::NOT_FOUND);
 
     let resp = app
         .clone()
@@ -204,11 +189,7 @@ async fn test_class1_put_get_delete() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "DELETE nonexistent returns 404",
-        resp.status(),
-        StatusCode::NOT_FOUND,
-    );
+    report.check_status("DELETE nonexistent returns 404", resp.status(), StatusCode::NOT_FOUND);
 
     eprintln!("{}", report.summary());
     assert!(
@@ -234,11 +215,7 @@ async fn test_class1_mkcol() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "MKCOL new collection returns 201",
-        resp.status(),
-        StatusCode::CREATED,
-    );
+    report.check_status("MKCOL new collection returns 201", resp.status(), StatusCode::CREATED);
 
     let resp = app
         .clone()
@@ -292,11 +269,7 @@ async fn test_class1_mkcol() {
     );
 
     eprintln!("{}", report.summary());
-    assert!(
-        report.failed.is_empty(),
-        "Class 1 MKCOL failures: {:?}",
-        report.failed
-    );
+    assert!(report.failed.is_empty(), "Class 1 MKCOL failures: {:?}", report.failed);
 }
 
 #[tokio::test]
@@ -357,11 +330,7 @@ async fn test_class1_copy() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "Source still exists after COPY",
-        resp.status(),
-        StatusCode::OK,
-    );
+    report.check_status("Source still exists after COPY", resp.status(), StatusCode::OK);
 
     let resp = app
         .clone()
@@ -375,11 +344,7 @@ async fn test_class1_copy() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "COPY nonexistent returns 404",
-        resp.status(),
-        StatusCode::NOT_FOUND,
-    );
+    report.check_status("COPY nonexistent returns 404", resp.status(), StatusCode::NOT_FOUND);
 
     let resp = app
         .clone()
@@ -401,11 +366,7 @@ async fn test_class1_copy() {
     );
 
     eprintln!("{}", report.summary());
-    assert!(
-        report.failed.is_empty(),
-        "Class 1 COPY failures: {:?}",
-        report.failed
-    );
+    assert!(report.failed.is_empty(), "Class 1 COPY failures: {:?}", report.failed);
 }
 
 #[tokio::test]
@@ -453,10 +414,7 @@ async fn test_class1_move() {
         .unwrap();
     report.check_status("GET moved file returns 200", resp.status(), StatusCode::OK);
     let body = body_bytes(resp).await;
-    report.check(
-        "Moved content matches original",
-        &body[..] == b"move source",
-    );
+    report.check("Moved content matches original", &body[..] == b"move source");
 
     let resp = app
         .clone()
@@ -469,11 +427,7 @@ async fn test_class1_move() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "Source gone after MOVE (404)",
-        resp.status(),
-        StatusCode::NOT_FOUND,
-    );
+    report.check_status("Source gone after MOVE (404)", resp.status(), StatusCode::NOT_FOUND);
 
     let resp = app
         .clone()
@@ -487,18 +441,10 @@ async fn test_class1_move() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "MOVE nonexistent returns 404",
-        resp.status(),
-        StatusCode::NOT_FOUND,
-    );
+    report.check_status("MOVE nonexistent returns 404", resp.status(), StatusCode::NOT_FOUND);
 
     eprintln!("{}", report.summary());
-    assert!(
-        report.failed.is_empty(),
-        "Class 1 MOVE failures: {:?}",
-        report.failed
-    );
+    assert!(report.failed.is_empty(), "Class 1 MOVE failures: {:?}", report.failed);
 }
 
 #[tokio::test]
@@ -544,20 +490,13 @@ async fn test_class1_propfind() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "PROPFIND depth:0 returns 207",
-        resp.status(),
-        StatusCode::MULTI_STATUS,
-    );
+    report.check_status("PROPFIND depth:0 returns 207", resp.status(), StatusCode::MULTI_STATUS);
     let body = body_string(resp).await;
     report.check(
         "PROPFIND depth:0 has exactly 1 response",
         count_propfind_responses(&body) == 1,
     );
-    report.check(
-        "PROPFIND depth:0 contains collection",
-        body.contains("<D:collection/>"),
-    );
+    report.check("PROPFIND depth:0 contains collection", body.contains("<D:collection/>"));
 
     let resp = app
         .clone()
@@ -571,20 +510,10 @@ async fn test_class1_propfind() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "PROPFIND depth:1 returns 207",
-        resp.status(),
-        StatusCode::MULTI_STATUS,
-    );
+    report.check_status("PROPFIND depth:1 returns 207", resp.status(), StatusCode::MULTI_STATUS);
     let body = body_string(resp).await;
-    report.check(
-        "PROPFIND depth:1 has 2 responses",
-        count_propfind_responses(&body) == 2,
-    );
-    report.check(
-        "PROPFIND depth:1 lists child file",
-        body.contains("file.txt"),
-    );
+    report.check("PROPFIND depth:1 has 2 responses", count_propfind_responses(&body) == 2);
+    report.check("PROPFIND depth:1 lists child file", body.contains("file.txt"));
 
     let resp = app
         .clone()
@@ -598,11 +527,7 @@ async fn test_class1_propfind() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "PROPFIND nonexistent returns 404",
-        resp.status(),
-        StatusCode::NOT_FOUND,
-    );
+    report.check_status("PROPFIND nonexistent returns 404", resp.status(), StatusCode::NOT_FOUND);
 
     let resp = app
         .clone()
@@ -669,11 +594,7 @@ async fn test_class1_proppatch() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "PROPPATCH returns 207",
-        resp.status(),
-        StatusCode::MULTI_STATUS,
-    );
+    report.check_status("PROPPATCH returns 207", resp.status(), StatusCode::MULTI_STATUS);
 
     let resp = app
         .clone()
@@ -714,11 +635,7 @@ async fn test_class1_proppatch() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "PROPPATCH remove returns 207",
-        resp.status(),
-        StatusCode::MULTI_STATUS,
-    );
+    report.check_status("PROPPATCH remove returns 207", resp.status(), StatusCode::MULTI_STATUS);
 
     eprintln!("{}", report.summary());
     assert!(
@@ -746,26 +663,14 @@ async fn test_class1_options() {
         .unwrap();
     report.check_status("OPTIONS returns 200", resp.status(), StatusCode::OK);
 
-    let dav_header = resp
-        .headers()
-        .get("DAV")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
+    let dav_header = resp.headers().get("DAV").and_then(|v| v.to_str().ok()).unwrap_or("");
     report.check("DAV header contains class 1", dav_header.contains("1"));
 
-    let allow = resp
-        .headers()
-        .get("Allow")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
+    let allow = resp.headers().get("Allow").and_then(|v| v.to_str().ok()).unwrap_or("");
     for method in &[
-        "GET", "PUT", "DELETE", "MKCOL", "COPY", "MOVE", "PROPFIND", "LOCK", "UNLOCK", "OPTIONS",
-        "HEAD",
+        "GET", "PUT", "DELETE", "MKCOL", "COPY", "MOVE", "PROPFIND", "LOCK", "UNLOCK", "OPTIONS", "HEAD",
     ] {
-        report.check(
-            &format!("Allow header contains {}", method),
-            allow.contains(method),
-        );
+        report.check(&format!("Allow header contains {}", method), allow.contains(method));
     }
 
     eprintln!("{}", report.summary());
@@ -806,15 +711,9 @@ async fn test_class1_head() {
         .await
         .unwrap();
     report.check_status("HEAD returns 200", resp.status(), StatusCode::OK);
-    report.check(
-        "HEAD has Content-Length",
-        resp.headers().contains_key("Content-Length"),
-    );
+    report.check("HEAD has Content-Length", resp.headers().contains_key("Content-Length"));
     report.check("HEAD has ETag", resp.headers().contains_key("ETag"));
-    report.check(
-        "HEAD has Content-Type",
-        resp.headers().contains_key("Content-Type"),
-    );
+    report.check("HEAD has Content-Type", resp.headers().contains_key("Content-Type"));
 
     let resp = app
         .clone()
@@ -827,18 +726,10 @@ async fn test_class1_head() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "HEAD nonexistent returns 404",
-        resp.status(),
-        StatusCode::NOT_FOUND,
-    );
+    report.check_status("HEAD nonexistent returns 404", resp.status(), StatusCode::NOT_FOUND);
 
     eprintln!("{}", report.summary());
-    assert!(
-        report.failed.is_empty(),
-        "Class 1 HEAD failures: {:?}",
-        report.failed
-    );
+    assert!(report.failed.is_empty(), "Class 1 HEAD failures: {:?}", report.failed);
 }
 
 #[tokio::test]
@@ -961,11 +852,7 @@ async fn test_class2_exclusive_lock() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "PUT without lock token returns 423",
-        resp.status(),
-        StatusCode::LOCKED,
-    );
+    report.check_status("PUT without lock token returns 423", resp.status(), StatusCode::LOCKED);
 
     let resp = app
         .clone()
@@ -996,11 +883,7 @@ async fn test_class2_exclusive_lock() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "PUT with lock token returns 204",
-        resp.status(),
-        StatusCode::NO_CONTENT,
-    );
+    report.check_status("PUT with lock token returns 204", resp.status(), StatusCode::NO_CONTENT);
 
     let resp = app
         .clone()
@@ -1091,10 +974,7 @@ async fn test_class2_lock_discovery() {
         StatusCode::MULTI_STATUS,
     );
     let body = body_string(resp).await;
-    report.check(
-        "PROPFIND reveals lock",
-        body.contains("litmus-discover.txt"),
-    );
+    report.check("PROPFIND reveals lock", body.contains("litmus-discover.txt"));
 
     let unlock_token = format!("<{}>", lock_token);
     let resp = app
@@ -1165,11 +1045,7 @@ async fn test_class2_unlock_twice_fails() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "First UNLOCK returns 204",
-        resp.status(),
-        StatusCode::NO_CONTENT,
-    );
+    report.check_status("First UNLOCK returns 204", resp.status(), StatusCode::NO_CONTENT);
 
     let resp = app
         .clone()
@@ -1237,11 +1113,7 @@ async fn test_class2_lock_nonexistent_creates() {
             )
             .await
             .unwrap();
-        report.check_status(
-            "UNLOCK newly locked resource",
-            resp.status(),
-            StatusCode::NO_CONTENT,
-        );
+        report.check_status("UNLOCK newly locked resource", resp.status(), StatusCode::NO_CONTENT);
     }
 
     eprintln!("{}", report.summary());
@@ -1314,11 +1186,7 @@ async fn test_class2_copy_locked_preserves_lock() {
             )
             .await
             .unwrap();
-        report.check_status(
-            "GET copy of locked file returns 200",
-            resp.status(),
-            StatusCode::OK,
-        );
+        report.check_status("GET copy of locked file returns 200", resp.status(), StatusCode::OK);
     } else {
         report.check("GET copy of locked file (skipped, COPY was locked)", true);
     }
@@ -1483,17 +1351,10 @@ async fn test_class3_lock_token_in_state_token() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "LOCK with lockinfo XML returns 200",
-        resp.status(),
-        StatusCode::OK,
-    );
+    report.check_status("LOCK with lockinfo XML returns 200", resp.status(), StatusCode::OK);
 
     let lock_token = extract_lock_token(&resp).unwrap();
-    report.check(
-        "Lock token is URN format",
-        lock_token.starts_with("urn:uuid:"),
-    );
+    report.check("Lock token is URN format", lock_token.starts_with("urn:uuid:"));
 
     let resp = app
         .clone()
@@ -1507,11 +1368,7 @@ async fn test_class3_lock_token_in_state_token() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "UNLOCK with correct token",
-        resp.status(),
-        StatusCode::NO_CONTENT,
-    );
+    report.check_status("UNLOCK with correct token", resp.status(), StatusCode::NO_CONTENT);
 
     eprintln!("{}", report.summary());
     assert!(
@@ -1556,11 +1413,7 @@ async fn test_compliance_summary_report() {
         )
         .await
         .unwrap();
-    let dav = resp
-        .headers()
-        .get("DAV")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
+    let dav = resp.headers().get("DAV").and_then(|v| v.to_str().ok()).unwrap_or("");
     check!(c1, "DAV header present", !dav.is_empty());
     check!(c2, "DAV header contains 2", dav.contains("2"));
     check!(c3, "DAV header contains 3", dav.contains("3"));
@@ -1611,11 +1464,7 @@ async fn test_class1_copy_collection() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "MKCOL source collection",
-        resp.status(),
-        StatusCode::CREATED,
-    );
+    report.check_status("MKCOL source collection", resp.status(), StatusCode::CREATED);
 
     let resp = app
         .clone()
@@ -1628,11 +1477,7 @@ async fn test_class1_copy_collection() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "PUT file inside collection",
-        resp.status(),
-        StatusCode::CREATED,
-    );
+    report.check_status("PUT file inside collection", resp.status(), StatusCode::CREATED);
 
     let resp = app
         .clone()
@@ -1716,11 +1561,7 @@ async fn test_class1_move_collection() {
         )
         .await
         .unwrap();
-    report.check_status(
-        "GET file from moved collection",
-        resp.status(),
-        StatusCode::OK,
-    );
+    report.check_status("GET file from moved collection", resp.status(), StatusCode::OK);
 
     eprintln!("{}", report.summary());
 }

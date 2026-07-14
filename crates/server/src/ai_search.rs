@@ -5,6 +5,7 @@ use ferro_ai::semantic::SemanticIndex;
 use serde_json::Value;
 use thiserror::Error;
 
+#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum AiSearchError {
     #[error("embedding failed: {0}")]
@@ -21,6 +22,7 @@ pub struct SemanticSearchResult {
     pub metadata: Value,
 }
 
+#[derive(Debug)]
 pub struct AiSearchConfig {
     pub embedding_dim: usize,
     pub min_similarity: f32,
@@ -42,21 +44,14 @@ pub struct AiSearchBridge {
 
 impl AiSearchBridge {
     pub fn new(config: AiSearchConfig) -> Self {
-        let model: Box<dyn EmbeddingModel> =
-            Box::new(MockEmbeddingModel::new(config.embedding_dim));
+        let model: Box<dyn EmbeddingModel> = Box::new(MockEmbeddingModel::new(config.embedding_dim));
         let semantic_index = Arc::new(SemanticIndex::new(model));
-        Self {
-            semantic_index,
-            config,
-        }
+        Self { semantic_index, config }
     }
 
     pub fn with_model(model: Box<dyn EmbeddingModel>, config: AiSearchConfig) -> Self {
         let semantic_index = Arc::new(SemanticIndex::new(model));
-        Self {
-            semantic_index,
-            config,
-        }
+        Self { semantic_index, config }
     }
 
     pub fn index_document(&self, id: &str, path: &str, content: &str) -> Result<(), AiSearchError> {
@@ -138,9 +133,7 @@ mod tests {
         bridge
             .index_document("doc1", "/docs/report.pdf", "quarterly financial report")
             .unwrap();
-        let results = bridge
-            .semantic_search("quarterly report", 5, Some(0.0))
-            .unwrap();
+        let results = bridge.semantic_search("quarterly report", 5, Some(0.0)).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "doc1");
         assert!(results[0].score > 0.0);
@@ -149,18 +142,14 @@ mod tests {
     #[test]
     fn test_search_returns_empty_for_no_match() {
         let bridge = make_bridge();
-        let results = bridge
-            .semantic_search("nonexistent", 5, Some(0.99))
-            .unwrap();
+        let results = bridge.semantic_search("nonexistent", 5, Some(0.99)).unwrap();
         assert!(results.is_empty());
     }
 
     #[test]
     fn test_remove_document() {
         let bridge = make_bridge();
-        bridge
-            .index_document("doc1", "/a.txt", "hello world")
-            .unwrap();
+        bridge.index_document("doc1", "/a.txt", "hello world").unwrap();
         assert!(bridge.remove_document("doc1"));
         let results = bridge.semantic_search("hello", 5, Some(0.0)).unwrap();
         assert!(results.is_empty());
@@ -176,12 +165,8 @@ mod tests {
     fn test_with_model() {
         let model: Box<dyn EmbeddingModel> = Box::new(MockEmbeddingModel::new(64));
         let bridge = AiSearchBridge::with_model(model, AiSearchConfig::default());
-        bridge
-            .index_document("1", "/test.txt", "test content")
-            .unwrap();
-        let results = bridge
-            .semantic_search("test content", 5, Some(0.0))
-            .unwrap();
+        bridge.index_document("1", "/test.txt", "test content").unwrap();
+        let results = bridge.semantic_search("test content", 5, Some(0.0)).unwrap();
         assert_eq!(results.len(), 1);
     }
 
@@ -192,12 +177,8 @@ mod tests {
             min_similarity: 0.5,
         };
         let bridge = AiSearchBridge::new(config);
-        bridge
-            .index_document("1", "/a.txt", "some text here")
-            .unwrap();
-        let results = bridge
-            .semantic_search("some text here", 5, Some(0.99))
-            .unwrap();
+        bridge.index_document("1", "/a.txt", "some text here").unwrap();
+        let results = bridge.semantic_search("some text here", 5, Some(0.99)).unwrap();
         assert_eq!(results.len(), 1);
     }
 }

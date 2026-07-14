@@ -6,7 +6,7 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 
-/// Shared state for CardDAV Axum handlers.
+/// Shared state for `CardDAV` Axum handlers.
 #[derive(Clone)]
 pub struct CardDavState {
     /// The address book store backend.
@@ -15,15 +15,10 @@ pub struct CardDavState {
     pub principal: String,
 }
 
-/// Handle HTTP OPTIONS for CardDAV capability discovery.
+/// Handle HTTP OPTIONS for `CardDAV` capability discovery.
 pub async fn options_handler() -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "DAV",
-        "1, 2, addressbook"
-            .parse()
-            .expect("static DAV header value"),
-    );
+    headers.insert("DAV", "1, 2, addressbook".parse().expect("static DAV header value"));
     headers.insert(
         "Allow",
         "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT"
@@ -103,15 +98,12 @@ pub async fn list_address_books(State(state): State<CardDavState>) -> Response {
                     DavProp {
                         name: "D:resourcetype".to_string(),
                         namespace: None,
-                        value: Some(
-                            "<A:addressbook xmlns:A=\"urn:ietf:params:xml:ns:carddav\"/>"
-                                .to_string(),
-                        ),
+                        value: Some("<A:addressbook xmlns:A=\"urn:ietf:params:xml:ns:carddav\"/>".to_string()),
                     },
                     DavProp {
                         name: "D:displayname".to_string(),
                         namespace: None,
-                        value: Some(xml_ext::escape_xml(&book.name)),
+                        value: Some(xml_ext::escape_xml(&book.name).into_owned()),
                     },
                     DavProp {
                         name: "A:getctag".to_string(),
@@ -127,30 +119,25 @@ pub async fn list_address_books(State(state): State<CardDavState>) -> Response {
 }
 
 /// Retrieve properties of a specific address book.
-pub async fn address_book_properties(
-    State(state): State<CardDavState>,
-    Path(book): Path<String>,
-) -> Response {
+pub async fn address_book_properties(State(state): State<CardDavState>, Path(book): Path<String>) -> Response {
     let Some(book_info) = state.store.get_address_book(&state.principal, &book).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
     let response = DavResponse {
-        href: format!("/dav/card/{}/", book),
+        href: format!("/dav/card/{book}/"),
         propstats: vec![PropStat {
             status: 200,
             props: vec![
                 DavProp {
                     name: "D:resourcetype".to_string(),
                     namespace: None,
-                    value: Some(
-                        "<A:addressbook xmlns:A=\"urn:ietf:params:xml:ns:carddav\"/>".to_string(),
-                    ),
+                    value: Some("<A:addressbook xmlns:A=\"urn:ietf:params:xml:ns:carddav\"/>".to_string()),
                 },
                 DavProp {
                     name: "D:displayname".to_string(),
                     namespace: None,
-                    value: Some(xml_ext::escape_xml(&book_info.name)),
+                    value: Some(xml_ext::escape_xml(&book_info.name).into_owned()),
                 },
                 DavProp {
                     name: "A:getctag".to_string(),
@@ -167,45 +154,27 @@ pub async fn address_book_properties(
 
 /// Create a new address book.
 pub async fn create_address_book_handler(State(state): State<CardDavState>) -> Response {
-    match state
-        .store
-        .create_address_book(&state.principal, "Contacts")
-        .await
-    {
+    match state.store.create_address_book(&state.principal, "Contacts").await {
         Ok(book) => dav_created(&format!("/dav/card/{}/", book.id)),
         Err(_) => StatusCode::CONFLICT.into_response(),
     }
 }
 
 /// Delete an address book.
-pub async fn delete_address_book_handler(
-    State(state): State<CardDavState>,
-    Path(book): Path<String>,
-) -> Response {
-    match state
-        .store
-        .delete_address_book(&state.principal, &book)
-        .await
-    {
+pub async fn delete_address_book_handler(State(state): State<CardDavState>, Path(book): Path<String>) -> Response {
+    match state.store.delete_address_book(&state.principal, &book).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
 }
 
 /// Retrieve a contact by address book ID and UID.
-pub async fn get_contact(
-    State(state): State<CardDavState>,
-    Path((book, uid)): Path<(String, String)>,
-) -> Response {
+pub async fn get_contact(State(state): State<CardDavState>, Path((book, uid)): Path<(String, String)>) -> Response {
     let Some(contact) = state.store.get_contact(&book, &uid).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
-    dav_ok_with_content_type(
-        "text/vcard; charset=utf-8",
-        &contact.etag,
-        contact.vcard_data,
-    )
+    dav_ok_with_content_type("text/vcard; charset=utf-8", &contact.etag, contact.vcard_data)
 }
 
 /// Create or update a contact (PUT).
@@ -230,21 +199,15 @@ pub async fn put_contact(
 }
 
 /// Delete a contact.
-pub async fn delete_contact(
-    State(state): State<CardDavState>,
-    Path((book, uid)): Path<(String, String)>,
-) -> Response {
+pub async fn delete_contact(State(state): State<CardDavState>, Path((book, uid)): Path<(String, String)>) -> Response {
     match state.store.delete_contact(&book, &uid).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
 }
 
-/// Handle a CardDAV REPORT request (addressbook-query).
-pub async fn handle_report(
-    State(state): State<CardDavState>,
-    Extension(body): Extension<Bytes>,
-) -> Response {
+/// Handle a `CardDAV` REPORT request (addressbook-query).
+pub async fn handle_report(State(state): State<CardDavState>, Extension(body): Extension<Bytes>) -> Response {
     let filter_text = xml_ext::parse_addressbook_query_filter(&body);
 
     let books = state.store.list_address_books(&state.principal).await;
@@ -287,12 +250,9 @@ pub async fn handle_report(
     dav_multistatus(xml_body)
 }
 
-/// Handle a CardDAV addressbook-multiget REPORT request (RFC 6352 Section 8.4).
+/// Handle a `CardDAV` addressbook-multiget REPORT request (RFC 6352 Section 8.4).
 /// Retrieves specific contacts by href.
-pub async fn handle_multiget(
-    State(state): State<CardDavState>,
-    Extension(body): Extension<Bytes>,
-) -> Response {
+pub async fn handle_multiget(State(state): State<CardDavState>, Extension(body): Extension<Bytes>) -> Response {
     let hrefs = xml_ext::parse_multiget_hrefs(&body);
     let mut responses = Vec::new();
 

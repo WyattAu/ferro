@@ -5,8 +5,7 @@ use axum::response::{IntoResponse, Response};
 use crate::AppState;
 
 pub use ferro_server_sharing::favorites::{
-    FavoritePath, FavoriteStore, InMemoryFavoriteStore, add_favorite_impl, list_favorites_impl,
-    remove_favorite_impl,
+    FavoritePath, FavoriteStore, InMemoryFavoriteStore, add_favorite_impl, list_favorites_impl, remove_favorite_impl,
 };
 
 /// Concrete axum handler that delegates to the generic implementation.
@@ -14,17 +13,11 @@ pub async fn list_favorites(State(state): State<AppState>) -> Response {
     list_favorites_impl(&state).await
 }
 
-pub async fn add_favorite(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<FavoritePath>,
-) -> Response {
+pub async fn add_favorite(State(state): State<AppState>, axum::Json(body): axum::Json<FavoritePath>) -> Response {
     add_favorite_impl(&state, body.path).await
 }
 
-pub async fn remove_favorite(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<FavoritePath>,
-) -> Response {
+pub async fn remove_favorite(State(state): State<AppState>, axum::Json(body): axum::Json<FavoritePath>) -> Response {
     remove_favorite_impl(&state, &body.path).await
 }
 
@@ -54,11 +47,7 @@ pub async fn list_recent(State(state): State<AppState>) -> Response {
         }
     }
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "files": recent_files })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "files": recent_files }))).into_response()
 }
 
 #[cfg(test)]

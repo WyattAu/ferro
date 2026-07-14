@@ -46,10 +46,7 @@ fn parse_rule_input(input: SyncRuleInput) -> Result<SyncRule, Box<Response>> {
         other => {
             return Err(Box::new(ApiError::bad_request(
                 ApiError::INVALID_INPUT,
-                format!(
-                    "Invalid rule direction '{}'. Use 'include' or 'exclude'.",
-                    other
-                ),
+                format!("Invalid rule direction '{}'. Use 'include' or 'exclude'.", other),
             )));
         }
     };
@@ -61,9 +58,7 @@ fn parse_rule_input(input: SyncRuleInput) -> Result<SyncRule, Box<Response>> {
 
 fn store_error_response(e: StoreError) -> Response {
     match &e {
-        StoreError::NotFound(id) => {
-            ApiError::not_found("PROFILE_NOT_FOUND", format!("Profile not found: {}", id))
-        }
+        StoreError::NotFound(id) => ApiError::not_found("PROFILE_NOT_FOUND", format!("Profile not found: {}", id)),
         _ => {
             tracing::error!(error = %e, "profile store error");
             ApiError::internal(ApiError::INTERNAL_ERROR, "Profile store error")
@@ -88,11 +83,7 @@ pub async fn list_profiles(State(state): State<AppState>) -> Response {
 
     let owner = "anonymous".to_string();
     match store.list_profiles(&owner) {
-        Ok(profiles) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "profiles": profiles })),
-        )
-            .into_response(),
+        Ok(profiles) => (StatusCode::OK, axum::Json(serde_json::json!({ "profiles": profiles }))).into_response(),
         Err(e) => store_error_response(e),
     }
 }
@@ -164,30 +155,19 @@ pub async fn update_profile(
     profile.updated_at = chrono::Utc::now().to_rfc3339();
 
     match store.update_profile(&profile) {
-        Ok(()) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "profile": profile })),
-        )
-            .into_response(),
+        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "profile": profile }))).into_response(),
         Err(e) => store_error_response(e),
     }
 }
 
-pub async fn delete_profile(
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-) -> Response {
+pub async fn delete_profile(State(state): State<AppState>, AxumPath(id): AxumPath<String>) -> Response {
     let store = match get_or_create_store(&state) {
         Ok(s) => s,
         Err(r) => return *r,
     };
 
     match store.delete_profile(&id) {
-        Ok(()) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "status": "deleted" })),
-        )
-            .into_response(),
+        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "status": "deleted" }))).into_response(),
         Err(e) => store_error_response(e),
     }
 }

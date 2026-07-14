@@ -69,11 +69,6 @@ pub struct SyncStateManager {
     conn: std::sync::Mutex<Connection>,
 }
 
-// SAFETY: SyncStateManager wraps a Connection in a Mutex. Mutex<Connection> is
-// Send and Sync when Connection is Send (which it is), so these impls are sound.
-unsafe impl Send for SyncStateManager {}
-unsafe impl Sync for SyncStateManager {}
-
 impl SyncStateManager {
     /// Create a new manager and initialize the schema if needed.
     pub fn new(conn: Connection) -> Result<Self, SyncStateError> {
@@ -216,11 +211,7 @@ impl SyncStateManager {
     }
 
     /// Transition a peer to a new status and persist.
-    pub fn set_status(
-        &self,
-        node_id: &str,
-        status: SyncStatus,
-    ) -> Result<PeerSyncState, SyncStateError> {
+    pub fn set_status(&self, node_id: &str, status: SyncStatus) -> Result<PeerSyncState, SyncStateError> {
         let mut state = self.get_or_create(node_id)?;
         state.status = status;
         if status == SyncStatus::Syncing {
@@ -249,11 +240,7 @@ impl SyncStateManager {
     }
 
     /// Record a failed sync and persist.
-    pub fn record_failure(
-        &self,
-        node_id: &str,
-        error: &str,
-    ) -> Result<PeerSyncState, SyncStateError> {
+    pub fn record_failure(&self, node_id: &str, error: &str) -> Result<PeerSyncState, SyncStateError> {
         let mut state = self.get_or_create(node_id)?;
         state.status = SyncStatus::Error;
         state.consecutive_failures += 1;

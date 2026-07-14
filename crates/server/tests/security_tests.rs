@@ -86,11 +86,7 @@ mod tests {
                 if line.contains("#[cfg(test)]") || line.contains("mod tests") {
                     test_context = true;
                 }
-                if test_context
-                    && line.contains("}")
-                    && !line.contains("#[")
-                    && !line.contains("fn ")
-                {
+                if test_context && line.contains("}") && !line.contains("#[") && !line.contains("fn ") {
                     test_context = false;
                 }
                 if test_context {
@@ -203,24 +199,9 @@ mod tests {
                 .to_string()])
                 .await
                 .unwrap();
-            assert!(
-                authorizer
-                    .is_authorized_simple("alice", "read", "/f")
-                    .await
-                    .unwrap()
-            );
-            assert!(
-                !authorizer
-                    .is_authorized_simple("bob", "read", "/f")
-                    .await
-                    .unwrap()
-            );
-            assert!(
-                !authorizer
-                    .is_authorized_simple("alice", "write", "/f")
-                    .await
-                    .unwrap()
-            );
+            assert!(authorizer.is_authorized_simple("alice", "read", "/f").await.unwrap());
+            assert!(!authorizer.is_authorized_simple("bob", "read", "/f").await.unwrap());
+            assert!(!authorizer.is_authorized_simple("alice", "write", "/f").await.unwrap());
         }
 
         #[test]
@@ -261,11 +242,7 @@ mod tests {
         #[test]
         fn test_blocked_reserved_names() {
             for name in ["CON", "PRN", "AUX", "NUL", "COM3", "LPT1"] {
-                assert!(
-                    validate_filename(name).is_err(),
-                    "{} should be blocked",
-                    name
-                );
+                assert!(validate_filename(name).is_err(), "{} should be blocked", name);
             }
         }
 
@@ -332,9 +309,9 @@ mod tests {
         #[test]
         fn test_different_user_not_locked() {
             let tracker = AuthAttemptTracker::new(3, Duration::from_secs(10));
-            tracker.record_failure("1.2.3.4", "admin");
-            tracker.record_failure("1.2.3.4", "admin");
-            tracker.record_failure("1.2.3.4", "admin");
+            let _ = tracker.record_failure("1.2.3.4", "admin");
+            let _ = tracker.record_failure("1.2.3.4", "admin");
+            let _ = tracker.record_failure("1.2.3.4", "admin");
             assert!(tracker.is_locked_out("1.2.3.4", "admin"));
             assert!(!tracker.is_locked_out("1.2.3.4", "other"));
         }
@@ -342,8 +319,8 @@ mod tests {
         #[test]
         fn test_success_clears_lockout() {
             let tracker = AuthAttemptTracker::new(3, Duration::from_secs(10));
-            tracker.record_failure("1.2.3.4", "admin");
-            tracker.record_failure("1.2.3.4", "admin");
+            let _ = tracker.record_failure("1.2.3.4", "admin");
+            let _ = tracker.record_failure("1.2.3.4", "admin");
             tracker.record_success("1.2.3.4", "admin");
             assert!(!tracker.is_locked_out("1.2.3.4", "admin"));
         }
@@ -417,11 +394,7 @@ mod tests {
         #[test]
         fn test_default_passwords_blocked() {
             for pw in ["changeme", "admin", "password", "ferro", ""] {
-                assert!(
-                    is_default_password(pw),
-                    "'{}' should be flagged as default",
-                    pw
-                );
+                assert!(is_default_password(pw), "'{}' should be flagged as default", pw);
             }
         }
 

@@ -6,7 +6,7 @@ use crate::t;
 pub fn SkeletonList() -> impl IntoView {
     view! {
         <div class="p-3 sm:p-4 space-y-0" role="status" aria-busy="true" aria-label={t!("skeleton.loading_files")}>
-            <div class="hidden md:block bg-gray-50 border-b mb-2 px-4 py-2">
+            <div class="hidden md:block bg-[var(--bg-base)] border-b mb-2 px-4 py-2">
                 <div class="flex gap-4">
                     <div class="h-3 w-10 bg-gray-200 rounded animate-pulse"></div>
                     <div class="h-3 w-20 bg-gray-200 rounded animate-pulse"></div>
@@ -60,7 +60,7 @@ pub fn SkeletonGrid() -> impl IntoView {
 pub fn SkeletonFavorites() -> impl IntoView {
     view! {
         <div class="p-3 sm:p-4 space-y-0" role="status" aria-busy="true" aria-label={t!("skeleton.loading_favorites")}>
-            <div class="hidden md:block bg-gray-50 border-b mb-2 px-4 py-2">
+            <div class="hidden md:block bg-[var(--bg-base)] border-b mb-2 px-4 py-2">
                 <div class="flex gap-4">
                     <div class="h-3 w-10 bg-gray-200 rounded animate-pulse"></div>
                     <div class="h-3 w-20 bg-gray-200 rounded animate-pulse"></div>
@@ -88,7 +88,7 @@ pub fn SkeletonFavorites() -> impl IntoView {
 pub fn SkeletonRecent() -> impl IntoView {
     view! {
         <div class="p-3 sm:p-4 space-y-0" role="status" aria-busy="true" aria-label={t!("skeleton.loading_recent")}>
-            <div class="hidden md:block bg-gray-50 border-b mb-2 px-4 py-2">
+            <div class="hidden md:block bg-[var(--bg-base)] border-b mb-2 px-4 py-2">
                 <div class="flex gap-4">
                     <div class="h-3 w-10 bg-gray-200 rounded animate-pulse"></div>
                     <div class="h-3 w-20 bg-gray-200 rounded animate-pulse"></div>

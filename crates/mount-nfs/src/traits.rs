@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::time::Duration;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BackendType {
@@ -22,11 +23,21 @@ impl fmt::Display for BackendType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct Credentials {
     pub username: String,
     pub password: String,
     pub domain: Option<String>,
+}
+
+impl std::fmt::Debug for Credentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Credentials")
+            .field("username", &self.username)
+            .field("password", &"[REDACTED]")
+            .field("domain", &self.domain)
+            .finish()
+    }
 }
 
 impl Credentials {
@@ -142,11 +153,7 @@ pub trait MountBackend: Send + Sync {
 
     async fn unmount(&self, handle: &MountHandle) -> Result<(), MountError>;
 
-    async fn read_dir(
-        &self,
-        handle: &MountHandle,
-        path: &str,
-    ) -> Result<Vec<MountEntry>, MountError>;
+    async fn read_dir(&self, handle: &MountHandle, path: &str) -> Result<Vec<MountEntry>, MountError>;
 
     async fn read_file(
         &self,

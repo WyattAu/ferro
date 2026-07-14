@@ -217,10 +217,9 @@ mod tests {
         let e2 = make_entry("2", &e1.hash);
         let e3 = make_entry("3", &e2.hash);
         let mut tampered = e2.clone();
-        tampered.details.insert(
-            "evil".to_string(),
-            serde_json::Value::String("yes".to_string()),
-        );
+        tampered
+            .details
+            .insert("evil".to_string(), serde_json::Value::String("yes".to_string()));
         let result = verify_chain(&[e1, tampered, e3]);
         assert!(!result.valid);
     }

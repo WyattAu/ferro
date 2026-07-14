@@ -1,7 +1,6 @@
 use crate::error::MountError;
 use crate::traits::{
-    BackendType, Credentials, FileMetadata, MountBackend, MountEntry, MountHandle, MountOptions,
-    SpaceUsage,
+    BackendType, Credentials, FileMetadata, MountBackend, MountEntry, MountHandle, MountOptions, SpaceUsage,
 };
 use async_trait::async_trait;
 use std::time::Duration;
@@ -183,17 +182,11 @@ impl MountBackend for SmbBackend {
         Self::do_unmount(&handle.local_path)
     }
 
-    async fn read_dir(
-        &self,
-        handle: &MountHandle,
-        path: &str,
-    ) -> Result<Vec<MountEntry>, MountError> {
+    async fn read_dir(&self, handle: &MountHandle, path: &str) -> Result<Vec<MountEntry>, MountError> {
         let dir = Self::resolve_path(handle, path);
-        let mut entries = tokio::fs::read_dir(&dir)
-            .await
-            .map_err(|_e| MountError::NotFound {
-                path: dir.display().to_string(),
-            })?;
+        let mut entries = tokio::fs::read_dir(&dir).await.map_err(|_e| MountError::NotFound {
+            path: dir.display().to_string(),
+        })?;
 
         let mut result = Vec::new();
         while let Some(entry) = entries.next_entry().await.map_err(|e| MountError::Io {
@@ -205,10 +198,7 @@ impl MountBackend for SmbBackend {
                 context: format!("metadata: {}", entry.path().display()),
             })?;
             let name = entry.file_name().to_string_lossy().into_owned();
-            let modified = metadata
-                .modified()
-                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                .into();
+            let modified = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH).into();
             result.push(MountEntry {
                 name,
                 is_dir: metadata.is_dir(),
@@ -229,12 +219,11 @@ impl MountBackend for SmbBackend {
         let file_path = Self::resolve_path(handle, path);
         use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-        let mut file =
-            tokio::fs::File::open(&file_path)
-                .await
-                .map_err(|_e| MountError::NotFound {
-                    path: file_path.display().to_string(),
-                })?;
+        let mut file = tokio::fs::File::open(&file_path)
+            .await
+            .map_err(|_e| MountError::NotFound {
+                path: file_path.display().to_string(),
+            })?;
 
         if offset > 0 {
             file.seek(std::io::SeekFrom::Start(offset))
@@ -268,10 +257,7 @@ impl MountBackend for SmbBackend {
             .into();
         Ok(FileMetadata {
             size: meta.len(),
-            modified: meta
-                .modified()
-                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                .into(),
+            modified: meta.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH).into(),
             created,
             is_dir: meta.is_dir(),
             permissions: 0o755,
@@ -280,12 +266,10 @@ impl MountBackend for SmbBackend {
 
     async fn space_usage(&self, handle: &MountHandle) -> Result<SpaceUsage, MountError> {
         let mount_dir = &handle.local_path;
-        let meta = tokio::fs::metadata(mount_dir)
-            .await
-            .map_err(|e| MountError::Io {
-                source: e,
-                context: format!("stat: {}", mount_dir),
-            })?;
+        let meta = tokio::fs::metadata(mount_dir).await.map_err(|e| MountError::Io {
+            source: e,
+            context: format!("stat: {}", mount_dir),
+        })?;
 
         let used = meta.len();
         let total = used * 2;
@@ -357,10 +341,7 @@ mod tests {
     fn test_resolve_path_nested() {
         let handle = MountHandle::new("//server/share", "/mnt/smb", BackendType::Smb);
         let resolved = SmbBackend::resolve_path(&handle, "docs/report.pdf");
-        assert_eq!(
-            resolved,
-            std::path::PathBuf::from("/mnt/smb/docs/report.pdf")
-        );
+        assert_eq!(resolved, std::path::PathBuf::from("/mnt/smb/docs/report.pdf"));
     }
 
     #[test]

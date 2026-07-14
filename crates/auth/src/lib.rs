@@ -14,3 +14,6 @@ pub mod simple_auth;
 pub mod totp;
 pub mod users;
 pub mod webauthn;
+
+#[cfg(test)]
+mod api_keys_proptest;

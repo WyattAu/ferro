@@ -97,11 +97,7 @@ impl HealthProbe for TimedProbe {
 pub struct CustomProbe {
     probe_name: String,
     probe_type: ProbeType,
-    check_fn: Arc<
-        dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ProbeResult> + Send>>
-            + Send
-            + Sync,
-    >,
+    check_fn: Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ProbeResult> + Send>> + Send + Sync>,
 }
 
 impl CustomProbe {
@@ -244,10 +240,7 @@ impl HealthProbe for MemoryProbe {
             .with_status(status)
             .with_message(format!("memory usage: {:.2}%", percent))
             .with_detail("usage_percent", serde_json::json!(percent))
-            .with_detail(
-                "threshold_percent",
-                serde_json::json!(self.threshold_percent),
-            )
+            .with_detail("threshold_percent", serde_json::json!(self.threshold_percent))
     }
 
     fn probe_type(&self) -> ProbeType {
@@ -329,5 +322,222 @@ impl HealthProbe for DiskSpaceProbe {
 
     fn probe_type(&self) -> ProbeType {
         ProbeType::Liveness
+    }
+}
+
+/// Deep health probe for SQLite database connectivity.
+/// Executes `SELECT 1` with a timeout to verify the database is reachable.
+pub struct SqliteProbe {
+    probe_name: String,
+    db_handle: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
+    timeout_ms: u64,
+}
+
+impl SqliteProbe {
+    pub fn new(db_handle: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>) -> Self {
+        Self {
+            probe_name: "database".to_string(),
+            db_handle,
+            timeout_ms: 2000,
+        }
+    }
+
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.probe_name = name.into();
+        self
+    }
+
+    pub fn with_timeout_ms(mut self, timeout_ms: u64) -> Self {
+        self.timeout_ms = timeout_ms;
+        self
+    }
+}
+
+#[async_trait]
+impl HealthProbe for SqliteProbe {
+    fn name(&self) -> &str {
+        &self.probe_name
+    }
+
+    async fn check(&self) -> ProbeResult {
+        let start = Instant::now();
+        let db = self.db_handle.clone();
+        let timeout_ms = self.timeout_ms;
+
+        let result = tokio::task::spawn_blocking(move || {
+            let conn = db.lock().map_err(|e| e.to_string())?;
+            conn.execute_batch("SELECT 1;").map_err(|e| e.to_string())
+        })
+        .await;
+
+        let duration = start.elapsed();
+
+        match result {
+            Ok(Ok(())) => ProbeResult::healthy(&self.probe_name, duration)
+                .with_message("SQLite connection OK")
+                .with_detail("timeout_ms", serde_json::json!(timeout_ms)),
+            Ok(Err(e)) => ProbeResult::healthy(&self.probe_name, duration)
+                .with_status(HealthStatus::Unhealthy)
+                .with_message(format!("SQLite error: {}", e))
+                .with_detail("timeout_ms", serde_json::json!(timeout_ms)),
+            Err(e) => ProbeResult::healthy(&self.probe_name, duration)
+                .with_status(HealthStatus::Unhealthy)
+                .with_message(format!("Task join error: {}", e))
+                .with_detail("timeout_ms", serde_json::json!(timeout_ms)),
+        }
+    }
+
+    fn probe_type(&self) -> ProbeType {
+        ProbeType::Readiness
+    }
+}
+
+/// Deep health probe for storage backend connectivity.
+/// Lists the root path `/` to verify the storage backend is reachable.
+pub struct StorageProbe {
+    probe_name: String,
+    storage: std::sync::Arc<dyn common::storage::StorageEngine>,
+    timeout_ms: u64,
+}
+
+impl StorageProbe {
+    pub fn new(storage: std::sync::Arc<dyn common::storage::StorageEngine>) -> Self {
+        Self {
+            probe_name: "storage".to_string(),
+            storage,
+            timeout_ms: 2000,
+        }
+    }
+
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.probe_name = name.into();
+        self
+    }
+
+    pub fn with_timeout_ms(mut self, timeout_ms: u64) -> Self {
+        self.timeout_ms = timeout_ms;
+        self
+    }
+}
+
+#[async_trait]
+impl HealthProbe for StorageProbe {
+    fn name(&self) -> &str {
+        &self.probe_name
+    }
+
+    async fn check(&self) -> ProbeResult {
+        let start = Instant::now();
+        let storage = self.storage.clone();
+        let timeout_ms = self.timeout_ms;
+
+        let result = tokio::time::timeout(Duration::from_millis(timeout_ms), storage.list("/")).await;
+
+        let duration = start.elapsed();
+
+        match result {
+            Ok(Ok(_)) => ProbeResult::healthy(&self.probe_name, duration)
+                .with_message("Storage backend reachable")
+                .with_detail("timeout_ms", serde_json::json!(timeout_ms)),
+            Ok(Err(e)) => ProbeResult::healthy(&self.probe_name, duration)
+                .with_status(HealthStatus::Unhealthy)
+                .with_message(format!("Storage error: {}", e))
+                .with_detail("timeout_ms", serde_json::json!(timeout_ms)),
+            Err(_) => ProbeResult::healthy(&self.probe_name, duration)
+                .with_status(HealthStatus::Unhealthy)
+                .with_message(format!("Storage check timed out after {}ms", timeout_ms))
+                .with_detail("timeout_ms", serde_json::json!(timeout_ms)),
+        }
+    }
+
+    fn probe_type(&self) -> ProbeType {
+        ProbeType::Readiness
+    }
+}
+
+/// Deep health probe for Redis connectivity.
+/// Sends a PING command to verify Redis is reachable.
+#[cfg(feature = "redis")]
+pub struct RedisProbe {
+    probe_name: String,
+    client: Option<redis::Client>,
+    timeout_ms: u64,
+}
+
+#[cfg(feature = "redis")]
+impl RedisProbe {
+    pub fn new(redis_url: &str) -> Self {
+        let client = redis::Client::open(redis_url).ok();
+        Self {
+            probe_name: "redis".to_string(),
+            client,
+            timeout_ms: 2000,
+        }
+    }
+
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.probe_name = name.into();
+        self
+    }
+
+    pub fn with_timeout_ms(mut self, timeout_ms: u64) -> Self {
+        self.timeout_ms = timeout_ms;
+        self
+    }
+}
+
+#[cfg(feature = "redis")]
+#[async_trait]
+impl HealthProbe for RedisProbe {
+    fn name(&self) -> &str {
+        &self.probe_name
+    }
+
+    async fn check(&self) -> ProbeResult {
+        let start = Instant::now();
+        let timeout_ms = self.timeout_ms;
+
+        let result = match &self.client {
+            Some(client) => {
+                let client = client.clone();
+                tokio::time::timeout(Duration::from_millis(timeout_ms), async move {
+                    let mut conn = client
+                        .get_multiplexed_async_connection()
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    redis::cmd("PING")
+                        .query_async::<String>(&mut conn)
+                        .await
+                        .map_err(|e| e.to_string())
+                })
+                .await
+            }
+            None => {
+                return ProbeResult::healthy(&self.probe_name, Duration::from_micros(0))
+                    .with_status(HealthStatus::Degraded)
+                    .with_message("Redis client not configured")
+                    .with_detail("timeout_ms", serde_json::json!(timeout_ms));
+            }
+        };
+
+        let duration = start.elapsed();
+
+        match result {
+            Ok(Ok(_)) => ProbeResult::healthy(&self.probe_name, duration)
+                .with_message("Redis connection OK")
+                .with_detail("timeout_ms", serde_json::json!(timeout_ms)),
+            Ok(Err(e)) => ProbeResult::healthy(&self.probe_name, duration)
+                .with_status(HealthStatus::Degraded)
+                .with_message(format!("Redis error: {}", e))
+                .with_detail("timeout_ms", serde_json::json!(timeout_ms)),
+            Err(_) => ProbeResult::healthy(&self.probe_name, duration)
+                .with_status(HealthStatus::Degraded)
+                .with_message(format!("Redis check timed out after {}ms", timeout_ms))
+                .with_detail("timeout_ms", serde_json::json!(timeout_ms)),
+        }
+    }
+
+    fn probe_type(&self) -> ProbeType {
+        ProbeType::Readiness
     }
 }

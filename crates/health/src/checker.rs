@@ -42,9 +42,7 @@ impl HealthChecker {
 
     pub fn unregister(&self, name: &str) -> Result<(), HealthError> {
         if self.probes.remove(name).is_none() {
-            return Err(HealthError::ProbeNotFound {
-                name: name.to_string(),
-            });
+            return Err(HealthError::ProbeNotFound { name: name.to_string() });
         }
         Ok(())
     }

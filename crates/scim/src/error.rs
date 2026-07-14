@@ -29,9 +29,7 @@ impl IntoResponse for ScimError {
     fn into_response(self) -> Response {
         let (status, detail, scim_type) = match &self {
             ScimError::NotFound => (StatusCode::NOT_FOUND, self.to_string(), None),
-            ScimError::Conflict(d) => {
-                (StatusCode::CONFLICT, d.clone(), Some("invalidValue".into()))
-            }
+            ScimError::Conflict(d) => (StatusCode::CONFLICT, d.clone(), Some("invalidValue".into())),
             ScimError::BadRequest(d) => (StatusCode::BAD_REQUEST, d.clone(), None),
             ScimError::Unauthorized => (StatusCode::UNAUTHORIZED, self.to_string(), None),
             ScimError::Internal(d) => (StatusCode::INTERNAL_SERVER_ERROR, d.clone(), None),
@@ -43,5 +41,46 @@ impl IntoResponse for ScimError {
             status: status.as_u16(),
         };
         (status, axum::Json(body)).into_response()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scim_error_not_found() {
+        let err = ScimError::NotFound;
+        assert_eq!(format!("{}", err), "Not found");
+    }
+
+    #[test]
+    fn test_scim_error_conflict() {
+        let err = ScimError::Conflict("exists".to_string());
+        assert!(format!("{}", err).contains("exists"));
+    }
+
+    #[test]
+    fn test_scim_error_bad_request() {
+        let err = ScimError::BadRequest("invalid".to_string());
+        assert!(format!("{}", err).contains("invalid"));
+    }
+
+    #[test]
+    fn test_scim_error_unauthorized() {
+        let err = ScimError::Unauthorized;
+        assert_eq!(format!("{}", err), "Unauthorized");
+    }
+
+    #[test]
+    fn test_scim_error_internal() {
+        let err = ScimError::Internal("oops".to_string());
+        assert!(format!("{}", err).contains("oops"));
+    }
+
+    #[test]
+    fn test_scim_error_debug() {
+        let debug = format!("{:?}", ScimError::NotFound);
+        assert!(debug.contains("NotFound"));
     }
 }

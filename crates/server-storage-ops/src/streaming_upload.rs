@@ -19,10 +19,7 @@ impl StreamingUploadWriter {
         };
         tokio::fs::create_dir_all(&temp_dir).await?;
 
-        let path = temp_dir.join(format!(
-            "ferro_upload_{}.tmp",
-            uuid::Uuid::new_v4().simple()
-        ));
+        let path = temp_dir.join(format!("ferro_upload_{}.tmp", uuid::Uuid::new_v4().simple()));
 
         let file = tokio::fs::File::create(&path).await?;
         debug!(?path, "Created streaming upload temp file");

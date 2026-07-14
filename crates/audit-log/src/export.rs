@@ -29,14 +29,21 @@ pub fn export_csv(entries: &[AuditEntry]) -> Result<String, crate::AuditError> {
     w.push_field("hash");
 
     let mut output = w.to_line();
+    let mut action_buf = String::new();
+    let mut resource_type_buf = String::new();
 
     for entry in entries {
+        action_buf.clear();
+        resource_type_buf.clear();
+        std::fmt::write(&mut action_buf, format_args!("{:?}", entry.action)).ok();
+        std::fmt::write(&mut resource_type_buf, format_args!("{:?}", entry.resource_type)).ok();
+
         let mut record = csv::StringRecord::new();
         record.push_field(&entry.id);
         record.push_field(&entry.timestamp.to_rfc3339());
-        record.push_field(&format!("{:?}", entry.action));
+        record.push_field(&action_buf);
         record.push_field(&entry.actor_id);
-        record.push_field(&format!("{:?}", entry.resource_type));
+        record.push_field(&resource_type_buf);
         record.push_field(&entry.resource_id);
         record.push_field(&serde_json::to_string(&entry.details).unwrap_or_default());
         record.push_field(entry.ip_address.as_deref().unwrap_or(""));

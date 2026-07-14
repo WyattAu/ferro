@@ -70,18 +70,12 @@ impl ContentCache {
         }
 
         // Evict if needed
-        while self.max_size > 0
-            && self.total_size + size > self.max_size
-            && !self.entries.is_empty()
-        {
+        while self.max_size > 0 && self.total_size + size > self.max_size && !self.entries.is_empty() {
             self.evict_lru();
         }
 
         if self.max_size > 0 && self.total_size + size > self.max_size {
-            warn!(
-                "Content cache full, skipping put for {} ({} bytes)",
-                path, size
-            );
+            warn!("Content cache full, skipping put for {} ({} bytes)", path, size);
             return;
         }
 

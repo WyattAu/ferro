@@ -39,12 +39,7 @@ async fn wait_for_server(port: u16, max_wait: Duration) {
     let start = std::time::Instant::now();
 
     loop {
-        if client
-            .get(&url)
-            .send()
-            .await
-            .is_ok_and(|r| r.status().is_success())
-        {
+        if client.get(&url).send().await.is_ok_and(|r| r.status().is_success()) {
             return;
         }
         if start.elapsed() > max_wait {
@@ -91,11 +86,7 @@ async fn webdav_operations(port: u16) {
     assert!(resp.status().is_success(), "PUT failed: {}", resp.status());
 
     // 4. GET
-    let resp = client
-        .get(format!("{}/e2e-test/hello.txt", base))
-        .send()
-        .await
-        .unwrap();
+    let resp = client.get(format!("{}/e2e-test/hello.txt", base)).send().await.unwrap();
     assert_eq!(resp.status().as_u16(), 200);
     let body = resp.text().await.unwrap();
     assert_eq!(body, "Hello from rclone E2E test!");
@@ -123,14 +114,8 @@ async fn webdav_operations(port: u16) {
         .unwrap();
     assert_eq!(resp.status().as_u16(), 207);
     let body = resp.text().await.unwrap();
-    assert!(
-        body.contains("e2e-test"),
-        "PROPFIND should contain collection href"
-    );
-    assert!(
-        body.contains("<D:collection/>"),
-        "Should be marked as collection"
-    );
+    assert!(body.contains("e2e-test"), "PROPFIND should contain collection href");
+    assert!(body.contains("<D:collection/>"), "Should be marked as collection");
 
     // 7. PROPFIND depth:1
     let resp = client
@@ -144,10 +129,7 @@ async fn webdav_operations(port: u16) {
         .unwrap();
     assert_eq!(resp.status().as_u16(), 207);
     let body = resp.text().await.unwrap();
-    assert!(
-        body.contains("hello.txt"),
-        "PROPFIND depth:1 should list files"
-    );
+    assert!(body.contains("hello.txt"), "PROPFIND depth:1 should list files");
 
     // 8. COPY
     let resp = client
@@ -211,13 +193,7 @@ async fn webdav_operations(port: u16) {
         .send()
         .await
         .unwrap();
-    let etag = resp
-        .headers()
-        .get("etag")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let etag = resp.headers().get("etag").unwrap().to_str().unwrap().to_string();
 
     let resp = client
         .get(format!("{}/e2e-test/cached.txt", base))
@@ -262,13 +238,7 @@ async fn webdav_operations(port: u16) {
         .await
         .unwrap();
     assert_eq!(resp.status().as_u16(), 200);
-    let lock_token = resp
-        .headers()
-        .get("lock-token")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let lock_token = resp.headers().get("lock-token").unwrap().to_str().unwrap().to_string();
 
     // DELETE should fail without lock token
     let resp = client
@@ -354,12 +324,7 @@ fn rclone_cmd(port: u16) -> Command {
 fn rclone_success(label: &str, output: &std::process::Output) {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        panic!(
-            "{} failed (exit {:?}): {}",
-            label,
-            output.status.code(),
-            stderr
-        );
+        panic!("{} failed (exit {:?}): {}", label, output.status.code(), stderr);
     }
 }
 
@@ -370,11 +335,7 @@ fn setup_remote_dir(port: u16, path: &str) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let mkcol = reqwest::Method::from_bytes(b"MKCOL").unwrap();
-        let resp = client
-            .request(mkcol, format!("{}{}", base, path))
-            .send()
-            .await
-            .unwrap();
+        let resp = client.request(mkcol, format!("{}{}", base, path)).send().await.unwrap();
         assert!(
             resp.status().as_u16() == 201 || resp.status().as_u16() == 405,
             "MKCOL {} should succeed (201) or already exist (405), got {}",
@@ -411,17 +372,8 @@ fn get_remote_file(port: u16, remote_path: &str) -> String {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        let resp = client
-            .get(format!("{}{}", base, remote_path))
-            .send()
-            .await
-            .unwrap();
-        assert_eq!(
-            resp.status().as_u16(),
-            200,
-            "GET {} should return 200",
-            remote_path
-        );
+        let resp = client.get(format!("{}{}", base, remote_path)).send().await.unwrap();
+        assert_eq!(resp.status().as_u16(), 200, "GET {} should return 200", remote_path);
         resp.text().await.unwrap()
     })
 }
@@ -433,10 +385,7 @@ fn delete_remote_file(port: u16, remote_path: &str) {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        let _ = client
-            .delete(format!("{}{}", base, remote_path))
-            .send()
-            .await;
+        let _ = client.delete(format!("{}{}", base, remote_path)).send().await;
     });
 }
 
@@ -514,10 +463,7 @@ async fn test_rclone_move() {
         .unwrap();
     rclone_success("rclone move", &output);
 
-    assert_eq!(
-        get_remote_file(port, "/rclone-move/move-me.txt"),
-        "moved content"
-    );
+    assert_eq!(get_remote_file(port, "/rclone-move/move-me.txt"), "moved content");
     assert!(
         !local_dir.path().join("move-me.txt").exists(),
         "Local file should be deleted after rclone move"
@@ -543,14 +489,8 @@ async fn test_rclone_ls() {
     rclone_success("rclone ls", &output);
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    assert!(
-        stdout.contains("file1.txt"),
-        "ls output should contain file1.txt"
-    );
-    assert!(
-        stdout.contains("file2.txt"),
-        "ls output should contain file2.txt"
-    );
+    assert!(stdout.contains("file1.txt"), "ls output should contain file1.txt");
+    assert!(stdout.contains("file2.txt"), "ls output should contain file2.txt");
 
     let _ = server.kill();
     let _ = server.wait();
@@ -571,10 +511,7 @@ async fn test_rclone_size() {
     rclone_success("rclone size", &output);
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    assert!(
-        stdout.contains("5"),
-        "size output should contain the byte count (5)"
-    );
+    assert!(stdout.contains("5"), "size output should contain the byte count (5)");
 
     let _ = server.kill();
     let _ = server.wait();
@@ -626,11 +563,7 @@ async fn test_rclone_large_file() {
     rclone_success("rclone copy large file", &output);
 
     let content = get_remote_file(port, "/rclone-large/large.dat");
-    assert_eq!(
-        content.len(),
-        10 * 1024 * 1024,
-        "Large file size should match"
-    );
+    assert_eq!(content.len(), 10 * 1024 * 1024, "Large file size should match");
 
     let _ = server.kill();
     let _ = server.wait();
@@ -666,10 +599,7 @@ async fn test_rclone_special_characters() {
     rclone_success("rclone copy special chars", &output);
 
     for name in &special_names {
-        let encoded = name
-            .replace(' ', "%20")
-            .replace('(', "%28")
-            .replace(')', "%29");
+        let encoded = name.replace(' ', "%20").replace('(', "%28").replace(')', "%29");
         let content = get_remote_file(port, &format!("/rclone-special/{}", encoded));
         assert_eq!(
             content,
@@ -721,10 +651,7 @@ async fn test_rclone_concurrent_operations() {
     }
 
     for i in 0..3 {
-        let content = get_remote_file(
-            port,
-            &format!("/rclone-concurrent/worker-{}/worker-{}.txt", i, i),
-        );
+        let content = get_remote_file(port, &format!("/rclone-concurrent/worker-{}/worker-{}.txt", i, i));
         assert_eq!(content, format!("data from worker {}", i));
     }
 
@@ -746,12 +673,7 @@ async fn test_rclone_copy_progress() {
 
     let remote = format!("{}:/rclone-progress/", rclone_config_name());
     let output = rclone_cmd(port)
-        .args([
-            "copy",
-            "--progress",
-            local_dir.path().to_str().unwrap(),
-            &remote,
-        ])
+        .args(["copy", "--progress", local_dir.path().to_str().unwrap(), &remote])
         .output()
         .unwrap();
     rclone_success("rclone copy --progress", &output);

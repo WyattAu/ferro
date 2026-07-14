@@ -104,14 +104,8 @@ impl CommentStore {
                     parent_id: row.get(3)?,
                     body: row.get(4)?,
                     resolved: resolved != 0,
-                    created_at: row
-                        .get::<_, String>(6)?
-                        .parse::<DateTime<Utc>>()
-                        .unwrap_or_default(),
-                    updated_at: row
-                        .get::<_, String>(7)?
-                        .parse::<DateTime<Utc>>()
-                        .unwrap_or_default(),
+                    created_at: row.get::<_, String>(6)?.parse::<DateTime<Utc>>().unwrap_or_default(),
+                    updated_at: row.get::<_, String>(7)?.parse::<DateTime<Utc>>().unwrap_or_default(),
                 })
             })
             .map_err(|e| format!("Failed to query comments: {}", e))?;
@@ -176,11 +170,9 @@ impl CommentStore {
     pub fn delete_comment(&self, id: &str, user_id: &str, is_admin: bool) -> Result<(), String> {
         let conn = self.conn();
         let owner: Option<String> = conn
-            .query_row(
-                "SELECT user_id FROM comments WHERE id = ?1",
-                params![id],
-                |row| row.get::<_, String>(0),
-            )
+            .query_row("SELECT user_id FROM comments WHERE id = ?1", params![id], |row| {
+                row.get::<_, String>(0)
+            })
             .ok();
 
         let owner = owner.ok_or("Comment not found")?;
@@ -312,11 +304,7 @@ pub async fn list_comments_handler<S: CollaborationState>(
                 ),
             )
             .await;
-            (
-                StatusCode::OK,
-                axum::Json(serde_json::json!({ "comments": comments })),
-            )
-                .into_response()
+            (StatusCode::OK, axum::Json(serde_json::json!({ "comments": comments }))).into_response()
         }
         Err(e) => {
             warn!(error = %e, "Failed to list comments");
@@ -359,10 +347,7 @@ pub async fn create_comment_handler<S: CollaborationState>(
 
     // Validate the raw path — reject traversal BEFORE normalizing.
     if !common::path::validate_path(&request.path) {
-        return ApiError::bad_request(
-            ApiError::PATH_INVALID,
-            "Invalid path: path traversal is not allowed",
-        );
+        return ApiError::bad_request(ApiError::PATH_INVALID, "Invalid path: path traversal is not allowed");
     }
 
     // Now normalize for storage.
@@ -435,21 +420,11 @@ pub async fn update_comment_handler<S: CollaborationState>(
         }
     };
 
-    match state
-        .comments()
-        .update_comment(&id, &user_id, &request.body)
-    {
+    match state.comments().update_comment(&id, &user_id, &request.body) {
         Ok(comment) => {
             log_comment_audit(
                 &state,
-                build_audit_entry(
-                    "PUT",
-                    &format!("/api/comments/{}", id),
-                    &user_id,
-                    200,
-                    None,
-                    None,
-                ),
+                build_audit_entry("PUT", &format!("/api/comments/{}", id), &user_id, 200, None, None),
             )
             .await;
             (StatusCode::OK, axum::Json(comment)).into_response()
@@ -485,14 +460,7 @@ pub async fn delete_comment_handler<S: CollaborationState>(
         Ok(()) => {
             log_comment_audit(
                 &state,
-                build_audit_entry(
-                    "DELETE",
-                    &format!("/api/comments/{}", id),
-                    &user_id,
-                    200,
-                    None,
-                    None,
-                ),
+                build_audit_entry("DELETE", &format!("/api/comments/{}", id), &user_id, 200, None, None),
             )
             .await;
             (StatusCode::NO_CONTENT, "").into_response()
@@ -566,9 +534,7 @@ mod tests {
     #[test]
     fn test_add_and_list_comments() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Great doc!", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Great doc!", None).unwrap();
         assert_eq!(c.path, "/doc.pdf");
         assert_eq!(c.user_id, "user-1");
         assert_eq!(c.body, "Great doc!");
@@ -582,9 +548,7 @@ mod tests {
     #[test]
     fn test_nested_comments() {
         let (store, _dir) = setup_store();
-        let parent = store
-            .add_comment("/doc.pdf", "user-1", "Parent comment", None)
-            .unwrap();
+        let parent = store.add_comment("/doc.pdf", "user-1", "Parent comment", None).unwrap();
         let child = store
             .add_comment("/doc.pdf", "user-2", "Reply", Some(&parent.id))
             .unwrap();
@@ -597,12 +561,8 @@ mod tests {
     #[test]
     fn test_update_comment() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Original", None)
-            .unwrap();
-        let updated = store
-            .update_comment(&c.id, "user-1", "Updated body")
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Original", None).unwrap();
+        let updated = store.update_comment(&c.id, "user-1", "Updated body").unwrap();
         assert_eq!(updated.body, "Updated body");
         assert_ne!(updated.updated_at, c.updated_at);
     }
@@ -610,9 +570,7 @@ mod tests {
     #[test]
     fn test_update_comment_permission_denied() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Original", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Original", None).unwrap();
         let result = store.update_comment(&c.id, "user-2", "Hacked!");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Permission denied"));
@@ -621,9 +579,7 @@ mod tests {
     #[test]
     fn test_delete_own_comment() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Delete me", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Delete me", None).unwrap();
         assert!(store.delete_comment(&c.id, "user-1", false).is_ok());
         let comments = store.list_comments("/doc.pdf").unwrap();
         assert!(comments.is_empty());
@@ -632,9 +588,7 @@ mod tests {
     #[test]
     fn test_delete_comment_by_admin() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Delete me", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Delete me", None).unwrap();
         assert!(store.delete_comment(&c.id, "admin-user", true).is_ok());
         let comments = store.list_comments("/doc.pdf").unwrap();
         assert!(comments.is_empty());
@@ -643,9 +597,7 @@ mod tests {
     #[test]
     fn test_delete_comment_permission_denied() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Can't delete", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Can't delete", None).unwrap();
         let result = store.delete_comment(&c.id, "user-2", false);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Permission denied"));
@@ -654,9 +606,7 @@ mod tests {
     #[test]
     fn test_resolve_comment() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Resolve me", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Resolve me", None).unwrap();
         assert!(!c.resolved);
         let resolved = store.resolve_comment(&c.id, "user-1").unwrap();
         assert!(resolved.resolved);
@@ -680,12 +630,8 @@ mod tests {
     #[test]
     fn test_comments_isolated_by_path() {
         let (store, _dir) = setup_store();
-        store
-            .add_comment("/a.txt", "user-1", "Comment on A", None)
-            .unwrap();
-        store
-            .add_comment("/b.txt", "user-1", "Comment on B", None)
-            .unwrap();
+        store.add_comment("/a.txt", "user-1", "Comment on A", None).unwrap();
+        store.add_comment("/b.txt", "user-1", "Comment on B", None).unwrap();
         assert_eq!(store.list_comments("/a.txt").unwrap().len(), 1);
         assert_eq!(store.list_comments("/b.txt").unwrap().len(), 1);
     }

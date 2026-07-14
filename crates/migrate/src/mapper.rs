@@ -82,8 +82,7 @@ pub fn map_tags(tags: &[NcSystemTag], mappings: &[(i64, String, i64)]) -> Vec<Fe
         tag_map.insert(t.id, t.name.clone());
     }
 
-    let mut result_map: std::collections::HashMap<String, Vec<i64>> =
-        std::collections::HashMap::new();
+    let mut result_map: std::collections::HashMap<String, Vec<i64>> = std::collections::HashMap::new();
     for (_, _, tag_id) in mappings {
         if let Some(name) = tag_map.get(tag_id) {
             result_map.entry(name.clone()).or_default().push(*tag_id);

@@ -30,15 +30,8 @@ pub enum RaftMessage {
 
 #[async_trait]
 pub trait RaftTransport: Send + Sync {
-    async fn send(
-        &self,
-        target: &NodeId,
-        msg: RaftMessage,
-    ) -> Result<RaftMessage, DistributedError>;
-    async fn broadcast(
-        &self,
-        msg: RaftMessage,
-    ) -> Vec<(NodeId, Result<RaftMessage, DistributedError>)>;
+    async fn send(&self, target: &NodeId, msg: RaftMessage) -> Result<RaftMessage, DistributedError>;
+    async fn broadcast(&self, msg: RaftMessage) -> Vec<(NodeId, Result<RaftMessage, DistributedError>)>;
     async fn start(&self) -> Result<(), DistributedError>;
     async fn stop(&self) -> Result<(), DistributedError>;
 }
@@ -46,16 +39,10 @@ pub trait RaftTransport: Send + Sync {
 const MAX_MESSAGE_SIZE: usize = 64 * 1024 * 1024;
 
 pub fn encode_frame(msg: &RaftMessage) -> Result<Vec<u8>, DistributedError> {
-    let payload = serde_json::to_vec(msg).map_err(|e| DistributedError::EncodingFailed {
-        reason: e.to_string(),
-    })?;
+    let payload = serde_json::to_vec(msg).map_err(|e| DistributedError::EncodingFailed { reason: e.to_string() })?;
     if payload.len() > MAX_MESSAGE_SIZE {
         return Err(DistributedError::EncodingFailed {
-            reason: format!(
-                "message too large: {} bytes (max {})",
-                payload.len(),
-                MAX_MESSAGE_SIZE
-            ),
+            reason: format!("message too large: {} bytes (max {})", payload.len(), MAX_MESSAGE_SIZE),
         });
     }
     let len = payload.len() as u32;
@@ -74,24 +61,15 @@ pub fn decode_frame(data: &[u8]) -> Result<RaftMessage, DistributedError> {
     let len = u32::from_be_bytes([data[0], data[1], data[2], data[3]]) as usize;
     if data.len() < 4 + len {
         return Err(DistributedError::DecodingFailed {
-            reason: format!(
-                "incomplete frame: expected {} bytes, got {}",
-                len,
-                data.len() - 4
-            ),
+            reason: format!("incomplete frame: expected {} bytes, got {}", len, data.len() - 4),
         });
     }
     if len > MAX_MESSAGE_SIZE {
         return Err(DistributedError::DecodingFailed {
-            reason: format!(
-                "message too large: {} bytes (max {})",
-                len, MAX_MESSAGE_SIZE
-            ),
+            reason: format!("message too large: {} bytes (max {})", len, MAX_MESSAGE_SIZE),
         });
     }
-    serde_json::from_slice(&data[4..4 + len]).map_err(|e| DistributedError::DecodingFailed {
-        reason: e.to_string(),
-    })
+    serde_json::from_slice(&data[4..4 + len]).map_err(|e| DistributedError::DecodingFailed { reason: e.to_string() })
 }
 
 #[cfg(test)]
@@ -177,10 +155,7 @@ mod tests {
         let msg = RaftMessage::InstallSnapshotResponse { term: Term(4) };
         let json = serde_json::to_string(&msg).unwrap();
         let decoded: RaftMessage = serde_json::from_str(&json).unwrap();
-        assert!(matches!(
-            decoded,
-            RaftMessage::InstallSnapshotResponse { .. }
-        ));
+        assert!(matches!(decoded, RaftMessage::InstallSnapshotResponse { .. }));
     }
 
     #[test]

@@ -40,10 +40,10 @@ impl InMemoryFavoriteStore {
 
     fn persist_add(&self, path: &str) {
         if let Some(ref db) = self.db
-            && let Err(e) = db.lock().unwrap_or_else(|e| e.into_inner()).execute(
-                "INSERT OR IGNORE INTO favorites (path) VALUES (?1)",
-                params![path],
-            )
+            && let Err(e) = db
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .execute("INSERT OR IGNORE INTO favorites (path) VALUES (?1)", params![path])
         {
             warn!("Failed to persist favorite to SQLite: {}", e);
         }
@@ -102,11 +102,7 @@ impl Default for InMemoryFavoriteStore {
 
 pub async fn list_favorites(Extension(state): Extension<SharingState>) -> Response {
     let favorites = state.favorites.list().await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "paths": favorites })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "paths": favorites }))).into_response()
 }
 
 #[derive(Debug, Deserialize)]
@@ -119,11 +115,7 @@ pub async fn add_favorite(
     axum::Json(body): axum::Json<FavoritePath>,
 ) -> Response {
     state.favorites.add(body.path).await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "ok": true })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
 pub async fn remove_favorite(
@@ -131,11 +123,7 @@ pub async fn remove_favorite(
     axum::Json(body): axum::Json<FavoritePath>,
 ) -> Response {
     state.favorites.remove(&body.path).await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "ok": true })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
 /// List the current user's favorite paths.
@@ -143,37 +131,19 @@ pub async fn remove_favorite(
 /// Generic over `HasFavorites` for crate decomposition.
 pub async fn list_favorites_impl<S: common::server_context::HasFavorites>(state: &S) -> Response {
     let favorites = state.list_favorites().await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "paths": favorites })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "paths": favorites }))).into_response()
 }
 
 /// Add a path to the current user's favorites.
-pub async fn add_favorite_impl<S: common::server_context::HasFavorites>(
-    state: &S,
-    path: String,
-) -> Response {
+pub async fn add_favorite_impl<S: common::server_context::HasFavorites>(state: &S, path: String) -> Response {
     state.add_favorite(path).await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "ok": true })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
 /// Remove a path from the current user's favorites.
-pub async fn remove_favorite_impl<S: common::server_context::HasFavorites>(
-    state: &S,
-    path: &str,
-) -> Response {
+pub async fn remove_favorite_impl<S: common::server_context::HasFavorites>(state: &S, path: &str) -> Response {
     state.remove_favorite(path).await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "ok": true })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
 pub async fn list_recent(Extension(state): Extension<SharingState>) -> Response {
@@ -201,11 +171,7 @@ pub async fn list_recent(Extension(state): Extension<SharingState>) -> Response 
         }
     }
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "files": recent_files })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "files": recent_files }))).into_response()
 }
 
 #[cfg(test)]

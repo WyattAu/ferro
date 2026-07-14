@@ -62,12 +62,7 @@ pub async fn scan_file(
         UnixStream::connect(&config.socket_path),
     )
     .await
-    .map_err(|_| {
-        format!(
-            "Timeout connecting to ClamAV daemon at {}",
-            config.socket_path
-        )
-    })?
+    .map_err(|_| format!("Timeout connecting to ClamAV daemon at {}", config.socket_path))?
     .map_err(|e| format!("Failed to connect to ClamAV daemon: {e}"))?;
 
     let (mut reader, mut writer) = stream.into_split();
@@ -119,8 +114,7 @@ pub async fn scan_file(
 
     let scan_time_ms = scan_start.elapsed().as_millis() as u64;
 
-    let response_str =
-        String::from_utf8(response).map_err(|_| "Invalid UTF-8 in ClamAV response".to_string())?;
+    let response_str = String::from_utf8(response).map_err(|_| "Invalid UTF-8 in ClamAV response".to_string())?;
     let response_str = response_str.trim_end_matches('\0');
 
     if response_str.ends_with("OK") {
@@ -133,7 +127,7 @@ pub async fn scan_file(
         let virus_name = response_str
             .strip_prefix("stream: ")
             .and_then(|s| s.strip_suffix(" FOUND"))
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
         Ok(ClamavScanResult {
             clean: false,
             threat_name: virus_name,

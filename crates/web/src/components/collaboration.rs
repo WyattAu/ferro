@@ -114,9 +114,7 @@ impl CollabStateHandle {
     fn send_ops(&self, ops: &[TextOperation]) {
         if let Some(ref ws) = *self.ws.borrow() {
             if ws.ready_state() == web_sys::WebSocket::OPEN {
-                if let Ok(payload) =
-                    serde_json::to_string(&SyncMessage::Operations { ops: ops.to_vec() })
-                {
+                if let Ok(payload) = serde_json::to_string(&SyncMessage::Operations { ops: ops.to_vec() }) {
                     let _ = ws.send_with_str(&payload);
                 }
             } else {
@@ -186,9 +184,7 @@ pub struct ParticipantEntry {
 }
 
 fn ws_url_for_document(document_id: &str) -> String {
-    let location = web_sys::window()
-        .expect("must be in browser context")
-        .location();
+    let location = web_sys::window().expect("must be in browser context").location();
     let protocol = if location.protocol().unwrap_or_default() == "https:" {
         "wss:"
     } else {
@@ -211,16 +207,12 @@ fn setup_websocket(data: &Rc<ReconnectData>) {
     match web_sys::WebSocket::new(&data.ws_url) {
         Ok(ws) => {
             *data.handle.ws.borrow_mut() = Some(ws.clone());
-            data.handle
-                .set_connection_state
-                .run(CollabConnectionState::Connecting);
+            data.handle.set_connection_state.run(CollabConnectionState::Connecting);
 
             let d = data.clone();
             let ws_for_open = ws.clone();
             let onopen_closure = wasm_bindgen::closure::Closure::<dyn Fn()>::new(move || {
-                d.handle
-                    .set_connection_state
-                    .run(CollabConnectionState::Connected);
+                d.handle.set_connection_state.run(CollabConnectionState::Connected);
                 d.backoff_ms.set(1000);
 
                 let join_msg = SyncMessage::Join {
@@ -237,90 +229,71 @@ fn setup_websocket(data: &Rc<ReconnectData>) {
             onopen_closure.forget();
 
             let d = data.clone();
-            let onmessage_closure =
-                wasm_bindgen::closure::Closure::<dyn Fn(web_sys::MessageEvent)>::new(
-                    move |ev: web_sys::MessageEvent| {
-                        let data_str = ev.data().as_string().unwrap_or_default();
-                        if let Ok(msg) = serde_json::from_str::<SyncMessage>(&data_str) {
-                            match msg {
-                                SyncMessage::Operations { ops } => {
-                                    let my_site = d.handle.participant_id.0;
-                                    let remote_ops: Vec<_> = ops
-                                        .into_iter()
-                                        .filter(|op| match op {
-                                            TextOperation::Insert { id, .. } => {
-                                                id.site_id != my_site
-                                            }
-                                            TextOperation::Delete { id, .. } => {
-                                                id.site_id != my_site
-                                            }
-                                        })
-                                        .collect();
-                                    if !remote_ops.is_empty() {
-                                        d.handle.apply_remote_ops(&remote_ops);
-                                    }
+            let onmessage_closure = wasm_bindgen::closure::Closure::<dyn Fn(web_sys::MessageEvent)>::new(
+                move |ev: web_sys::MessageEvent| {
+                    let data_str = ev.data().as_string().unwrap_or_default();
+                    if let Ok(msg) = serde_json::from_str::<SyncMessage>(&data_str) {
+                        match msg {
+                            SyncMessage::Operations { ops } => {
+                                let my_site = d.handle.participant_id.0;
+                                let remote_ops: Vec<_> = ops
+                                    .into_iter()
+                                    .filter(|op| match op {
+                                        TextOperation::Insert { id, .. } => id.site_id != my_site,
+                                        TextOperation::Delete { id, .. } => id.site_id != my_site,
+                                    })
+                                    .collect();
+                                if !remote_ops.is_empty() {
+                                    d.handle.apply_remote_ops(&remote_ops);
                                 }
-                                SyncMessage::DocumentState {
-                                    serialized_state, ..
-                                } => {
-                                    if let Ok(server_doc) =
-                                        serde_json::from_str::<CrdtDocument>(&serialized_state)
-                                    {
-                                        let mut local_doc = d.handle.document.borrow_mut();
-                                        *local_doc = server_doc;
-                                        local_doc.join(
-                                            d.handle.participant_id,
-                                            &d.handle.participant_name,
-                                        );
-                                        let text = local_doc.get_text();
-                                        let version = local_doc.version;
-                                        drop(local_doc);
-                                        d.handle.set_text.run(text);
-                                        d.handle.set_version.run(version);
-                                    }
-                                }
-                                SyncMessage::Participants { participants } => {
-                                    let infos: Vec<ParticipantInfo> = participants
-                                        .iter()
-                                        .map(|p| ParticipantInfo {
-                                            id: ParticipantId(p.participant_id),
-                                            name: p.name.clone(),
-                                        })
-                                        .collect();
-                                    d.handle.set_remote_participants.run(infos);
-                                }
-                                SyncMessage::Hello { .. } => {}
-                                SyncMessage::Join { .. } => {}
-                                SyncMessage::State { .. } => {}
                             }
+                            SyncMessage::DocumentState { serialized_state, .. } => {
+                                if let Ok(server_doc) = serde_json::from_str::<CrdtDocument>(&serialized_state) {
+                                    let mut local_doc = d.handle.document.borrow_mut();
+                                    *local_doc = server_doc;
+                                    local_doc.join(d.handle.participant_id, &d.handle.participant_name);
+                                    let text = local_doc.get_text();
+                                    let version = local_doc.version;
+                                    drop(local_doc);
+                                    d.handle.set_text.run(text);
+                                    d.handle.set_version.run(version);
+                                }
+                            }
+                            SyncMessage::Participants { participants } => {
+                                let infos: Vec<ParticipantInfo> = participants
+                                    .iter()
+                                    .map(|p| ParticipantInfo {
+                                        id: ParticipantId(p.participant_id),
+                                        name: p.name.clone(),
+                                    })
+                                    .collect();
+                                d.handle.set_remote_participants.run(infos);
+                            }
+                            SyncMessage::Hello { .. } => {}
+                            SyncMessage::Join { .. } => {}
+                            SyncMessage::State { .. } => {}
                         }
-                    },
-                );
+                    }
+                },
+            );
             ws.set_onmessage(Some(onmessage_closure.as_ref().unchecked_ref()));
             onmessage_closure.forget();
 
             let d = data.clone();
-            let onerror_closure = wasm_bindgen::closure::Closure::<dyn Fn(web_sys::Event)>::new(
-                move |_ev: web_sys::Event| {
-                    d.handle
-                        .set_connection_state
-                        .run(CollabConnectionState::Disconnected);
+            let onerror_closure =
+                wasm_bindgen::closure::Closure::<dyn Fn(web_sys::Event)>::new(move |_ev: web_sys::Event| {
+                    d.handle.set_connection_state.run(CollabConnectionState::Disconnected);
                     schedule_reconnect(&d);
-                },
-            );
+                });
             ws.set_onerror(Some(onerror_closure.as_ref().unchecked_ref()));
             onerror_closure.forget();
 
             let d = data.clone();
             let onclose_closure =
-                wasm_bindgen::closure::Closure::<dyn Fn(web_sys::CloseEvent)>::new(
-                    move |_ev: web_sys::CloseEvent| {
-                        d.handle
-                            .set_connection_state
-                            .run(CollabConnectionState::Disconnected);
-                        schedule_reconnect(&d);
-                    },
-                );
+                wasm_bindgen::closure::Closure::<dyn Fn(web_sys::CloseEvent)>::new(move |_ev: web_sys::CloseEvent| {
+                    d.handle.set_connection_state.run(CollabConnectionState::Disconnected);
+                    schedule_reconnect(&d);
+                });
             ws.set_onclose(Some(onclose_closure.as_ref().unchecked_ref()));
             onclose_closure.forget();
         }
@@ -341,10 +314,7 @@ fn schedule_reconnect(data: &Rc<ReconnectData>) {
 
     let _ = web_sys::window()
         .expect("window")
-        .set_timeout_with_callback_and_timeout_and_arguments_0(
-            timer_closure.as_ref().unchecked_ref(),
-            delay as i32,
-        );
+        .set_timeout_with_callback_and_timeout_and_arguments_0(timer_closure.as_ref().unchecked_ref(), delay as i32);
     timer_closure.forget();
 }
 
@@ -369,12 +339,8 @@ pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoV
         pending_ops: Rc::new(RefCell::new(Vec::new())),
         set_text: Callback::new(move |v: String| set_text.set(v)),
         set_version: Callback::new(move |v: u64| set_version.set(v)),
-        set_remote_participants: Callback::new(move |v: Vec<ParticipantInfo>| {
-            set_remote_participants.set(v)
-        }),
-        set_connection_state: Callback::new(move |v: CollabConnectionState| {
-            set_connection_state.set(v)
-        }),
+        set_remote_participants: Callback::new(move |v: Vec<ParticipantInfo>| set_remote_participants.set(v)),
+        set_connection_state: Callback::new(move |v: CollabConnectionState| set_connection_state.set(v)),
         ws: Rc::new(RefCell::new(None)),
     };
 
@@ -444,17 +410,17 @@ pub fn CollabEditor(document_id: String, participant_name: String) -> impl IntoV
 
     view! {
         <div class="flex flex-col h-full">
-            <div class="flex items-center justify-between px-4 py-2 border-b bg-gray-50 dark:bg-gray-800">
+            <div class="flex items-center justify-between px-4 py-2 border-b bg-[var(--bg-base)]">
                 <div class="flex items-center gap-2">
                     <ConnectionBadge state=connection_state />
-                    <span class="text-xs font-mono text-gray-500">
+                    <span class="text-xs font-mono text-[var(--text-tertiary)]">
                         {move || format!("v{}", version.get())}
                     </span>
                 </div>
                 <PresenceIndicator />
             </div>
             <textarea
-                class="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none bg-white dark:bg-gray-900 dark:text-gray-100"
+                class="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none bg-[var(--bg-surface)] dark:text-gray-100"
                 prop:value=text
                 on:input=on_input
                 on:keydown=on_keydown
@@ -480,18 +446,10 @@ fn ConnectionBadge(state: ReadSignal<CollabConnectionState>) -> impl IntoView {
     };
 
     let color_class = move || match state.get() {
-        CollabConnectionState::Connected => {
-            "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-        }
-        CollabConnectionState::Connecting => {
-            "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-        }
-        CollabConnectionState::ReadOnly => {
-            "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
-        }
-        CollabConnectionState::Disconnected => {
-            "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-        }
+        CollabConnectionState::Connected => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+        CollabConnectionState::Connecting => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+        CollabConnectionState::ReadOnly => "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+        CollabConnectionState::Disconnected => "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
     };
 
     view! {
@@ -542,7 +500,7 @@ pub fn PresenceIndicator() -> impl IntoView {
                                     }
                                 }).collect::<Vec<_>>()}
                             </div>
-                            <span class="text-xs font-mono text-gray-500 ml-1">
+                            <span class="text-xs font-mono text-[var(--text-tertiary)] ml-1">
                                 {move || format!("{}", total)}
                             </span>
                         </div>
@@ -559,7 +517,7 @@ pub fn CollabAwarenessBar() -> impl IntoView {
     let ctx = use_context::<CollabContext>();
 
     view! {
-        <div class="flex items-center gap-3 px-4 py-2 text-xs font-mono border-t bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+        <div class="flex items-center gap-3 px-4 py-2 text-xs font-mono border-t bg-[var(--bg-base)] dark:border-gray-700">
             <PresenceIndicator />
             {move || {
                 match ctx {
@@ -571,7 +529,7 @@ pub fn CollabAwarenessBar() -> impl IntoView {
                         );
                         view! {
                             <div class="flex items-center gap-3">
-                                <span class="text-gray-500">
+                                <span class="text-[var(--text-tertiary)]">
                                     {format!("Document v{}", ver)}
                                 </span>
                                 {if read_only {

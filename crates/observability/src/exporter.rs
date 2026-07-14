@@ -21,13 +21,7 @@ pub fn export_prometheus(registry: &MetricsRegistry) -> String {
             MetricEntry::Histogram(h) => {
                 let _ = writeln!(output, "# TYPE {} histogram", name);
                 for (i, bucket) in h.buckets().iter().enumerate() {
-                    let _ = writeln!(
-                        output,
-                        "{}_bucket{{le=\"{}\"}} {}",
-                        name,
-                        bucket,
-                        h.bucket_count(i)
-                    );
+                    let _ = writeln!(output, "{}_bucket{{le=\"{}\"}} {}", name, bucket, h.bucket_count(i));
                 }
                 let _ = writeln!(output, "{}_bucket{{le=\"+Inf\"}} {}", name, h.total_count());
                 let _ = writeln!(output, "{}_sum {}", name, h.total_sum());

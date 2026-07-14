@@ -40,13 +40,7 @@ fn bench_upload_throughput(c: &mut Criterion) {
                                 let app_clone = app.clone();
                                 let req_body = body.clone();
                                 handles.push(tokio::spawn(async move {
-                                    make_request(
-                                        &app_clone,
-                                        "PUT",
-                                        &format!("/bench_{}.txt", i),
-                                        req_body,
-                                    )
-                                    .await;
+                                    make_request(&app_clone, "PUT", &format!("/bench_{}.txt", i), req_body).await;
                                 }));
                             }
                             for h in handles {
@@ -98,13 +92,7 @@ fn bench_download_throughput(c: &mut Criterion) {
                             for i in 0..clients {
                                 let app_clone = app.clone();
                                 handles.push(tokio::spawn(async move {
-                                    make_request(
-                                        &app_clone,
-                                        "GET",
-                                        &format!("/bench_{}.txt", i),
-                                        Bytes::new(),
-                                    )
-                                    .await;
+                                    make_request(&app_clone, "GET", &format!("/bench_{}.txt", i), Bytes::new()).await;
                                 }));
                             }
                             for h in handles {

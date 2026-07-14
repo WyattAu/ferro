@@ -106,16 +106,8 @@ pub struct FerroFs {
 
 #[allow(dead_code)]
 impl FerroFs {
-    pub fn new(
-        server_url: &str,
-        token: Option<&str>,
-        uid: u32,
-        gid: u32,
-        cache_dir: Option<&str>,
-    ) -> Result<Self> {
-        let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
-            .build()?;
+    pub fn new(server_url: &str, token: Option<&str>, uid: u32, gid: u32, cache_dir: Option<&str>) -> Result<Self> {
+        let client = Client::builder().timeout(std::time::Duration::from_secs(30)).build()?;
 
         let auth_header = token.map(|t| {
             if t.contains(':') {
@@ -127,9 +119,7 @@ impl FerroFs {
 
         #[cfg(feature = "offline-cache")]
         let offline_cache = match cache_dir {
-            Some(dir) => {
-                Some(OfflineCache::new(PathBuf::from(dir)).map_err(|e| anyhow::anyhow!(e))?)
-            }
+            Some(dir) => Some(OfflineCache::new(PathBuf::from(dir)).map_err(|e| anyhow::anyhow!(e))?),
             None => None,
         };
         #[cfg(not(feature = "offline-cache"))]
@@ -156,7 +146,7 @@ impl FerroFs {
     }
 
     fn next_fh(&self) -> u64 {
-        self.fh_counter.fetch_add(1, Ordering::SeqCst) + 1
+        self.fh_counter.fetch_add(1, Ordering::Relaxed) + 1
     }
 
     async fn ino_to_path(&self, ino: u64) -> String {
@@ -362,10 +352,9 @@ impl FerroFs {
 
     async fn webdav_mkcol(&self, path: &str) -> Result<()> {
         let url = self.make_url(path);
-        let mut req = self.client.request(
-            reqwest::Method::from_bytes(b"MKCOL").expect("valid HTTP method"),
-            &url,
-        );
+        let mut req = self
+            .client
+            .request(reqwest::Method::from_bytes(b"MKCOL").expect("valid HTTP method"), &url);
         if let Some(ref auth) = self.auth_header {
             req = req.header("Authorization", auth);
         }
@@ -404,12 +393,8 @@ fn parse_propfind_response(xml: &str) -> Result<Vec<FileEntry>> {
             .captures(response)
             .map(|c| percent_decode(&c[1]))
             .unwrap_or_default();
-        let is_collection =
-            response.contains("<d:collection/>") || response.contains("<d:collection ");
-        let size: u64 = size_re
-            .captures(response)
-            .and_then(|c| c[1].parse().ok())
-            .unwrap_or(0);
+        let is_collection = response.contains("<d:collection/>") || response.contains("<d:collection ");
+        let size: u64 = size_re.captures(response).and_then(|c| c[1].parse().ok()).unwrap_or(0);
         let modified = modified_re
             .captures(response)
             .map(|c| c[1].to_string())
@@ -486,18 +471,9 @@ impl Filesystem for FerroFs {
 
     async fn destroy(&self, _req: Request) {}
 
-    async fn lookup(
-        &self,
-        _req: Request,
-        parent: u64,
-        name: &std::ffi::OsStr,
-    ) -> FuseResult<ReplyEntry> {
+    async fn lookup(&self, _req: Request, parent: u64, name: &std::ffi::OsStr) -> FuseResult<ReplyEntry> {
         let parent_path = self.ino_to_path(parent).await;
-        let child_path = format!(
-            "{}/{}",
-            parent_path.trim_end_matches('/'),
-            name.to_string_lossy()
-        );
+        let child_path = format!("{}/{}", parent_path.trim_end_matches('/'), name.to_string_lossy());
         debug!(
             "lookup: parent={} name={} -> {}",
             parent,
@@ -526,13 +502,7 @@ impl Filesystem for FerroFs {
         }
     }
 
-    async fn getattr(
-        &self,
-        _req: Request,
-        inode: u64,
-        _fh: Option<u64>,
-        _flags: u32,
-    ) -> FuseResult<ReplyAttr> {
+    async fn getattr(&self, _req: Request, inode: u64, _fh: Option<u64>, _flags: u32) -> FuseResult<ReplyAttr> {
         debug!("getattr: ino={}", inode);
         if inode == 1 {
             return Ok(ReplyAttr {
@@ -550,13 +520,7 @@ impl Filesystem for FerroFs {
         }
     }
 
-    async fn setattr(
-        &self,
-        _req: Request,
-        inode: u64,
-        _fh: Option<u64>,
-        _set_attr: SetAttr,
-    ) -> FuseResult<ReplyAttr> {
+    async fn setattr(&self, _req: Request, inode: u64, _fh: Option<u64>, _set_attr: SetAttr) -> FuseResult<ReplyAttr> {
         if inode == 1 {
             return Ok(ReplyAttr {
                 ttl: TTL,
@@ -597,15 +561,9 @@ impl Filesystem for FerroFs {
         _umask: u32,
     ) -> FuseResult<ReplyEntry> {
         let parent_path = self.ino_to_path(parent).await;
-        let child_path = format!(
-            "{}/{}",
-            parent_path.trim_end_matches('/'),
-            name.to_string_lossy()
-        );
+        let child_path = format!("{}/{}", parent_path.trim_end_matches('/'), name.to_string_lossy());
 
-        self.webdav_mkcol(&child_path)
-            .await
-            .map_err(|_| libc::EIO)?;
+        self.webdav_mkcol(&child_path).await.map_err(|_| libc::EIO)?;
 
         let ino = path_to_ino(&child_path);
         let entry = InodeEntry {
@@ -627,15 +585,9 @@ impl Filesystem for FerroFs {
 
     async fn unlink(&self, _req: Request, parent: u64, name: &std::ffi::OsStr) -> FuseResult<()> {
         let parent_path = self.ino_to_path(parent).await;
-        let child_path = format!(
-            "{}/{}",
-            parent_path.trim_end_matches('/'),
-            name.to_string_lossy()
-        );
+        let child_path = format!("{}/{}", parent_path.trim_end_matches('/'), name.to_string_lossy());
 
-        self.webdav_delete(&child_path)
-            .await
-            .map_err(|_| libc::ENOENT)?;
+        self.webdav_delete(&child_path).await.map_err(|_| libc::ENOENT)?;
 
         let ino = path_to_ino(&child_path);
         self.inodes.write().await.remove(&ino);
@@ -645,15 +597,9 @@ impl Filesystem for FerroFs {
 
     async fn rmdir(&self, _req: Request, parent: u64, name: &std::ffi::OsStr) -> FuseResult<()> {
         let parent_path = self.ino_to_path(parent).await;
-        let child_path = format!(
-            "{}/{}",
-            parent_path.trim_end_matches('/'),
-            name.to_string_lossy()
-        );
+        let child_path = format!("{}/{}", parent_path.trim_end_matches('/'), name.to_string_lossy());
 
-        self.webdav_delete(&child_path)
-            .await
-            .map_err(|_| libc::ENOENT)?;
+        self.webdav_delete(&child_path).await.map_err(|_| libc::ENOENT)?;
 
         let ino = path_to_ino(&child_path);
         self.inodes.write().await.remove(&ino);
@@ -693,10 +639,9 @@ impl Filesystem for FerroFs {
         let url = self.make_url(&old_path);
         let destination = self.make_url(&new_path);
 
-        let mut req = self.client.request(
-            reqwest::Method::from_bytes(b"MOVE").expect("valid HTTP method"),
-            &url,
-        );
+        let mut req = self
+            .client
+            .request(reqwest::Method::from_bytes(b"MOVE").expect("valid HTTP method"), &url);
         req = req.header("Destination", &destination);
         if let Some(ref auth) = self.auth_header {
             req = req.header("Authorization", auth);
@@ -742,14 +687,7 @@ impl Filesystem for FerroFs {
         Ok(ReplyOpen { fh, flags: 0 })
     }
 
-    async fn read(
-        &self,
-        _req: Request,
-        _inode: u64,
-        fh: u64,
-        offset: u64,
-        size: u32,
-    ) -> FuseResult<ReplyData> {
+    async fn read(&self, _req: Request, _inode: u64, fh: u64, offset: u64, size: u32) -> FuseResult<ReplyData> {
         debug!("read: fh={} offset={} size={}", fh, offset, size);
         let handles = self.file_handles.read().await;
         let handle = handles.get(&fh).ok_or(libc::EBADF)?;
@@ -790,9 +728,7 @@ impl Filesystem for FerroFs {
         let path = handle.path.clone();
         drop(handles);
 
-        self.webdav_put(&path, data, None)
-            .await
-            .map_err(|_| libc::EIO)?;
+        self.webdav_put(&path, data, None).await.map_err(|_| libc::EIO)?;
 
         if let Some(entry) = self.inodes.write().await.get_mut(&ino) {
             entry.size = data.len() as u64;
@@ -804,13 +740,7 @@ impl Filesystem for FerroFs {
         })
     }
 
-    async fn flush(
-        &self,
-        _req: Request,
-        _inode: u64,
-        _fh: u64,
-        _lock_owner: u64,
-    ) -> FuseResult<()> {
+    async fn flush(&self, _req: Request, _inode: u64, _fh: u64, _lock_owner: u64) -> FuseResult<()> {
         Ok(())
     }
 
@@ -944,13 +874,7 @@ impl Filesystem for FerroFs {
         Ok(())
     }
 
-    async fn fsyncdir(
-        &self,
-        _req: Request,
-        _inode: u64,
-        _fh: u64,
-        _datasync: bool,
-    ) -> FuseResult<()> {
+    async fn fsyncdir(&self, _req: Request, _inode: u64, _fh: u64, _datasync: bool) -> FuseResult<()> {
         Ok(())
     }
 
@@ -980,15 +904,9 @@ impl Filesystem for FerroFs {
         flags: u32,
     ) -> FuseResult<ReplyCreated> {
         let parent_path = self.ino_to_path(parent).await;
-        let child_path = format!(
-            "{}/{}",
-            parent_path.trim_end_matches('/'),
-            name.to_string_lossy()
-        );
+        let child_path = format!("{}/{}", parent_path.trim_end_matches('/'), name.to_string_lossy());
 
-        self.webdav_put(&child_path, &[], None)
-            .await
-            .map_err(|_| libc::EIO)?;
+        self.webdav_put(&child_path, &[], None).await.map_err(|_| libc::EIO)?;
 
         let ino = path_to_ino(&child_path);
         let entry = InodeEntry {

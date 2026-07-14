@@ -3,13 +3,13 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// SHA-256 content hash stored as 64 hex characters.
-#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ContentHash(String);
 
 impl ContentHash {
     /// Create a content hash from a pre-computed 64-char hex string.
     /// Returns None if the input is not exactly 64 hex characters.
+    #[must_use]
     pub fn new(hex: String) -> Option<Self> {
         if hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
             Some(Self(hex))
@@ -20,12 +20,14 @@ impl ContentHash {
 
     /// Create a content hash from a pre-computed 64-char hex string without validation.
     /// Only use for internally-generated hashes that are guaranteed valid.
+    #[must_use]
     pub fn new_unchecked(hex: String) -> Self {
         debug_assert!(hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit()));
         Self(hex)
     }
 
     /// Compute the SHA-256 hash of the given byte slice.
+    #[must_use]
     pub fn compute(data: &[u8]) -> Self {
         let hash = Sha256::digest(data);
         Self(hex::encode(hash))
@@ -46,16 +48,19 @@ impl ContentHash {
     }
 
     /// Return the hash as a hex string slice.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Alias for [`Self::as_str`].
+    #[must_use]
     pub fn as_hex(&self) -> &str {
         &self.0
     }
 
-    /// Parse a content hash from an ETag string, stripping surrounding quotes.
+    /// Parse a content hash from an `ETag` string, stripping surrounding quotes.
+    #[must_use]
     pub fn from_etag(etag: &str) -> Self {
         let clean = etag.trim_matches('"');
         if clean.len() == 64 {
@@ -86,12 +91,13 @@ pub struct FileMetadata {
     pub modified_at: DateTime<Utc>,
     /// Owner of the file or collection.
     pub owner: String,
-    /// ETag string for conditional requests.
+    /// `ETag` string for conditional requests.
     pub etag: String,
 }
 
 impl FileMetadata {
     /// Create metadata for a regular file with sensible defaults.
+    #[must_use]
     pub fn new(path: String, content_hash: ContentHash, size: u64, owner: String) -> Self {
         let now = Utc::now();
         Self {
@@ -108,6 +114,7 @@ impl FileMetadata {
     }
 
     /// Create metadata for a collection (directory).
+    #[must_use]
     pub fn new_collection(path: String, owner: String) -> Self {
         let now = Utc::now();
         Self {
@@ -224,5 +231,102 @@ mod tests {
         assert!(meta.is_collection);
         assert_eq!(meta.size, 0);
         assert_eq!(meta.mime_type, "httpd/unix-directory");
+    }
+
+    #[test]
+    fn test_content_hash_compute_different_inputs() {
+        let hash1 = ContentHash::compute(b"data1");
+        let hash2 = ContentHash::compute(b"data2");
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_content_hash_compute_large_data() {
+        let data = vec![0u8; 1024 * 1024]; // 1MB
+        let hash = ContentHash::compute(&data);
+        assert_eq!(hash.as_str().len(), 64);
+    }
+
+    #[test]
+    fn test_content_hash_compute_reader_empty() {
+        let data = b"";
+        let hash = ContentHash::compute_reader(&data[..]).unwrap();
+        assert_eq!(hash.as_str().len(), 64);
+    }
+
+    #[test]
+    fn test_content_hash_eq() {
+        let hash1 = ContentHash::compute(b"test");
+        let hash2 = ContentHash::compute(b"test");
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_content_hash_ne() {
+        let hash1 = ContentHash::compute(b"test1");
+        let hash2 = ContentHash::compute(b"test2");
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_content_hash_clone() {
+        let hash1 = ContentHash::compute(b"test");
+        let hash2 = hash1.clone();
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_content_hash_debug() {
+        let hash = ContentHash::compute(b"test");
+        let debug = format!("{:?}", hash);
+        assert!(debug.contains("ContentHash"));
+    }
+
+    #[test]
+    fn test_content_hash_serialize_deserialize() {
+        let hash = ContentHash::compute(b"test");
+        let json = serde_json::to_string(&hash).unwrap();
+        let deserialized: ContentHash = serde_json::from_str(&json).unwrap();
+        assert_eq!(hash, deserialized);
+    }
+
+    #[test]
+    fn test_file_metadata_debug() {
+        let hash = ContentHash::compute(b"data");
+        let meta = FileMetadata::new("/test.txt".into(), hash, 42, "alice".into());
+        let debug = format!("{:?}", meta);
+        assert!(debug.contains("FileMetadata"));
+    }
+
+    #[test]
+    fn test_file_metadata_clone() {
+        let hash = ContentHash::compute(b"data");
+        let meta1 = FileMetadata::new("/test.txt".into(), hash, 42, "alice".into());
+        let meta2 = meta1.clone();
+        assert_eq!(meta1.path, meta2.path);
+        assert_eq!(meta1.size, meta2.size);
+    }
+
+    #[test]
+    fn test_file_metadata_serialize_deserialize() {
+        let hash = ContentHash::compute(b"data");
+        let meta = FileMetadata::new("/test.txt".into(), hash, 42, "alice".into());
+        let json = serde_json::to_string(&meta).unwrap();
+        let deserialized: FileMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(meta.path, deserialized.path);
+        assert_eq!(meta.size, deserialized.size);
+    }
+
+    #[test]
+    fn test_file_metadata_collection_etag() {
+        let meta = FileMetadata::new_collection("/docs".into(), "alice".into());
+        assert!(meta.etag.starts_with("\"col-"));
+    }
+
+    #[test]
+    fn test_file_metadata_mime_type() {
+        let hash = ContentHash::compute(b"data");
+        let meta = FileMetadata::new("/test.txt".into(), hash, 42, "alice".into());
+        assert_eq!(meta.mime_type, "application/octet-stream");
     }
 }

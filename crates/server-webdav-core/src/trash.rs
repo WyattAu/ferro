@@ -254,11 +254,7 @@ fn generate_trash_path() -> String {
     format!("{}_{}", ts, &hash[..16])
 }
 
-fn write_trash_file(
-    trash_dir: &str,
-    filename: &str,
-    content: &[u8],
-) -> Result<PathBuf, std::io::Error> {
+fn write_trash_file(trash_dir: &str, filename: &str, content: &[u8]) -> Result<PathBuf, std::io::Error> {
     let dir = PathBuf::from(trash_dir);
     std::fs::create_dir_all(&dir)?;
     let file_path = dir.join(filename);
@@ -313,10 +309,7 @@ fn persist_trash_insert(db: &DbHandle, entry: &TrashedEntry) {
 
 fn persist_trash_remove(db: &DbHandle, original_path: &str) {
     let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-    if let Err(e) = conn.execute(
-        "DELETE FROM trash WHERE original_path = ?1",
-        params![original_path],
-    ) {
+    if let Err(e) = conn.execute("DELETE FROM trash WHERE original_path = ?1", params![original_path]) {
         warn!("Failed to remove trash entry from SQLite: {}", e);
     }
 }
@@ -328,11 +321,8 @@ fn persist_trash_clear(db: &DbHandle) {
     }
 }
 
-pub fn load_trash_from_db(
-    conn: &rusqlite::Connection,
-) -> Result<Vec<TrashedEntry>, rusqlite::Error> {
-    let mut stmt =
-        conn.prepare("SELECT original_path, trash_path, deleted_at, size, mime_type FROM trash")?;
+pub fn load_trash_from_db(conn: &rusqlite::Connection) -> Result<Vec<TrashedEntry>, rusqlite::Error> {
+    let mut stmt = conn.prepare("SELECT original_path, trash_path, deleted_at, size, mime_type FROM trash")?;
     let rows = stmt.query_map([], |row| {
         let deleted_at_str: String = row.get(2)?;
         let deleted_at = chrono::DateTime::parse_from_rfc3339(&deleted_at_str)
@@ -359,16 +349,8 @@ pub fn load_trash_from_db(
 
 pub async fn list_trash<S: WebDavCoreState>(State(state): State<S>) -> Response {
     let trash = state.trash_store();
-    let entries: Vec<TrashedEntryResponse> = trash
-        .list()
-        .iter()
-        .map(TrashedEntryResponse::from)
-        .collect();
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "entries": entries })),
-    )
-        .into_response()
+    let entries: Vec<TrashedEntryResponse> = trash.list().iter().map(TrashedEntryResponse::from).collect();
+    (StatusCode::OK, axum::Json(serde_json::json!({ "entries": entries }))).into_response()
 }
 
 pub async fn move_to_trash<S: WebDavCoreState>(
@@ -412,24 +394,20 @@ pub async fn move_to_trash<S: WebDavCoreState>(
     };
 
     let entry = TrashedEntry {
-        original_path: normalized.clone(),
+        original_path: normalized.to_string(),
         trash_path: trash_path_str,
         deleted_at: chrono::Utc::now(),
         size,
         mime_type,
     };
 
-    state.trash_store().insert(normalized, entry.clone());
+    state.trash_store().insert(normalized.to_string(), entry.clone());
     state.trash_store().evict_oldest_if_needed();
     // Use the local entry directly instead of re-fetching from DashMap,
     // which may have evicted this entry during evict_oldest_if_needed.
     state.trash_store().persist_insert(&entry);
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "ok": true })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
 pub async fn restore_trash<S: WebDavCoreState>(
@@ -448,7 +426,7 @@ pub async fn restore_trash<S: WebDavCoreState>(
     let content = match read_trash_file_async(&entry.trash_path).await {
         Ok(bytes) => bytes,
         Err(_) => {
-            state.trash_store().insert(normalized, entry);
+            state.trash_store().insert(normalized.to_string(), entry);
             return ApiError::internal(ApiError::INTERNAL_ERROR, "Trash file not found on disk");
         }
     };
@@ -458,17 +436,13 @@ pub async fn restore_trash<S: WebDavCoreState>(
         .put(&entry.original_path, content.clone(), "anonymous")
         .await
     {
-        state.trash_store().insert(normalized, entry);
+        state.trash_store().insert(normalized.to_string(), entry);
         return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Restore failed: {}", e));
     }
 
     delete_trash_file(&entry.trash_path);
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "ok": true })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
 pub async fn purge_trash<S: WebDavCoreState>(
@@ -484,11 +458,7 @@ pub async fn purge_trash<S: WebDavCoreState>(
         return ApiError::not_found(ApiError::TRASH_NOT_FOUND, "File not found in trash");
     }
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "ok": true })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
 pub async fn empty_trash<S: WebDavCoreState>(State(state): State<S>) -> Response {
@@ -497,11 +467,7 @@ pub async fn empty_trash<S: WebDavCoreState>(State(state): State<S>) -> Response
     }
     state.trash_store().clear();
     state.trash_store().persist_clear();
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "ok": true })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response()
 }
 
 pub async fn purge_expired<S: WebDavCoreState>(state: &S, ttl: std::time::Duration) -> usize {
@@ -534,10 +500,7 @@ pub async fn soft_delete<S: WebDavCoreState>(state: &S, path: &str) -> Result<()
     let content = match state.storage().get(&normalized).await {
         Ok(c) => c,
         Err(_) => {
-            return Err(ApiError::not_found(
-                ApiError::FILE_NOT_FOUND,
-                "File not found",
-            ));
+            return Err(ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"));
         }
     };
 
@@ -570,14 +533,14 @@ pub async fn soft_delete<S: WebDavCoreState>(state: &S, path: &str) -> Result<()
     };
 
     let entry = TrashedEntry {
-        original_path: normalized.clone(),
+        original_path: normalized.to_string(),
         trash_path: trash_path_str,
         deleted_at: chrono::Utc::now(),
         size,
         mime_type,
     };
 
-    state.trash_store().insert(normalized, entry.clone());
+    state.trash_store().insert(normalized.to_string(), entry.clone());
     state.trash_store().evict_oldest_if_needed();
     // Use the local entry directly instead of re-fetching from DashMap,
     // which may have evicted this entry during evict_oldest_if_needed.

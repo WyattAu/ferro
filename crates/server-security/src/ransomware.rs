@@ -54,14 +54,13 @@ impl UserMutationTracker {
             size,
         });
 
-        let cutoff = now - window;
+        let cutoff = now.checked_sub(window).unwrap();
         self.events.retain(|e| e.timestamp > cutoff);
         self.events.len() as u32
     }
 
     fn should_alert(&mut self, cooldown: Duration) -> bool {
-        self.last_alert
-            .is_none_or(|last| Instant::now() - last >= cooldown)
+        self.last_alert.is_none_or(|last| last.elapsed() >= cooldown)
     }
 }
 
@@ -82,21 +81,17 @@ pub struct RansomwareAlert {
 }
 
 impl RansomwareDetector {
+    #[must_use]
     pub fn new(config: RansomwareConfig) -> Self {
         Self {
             config,
             trackers: Arc::new(RwLock::new(HashMap::new())),
             alerts: Arc::new(RwLock::new(Vec::new())),
-            alert_cooldown: Duration::from_secs(300),
+            alert_cooldown: Duration::from_mins(5),
         }
     }
 
-    pub async fn record_mutation(
-        &self,
-        user_id: &str,
-        path: &str,
-        size: u64,
-    ) -> RansomwareCheckResult {
+    pub async fn record_mutation(&self, user_id: &str, path: &str, size: u64) -> RansomwareCheckResult {
         if !self.config.enabled {
             return RansomwareCheckResult::Safe;
         }
@@ -116,8 +111,7 @@ impl RansomwareDetector {
             tracker.alerted = true;
             tracker.last_alert = Some(Instant::now());
 
-            let affected_paths: Vec<String> =
-                tracker.events.iter().map(|e| e.path.clone()).collect();
+            let affected_paths: Vec<String> = tracker.events.iter().map(|e| e.path.clone()).collect();
 
             let alert = RansomwareAlert {
                 user_id: user_id.to_string(),
@@ -166,12 +160,8 @@ impl RansomwareDetector {
         let mut counts = HashMap::new();
         for (user_id, tracker) in trackers.iter() {
             let now = Instant::now();
-            let cutoff = now - window;
-            let active_count = tracker
-                .events
-                .iter()
-                .filter(|e| e.timestamp > cutoff)
-                .count() as u32;
+            let cutoff = now.checked_sub(window).unwrap();
+            let active_count = tracker.events.iter().filter(|e| e.timestamp > cutoff).count() as u32;
             if active_count > 0 {
                 counts.insert(user_id.clone(), active_count);
             }
@@ -226,9 +216,7 @@ mod tests {
             let detector = RansomwareDetector::new(config);
 
             for i in 0..5 {
-                let _ = detector
-                    .record_mutation("user1", &format!("/file{}.txt", i), 100)
-                    .await;
+                let _ = detector.record_mutation("user1", &format!("/file{}.txt", i), 100).await;
             }
 
             let result = detector.record_mutation("user1", "/file5.txt", 100).await;

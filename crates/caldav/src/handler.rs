@@ -17,12 +17,7 @@ pub struct CalDavState {
 
 pub async fn handle_options() -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "DAV",
-        "1, 2, calendar-access"
-            .parse()
-            .expect("static DAV header value"),
-    );
+    headers.insert("DAV", "1, 2, calendar-access".parse().expect("static DAV header value"));
     headers.insert(
         "Allow",
         "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT, MKCALENDAR"
@@ -62,10 +57,7 @@ pub async fn handle_get(
         .ok_or_else(|| CalDavError::NotFound(format!("Event not found: {}/{}", calendar, uid)))?;
 
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "Content-Type",
-        HeaderValue::from_static("text/calendar; charset=utf-8"),
-    );
+    headers.insert("Content-Type", HeaderValue::from_static("text/calendar; charset=utf-8"));
     headers.insert(
         "ETag",
         HeaderValue::from_str(&event.etag).map_err(|e| CalDavError::BadRequest(e.to_string()))?,
@@ -81,8 +73,7 @@ pub async fn handle_put(
     let ical = String::from_utf8(body.to_vec())
         .map_err(|_| CalDavError::InvalidData("Invalid UTF-8 in request body".to_string()))?;
 
-    ical::parse_ical(&ical)
-        .map_err(|e| CalDavError::InvalidData(format!("Invalid iCalendar: {}", e)))?;
+    ical::parse_ical(&ical).map_err(|e| CalDavError::InvalidData(format!("Invalid iCalendar: {}", e)))?;
 
     let existing = state.manager.get_event(&calendar, &uid).await;
     let event = match existing {

@@ -144,13 +144,12 @@ impl ferro_server_api_core::shares::ShareStoreTrait for PgShareStore {
     }
 
     async fn increment_download(&self, token: &str) -> bool {
-        let result =
-            sqlx::query("UPDATE shares SET download_count = download_count + 1 WHERE token = $1")
-                .bind(token)
-                .execute(&self.pool)
-                .await
-                .ok()
-                .map(|r| r.rows_affected() > 0);
+        let result = sqlx::query("UPDATE shares SET download_count = download_count + 1 WHERE token = $1")
+            .bind(token)
+            .execute(&self.pool)
+            .await
+            .ok()
+            .map(|r| r.rows_affected() > 0);
 
         result.unwrap_or(false)
     }
@@ -183,34 +182,29 @@ impl PgFavoriteStore {
 #[async_trait]
 impl ferro_server_api_core::favorites::FavoriteStore for PgFavoriteStore {
     async fn list(&self) -> Vec<String> {
-        sqlx::query_scalar(
-            "SELECT path FROM favorites WHERE user_id = 'default' ORDER BY created_at DESC",
-        )
-        .fetch_all(&self.pool)
-        .await
-        .unwrap_or_default()
+        sqlx::query_scalar("SELECT path FROM favorites WHERE user_id = 'default' ORDER BY created_at DESC")
+            .fetch_all(&self.pool)
+            .await
+            .unwrap_or_default()
     }
 
     async fn add(&self, path: String) {
-        if let Err(e) = sqlx::query(
-            "INSERT INTO favorites (user_id, path) VALUES ('default', $1) ON CONFLICT DO NOTHING",
-        )
-        .bind(&path)
-        .execute(&self.pool)
-        .await
+        if let Err(e) =
+            sqlx::query("INSERT INTO favorites (user_id, path) VALUES ('default', $1) ON CONFLICT DO NOTHING")
+                .bind(&path)
+                .execute(&self.pool)
+                .await
         {
             warn!(error = %e, "failed to add favorite to database");
         }
     }
 
     async fn contains(&self, path: &str) -> bool {
-        sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM favorites WHERE user_id = 'default' AND path = $1)",
-        )
-        .bind(path)
-        .fetch_one(&self.pool)
-        .await
-        .unwrap_or(false)
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM favorites WHERE user_id = 'default' AND path = $1)")
+            .bind(path)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap_or(false)
     }
 
     async fn remove(&self, path: &str) {
@@ -248,11 +242,9 @@ impl PgPreferenceStore {
         .execute(&pool)
         .await?;
 
-        if let Err(e) = sqlx::query(
-            "INSERT INTO preferences (user_id) VALUES ('default') ON CONFLICT DO NOTHING",
-        )
-        .execute(&self.pool)
-        .await
+        if let Err(e) = sqlx::query("INSERT INTO preferences (user_id) VALUES ('default') ON CONFLICT DO NOTHING")
+            .execute(&self.pool)
+            .await
         {
             warn!(error = %e, "failed to insert default preferences row");
         }
@@ -284,10 +276,7 @@ impl ferro_server_api_core::search::PreferenceStore for PgPreferenceStore {
         .unwrap_or_default()
     }
 
-    async fn update(
-        &self,
-        updates: serde_json::Value,
-    ) -> ferro_server_api_core::search::UserPreferences {
+    async fn update(&self, updates: serde_json::Value) -> ferro_server_api_core::search::UserPreferences {
         let mut set_parts = Vec::new();
         let mut binds: Vec<Box<dyn std::any::Any + Send>> = Vec::new();
 
@@ -334,9 +323,7 @@ impl ferro_server_api_core::search::PreferenceStore for PgPreferenceStore {
     }
 }
 
-pub async fn create_pg_stores(
-    pool: PgPool,
-) -> anyhow::Result<(PgShareStore, PgFavoriteStore, PgPreferenceStore)> {
+pub async fn create_pg_stores(pool: PgPool) -> anyhow::Result<(PgShareStore, PgFavoriteStore, PgPreferenceStore)> {
     let shares = PgShareStore::new(pool.clone()).await?;
     let favorites = PgFavoriteStore::new(pool.clone()).await?;
     let preferences = PgPreferenceStore::new(pool).await?;

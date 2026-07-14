@@ -63,8 +63,7 @@ impl<E: Event> HandlerEraser for ErasedHandler<E> {
         &self,
         event_json: &str,
         _event_type: &str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EventBusError>> + Send + '_>>
-    {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EventBusError>> + Send + '_>> {
         let event: E = match E::from_json(event_json) {
             Ok(e) => e,
             Err(err) => {

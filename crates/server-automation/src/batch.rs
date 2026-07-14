@@ -76,11 +76,7 @@ pub async fn batch_copy(
         }
     }
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "results": results })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
 }
 
 pub async fn batch_move(
@@ -142,9 +138,5 @@ pub async fn batch_move(
         }
     }
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "results": results })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
 }

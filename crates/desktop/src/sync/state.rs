@@ -37,10 +37,7 @@ impl SyncState {
         if state_path.exists() {
             let data = std::fs::read_to_string(&state_path)?;
             let entries: HashMap<String, SyncEntry> = serde_json::from_str(&data)?;
-            Ok(Self {
-                state_path,
-                entries,
-            })
+            Ok(Self { state_path, entries })
         } else {
             Ok(Self {
                 state_path,
@@ -123,14 +120,7 @@ impl SyncState {
     }
 
     /// Update the local side of an entry after a file scan.
-    pub fn update_local(
-        &mut self,
-        relative_path: &str,
-        hash: String,
-        size: u64,
-        mtime_ms: i64,
-        is_dir: bool,
-    ) {
+    pub fn update_local(&mut self, relative_path: &str, hash: String, size: u64, mtime_ms: i64, is_dir: bool) {
         let entry = self
             .entries
             .entry(relative_path.to_string())
@@ -156,14 +146,7 @@ impl SyncState {
     }
 
     /// Update the remote side of an entry after a remote scan.
-    pub fn update_remote(
-        &mut self,
-        relative_path: &str,
-        hash: String,
-        size: u64,
-        mtime_ms: i64,
-        is_dir: bool,
-    ) {
+    pub fn update_remote(&mut self, relative_path: &str, hash: String, size: u64, mtime_ms: i64, is_dir: bool) {
         let entry = self
             .entries
             .entry(relative_path.to_string())

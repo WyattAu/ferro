@@ -1,0 +1,142 @@
+# Ferro Canary Deployment - Argo Rollouts
+# Requires: argo-rollouts controller installed in cluster
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ferro-server
+  namespace: ferro
+  labels:
+    app: ferro-server
+    app.kubernetes.io/name: ferro
+    app.kubernetes.io/component: server
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: ferro-server
+  template:
+    metadata:
+      labels:
+        app: ferro-server
+        app.kubernetes.io/name: ferro
+        app.kubernetes.io/component: server
+    spec:
+      serviceAccountName: ferro-server
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+        - name: ferro-server
+          image: ghcr.io/wyattau/ferro:latest
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          env:
+            - name: RUST_LOG
+              value: "ferro_server=info,tower_http=info"
+          args:
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8080"
+            - "--data-dir"
+            - "/data"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ferro-data
+      terminationGracePeriodSeconds: 30
+  strategy:
+    canary:
+      # Canary step sequence
+      steps:
+        # Step 1: Deploy canary with 10% traffic
+        - setWeight: 10
+        # Step 2: Pause for analysis (5 minutes)
+        - pause: { duration: 5m }
+        # Step 3: Run automated analysis
+        - analysis:
+            templates:
+              - templateName: canary-analysis
+        # Step 4: Increase to 25%
+        - setWeight: 25
+        - pause: { duration: 5m }
+        - analysis:
+            templates:
+              - templateName: canary-analysis
+        # Step 5: Increase to 50%
+        - setWeight: 50
+        - pause: { duration: 5m }
+        - analysis:
+            templates:
+              - templateName: canary-analysis
+        # Step 6: Promote to 100%
+        - setWeight: 100
+      # Anti-affinity: canary pods on different nodes
+      antiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app: ferro-server
+            topologyKey: kubernetes.io/hostname
+      # Auto-rollback on failure
+      autoPromotionEnabled: false
+      # Max surge and unavailable during rollout
+      maxSurge: "25%"
+      maxUnavailable: 0
+---
+# Service for canary (traffic splitting handled by Argo Rollouts controller)
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferro-server
+  namespace: ferro
+  labels:
+    app: ferro-server
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: ferro-server
+  type: ClusterIP

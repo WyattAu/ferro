@@ -17,21 +17,12 @@ type BoxFuture<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send
 #[allow(clippy::type_complexity)]
 pub struct GraphQLContext {
     /// List files under a prefix.
-    pub list_files: Box<
-        dyn Fn(&str) -> BoxFuture<Result<Vec<common::metadata::FileMetadata>, String>>
-            + Send
-            + Sync,
-    >,
+    pub list_files: Box<dyn Fn(&str) -> BoxFuture<Result<Vec<common::metadata::FileMetadata>, String>> + Send + Sync>,
     /// Get metadata for a single file.
-    pub head_file: Box<
-        dyn Fn(&str) -> BoxFuture<Result<common::metadata::FileMetadata, String>> + Send + Sync,
-    >,
+    pub head_file: Box<dyn Fn(&str) -> BoxFuture<Result<common::metadata::FileMetadata, String>> + Send + Sync>,
     /// Create a directory collection.
-    pub create_collection: Box<
-        dyn Fn(&str, &str) -> BoxFuture<Result<common::metadata::FileMetadata, String>>
-            + Send
-            + Sync,
-    >,
+    pub create_collection:
+        Box<dyn Fn(&str, &str) -> BoxFuture<Result<common::metadata::FileMetadata, String>> + Send + Sync>,
     /// Delete a file or collection.
     pub delete_file: Box<dyn Fn(&str) -> BoxFuture<Result<(), String>> + Send + Sync>,
     /// List all share links.
@@ -97,18 +88,12 @@ impl Query {
     ) -> async_graphql::Result<Vec<FileItem>> {
         let data = get_ctx(ctx)?;
         let prefix = path.unwrap_or_else(|| "/".to_string());
-        let files = (data.list_files)(&prefix)
-            .await
-            .map_err(async_graphql::Error::new)?;
+        let files = (data.list_files)(&prefix).await.map_err(async_graphql::Error::new)?;
         let limit = limit.unwrap_or(100).min(1000) as usize;
         Ok(files.into_iter().take(limit).map(FileItem::from).collect())
     }
 
-    async fn file(
-        &self,
-        ctx: &Context<'_>,
-        path: String,
-    ) -> async_graphql::Result<Option<FileItem>> {
+    async fn file(&self, ctx: &Context<'_>, path: String) -> async_graphql::Result<Option<FileItem>> {
         let data = get_ctx(ctx)?;
         match (data.head_file)(&path).await {
             Ok(meta) => Ok(Some(FileItem::from(meta))),
@@ -161,11 +146,7 @@ pub struct Mutation;
 
 #[Object]
 impl Mutation {
-    async fn create_folder(
-        &self,
-        ctx: &Context<'_>,
-        path: String,
-    ) -> async_graphql::Result<FileItem> {
+    async fn create_folder(&self, ctx: &Context<'_>, path: String) -> async_graphql::Result<FileItem> {
         let data = get_ctx(ctx)?;
         let meta = (data.create_collection)(&path, "admin")
             .await
@@ -175,9 +156,7 @@ impl Mutation {
 
     async fn delete_file(&self, ctx: &Context<'_>, path: String) -> async_graphql::Result<bool> {
         let data = get_ctx(ctx)?;
-        (data.delete_file)(&path)
-            .await
-            .map_err(async_graphql::Error::new)?;
+        (data.delete_file)(&path).await.map_err(async_graphql::Error::new)?;
         Ok(true)
     }
 }
@@ -278,9 +257,7 @@ impl From<AuditEntry> for AuditItemItem {
 
 /// Build the GraphQL schema with the given context.
 pub fn build_schema(ctx: GraphQLContext) -> AppSchema {
-    Schema::build(Query, Mutation, EmptySubscription)
-        .data(ctx)
-        .finish()
+    Schema::build(Query, Mutation, EmptySubscription).data(ctx).finish()
 }
 
 /// POST /graphql — execute a GraphQL request.
@@ -317,10 +294,8 @@ mod tests {
         use common::metadata::ContentHash;
 
         let now = Utc::now();
-        let h = ContentHash::new(
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
-        )
-        .expect("valid hardcoded hash");
+        let h = ContentHash::new("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into())
+            .expect("valid hardcoded hash");
         // Clone for each closure consumer to avoid move conflicts.
         let h_list = h.clone();
         let h_head = h.clone();
@@ -473,9 +448,7 @@ mod tests {
     #[tokio::test]
     async fn query_files_returns_list() {
         let s = schema();
-        let res = s
-            .execute("{ files { path size isCollection mimeType } }")
-            .await;
+        let res = s.execute("{ files { path size isCollection mimeType } }").await;
         assert!(res.is_ok(), "files query failed: {:?}", res.errors);
         let data = res.data.into_json().unwrap();
         let files = data["files"].as_array().unwrap();
@@ -510,9 +483,7 @@ mod tests {
     #[tokio::test]
     async fn query_single_file_exists() {
         let s = schema();
-        let res = s
-            .execute(r#"{ file(path: "/test.txt") { path size mimeType } }"#)
-            .await;
+        let res = s.execute(r#"{ file(path: "/test.txt") { path size mimeType } }"#).await;
         assert!(res.is_ok());
         let data = res.data.into_json().unwrap();
         assert_eq!(data["file"]["path"], "/test.txt");
@@ -522,9 +493,7 @@ mod tests {
     #[tokio::test]
     async fn query_single_file_not_found_returns_null() {
         let s = schema();
-        let res = s
-            .execute(r#"{ file(path: "/nonexistent") { path } }"#)
-            .await;
+        let res = s.execute(r#"{ file(path: "/nonexistent") { path } }"#).await;
         assert!(res.is_ok());
         let data = res.data.into_json().unwrap();
         assert!(data["file"].is_null());
@@ -565,9 +534,7 @@ mod tests {
     #[tokio::test]
     async fn query_audit_log_returns_entries() {
         let s = schema();
-        let res = s
-            .execute("{ auditLog(limit: 3) { method path status } }")
-            .await;
+        let res = s.execute("{ auditLog(limit: 3) { method path status } }").await;
         assert!(res.is_ok());
         let data = res.data.into_json().unwrap();
         let entries = data["auditLog"].as_array().unwrap();
@@ -602,9 +569,7 @@ mod tests {
     #[tokio::test]
     async fn mutation_delete_file() {
         let s = schema();
-        let res = s
-            .execute(r#"mutation { deleteFile(path: "/to-delete.txt") }"#)
-            .await;
+        let res = s.execute(r#"mutation { deleteFile(path: "/to-delete.txt") }"#).await;
         assert!(res.is_ok());
         let data = res.data.into_json().unwrap();
         assert!(data["deleteFile"].as_bool().unwrap());
@@ -617,9 +582,7 @@ mod tests {
         let schema = schema();
         let req = async_graphql::Request::new("{ health { status } }");
         let response = graphql_handler(axum::Extension(schema), axum::Json(req)).await;
-        let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
+        let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let body: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
         assert_eq!(body["data"]["health"]["status"], "ok");
     }
@@ -656,9 +619,7 @@ mod tests {
     async fn head_file_error_returns_null_not_error() {
         let ctx = test_ctx();
         let s = build_schema(ctx);
-        let res = s
-            .execute(r#"{ file(path: "/does-not-exist") { path } }"#)
-            .await;
+        let res = s.execute(r#"{ file(path: "/does-not-exist") { path } }"#).await;
         assert!(res.is_ok());
         let data = res.data.into_json().unwrap();
         assert!(data["file"].is_null());

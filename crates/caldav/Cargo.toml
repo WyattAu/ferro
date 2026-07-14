@@ -13,15 +13,10 @@ ferro-dav = { path = "../dav" }
 axum = { workspace = true, features = ["macros"] }
 bytes = { workspace = true }
 chrono = { workspace = true }
+hashbrown = { workspace = true }
 quick-xml = { version = "0.41", features = ["serialize"] }
-serde = { workspace = true }
-serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-tracing = "0.1"
-uuid = { version = "1", features = ["v4"] }
-dashmap = "6"
-async-trait = "0.1"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

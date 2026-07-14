@@ -25,17 +25,23 @@ persistence = ["dep:rusqlite"]
 async-trait = "0.1"
 axum = { version = "0.7", features = ["macros"], optional = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
-thiserror = "2"
 tokio = { workspace = true }
 dashmap = "6"
 quick-xml = { version = "0.41", features = ["serialize"] }
-urlencoding = "2"
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+common = { package = "ferro-common", path = "../common", features = ["simd"] }
+hashbrown = { workspace = true, features = ["serde"] }
+ahash = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
 tempfile = "3"
+proptest = "1"
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[[bench]]
+name = "xml_bench"
+harness = false

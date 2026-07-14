@@ -207,24 +207,14 @@ async fn test_cors_preflight_on_api_config() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    assert!(
-        response
-            .headers()
-            .get("access-control-allow-origin")
-            .is_some()
-    );
+    assert!(response.headers().get("access-control-allow-origin").is_some());
 }
 
 #[tokio::test]
 async fn test_rate_limit_returns_429_after_exhaustion() {
     let app = make_app();
     let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -234,12 +224,7 @@ async fn test_rate_limit_returns_429_after_exhaustion() {
 async fn test_workers_list_endpoint() {
     let app = make_app();
     let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/workers")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/workers").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -253,12 +238,7 @@ async fn test_workers_list_endpoint() {
 async fn test_config_includes_version_and_features() {
     let app = make_app();
     let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/api/config")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri("/api/config").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
@@ -286,12 +266,7 @@ async fn test_propfind_depth_variants() {
             )
             .await
             .unwrap();
-        assert_eq!(
-            resp.status(),
-            StatusCode::CREATED,
-            "MKCOL {} should succeed",
-            path
-        );
+        assert_eq!(resp.status(), StatusCode::CREATED, "MKCOL {} should succeed", path);
     }
 
     let resp = app
@@ -684,10 +659,7 @@ async fn test_nested_collection_operations() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::MULTI_STATUS);
     let body = body_string(resp).await;
-    assert!(
-        body.contains("<D:collection/>"),
-        "Expected collection type in PROPFIND"
-    );
+    assert!(body.contains("<D:collection/>"), "Expected collection type in PROPFIND");
 
     let resp = app
         .clone()
@@ -714,12 +686,7 @@ async fn test_nested_collection_operations() {
             )
             .await
             .unwrap();
-        assert_eq!(
-            resp.status(),
-            StatusCode::NO_CONTENT,
-            "DELETE {} should succeed",
-            path
-        );
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT, "DELETE {} should succeed", path);
     }
 
     let resp = app
@@ -767,12 +734,7 @@ async fn test_large_number_of_files() {
             )
             .await
             .unwrap();
-        assert_eq!(
-            resp.status(),
-            StatusCode::CREATED,
-            "PUT {} should succeed",
-            name
-        );
+        assert_eq!(resp.status(), StatusCode::CREATED, "PUT {} should succeed", name);
     }
 
     let resp = app
@@ -793,11 +755,7 @@ async fn test_large_number_of_files() {
     assert_eq!(count, 101);
 
     let etags = extract_etags(&body);
-    assert_eq!(
-        etags.len(),
-        101,
-        "All 101 resources should have unique ETags"
-    );
+    assert_eq!(etags.len(), 101, "All 101 resources should have unique ETags");
 }
 
 #[tokio::test]
@@ -833,18 +791,9 @@ async fn test_audit_log_captures_requests() {
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_string(resp).await;
     assert!(body.contains("PUT"), "Audit log should contain PUT method");
-    assert!(
-        body.contains("audit_test.txt"),
-        "Audit log should contain path"
-    );
-    assert!(
-        body.contains("192.168.1.1"),
-        "Audit log should contain client IP"
-    );
-    assert!(
-        body.contains("test-agent"),
-        "Audit log should contain user agent"
-    );
+    assert!(body.contains("audit_test.txt"), "Audit log should contain path");
+    assert!(body.contains("192.168.1.1"), "Audit log should contain client IP");
+    assert!(body.contains("test-agent"), "Audit log should contain user agent");
 }
 
 #[tokio::test]
@@ -871,19 +820,14 @@ async fn test_share_link_crud() {
                 .method("POST")
                 .uri("/api/shares")
                 .header("Content-Type", "application/json")
-                .body(Body::from(
-                    r#"{"path": "/shareme.txt", "expires_in_hours": 24}"#,
-                ))
+                .body(Body::from(r#"{"path": "/shareme.txt", "expires_in_hours": 24}"#))
                 .unwrap(),
         )
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::CREATED);
     let body = body_string(resp).await;
-    assert!(
-        body.contains("token"),
-        "Share response should contain token"
-    );
+    assert!(body.contains("token"), "Share response should contain token");
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     let token = json["token"].as_str().unwrap().to_string();
 
@@ -968,7 +912,9 @@ async fn test_share_link_password_required() {
                 .method("POST")
                 .uri("/api/shares")
                 .header("Content-Type", "application/json")
-                .body(Body::from(r#"{"path": "/protected.txt", "password": "secret123", "expires_in_hours": 24}"#))
+                .body(Body::from(
+                    r#"{"path": "/protected.txt", "password": "secret123", "expires_in_hours": 24}"#,
+                ))
                 .unwrap(),
         )
         .await
@@ -1071,10 +1017,7 @@ async fn test_snapshot_create_and_list() {
         body.contains("test snapshot"),
         "Snapshot list should contain our snapshot"
     );
-    assert!(
-        body.contains(&snapshot_id),
-        "Snapshot list should contain our ID"
-    );
+    assert!(body.contains(&snapshot_id), "Snapshot list should contain our ID");
 
     let resp = app
         .clone()
@@ -1107,10 +1050,7 @@ async fn test_cors_preflight() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
-    assert_eq!(
-        resp.headers().get("Access-Control-Allow-Origin").unwrap(),
-        "*"
-    );
+    assert_eq!(resp.headers().get("Access-Control-Allow-Origin").unwrap(), "*");
     assert!(resp.headers().get("Access-Control-Allow-Methods").is_some());
     assert!(resp.headers().get("Access-Control-Allow-Headers").is_some());
 }
@@ -1131,10 +1071,7 @@ async fn test_same_origin_options_unaffected() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    assert_eq!(
-        resp.headers().get("DAV").unwrap().to_str().unwrap(),
-        "1, 2, 3"
-    );
+    assert_eq!(resp.headers().get("DAV").unwrap().to_str().unwrap(), "1, 2, 3");
     assert!(resp.headers().get("Access-Control-Allow-Origin").is_none());
 }
 
@@ -1244,12 +1181,7 @@ async fn test_content_type_sniffing() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let content_type = resp
-        .headers()
-        .get("Content-Type")
-        .unwrap()
-        .to_str()
-        .unwrap();
+    let content_type = resp.headers().get("Content-Type").unwrap().to_str().unwrap();
     assert!(
         content_type.contains("image/png") || content_type.contains("application/octet-stream"),
         "Expected image/png or application/octet-stream, got {}",
@@ -1281,15 +1213,9 @@ async fn test_content_type_sniffing() {
         )
         .await
         .unwrap();
-    let content_type = resp
-        .headers()
-        .get("Content-Type")
-        .unwrap()
-        .to_str()
-        .unwrap();
+    let content_type = resp.headers().get("Content-Type").unwrap().to_str().unwrap();
     assert!(
-        content_type.contains("application/octet-stream")
-            || content_type.contains("application/custom"),
+        content_type.contains("application/octet-stream") || content_type.contains("application/custom"),
         "Expected application/octet-stream or application/custom, got {}",
         content_type
     );
@@ -1456,13 +1382,7 @@ async fn test_conditional_get_not_modified() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let etag = resp
-        .headers()
-        .get("ETag")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let etag = resp.headers().get("ETag").unwrap().to_str().unwrap().to_string();
 
     let resp = app
         .clone()
@@ -1663,13 +1583,7 @@ async fn test_cedar_exempt_paths_bypass_authorization() {
     // / should be denied
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri("/")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().method("GET").uri("/").body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::FORBIDDEN);
@@ -1735,10 +1649,7 @@ async fn test_wopi_discovery_returns_xml() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
 
-    let ct = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok());
+    let ct = resp.headers().get("content-type").and_then(|v| v.to_str().ok());
     assert!(ct.unwrap().contains("application/xml"));
 
     let body = body_string(resp).await;
@@ -1850,9 +1761,7 @@ async fn test_wopi_get_file_contents() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!(
-                    "/wopi/files/wopi-contents.txt/contents?access_token={token}"
-                ))
+                .uri(format!("/wopi/files/wopi-contents.txt/contents?access_token={token}"))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1889,9 +1798,7 @@ async fn test_wopi_file_not_found() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!(
-                    "/wopi/files/nonexistent.txt/contents?access_token={token}"
-                ))
+                .uri(format!("/wopi/files/nonexistent.txt/contents?access_token={token}"))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1947,11 +1854,7 @@ async fn test_rest_list_files_root() {
     let body = body_string(resp).await;
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     let entries = json["entries"].as_array().unwrap();
-    assert!(
-        !entries.is_empty(),
-        "Expected at least 1 entry, got {}",
-        entries.len()
-    );
+    assert!(!entries.is_empty(), "Expected at least 1 entry, got {}", entries.len());
 
     let hello = entries
         .iter()

@@ -18,16 +18,7 @@ mod windows {
     pub fn register_context_menu() -> Result<(), String> {
         // Create the shell verb key
         let status = Command::new("reg")
-            .args([
-                "add",
-                REGISTRY_KEY,
-                "/ve",
-                "/t",
-                "REG_SZ",
-                "/d",
-                SHELL_VERB,
-                "/f",
-            ])
+            .args(["add", REGISTRY_KEY, "/ve", "/t", "REG_SZ", "/d", SHELL_VERB, "/f"])
             .status()
             .map_err(|e| format!("Failed to run reg add: {}", e))?;
 
@@ -116,9 +107,7 @@ mod windows {
     pub fn register_autostart(exe_path: &str) -> Result<(), String> {
         let key = r"Software\Microsoft\Windows\CurrentVersion\Run";
         let status = Command::new("reg")
-            .args([
-                "add", key, "/v", "Ferro", "/t", "REG_SZ", "/d", exe_path, "/f",
-            ])
+            .args(["add", key, "/v", "Ferro", "/t", "REG_SZ", "/d", exe_path, "/f"])
             .status()
             .map_err(|e| format!("Failed to add autostart: {}", e))?;
 

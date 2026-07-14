@@ -1,10 +1,13 @@
 use leptos::prelude::*;
 use leptos_router::components::A;
 
+use crate::components::theme_toggle::ThemeToggle;
 use crate::t;
 
 #[component]
 pub fn NavigationSidebar() -> impl IntoView {
+    let (mobile_open, set_mobile_open) = signal(false);
+
     let nav_items = vec![
         (
             "/ui/dashboard",
@@ -78,30 +81,151 @@ pub fn NavigationSidebar() -> impl IntoView {
         ),
     ];
 
+    let close_mobile = move |_| set_mobile_open.set(false);
+
     view! {
-        <nav class="w-56 shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto hidden lg:block" aria-label=t!("nav.main")>
-            <div class="py-4">
-                <For
-                    each=move || nav_items.clone()
-                    key=|item| item.0.to_string()
-                    let:item
-                >
-                    {
-                        let (href, label_key, icon_path) = item;
-                        view! {
-                            <A
-                                href=href
-                                attr:class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors no-underline"
-                            >
-                                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d=icon_path />
-                                </svg>
-                                {t!(label_key)}
-                            </A>
-                        }
-                    }
-                </For>
-            </div>
+        // Skip navigation link
+        <a href="#main-content" class="skip-link">
+            {t!("nav.skip_to_content")}
+        </a>
+
+        // Mobile hamburger button
+        <button
+            class="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-md bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-md text-[var(--text-primary)] focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center"
+            on:click=move |_| set_mobile_open.update(|v| *v = !*v)
+            aria-label="Toggle navigation"
+            aria-expanded=move || mobile_open.get()
+        >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                {move || if mobile_open.get() {
+                    view! { <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /> }.into_any()
+                } else {
+                    view! { <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /> }.into_any()
+                }}
+            </svg>
+        </button>
+
+        // Mobile overlay
+        {move || if mobile_open.get() {
+            view! {
+                <div
+                    class="fixed inset-0 z-30 bg-[var(--overlay)] lg:hidden"
+                    on:click=close_mobile
+                    aria-hidden="true"
+                />
+            }.into_any()
+        } else {
+            ().into_any()
+        }}
+
+        // Desktop sidebar (always visible on lg+)
+        <nav
+            class="hidden lg:flex w-56 shrink-0 bg-[var(--bg-surface)] border-r border-[var(--border-default)] overflow-y-auto flex-col h-screen sticky top-0"
+            aria-label=t!("nav.main")
+        >
+            <SidebarContent nav_items=nav_items.clone() />
         </nav>
+
+        // Mobile sidebar (slide-in drawer)
+        <nav
+            class=move || {
+                let base = "fixed top-0 left-0 z-40 w-64 h-full bg-[var(--bg-surface)] border-r border-[var(--border-default)] overflow-y-auto flex flex-col lg:hidden transform transition-transform duration-200 ease-in-out";
+                if mobile_open.get() {
+                    format!("{} translate-x-0", base)
+                } else {
+                    format!("{} -translate-x-full", base)
+                }
+            }
+            aria-label=t!("nav.main")
+        >
+            // Close button inside mobile nav
+            <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)]">
+                <span class="text-sm font-semibold text-[var(--text-primary)]">{t!("app.name")}</span>
+                <button
+                    class="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    on:click=close_mobile
+                    aria-label="Close navigation"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <SidebarContent nav_items=nav_items.clone() />
+        </nav>
+    }
+}
+
+#[component]
+fn SidebarContent(nav_items: Vec<(&'static str, &'static str, &'static str)>) -> impl IntoView {
+    view! {
+        <div class="flex flex-col flex-1 py-3">
+            <For
+                each=move || nav_items.clone()
+                key=|item| item.0.to_string()
+                let:item
+            >
+                {
+                    let (href, label_key, icon_path) = item;
+                    view! {
+                        <A
+                            href=href
+                            attr:class="flex items-center gap-3 px-4 py-2.5 mx-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors no-underline"
+                        >
+                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d=icon_path />
+                            </svg>
+                            {t!(label_key)}
+                        </A>
+                    }
+                }
+            </For>
+        </div>
+
+        // Bottom section: theme toggle
+        <div class="px-4 py-3 border-t border-[var(--border-default)]">
+            <ThemeToggle />
+        </div>
+    }
+}
+
+/// Top header bar with search, notifications, and user menu.
+#[component]
+pub fn TopHeader() -> impl IntoView {
+    view! {
+        <header class="h-14 shrink-0 bg-[var(--bg-surface)] border-b border-[var(--border-default)] flex items-center px-4 lg:px-6 gap-4">
+            // Mobile: spacer for hamburger button
+            <div class="w-10 lg:hidden" />
+
+            // Search bar
+            <div class="flex-1 max-w-md">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                        type="search"
+                        placeholder=t!("nav.search_placeholder")
+                        aria-label=t!("nav.search_placeholder")
+                        class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface-sunken)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-[var(--border-focus)] transition-colors min-h-[40px]"
+                    />
+                </div>
+            </div>
+
+            // Right side: theme toggle + notifications
+            <div class="flex items-center gap-2">
+                <ThemeToggle />
+
+                // Notifications bell
+                <button
+                    class="p-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-colors focus-ring min-w-[44px] min-h-[44px] flex items-center justify-center relative"
+                    aria-label="Notifications"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                </button>
+            </div>
+        </header>
     }
 }

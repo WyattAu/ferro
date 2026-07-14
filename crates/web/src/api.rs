@@ -105,8 +105,7 @@ fn parse_propfind_xml(xml: &str) -> Vec<FileEntry> {
 
     let mut in_response = false;
     let mut current_href = String::new();
-    let mut current_props: std::collections::HashMap<String, String> =
-        std::collections::HashMap::new();
+    let mut current_props: std::collections::HashMap<String, String> = std::collections::HashMap::new();
 
     let mut in_prop = false;
     let mut current_prop_name = String::new();
@@ -140,14 +139,8 @@ fn parse_propfind_xml(xml: &str) -> Vec<FileEntry> {
                                 .and_then(|v| v.parse().ok())
                                 .unwrap_or(0),
                             is_collection,
-                            mime_type: current_props
-                                .get("getcontenttype")
-                                .cloned()
-                                .unwrap_or_default(),
-                            modified_at: current_props
-                                .get("getlastmodified")
-                                .cloned()
-                                .unwrap_or_default(),
+                            mime_type: current_props.get("getcontenttype").cloned().unwrap_or_default(),
+                            modified_at: current_props.get("getlastmodified").cloned().unwrap_or_default(),
                             etag: current_props.get("getetag").cloned().unwrap_or_default(),
                         });
                     }
@@ -267,10 +260,8 @@ fn get_server_base() -> String {
     let window = web_sys::window().unwrap();
 
     // Check window.FERRO_SERVER_URL first (set by Android HTML)
-    if let Ok(val) = js_sys::Reflect::get(
-        &window,
-        &wasm_bindgen::JsValue::from_str("FERRO_SERVER_URL"),
-    ) && let Some(url) = val.as_string()
+    if let Ok(val) = js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("FERRO_SERVER_URL"))
+        && let Some(url) = val.as_string()
         && !url.is_empty()
     {
         return url.trim_end_matches('/').to_string();
@@ -310,14 +301,13 @@ async fn fetch_text(url: &str, opts: &web_sys::RequestInit) -> Result<String, St
         url.to_string()
     };
 
-    let request = web_sys::Request::new_with_str_and_init(&full_url, opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
+    let request =
+        web_sys::Request::new_with_str_and_init(&full_url, opts).map_err(|e| js_err("Request creation failed", &e))?;
 
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
 
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
@@ -377,8 +367,8 @@ pub async fn upload_file(path: &str, content: &[u8]) -> Result<(), String> {
     let opts = make_opts_with_auth("PUT");
     opts.set_body(&array.buffer());
 
-    let request = web_sys::Request::new_with_str_and_init(path, &opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
+    let request =
+        web_sys::Request::new_with_str_and_init(path, &opts).map_err(|e| js_err("Request creation failed", &e))?;
 
     let _ = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
         .await
@@ -398,14 +388,13 @@ pub async fn delete_file(path: &str) -> Result<(), String> {
 
     let opts = make_opts_with_auth("DELETE");
 
-    let request = web_sys::Request::new_with_str_and_init(path, &opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
+    let request =
+        web_sys::Request::new_with_str_and_init(path, &opts).map_err(|e| js_err("Request creation failed", &e))?;
 
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
 
     if !resp.ok() {
         return Err(format!("Delete failed: HTTP {}", resp.status()));
@@ -425,8 +414,8 @@ pub async fn create_directory(path: &str) -> Result<(), String> {
 
     let opts = make_opts_with_auth("MKCOL");
 
-    let request = web_sys::Request::new_with_str_and_init(path, &opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
+    let request =
+        web_sys::Request::new_with_str_and_init(path, &opts).map_err(|e| js_err("Request creation failed", &e))?;
 
     let _ = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
         .await
@@ -453,10 +442,7 @@ pub async fn get_auth_config() -> Result<AuthResponse, String> {
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
             .then(|| "/api/auth/login".to_string()),
-        configured: config
-            .get("auth_enabled")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false),
+        configured: config.get("auth_enabled").and_then(|v| v.as_bool()).unwrap_or(false),
     })
 }
 
@@ -469,10 +455,7 @@ pub async fn get_auth_config() -> Result<AuthResponse, String> {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn search_files(
-    query: &str,
-    filters: Option<&SearchFilters>,
-) -> Result<SearchResponse, String> {
+pub async fn search_files(query: &str, filters: Option<&SearchFilters>) -> Result<SearchResponse, String> {
     let mut url = format!("/api/search?q={}&limit=50", urlencoding(query));
     if let Some(f) = filters {
         if let Some(ref t) = f.r#type {
@@ -489,17 +472,13 @@ pub async fn search_files(
     let opts = make_opts_with_auth("GET");
 
     let text = fetch_text(&url, &opts).await?;
-    let result: SearchResponse =
-        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    let result: SearchResponse = serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
 
     Ok(result)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn search_files(
-    _query: &str,
-    _filters: Option<&SearchFilters>,
-) -> Result<SearchResponse, String> {
+pub async fn search_files(_query: &str, _filters: Option<&SearchFilters>) -> Result<SearchResponse, String> {
     Ok(SearchResponse {
         query: _query.to_string(),
         results: vec![],
@@ -524,14 +503,13 @@ pub async fn download_file(path: &str) -> Result<(), String> {
 
     let opts = make_opts_with_auth("GET");
 
-    let request = web_sys::Request::new_with_str_and_init(path, &opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
+    let request =
+        web_sys::Request::new_with_str_and_init(path, &opts).map_err(|e| js_err("Request creation failed", &e))?;
 
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
 
     if !resp.ok() {
         return Err(format!("Download failed: {}", resp.status()));
@@ -543,8 +521,8 @@ pub async fn download_file(path: &str) -> Result<(), String> {
             .map_err(|e| js_err("Blob creation failed", &e))?
             .into();
 
-    let blob_url = web_sys::Url::create_object_url_with_blob(&blob)
-        .map_err(|e| js_err("Object URL creation failed", &e))?;
+    let blob_url =
+        web_sys::Url::create_object_url_with_blob(&blob).map_err(|e| js_err("Object URL creation failed", &e))?;
 
     let anchor: web_sys::HtmlAnchorElement = document
         .create_element("a")
@@ -653,22 +631,20 @@ pub async fn create_share(
     let request = web_sys::Request::new_with_str_and_init("/api/shares", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
 
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
 
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
 
-    let text =
-        wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
-            .await
-            .map_err(|e| js_err("Response read failed", &e))?
-            .as_string()
-            .ok_or_else(|| "Response text conversion failed".to_string())?;
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())?;
 
     serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
 }
@@ -707,16 +683,11 @@ pub async fn get_file_content(_path: &str) -> Result<String, String> {
 pub async fn list_favorites() -> Result<Vec<String>, String> {
     let opts = make_opts_with_auth("GET");
     let text = fetch_text("/api/favorites", &opts).await?;
-    let val: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    let val: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
     let paths = val
         .get("paths")
         .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect()
-        })
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
         .unwrap_or_default();
     Ok(paths)
 }
@@ -741,11 +712,10 @@ pub async fn add_favorite(path: &str) -> Result<(), String> {
     opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
     let request = web_sys::Request::new_with_str_and_init("/api/favorites", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
@@ -772,11 +742,10 @@ pub async fn remove_favorite(path: &str) -> Result<(), String> {
     opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
     let request = web_sys::Request::new_with_str_and_init("/api/favorites", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
@@ -792,19 +761,14 @@ pub async fn remove_favorite(_path: &str) -> Result<(), String> {
 pub async fn list_recent_files() -> Result<Vec<FileEntry>, String> {
     let opts = make_opts_with_auth("GET");
     let text = fetch_text("/api/recent", &opts).await?;
-    let val: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    let val: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
     let files = val
         .get("files")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
                 .map(|v| FileEntry {
-                    path: v
-                        .get("path")
-                        .and_then(|p| p.as_str())
-                        .unwrap_or("")
-                        .to_string(),
+                    path: v.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
                     name: v
                         .get("path")
                         .and_then(|p| p.as_str())
@@ -816,11 +780,7 @@ pub async fn list_recent_files() -> Result<Vec<FileEntry>, String> {
                     size: 0,
                     is_collection: false,
                     mime_type: String::new(),
-                    modified_at: v
-                        .get("timestamp")
-                        .and_then(|t| t.as_str())
-                        .unwrap_or("")
-                        .to_string(),
+                    modified_at: v.get("timestamp").and_then(|t| t.as_str()).unwrap_or("").to_string(),
                     etag: String::new(),
                 })
                 .collect()
@@ -846,8 +806,7 @@ pub struct TrashedEntry {
 pub async fn list_trash() -> Result<Vec<TrashedEntry>, String> {
     let opts = make_opts_with_auth("GET");
     let text = fetch_text("/api/trash", &opts).await?;
-    let val: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    let val: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
     let entries = val
         .get("entries")
         .and_then(|v| v.as_array())
@@ -860,17 +819,9 @@ pub async fn list_trash() -> Result<Vec<TrashedEntry>, String> {
                             .and_then(|p| p.as_str())
                             .unwrap_or("")
                             .to_string(),
-                        deleted_at: v
-                            .get("deleted_at")
-                            .and_then(|d| d.as_str())
-                            .unwrap_or("")
-                            .to_string(),
+                        deleted_at: v.get("deleted_at").and_then(|d| d.as_str()).unwrap_or("").to_string(),
                         size: v.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
-                        mime_type: v
-                            .get("mime_type")
-                            .and_then(|m| m.as_str())
-                            .unwrap_or("")
-                            .to_string(),
+                        mime_type: v.get("mime_type").and_then(|m| m.as_str()).unwrap_or("").to_string(),
                     })
                 })
                 .collect()
@@ -899,11 +850,10 @@ pub async fn restore_trash(path: &str) -> Result<(), String> {
     opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
     let request = web_sys::Request::new_with_str_and_init("/api/trash/restore", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
@@ -930,11 +880,10 @@ pub async fn purge_trash(path: &str) -> Result<(), String> {
     opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
     let request = web_sys::Request::new_with_str_and_init("/api/trash/purge", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
@@ -952,11 +901,10 @@ pub async fn empty_trash() -> Result<(), String> {
     let opts = make_opts_with_auth("DELETE");
     let request = web_sys::Request::new_with_str_and_init("/api/trash/empty", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
@@ -990,20 +938,18 @@ pub async fn bulk_delete(paths: &[String]) -> Result<BulkDeleteResponse, String>
     opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
     let request = web_sys::Request::new_with_str_and_init("/api/bulk/delete", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
-    let text =
-        wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
-            .await
-            .map_err(|e| js_err("Response read failed", &e))?
-            .as_string()
-            .ok_or_else(|| "Response text conversion failed".to_string())?;
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())?;
     serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
 }
 
@@ -1061,11 +1007,10 @@ pub async fn move_file(source: &str, destination: &str) -> Result<(), String> {
     opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
     let request = web_sys::Request::new_with_str_and_init("/api/files/move", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
@@ -1095,11 +1040,10 @@ pub async fn copy_file(source: &str, destination: &str) -> Result<(), String> {
     opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
     let request = web_sys::Request::new_with_str_and_init("/api/files/copy", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
@@ -1177,20 +1121,18 @@ pub async fn update_preferences(prefs: &UserPreferences) -> Result<UserPreferenc
     opts.set_body(&wasm_bindgen::JsValue::from_str(&body));
     let request = web_sys::Request::new_with_str_and_init("/api/preferences", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
-    let text =
-        wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
-            .await
-            .map_err(|e| js_err("Response read failed", &e))?
-            .as_string()
-            .ok_or_else(|| "Response text conversion failed".to_string())?;
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())?;
     serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
 }
 
@@ -1203,8 +1145,7 @@ pub async fn update_preferences(prefs: &UserPreferences) -> Result<UserPreferenc
 pub async fn list_locks() -> Result<Vec<LockInfo>, String> {
     let opts = make_opts_with_auth("GET");
     let text = fetch_text("/api/locks", &opts).await?;
-    let val: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    let val: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
     let locks = val
         .get("locks")
         .and_then(|v| v.as_array())
@@ -1212,36 +1153,12 @@ pub async fn list_locks() -> Result<Vec<LockInfo>, String> {
             arr.iter()
                 .filter_map(|v| {
                     Some(LockInfo {
-                        path: v
-                            .get("path")
-                            .and_then(|p| p.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        token: v
-                            .get("token")
-                            .and_then(|t| t.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        owner: v
-                            .get("owner")
-                            .and_then(|o| o.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        depth: v
-                            .get("depth")
-                            .and_then(|d| d.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        created_at: v
-                            .get("created_at")
-                            .and_then(|c| c.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        expires_at: v
-                            .get("expires_at")
-                            .and_then(|e| e.as_str())
-                            .unwrap_or("")
-                            .to_string(),
+                        path: v.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
+                        token: v.get("token").and_then(|t| t.as_str()).unwrap_or("").to_string(),
+                        owner: v.get("owner").and_then(|o| o.as_str()).unwrap_or("").to_string(),
+                        depth: v.get("depth").and_then(|d| d.as_str()).unwrap_or("").to_string(),
+                        created_at: v.get("created_at").and_then(|c| c.as_str()).unwrap_or("").to_string(),
+                        expires_at: v.get("expires_at").and_then(|e| e.as_str()).unwrap_or("").to_string(),
                     })
                 })
                 .collect()
@@ -1270,11 +1187,10 @@ pub async fn force_unlock(path: &str) -> Result<(), String> {
     opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
     let request = web_sys::Request::new_with_str_and_init("/api/locks/force-unlock", &opts)
         .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
@@ -1400,10 +1316,7 @@ pub struct DiffResponse {
 
 #[cfg(target_arch = "wasm32")]
 pub async fn list_versions(path: &str) -> Result<VersionsResponse, String> {
-    let url = format!(
-        "/api/files/{}/versions",
-        urlencoding(path.trim_start_matches('/'))
-    );
+    let url = format!("/api/files/{}/versions", urlencoding(path.trim_start_matches('/')));
     let opts = make_opts_with_auth("GET");
     let text = fetch_text(&url, &opts).await?;
     serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
@@ -1423,22 +1336,19 @@ pub async fn get_version_content(path: &str, version_id: u64) -> Result<Vec<u8>,
     );
     let window = web_sys::window().ok_or("No window")?;
     let opts = make_opts_with_auth("GET");
-    let request = web_sys::Request::new_with_str_and_init(&url, &opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let request =
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
-    let array_buffer = wasm_bindgen_futures::JsFuture::from(
-        resp.array_buffer()
-            .map_err(|e| js_err("array_buffer() failed", &e))?,
-    )
-    .await
-    .map_err(|e| js_err("ArrayBuffer read failed", &e))?;
+    let array_buffer =
+        wasm_bindgen_futures::JsFuture::from(resp.array_buffer().map_err(|e| js_err("array_buffer() failed", &e))?)
+            .await
+            .map_err(|e| js_err("ArrayBuffer read failed", &e))?;
     let uint8 = js_sys::Uint8Array::new(&array_buffer);
     Ok(uint8.to_vec())
 }
@@ -1557,8 +1467,7 @@ pub struct ShareListItem {
 pub async fn list_shares() -> Result<Vec<ShareListItem>, String> {
     let opts = make_opts_with_auth("GET");
     let text = fetch_text("/api/shares", &opts).await?;
-    let val: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    let val: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
     let items = val
         .get("shares")
         .and_then(|v| v.as_array())
@@ -1566,39 +1475,13 @@ pub async fn list_shares() -> Result<Vec<ShareListItem>, String> {
             arr.iter()
                 .filter_map(|v| {
                     Some(ShareListItem {
-                        token: v
-                            .get("token")
-                            .and_then(|t| t.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        url: v
-                            .get("url")
-                            .and_then(|u| u.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        path: v
-                            .get("path")
-                            .and_then(|p| p.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        expires_at: v
-                            .get("expires_at")
-                            .and_then(|e| e.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        max_downloads: v
-                            .get("max_downloads")
-                            .and_then(|d| d.as_u64())
-                            .map(|d| d as u32),
-                        download_count: v
-                            .get("download_count")
-                            .and_then(|d| d.as_u64())
-                            .unwrap_or(0) as u32,
-                        created_by: v
-                            .get("created_by")
-                            .and_then(|u| u.as_str())
-                            .unwrap_or("")
-                            .to_string(),
+                        token: v.get("token").and_then(|t| t.as_str()).unwrap_or("").to_string(),
+                        url: v.get("url").and_then(|u| u.as_str()).unwrap_or("").to_string(),
+                        path: v.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string(),
+                        expires_at: v.get("expires_at").and_then(|e| e.as_str()).unwrap_or("").to_string(),
+                        max_downloads: v.get("max_downloads").and_then(|d| d.as_u64()).map(|d| d as u32),
+                        download_count: v.get("download_count").and_then(|d| d.as_u64()).unwrap_or(0) as u32,
+                        created_by: v.get("created_by").and_then(|u| u.as_str()).unwrap_or("").to_string(),
                         allow_download: v.get("allow_download").and_then(|d| d.as_bool()),
                         allow_upload: v.get("allow_upload").and_then(|u| u.as_bool()),
                     })
@@ -1619,13 +1502,12 @@ pub async fn delete_share(token: &str) -> Result<(), String> {
     let window = web_sys::window().ok_or("No window")?;
     let opts = make_opts_with_auth("DELETE");
     let url = format!("/api/shares/{}", urlencoding(token));
-    let request = web_sys::Request::new_with_str_and_init(&url, &opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let request =
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
     if !resp.ok() {
         return Err(format!("Delete share failed: HTTP {}", resp.status()));
     }
@@ -1664,28 +1546,25 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
     opts.set_method("GET");
     opts.set_headers(&headers);
 
-    let request = web_sys::Request::new_with_str_and_init(url, &opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
+    let request =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| js_err("Request creation failed", &e))?;
 
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
 
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
 
-    let text =
-        wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
-            .await
-            .map_err(|e| js_err("Response read failed", &e))?
-            .as_string()
-            .ok_or_else(|| "Response text conversion failed".to_string())?;
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())?;
 
-    let val: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    let val: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
 
     let latest_version = val
         .get("tag_name")
@@ -1729,11 +1608,7 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
 // ---------------------------------------------------------------------------
 
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_json_with_method(
-    url: &str,
-    method: &str,
-    body: Option<&str>,
-) -> Result<serde_json::Value, String> {
+pub async fn fetch_json_with_method(url: &str, method: &str, body: Option<&str>) -> Result<serde_json::Value, String> {
     let window = web_sys::window().ok_or("No window")?;
     let headers = web_sys::Headers::new().map_err(|e| js_err("Headers creation failed", &e))?;
     headers
@@ -1749,25 +1624,23 @@ pub async fn fetch_json_with_method(
         opts.set_body(&wasm_bindgen::JsValue::from_str(body_str));
     }
 
-    let request = web_sys::Request::new_with_str_and_init(url, &opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
+    let request =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| js_err("Request creation failed", &e))?;
 
-    let resp: web_sys::Response =
-        wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-            .await
-            .map_err(|e| js_err("Fetch failed", &e))?
-            .into();
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
 
     if !resp.ok() {
         return Err(format!("HTTP error: {}", resp.status()));
     }
 
-    let text =
-        wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
-            .await
-            .map_err(|e| js_err("Response read failed", &e))?
-            .as_string()
-            .ok_or_else(|| "Response text conversion failed".to_string())?;
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())?;
 
     if text.is_empty() {
         Ok(serde_json::json!({}))

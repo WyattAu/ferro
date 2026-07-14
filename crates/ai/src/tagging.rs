@@ -84,9 +84,7 @@ impl TagPattern {
                     true
                 })
                 .unwrap_or(false),
-            TagPattern::Combined { rules } => rules
-                .iter()
-                .any(|r| r.pattern.matches(path, content_type, size)),
+            TagPattern::Combined { rules } => rules.iter().any(|r| r.pattern.matches(path, content_type, size)),
         }
     }
 }
@@ -100,12 +98,7 @@ impl AutoTagger {
         Self { config }
     }
 
-    pub fn suggest_tags(
-        &self,
-        path: &str,
-        content_type: Option<&str>,
-        size: Option<u64>,
-    ) -> Vec<Tag> {
+    pub fn suggest_tags(&self, path: &str, content_type: Option<&str>, size: Option<u64>) -> Vec<Tag> {
         let mut tags: Vec<Tag> = Vec::new();
         for rule in &self.config.rules {
             if rule.confidence < self.config.min_confidence {

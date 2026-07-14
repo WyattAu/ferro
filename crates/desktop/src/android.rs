@@ -39,17 +39,8 @@ pub fn register_notification_channels(app: &AppHandle) {
     ];
 
     for channel in &channels {
-        if let Err(e) = app
-            .notification()
-            .builder()
-            .title(&channel.name)
-            .body("")
-            .show()
-        {
-            warn!(
-                "Failed to register notification channel {}: {}",
-                channel.id, e
-            );
+        if let Err(e) = app.notification().builder().title(&channel.name).body("").show() {
+            warn!("Failed to register notification channel {}: {}", channel.id, e);
         } else {
             info!("Registered notification channel: {}", channel.id);
         }
@@ -77,8 +68,7 @@ impl AndroidShareIntent {
     }
 
     pub fn is_share_action(&self) -> bool {
-        self.action == "android.intent.action.SEND"
-            || self.action == "android.intent.action.SEND_MULTIPLE"
+        self.action == "android.intent.action.SEND" || self.action == "android.intent.action.SEND_MULTIPLE"
     }
 }
 

@@ -152,14 +152,8 @@ pub fn init_auth(state: &AuthState) {
                     if let Some(sub) = data.get("sub").and_then(|v| v.as_str()) {
                         let user = UserInfo {
                             sub: sub.to_string(),
-                            email: data
-                                .get("email")
-                                .and_then(|v| v.as_str())
-                                .map(|s| s.to_string()),
-                            name: data
-                                .get("name")
-                                .and_then(|v| v.as_str())
-                                .map(|s| s.to_string()),
+                            email: data.get("email").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                            name: data.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()),
                         };
                         state.set_user.set(Some(user));
                     } else {

@@ -16,14 +16,9 @@ pub struct ProfileStore {
     conn: Mutex<Connection>,
 }
 
-unsafe impl Send for ProfileStore {}
-unsafe impl Sync for ProfileStore {}
-
 impl ProfileStore {
     pub fn new(conn: Connection) -> Result<Self, StoreError> {
-        let store = Self {
-            conn: Mutex::new(conn),
-        };
+        let store = Self { conn: Mutex::new(conn) };
         store.ensure_schema()?;
         Ok(store)
     }

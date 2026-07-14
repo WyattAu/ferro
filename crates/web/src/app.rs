@@ -9,6 +9,7 @@ use crate::auth;
 use crate::components::error_boundary::ErrorBoundary;
 use crate::components::onboarding::OnboardingOverlay;
 use crate::components::setup_wizard::SetupWizard;
+use crate::components::theme_toggle::provide_theme_state;
 use crate::components::toast::ProvideToastContext;
 use crate::i18n::{I18nCtx, Locale};
 use crate::pages::admin::AdminPage;
@@ -32,6 +33,7 @@ use crate::t;
 #[component]
 pub fn App() -> impl IntoView {
     I18nCtx::provide(Locale::default());
+    provide_theme_state();
     let auth_state = auth::provide_auth_state();
     let (branding, set_branding) = signal(None::<BrandingConfig>);
     provide_context(branding);
@@ -59,26 +61,21 @@ pub fn App() -> impl IntoView {
                         doc.set_title(&config.title);
                         if let Some(el) = doc.document_element() {
                             if let Ok(html_el) = el.dyn_into::<web_sys::HtmlElement>() {
-                                let _ = html_el
-                                    .style()
-                                    .set_property("--accent", &config.primary_color);
+                                let _ = html_el.style().set_property("--accent", &config.primary_color);
                             }
                         }
 
                         if let Some(ref favicon_url) = config.favicon_url {
                             if let Some(head) = doc.head() {
-                                let existing =
-                                    doc.query_selector("link[rel~='icon']").ok().flatten();
+                                let existing = doc.query_selector("link[rel~='icon']").ok().flatten();
                                 if let Some(link) = existing {
                                     if let Ok(link) = link.dyn_into::<web_sys::HtmlLinkElement>() {
                                         link.set_href(favicon_url);
                                     }
-                                } else if let Some(link) =
-                                    doc.create_element("link").ok().and_then(|e| {
-                                        use wasm_bindgen::JsCast;
-                                        e.dyn_into::<web_sys::HtmlLinkElement>().ok()
-                                    })
-                                {
+                                } else if let Some(link) = doc.create_element("link").ok().and_then(|e| {
+                                    use wasm_bindgen::JsCast;
+                                    e.dyn_into::<web_sys::HtmlLinkElement>().ok()
+                                }) {
                                     link.set_rel("icon");
                                     link.set_href(favicon_url);
                                     let _ = head.append_child(&link);
@@ -92,12 +89,10 @@ pub fn App() -> impl IntoView {
                                 if let Ok(style) = el.dyn_into::<web_sys::HtmlStyleElement>() {
                                     let _ = style.set_text_content(Some(css));
                                 }
-                            } else if let Some(style) =
-                                doc.create_element("style").ok().and_then(|e| {
-                                    use wasm_bindgen::JsCast;
-                                    e.dyn_into::<web_sys::HtmlStyleElement>().ok()
-                                })
-                            {
+                            } else if let Some(style) = doc.create_element("style").ok().and_then(|e| {
+                                use wasm_bindgen::JsCast;
+                                e.dyn_into::<web_sys::HtmlStyleElement>().ok()
+                            }) {
                                 style.set_id("ferro-branding-css");
                                 let _ = style.set_text_content(Some(css));
                                 if let Some(head) = doc.head() {
@@ -157,13 +152,7 @@ fn RootView() -> impl IntoView {
 #[component]
 fn FileViewRoute() -> impl IntoView {
     let params = use_params_map();
-    let path = move || {
-        params.with(|p| {
-            p.get("path")
-                .map(|v| format!("/{}", v))
-                .unwrap_or("/".to_string())
-        })
-    };
+    let path = move || params.with(|p| p.get("path").map(|v| format!("/{}", v)).unwrap_or("/".to_string()));
     view! {
         <HomePage initial_path=path() />
     }

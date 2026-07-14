@@ -98,18 +98,12 @@ impl DesktopState {
     }
 
     pub async fn mount_drive(&self) -> Result<String, String> {
-        self.mount_service
-            .mount()
-            .await
-            .map_err(|e| e.to_string())?;
+        self.mount_service.mount().await.map_err(|e| e.to_string())?;
         Ok("mounted".to_string())
     }
 
     pub async fn unmount_drive(&self) -> Result<String, String> {
-        self.mount_service
-            .unmount()
-            .await
-            .map_err(|e| e.to_string())?;
+        self.mount_service.unmount().await.map_err(|e| e.to_string())?;
         Ok("unmounted".to_string())
     }
 
@@ -225,8 +219,7 @@ impl DesktopState {
 
         if interval_secs > 0 {
             tokio::spawn(async move {
-                let mut interval =
-                    tokio::time::interval(std::time::Duration::from_secs(interval_secs.max(10)));
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs.max(10)));
                 loop {
                     tokio::select! {
                         _ = interval.tick() => {

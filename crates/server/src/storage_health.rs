@@ -17,6 +17,7 @@ pub struct StorageHealth {
     pub failed_checks: u64,
 }
 
+#[derive(Debug)]
 pub struct StorageHealthMonitor {
     statuses: Arc<DashMap<String, StorageHealth>>,
 }

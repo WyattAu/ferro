@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use tracing::warn;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Maximum number of API keys per user.
 const MAX_KEYS_PER_USER: usize = 25;
@@ -29,6 +30,7 @@ pub struct ApiKeyError {
     pub message: String,
 }
 
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum ApiKeyErrorKind {
     NotFound,
@@ -39,30 +41,55 @@ pub enum ApiKeyErrorKind {
 }
 
 impl ApiKeyError {
+    /// Create a "not found" error.
+    ///
+    /// # Panics
+    ///
+    /// This function never panics.
     pub fn not_found(msg: impl Into<String>) -> Self {
         Self {
             kind: ApiKeyErrorKind::NotFound,
             message: msg.into(),
         }
     }
+    /// Create a "forbidden" error.
+    ///
+    /// # Panics
+    ///
+    /// This function never panics.
     pub fn forbidden(msg: impl Into<String>) -> Self {
         Self {
             kind: ApiKeyErrorKind::Forbidden,
             message: msg.into(),
         }
     }
+    /// Create a "bad request" error.
+    ///
+    /// # Panics
+    ///
+    /// This function never panics.
     pub fn bad_request(msg: impl Into<String>) -> Self {
         Self {
             kind: ApiKeyErrorKind::BadRequest,
             message: msg.into(),
         }
     }
+    /// Create a "conflict" (duplicate) error.
+    ///
+    /// # Panics
+    ///
+    /// This function never panics.
     pub fn conflict(msg: impl Into<String>) -> Self {
         Self {
             kind: ApiKeyErrorKind::Conflict,
             message: msg.into(),
         }
     }
+    /// Create a "quota exceeded" error.
+    ///
+    /// # Panics
+    ///
+    /// This function never panics.
     pub fn quota_exceeded(msg: impl Into<String>) -> Self {
         Self {
             kind: ApiKeyErrorKind::QuotaExceeded,
@@ -72,7 +99,6 @@ impl ApiKeyError {
 }
 
 /// Permissions granted by an API key.
-#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum ApiKeyPermission {
     /// Full read access (GET, HEAD, PROPFIND).
@@ -86,6 +112,7 @@ pub enum ApiKeyPermission {
 
 impl ApiKeyPermission {
     /// Check if this permission level allows a given HTTP-style action.
+    #[must_use]
     pub fn allows_action(&self, action: &str) -> bool {
         match self {
             Self::Admin => true,
@@ -118,6 +145,7 @@ pub struct ApiKey {
 
 impl ApiKey {
     /// Check whether the key has expired.
+    #[must_use]
     pub fn is_expired(&self) -> bool {
         self.expires_at.is_some_and(|exp| exp < Utc::now())
     }
@@ -157,15 +185,19 @@ pub struct ApiKeyCreatedResponse {
     pub raw_key: String,
 }
 
+impl Zeroize for ApiKeyCreatedResponse {
+    fn zeroize(&mut self) {
+        self.raw_key.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for ApiKeyCreatedResponse {}
+
 /// Async interface for persisting and authenticating API keys.
 #[async_trait]
 pub trait ApiKeyStoreTrait: Send + Sync {
     /// Create a new API key, returning the full record and the raw key.
-    async fn create_key(
-        &self,
-        user_id: &str,
-        request: CreateApiKeyRequest,
-    ) -> Result<(ApiKey, String), ApiKeyError>;
+    async fn create_key(&self, user_id: &str, request: CreateApiKeyRequest) -> Result<(ApiKey, String), ApiKeyError>;
 
     /// Look up a key by its ID.
     async fn get_key(&self, id: &str) -> Result<ApiKey, ApiKeyError>;
@@ -185,6 +217,7 @@ pub trait ApiKeyStoreTrait: Send + Sync {
 }
 
 /// Hash a raw key string using SHA-256, returning a hex-encoded hash.
+#[must_use]
 pub fn hash_api_key(raw_key: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(raw_key.as_bytes());
@@ -192,16 +225,20 @@ pub fn hash_api_key(raw_key: &str) -> String {
 }
 
 /// Generate a new random API key with the `ferro_` prefix.
+#[must_use]
 pub fn generate_raw_key() -> String {
     use rand::RngCore;
     let mut bytes = [0u8; KEY_ENTROPY_BYTES];
     rand::rng().fill_bytes(&mut bytes);
-    format!("{}{}", KEY_PREFIX, hex::encode(bytes))
+    let key = format!("{}{}", KEY_PREFIX, hex::encode(bytes));
+    bytes.zeroize();
+    key
 }
 
 /// Extract an API key from standard locations (header or query param).
 ///
 /// Checks `X-API-Key` header first, then `?api_key=` query parameter.
+#[must_use]
 pub fn extract_api_key(headers: &axum::http::HeaderMap, query: Option<&str>) -> Option<String> {
     // Header takes precedence
     if let Some(h) = headers.get("X-API-Key").and_then(|v| v.to_str().ok()) {
@@ -250,12 +287,12 @@ fn urlencoding_decode(s: &str) -> String {
     String::from_utf8(result).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
-/// In-memory API key store backed by a concurrent hash map with optional SQLite persistence.
+/// In-memory API key store backed by a concurrent hash map with optional `SQLite` persistence.
 pub struct InMemoryApiKeyStore {
     keys: DashMap<String, ApiKey>,
-    /// Secondary index: user_id -> Vec<key_id>
+    /// Secondary index: `user_id` -> Vec<`key_id`>
     user_keys: DashMap<String, Vec<String>>,
-    /// Hash -> key_id for authentication lookup
+    /// Hash -> `key_id` for authentication lookup
     hash_index: DashMap<String, String>,
     db: Option<DbHandle>,
 }
@@ -265,6 +302,7 @@ pub use super::users::DbHandle;
 
 impl InMemoryApiKeyStore {
     /// Create a new empty in-memory store.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             keys: DashMap::new(),
@@ -274,7 +312,7 @@ impl InMemoryApiKeyStore {
         }
     }
 
-    /// Attach a SQLite database handle for persistence.
+    /// Attach a `SQLite` database handle for persistence.
     pub fn with_db(mut self, db: DbHandle) -> Self {
         self.db = Some(db);
         self
@@ -282,7 +320,7 @@ impl InMemoryApiKeyStore {
 
     fn persist_key(&self, key: &ApiKey) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO api_keys (id, name, key_hash, user_id, permission, created_at, expires_at, last_used_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
@@ -303,7 +341,7 @@ impl InMemoryApiKeyStore {
 
     fn delete_key_from_db(&self, id: &str) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Err(e) = conn.execute("DELETE FROM api_keys WHERE id = ?1", params![id]) {
                 warn!("Failed to delete API key from SQLite: {}", e);
             }
@@ -312,7 +350,7 @@ impl InMemoryApiKeyStore {
 
     fn update_last_used_in_db(&self, id: &str, last_used: &str) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Err(e) = conn.execute(
                 "UPDATE api_keys SET last_used_at = ?1 WHERE id = ?2",
                 params![last_used, id],
@@ -322,7 +360,7 @@ impl InMemoryApiKeyStore {
         }
     }
 
-    /// Load all API keys from a SQLite connection into memory.
+    /// Load all API keys from a `SQLite` connection into memory.
     pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<ApiKey>, rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT id, name, key_hash, user_id, permission, created_at, expires_at, last_used_at FROM api_keys",
@@ -336,8 +374,7 @@ impl InMemoryApiKeyStore {
             };
             let created_str: String = row.get(5)?;
             let created_at = chrono::DateTime::parse_from_rfc3339(&created_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .unwrap_or_else(|_| Utc::now());
+                .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&chrono::Utc));
             let expires_str: Option<String> = row.get(6)?;
             let expires_at = expires_str.and_then(|s| {
                 chrono::DateTime::parse_from_rfc3339(&s)
@@ -387,16 +424,11 @@ impl Default for InMemoryApiKeyStore {
 
 #[async_trait]
 impl ApiKeyStoreTrait for InMemoryApiKeyStore {
-    async fn create_key(
-        &self,
-        user_id: &str,
-        request: CreateApiKeyRequest,
-    ) -> Result<(ApiKey, String), ApiKeyError> {
+    async fn create_key(&self, user_id: &str, request: CreateApiKeyRequest) -> Result<(ApiKey, String), ApiKeyError> {
         // Enforce per-user quota
         if self.count_keys(user_id).await >= MAX_KEYS_PER_USER {
             return Err(ApiKeyError::quota_exceeded(format!(
-                "Maximum {} API keys per user",
-                MAX_KEYS_PER_USER
+                "Maximum {MAX_KEYS_PER_USER} API keys per user"
             )));
         }
 
@@ -423,10 +455,7 @@ impl ApiKeyStoreTrait for InMemoryApiKeyStore {
 
         self.keys.insert(id.clone(), key.clone());
         self.hash_index.insert(key.key_hash.clone(), id.clone());
-        self.user_keys
-            .entry(user_id.to_string())
-            .or_default()
-            .push(id);
+        self.user_keys.entry(user_id.to_string()).or_default().push(id);
         self.persist_key(&key);
 
         Ok((key, raw_key))
@@ -436,7 +465,7 @@ impl ApiKeyStoreTrait for InMemoryApiKeyStore {
         self.keys
             .get(id)
             .map(|r| r.value().clone())
-            .ok_or_else(|| ApiKeyError::not_found(format!("API key '{}' not found", id)))
+            .ok_or_else(|| ApiKeyError::not_found(format!("API key '{id}' not found")))
     }
 
     async fn list_keys(&self, user_id: &str) -> Vec<ApiKey> {
@@ -452,9 +481,7 @@ impl ApiKeyStoreTrait for InMemoryApiKeyStore {
     async fn revoke_key(&self, id: &str, requesting_user_id: &str) -> Result<(), ApiKeyError> {
         let key = self.get_key(id).await?;
         if key.user_id != requesting_user_id {
-            return Err(ApiKeyError::forbidden(
-                "Cannot revoke another user's API key",
-            ));
+            return Err(ApiKeyError::forbidden("Cannot revoke another user's API key"));
         }
         self.keys.remove(id);
         self.hash_index.remove(&key.key_hash);
@@ -487,7 +514,7 @@ impl ApiKeyStoreTrait for InMemoryApiKeyStore {
     }
 
     async fn count_keys(&self, user_id: &str) -> usize {
-        self.user_keys.get(user_id).map(|r| r.len()).unwrap_or(0)
+        self.user_keys.get(user_id).map_or(0, |r| r.len())
     }
 }
 
@@ -511,10 +538,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_and_list_keys() {
         let s = store();
-        let (key, raw) = s
-            .create_key("user1", create_request("my-key"))
-            .await
-            .unwrap();
+        let (key, raw) = s.create_key("user1", create_request("my-key")).await.unwrap();
 
         assert!(raw.starts_with(KEY_PREFIX));
         assert_eq!(key.name, "my-key");
@@ -528,10 +552,7 @@ mod tests {
     #[tokio::test]
     async fn test_authenticate_valid_key() {
         let s = store();
-        let (_, raw) = s
-            .create_key("user1", create_request("auth-test"))
-            .await
-            .unwrap();
+        let (_, raw) = s.create_key("user1", create_request("auth-test")).await.unwrap();
 
         let key = s.authenticate(&raw).await.unwrap();
         assert_eq!(key.name, "auth-test");
@@ -548,10 +569,7 @@ mod tests {
     #[tokio::test]
     async fn test_revoke_key() {
         let s = store();
-        let (key, _raw) = s
-            .create_key("user1", create_request("revokable"))
-            .await
-            .unwrap();
+        let (key, _raw) = s.create_key("user1", create_request("revokable")).await.unwrap();
         let id = key.id.clone();
 
         s.revoke_key(&id, "user1").await.unwrap();
@@ -578,10 +596,7 @@ mod tests {
             };
             s.create_key("user1", req).await.unwrap();
         }
-        let err = s
-            .create_key("user1", create_request("overflow"))
-            .await
-            .unwrap_err();
+        let err = s.create_key("user1", create_request("overflow")).await.unwrap_err();
         assert_eq!(err.kind, ApiKeyErrorKind::QuotaExceeded);
     }
 
@@ -724,5 +739,308 @@ mod tests {
         s.create_key("user1", create_request("a")).await.unwrap();
         s.create_key("user1", create_request("b")).await.unwrap();
         assert_eq!(s.count_keys("user1").await, 2);
+    }
+
+    #[tokio::test]
+    async fn test_revoke_key_removes_from_user_index() {
+        let s = store();
+        let (key1, _) = s.create_key("user1", create_request("k1")).await.unwrap();
+        let (key2, _) = s.create_key("user1", create_request("k2")).await.unwrap();
+        assert_eq!(s.count_keys("user1").await, 2);
+
+        s.revoke_key(&key1.id, "user1").await.unwrap();
+        assert_eq!(s.count_keys("user1").await, 1);
+        let remaining = s.list_keys("user1").await;
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, key2.id);
+
+        s.revoke_key(&key2.id, "user1").await.unwrap();
+        assert_eq!(s.count_keys("user1").await, 0);
+        assert!(s.list_keys("user1").await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_revoke_key_removes_from_hash_index() {
+        let s = store();
+        let (key, raw) = s.create_key("user1", create_request("k1")).await.unwrap();
+
+        assert!(s.authenticate(&raw).await.is_ok());
+        s.revoke_key(&key.id, "user1").await.unwrap();
+        assert!(s.authenticate(&raw).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_is_expired_boundary_future() {
+        let future = Utc::now() + chrono::Duration::hours(1);
+        let key = ApiKey {
+            id: "k1".into(),
+            name: "test".into(),
+            key_hash: "hash".into(),
+            user_id: "u1".into(),
+            permission: ApiKeyPermission::Read,
+            created_at: Utc::now(),
+            expires_at: Some(future),
+            last_used_at: None,
+        };
+        assert!(!key.is_expired());
+    }
+
+    #[tokio::test]
+    async fn test_is_expired_boundary_past() {
+        let past = Utc::now() - chrono::Duration::hours(1);
+        let key = ApiKey {
+            id: "k1".into(),
+            name: "test".into(),
+            key_hash: "hash".into(),
+            user_id: "u1".into(),
+            permission: ApiKeyPermission::Read,
+            created_at: Utc::now(),
+            expires_at: Some(past),
+            last_used_at: None,
+        };
+        assert!(key.is_expired());
+    }
+
+    #[tokio::test]
+    async fn test_is_expired_none_means_never_expires() {
+        let key = ApiKey {
+            id: "k1".into(),
+            name: "test".into(),
+            key_hash: "hash".into(),
+            user_id: "u1".into(),
+            permission: ApiKeyPermission::Read,
+            created_at: Utc::now(),
+            expires_at: None,
+            last_used_at: None,
+        };
+        assert!(!key.is_expired());
+    }
+
+    #[test]
+    fn test_api_key_error_constructors() {
+        let e = ApiKeyError::not_found("missing");
+        assert_eq!(e.kind, ApiKeyErrorKind::NotFound);
+        assert_eq!(e.message, "missing");
+
+        let e = ApiKeyError::forbidden("no access");
+        assert_eq!(e.kind, ApiKeyErrorKind::Forbidden);
+        assert_eq!(e.message, "no access");
+
+        let e = ApiKeyError::bad_request("invalid");
+        assert_eq!(e.kind, ApiKeyErrorKind::BadRequest);
+        assert_eq!(e.message, "invalid");
+
+        let e = ApiKeyError::conflict("dup");
+        assert_eq!(e.kind, ApiKeyErrorKind::Conflict);
+        assert_eq!(e.message, "dup");
+
+        let e = ApiKeyError::quota_exceeded("full");
+        assert_eq!(e.kind, ApiKeyErrorKind::QuotaExceeded);
+        assert_eq!(e.message, "full");
+    }
+
+    #[test]
+    fn test_url_decode_incomplete_percent() {
+        assert_eq!(urlencoding_decode("test%2"), "test%2");
+        assert_eq!(urlencoding_decode("test%"), "test%");
+    }
+
+    #[test]
+    fn test_url_decode_no_plus_no_percent() {
+        assert_eq!(urlencoding_decode("hello"), "hello");
+        assert_eq!(urlencoding_decode(""), "");
+    }
+
+    #[test]
+    fn test_url_decode_mixed() {
+        assert_eq!(urlencoding_decode("a+b%2Fc"), "a b/c");
+    }
+
+    #[test]
+    fn test_extract_api_key_empty_header_value() {
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("X-API-Key", "".parse().unwrap());
+        assert!(extract_api_key(&headers, None).is_none());
+    }
+
+    #[test]
+    fn test_extract_api_key_empty_query_value() {
+        let headers = axum::http::HeaderMap::new();
+        assert!(extract_api_key(&headers, Some("api_key=")).is_none());
+    }
+
+    #[test]
+    fn test_extract_api_key_query_no_match() {
+        let headers = axum::http::HeaderMap::new();
+        assert!(extract_api_key(&headers, Some("other_key=value")).is_none());
+    }
+
+    #[test]
+    fn test_extract_api_key_query_url_encoded() {
+        let headers = axum::http::HeaderMap::new();
+        let key = extract_api_key(&headers, Some("api_key=ferro%20key"));
+        assert_eq!(key.as_deref(), Some("ferro key"));
+    }
+
+    #[test]
+    fn test_api_key_touch() {
+        let mut key = ApiKey {
+            id: "k1".into(),
+            name: "test".into(),
+            key_hash: "hash".into(),
+            user_id: "u1".into(),
+            permission: ApiKeyPermission::Read,
+            created_at: Utc::now(),
+            expires_at: None,
+            last_used_at: None,
+        };
+        assert!(key.last_used_at.is_none());
+        key.touch();
+        assert!(key.last_used_at.is_some());
+    }
+
+    #[test]
+    fn test_api_key_created_response_zeroize() {
+        let mut resp = ApiKeyCreatedResponse {
+            id: "id".into(),
+            name: "name".into(),
+            permission: ApiKeyPermission::Read,
+            created_at: Utc::now(),
+            expires_at: None,
+            raw_key: "ferro_secretkey12345".into(),
+        };
+        resp.zeroize();
+        assert!(resp.raw_key.is_empty());
+    }
+
+    #[test]
+    fn test_api_key_permission_serialization_roundtrip() {
+        let perms = vec![ApiKeyPermission::Read, ApiKeyPermission::Write, ApiKeyPermission::Admin];
+        for perm in perms {
+            let json = serde_json::to_string(&perm).unwrap();
+            let deser: ApiKeyPermission = serde_json::from_str(&json).unwrap();
+            assert_eq!(deser, perm);
+        }
+    }
+
+    #[test]
+    fn test_api_key_permission_default() {
+        let perm = ApiKeyPermission::default();
+        assert_eq!(perm, ApiKeyPermission::Read);
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_api_key_store_default() {
+        let s = InMemoryApiKeyStore::default();
+        assert!(s.list_keys("anyone").await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_load_key_into_store() {
+        let s = InMemoryApiKeyStore::new();
+        let key = ApiKey {
+            id: "loaded-id".into(),
+            name: "loaded".into(),
+            key_hash: "hash123".into(),
+            user_id: "user1".into(),
+            permission: ApiKeyPermission::Admin,
+            created_at: Utc::now(),
+            expires_at: None,
+            last_used_at: None,
+        };
+        s.load_key(key.clone());
+        let fetched = s.get_key("loaded-id").await.unwrap();
+        assert_eq!(fetched.name, "loaded");
+        assert_eq!(fetched.permission, ApiKeyPermission::Admin);
+        assert_eq!(s.count_keys("user1").await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_key_not_found() {
+        let s = InMemoryApiKeyStore::new();
+        let err = s.get_key("nonexistent").await.unwrap_err();
+        assert_eq!(err.kind, ApiKeyErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_revoke_nonexistent_key() {
+        let s = InMemoryApiKeyStore::new();
+        let err = s.revoke_key("nonexistent", "user1").await.unwrap_err();
+        assert_eq!(err.kind, ApiKeyErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_authenticate_updates_last_used() {
+        let s = InMemoryApiKeyStore::new();
+        let (key, raw) = s.create_key("u1", create_request("k")).await.unwrap();
+        assert!(key.last_used_at.is_none());
+        let authenticated = s.authenticate(&raw).await.unwrap();
+        assert!(authenticated.last_used_at.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_create_key_with_valid_expiry() {
+        let s = InMemoryApiKeyStore::new();
+        let req = CreateApiKeyRequest {
+            name: "future-key".into(),
+            permission: ApiKeyPermission::Read,
+            expires_at: Some("2099-12-31T23:59:59+00:00".to_string()),
+        };
+        let (key, _) = s.create_key("u1", req).await.unwrap();
+        assert!(key.expires_at.is_some());
+        assert!(!key.is_expired());
+    }
+
+    #[tokio::test]
+    async fn test_create_key_with_invalid_expiry_format() {
+        let s = InMemoryApiKeyStore::new();
+        let req = CreateApiKeyRequest {
+            name: "bad-expiry".into(),
+            permission: ApiKeyPermission::Read,
+            expires_at: Some("not-a-date".to_string()),
+        };
+        let (key, _) = s.create_key("u1", req).await.unwrap();
+        assert!(key.expires_at.is_none());
+    }
+
+    #[test]
+    fn test_api_key_debug_format() {
+        let key = ApiKey {
+            id: "k1".into(),
+            name: "test".into(),
+            key_hash: "hash".into(),
+            user_id: "u1".into(),
+            permission: ApiKeyPermission::Read,
+            created_at: Utc::now(),
+            expires_at: None,
+            last_used_at: None,
+        };
+        let debug = format!("{:?}", key);
+        assert!(debug.contains("ApiKey"));
+        assert!(debug.contains("k1"));
+    }
+
+    #[test]
+    fn test_api_key_error_debug_format() {
+        let e = ApiKeyError::not_found("test");
+        let debug = format!("{:?}", e);
+        assert!(debug.contains("ApiKeyError"));
+    }
+
+    #[test]
+    fn test_api_key_clone() {
+        let key = ApiKey {
+            id: "k1".into(),
+            name: "test".into(),
+            key_hash: "hash".into(),
+            user_id: "u1".into(),
+            permission: ApiKeyPermission::Write,
+            created_at: Utc::now(),
+            expires_at: None,
+            last_used_at: None,
+        };
+        let cloned = key.clone();
+        assert_eq!(cloned.id, key.id);
+        assert_eq!(cloned.permission, key.permission);
     }
 }

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::warn;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::ApiCoreState;
 use crate::ApiError;
@@ -95,12 +96,7 @@ impl WebhookDeliveryStore {
         Ok(())
     }
 
-    pub fn update_retry(
-        &self,
-        id: &str,
-        attempt_count: u32,
-        next_retry_at: &str,
-    ) -> Result<(), String> {
+    pub fn update_retry(&self, id: &str, attempt_count: u32, next_retry_at: &str) -> Result<(), String> {
         let Some(ref db) = self.db else {
             return Ok(());
         };
@@ -190,13 +186,25 @@ static WEBHOOK_CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLoc
 });
 
 /// Configuration for a webhook subscription.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct WebhookConfig {
     pub id: String,
     pub url: String,
     pub secret: String,
     pub events: Vec<String>,
     pub enabled: bool,
+}
+
+impl std::fmt::Debug for WebhookConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WebhookConfig")
+            .field("id", &self.id)
+            .field("url", &self.url)
+            .field("secret", &"[REDACTED]")
+            .field("events", &self.events)
+            .field("enabled", &self.enabled)
+            .finish()
+    }
 }
 
 /// A webhook event payload.
@@ -335,11 +343,7 @@ pub async fn fire_webhooks(
                             "Webhook delivery failed"
                         );
                         if attempt == MAX_DELIVERY_ATTEMPTS - 1 {
-                            let _ = store_clone.record_dead(
-                                &delivery_id,
-                                status,
-                                "Max attempts exceeded",
-                            );
+                            let _ = store_clone.record_dead(&delivery_id, status, "Max attempts exceeded");
                             return;
                         }
                     }
@@ -351,11 +355,7 @@ pub async fn fire_webhooks(
                             "Webhook delivery error"
                         );
                         if attempt == MAX_DELIVERY_ATTEMPTS - 1 {
-                            let _ = store_clone.record_dead(
-                                &delivery_id,
-                                0,
-                                &format!("Network error: {e}"),
-                            );
+                            let _ = store_clone.record_dead(&delivery_id, 0, &format!("Network error: {e}"));
                             return;
                         }
                     }
@@ -363,10 +363,8 @@ pub async fn fire_webhooks(
 
                 let delay = calculate_backoff(attempt);
                 let next_retry = chrono::Utc::now()
-                    + chrono::Duration::from_std(delay)
-                        .unwrap_or_else(|_| chrono::Duration::seconds(60));
-                let _ =
-                    store_clone.update_retry(&delivery_id, attempt + 1, &next_retry.to_rfc3339());
+                    + chrono::Duration::from_std(delay).unwrap_or_else(|_| chrono::Duration::seconds(60));
+                let _ = store_clone.update_retry(&delivery_id, attempt + 1, &next_retry.to_rfc3339());
                 tokio::time::sleep(delay).await;
             }
         });
@@ -410,9 +408,7 @@ pub async fn create_webhook<S: ApiCoreState>(
     let config = WebhookConfig {
         id: uuid::Uuid::new_v4().to_string(),
         url: input.url,
-        secret: input
-            .secret
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+        secret: input.secret.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
         events: input.events,
         enabled: input.enabled.unwrap_or(true),
     };
@@ -433,10 +429,7 @@ pub async fn list_webhooks<S: ApiCoreState>(State(state): State<S>) -> Response 
 }
 
 /// DELETE /api/admin/webhooks/:id — delete a webhook subscription.
-pub async fn delete_webhook<S: ApiCoreState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_webhook<S: ApiCoreState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let mut hooks = state.webhooks().write().await;
     let before = hooks.len();
     hooks.retain(|h| h.id != id);
@@ -483,9 +476,7 @@ pub fn persist_webhook_delete(db: &DbHandle, id: &str) {
     }
 }
 
-pub fn load_webhooks_from_db(
-    conn: &rusqlite::Connection,
-) -> Result<Vec<WebhookConfig>, rusqlite::Error> {
+pub fn load_webhooks_from_db(conn: &rusqlite::Connection) -> Result<Vec<WebhookConfig>, rusqlite::Error> {
     let mut stmt = conn.prepare("SELECT id, url, events, secret, enabled FROM webhooks")?;
     let rows = stmt.query_map([], |row| {
         let events_json: String = row.get(2)?;
@@ -524,7 +515,7 @@ pub fn create_webhook_delivery_tables(conn: &rusqlite::Connection) {
             delivered_at TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook_id ON webhook_deliveries(webhook_id);
-        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);"
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);",
     ) {
         warn!("Failed to create webhook_deliveries table: {e}");
     }

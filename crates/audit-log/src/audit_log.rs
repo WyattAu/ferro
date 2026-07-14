@@ -150,8 +150,7 @@ impl AuditLog {
         entry.previous_hash = last_hash;
         entry.hash = chain::compute_hash(entry);
 
-        let details_json =
-            serde_json::to_string(&entry.details).map_err(|e| AuditError::Export(e.to_string()))?;
+        let details_json = serde_json::to_string(&entry.details).map_err(|e| AuditError::Export(e.to_string()))?;
 
         conn.execute(
             "INSERT INTO audit_entries (id, timestamp, action, actor_id, resource_type, resource_id, details, ip_address, user_agent, previous_hash, hash)
@@ -210,14 +209,12 @@ impl AuditLog {
         sql.push_str(" ORDER BY rowid ASC LIMIT ?");
         params.push(Box::new(filter.limit as i64));
 
-        let param_refs: Vec<&dyn rusqlite::types::ToSql> =
-            params.iter().map(|p| p.as_ref()).collect();
+        let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
 
         let mut stmt = conn.prepare(&sql)?;
         let rows = stmt.query_map(param_refs.as_slice(), |row| {
             let details_str: String = row.get(6)?;
-            let details: HashMap<String, serde_json::Value> =
-                serde_json::from_str(&details_str).unwrap_or_default();
+            let details: HashMap<String, serde_json::Value> = serde_json::from_str(&details_str).unwrap_or_default();
 
             Ok(AuditEntry {
                 id: row.get(0)?,
@@ -252,8 +249,7 @@ impl AuditLog {
 
         let rows = stmt.query_map([], |row| {
             let details_str: String = row.get(6)?;
-            let details: HashMap<String, serde_json::Value> =
-                serde_json::from_str(&details_str).unwrap_or_default();
+            let details: HashMap<String, serde_json::Value> = serde_json::from_str(&details_str).unwrap_or_default();
 
             Ok(AuditEntry {
                 id: row.get(0)?,
@@ -300,8 +296,7 @@ impl AuditLog {
 
         let rows = stmt.query_map([], |row| {
             let details_str: String = row.get(6)?;
-            let details: HashMap<String, serde_json::Value> =
-                serde_json::from_str(&details_str).unwrap_or_default();
+            let details: HashMap<String, serde_json::Value> = serde_json::from_str(&details_str).unwrap_or_default();
 
             Ok(AuditEntry {
                 id: row.get(0)?,
@@ -330,10 +325,7 @@ impl AuditLog {
             .collect();
 
         for id in &ids_to_delete {
-            conn.execute(
-                "DELETE FROM audit_entries WHERE id = ?1",
-                rusqlite::params![id],
-            )?;
+            conn.execute("DELETE FROM audit_entries WHERE id = ?1", rusqlite::params![id])?;
         }
 
         Ok(count)
@@ -341,8 +333,7 @@ impl AuditLog {
 
     pub fn count(&self) -> Result<usize, AuditError> {
         let conn = self.conn.lock().map_err(|_| AuditError::LockPoisoned)?;
-        let count: usize =
-            conn.query_row("SELECT COUNT(*) FROM audit_entries", [], |row| row.get(0))?;
+        let count: usize = conn.query_row("SELECT COUNT(*) FROM audit_entries", [], |row| row.get(0))?;
         Ok(count)
     }
 }
@@ -525,10 +516,7 @@ mod tests {
         let mut e = make_entry("e1", AuditAction::Custom("SpecialAction".to_string()));
         log.record(&mut e).unwrap();
         let entries = log.query(&AuditFilter::default()).unwrap();
-        assert_eq!(
-            entries[0].action,
-            AuditAction::Custom("SpecialAction".to_string())
-        );
+        assert_eq!(entries[0].action, AuditAction::Custom("SpecialAction".to_string()));
     }
 
     #[test]

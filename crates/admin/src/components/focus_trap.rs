@@ -18,11 +18,7 @@ pub fn FocusTrap(children: Children) -> impl IntoView {
     /// Try to focus a DOM element by downcasting to HtmlElement.
     fn focus_element(el: &web_sys::Element) {
         use wasm_bindgen::JsCast;
-        let _ = el
-            .clone()
-            .dyn_into::<web_sys::HtmlElement>()
-            .ok()
-            .map(|h| h.focus());
+        let _ = el.clone().dyn_into::<web_sys::HtmlElement>().ok().map(|h| h.focus());
     }
 
     // On mount: save previous focus and auto-focus first focusable element
@@ -77,11 +73,9 @@ pub fn FocusTrap(children: Children) -> impl IntoView {
             .and_then(|w| w.document())
             .and_then(|doc| doc.active_element());
 
-        let idx = active.as_ref().and_then(|active_el| {
-            elements
-                .iter()
-                .position(|el| active_el.is_same_node(Some(el)))
-        });
+        let idx = active
+            .as_ref()
+            .and_then(|active_el| elements.iter().position(|el| active_el.is_same_node(Some(el))));
 
         match idx {
             None => {

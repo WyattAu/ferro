@@ -33,9 +33,9 @@ async fn load_crdt_state(storage: &dyn StorageEngine, document_id: &str) -> Opti
 
 async fn save_crdt_state(storage: &dyn StorageEngine, document_id: &str, data: &[u8]) {
     let path = collab_storage_path(document_id);
-    let _ = storage
-        .put(&path, Bytes::from(data.to_vec()), "system")
-        .await;
+    if let Err(e) = storage.put(&path, Bytes::from(data.to_vec()), "system").await {
+        tracing::error!(error = %e, path = %path, "Failed to persist CRDT state");
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,9 +86,7 @@ impl Room {
         Room {
             tx,
             participants: DashMap::new(),
-            document: std::sync::RwLock::new(CrdtDocument::new(DocumentId(
-                document_id.to_string(),
-            ))),
+            document: std::sync::RwLock::new(CrdtDocument::new(DocumentId(document_id.to_string()))),
             dirty: AtomicBool::new(false),
             load_state: std::sync::Mutex::new(false),
         }
@@ -148,10 +146,7 @@ impl CollabRoomManager {
     }
 
     pub fn participant_count(&self, document_id: &str) -> usize {
-        self.rooms
-            .get(document_id)
-            .map(|r| r.participants.len())
-            .unwrap_or(0)
+        self.rooms.get(document_id).map(|r| r.participants.len()).unwrap_or(0)
     }
 }
 
@@ -167,24 +162,20 @@ pub async fn collab_ws_handler<S: CollaborationState>(
     State(state): State<S>,
 ) -> Response {
     let storage = state.storage().clone();
-    ws.on_upgrade(move |socket| {
-        handle_collab_socket(socket, state.collab_rooms().clone(), storage, document_id)
-    })
+    ws.on_upgrade(move |socket| handle_collab_socket(socket, state.collab_rooms().clone(), storage, document_id))
 }
 
-async fn idle_save_loop(room: Arc<Room>, storage: Arc<dyn StorageEngine>, document_id: String) {
-    let mut interval =
-        tokio::time::interval(std::time::Duration::from_secs(IDLE_SAVE_INTERVAL_SECS));
+async fn idle_save_loop(room: Arc<Room>, storage: Arc<dyn StorageEngine>, document_id: &str) {
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(IDLE_SAVE_INTERVAL_SECS));
     loop {
         interval.tick().await;
         if room.participants.is_empty() {
             break;
         }
-        if room.dirty.swap(false, Ordering::SeqCst) {
-            let data =
-                serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
+        if room.dirty.swap(false, Ordering::Relaxed) {
+            let data = serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
             if let Some(data) = data {
-                save_crdt_state(&*storage, &document_id, &data).await;
+                save_crdt_state(&*storage, document_id, &data).await;
             }
         }
     }
@@ -218,7 +209,7 @@ async fn handle_collab_socket(
         let idle_storage = storage.clone();
         let idle_doc_id = document_id.clone();
         tokio::spawn(async move {
-            idle_save_loop(idle_room, idle_storage, idle_doc_id).await;
+            idle_save_loop(idle_room, idle_storage, &idle_doc_id).await;
         });
     }
 
@@ -246,28 +237,17 @@ async fn handle_collab_socket(
                     if let Ok(collab_msg) = serde_json::from_str::<CollabMessage>(&text) {
                         match collab_msg {
                             CollabMessage::Join {
-                                participant_id,
-                                name,
-                                ..
+                                participant_id, name, ..
                             } => {
-                                room_for_recv
-                                    .participants
-                                    .insert(participant_id, name.clone());
+                                room_for_recv.participants.insert(participant_id, name.clone());
                                 {
-                                    let mut doc = room_for_recv
-                                        .document
-                                        .write()
-                                        .unwrap_or_else(|e| e.into_inner());
+                                    let mut doc = room_for_recv.document.write().unwrap_or_else(|e| e.into_inner());
                                     doc.join(ParticipantId(participant_id), &name);
                                 }
-                                *pid_for_cleanup.lock().unwrap_or_else(|e| e.into_inner()) =
-                                    Some(participant_id);
+                                *pid_for_cleanup.lock().unwrap_or_else(|e| e.into_inner()) = Some(participant_id);
 
                                 let serialized = {
-                                    let doc = room_for_recv
-                                        .document
-                                        .read()
-                                        .unwrap_or_else(|e| e.into_inner());
+                                    let doc = room_for_recv.document.read().unwrap_or_else(|e| e.into_inner());
                                     serde_json::to_string(&*doc).unwrap_or_default()
                                 };
                                 let state_msg = CollabMessage::DocumentState {
@@ -283,13 +263,10 @@ async fn handle_collab_socket(
                             }
                             CollabMessage::Operations { ops } => {
                                 {
-                                    let mut doc = room_for_recv
-                                        .document
-                                        .write()
-                                        .unwrap_or_else(|e| e.into_inner());
+                                    let mut doc = room_for_recv.document.write().unwrap_or_else(|e| e.into_inner());
                                     doc.apply_ops(&ops);
                                 }
-                                room_for_recv.dirty.store(true, Ordering::SeqCst);
+                                room_for_recv.dirty.store(true, Ordering::Relaxed);
                                 let _ = room_for_recv.tx.send(text);
                             }
                             _ => {}
@@ -339,9 +316,8 @@ async fn handle_collab_socket(
         room.broadcast_participants();
     }
 
-    if room.dirty.swap(false, Ordering::SeqCst) {
-        let data =
-            serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
+    if room.dirty.swap(false, Ordering::Relaxed) {
+        let data = serde_json::to_vec(&*room.document.read().unwrap_or_else(|e| e.into_inner())).ok();
         if let Some(data) = data {
             save_crdt_state(&*storage, &document_id, &data).await;
         }

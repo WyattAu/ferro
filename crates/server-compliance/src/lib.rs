@@ -35,11 +35,7 @@ pub trait AuditLogTrait: Send + Sync {
 pub struct ApiError;
 
 impl ApiError {
-    pub fn respond(
-        status: axum::http::StatusCode,
-        code: &str,
-        message: impl Into<String>,
-    ) -> axum::response::Response {
+    pub fn respond(status: axum::http::StatusCode, code: &str, message: impl Into<String>) -> axum::response::Response {
         ferro_server_security::ApiError::respond(status, code, message)
     }
 
@@ -64,9 +60,7 @@ impl ApiError {
 ///
 /// This allows compliance handler functions to be generic over the trait,
 /// avoiding a circular dependency on `ferro-server`.
-pub trait ComplianceState:
-    Send + Sync + Clone + 'static + common::server_context::HasStorage
-{
+pub trait ComplianceState: Send + Sync + Clone + 'static + common::server_context::HasStorage {
     fn used_bytes(&self) -> &Arc<AtomicU64>;
     fn db(&self) -> &Option<DbHandle>;
     fn retention_store(&self) -> &retention::RetentionStore;

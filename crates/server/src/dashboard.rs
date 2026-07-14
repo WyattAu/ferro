@@ -107,3 +107,47 @@ pub async fn get_dashboard(State(state): State<AppState>) -> Response {
     )
         .into_response()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http_body_util::BodyExt;
+
+    async fn body_json(resp: Response) -> serde_json::Value {
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_dashboard_empty_state() {
+        let state = AppState::in_memory();
+        let resp = get_dashboard(State(state)).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = body_json(resp).await;
+        assert_eq!(json["storage_used"], 0);
+        assert_eq!(json["storage_total"], 0);
+        assert_eq!(json["file_count"], 0);
+        assert!(json["recent_files"].as_array().unwrap().is_empty());
+        assert!(json["shared_files"].as_array().unwrap().is_empty());
+        assert!(json["activity"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_dashboard_with_quota() {
+        let state = AppState {
+            quota_bytes: Some(10_000_000),
+            ..AppState::in_memory()
+        };
+        let resp = get_dashboard(State(state)).await;
+        let json = body_json(resp).await;
+        assert_eq!(json["storage_total"], 10_000_000);
+    }
+
+    #[tokio::test]
+    async fn test_dashboard_serialization() {
+        let state = AppState::in_memory();
+        let resp = get_dashboard(State(state)).await;
+        let json = body_json(resp).await;
+        let _: DashboardResponse = serde_json::from_value(json).unwrap();
+    }
+}

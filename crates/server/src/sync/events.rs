@@ -31,19 +31,11 @@ pub async fn sync_events(State(state): State<AppState>) -> Response {
         })
     });
 
-    Sse::new(stream)
-        .keep_alive(KeepAlive::new())
-        .into_response()
+    Sse::new(stream).keep_alive(KeepAlive::new()).into_response()
 }
 
-pub async fn sync_delta(
-    State(state): State<AppState>,
-    Query(params): Query<HashMap<String, String>>,
-) -> Response {
-    let since: u64 = params
-        .get("since")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(0);
+pub async fn sync_delta(State(state): State<AppState>, Query(params): Query<HashMap<String, String>>) -> Response {
+    let since: u64 = params.get("since").and_then(|v| v.parse().ok()).unwrap_or(0);
     let ops = state.sync_store.get_ops_since(since);
 
     (

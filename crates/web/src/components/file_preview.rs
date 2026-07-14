@@ -124,16 +124,16 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                 tabindex="-1"
             >
                 // Header
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
                     <div class="min-w-0 flex-1">
-                        <h2 id="preview-title" class="text-section font-mono text-gray-900 truncate">{name}</h2>
-                        <div class="flex items-center gap-4 mt-1 text-sm text-gray-500 font-mono">
+                        <h2 id="preview-title" class="text-section font-mono text-[var(--text-primary)] truncate">{name}</h2>
+                        <div class="flex items-center gap-4 mt-1 text-sm text-[var(--text-tertiary)] font-mono">
                             <span>{size_str}</span>
                             <span>{modified}</span>
                         </div>
                     </div>
                     <button
-                        class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded surface shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ml-4 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 text-[var(--text-tertiary)] hover:text-gray-600 hover:bg-[var(--interactive-hover)] rounded surface shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] ml-4 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         aria-label=t!("preview.aria_close")
                         on:click=close
                     >
@@ -147,8 +147,8 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                 <div class="flex-1 overflow-auto p-6">
                     {move || loading.get().then(|| view! {
                         <div class="flex items-center justify-center py-12">
-                            <div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                            <span class="ml-3 text-gray-500">{t!("common.loading")}</span>
+                            <div class="animate-spin w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full"></div>
+                            <span class="ml-3 text-[var(--text-tertiary)]">{t!("common.loading")}</span>
                         </div>
                     })}
 
@@ -159,7 +159,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                     })}
 
                     {move || content.get().map(|text| view! {
-                        <pre class="bg-gray-50 dark:bg-gray-900 border rounded p-4 text-sm text-gray-800 overflow-auto whitespace-pre-wrap font-mono">{text}</pre>
+                        <pre class="bg-[var(--bg-base)] border rounded p-4 text-sm text-gray-800 overflow-auto whitespace-pre-wrap font-mono">{text}</pre>
                     })}
 
                     {move || (!loading.get() && content.get().is_none() && error.get().is_none()).then(|| view! {
@@ -202,9 +202,9 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                         <svg class="w-16 h-16 text-gray-300 mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
-                                        <p class="text-gray-500 mb-4">{t!("preview.not_available")}</p>
+                                        <p class="text-[var(--text-tertiary)] mb-4">{t!("preview.not_available")}</p>
                                         <button
-                                            class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                                            class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
                                             on:click=move |_| {
                                                 let path = p.clone();
                                                 spawn_local(async move {

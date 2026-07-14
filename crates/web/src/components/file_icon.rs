@@ -19,18 +19,16 @@ pub fn file_type_from_extension(name: &str) -> FileType {
     let name_lower = name.to_lowercase();
     if let Some(ext) = name_lower.rsplit('.').next() {
         match ext {
-            "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "tif"
-            | "avif" => FileType::Image,
-            "mp4" | "avi" | "mov" | "mkv" | "webm" | "flv" | "wmv" | "m4v" | "ogv" | "3gp" => {
-                FileType::Video
+            "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "tif" | "avif" => {
+                FileType::Image
             }
+            "mp4" | "avi" | "mov" | "mkv" | "webm" | "flv" | "wmv" | "m4v" | "ogv" | "3gp" => FileType::Video,
             "mp3" | "wav" | "ogg" | "flac" | "aac" | "m4a" | "wma" | "opus" => FileType::Audio,
             "pdf" => FileType::Pdf,
             "txt" | "md" | "rtf" | "log" => FileType::Text,
-            "rs" | "py" | "js" | "ts" | "tsx" | "jsx" | "go" | "java" | "c" | "cpp" | "h"
-            | "hpp" | "cs" | "rb" | "php" | "swift" | "kt" | "scala" | "sh" | "bash" | "zsh"
-            | "toml" | "yaml" | "yml" | "json" | "xml" | "html" | "css" | "scss" | "sass"
-            | "sql" | "lua" | "r" | "dart" | "vue" | "svelte" => FileType::Code,
+            "rs" | "py" | "js" | "ts" | "tsx" | "jsx" | "go" | "java" | "c" | "cpp" | "h" | "hpp" | "cs" | "rb"
+            | "php" | "swift" | "kt" | "scala" | "sh" | "bash" | "zsh" | "toml" | "yaml" | "yml" | "json" | "xml"
+            | "html" | "css" | "scss" | "sass" | "sql" | "lua" | "r" | "dart" | "vue" | "svelte" => FileType::Code,
             "zip" | "tar" | "gz" | "bz2" | "xz" | "7z" | "rar" | "tgz" | "zst" => FileType::Archive,
             "xls" | "xlsx" | "csv" | "ods" => FileType::Spreadsheet,
             "ppt" | "pptx" | "odp" | "key" => FileType::Presentation,

@@ -9,7 +9,6 @@ publish = false
 [dependencies]
 dashmap = "6"
 parking_lot = "0.12"
-serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 

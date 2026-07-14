@@ -7,9 +7,10 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use ferro_circuit_breaker::CircuitBreaker;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::RwLock;
 
@@ -18,6 +19,9 @@ use common::server_context::HasStorage;
 
 /// Maximum number of scan results to retain in history.
 const MAX_SCAN_HISTORY: usize = 100;
+
+static CLAMAV_CB: LazyLock<CircuitBreaker> =
+    LazyLock::new(|| CircuitBreaker::new(3, std::time::Duration::from_secs(60)));
 
 /// In-memory scan history store.
 pub struct ScanHistory {
@@ -159,8 +163,7 @@ async fn scan_file_tcp(
     .map_err(|e| format!("Failed to read ClamAV response: {}", e))?;
 
     let scan_time_ms = start.elapsed().as_millis() as u64;
-    let response_str =
-        String::from_utf8(response).map_err(|_| "Invalid UTF-8 in ClamAV response".to_string())?;
+    let response_str = String::from_utf8(response).map_err(|_| "Invalid UTF-8 in ClamAV response".to_string())?;
     let response_str = response_str.trim_end_matches('\0');
 
     if response_str.ends_with("OK") {
@@ -221,7 +224,15 @@ pub async fn scan_file_impl<S: HasStorage>(state: &S, file_path: &str) -> Respon
     let scanned_at = chrono::Utc::now().to_rfc3339();
     let file_size = content.len() as u64;
 
-    match scan_file_tcp(&config, file_path, &content).await {
+    match CLAMAV_CB
+        .call(|| {
+            let config = config.clone();
+            let content = content.clone();
+            let file_path = file_path.to_string();
+            async move { scan_file_tcp(&config, &file_path, &content).await }
+        })
+        .await
+    {
         Ok((clean, threat_name, scan_time_ms)) => {
             let entry = ScanResultEntry {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -249,21 +260,30 @@ pub async fn scan_file_impl<S: HasStorage>(state: &S, file_path: &str) -> Respon
             )
                 .into_response()
         }
-        Err(e) => (
-            StatusCode::BAD_GATEWAY,
-            Json(serde_json::json!({
-                "error": format!("ClamAV scan failed: {}", e),
-            })),
-        )
-            .into_response(),
+        Err(cb_err) => {
+            if let Some(e) = cb_err.inner {
+                (
+                    StatusCode::BAD_GATEWAY,
+                    Json(serde_json::json!({
+                        "error": format!("ClamAV scan failed: {}", e),
+                    })),
+                )
+                    .into_response()
+            } else {
+                (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    Json(serde_json::json!({
+                        "error": "ClamAV circuit breaker is open: service unavailable",
+                    })),
+                )
+                    .into_response()
+            }
+        }
     }
 }
 
 /// POST /api/antivirus/scan/{path} — Scan a file.
-pub async fn scan_file<S: ComplianceState>(
-    State(state): State<S>,
-    Path(file_path): Path<String>,
-) -> Response {
+pub async fn scan_file<S: ComplianceState>(State(state): State<S>, Path(file_path): Path<String>) -> Response {
     scan_file_impl(&state, &file_path).await
 }
 
@@ -326,7 +346,15 @@ pub async fn scan_all_impl<S: HasStorage>(state: &S, directory: &str) -> Respons
         };
 
         let scanned_at = chrono::Utc::now().to_rfc3339();
-        match scan_file_tcp(&config, &meta.path, &content).await {
+        match CLAMAV_CB
+            .call(|| {
+                let config = config.clone();
+                let content = content.clone();
+                let path = meta.path.clone();
+                async move { scan_file_tcp(&config, &path, &content).await }
+            })
+            .await
+        {
             Ok((clean, threat_name, scan_time_ms)) => {
                 results.push(serde_json::json!({
                     "file_path": meta.path,
@@ -341,10 +369,15 @@ pub async fn scan_all_impl<S: HasStorage>(state: &S, directory: &str) -> Respons
                     infected += 1;
                 }
             }
-            Err(e) => {
+            Err(cb_err) => {
+                let error_msg = if let Some(e) = cb_err.inner {
+                    e
+                } else {
+                    "ClamAV circuit breaker is open".to_string()
+                };
                 results.push(serde_json::json!({
                     "file_path": meta.path,
-                    "error": e,
+                    "error": error_msg,
                 }));
                 errors += 1;
             }
@@ -366,10 +399,7 @@ pub async fn scan_all_impl<S: HasStorage>(state: &S, directory: &str) -> Respons
 }
 
 /// POST /api/antivirus/scan-all — Scan all files in a directory.
-pub async fn scan_all<S: ComplianceState>(
-    State(state): State<S>,
-    Json(req): Json<ScanDirectoryRequest>,
-) -> Response {
+pub async fn scan_all<S: ComplianceState>(State(state): State<S>, Json(req): Json<ScanDirectoryRequest>) -> Response {
     scan_all_impl(&state, &req.directory).await
 }
 
@@ -404,9 +434,292 @@ mod tests {
         assert_eq!(config.timeout_ms, 30000);
     }
 
+    #[test]
+    fn test_clamav_config_custom() {
+        let config = ClamavTcpConfig {
+            host: "10.0.0.1".to_string(),
+            port: 3311,
+            timeout_ms: 5000,
+        };
+        assert_eq!(config.host, "10.0.0.1");
+        assert_eq!(config.port, 3311);
+        assert_eq!(config.timeout_ms, 5000);
+    }
+
     #[tokio::test]
     async fn test_check_connection_no_daemon() {
-        let config = ClamavTcpConfig::default();
+        let config = ClamavTcpConfig {
+            host: "127.0.0.1".to_string(),
+            port: 19999,
+            timeout_ms: 500,
+        };
         assert!(!check_connection(&config).await);
+    }
+
+    // --- ScanHistory tests ---
+
+    #[tokio::test]
+    async fn test_scan_history_new() {
+        let history = ScanHistory::new();
+        let entries = history.list().await;
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_scan_history_default() {
+        let history = ScanHistory::default();
+        let entries = history.list().await;
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_scan_history_record_and_list() {
+        let history = ScanHistory::new();
+        let entry = ScanResultEntry {
+            id: "scan-1".into(),
+            file_path: "/docs/test.txt".into(),
+            clean: true,
+            threat_name: None,
+            scan_time_ms: 42,
+            scanned_at: "2025-01-01T00:00:00+00:00".into(),
+            file_size: 1024,
+        };
+        history.record(entry).await;
+
+        let entries = history.list().await;
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, "scan-1");
+        assert!(entries[0].clean);
+        assert!(entries[0].threat_name.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_scan_history_record_infected() {
+        let history = ScanHistory::new();
+        let entry = ScanResultEntry {
+            id: "scan-2".into(),
+            file_path: "/uploads/malware.exe".into(),
+            clean: false,
+            threat_name: Some("Win.Trojan.Generic".into()),
+            scan_time_ms: 120,
+            scanned_at: "2025-06-15T12:00:00+00:00".into(),
+            file_size: 4096,
+        };
+        history.record(entry).await;
+
+        let entries = history.list().await;
+        assert_eq!(entries.len(), 1);
+        assert!(!entries[0].clean);
+        assert_eq!(entries[0].threat_name.as_deref(), Some("Win.Trojan.Generic"));
+    }
+
+    #[tokio::test]
+    async fn test_scan_history_multiple_entries() {
+        let history = ScanHistory::new();
+        for i in 0..5 {
+            history
+                .record(ScanResultEntry {
+                    id: format!("scan-{}", i),
+                    file_path: format!("/file{}.txt", i),
+                    clean: true,
+                    threat_name: None,
+                    scan_time_ms: i * 10,
+                    scanned_at: "2025-01-01T00:00:00+00:00".into(),
+                    file_size: 100,
+                })
+                .await;
+        }
+
+        let entries = history.list().await;
+        assert_eq!(entries.len(), 5);
+        assert_eq!(entries[0].id, "scan-0");
+        assert_eq!(entries[4].id, "scan-4");
+    }
+
+    #[tokio::test]
+    async fn test_scan_history_max_capacity() {
+        let history = ScanHistory::new();
+        for i in 0..MAX_SCAN_HISTORY + 10 {
+            history
+                .record(ScanResultEntry {
+                    id: format!("scan-{}", i),
+                    file_path: format!("/file{}.txt", i),
+                    clean: true,
+                    threat_name: None,
+                    scan_time_ms: 1,
+                    scanned_at: "2025-01-01T00:00:00+00:00".into(),
+                    file_size: 1,
+                })
+                .await;
+        }
+
+        let entries = history.list().await;
+        assert_eq!(entries.len(), MAX_SCAN_HISTORY);
+        assert_eq!(entries[0].id, "scan-10");
+        assert_eq!(entries[MAX_SCAN_HISTORY - 1].id, "scan-109");
+    }
+
+    // --- ScanResultEntry serialization tests ---
+
+    #[test]
+    fn test_scan_result_entry_serialization() {
+        let entry = ScanResultEntry {
+            id: "s1".into(),
+            file_path: "/test.txt".into(),
+            clean: true,
+            threat_name: None,
+            scan_time_ms: 50,
+            scanned_at: "2025-01-01T00:00:00+00:00".into(),
+            file_size: 2048,
+        };
+        let json = serde_json::to_value(&entry).unwrap();
+        assert_eq!(json["id"], "s1");
+        assert_eq!(json["clean"], true);
+        assert_eq!(json["threat_name"], serde_json::Value::Null);
+        assert_eq!(json["scan_time_ms"], 50);
+    }
+
+    #[test]
+    fn test_scan_result_entry_deserialization() {
+        let json = r#"{"id":"s2","file_path":"/evil.exe","clean":false,"threat_name":"Eicar","scan_time_ms":100,"scanned_at":"2025-06-01T00:00:00+00:00","file_size":512}"#;
+        let entry: ScanResultEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(entry.id, "s2");
+        assert!(!entry.clean);
+        assert_eq!(entry.threat_name.as_deref(), Some("Eicar"));
+    }
+
+    #[test]
+    fn test_scan_result_entry_clone() {
+        let entry = ScanResultEntry {
+            id: "s3".into(),
+            file_path: "/clone.txt".into(),
+            clean: true,
+            threat_name: None,
+            scan_time_ms: 10,
+            scanned_at: "2025-01-01T00:00:00+00:00".into(),
+            file_size: 64,
+        };
+        let cloned = entry.clone();
+        assert_eq!(cloned.id, entry.id);
+        assert_eq!(cloned.file_path, entry.file_path);
+    }
+
+    // --- AntivirusStatusResponse tests ---
+
+    #[test]
+    fn test_antivirus_status_response_serialization() {
+        let resp = AntivirusStatusResponse {
+            connected: true,
+            host: "127.0.0.1".into(),
+            port: 3310,
+            total_scans: 42,
+            infected_count: 2,
+            clean_count: 40,
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["connected"], true);
+        assert_eq!(json["total_scans"], 42);
+        assert_eq!(json["infected_count"], 2);
+        assert_eq!(json["clean_count"], 40);
+    }
+
+    // --- ScanFileResponse tests ---
+
+    #[test]
+    fn test_scan_file_response_serialization() {
+        let resp = ScanFileResponse {
+            file_path: "/test.txt".into(),
+            clean: true,
+            threat_name: None,
+            scan_time_ms: 25,
+            scanned_at: "2025-01-01T00:00:00+00:00".into(),
+        };
+        let json = serde_json::to_value(&resp).unwrap();
+        assert_eq!(json["file_path"], "/test.txt");
+        assert_eq!(json["clean"], true);
+        assert_eq!(json["scan_time_ms"], 25);
+    }
+
+    // --- ScanDirectoryRequest tests ---
+
+    #[test]
+    fn test_scan_directory_request_deserialization() {
+        let json = r#"{"directory":"/uploads"}"#;
+        let req: ScanDirectoryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.directory, "/uploads");
+    }
+
+    // --- scan_file_tcp error path tests ---
+
+    #[tokio::test]
+    async fn test_scan_file_tcp_connection_refused() {
+        let config = ClamavTcpConfig {
+            host: "127.0.0.1".to_string(),
+            port: 19998,
+            timeout_ms: 1000,
+        };
+        let result = scan_file_tcp(&config, "/test.txt", b"hello").await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("Failed to connect") || err.contains("Timeout"),
+            "Expected connection error, got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn test_scan_file_tcp_timeout() {
+        let config = ClamavTcpConfig {
+            host: "127.0.0.1".to_string(),
+            port: 19997,
+            timeout_ms: 100,
+        };
+        let result = scan_file_tcp(&config, "/test.txt", b"data").await;
+        assert!(result.is_err());
+    }
+
+    // --- scan_file_tcp response parsing tests ---
+
+    #[test]
+    fn test_parse_clean_response() {
+        let response_str = "stream: OK";
+        assert!(response_str.ends_with("OK"));
+    }
+
+    #[test]
+    fn test_parse_infected_response() {
+        let response_str = "stream: Win.Trojan.Generic FOUND";
+        assert!(response_str.ends_with("FOUND"));
+        let virus_name = response_str
+            .strip_prefix("stream: ")
+            .and_then(|s| s.strip_suffix(" FOUND"))
+            .map(|s| s.to_string());
+        assert_eq!(virus_name.as_deref(), Some("Win.Trojan.Generic"));
+    }
+
+    #[test]
+    fn test_parse_error_response() {
+        let response_str = "stream: SOME ERROR OCCURRED";
+        assert!(response_str.contains("ERROR"));
+    }
+
+    #[test]
+    fn test_parse_unexpected_response() {
+        let response_str = "something weird";
+        assert!(!response_str.ends_with("OK"));
+        assert!(!response_str.ends_with("FOUND"));
+        assert!(!response_str.contains("ERROR"));
+    }
+
+    #[test]
+    fn test_parse_clean_response_no_prefix() {
+        let response_str = "OK";
+        assert!(response_str.ends_with("OK"));
+        let virus_name = response_str
+            .strip_prefix("stream: ")
+            .and_then(|s| s.strip_suffix(" FOUND"))
+            .map(|s| s.to_string());
+        assert!(virus_name.is_none());
     }
 }

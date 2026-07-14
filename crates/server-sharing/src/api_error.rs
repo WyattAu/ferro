@@ -243,12 +243,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_api_error_with_details() {
-        let response = ApiError::with_details(
-            StatusCode::BAD_REQUEST,
-            "CUSTOM",
-            "Bad input",
-            "field 'x' is missing",
-        );
+        let response = ApiError::with_details(StatusCode::BAD_REQUEST, "CUSTOM", "Bad input", "field 'x' is missing");
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let body = body_bytes(response).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -325,8 +320,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unauthorized_with_www_authenticate() {
-        let response =
-            ApiError::unauthorized_with_www_authenticate(ApiError::AUTH_REQUIRED, "auth required");
+        let response = ApiError::unauthorized_with_www_authenticate(ApiError::AUTH_REQUIRED, "auth required");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let www_auth = response.headers().get("www-authenticate").unwrap();
         assert_eq!(www_auth, r#"Basic realm="Ferro""#);

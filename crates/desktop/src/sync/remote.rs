@@ -88,33 +88,24 @@ fn parse_propfind_response(xml: &str, remote_root: &str) -> Result<RemoteScanRes
             // propstat
             if child.has_tag_name(("DAV:", "propstat")) || child.has_tag_name("propstat") {
                 for prop_child in child.children() {
-                    if prop_child.has_tag_name(("DAV:", "prop")) || prop_child.has_tag_name("prop")
-                    {
+                    if prop_child.has_tag_name(("DAV:", "prop")) || prop_child.has_tag_name("prop") {
                         for prop in prop_child.children() {
-                            if prop.has_tag_name(("DAV:", "getetag"))
-                                || prop.has_tag_name("getetag")
-                            {
+                            if prop.has_tag_name(("DAV:", "getetag")) || prop.has_tag_name("getetag") {
                                 etag = prop.text().unwrap_or("").trim().to_string();
                                 // Strip surrounding quotes
                                 etag = etag.trim_matches('"').to_string();
                             }
-                            if prop.has_tag_name(("DAV:", "getcontentlength"))
-                                || prop.has_tag_name("getcontentlength")
+                            if prop.has_tag_name(("DAV:", "getcontentlength")) || prop.has_tag_name("getcontentlength")
                             {
                                 content_length = prop.text().unwrap_or("0").parse().unwrap_or(0);
                             }
-                            if prop.has_tag_name(("DAV:", "getlastmodified"))
-                                || prop.has_tag_name("getlastmodified")
-                            {
+                            if prop.has_tag_name(("DAV:", "getlastmodified")) || prop.has_tag_name("getlastmodified") {
                                 last_modified = prop.text().unwrap_or("").to_string();
                             }
-                            if prop.has_tag_name(("DAV:", "resourcetype"))
-                                || prop.has_tag_name("resourcetype")
-                            {
-                                is_dir = prop.children().any(|c| {
-                                    c.has_tag_name(("DAV:", "collection"))
-                                        || c.has_tag_name("collection")
-                                });
+                            if prop.has_tag_name(("DAV:", "resourcetype")) || prop.has_tag_name("resourcetype") {
+                                is_dir = prop
+                                    .children()
+                                    .any(|c| c.has_tag_name(("DAV:", "collection")) || c.has_tag_name("collection"));
                             }
                         }
                     }
@@ -243,10 +234,7 @@ mod tests {
         assert!(result.files.contains_key("hello.txt"));
 
         let (hash, size, _, is_dir) = result.files.get("hello.txt").unwrap();
-        assert_eq!(
-            hash,
-            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
-        );
+        assert_eq!(hash, "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9");
         assert_eq!(*size, 11);
         assert!(!is_dir);
     }
@@ -254,10 +242,7 @@ mod tests {
     #[test]
     fn test_href_to_relative() {
         assert_eq!(href_to_relative("/docs/file.txt", "/docs"), "file.txt");
-        assert_eq!(
-            href_to_relative("/docs/sub/file.txt", "/docs"),
-            "sub/file.txt"
-        );
+        assert_eq!(href_to_relative("/docs/sub/file.txt", "/docs"), "sub/file.txt");
         assert_eq!(href_to_relative("/docs/", "/docs"), "");
         assert_eq!(href_to_relative("/file.txt", ""), "file.txt");
     }

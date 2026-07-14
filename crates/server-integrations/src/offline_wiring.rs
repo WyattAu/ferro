@@ -62,9 +62,7 @@ pub async fn queue_put<S: IntegrationsState>(
     let queue = match state.offline_queue() {
         Some(q) => q,
         None => {
-            return Err(OfflineError::Storage(
-                "Offline queue not configured".to_string(),
-            ));
+            return Err(OfflineError::Storage("Offline queue not configured".to_string()));
         }
     };
     let op = QueuedOperation::put(path, content_hash, content_size, owner);
@@ -72,17 +70,11 @@ pub async fn queue_put<S: IntegrationsState>(
 }
 
 /// Enqueue a DELETE operation for later sync.
-pub async fn queue_delete<S: IntegrationsState>(
-    state: &S,
-    path: &str,
-    owner: &str,
-) -> Result<(), OfflineError> {
+pub async fn queue_delete<S: IntegrationsState>(state: &S, path: &str, owner: &str) -> Result<(), OfflineError> {
     let queue = match state.offline_queue() {
         Some(q) => q,
         None => {
-            return Err(OfflineError::Storage(
-                "Offline queue not configured".to_string(),
-            ));
+            return Err(OfflineError::Storage("Offline queue not configured".to_string()));
         }
     };
     let op = QueuedOperation::delete(path, owner);
@@ -99,9 +91,7 @@ pub async fn queue_move<S: IntegrationsState>(
     let queue = match state.offline_queue() {
         Some(q) => q,
         None => {
-            return Err(OfflineError::Storage(
-                "Offline queue not configured".to_string(),
-            ));
+            return Err(OfflineError::Storage("Offline queue not configured".to_string()));
         }
     };
     let op = QueuedOperation::move_op(from, to, owner);
@@ -118,9 +108,7 @@ pub async fn queue_copy<S: IntegrationsState>(
     let queue = match state.offline_queue() {
         Some(q) => q,
         None => {
-            return Err(OfflineError::Storage(
-                "Offline queue not configured".to_string(),
-            ));
+            return Err(OfflineError::Storage("Offline queue not configured".to_string()));
         }
     };
     let op = QueuedOperation::copy(from, to, owner);
@@ -136,9 +124,7 @@ pub async fn queue_create_collection<S: IntegrationsState>(
     let queue = match state.offline_queue() {
         Some(q) => q,
         None => {
-            return Err(OfflineError::Storage(
-                "Offline queue not configured".to_string(),
-            ));
+            return Err(OfflineError::Storage("Offline queue not configured".to_string()));
         }
     };
     let op = QueuedOperation::create_collection(path, owner);
@@ -164,12 +150,8 @@ pub async fn sync_pending_ops<S: IntegrationsState>(state: &S) -> (u32, u32) {
 
     for op in &pending {
         let result: Result<(), common::error::FerroError> = match op.op {
-            ferro_offline::change_queue::OperationType::Put => {
-                state.storage().head(&op.source_path).await.map(|_| ())
-            }
-            ferro_offline::change_queue::OperationType::Delete => {
-                state.storage().delete(&op.source_path).await
-            }
+            ferro_offline::change_queue::OperationType::Put => state.storage().head(&op.source_path).await.map(|_| ()),
+            ferro_offline::change_queue::OperationType::Delete => state.storage().delete(&op.source_path).await,
             ferro_offline::change_queue::OperationType::Move => {
                 if let Some(ref dest) = op.dest_path {
                     state.storage().move_path(&op.source_path, dest).await
@@ -189,10 +171,6 @@ pub async fn sync_pending_ops<S: IntegrationsState>(state: &S) -> (u32, u32) {
                 .create_collection(&op.source_path, &op.owner)
                 .await
                 .map(|_| ()),
-            _ => {
-                warn!("Unhandled offline operation type: {:?}", op.op);
-                Ok(())
-            }
         };
 
         match result {
@@ -207,10 +185,7 @@ pub async fn sync_pending_ops<S: IntegrationsState>(state: &S) -> (u32, u32) {
         }
     }
 
-    info!(
-        "Offline sync complete: {} synced, {} failed",
-        synced, failed
-    );
+    info!("Offline sync complete: {} synced, {} failed", synced, failed);
     (synced, failed)
 }
 

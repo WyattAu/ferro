@@ -17,8 +17,7 @@ pub async fn simple_auth_middleware(
     user_store: std::sync::Arc<dyn UserStoreTrait>,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    simple_auth_middleware_with_api_keys(req, admin_user, admin_password, user_store, None, next)
-        .await
+    simple_auth_middleware_with_api_keys(req, admin_user, admin_password, user_store, None, next).await
 }
 
 /// Extended `simple_auth_middleware` that also checks API keys.
@@ -45,25 +44,20 @@ pub async fn simple_auth_middleware_with_api_keys(
     // --- API key authentication (checked first) ---
     if let Some(ref store) = api_key_store {
         let raw_key = crate::api_keys::extract_api_key(req.headers(), req.uri().query());
-        if let Some(key) = raw_key {
-            match store.authenticate(&key).await {
-                Ok(api_key) => {
-                    let sub = format!("api-key:{}", api_key.user_id);
-                    req.extensions_mut().insert(UserInfo {
-                        user_id: api_key.user_id,
-                        username: sub,
-                        role: match api_key.permission {
-                            crate::api_keys::ApiKeyPermission::Admin => UserRole::Admin,
-                            crate::api_keys::ApiKeyPermission::Write => UserRole::User,
-                            crate::api_keys::ApiKeyPermission::Read => UserRole::ReadOnly,
-                        },
-                    });
-                    return next.run(req).await;
-                }
-                Err(_) => {
-                    // Invalid API key -- fall through to Basic auth
-                }
-            }
+        if let Some(key) = raw_key
+            && let Ok(api_key) = store.authenticate(&key).await
+        {
+            let sub = format!("api-key:{}", api_key.user_id);
+            req.extensions_mut().insert(UserInfo {
+                user_id: api_key.user_id,
+                username: sub,
+                role: match api_key.permission {
+                    crate::api_keys::ApiKeyPermission::Admin => UserRole::Admin,
+                    crate::api_keys::ApiKeyPermission::Write => UserRole::User,
+                    crate::api_keys::ApiKeyPermission::Read => UserRole::ReadOnly,
+                },
+            });
+            return next.run(req).await;
         }
     }
 
@@ -87,10 +81,7 @@ pub async fn simple_auth_middleware_with_api_keys(
     let decoded = match base64::engine::general_purpose::STANDARD.decode(encoded) {
         Ok(d) => d,
         Err(_) => {
-            return unauthorized_with_www_authenticate(
-                "INVALID_CREDENTIALS",
-                "invalid credentials",
-            );
+            return unauthorized_with_www_authenticate("INVALID_CREDENTIALS", "invalid credentials");
         }
     };
 
@@ -98,10 +89,7 @@ pub async fn simple_auth_middleware_with_api_keys(
     let (user, pass) = match credentials.split_once(':') {
         Some((u, p)) => (u, p),
         None => {
-            return unauthorized_with_www_authenticate(
-                "INVALID_CREDENTIALS",
-                "invalid credentials",
-            );
+            return unauthorized_with_www_authenticate("INVALID_CREDENTIALS", "invalid credentials");
         }
     };
 
@@ -115,10 +103,7 @@ pub async fn simple_auth_middleware_with_api_keys(
             Ok(u) if u.is_active() => UserInfo::from(&u),
             Ok(_u) => {
                 // User exists in store but is disabled -- deny even with admin credentials
-                return unauthorized_with_www_authenticate(
-                    "ACCOUNT_DISABLED",
-                    "account is disabled",
-                );
+                return unauthorized_with_www_authenticate("ACCOUNT_DISABLED", "account is disabled");
             }
             Err(_) => {
                 // Admin credentials valid but user not in store (first use) -- grant admin
@@ -133,10 +118,7 @@ pub async fn simple_auth_middleware_with_api_keys(
         match user_store.authenticate(user, pass).await {
             Ok(u) => UserInfo::from(&u),
             Err(_) => {
-                return unauthorized_with_www_authenticate(
-                    "INVALID_CREDENTIALS",
-                    "invalid credentials",
-                );
+                return unauthorized_with_www_authenticate("INVALID_CREDENTIALS", "invalid credentials");
             }
         }
     };
@@ -187,10 +169,7 @@ mod tests {
                     let admin_user = admin_user.clone();
                     let admin_password = admin_password.clone();
                     let user_store = user_store.clone();
-                    async move {
-                        simple_auth_middleware(req, admin_user, admin_password, user_store, next)
-                            .await
-                    }
+                    async move { simple_auth_middleware(req, admin_user, admin_password, user_store, next).await }
                 },
             ))
     }
@@ -199,12 +178,7 @@ mod tests {
     async fn test_no_auth_required_when_not_configured() {
         let app = make_auth_app(None, None);
         let resp = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/test")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/api/test").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -218,12 +192,7 @@ mod tests {
                 .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
                 .await
                 .unwrap();
-            assert_eq!(
-                resp.status(),
-                StatusCode::OK,
-                "path {} should be public",
-                path
-            );
+            assert_eq!(resp.status(), StatusCode::OK, "path {} should be public", path);
         }
         check("/healthz").await;
         check("/.well-known/ferro").await;
@@ -272,12 +241,7 @@ mod tests {
     async fn test_missing_auth_header_returns_401() {
         let app = make_auth_app(Some("admin"), Some("secret"));
         let resp = app
-            .oneshot(
-                Request::builder()
-                    .uri("/api/test")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/api/test").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -375,8 +339,7 @@ mod tests {
     async fn test_very_long_credentials_handled() {
         let app = make_auth_app(Some("admin"), Some("secret"));
         let long_user = "x".repeat(10_000);
-        let creds =
-            base64::engine::general_purpose::STANDARD.encode(format!("{}:password", long_user));
+        let creds = base64::engine::general_purpose::STANDARD.encode(format!("{}:password", long_user));
         let resp = app
             .oneshot(
                 Request::builder()
@@ -409,7 +372,9 @@ mod tests {
             storage_quota_bytes: None,
             storage_used_bytes: 0,
             is_ldap: false,
-            password_hash: Some(crate::users::hash_password("userpass").unwrap()),
+            password_hash: Some(common::zeroize::ZeroizeString::new(
+                crate::users::hash_password("userpass").unwrap(),
+            )),
             totp_secret: None,
             totp_enabled: false,
         };
@@ -424,10 +389,7 @@ mod tests {
                     let admin_user = admin_user.clone();
                     let admin_password = admin_password.clone();
                     let user_store = store.clone();
-                    async move {
-                        simple_auth_middleware(req, admin_user, admin_password, user_store, next)
-                            .await
-                    }
+                    async move { simple_auth_middleware(req, admin_user, admin_password, user_store, next).await }
                 },
             ));
 
@@ -460,7 +422,9 @@ mod tests {
             storage_quota_bytes: None,
             storage_used_bytes: 0,
             is_ldap: false,
-            password_hash: Some(crate::users::hash_password("correct").unwrap()),
+            password_hash: Some(common::zeroize::ZeroizeString::new(
+                crate::users::hash_password("correct").unwrap(),
+            )),
             totp_secret: None,
             totp_enabled: false,
         };
@@ -475,10 +439,7 @@ mod tests {
                     let admin_user = admin_user.clone();
                     let admin_password = admin_password.clone();
                     let user_store = store.clone();
-                    async move {
-                        simple_auth_middleware(req, admin_user, admin_password, user_store, next)
-                            .await
-                    }
+                    async move { simple_auth_middleware(req, admin_user, admin_password, user_store, next).await }
                 },
             ));
 
@@ -494,6 +455,190 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_disabled_user_rejected() {
+        let store = std::sync::Arc::new(crate::users::InMemoryUserStore::new());
+        // Create a disabled user with the admin username so the admin credential path is taken
+        let user = crate::users::User {
+            id: uuid::Uuid::new_v4().to_string(),
+            username: "admin".to_string(),
+            display_name: "Disabled Admin".to_string(),
+            email: "admin@example.com".to_string(),
+            role: crate::users::UserRole::Admin,
+            created_at: chrono::Utc::now(),
+            last_login: None,
+            status: crate::users::UserStatus::Disabled,
+            storage_quota_bytes: None,
+            storage_used_bytes: 0,
+            is_ldap: false,
+            password_hash: Some(common::zeroize::ZeroizeString::new(
+                crate::users::hash_password("secret").unwrap(),
+            )),
+            totp_secret: None,
+            totp_enabled: false,
+        };
+        store.create_user(user).await.unwrap();
+
+        let admin_user = Some("admin".to_string());
+        let admin_password = Some("secret".to_string());
+        let app = axum::Router::new()
+            .route("/api/test", axum::routing::get(|| async { "ok" }))
+            .layer(axum::middleware::from_fn(
+                move |req: axum::extract::Request, next: axum::middleware::Next| {
+                    let admin_user = admin_user.clone();
+                    let admin_password = admin_password.clone();
+                    let user_store = store.clone();
+                    async move { simple_auth_middleware(req, admin_user, admin_password, user_store, next).await }
+                },
+            ));
+
+        let creds = base64::engine::general_purpose::STANDARD.encode("admin:secret");
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/test")
+                    .header("Authorization", format!("Basic {}", creds))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNAUTHORIZED,
+            "Disabled user should be rejected even with valid admin credentials"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_non_basic_auth_header_rejected() {
+        let app = make_auth_app(Some("admin"), Some("secret"));
+        // "Token " is 6 chars, so &h[6..] = "YWRtaW46c2VjcmV0" which base64-decodes to "admin:secret"
+        // Original code rejects this (doesn't start with "Basic ")
+        // Mutant (match guard -> true) would accept it as valid credentials
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/test")
+                    .header("Authorization", "Token YWRtaW46c2VjcmV0")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNAUTHORIZED,
+            "Non-Basic Authorization header should be rejected"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_partial_admin_config_user_only_passes_through() {
+        let admin_user = Some("admin".to_string());
+        let admin_password: Option<String> = None;
+        let user_store: std::sync::Arc<dyn UserStoreTrait> =
+            std::sync::Arc::new(crate::users::InMemoryUserStore::new());
+        let app = axum::Router::new()
+            .route("/api/test", axum::routing::get(|| async { "ok" }))
+            .layer(axum::middleware::from_fn(
+                move |req: axum::extract::Request, next: axum::middleware::Next| {
+                    let admin_user = admin_user.clone();
+                    let admin_password = admin_password.clone();
+                    let user_store = user_store.clone();
+                    async move { simple_auth_middleware(req, admin_user, admin_password, user_store, next).await }
+                },
+            ));
+
+        let resp = app
+            .oneshot(Request::builder().uri("/api/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Partial admin config (password=None) should pass through without auth"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_partial_admin_config_password_only_passes_through() {
+        let admin_user: Option<String> = None;
+        let admin_password = Some("secret".to_string());
+        let user_store: std::sync::Arc<dyn UserStoreTrait> =
+            std::sync::Arc::new(crate::users::InMemoryUserStore::new());
+        let app = axum::Router::new()
+            .route("/api/test", axum::routing::get(|| async { "ok" }))
+            .layer(axum::middleware::from_fn(
+                move |req: axum::extract::Request, next: axum::middleware::Next| {
+                    let admin_user = admin_user.clone();
+                    let admin_password = admin_password.clone();
+                    let user_store = user_store.clone();
+                    async move { simple_auth_middleware(req, admin_user, admin_password, user_store, next).await }
+                },
+            ));
+
+        let resp = app
+            .oneshot(Request::builder().uri("/api/test").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Partial admin config (user=None) should pass through without auth"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_active_admin_user_accepted() {
+        let store = std::sync::Arc::new(crate::users::InMemoryUserStore::new());
+        let user = crate::users::User {
+            id: uuid::Uuid::new_v4().to_string(),
+            username: "admin".to_string(),
+            display_name: "Active Admin".to_string(),
+            email: "admin@example.com".to_string(),
+            role: crate::users::UserRole::Admin,
+            created_at: chrono::Utc::now(),
+            last_login: None,
+            status: crate::users::UserStatus::Active,
+            storage_quota_bytes: None,
+            storage_used_bytes: 0,
+            is_ldap: false,
+            password_hash: Some(common::zeroize::ZeroizeString::new(
+                crate::users::hash_password("secret").unwrap(),
+            )),
+            totp_secret: None,
+            totp_enabled: false,
+        };
+        store.create_user(user).await.unwrap();
+
+        let admin_user = Some("admin".to_string());
+        let admin_password = Some("secret".to_string());
+        let app = axum::Router::new()
+            .route("/api/test", axum::routing::get(|| async { "ok" }))
+            .layer(axum::middleware::from_fn(
+                move |req: axum::extract::Request, next: axum::middleware::Next| {
+                    let admin_user = admin_user.clone();
+                    let admin_password = admin_password.clone();
+                    let user_store = store.clone();
+                    async move { simple_auth_middleware(req, admin_user, admin_password, user_store, next).await }
+                },
+            ));
+
+        let creds = base64::engine::general_purpose::STANDARD.encode("admin:secret");
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/test")
+                    .header("Authorization", format!("Basic {}", creds))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK, "Active admin user should be accepted");
     }
 
     #[tokio::test]
@@ -517,10 +662,7 @@ mod tests {
                     let admin_user = admin_user.clone();
                     let admin_password = admin_password.clone();
                     let user_store = store.clone();
-                    async move {
-                        simple_auth_middleware(req, admin_user, admin_password, user_store, next)
-                            .await
-                    }
+                    async move { simple_auth_middleware(req, admin_user, admin_password, user_store, next).await }
                 },
             ));
 

@@ -33,10 +33,7 @@ pub async fn resolve_actor(actor_url: &str) -> Result<actor::Actor, String> {
 
     let status = response.status();
     if !status.is_success() {
-        return Err(format!(
-            "Actor fetch failed with status {} for {}",
-            status, actor_url
-        ));
+        return Err(format!("Actor fetch failed with status {} for {}", status, actor_url));
     }
 
     response
@@ -83,11 +80,7 @@ pub async fn get_actor(
         Ok(a) => a,
         Err(e) => {
             tracing::error!("failed to generate actor key pair: {e}");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "failed to generate actor",
-            )
-                .into_response();
+            return (StatusCode::INTERNAL_SERVER_ERROR, "failed to generate actor").into_response();
         }
     };
 
@@ -128,10 +121,7 @@ pub async fn nodeinfo(State(_state): State<FederationState>) -> Response {
         .into_response()
 }
 
-pub async fn inbox(
-    State(state): State<FederationState>,
-    req: axum::http::Request<axum::body::Body>,
-) -> Response {
+pub async fn inbox(State(state): State<FederationState>, req: axum::http::Request<axum::body::Body>) -> Response {
     if state.federation_secret.is_empty() {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -168,12 +158,7 @@ pub async fn inbox(
                 }
             };
 
-            match sig.verify_hmac(
-                req.method(),
-                req.uri().path(),
-                req.headers(),
-                &state.federation_secret,
-            ) {
+            match sig.verify_hmac(req.method(), req.uri().path(), req.headers(), &state.federation_secret) {
                 Ok(true) => {}
                 Ok(false) | Err(_) => {
                     return (
@@ -187,9 +172,7 @@ pub async fn inbox(
     }
 
     let (parts, body) = req.into_parts();
-    let body_bytes = axum::body::to_bytes(body, 1024 * 1024)
-        .await
-        .unwrap_or_default();
+    let body_bytes = axum::body::to_bytes(body, 1024 * 1024).await.unwrap_or_default();
     let activity: Activity = match serde_json::from_slice(&body_bytes) {
         Ok(a) => a,
         Err(e) => {
@@ -235,10 +218,7 @@ pub async fn inbox(
                 target: None,
             };
             state.activity_store.add_to_outbox(accept.clone()).ok();
-            state
-                .activity_store
-                .add_follower("admin", &activity.actor)
-                .ok();
+            state.activity_store.add_follower("admin", &activity.actor).ok();
 
             let deliver_state = state.clone();
             let accept_clone = accept;
@@ -251,10 +231,7 @@ pub async fn inbox(
         ActivityType::Announce => {}
         ActivityType::Undo => {
             if let serde_json::Value::String(target_url) = &activity.object {
-                state
-                    .activity_store
-                    .remove_follower("admin", target_url)
-                    .ok();
+                state.activity_store.remove_follower("admin", target_url).ok();
             }
         }
         _ => {}
@@ -267,15 +244,8 @@ pub async fn list_inbox(
     State(state): State<FederationState>,
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Response {
-    let offset = params
-        .get("offset")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(0);
-    let limit = params
-        .get("limit")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(20)
-        .min(100);
+    let offset = params.get("offset").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let limit = params.get("limit").and_then(|v| v.parse().ok()).unwrap_or(20).min(100);
     let activities = state.activity_store.get_inbox(offset, limit);
     (StatusCode::OK, axum::Json(activities)).into_response()
 }
@@ -284,15 +254,8 @@ pub async fn list_outbox(
     State(state): State<FederationState>,
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Response {
-    let offset = params
-        .get("offset")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(0);
-    let limit = params
-        .get("limit")
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(20)
-        .min(100);
+    let offset = params.get("offset").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let limit = params.get("limit").and_then(|v| v.parse().ok()).unwrap_or(20).min(100);
     let activities = state.activity_store.get_outbox(offset, limit);
     (StatusCode::OK, axum::Json(activities)).into_response()
 }
@@ -437,19 +400,10 @@ pub async fn federated_share(
 
 pub fn routes(state: FederationState) -> Router {
     Router::new()
-        .route(
-            "/.well-known/webfinger",
-            axum::routing::get(webfinger::webfinger),
-        )
+        .route("/.well-known/webfinger", axum::routing::get(webfinger::webfinger))
         .route("/fed/actor/{username}", axum::routing::get(get_actor))
-        .route(
-            "/fed/actor/{username}/followers",
-            axum::routing::get(list_followers),
-        )
-        .route(
-            "/fed/actor/{username}/following",
-            axum::routing::get(list_following),
-        )
+        .route("/fed/actor/{username}/followers", axum::routing::get(list_followers))
+        .route("/fed/actor/{username}/following", axum::routing::get(list_following))
         .route("/fed/inbox", axum::routing::post(inbox).get(list_inbox))
         .route("/fed/outbox", axum::routing::get(list_outbox))
         .route("/fed/nodeinfo", axum::routing::get(nodeinfo))
@@ -495,9 +449,7 @@ mod tests {
             r#type: ActivityType::Follow,
             actor: remote_actor.to_string(),
             object: serde_json::json!("https://local.example.com/fed/actor/admin"),
-            to: Some(vec![
-                "https://local.example.com/fed/actor/admin".to_string(),
-            ]),
+            to: Some(vec!["https://local.example.com/fed/actor/admin".to_string()]),
             cc: None,
             published: chrono::Utc::now().to_rfc3339(),
             target: None,
@@ -559,7 +511,8 @@ mod tests {
 
     #[test]
     fn test_signature_verification_tampered_signature() {
-        let sig_header = r#"keyId="k",algorithm="hs2019",headers="(request-target)",signature="AAAAAAAAAAAAAAAAAAAAAA==""#;
+        let sig_header =
+            r#"keyId="k",algorithm="hs2019",headers="(request-target)",signature="AAAAAAAAAAAAAAAAAAAAAA==""#;
 
         let sig = HttpSignature::parse(sig_header).unwrap();
         let result = sig.verify_hmac(
@@ -575,9 +528,7 @@ mod tests {
     fn test_signature_verification_actor_mismatch_detected() {
         let secret = "test-secret";
         let key_id = "https://example.com/actor/alice#main-key";
-        let sig =
-            HttpSignature::parse(&create_hmac_signature(secret, "POST", "/fed/inbox", key_id))
-                .unwrap();
+        let sig = HttpSignature::parse(&create_hmac_signature(secret, "POST", "/fed/inbox", key_id)).unwrap();
 
         let sig_actor = http_sig::actor_from_key_id(&sig.key_id);
         let activity_actor = "https://example.com/actor/bob";
@@ -588,9 +539,7 @@ mod tests {
     fn test_signature_verification_actor_match() {
         let secret = "test-secret";
         let key_id = "https://example.com/actor/alice#main-key";
-        let sig =
-            HttpSignature::parse(&create_hmac_signature(secret, "POST", "/fed/inbox", key_id))
-                .unwrap();
+        let sig = HttpSignature::parse(&create_hmac_signature(secret, "POST", "/fed/inbox", key_id)).unwrap();
 
         let sig_actor = http_sig::actor_from_key_id(&sig.key_id);
         let activity_actor = "https://example.com/actor/alice";
@@ -635,10 +584,7 @@ mod tests {
         let state = make_state();
         let remote_actor = "https://remote.example.com/actor/bob";
 
-        state
-            .activity_store
-            .add_follower("admin", remote_actor)
-            .unwrap();
+        state.activity_store.add_follower("admin", remote_actor).unwrap();
         assert_eq!(state.activity_store.get_followers("admin").len(), 1);
 
         let undo = Activity {
@@ -647,9 +593,7 @@ mod tests {
             r#type: ActivityType::Undo,
             actor: remote_actor.to_string(),
             object: serde_json::json!(remote_actor),
-            to: Some(vec![
-                "https://local.example.com/fed/actor/admin".to_string(),
-            ]),
+            to: Some(vec!["https://local.example.com/fed/actor/admin".to_string()]),
             cc: None,
             published: chrono::Utc::now().to_rfc3339(),
             target: None,

@@ -1,0 +1,13 @@
+[experiment]
+name = "CPU Saturation Test"
+description = "Test system behavior under high CPU load"
+
+[[cpu_faults]]
+type = "high_usage"
+cores = 2
+duration_ms = 5000
+
+[expectations]
+should_maintain_availability = true
+should_log_warnings = true
+max_response_time_ms = 1000

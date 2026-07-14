@@ -21,20 +21,20 @@ pub struct ChunkedUpload {
 
 pub type UploadStore = Arc<RwLock<HashMap<String, ChunkedUpload>>>;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct InitUploadResponse {
     upload_id: String,
     chunk_size: usize,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct InitUploadRequest {
     path: String,
     total_size: Option<u64>,
     chunk_size: Option<usize>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CompleteUploadRequest {
     path: Option<String>,
 }
@@ -65,19 +65,9 @@ pub async fn init_upload(
         created_at: std::time::Instant::now(),
     };
 
-    state
-        .upload_store
-        .write()
-        .await
-        .insert(upload_id.clone(), upload);
+    state.upload_store.write().await.insert(upload_id.clone(), upload);
 
-    (
-        StatusCode::OK,
-        Json(InitUploadResponse {
-            upload_id,
-            chunk_size,
-        }),
-    )
+    (StatusCode::OK, Json(InitUploadResponse { upload_id, chunk_size }))
 }
 
 pub async fn upload_chunk(
@@ -126,11 +116,7 @@ pub async fn complete_upload(
                 }
             }
 
-            match state
-                .storage
-                .put(&path, bytes::Bytes::from(data), "anonymous")
-                .await
-            {
+            match state.storage.put(&path, bytes::Bytes::from(data), "anonymous").await {
                 Ok(_) => StatusCode::CREATED,
                 Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
             }
@@ -139,10 +125,7 @@ pub async fn complete_upload(
     }
 }
 
-pub async fn cancel_upload(
-    State(state): State<AppState>,
-    Path(upload_id): Path<String>,
-) -> StatusCode {
+pub async fn cancel_upload(State(state): State<AppState>, Path(upload_id): Path<String>) -> StatusCode {
     state.upload_store.write().await.remove(&upload_id);
     StatusCode::NO_CONTENT
 }

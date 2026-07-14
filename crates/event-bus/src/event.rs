@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -32,11 +32,7 @@ pub struct FileEvent {
 }
 
 impl FileEvent {
-    pub fn new(
-        event_type: impl Into<String>,
-        path: impl Into<String>,
-        user_id: impl Into<String>,
-    ) -> Self {
+    pub fn new(event_type: impl Into<String>, path: impl Into<String>, user_id: impl Into<String>) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             event_type: event_type.into(),

@@ -25,10 +25,7 @@ fn bench_password_verify(c: &mut Criterion) {
         let provider = &provider;
         let hashed = &hashed;
         b.to_async(&rt).iter(|| async move {
-            provider
-                .verify_password("test_password", hashed)
-                .await
-                .unwrap();
+            provider.verify_password("test_password", hashed).await.unwrap();
         })
     });
 }

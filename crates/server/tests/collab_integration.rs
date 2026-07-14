@@ -15,9 +15,7 @@ async fn setup_server() -> (u16, Arc<InMemoryStorageEngine>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
-        axum::serve(listener, app.into_make_service())
-            .await
-            .unwrap();
+        axum::serve(listener, app.into_make_service()).await.unwrap();
     });
     (addr.port(), storage)
 }
@@ -32,9 +30,7 @@ async fn connect_client(
 }
 
 async fn recv_message(
-    ws: &mut tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-    >,
+    ws: &mut tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
 ) -> CollabMessage {
     let timeout = tokio::time::timeout(std::time::Duration::from_secs(5), async {
         while let Some(msg) = ws.next().await {
@@ -55,9 +51,7 @@ async fn recv_message(
 }
 
 async fn recv_message_skip_hello(
-    ws: &mut tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-    >,
+    ws: &mut tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
 ) -> CollabMessage {
     loop {
         let msg = recv_message(ws).await;
@@ -69,9 +63,7 @@ async fn recv_message_skip_hello(
 }
 
 async fn send_message(
-    ws: &mut tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-    >,
+    ws: &mut tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
     msg: &CollabMessage,
 ) {
     let json = serde_json::to_string(msg).unwrap();
@@ -79,9 +71,7 @@ async fn send_message(
 }
 
 async fn join_client(
-    ws: &mut tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-    >,
+    ws: &mut tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
     doc_id: &str,
     pid: u32,
     name: &str,
@@ -243,10 +233,7 @@ async fn test_document_state_persists() {
 
     let path = ".ferro-collab/persist-integ.crdt";
     let data = serde_json::to_vec(&doc).unwrap();
-    storage
-        .put(path, Bytes::from(data), "system")
-        .await
-        .unwrap();
+    storage.put(path, Bytes::from(data), "system").await.unwrap();
 
     let loaded_bytes = storage.get(path).await.unwrap();
     let loaded: CrdtDocument = serde_json::from_slice(&loaded_bytes).unwrap();
@@ -285,16 +272,12 @@ async fn test_new_client_receives_document_state() {
         let msg = recv_message(&mut ws_new).await;
         match msg {
             CollabMessage::DocumentState { .. } => break msg,
-            CollabMessage::Hello { .. }
-            | CollabMessage::Participants { .. }
-            | CollabMessage::Join { .. } => continue,
+            CollabMessage::Hello { .. } | CollabMessage::Participants { .. } | CollabMessage::Join { .. } => continue,
             other => panic!("expected DocumentState, got {:?}", other),
         }
     };
     match new_state {
-        CollabMessage::DocumentState {
-            serialized_state, ..
-        } => {
+        CollabMessage::DocumentState { serialized_state, .. } => {
             let doc: CrdtDocument = serde_json::from_str(&serialized_state).unwrap();
             assert!(
                 doc.get_text().contains("Existing content"),

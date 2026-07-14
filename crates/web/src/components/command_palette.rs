@@ -161,7 +161,7 @@ pub fn CommandPalette() -> impl IntoView {
     view! {
         {move || state.is_open.get().then(|| view! {
             <div
-                class="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-start justify-center pt-[15vh] sm:pt-[20vh] backdrop-blur-sm"
+                class="fixed inset-0 bg-[var(--overlay)] z-[60] flex items-start justify-center pt-[15vh] sm:pt-[20vh] backdrop-blur-sm"
                 role="dialog"
                 aria-label=t!("command_palette.aria")
                 on:click=move |_| state.close()
@@ -172,27 +172,31 @@ pub fn CommandPalette() -> impl IntoView {
                     on:keydown=handle_keydown
                 >
                 <FocusTrap>
-                    <div class="flex items-center border-b border-gray-200 px-4">
+                        <div class="flex items-center border-b border-[var(--border-default)] px-4">
                         <svg class="w-5 h-5 text-accent mr-3 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                         <input
                             id="command-palette-search"
                             type="text"
-                            class="w-full py-3 bg-transparent text-gray-900 placeholder-gray-400 focus:outline-none text-sm font-mono"
+                            class="w-full py-3 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none text-sm font-mono"
                             placeholder=t!("command_palette.placeholder")
                             prop:value=search
                             on:input=move |ev| set_search.set(event_target_value(&ev))
                             aria-label=t!("command_palette.aria")
+                            aria-activedescendant=move || {
+                                let id = highlighted_id.get();
+                                if id.is_empty() { String::new() } else { format!("cmd-{}", id) }
+                            }
                         />
-                        <kbd class="hidden sm:inline-block px-2 py-0.5 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-sm brutal-border ml-2 shrink-0 font-mono">{t!("command_palette.esc")}</kbd>
+                        <kbd class="hidden sm:inline-block px-2 py-0.5 text-xs text-[var(--text-tertiary)] bg-[var(--bg-base)] rounded-sm brutal-border ml-2 shrink-0 font-mono">{t!("command_palette.esc")}</kbd>
                     </div>
                     <div class="max-h-64 overflow-y-auto py-1" role="listbox">
                         {move || {
                             let cmds = filtered_commands();
                             if cmds.is_empty() {
                                 view! {
-                                    <div class="px-4 py-8 text-center text-sm text-gray-500">{t!("empty.commands")}</div>
+                                    <div class="px-4 py-8 text-center text-sm text-[var(--text-tertiary)]">{t!("empty.commands")}</div>
                                 }.into_any()
                             } else {
                                 view! {
@@ -206,6 +210,7 @@ pub fn CommandPalette() -> impl IntoView {
                                             let cmd_id = command.id.clone();
                                             let cmd_id_class = command.id.clone();
                                             let cmd_id_aria = command.id.clone();
+                                            let cmd_id_enter = command.id.clone();
                                             let cmd_label = command.label.clone();
                                             let cmd_shortcut = command.shortcut.clone();
                                             let cmd_action = command.action;
@@ -214,12 +219,13 @@ pub fn CommandPalette() -> impl IntoView {
                                             let pal_state = state;
                                             view! {
                                                 <button
+                                                    id=move || format!("cmd-{}", cmd_id.clone())
                                                     class=move || format!(
                                                         "w-full flex items-center justify-between px-4 py-2.5 text-sm text-left transition-colors min-h-[44px] {}",
                                                         if hl_id.get() == cmd_id_class {
-                                                            "bg-blue-50 dark:bg-blue-900/30 text-accent dark:text-accent border-l-4 border-l-blue-600"
+                                                            "bg-[var(--accent-subtle)] text-accent dark:text-accent border-l-4 border-l-[var(--accent)]"
                                                         } else {
-                                                            "text-gray-700 hover:bg-gray-100"
+                                                            "text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)]"
                                                         }
                                                     )
                                                     role="option"
@@ -228,11 +234,11 @@ pub fn CommandPalette() -> impl IntoView {
                                                         pal_state.close();
                                                         cmd_action.run(());
                                                     }
-                                                    on:mouseenter=move |_| set_hl.set(cmd_id.clone())
+                                                    on:mouseenter=move |_| set_hl.set(cmd_id_enter.clone())
                                                 >
                                                     <span>{cmd_label}</span>
                                                     {cmd_shortcut.map(|shortcut| view! {
-                                                        <span class="text-xs text-gray-400 font-mono ml-4 shrink-0 surface brutal-border px-1.5 py-0.5 rounded-sm">{shortcut}</span>
+                                                        <span class="text-xs text-[var(--text-tertiary)] font-mono ml-4 shrink-0 surface brutal-border px-1.5 py-0.5 rounded-sm">{shortcut}</span>
                                                     })}
                                                 </button>
                                             }

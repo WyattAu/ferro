@@ -1,0 +1,21 @@
+[experiment]
+name = "Network Partition Test"
+description = "Test system behavior during network partition"
+
+[[network_faults]]
+type = "partition"
+duration_ms = 1000
+
+[[network_faults]]
+type = "latency"
+min_ms = 100
+max_ms = 500
+
+[[network_faults]]
+type = "packet_loss"
+probability = 0.1
+
+[expectations]
+should_maintain_availability = true
+should_gracefully_degrade = true
+max_recovery_time_ms = 5000

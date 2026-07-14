@@ -91,11 +91,9 @@ impl BrandingStore {
     pub fn load(&self) -> BrandingConfig {
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-            if let Ok(value) = conn.query_row(
-                "SELECT value FROM preferences WHERE key = 'branding'",
-                [],
-                |row| row.get::<_, String>(0),
-            ) && let Ok(config) = serde_json::from_str::<BrandingConfig>(&value)
+            if let Ok(value) = conn.query_row("SELECT value FROM preferences WHERE key = 'branding'", [], |row| {
+                row.get::<_, String>(0)
+            }) && let Ok(config) = serde_json::from_str::<BrandingConfig>(&value)
             {
                 return config;
             }
@@ -152,9 +150,7 @@ pub async fn update_branding<S: AdminState>(
     }
     if let Some(primary_color) = req.primary_color {
         // Validate hex color format
-        if !primary_color.starts_with('#')
-            || !(primary_color.len() == 7 || primary_color.len() == 4)
-        {
+        if !primary_color.starts_with('#') || !(primary_color.len() == 7 || primary_color.len() == 4) {
             return (
                 StatusCode::BAD_REQUEST,
                 axum::Json(serde_json::json!({

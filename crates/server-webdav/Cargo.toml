@@ -28,7 +28,5 @@ http-body-util = "0.1"
 tokio-util = { version = "0.7", features = ["io", "rt"] }
 url = "2"
 mime_guess = "2"
-futures = "0.3"
 rusqlite = { version = "0.32", features = ["bundled", "trace"] }
-quick-xml = { version = "0.41", features = ["serialize"] }
 anyhow = "1"

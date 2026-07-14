@@ -15,9 +15,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros", "rt", "net", "io-util"] }
 async-trait = "0.1"
 dashmap = "6"
-uuid = { version = "1", features = ["v4", "serde"] }
 sha2 = { workspace = true }
-rand = { workspace = true }
 bytes = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 serde_json = { workspace = true }

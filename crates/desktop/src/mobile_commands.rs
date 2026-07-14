@@ -97,12 +97,11 @@ fn build_mobile_client(auth_token: &str) -> Result<reqwest::Client, String> {
 }
 
 fn get_sync_config() -> Result<MobileSyncConfig, String> {
-    let state = MOBILE_STATE
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
-    state.as_ref().map(|s| s.config.clone()).ok_or_else(|| {
-        "Background sync not configured. Call mobile_start_background_sync first.".to_string()
-    })
+    let state = MOBILE_STATE.lock().map_err(|e| format!("Lock error: {}", e))?;
+    state
+        .as_ref()
+        .map(|s| s.config.clone())
+        .ok_or_else(|| "Background sync not configured. Call mobile_start_background_sync first.".to_string())
 }
 
 fn manifest_path(cache_path: &str) -> std::path::PathBuf {
@@ -113,9 +112,7 @@ fn manifest_path(cache_path: &str) -> std::path::PathBuf {
 
 fn cache_file_path(cache_path: &str, remote_path: &str) -> std::path::PathBuf {
     let cleaned = remote_path.trim_start_matches('/');
-    std::path::PathBuf::from(cache_path)
-        .join("files")
-        .join(cleaned)
+    std::path::PathBuf::from(cache_path).join("files").join(cleaned)
 }
 
 fn read_manifest(cache_path: &str) -> PinManifest {
@@ -129,11 +126,10 @@ fn read_manifest(cache_path: &str) -> PinManifest {
 fn write_manifest(cache_path: &str, manifest: &PinManifest) -> Result<(), String> {
     let path = manifest_path(cache_path);
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create manifest dir: {}", e))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create manifest dir: {}", e))?;
     }
-    let content = serde_json::to_string_pretty(manifest)
-        .map_err(|e| format!("Manifest serialization failed: {}", e))?;
+    let content =
+        serde_json::to_string_pretty(manifest).map_err(|e| format!("Manifest serialization failed: {}", e))?;
     std::fs::write(&path, content).map_err(|e| format!("Failed to write manifest: {}", e))
 }
 
@@ -183,11 +179,7 @@ const PROPFIND_BODY: &str = r#"<?xml version="1.0" encoding="utf-8"?>
   </D:prop>
 </D:propfind>"#;
 
-async fn do_mobile_propfind(
-    client: &reqwest::Client,
-    server_url: &str,
-    path: &str,
-) -> Result<String, String> {
+async fn do_mobile_propfind(client: &reqwest::Client, server_url: &str, path: &str) -> Result<String, String> {
     let url = format!("{}{}", server_url.trim_end_matches('/'), path);
     let response = client
         .request(
@@ -314,10 +306,7 @@ async fn run_sync_cycle(client: &reqwest::Client, config: &MobileSyncConfig) -> 
         return Err(format!("PROPFIND returned: {}", response.status()));
     }
 
-    let xml = response
-        .text()
-        .await
-        .map_err(|e| format!("Read body failed: {}", e))?;
+    let xml = response.text().await.map_err(|e| format!("Read body failed: {}", e))?;
 
     let document = roxmltree::Document::parse(&xml).map_err(|e| format!("XML parse: {}", e))?;
 
@@ -373,21 +362,14 @@ fn scan_dir_for_entries(
     for entry in std::fs::read_dir(dir).map_err(|e| format!("Failed to read dir: {}", e))? {
         let entry = entry.map_err(|e| format!("Dir entry error: {}", e))?;
         let path = entry.path();
-        let relative = path
-            .strip_prefix(base)
-            .map_err(|e| format!("Path error: {}", e))?;
+        let relative = path.strip_prefix(base).map_err(|e| format!("Path error: {}", e))?;
         let remote_path = format!("/{}", relative.display());
         let is_pinned = manifest.pinned.contains_key(&remote_path);
         if path.is_dir() {
             scan_dir_for_entries(base, &path, manifest, entries)?;
         } else {
-            let metadata =
-                std::fs::metadata(&path).map_err(|e| format!("Metadata error: {}", e))?;
-            let name = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_string();
+            let metadata = std::fs::metadata(&path).map_err(|e| format!("Metadata error: {}", e))?;
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
             let modified = metadata
                 .modified()
                 .map(|t| {
@@ -457,8 +439,7 @@ pub async fn mobile_get_storage_stats() -> Result<StorageStats, String> {
     let xml = do_mobile_propfind(&client, &config.server_url, "/").await?;
     let (server_used, server_total) = parse_quota_from_xml(&xml);
 
-    let (local_cache_bytes, pinned_files, pinned_bytes) =
-        scan_cache_stats(&config.local_cache_path);
+    let (local_cache_bytes, pinned_files, pinned_bytes) = scan_cache_stats(&config.local_cache_path);
 
     Ok(StorageStats {
         local_cache_bytes,
@@ -506,8 +487,7 @@ pub async fn mobile_start_background_sync(
     let config_clone = config.clone();
 
     let files_dir = std::path::PathBuf::from(&config.local_cache_path).join("files");
-    std::fs::create_dir_all(&files_dir)
-        .map_err(|e| format!("Failed to create cache dir: {}", e))?;
+    std::fs::create_dir_all(&files_dir).map_err(|e| format!("Failed to create cache dir: {}", e))?;
 
     let task = if background_sync_enabled {
         let client = build_mobile_client(&config.auth_token)?;
@@ -532,9 +512,7 @@ pub async fn mobile_start_background_sync(
         None
     };
 
-    let mut state = MOBILE_STATE
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let mut state = MOBILE_STATE.lock().map_err(|e| format!("Lock error: {}", e))?;
     *state = Some(MobileSyncStateInner {
         config,
         cancel,
@@ -597,11 +575,9 @@ pub async fn mobile_pin_file_offline(path: String) -> Result<(), String> {
 
     let local_path = cache_file_path(&config.local_cache_path, &path);
     if let Some(parent) = local_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create cache dir: {}", e))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create cache dir: {}", e))?;
     }
-    std::fs::write(&local_path, &bytes)
-        .map_err(|e| format!("Failed to write cached file: {}", e))?;
+    std::fs::write(&local_path, &bytes).map_err(|e| format!("Failed to write cached file: {}", e))?;
 
     let mut manifest = read_manifest(&config.local_cache_path);
     manifest.pinned.insert(
@@ -630,8 +606,7 @@ pub async fn mobile_unpin_file_offline(path: String) -> Result<(), String> {
 
     let local_path = cache_file_path(&config.local_cache_path, &path);
     if local_path.exists() {
-        std::fs::remove_file(&local_path)
-            .map_err(|e| format!("Failed to delete cached file: {}", e))?;
+        std::fs::remove_file(&local_path).map_err(|e| format!("Failed to delete cached file: {}", e))?;
     }
 
     Ok(())
@@ -639,9 +614,7 @@ pub async fn mobile_unpin_file_offline(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn mobile_get_sync_status() -> Result<SyncStatus, String> {
-    let state = MOBILE_STATE
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let state = MOBILE_STATE.lock().map_err(|e| format!("Lock error: {}", e))?;
     match state.as_ref() {
         None => Ok(SyncStatus::Idle),
         Some(inner) => {
@@ -681,8 +654,7 @@ pub async fn mobile_resolve_conflict(path: String, resolution: String) -> Result
 
     match strategy {
         MobileConflictStrategy::KeepLocal => {
-            let data = std::fs::read(&local_path)
-                .map_err(|e| format!("Failed to read local file: {}", e))?;
+            let data = std::fs::read(&local_path).map_err(|e| format!("Failed to read local file: {}", e))?;
             let response = client
                 .put(&url)
                 .body(data)
@@ -707,17 +679,14 @@ pub async fn mobile_resolve_conflict(path: String, resolution: String) -> Result
                 .await
                 .map_err(|e| format!("Failed to read response: {}", e))?;
             if let Some(parent) = local_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create dir: {}", e))?;
+                std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create dir: {}", e))?;
             }
-            std::fs::write(&local_path, &bytes)
-                .map_err(|e| format!("Failed to write file: {}", e))?;
+            std::fs::write(&local_path, &bytes).map_err(|e| format!("Failed to write file: {}", e))?;
         }
         MobileConflictStrategy::KeepBoth => {
             let renamed = format!("{}.local", local_path.display());
             if local_path.exists() {
-                std::fs::rename(&local_path, &renamed)
-                    .map_err(|e| format!("Failed to rename local file: {}", e))?;
+                std::fs::rename(&local_path, &renamed).map_err(|e| format!("Failed to rename local file: {}", e))?;
             }
             let response = client
                 .get(&url)
@@ -732,11 +701,9 @@ pub async fn mobile_resolve_conflict(path: String, resolution: String) -> Result
                 .await
                 .map_err(|e| format!("Failed to read response: {}", e))?;
             if let Some(parent) = local_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create dir: {}", e))?;
+                std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create dir: {}", e))?;
             }
-            std::fs::write(&local_path, &bytes)
-                .map_err(|e| format!("Failed to write file: {}", e))?;
+            std::fs::write(&local_path, &bytes).map_err(|e| format!("Failed to write file: {}", e))?;
         }
         MobileConflictStrategy::Skip => {}
     }
@@ -782,16 +749,10 @@ pub async fn mobile_share_file(path: String, share_type: String) -> Result<Strin
         }
         match response.json::<ShareResponse>().await {
             Ok(share) => Ok(share.url),
-            Err(_) => Ok(format!(
-                "https://ferro.app/share/{}",
-                path.trim_start_matches('/')
-            )),
+            Err(_) => Ok(format!("https://ferro.app/share/{}", path.trim_start_matches('/'))),
         }
     } else {
-        Ok(format!(
-            "https://ferro.app/share/{}",
-            path.trim_start_matches('/')
-        ))
+        Ok(format!("https://ferro.app/share/{}", path.trim_start_matches('/')))
     }
 }
 
@@ -827,10 +788,7 @@ pub async fn mobile_monitor_connectivity(app: tauri::AppHandle) -> Result<(), St
                 .map(|r| r.status().is_success())
                 .unwrap_or(false);
             if connected != last_connected {
-                let state = ConnectivityState {
-                    connected,
-                    wifi: true,
-                };
+                let state = ConnectivityState { connected, wifi: true };
                 let _ = app_clone.emit("connectivity-change", &state);
                 last_connected = connected;
             }
@@ -853,10 +811,7 @@ pub async fn mobile_register_push_notifications(token: String) -> Result<(), Str
     let config = get_sync_config()?;
     let client = build_mobile_client(&config.auth_token)?;
 
-    let url = format!(
-        "{}/api/push/register",
-        config.server_url.trim_end_matches('/')
-    );
+    let url = format!("{}/api/push/register", config.server_url.trim_end_matches('/'));
 
     #[derive(Serialize)]
     struct PushRegistration {
@@ -995,8 +950,7 @@ mod tests {
     #[tokio::test]
     async fn test_mobile_resolve_conflict_invalid() {
         teardown_test_state();
-        let result =
-            mobile_resolve_conflict("/file.txt".to_string(), "overwrite".to_string()).await;
+        let result = mobile_resolve_conflict("/file.txt".to_string(), "overwrite".to_string()).await;
         assert!(result.is_err());
     }
 
@@ -1163,10 +1117,7 @@ mod tests {
         assert_eq!(guess_content_type("photo.jpg"), "image/jpeg");
         assert_eq!(guess_content_type("doc.pdf"), "application/pdf");
         assert_eq!(guess_content_type("data.json"), "application/json");
-        assert_eq!(
-            guess_content_type("unknown.xyz"),
-            "application/octet-stream"
-        );
+        assert_eq!(guess_content_type("unknown.xyz"), "application/octet-stream");
         assert_eq!(guess_content_type("noext"), "application/octet-stream");
     }
 

@@ -21,8 +21,7 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     }
 
     let request_count = state.request_count.load(Ordering::Relaxed);
-    let request_duration_sum =
-        state.request_duration_sum_ms.load(Ordering::Relaxed) as f64 / 1000.0;
+    let request_duration_sum = state.request_duration_sum_ms.load(Ordering::Relaxed) as f64 / 1000.0;
 
     // Read histogram buckets.
     let buckets = &state.request_duration_buckets;
@@ -180,12 +179,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
-        let ct = resp
-            .headers()
-            .get("Content-Type")
-            .unwrap()
-            .to_str()
-            .unwrap();
+        let ct = resp.headers().get("Content-Type").unwrap().to_str().unwrap();
         assert!(ct.starts_with("text/plain"));
     }
 

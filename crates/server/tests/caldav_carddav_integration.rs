@@ -49,11 +49,7 @@ async fn test_caldav_mkcalendar() {
         "Location should start with /dav/cal/, got: {}",
         location
     );
-    assert!(
-        location.ends_with('/'),
-        "Location should end with /, got: {}",
-        location
-    );
+    assert!(location.ends_with('/'), "Location should end with /, got: {}", location);
 }
 
 #[tokio::test]
@@ -116,10 +112,7 @@ async fn test_caldav_propfind_depth1() {
 
     assert_eq!(resp.status(), StatusCode::MULTI_STATUS);
     let body = body_string(resp).await;
-    assert!(
-        body.contains("D:multistatus"),
-        "Should contain D:multistatus"
-    );
+    assert!(body.contains("D:multistatus"), "Should contain D:multistatus");
     assert!(body.contains("file1.txt"), "Should list file1.txt");
     assert!(body.contains("file2.txt"), "Should list file2.txt");
 }
@@ -141,13 +134,7 @@ async fn test_caldav_put_vevent() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let location = resp
-        .headers()
-        .get("location")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let location = resp.headers().get("location").unwrap().to_str().unwrap().to_string();
     let calendar_id = location
         .trim_start_matches("/dav/cal/")
         .trim_end_matches('/')
@@ -207,13 +194,7 @@ async fn test_caldav_report_calendar_multiget() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let location = resp
-        .headers()
-        .get("location")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let location = resp.headers().get("location").unwrap().to_str().unwrap().to_string();
     let calendar_id = location
         .trim_start_matches("/dav/cal/")
         .trim_end_matches('/')
@@ -279,22 +260,10 @@ END:VCALENDAR\r\n";
         "REPORT should return 207 Multi-Status"
     );
     let body = body_string(resp).await;
-    eprintln!(
-        "REPORT body (first 2000 chars): {}",
-        &body[..body.len().min(2000)]
-    );
-    assert!(
-        body.contains("D:multistatus"),
-        "Should contain D:multistatus"
-    );
-    assert!(
-        body.contains("multiget-event-001"),
-        "Should contain event UID"
-    );
-    assert!(
-        body.contains("C:calendar-data"),
-        "Should contain calendar-data"
-    );
+    eprintln!("REPORT body (first 2000 chars): {}", &body[..body.len().min(2000)]);
+    assert!(body.contains("D:multistatus"), "Should contain D:multistatus");
+    assert!(body.contains("multiget-event-001"), "Should contain event UID");
+    assert!(body.contains("C:calendar-data"), "Should contain calendar-data");
     assert!(
         body.contains("HTTP/1.1 200 OK"),
         "Should have a 200 status for the event href"
@@ -318,13 +287,7 @@ async fn test_caldav_delete_event() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let location = resp
-        .headers()
-        .get("location")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let location = resp.headers().get("location").unwrap().to_str().unwrap().to_string();
     let calendar_id = location
         .trim_start_matches("/dav/cal/")
         .trim_end_matches('/')
@@ -371,21 +334,11 @@ END:VCALENDAR\r\n";
         )
         .await
         .unwrap();
-    assert_eq!(
-        resp.status(),
-        StatusCode::NO_CONTENT,
-        "DELETE should return 204"
-    );
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT, "DELETE should return 204");
 
     // Verify GET returns 404
     let resp = app
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(&uri)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().method("GET").uri(&uri).body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(
@@ -413,11 +366,7 @@ async fn test_carddav_mkcol() {
         .await
         .unwrap();
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::CREATED,
-        "MKCOL should return 201 Created"
-    );
+    assert_eq!(resp.status(), StatusCode::CREATED, "MKCOL should return 201 Created");
 }
 
 #[tokio::test]
@@ -437,13 +386,7 @@ async fn test_carddav_put_vcard() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let location = resp
-        .headers()
-        .get("location")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let location = resp.headers().get("location").unwrap().to_str().unwrap().to_string();
     let book_id = location
         .trim_start_matches("/dav/card/")
         .trim_end_matches('/')
@@ -487,13 +430,7 @@ END:VCARD\r\n";
     // Verify GET returns the vcard
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(&uri)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().method("GET").uri(&uri).body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
@@ -519,13 +456,7 @@ async fn test_carddav_report_addressbook_multiget() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let location = resp
-        .headers()
-        .get("location")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let location = resp.headers().get("location").unwrap().to_str().unwrap().to_string();
     let book_id = location
         .trim_start_matches("/dav/card/")
         .trim_end_matches('/')
@@ -592,18 +523,9 @@ END:VCARD\r\n";
         "CardDAV REPORT body (first 2000 chars): {}",
         &body[..body.len().min(2000)]
     );
-    assert!(
-        body.contains("D:multistatus"),
-        "Should contain D:multistatus"
-    );
-    assert!(
-        body.contains("multiget-contact-001"),
-        "Should contain contact UID"
-    );
-    assert!(
-        body.contains("A:address-data"),
-        "Should contain address-data"
-    );
+    assert!(body.contains("D:multistatus"), "Should contain D:multistatus");
+    assert!(body.contains("multiget-contact-001"), "Should contain contact UID");
+    assert!(body.contains("A:address-data"), "Should contain address-data");
     // The address-data value may contain the full vCard payload
     // Check that at least the contact appears in a 200 response
     assert!(
@@ -630,13 +552,7 @@ async fn test_multiget_debug_trace() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let location = resp
-        .headers()
-        .get("location")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let location = resp.headers().get("location").unwrap().to_str().unwrap().to_string();
     let calendar_id = location
         .trim_start_matches("/dav/cal/")
         .trim_end_matches('/')
@@ -673,13 +589,7 @@ END:VCALENDAR\r\n";
     // Step 2b: GET the event back to confirm it exists
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(&uri)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().method("GET").uri(&uri).body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK, "GET event should return 200");
@@ -762,10 +672,7 @@ END:VCALENDAR\r\n";
         || body_3b.contains("HTTP/1.1 200 OK")
         || body_3c.contains("HTTP/1.1 200 OK")
         || body_3d.contains("HTTP/1.1 200 OK");
-    assert!(
-        any_200,
-        "At least one REPORT variant should return 200 for the event"
-    );
+    assert!(any_200, "At least one REPORT variant should return 200 for the event");
 }
 
 /// Test: verify parse_multiget_hrefs and handle_multiget work correctly at the store level.
@@ -789,10 +696,7 @@ async fn test_multiget_hrefs_parsing() {
     use ferro_dav::store::{CalendarStore, InMemoryCalendarStore};
 
     let store = Arc::new(InMemoryCalendarStore::new());
-    let cal = store
-        .create_calendar("default", "Test", "#000")
-        .await
-        .unwrap();
+    let cal = store.create_calendar("default", "Test", "#000").await.unwrap();
 
     let ical = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:direct-event-001\r\nDTSTART:20260701T100000Z\r\nDTEND:20260701T110000Z\r\nSUMMARY:Test\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
     let _ev = store.create_event(&cal.id, ical).await.unwrap();
@@ -849,13 +753,7 @@ async fn test_multiget_trace_all_paths() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::CREATED);
-    let location = resp
-        .headers()
-        .get("location")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let location = resp.headers().get("location").unwrap().to_str().unwrap().to_string();
     let calendar_id = location
         .trim_start_matches("/dav/cal/")
         .trim_end_matches('/')
@@ -880,13 +778,7 @@ async fn test_multiget_trace_all_paths() {
     // Step 3: GET event
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(&uri)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().method("GET").uri(&uri).body(Body::empty()).unwrap())
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);

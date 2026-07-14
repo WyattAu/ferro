@@ -101,9 +101,7 @@ pub async fn create_whiteboard<S: ProductivityState>(
     Json(req): Json<CreateWhiteboardRequest>,
 ) -> Response {
     let id = Uuid::new_v4().to_string();
-    let name = req
-        .name
-        .unwrap_or_else(|| format!("Whiteboard {}", &id[..8]));
+    let name = req.name.unwrap_or_else(|| format!("Whiteboard {}", &id[..8]));
     let now = chrono::Utc::now().to_rfc3339();
 
     let whiteboard = WhiteboardState {
@@ -126,10 +124,7 @@ pub async fn create_whiteboard<S: ProductivityState>(
         .into_response()
 }
 
-pub async fn get_whiteboard<S: ProductivityState>(
-    _state: State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn get_whiteboard<S: ProductivityState>(_state: State<S>, Path(id): Path<String>) -> Response {
     (
         StatusCode::NOT_FOUND,
         Json(serde_json::json!({
@@ -158,10 +153,7 @@ pub async fn save_whiteboard<S: ProductivityState>(
         .into_response()
 }
 
-pub async fn export_whiteboard_image<S: ProductivityState>(
-    _state: State<S>,
-    Path(_id): Path<String>,
-) -> Response {
+pub async fn export_whiteboard_image<S: ProductivityState>(_state: State<S>, Path(_id): Path<String>) -> Response {
     (
         StatusCode::NOT_IMPLEMENTED,
         Json(serde_json::json!({

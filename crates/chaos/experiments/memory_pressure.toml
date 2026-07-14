@@ -1,0 +1,16 @@
+[experiment]
+name = "Memory Pressure Test"
+description = "Test system behavior under memory pressure"
+
+[[memory_faults]]
+type = "pressure"
+mb = 1024
+
+[[memory_faults]]
+type = "leak"
+bytes_per_sec = 1024
+
+[expectations]
+should_not_oom = true
+should_log_warnings = true
+should_maintain_functionality = true

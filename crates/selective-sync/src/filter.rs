@@ -102,11 +102,7 @@ mod tests {
     fn test_filter_paths_batch() {
         let rules = vec![rule("*.rs", RuleDirection::Include)];
         let filter = PathFilter::from_rules(&rules).unwrap();
-        let paths = vec![
-            "main.rs".to_string(),
-            "lib.rs".to_string(),
-            "readme.md".to_string(),
-        ];
+        let paths = vec!["main.rs".to_string(), "lib.rs".to_string(), "readme.md".to_string()];
         let (matched, missed) = filter.filter_paths(&paths);
         assert_eq!(matched.len(), 2);
         assert_eq!(missed.len(), 1);

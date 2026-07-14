@@ -7,12 +7,7 @@ impl Labels {
     }
 
     pub fn with(pairs: Vec<(&str, &str)>) -> Self {
-        Self(
-            pairs
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect(),
-        )
+        Self(pairs.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect())
     }
 
     pub fn push(&mut self, key: &str, value: &str) {

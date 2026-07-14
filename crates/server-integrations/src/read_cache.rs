@@ -134,9 +134,7 @@ impl ReadCache {
         let mut entry = match self.entries.get_mut(&key) {
             Some(e) => e,
             None => {
-                self.stats
-                    .misses
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                self.stats.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 return None;
             }
         };
@@ -151,9 +149,7 @@ impl ReadCache {
             // Stale entry — remove and return miss
             drop(entry);
             self.entries.remove(&key);
-            self.stats
-                .misses
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.stats.misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             return None;
         }
 
@@ -161,9 +157,7 @@ impl ReadCache {
         entry.access_seq = self.counter.next();
         let data = entry.data.clone();
 
-        self.stats
-            .hits
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.stats.hits.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Some(data)
     }
 
@@ -229,10 +223,7 @@ impl ReadCache {
         CacheStats {
             hits: self.stats.hits.load(std::sync::atomic::Ordering::Relaxed),
             misses: self.stats.misses.load(std::sync::atomic::Ordering::Relaxed),
-            evictions: self
-                .stats
-                .evictions
-                .load(std::sync::atomic::Ordering::Relaxed),
+            evictions: self.stats.evictions.load(std::sync::atomic::Ordering::Relaxed),
             total_bytes,
             entry_count,
         }
@@ -283,9 +274,7 @@ impl ReadCache {
             if self.entries.remove(&key).is_some() {
                 freed_bytes += size;
                 removed_count += 1;
-                self.stats
-                    .evictions
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                self.stats.evictions.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             }
         }
     }
@@ -355,18 +344,9 @@ mod tests {
         cache.put("/b.txt", "\"2\"", Bytes::from_static(b"bbb"));
         cache.put("/c.txt", "\"3\"", Bytes::from_static(b"ccc"));
 
-        assert!(
-            cache.get("/a.txt", "\"1\"").is_none(),
-            "LRU: a should be evicted"
-        );
-        assert!(
-            cache.get("/b.txt", "\"2\"").is_some(),
-            "LRU: b should survive"
-        );
-        assert!(
-            cache.get("/c.txt", "\"3\"").is_some(),
-            "LRU: c should survive"
-        );
+        assert!(cache.get("/a.txt", "\"1\"").is_none(), "LRU: a should be evicted");
+        assert!(cache.get("/b.txt", "\"2\"").is_some(), "LRU: b should survive");
+        assert!(cache.get("/c.txt", "\"3\"").is_some(), "LRU: c should survive");
     }
 
     #[test]
@@ -380,10 +360,7 @@ mod tests {
         let cache = ReadCache::new(config);
         let large = Bytes::from(vec![0u8; 200]); // 200 bytes > 100 bytes (10% of 1KB)
         cache.put("/large.bin", "\"etag\"", large);
-        assert!(
-            cache.get("/large.bin", "\"etag\"").is_none(),
-            "Should skip large files"
-        );
+        assert!(cache.get("/large.bin", "\"etag\"").is_none(), "Should skip large files");
     }
 
     #[test]

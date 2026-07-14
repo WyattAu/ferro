@@ -70,11 +70,7 @@ fn test_registry() {
     let reg = MetricsRegistry::new();
     let c = reg.register_counter("requests_total", "Total requests");
     let g = reg.register_gauge("active_connections", "Active connections");
-    let h = reg.register_histogram(
-        "request_duration",
-        "Request duration",
-        vec![0.01, 0.05, 0.1, 0.5, 1.0],
-    );
+    let h = reg.register_histogram("request_duration", "Request duration", vec![0.01, 0.05, 0.1, 0.5, 1.0]);
 
     c.inc();
     g.set(10);
@@ -151,11 +147,7 @@ fn test_prometheus_export_gauge() {
 #[test]
 fn test_prometheus_export_histogram() {
     let reg = MetricsRegistry::new();
-    let h = reg.register_histogram(
-        "request_duration_seconds",
-        "Request duration",
-        vec![0.1, 0.5, 1.0],
-    );
+    let h = reg.register_histogram("request_duration_seconds", "Request duration", vec![0.1, 0.5, 1.0]);
     h.observe(0.05);
     h.observe(0.3);
     h.observe(0.8);

@@ -38,8 +38,7 @@ fn sign_request(method: &str, url: &str, secret: &str, key_id: &str) -> Result<S
     let path = format!("/{}", path);
 
     let signing_string = format!("(request-target): {} {}", method.to_lowercase(), path);
-    let mut mac =
-        HmacSha256::new_from_slice(secret.as_bytes()).map_err(|e| format!("HMAC error: {}", e))?;
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).map_err(|e| format!("HMAC error: {}", e))?;
     mac.update(signing_string.as_bytes());
     let sig_bytes = mac.finalize().into_bytes();
     let sig_b64 = STANDARD.encode(sig_bytes);
@@ -50,23 +49,13 @@ fn sign_request(method: &str, url: &str, secret: &str, key_id: &str) -> Result<S
     ))
 }
 
-pub async fn deliver_to_followers(
-    state: &FederationState,
-    activity: &Value,
-) -> Vec<Result<(), String>> {
+pub async fn deliver_to_followers(state: &FederationState, activity: &Value) -> Vec<Result<(), String>> {
     let followers = state.activity_store.get_followers("admin");
     let mut results = Vec::new();
 
     for follower_url in &followers {
         let inbox_url = format!("{}/inbox", follower_url.trim_end_matches('/'));
-        match deliver_to_inbox(
-            &inbox_url,
-            activity,
-            &state.federation_secret,
-            &state.external_url,
-        )
-        .await
-        {
+        match deliver_to_inbox(&inbox_url, activity, &state.federation_secret, &state.external_url).await {
             Ok(()) => results.push(Ok(())),
             Err(e) => {
                 warn!("Failed to deliver to {}: {}", inbox_url, e);
@@ -101,9 +90,7 @@ pub async fn deliver_to_inbox(
         .header("Signature", &signature)
         .header(
             "Date",
-            chrono::Utc::now()
-                .format("%a, %d %b %Y %H:%M:%S GMT")
-                .to_string(),
+            chrono::Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string(),
         )
         .json(activity)
         .send()

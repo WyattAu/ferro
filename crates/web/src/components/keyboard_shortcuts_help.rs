@@ -48,9 +48,7 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
         }
         shortcuts
             .iter()
-            .filter(|(_, keys, label)| {
-                label.to_lowercase().contains(&query) || keys.to_lowercase().contains(&query)
-            })
+            .filter(|(_, keys, label)| label.to_lowercase().contains(&query) || keys.to_lowercase().contains(&query))
             .cloned()
             .collect::<Vec<_>>()
     };
@@ -61,19 +59,16 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
         let set_show = set_show_help;
         if let Some(window) = web_sys::window() {
             if let Some(document) = window.document() {
-                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
-                    move |ev: web_sys::KeyboardEvent| {
-                        let key = ev.key();
-                        let ctrl = ev.ctrl_key() || ev.meta_key();
-                        let shift = ev.shift_key();
-                        if key == "?" && !ctrl && !shift {
-                            set_show.update(|v| *v = !*v);
-                        }
-                    },
-                )
+                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move |ev: web_sys::KeyboardEvent| {
+                    let key = ev.key();
+                    let ctrl = ev.ctrl_key() || ev.meta_key();
+                    let shift = ev.shift_key();
+                    if key == "?" && !ctrl && !shift {
+                        set_show.update(|v| *v = !*v);
+                    }
+                })
                     as Box<dyn Fn(web_sys::KeyboardEvent)>);
-                let _ = document
-                    .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+                let _ = document.add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
                 std::mem::forget(cb);
             }
         }
@@ -103,10 +98,10 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
                             }
                         }
                     >
-                        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                            <h2 class="text-section font-semibold text-gray-900 dark:text-gray-100">{t!("shortcuts.title")}</h2>
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)]">
+                            <h2 class="text-section font-semibold text-[var(--text-primary)] dark:text-gray-100">{t!("shortcuts.title")}</h2>
                             <button
-                                class="p-1 rounded-sm opacity-60 hover:opacity-100 transition-opacity font-mono min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                class="p-1 rounded-sm opacity-60 hover:opacity-100 transition-opacity font-mono min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                                 aria-label=t!("aria.close_dialog")
                                 on:click=move |_| close_help.set(false)
                             >
@@ -116,15 +111,15 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
                             </button>
                         </div>
 
-                        <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                        <div class="px-4 py-2 border-b border-[var(--border-subtle)]">
                             <div class="relative">
-                                <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="absolute left-3 top-2.5 w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                                 <input
                                     type="text"
                                     placeholder="Search shortcuts..."
-                                    class="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                                    class="w-full pl-10 pr-4 py-2 text-sm border border-[var(--border-default)] rounded bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] font-mono"
                                     prop:value=search_query
                                     on:input=move |ev| set_search_query.set(event_target_value(&ev))
                                 />
@@ -134,7 +129,7 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
                         <div class="px-4 py-3 max-h-[60vh] overflow-y-auto">
                             {if items.is_empty() {
                                 view! {
-                                    <div class="py-8 text-center text-sm text-gray-500 font-mono">
+                                    <div class="py-8 text-center text-sm text-[var(--text-tertiary)] font-mono">
                                         "No shortcuts match your search"
                                     </div>
                                 }.into_any()
@@ -152,14 +147,14 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
                                         let label_owned = label.to_string();
                                         shortcut_rows.push(view! {
                                             <div class="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-gray-800 last:border-0">
-                                                <span class="text-sm text-gray-700 dark:text-gray-300">{label_owned}</span>
-                                                <kbd class="px-2 py-0.5 text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-sm brutal-border">{keys_owned}</kbd>
+                                                <span class="text-sm text-[var(--text-secondary)] dark:text-gray-300">{label_owned}</span>
+                                                <kbd class="px-2 py-0.5 text-xs font-mono text-[var(--text-tertiary)] dark:text-gray-400 bg-[var(--bg-base)] rounded-sm brutal-border">{keys_owned}</kbd>
                                             </div>
                                         }.into_any());
                                     }
                                     sections.push(view! {
                                         <div class="mb-4">
-                                            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2 font-mono">
+                                            <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] dark:text-gray-400 mb-2 font-mono">
                                                 {cat_str}
                                             </h3>
                                             <div class="space-y-1">
@@ -172,7 +167,7 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
                             }}
                         </div>
 
-                        <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 font-mono text-center">
+                        <div class="px-4 py-2 border-t border-[var(--border-subtle)] text-xs text-[var(--text-tertiary)] font-mono text-center">
                             "Press ? to toggle this panel"
                         </div>
                     </div>

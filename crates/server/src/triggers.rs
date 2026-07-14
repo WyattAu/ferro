@@ -68,6 +68,15 @@ pub struct TriggerStore {
     db: Option<crate::db::DbHandle>,
 }
 
+impl std::fmt::Debug for TriggerStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TriggerStore")
+            .field("triggers", &"...")
+            .field("db", &self.db.as_ref().map(|_| "..."))
+            .finish()
+    }
+}
+
 impl TriggerStore {
     pub fn new() -> Self {
         Self {
@@ -223,11 +232,7 @@ pub async fn create_trigger(axum::Json(req): axum::Json<CreateTriggerRequest>) -
 /// `GET /api/admin/triggers`
 pub async fn list_triggers() -> Response {
     let triggers = trigger_store().list().await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "triggers": triggers })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "triggers": triggers }))).into_response()
 }
 
 /// `DELETE /api/admin/triggers/{id}`
@@ -359,14 +364,10 @@ mod tests {
             };
             store.add(trigger).await;
 
-            let matching = store
-                .find_matching("file.upload", "/documents/report.pdf")
-                .await;
+            let matching = store.find_matching("file.upload", "/documents/report.pdf").await;
             assert_eq!(matching.len(), 1);
 
-            let no_match = store
-                .find_matching("file.upload", "/images/photo.jpg")
-                .await;
+            let no_match = store.find_matching("file.upload", "/images/photo.jpg").await;
             assert!(no_match.is_empty());
         });
     }

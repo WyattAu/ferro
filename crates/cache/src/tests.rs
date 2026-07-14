@@ -72,11 +72,7 @@ fn test_len_and_is_empty() {
 #[test]
 fn test_ttl_expiry() {
     let cache = make_cache();
-    cache.set(
-        "key".to_string(),
-        "value".to_string(),
-        Some(Duration::from_micros(100)),
-    );
+    cache.set("key".to_string(), "value".to_string(), Some(Duration::from_micros(100)));
     std::thread::sleep(Duration::from_millis(5));
     assert_eq!(cache.get(&"key".to_string()), None);
 }
@@ -185,11 +181,7 @@ fn test_max_size_rejects_when_full() {
 #[test]
 fn test_cleanup_expired() {
     let cache = make_cache();
-    cache.set(
-        "a".to_string(),
-        "1".to_string(),
-        Some(Duration::from_micros(100)),
-    );
+    cache.set("a".to_string(), "1".to_string(), Some(Duration::from_micros(100)));
     cache.set("b".to_string(), "2".to_string(), None);
     std::thread::sleep(Duration::from_millis(5));
     let removed = cache.cleanup_expired();
@@ -242,11 +234,7 @@ fn test_capacity_exceeded_error() {
     cache.set("b".to_string(), "2".to_string(), None);
     let result = cache.set_with_size("c".to_string(), "3".to_string(), None, 0);
     assert!(result.is_err());
-    if let Err(CacheError::CapacityExceeded {
-        entries,
-        max_entries,
-    }) = result
-    {
+    if let Err(CacheError::CapacityExceeded { entries, max_entries }) = result {
         assert_eq!(entries, 2);
         assert_eq!(max_entries, 2);
     } else {
@@ -281,9 +269,7 @@ fn test_size_replaced_on_overwrite() {
     cache
         .set_with_size("k".to_string(), "a".to_string(), None, 100)
         .unwrap();
-    cache
-        .set_with_size("k".to_string(), "b".to_string(), None, 50)
-        .unwrap();
+    cache.set_with_size("k".to_string(), "b".to_string(), None, 50).unwrap();
     let stats = cache.stats();
     assert_eq!(stats.size_bytes, 50);
 }

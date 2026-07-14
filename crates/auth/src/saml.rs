@@ -2,8 +2,8 @@
 //!
 //! Implements SAML 2.0 Web Browser SSO Profile with HTTP Redirect binding.
 //! Supports:
-//! - SP metadata generation (for IdP registration)
-//! - AuthnRequest creation (redirect to IdP)
+//! - SP metadata generation (for `IdP` registration)
+//! - `AuthnRequest` creation (redirect to `IdP`)
 //! - SAMLResponse/Assertion parsing and validation
 //!
 //! XML signature verification uses SHA-256 digest comparison.
@@ -29,15 +29,15 @@ pub struct SamlConfig {
     pub enabled: bool,
     /// SP entity ID (typically the base URL).
     pub sp_entity_id: String,
-    /// IdP SSO URL (single sign-on endpoint).
+    /// `IdP` SSO URL (single sign-on endpoint).
     pub idp_sso_url: String,
-    /// IdP entity ID.
+    /// `IdP` entity ID.
     pub idp_entity_id: String,
     /// SP assertion consumer service (ACS) URL.
     pub sp_acs_url: String,
     /// SP single logout service (SLS) URL (optional).
     pub sp_sls_url: Option<String>,
-    /// Certificate fingerprint (SHA-256) for IdP verification.
+    /// Certificate fingerprint (SHA-256) for `IdP` verification.
     pub idp_cert_fingerprint: Option<String>,
 }
 
@@ -55,6 +55,7 @@ impl Default for SamlConfig {
     }
 }
 
+#[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum SamlError {
     #[error("XML parse error: {0}")]
@@ -85,15 +86,15 @@ impl From<base64::DecodeError> for SamlError {
 
 type Result<T> = std::result::Result<T, SamlError>;
 
-/// Generate SAML SP metadata XML for IdP registration.
+/// Generate SAML SP metadata XML for `IdP` registration.
 ///
 /// Produces a valid `EntityDescriptor` XML document that can be uploaded
-/// to the IdP to register Ferro as a Service Provider.
+/// to the `IdP` to register Ferro as a Service Provider.
+#[must_use]
 pub fn generate_sp_metadata(config: &SamlConfig) -> String {
     let sls = match &config.sp_sls_url {
         Some(url) => format!(
-            r#"    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="{}"/>"#,
-            url
+            r#"    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="{url}"/>"#
         ),
         None => String::new(),
     };
@@ -120,10 +121,10 @@ pub fn generate_sp_metadata(config: &SamlConfig) -> String {
     )
 }
 
-/// Build a SAML AuthnRequest URL for HTTP Redirect binding.
+/// Build a SAML `AuthnRequest` URL for HTTP Redirect binding.
 ///
-/// The IdP redirect URL contains a Base64-encoded, deflate-compressed
-/// SAML AuthnRequest. The user's browser is redirected to this URL.
+/// The `IdP` redirect URL contains a Base64-encoded, deflate-compressed
+/// SAML `AuthnRequest`. The user's browser is redirected to this URL.
 pub fn build_authn_request_url(config: &SamlConfig, relay_state: Option<&str>) -> Result<String> {
     let authn_request = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -166,8 +167,7 @@ pub fn build_authn_request_url(config: &SamlConfig, relay_state: Option<&str>) -
 /// - Audience restriction matches SP entity ID
 pub fn parse_saml_response(encoded_response: &str, sp_entity_id: &str) -> Result<SamlAssertion> {
     let decoded = base64::engine::general_purpose::STANDARD.decode(encoded_response)?;
-    let xml = String::from_utf8(decoded)
-        .map_err(|e| SamlError::XmlParse(format!("UTF-8 decode: {e}")))?;
+    let xml = String::from_utf8(decoded).map_err(|e| SamlError::XmlParse(format!("UTF-8 decode: {e}")))?;
 
     // Parse subject/NameID
     let name_id = extract_tag_value(&xml, "saml:NameID").ok_or(SamlError::InvalidSubject)?;
@@ -179,31 +179,14 @@ pub fn parse_saml_response(encoded_response: &str, sp_entity_id: &str) -> Result
             "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
         )
     });
-    let display_name = extract_attribute(&xml, "displayName").or_else(|| {
-        extract_attribute(
-            &xml,
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
-        )
-    });
-    let first_name = extract_attribute(&xml, "firstName").or_else(|| {
-        extract_attribute(
-            &xml,
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname",
-        )
-    });
-    let last_name = extract_attribute(&xml, "lastName").or_else(|| {
-        extract_attribute(
-            &xml,
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname",
-        )
-    });
+    let display_name = extract_attribute(&xml, "displayName")
+        .or_else(|| extract_attribute(&xml, "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"));
+    let first_name = extract_attribute(&xml, "firstName")
+        .or_else(|| extract_attribute(&xml, "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname"));
+    let last_name = extract_attribute(&xml, "lastName")
+        .or_else(|| extract_attribute(&xml, "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname"));
     let groups: Vec<String> = extract_all_attributes(&xml, "groups")
-        .or_else(|| {
-            extract_all_attributes(
-                &xml,
-                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/groups",
-            )
-        })
+        .or_else(|| extract_all_attributes(&xml, "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/groups"))
         .unwrap_or_default();
 
     // Validate NotOnOrAfter (it's an attribute on saml:Conditions, not a child tag)
@@ -252,7 +235,7 @@ pub fn parse_saml_response(encoded_response: &str, sp_entity_id: &str) -> Result
 /// Parsed SAML assertion attributes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SamlAssertion {
-    /// Subject NameID (the authenticated user's identifier).
+    /// Subject `NameID` (the authenticated user's identifier).
     pub name_id: String,
     /// Email address from SAML attributes.
     pub email: Option<String>,
@@ -264,15 +247,15 @@ pub struct SamlAssertion {
     pub last_name: Option<String>,
     /// Group memberships from SAML attributes.
     pub groups: Vec<String>,
-    /// Assertion issuer (IdP entity ID).
+    /// Assertion issuer (`IdP` entity ID).
     pub issuer: String,
-    /// IssueInstant timestamp.
+    /// `IssueInstant` timestamp.
     pub issue_instant: String,
     /// Assertion ID.
     pub assertion_id: String,
 }
 
-/// Deflate XML using miniz_oxide (zlib deflate).
+/// Deflate XML using `miniz_oxide` (zlib deflate).
 fn deflate_xml(xml: &str) -> Result<Vec<u8>> {
     use flate2::Compression;
     use flate2::write::ZlibEncoder;
@@ -293,7 +276,7 @@ fn extract_tag_value(xml: &str, tag: &str) -> Option<String> {
     // Look for exact tag match: `<TAG` followed by `>` or ` `
     let mut search_start = 0;
     loop {
-        let pattern = format!("<{}", tag);
+        let pattern = format!("<{tag}");
         let pos = xml[search_start..].find(&pattern)?;
         let abs_pos = search_start + pos;
 
@@ -307,7 +290,7 @@ fn extract_tag_value(xml: &str, tag: &str) -> Option<String> {
             // Skip past the opening tag
             let close_bracket = xml[next_idx..].find('>')?;
             let after_start = next_idx + close_bracket + 1;
-            let end_tag = format!("</{}>", tag);
+            let end_tag = format!("</{tag}>");
             let end = xml[after_start..].find(&end_tag)?;
             let value = xml[after_start..after_start + end].trim().to_string();
             return if value.is_empty() { None } else { Some(value) };
@@ -319,7 +302,7 @@ fn extract_tag_value(xml: &str, tag: &str) -> Option<String> {
 
 /// Extract an XML attribute value from a string (e.g., `NotOnOrAfter="2020-..."`).
 fn extract_xml_attr(xml: &str, attr: &str) -> Option<String> {
-    let pattern = format!("{}=\"", attr);
+    let pattern = format!("{attr}=\"");
     let start = xml.find(&pattern)?;
     let value_start = start + pattern.len();
     let rest = &xml[value_start..];
@@ -327,9 +310,9 @@ fn extract_xml_attr(xml: &str, attr: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
-/// Extract an AttributeValue from a SAML Attribute by name.
+/// Extract an `AttributeValue` from a SAML Attribute by name.
 fn extract_attribute(xml: &str, name: &str) -> Option<String> {
-    let attr_start = xml.find(&format!("Name=\"{}\"", name))?;
+    let attr_start = xml.find(&format!("Name=\"{name}\""))?;
     let value_tag = "<saml:AttributeValue";
     let after_attr = xml[attr_start..].find(value_tag)?;
     let value_start = attr_start + after_attr + value_tag.len();
@@ -339,7 +322,7 @@ fn extract_attribute(xml: &str, name: &str) -> Option<String> {
     if after_value_start.starts_with("/>") {
         return None;
     }
-    if after_value_start.starts_with(">") {
+    if after_value_start.starts_with('>') {
         let content_start = value_start + 1;
         let end_tag = "</saml:AttributeValue>";
         if let Some(end) = xml[content_start..].find(end_tag) {
@@ -353,9 +336,9 @@ fn extract_attribute(xml: &str, name: &str) -> Option<String> {
     }
 }
 
-/// Extract all AttributeValues from a SAML Attribute by name.
+/// Extract all `AttributeValues` from a SAML Attribute by name.
 fn extract_all_attributes(xml: &str, name: &str) -> Option<Vec<String>> {
-    let attr_start = xml.find(&format!("Name=\"{}\"", name))?;
+    let attr_start = xml.find(&format!("Name=\"{name}\""))?;
     let end_tag = "</saml:Attribute>".to_string();
     let end = xml[attr_start..].find(&end_tag)?;
     let block = &xml[attr_start..attr_start + end];
@@ -380,22 +363,18 @@ fn extract_all_attributes(xml: &str, name: &str) -> Option<Vec<String>> {
             break;
         }
     }
-    if values.is_empty() {
-        None
-    } else {
-        Some(values)
-    }
+    if values.is_empty() { None } else { Some(values) }
 }
 
 /// Extract an XML attribute value from a specific tag.
 fn extract_attribute_from_tag(xml: &str, tag: &str, attr: &str) -> Option<String> {
-    let open_tag = format!("<{} ", tag);
+    let open_tag = format!("<{tag} ");
     let start = xml.find(&open_tag)?;
     let after_open = start + open_tag.len();
     let close_tag = ">";
     let tag_end = xml[after_open..].find(close_tag)?;
     let tag_content = &xml[after_open..after_open + tag_end];
-    let pattern = format!("{}=\"", attr);
+    let pattern = format!("{attr}=\"");
     let attr_start = tag_content.find(&pattern)?;
     let after_attr = attr_start + pattern.len();
     let rest = &tag_content[after_attr..];
@@ -410,7 +389,7 @@ pub fn compute_cert_fingerprint(pem: &str) -> Result<String> {
     let der = base64::engine::general_purpose::STANDARD.decode(&der_b64)?;
     let digest = Sha256::digest(&der);
     // Format as colon-separated hex (common in SAML metadata)
-    let hex: String = digest.iter().map(|b| format!("{:02X}", b)).collect();
+    let hex: String = digest.iter().map(|b| format!("{b:02X}")).collect();
     let fingerprint: String = hex
         .as_bytes()
         .chunks(2)
@@ -579,6 +558,61 @@ mod tests {
     }
 
     #[test]
+    fn test_compute_cert_fingerprint_correctness() {
+        // Use a known PEM certificate (self-signed, for testing only)
+        // SHA-256 fingerprint of this cert is deterministic
+        let pem = "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAJHGd3N4yKd3MA0GCSqGSIb3DQEBCwUAMBExDzANBgNVBAMMBnRl\n-----END CERTIFICATE-----";
+        let fp = compute_cert_fingerprint(pem).unwrap();
+        assert!(!fp.is_empty(), "Fingerprint must not be empty");
+        // Fingerprint should be colon-separated hex pairs (SHA-256 = 32 bytes = 64 hex chars = 63 colons)
+        let parts: Vec<&str> = fp.split(':').collect();
+        assert_eq!(parts.len(), 32, "SHA-256 fingerprint should have 32 byte groups");
+        for part in &parts {
+            assert_eq!(part.len(), 2, "Each byte group should be 2 hex chars");
+            assert!(
+                part.chars().all(|c| c.is_ascii_hexdigit()),
+                "Each byte group should be hex digits"
+            );
+        }
+    }
+
+    #[test]
+    fn test_compute_cert_fingerprint_deterministic() {
+        let pem = "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAJHGd3N4yKd3MA0GCSqGSIb3DQEBCwUAMBExDzANBgNVBAMMBnRl\n-----END CERTIFICATE-----";
+        let fp1 = compute_cert_fingerprint(pem).unwrap();
+        let fp2 = compute_cert_fingerprint(pem).unwrap();
+        assert_eq!(fp1, fp2, "Fingerprint must be deterministic");
+    }
+
+    #[test]
+    fn test_compute_cert_fingerprint_invalid_pem() {
+        let result = compute_cert_fingerprint("not-a-pem");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_saml_response_expiry_boundary_future() {
+        // Assertion that is NOT expired (expires far in the future)
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" ID="_123">
+  <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" IssueInstant="2099-12-31T23:59:59Z">
+    <saml:Issuer>https://idp.example.com</saml:Issuer>
+    <saml:Subject>
+      <saml:NameID>alice@example.com</saml:NameID>
+    </saml:Subject>
+    <saml:Conditions NotOnOrAfter="2099-12-31T23:59:59Z">
+      <saml:AudienceRestriction>
+        <saml:Audience>https://ferro.local</saml:Audience>
+      </saml:AudienceRestriction>
+    </saml:Conditions>
+  </saml:Assertion>
+</samlp:Response>"#;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(xml);
+        let result = parse_saml_response(&encoded, "https://ferro.local");
+        assert!(result.is_ok(), "Future assertion should be accepted");
+    }
+
+    #[test]
     fn test_config_serde_roundtrip() {
         let config = SamlConfig {
             enabled: true,
@@ -594,5 +628,252 @@ mod tests {
         assert!(parsed.enabled);
         assert_eq!(parsed.sp_entity_id, "https://ferro.local");
         assert_eq!(parsed.idp_cert_fingerprint.as_deref(), Some("AA:BB:CC"));
+    }
+
+    #[test]
+    fn test_build_authn_request_url_without_relay_state() {
+        let config = SamlConfig {
+            enabled: true,
+            sp_entity_id: "https://ferro.local".to_string(),
+            idp_sso_url: "https://idp.example.com/sso".to_string(),
+            sp_acs_url: "https://ferro.local/api/auth/saml/acs".to_string(),
+            ..Default::default()
+        };
+        let url = build_authn_request_url(&config, None).unwrap();
+        assert!(url.starts_with("https://idp.example.com/sso?SAMLRequest="));
+        assert!(!url.contains("RelayState"));
+    }
+
+    #[test]
+    fn test_extract_xml_attr() {
+        let xml = r#"NotOnOrAfter="2099-12-31T23:59:59Z""#;
+        assert_eq!(
+            extract_xml_attr(xml, "NotOnOrAfter"),
+            Some("2099-12-31T23:59:59Z".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_xml_attr_not_found() {
+        let xml = r#"SomeOther="value""#;
+        assert!(extract_xml_attr(xml, "NotOnOrAfter").is_none());
+    }
+
+    #[test]
+    fn test_extract_attribute_from_tag() {
+        let xml = r#"<saml:Assertion ID="_abc123" IssueInstant="2024-01-01T00:00:00Z">content</saml:Assertion>"#;
+        assert_eq!(
+            extract_attribute_from_tag(xml, "saml:Assertion", "ID"),
+            Some("_abc123".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_attribute_from_tag_not_found() {
+        let xml = r#"<saml:Assertion ID="_abc123">content</saml:Assertion>"#;
+        assert!(extract_attribute_from_tag(xml, "saml:Assertion", "Missing").is_none());
+    }
+
+    #[test]
+    fn test_extract_all_attributes_multiple_values() {
+        let xml = r#"<saml:Attribute Name="groups"><saml:AttributeValue>admins</saml:AttributeValue><saml:AttributeValue>users</saml:AttributeValue></saml:Attribute>"#;
+        let result = extract_all_attributes(xml, "groups");
+        assert_eq!(result, Some(vec!["admins".to_string(), "users".to_string()]));
+    }
+
+    #[test]
+    fn test_extract_all_attributes_not_found() {
+        let xml = r#"<saml:Attribute Name="other"><saml:AttributeValue>val</saml:AttributeValue></saml:Attribute>"#;
+        assert!(extract_all_attributes(xml, "groups").is_none());
+    }
+
+    #[test]
+    fn test_extract_tag_value_with_attributes() {
+        let xml = r#"<saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">user@example.com</saml:NameID>"#;
+        assert_eq!(
+            extract_tag_value(xml, "saml:NameID"),
+            Some("user@example.com".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_tag_value_empty_content() {
+        let xml = r#"<saml:NameID></saml:NameID>"#;
+        assert_eq!(extract_tag_value(xml, "saml:NameID"), None);
+    }
+
+    #[test]
+    fn test_extract_tag_value_self_closing() {
+        let xml = r#"<saml:NameID />"#;
+        // Self-closing tag has no content
+        assert_eq!(extract_tag_value(xml, "saml:NameID"), None);
+    }
+
+    #[test]
+    fn test_parse_saml_response_with_legacy_attributes() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" ID="_123">
+  <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_789" IssueInstant="2099-12-31T23:59:59Z">
+    <saml:Issuer>https://idp.example.com</saml:Issuer>
+    <saml:Subject>
+      <saml:NameID>bob@example.com</saml:NameID>
+    </saml:Subject>
+    <saml:Conditions NotOnOrAfter="2099-12-31T23:59:59Z">
+      <saml:AudienceRestriction>
+        <saml:Audience>https://ferro.local</saml:Audience>
+      </saml:AudienceRestriction>
+    </saml:Conditions>
+    <saml:AttributeStatement>
+      <saml:Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress">
+        <saml:AttributeValue>bob@example.com</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name">
+        <saml:AttributeValue>Bob Smith</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname">
+        <saml:AttributeValue>Bob</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname">
+        <saml:AttributeValue>Smith</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/groups">
+        <saml:AttributeValue>admins</saml:AttributeValue>
+        <saml:AttributeValue>users</saml:AttributeValue>
+      </saml:Attribute>
+    </saml:AttributeStatement>
+  </saml:Assertion>
+</samlp:Response>"#;
+
+        let encoded = base64::engine::general_purpose::STANDARD.encode(xml);
+        let assertion = parse_saml_response(&encoded, "https://ferro.local").unwrap();
+        assert_eq!(assertion.name_id, "bob@example.com");
+        assert_eq!(assertion.email, Some("bob@example.com".to_string()));
+        assert_eq!(assertion.display_name, Some("Bob Smith".to_string()));
+        assert_eq!(assertion.first_name, Some("Bob".to_string()));
+        assert_eq!(assertion.last_name, Some("Smith".to_string()));
+        assert_eq!(assertion.groups, vec!["admins", "users"]);
+    }
+
+    #[test]
+    fn test_parse_saml_response_no_name_id() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol">
+  <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml:Issuer>https://idp.example.com</saml:Issuer>
+    <saml:Subject></saml:Subject>
+    <saml:Conditions NotOnOrAfter="2099-12-31T23:59:59Z"/>
+  </saml:Assertion>
+</samlp:Response>"#;
+
+        let encoded = base64::engine::general_purpose::STANDARD.encode(xml);
+        let result = parse_saml_response(&encoded, "https://ferro.local");
+        assert!(matches!(result, Err(SamlError::InvalidSubject)));
+    }
+
+    #[test]
+    fn test_parse_saml_response_invalid_base64() {
+        let result = parse_saml_response("NOT_VALID_BASE64!!!", "https://ferro.local");
+        assert!(matches!(result, Err(SamlError::Base64(_))));
+    }
+
+    #[test]
+    fn test_parse_saml_response_non_utf8() {
+        // Build XML, then replace a byte to make it non-UTF8
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol">
+  <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml:Issuer>https://idp.example.com</saml:Issuer>
+    <saml:Subject><saml:NameID>user@test.com</saml:NameID></saml:Subject>
+    <saml:Conditions NotOnOrAfter="2099-12-31T23:59:59Z"/>
+  </saml:Assertion>
+</samlp:Response>"#;
+        let mut encoded = base64::engine::general_purpose::STANDARD.encode(xml);
+        // Corrupt the base64 to produce invalid UTF-8
+        encoded.push('!');
+        let result = parse_saml_response(&encoded, "https://ferro.local");
+        // Should fail at base64 decode or UTF-8 decode
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_saml_assertion_debug_format() {
+        let assertion = SamlAssertion {
+            name_id: "user".to_string(),
+            email: None,
+            display_name: None,
+            first_name: None,
+            last_name: None,
+            groups: vec![],
+            issuer: "https://idp.example.com".to_string(),
+            issue_instant: "2024-01-01T00:00:00Z".to_string(),
+            assertion_id: "_123".to_string(),
+        };
+        let debug = format!("{:?}", assertion);
+        assert!(debug.contains("SamlAssertion"));
+    }
+
+    #[test]
+    fn test_saml_assertion_clone() {
+        let assertion = SamlAssertion {
+            name_id: "user".to_string(),
+            email: Some("user@x.com".to_string()),
+            display_name: Some("User".to_string()),
+            first_name: Some("User".to_string()),
+            last_name: None,
+            groups: vec!["admin".to_string()],
+            issuer: "https://idp.example.com".to_string(),
+            issue_instant: "2024-01-01T00:00:00Z".to_string(),
+            assertion_id: "_123".to_string(),
+        };
+        let cloned = assertion.clone();
+        assert_eq!(cloned.name_id, "user");
+        assert_eq!(cloned.groups, vec!["admin"]);
+    }
+
+    #[test]
+    fn test_saml_assertion_serialization() {
+        let assertion = SamlAssertion {
+            name_id: "user".to_string(),
+            email: Some("user@x.com".to_string()),
+            display_name: None,
+            first_name: None,
+            last_name: None,
+            groups: vec![],
+            issuer: "https://idp.example.com".to_string(),
+            issue_instant: "2024-01-01T00:00:00Z".to_string(),
+            assertion_id: "_123".to_string(),
+        };
+        let json = serde_json::to_string(&assertion).unwrap();
+        assert!(json.contains("user@x.com"));
+    }
+
+    #[test]
+    fn test_saml_error_display() {
+        let errors = vec![
+            SamlError::XmlParse("test".to_string()),
+            SamlError::MissingAssertion,
+            SamlError::InvalidSubject,
+            SamlError::InvalidAttribute,
+            SamlError::AssertionExpired,
+            SamlError::InvalidAudience {
+                expected: "a".to_string(),
+                got: "b".to_string(),
+            },
+            SamlError::Base64("test".to_string()),
+            SamlError::InvalidRequest("test".to_string()),
+            SamlError::VerificationFailed("test".to_string()),
+        ];
+        for err in errors {
+            let display = format!("{}", err);
+            assert!(!display.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_generate_sp_metadata_xml_format() {
+        let config = SamlConfig::default();
+        let metadata = generate_sp_metadata(&config);
+        assert!(metadata.starts_with("<?xml version=\"1.0\""));
+        assert!(metadata.contains("md:EntityDescriptor"));
     }
 }

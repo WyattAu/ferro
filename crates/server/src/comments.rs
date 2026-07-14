@@ -27,9 +27,7 @@ mod tests {
     #[test]
     fn test_add_and_list_comments() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Great doc!", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Great doc!", None).unwrap();
         assert_eq!(c.path, "/doc.pdf");
         assert_eq!(c.user_id, "user-1");
         assert_eq!(c.body, "Great doc!");
@@ -43,9 +41,7 @@ mod tests {
     #[test]
     fn test_nested_comments() {
         let (store, _dir) = setup_store();
-        let parent = store
-            .add_comment("/doc.pdf", "user-1", "Parent comment", None)
-            .unwrap();
+        let parent = store.add_comment("/doc.pdf", "user-1", "Parent comment", None).unwrap();
         let child = store
             .add_comment("/doc.pdf", "user-2", "Reply", Some(&parent.id))
             .unwrap();
@@ -58,12 +54,8 @@ mod tests {
     #[test]
     fn test_update_comment() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Original", None)
-            .unwrap();
-        let updated = store
-            .update_comment(&c.id, "user-1", "Updated body")
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Original", None).unwrap();
+        let updated = store.update_comment(&c.id, "user-1", "Updated body").unwrap();
         assert_eq!(updated.body, "Updated body");
         assert_ne!(updated.updated_at, c.updated_at);
     }
@@ -71,9 +63,7 @@ mod tests {
     #[test]
     fn test_update_comment_permission_denied() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Original", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Original", None).unwrap();
         let result = store.update_comment(&c.id, "user-2", "Hacked!");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Permission denied"));
@@ -82,9 +72,7 @@ mod tests {
     #[test]
     fn test_delete_own_comment() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Delete me", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Delete me", None).unwrap();
         assert!(store.delete_comment(&c.id, "user-1", false).is_ok());
         let comments = store.list_comments("/doc.pdf").unwrap();
         assert!(comments.is_empty());
@@ -93,9 +81,7 @@ mod tests {
     #[test]
     fn test_delete_comment_by_admin() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Delete me", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Delete me", None).unwrap();
         assert!(store.delete_comment(&c.id, "admin-user", true).is_ok());
         let comments = store.list_comments("/doc.pdf").unwrap();
         assert!(comments.is_empty());
@@ -104,9 +90,7 @@ mod tests {
     #[test]
     fn test_delete_comment_permission_denied() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Can't delete", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Can't delete", None).unwrap();
         let result = store.delete_comment(&c.id, "user-2", false);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Permission denied"));
@@ -115,9 +99,7 @@ mod tests {
     #[test]
     fn test_resolve_comment() {
         let (store, _dir) = setup_store();
-        let c = store
-            .add_comment("/doc.pdf", "user-1", "Resolve me", None)
-            .unwrap();
+        let c = store.add_comment("/doc.pdf", "user-1", "Resolve me", None).unwrap();
         assert!(!c.resolved);
         let resolved = store.resolve_comment(&c.id, "user-1").unwrap();
         assert!(resolved.resolved);
@@ -141,12 +123,8 @@ mod tests {
     #[test]
     fn test_comments_isolated_by_path() {
         let (store, _dir) = setup_store();
-        store
-            .add_comment("/a.txt", "user-1", "Comment on A", None)
-            .unwrap();
-        store
-            .add_comment("/b.txt", "user-1", "Comment on B", None)
-            .unwrap();
+        store.add_comment("/a.txt", "user-1", "Comment on A", None).unwrap();
+        store.add_comment("/b.txt", "user-1", "Comment on B", None).unwrap();
         assert_eq!(store.list_comments("/a.txt").unwrap().len(), 1);
         assert_eq!(store.list_comments("/b.txt").unwrap().len(), 1);
     }

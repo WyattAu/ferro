@@ -90,9 +90,7 @@ pub fn SettingsPage() -> impl IntoView {
         let email = profile_email.get();
         spawn_local(async move {
             let body = serde_json::json!({ "name": name, "email": email });
-            let _ =
-                api::fetch_json_with_method("/api/user/profile", "PUT", Some(&body.to_string()))
-                    .await;
+            let _ = api::fetch_json_with_method("/api/user/profile", "PUT", Some(&body.to_string())).await;
             ToastContext::success(t!("toast.preferences_saved"));
         });
     };
@@ -107,9 +105,7 @@ pub fn SettingsPage() -> impl IntoView {
         }
         spawn_local(async move {
             let body = serde_json::json!({ "current_password": current, "new_password": new_pw });
-            let _ =
-                api::fetch_json_with_method("/api/user/password", "PUT", Some(&body.to_string()))
-                    .await;
+            let _ = api::fetch_json_with_method("/api/user/password", "PUT", Some(&body.to_string())).await;
             ToastContext::success(t!("toast.preferences_saved"));
         });
         set_current_password.set(String::new());

@@ -1,4 +1,5 @@
 pub mod api_federation;
+pub mod circuit_breaker;
 pub mod federation_sync;
 pub mod metadata_replication;
 #[cfg(feature = "pg")]

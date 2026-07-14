@@ -55,9 +55,9 @@ jobs:
           output-file-path: benchmark-results.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: ${{ github.event_name == 'push' }}
-          alert-threshold: '120%'
+          alert-threshold: '105%'
           comment-on-alert: true
-          fail-on-alert: false
+          fail-on-alert: true
           fail-on-error: false
           alert-comment-cc-users: '@WyattAu'
           gh-pages-branch: 'bench-data'

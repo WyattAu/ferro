@@ -30,10 +30,7 @@ pub struct AuditEntry {
 }
 
 pub trait AuditLogger: Send + Sync {
-    fn log(
-        &self,
-        entry: AuditEntry,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>>;
+    fn log(&self, entry: AuditEntry) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>>;
 }
 
 #[derive(Clone)]

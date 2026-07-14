@@ -54,11 +54,7 @@ impl ApiState {
         resp.json().await.map_err(|e| e.to_string())
     }
 
-    pub async fn post<T: DeserializeOwned>(
-        &self,
-        path: &str,
-        body: &impl Serialize,
-    ) -> Result<T, String> {
+    pub async fn post<T: DeserializeOwned>(&self, path: &str, body: &impl Serialize) -> Result<T, String> {
         let base = self.base_url()?;
         let auth = self.auth_header()?;
         let url = format!("{}{}", base, path);
@@ -139,12 +135,7 @@ impl ApiState {
         self.get("/api/v1/admin/users").await
     }
 
-    pub async fn create_user(
-        &self,
-        username: &str,
-        password: &str,
-        role: &str,
-    ) -> Result<serde_json::Value, String> {
+    pub async fn create_user(&self, username: &str, password: &str, role: &str) -> Result<serde_json::Value, String> {
         #[derive(Serialize)]
         struct CreateUser<'a> {
             username: &'a str,
@@ -163,8 +154,7 @@ impl ApiState {
     }
 
     pub async fn delete_user(&self, user_id: &str) -> Result<(), String> {
-        self.delete(&format!("/api/v1/admin/users/{}", user_id))
-            .await
+        self.delete(&format!("/api/v1/admin/users/{}", user_id)).await
     }
 
     pub async fn list_webhooks(&self) -> Result<Vec<serde_json::Value>, String> {
@@ -183,31 +173,17 @@ impl ApiState {
             events: Vec<String>,
             secret: &'a str,
         }
-        self.post(
-            "/api/v1/admin/webhooks",
-            &CreateWebhook {
-                url,
-                events,
-                secret,
-            },
-        )
-        .await
+        self.post("/api/v1/admin/webhooks", &CreateWebhook { url, events, secret })
+            .await
     }
 
     pub async fn delete_webhook(&self, id: &str) -> Result<(), String> {
         self.delete(&format!("/api/v1/admin/webhooks/{}", id)).await
     }
 
-    pub async fn audit_log(
-        &self,
-        limit: usize,
-        offset: usize,
-    ) -> Result<serde_json::Value, String> {
-        self.get(&format!(
-            "/api/v1/admin/audit?limit={}&offset={}",
-            limit, offset
-        ))
-        .await
+    pub async fn audit_log(&self, limit: usize, offset: usize) -> Result<serde_json::Value, String> {
+        self.get(&format!("/api/v1/admin/audit?limit={}&offset={}", limit, offset))
+            .await
     }
 
     pub async fn prometheus_metrics(&self) -> Result<String, String> {
@@ -218,20 +194,12 @@ impl ApiState {
         self.get("/.well-known/ferro").await
     }
 
-    pub async fn federation_followers(
-        &self,
-        username: &str,
-    ) -> Result<Vec<serde_json::Value>, String> {
-        self.get(&format!("/fed/actor/{}/followers", username))
-            .await
+    pub async fn federation_followers(&self, username: &str) -> Result<Vec<serde_json::Value>, String> {
+        self.get(&format!("/fed/actor/{}/followers", username)).await
     }
 
-    pub async fn federation_following(
-        &self,
-        username: &str,
-    ) -> Result<Vec<serde_json::Value>, String> {
-        self.get(&format!("/fed/actor/{}/following", username))
-            .await
+    pub async fn federation_following(&self, username: &str) -> Result<Vec<serde_json::Value>, String> {
+        self.get(&format!("/fed/actor/{}/following", username)).await
     }
 
     pub async fn federation_inbox(&self) -> Result<Vec<serde_json::Value>, String> {

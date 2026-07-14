@@ -129,10 +129,7 @@ mod tests {
             "token",
             Box::new(TokenBucketLimiter::new(10, 0, Duration::from_secs(60))),
         );
-        multi.add_tier(
-            "fixed",
-            Box::new(FixedWindowLimiter::new(10, Duration::from_secs(60))),
-        );
+        multi.add_tier("fixed", Box::new(FixedWindowLimiter::new(10, Duration::from_secs(60))));
 
         let result = multi.check("user1").await.unwrap();
         assert!(result.allowed);
@@ -146,10 +143,7 @@ mod tests {
             "token",
             Box::new(TokenBucketLimiter::new(10, 0, Duration::from_secs(60))),
         );
-        multi.add_tier(
-            "fixed",
-            Box::new(FixedWindowLimiter::new(1, Duration::from_secs(60))),
-        );
+        multi.add_tier("fixed", Box::new(FixedWindowLimiter::new(1, Duration::from_secs(60))));
 
         multi.check("user1").await.unwrap();
         let result = multi.check("user1").await.unwrap();
@@ -182,10 +176,7 @@ mod tests {
             "token",
             Box::new(TokenBucketLimiter::new(10, 0, Duration::from_secs(60))),
         );
-        multi.add_tier(
-            "fixed",
-            Box::new(FixedWindowLimiter::new(10, Duration::from_secs(60))),
-        );
+        multi.add_tier("fixed", Box::new(FixedWindowLimiter::new(10, Duration::from_secs(60))));
 
         multi.record("user1", 5).await.unwrap();
         let result = multi.check("user1").await.unwrap();
@@ -200,10 +191,7 @@ mod tests {
             "token",
             Box::new(TokenBucketLimiter::new(1, 0, Duration::from_secs(60))),
         );
-        multi.add_tier(
-            "fixed",
-            Box::new(FixedWindowLimiter::new(1, Duration::from_secs(60))),
-        );
+        multi.add_tier("fixed", Box::new(FixedWindowLimiter::new(1, Duration::from_secs(60))));
 
         multi.check("user1").await.unwrap();
         assert!(!multi.check("user1").await.unwrap().allowed);

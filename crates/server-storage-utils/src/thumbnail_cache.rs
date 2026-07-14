@@ -40,9 +40,8 @@ impl ThumbnailCache {
             DEFAULT_MAX_ENTRIES
         };
 
-        let capacity = NonZeroUsize::new(caps).unwrap_or_else(|| {
-            NonZeroUsize::new(DEFAULT_MAX_ENTRIES).expect("DEFAULT_MAX_ENTRIES > 0")
-        });
+        let capacity = NonZeroUsize::new(caps)
+            .unwrap_or_else(|| NonZeroUsize::new(DEFAULT_MAX_ENTRIES).expect("DEFAULT_MAX_ENTRIES > 0"));
 
         Self {
             dir,

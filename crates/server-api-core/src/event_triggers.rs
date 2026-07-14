@@ -160,9 +160,7 @@ impl EventTriggerStore for WasmEventTriggerStore {
         let triggers = self.triggers.read().await;
         triggers
             .iter()
-            .filter(|t| {
-                t.enabled && t.event_type == event_type && glob_match(&t.path_pattern, path)
-            })
+            .filter(|t| t.enabled && t.event_type == event_type && glob_match(&t.path_pattern, path))
             .cloned()
             .collect()
     }
@@ -272,9 +270,7 @@ impl WasmEventTriggerStore {
     fn persist_delete(&self, id: &str) {
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-            if let Err(e) =
-                conn.execute("DELETE FROM wasm_event_triggers WHERE id = ?1", params![id])
-            {
+            if let Err(e) = conn.execute("DELETE FROM wasm_event_triggers WHERE id = ?1", params![id]) {
                 tracing::warn!(error = %e, "failed to delete wasm event trigger");
             }
         }
@@ -285,9 +281,7 @@ impl WasmEventTriggerStore {
 // API Handlers
 // ---------------------------------------------------------------------------
 
-pub async fn create_event_trigger(
-    axum::Json(req): axum::Json<CreateEventTriggerRequest>,
-) -> Response {
+pub async fn create_event_trigger(axum::Json(req): axum::Json<CreateEventTriggerRequest>) -> Response {
     let trigger = EventTrigger {
         id: uuid::Uuid::new_v4().to_string(),
         event_type: req.event_type,
@@ -317,11 +311,7 @@ pub async fn create_event_trigger(
 
 pub async fn list_event_triggers() -> Response {
     let triggers = trigger_store().list().await;
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "triggers": triggers })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "triggers": triggers }))).into_response()
 }
 
 pub async fn delete_event_trigger(Path(id): Path<String>) -> Response {
@@ -335,11 +325,7 @@ pub async fn delete_event_trigger(Path(id): Path<String>) -> Response {
 pub async fn toggle_event_trigger(Path(id): Path<String>) -> Response {
     if trigger_store().toggle(&id).await {
         let triggers = trigger_store().list().await;
-        let enabled = triggers
-            .iter()
-            .find(|t| t.id == id)
-            .map(|t| t.enabled)
-            .unwrap_or(false);
+        let enabled = triggers.iter().find(|t| t.id == id).map(|t| t.enabled).unwrap_or(false);
         (
             StatusCode::OK,
             axum::Json(serde_json::json!({ "id": id, "enabled": enabled })),
@@ -354,12 +340,7 @@ pub async fn toggle_event_trigger(Path(id): Path<String>) -> Response {
 // Trigger evaluation
 // ---------------------------------------------------------------------------
 
-pub async fn fire_event_triggers<S: ApiCoreState>(
-    state: &S,
-    event_type: EventType,
-    path: &str,
-    owner: &str,
-) {
+pub async fn fire_event_triggers<S: ApiCoreState>(state: &S, event_type: EventType, path: &str, owner: &str) {
     let matching = trigger_store().find_matching(event_type, path).await;
     if matching.is_empty() {
         return;
@@ -404,13 +385,9 @@ pub async fn fire_event_triggers<S: ApiCoreState>(
             let input = event_data.to_string().into_bytes();
 
             dispatch_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            match runtime
-                .execute(&module_path_str, "handle_event", &input, None)
-                .await
-            {
+            match runtime.execute(&module_path_str, "handle_event", &input, None).await {
                 Ok(result) => {
-                    fuel_total
-                        .fetch_add(result.fuel_consumed, std::sync::atomic::Ordering::Relaxed);
+                    fuel_total.fetch_add(result.fuel_consumed, std::sync::atomic::Ordering::Relaxed);
                     if result.success {
                         tracing::info!(
                             trigger_id = %trigger_id,
@@ -450,21 +427,14 @@ pub async fn fire_event_triggers<S: ApiCoreState>(
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn find_module_path(
-    workers_dir: &Option<std::path::PathBuf>,
-    worker_name: &str,
-) -> Option<std::path::PathBuf> {
+fn find_module_path(workers_dir: &Option<std::path::PathBuf>, worker_name: &str) -> Option<std::path::PathBuf> {
     let dir = workers_dir.as_ref()?;
     let expected_suffix = format!("-{}", worker_name);
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
             if (name == worker_name || name.ends_with(&expected_suffix))
-                && entry
-                    .path()
-                    .extension()
-                    .map(|e| e == "wasm")
-                    .unwrap_or(false)
+                && entry.path().extension().map(|e| e == "wasm").unwrap_or(false)
             {
                 return Some(entry.path());
             }
@@ -608,27 +578,19 @@ mod tests {
             })
             .await;
 
-        let matches = store
-            .find_matching(EventType::FileUploaded, "/docs/report.pdf")
-            .await;
+        let matches = store.find_matching(EventType::FileUploaded, "/docs/report.pdf").await;
         assert_eq!(matches.len(), 1);
         assert_eq!(matches[0].id, "t1");
 
-        let matches = store
-            .find_matching(EventType::FileUploaded, "/docs/note.txt")
-            .await;
+        let matches = store.find_matching(EventType::FileUploaded, "/docs/note.txt").await;
         assert_eq!(matches.len(), 1);
         assert_eq!(matches[0].id, "t2");
 
-        let matches = store
-            .find_matching(EventType::FileDeleted, "/anything")
-            .await;
+        let matches = store.find_matching(EventType::FileDeleted, "/anything").await;
         assert_eq!(matches.len(), 1);
         assert_eq!(matches[0].id, "t3");
 
-        let matches = store
-            .find_matching(EventType::ShareCreated, "/docs/report.pdf")
-            .await;
+        let matches = store.find_matching(EventType::ShareCreated, "/docs/report.pdf").await;
         assert!(matches.is_empty());
     }
 
@@ -700,9 +662,7 @@ mod tests {
             })
             .await;
 
-        let matches = store
-            .find_matching(EventType::FileUploaded, "/anything")
-            .await;
+        let matches = store.find_matching(EventType::FileUploaded, "/anything").await;
         assert!(matches.is_empty());
     }
 
@@ -715,24 +675,12 @@ mod tests {
     fn test_find_module_path_in_dir() {
         let tmp = tempfile::tempdir().unwrap();
         let workers_dir = tmp.path().to_path_buf();
-        std::fs::write(
-            workers_dir.join("abc123-worker.wasm"),
-            [0x00, 0x61, 0x73, 0x6D],
-        )
-        .unwrap();
+        std::fs::write(workers_dir.join("abc123-worker.wasm"), [0x00, 0x61, 0x73, 0x6D]).unwrap();
 
         let found = find_module_path(&Some(workers_dir.clone()), "worker.wasm");
         assert!(found.is_some());
-        assert!(
-            found
-                .unwrap()
-                .to_string_lossy()
-                .contains("abc123-worker.wasm")
-        );
+        assert!(found.unwrap().to_string_lossy().contains("abc123-worker.wasm"));
 
-        assert_eq!(
-            find_module_path(&Some(workers_dir.clone()), "nonexistent.wasm"),
-            None
-        );
+        assert_eq!(find_module_path(&Some(workers_dir.clone()), "nonexistent.wasm"), None);
     }
 }

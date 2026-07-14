@@ -4,17 +4,14 @@ use axum::response::{IntoResponse, Response};
 
 use crate::{ApiError, UserMgmtState};
 use crate::{
-    CreateUserRequest, ResetPasswordRequest, UpdateSelfRequest, UpdateUserRequest, UserInfo,
-    UserRole, UserStatus, hash_password,
+    CreateUserRequest, ResetPasswordRequest, UpdateSelfRequest, UpdateUserRequest, UserInfo, UserRole, UserStatus,
+    ZeroizeString, hash_password,
 };
 
 #[allow(clippy::result_large_err)]
 fn require_admin(info: &UserInfo) -> Result<(), Response> {
     if info.role != UserRole::Admin {
-        return Err(ApiError::forbidden(
-            ApiError::ADMIN_REQUIRED,
-            "Admin role required",
-        ));
+        return Err(ApiError::forbidden(ApiError::ADMIN_REQUIRED, "Admin role required"));
     }
     Ok(())
 }
@@ -32,10 +29,7 @@ pub async fn create_user<S: UserMgmtState>(
     }
 
     if body.username.trim().is_empty() || body.password.trim().is_empty() {
-        return ApiError::bad_request(
-            ApiError::INVALID_INPUT,
-            "Username and password are required",
-        );
+        return ApiError::bad_request(ApiError::INVALID_INPUT, "Username and password are required");
     }
 
     let user = crate::User {
@@ -55,7 +49,7 @@ pub async fn create_user<S: UserMgmtState>(
         storage_used_bytes: 0,
         is_ldap: false,
         password_hash: match hash_password(&body.password) {
-            Ok(h) => Some(h),
+            Ok(h) => Some(ZeroizeString::new(h)),
             Err(e) => {
                 return ApiError::internal(ApiError::INTERNAL_ERROR, e.message).into_response();
             }
@@ -67,10 +61,7 @@ pub async fn create_user<S: UserMgmtState>(
     match state.user_store().create_user(user).await {
         Ok(u) => match serde_json::to_value(&u) {
             Ok(v) => (StatusCode::CREATED, axum::Json(v)).into_response(),
-            Err(e) => ApiError::internal(
-                ApiError::INTERNAL_ERROR,
-                format!("Failed to serialize user: {}", e),
-            ),
+            Err(e) => ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to serialize user: {}", e)),
         },
         Err(e) => match e.kind {
             crate::UserErrorKind::Conflict => ApiError::conflict(ApiError::USER_EXISTS, e.message),
@@ -101,17 +92,10 @@ pub async fn list_users<S: UserMgmtState>(State(state): State<S>) -> Response {
         })
         .collect();
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "users": serialized })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "users": serialized }))).into_response()
 }
 
-pub async fn get_user<S: UserMgmtState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn get_user<S: UserMgmtState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let admin_user = state.admin_user().as_deref().unwrap_or("");
     let info = match state.user_info(admin_user) {
         Some(i) => i,
@@ -126,10 +110,7 @@ pub async fn get_user<S: UserMgmtState>(
             let mut v = match serde_json::to_value(&u) {
                 Ok(v) => v,
                 Err(e) => {
-                    return ApiError::internal(
-                        ApiError::INTERNAL_ERROR,
-                        format!("Failed to serialize user: {}", e),
-                    );
+                    return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to serialize user: {}", e));
                 }
             };
             if let Some(obj) = v.as_object_mut() {
@@ -138,9 +119,7 @@ pub async fn get_user<S: UserMgmtState>(
             (StatusCode::OK, axum::Json(v)).into_response()
         }
         Err(e) => match e.kind {
-            crate::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
+            crate::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
@@ -165,10 +144,7 @@ pub async fn update_user<S: UserMgmtState>(
             let mut v = match serde_json::to_value(&u) {
                 Ok(v) => v,
                 Err(e) => {
-                    return ApiError::internal(
-                        ApiError::INTERNAL_ERROR,
-                        format!("Failed to serialize user: {}", e),
-                    );
+                    return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to serialize user: {}", e));
                 }
             };
             if let Some(obj) = v.as_object_mut() {
@@ -177,21 +153,14 @@ pub async fn update_user<S: UserMgmtState>(
             (StatusCode::OK, axum::Json(v)).into_response()
         }
         Err(e) => match e.kind {
-            crate::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
-            crate::UserErrorKind::Conflict => {
-                ApiError::conflict(ApiError::USER_CONFLICT, e.message)
-            }
+            crate::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
+            crate::UserErrorKind::Conflict => ApiError::conflict(ApiError::USER_CONFLICT, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
 }
 
-pub async fn delete_user<S: UserMgmtState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_user<S: UserMgmtState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let admin_user = state.admin_user().as_deref().unwrap_or("");
     let info = match state.user_info(admin_user) {
         Some(i) => i,
@@ -202,15 +171,9 @@ pub async fn delete_user<S: UserMgmtState>(
     }
 
     match state.user_store().delete_user(&id).await {
-        Ok(()) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "ok": true })),
-        )
-            .into_response(),
+        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response(),
         Err(e) => match e.kind {
-            crate::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
+            crate::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
@@ -241,15 +204,9 @@ pub async fn reset_password<S: UserMgmtState>(
         }
     };
     match state.user_store().set_password(&id, &hash).await {
-        Ok(()) => (
-            StatusCode::OK,
-            axum::Json(serde_json::json!({ "ok": true })),
-        )
-            .into_response(),
+        Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "ok": true }))).into_response(),
         Err(e) => match e.kind {
-            crate::UserErrorKind::NotFound => {
-                ApiError::not_found(ApiError::USER_NOT_FOUND, e.message)
-            }
+            crate::UserErrorKind::NotFound => ApiError::not_found(ApiError::USER_NOT_FOUND, e.message),
             _ => ApiError::internal(ApiError::USER_ERROR, e.message),
         },
     }
@@ -273,10 +230,7 @@ pub async fn get_current_user<S: UserMgmtState>(State(state): State<S>) -> Respo
     let mut v = match serde_json::to_value(&user) {
         Ok(v) => v,
         Err(e) => {
-            return ApiError::internal(
-                "SERIALIZATION_ERROR",
-                format!("Failed to serialize user: {}", e),
-            );
+            return ApiError::internal("SERIALIZATION_ERROR", format!("Failed to serialize user: {}", e));
         }
     };
     if let Some(obj) = v.as_object_mut() {
@@ -294,10 +248,7 @@ pub async fn update_current_user<S: UserMgmtState>(
     let user = match state.user_store().get_user_by_username(username).await {
         Ok(u) => u,
         Err(_) => {
-            return ApiError::not_found(
-                ApiError::USER_NOT_FOUND,
-                "Current user not found in user store",
-            );
+            return ApiError::not_found(ApiError::USER_NOT_FOUND, "Current user not found in user store");
         }
     };
 
@@ -311,10 +262,7 @@ pub async fn update_current_user<S: UserMgmtState>(
             let mut v = match serde_json::to_value(&u) {
                 Ok(v) => v,
                 Err(e) => {
-                    return ApiError::internal(
-                        ApiError::INTERNAL_ERROR,
-                        format!("Failed to serialize user: {}", e),
-                    );
+                    return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to serialize user: {}", e));
                 }
             };
             if let Some(obj) = v.as_object_mut() {
@@ -322,16 +270,12 @@ pub async fn update_current_user<S: UserMgmtState>(
             }
             let response = if let Some(ref new_pass) = body.password {
                 if new_pass.trim().is_empty() {
-                    return ApiError::bad_request(
-                        ApiError::INVALID_INPUT,
-                        "Password cannot be empty",
-                    );
+                    return ApiError::bad_request(ApiError::INVALID_INPUT, "Password cannot be empty");
                 }
                 let hash = match hash_password(new_pass) {
                     Ok(h) => h,
                     Err(e) => {
-                        return ApiError::internal(ApiError::INTERNAL_ERROR, e.message)
-                            .into_response();
+                        return ApiError::internal(ApiError::INTERNAL_ERROR, e.message).into_response();
                     }
                 };
                 if let Err(e) = state.user_store().set_password(&user.id, &hash).await {

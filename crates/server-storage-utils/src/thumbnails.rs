@@ -47,12 +47,7 @@ impl ThumbnailService {
         SUPPORTED_IMAGE_TYPES.contains(&mime_type) || mime_type == "application/pdf"
     }
 
-    pub async fn get_or_generate(
-        &self,
-        path: &str,
-        mime_type: &str,
-        content: Bytes,
-    ) -> (&'static str, Bytes) {
+    pub async fn get_or_generate(&self, path: &str, mime_type: &str, content: Bytes) -> (&'static str, Bytes) {
         let key = Self::cache_key(path);
         let cache_file = self.cache_path(&key);
 
@@ -82,9 +77,9 @@ impl ThumbnailService {
                 let cache_path = cache_file.clone();
                 let data_clone = data.clone();
                 tokio::spawn(async move {
-                    let _ =
-                        ferro_core::fs_util::atomic_write_async(cache_path, data_clone.to_vec())
-                            .await;
+                    if let Err(e) = ferro_core::fs_util::atomic_write_async(cache_path, data_clone.to_vec()).await {
+                        tracing::error!("Background thumbnail write failed: {e}");
+                    }
                 });
                 (content_type, data)
             }
@@ -99,8 +94,7 @@ impl ThumbnailService {
         let content = content.clone();
         let max_size = self.max_size;
         tokio::task::spawn_blocking(move || {
-            let img = image::load_from_memory(&content)
-                .map_err(|e| format!("Failed to load image: {}", e))?;
+            let img = image::load_from_memory(&content).map_err(|e| format!("Failed to load image: {}", e))?;
 
             let thumbnail = img.thumbnail(max_size, max_size);
 
@@ -237,9 +231,7 @@ pub async fn get_thumbnail<S: StorageUtilsState>(
 
     let (content_type, data) = service.get_or_generate(&path, mime, content).await;
 
-    state
-        .thumbnail_cache()
-        .put(&path, data.to_vec(), content_type);
+    state.thumbnail_cache().put(&path, data.to_vec(), content_type);
 
     (
         StatusCode::OK,

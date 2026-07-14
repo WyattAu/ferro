@@ -11,7 +11,6 @@ publish = false
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
 serde = { workspace = true }
-serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
@@ -20,8 +19,6 @@ sha2 = { workspace = true }
 rusqlite = { version = "0.32", features = ["bundled"] }
 async-trait = "0.1"
 tracing = "0.1"
-dashmap = "6"
-bytes = { workspace = true }
 hex = "0.4"
 
 [dev-dependencies]

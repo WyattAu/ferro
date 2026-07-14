@@ -34,9 +34,7 @@ pub fn record_usage(state: &AppState, bytes: i64) {
         .ok();
 
     if bytes > 0 {
-        state
-            .file_count
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        state.file_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     } else if bytes < 0 {
         state
             .file_count
@@ -51,21 +49,14 @@ pub fn record_usage(state: &AppState, bytes: i64) {
 
 /// Check if a PUT operation would exceed the quota (best-effort pre-check).
 /// Uses the atomic counter for fast checks. Returns Ok(()) if within quota.
-pub fn enforce_quota(
-    state: &AppState,
-    content_length: u64,
-) -> Result<(), Box<axum::response::Response>> {
+pub fn enforce_quota(state: &AppState, content_length: u64) -> Result<(), Box<axum::response::Response>> {
     if let Some(quota_bytes) = state.quota_bytes {
         if quota_bytes == 0 {
             return Ok(());
         }
         let used = state.used_bytes.load(std::sync::atomic::Ordering::Relaxed);
         if used + content_length > quota_bytes {
-            return Err(Box::new(ApiError::quota_exceeded(
-                used,
-                quota_bytes,
-                content_length,
-            )));
+            return Err(Box::new(ApiError::quota_exceeded(used, quota_bytes, content_length)));
         }
     }
     Ok(())
@@ -74,11 +65,7 @@ pub fn enforce_quota(
 /// Calculate total storage usage by summing file sizes from the storage backend.
 pub async fn calculate_usage(state: &AppState) -> u64 {
     match state.storage.list_all("/", 100_000).await {
-        Ok(files) => files
-            .iter()
-            .filter(|f| !f.is_collection)
-            .map(|f| f.size)
-            .sum(),
+        Ok(files) => files.iter().filter(|f| !f.is_collection).map(|f| f.size).sum(),
         Err(_) => 0,
     }
 }
@@ -127,16 +114,12 @@ mod tests {
     #[test]
     fn test_check_quota_under_limit() {
         let state = crate::AppState::in_memory();
-        state
-            .used_bytes
-            .store(500, std::sync::atomic::Ordering::Relaxed);
+        state.used_bytes.store(500, std::sync::atomic::Ordering::Relaxed);
         let check_state = crate::AppState {
             quota_bytes: Some(1000),
             ..crate::AppState::in_memory()
         };
-        check_state
-            .used_bytes
-            .store(500, std::sync::atomic::Ordering::Relaxed);
+        check_state.used_bytes.store(500, std::sync::atomic::Ordering::Relaxed);
         assert!(check_quota(&check_state, 400).is_ok());
     }
 
@@ -146,9 +129,7 @@ mod tests {
             quota_bytes: Some(1000),
             ..crate::AppState::in_memory()
         };
-        check_state
-            .used_bytes
-            .store(800, std::sync::atomic::Ordering::Relaxed);
+        check_state.used_bytes.store(800, std::sync::atomic::Ordering::Relaxed);
         assert!(check_quota(&check_state, 300).is_err());
     }
 
@@ -156,23 +137,11 @@ mod tests {
     fn test_record_usage() {
         let state = crate::AppState::in_memory();
         record_usage(&state, 100);
-        assert_eq!(
-            state.used_bytes.load(std::sync::atomic::Ordering::Relaxed),
-            100
-        );
-        assert_eq!(
-            state.file_count.load(std::sync::atomic::Ordering::Relaxed),
-            1
-        );
+        assert_eq!(state.used_bytes.load(std::sync::atomic::Ordering::Relaxed), 100);
+        assert_eq!(state.file_count.load(std::sync::atomic::Ordering::Relaxed), 1);
         record_usage(&state, -50);
-        assert_eq!(
-            state.used_bytes.load(std::sync::atomic::Ordering::Relaxed),
-            50
-        );
-        assert_eq!(
-            state.file_count.load(std::sync::atomic::Ordering::Relaxed),
-            0
-        );
+        assert_eq!(state.used_bytes.load(std::sync::atomic::Ordering::Relaxed), 50);
+        assert_eq!(state.file_count.load(std::sync::atomic::Ordering::Relaxed), 0);
     }
 
     #[test]
@@ -181,9 +150,7 @@ mod tests {
             quota_bytes: Some(1000),
             ..crate::AppState::in_memory()
         };
-        state
-            .used_bytes
-            .store(500, std::sync::atomic::Ordering::Relaxed);
+        state.used_bytes.store(500, std::sync::atomic::Ordering::Relaxed);
         assert!(enforce_quota(&state, 400).is_ok());
     }
 
@@ -193,9 +160,7 @@ mod tests {
             quota_bytes: Some(1000),
             ..crate::AppState::in_memory()
         };
-        state
-            .used_bytes
-            .store(800, std::sync::atomic::Ordering::Relaxed);
+        state.used_bytes.store(800, std::sync::atomic::Ordering::Relaxed);
         let result = enforce_quota(&state, 300);
         assert!(result.is_err());
     }

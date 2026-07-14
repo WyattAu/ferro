@@ -13,7 +13,6 @@ common = { package = "ferro-common", path = "../common" }
 async-graphql = "7"
 axum = { workspace = true }
 tokio = { workspace = true }
-serde = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

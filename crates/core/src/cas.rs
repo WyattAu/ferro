@@ -18,13 +18,14 @@ pub trait CasStore: Send + Sync {
 }
 
 /// In-memory CAS store backed by a hash map.
-#[non_exhaustive]
+#[derive(Debug)]
 pub struct InMemoryCasStore {
     content: Arc<RwLock<HashMap<String, Bytes>>>,
 }
 
 impl InMemoryCasStore {
     /// Create a new empty in-memory CAS store.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             content: Arc::new(RwLock::new(HashMap::new())),

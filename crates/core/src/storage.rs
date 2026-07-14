@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use tracing::debug;
 
 /// In-memory storage engine that combines content and metadata storage.
-#[non_exhaustive]
+#[derive(Debug)]
 pub struct InMemoryStorageEngine {
     store: Arc<RwLock<HashMap<String, Bytes>>>,
     metadata: Arc<RwLock<HashMap<String, FileMetadata>>>,
@@ -19,6 +19,7 @@ pub struct InMemoryStorageEngine {
 
 impl InMemoryStorageEngine {
     /// Create a new empty in-memory storage engine.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             store: Arc::new(RwLock::new(HashMap::new())),
@@ -37,12 +38,7 @@ impl Default for InMemoryStorageEngine {
 impl StorageEngine for InMemoryStorageEngine {
     async fn put(&self, path: &str, content: Bytes, owner: &str) -> Result<FileMetadata> {
         let hash = ContentHash::compute(&content);
-        let meta = FileMetadata::new(
-            path.to_string(),
-            hash.clone(),
-            content.len() as u64,
-            owner.to_string(),
-        );
+        let meta = FileMetadata::new(path.to_string(), hash.clone(), content.len() as u64, owner.to_string());
 
         let mut store = self.store.write().await;
         let mut meta_map = self.metadata.write().await;
@@ -113,9 +109,7 @@ impl StorageEngine for InMemoryStorageEngine {
         let mut store = self.store.write().await;
         let mut meta_map = self.metadata.write().await;
 
-        let content = store
-            .remove(src)
-            .ok_or_else(|| FerroError::NotFound(src.to_string()))?;
+        let content = store.remove(src).ok_or_else(|| FerroError::NotFound(src.to_string()))?;
         let mut meta = meta_map
             .remove(src)
             .ok_or_else(|| FerroError::NotFound(src.to_string()))?;
@@ -145,14 +139,8 @@ impl StorageEngine for InMemoryStorageEngine {
 
     async fn create_collection(&self, path: &str, owner: &str) -> Result<FileMetadata> {
         let meta = FileMetadata::new_collection(path.to_string(), owner.to_string());
-        self.metadata
-            .write()
-            .await
-            .insert(path.to_string(), meta.clone());
-        self.store
-            .write()
-            .await
-            .insert(path.to_string(), Bytes::new());
+        self.metadata.write().await.insert(path.to_string(), meta.clone());
+        self.store.write().await.insert(path.to_string(), Bytes::new());
         debug!("MKCOL {}", path);
         Ok(meta)
     }
@@ -190,10 +178,7 @@ mod tests {
         let engine = InMemoryStorageEngine::new();
         let content = Bytes::from("hello world");
 
-        engine
-            .put("/test.txt", content.clone(), "user1")
-            .await
-            .unwrap();
+        engine.put("/test.txt", content.clone(), "user1").await.unwrap();
         let retrieved = engine.get("/test.txt").await.unwrap();
         assert_eq!(content, retrieved);
     }
@@ -216,10 +201,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete() {
         let engine = InMemoryStorageEngine::new();
-        engine
-            .put("/test.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/test.txt", Bytes::from("hello"), "user1").await.unwrap();
         assert!(engine.exists("/test.txt").await.unwrap());
 
         engine.delete("/test.txt").await.unwrap();
@@ -236,18 +218,9 @@ mod tests {
     #[tokio::test]
     async fn test_list() {
         let engine = InMemoryStorageEngine::new();
-        engine
-            .put("/docs/a.txt", Bytes::from("a"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/docs/b.txt", Bytes::from("b"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/other/c.txt", Bytes::from("c"), "user1")
-            .await
-            .unwrap();
+        engine.put("/docs/a.txt", Bytes::from("a"), "user1").await.unwrap();
+        engine.put("/docs/b.txt", Bytes::from("b"), "user1").await.unwrap();
+        engine.put("/other/c.txt", Bytes::from("c"), "user1").await.unwrap();
 
         let docs = engine.list("/docs").await.unwrap();
         assert_eq!(docs.len(), 2);
@@ -256,10 +229,7 @@ mod tests {
     #[tokio::test]
     async fn test_copy() {
         let engine = InMemoryStorageEngine::new();
-        engine
-            .put("/src.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/src.txt", Bytes::from("hello"), "user1").await.unwrap();
 
         engine.copy("/src.txt", "/dst.txt").await.unwrap();
         assert!(engine.exists("/src.txt").await.unwrap());
@@ -273,10 +243,7 @@ mod tests {
     #[tokio::test]
     async fn test_move_path() {
         let engine = InMemoryStorageEngine::new();
-        engine
-            .put("/old.txt", Bytes::from("hello"), "user1")
-            .await
-            .unwrap();
+        engine.put("/old.txt", Bytes::from("hello"), "user1").await.unwrap();
 
         engine.move_path("/old.txt", "/new.txt").await.unwrap();
         assert!(!engine.exists("/old.txt").await.unwrap());
@@ -296,14 +263,8 @@ mod tests {
     #[tokio::test]
     async fn test_put_overwrite() {
         let engine = InMemoryStorageEngine::new();
-        engine
-            .put("/test.txt", Bytes::from("v1"), "user1")
-            .await
-            .unwrap();
-        engine
-            .put("/test.txt", Bytes::from("v2"), "user1")
-            .await
-            .unwrap();
+        engine.put("/test.txt", Bytes::from("v1"), "user1").await.unwrap();
+        engine.put("/test.txt", Bytes::from("v2"), "user1").await.unwrap();
 
         let content = engine.get("/test.txt").await.unwrap();
         assert_eq!(content, Bytes::from("v2"));

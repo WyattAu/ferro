@@ -301,10 +301,7 @@ async fn main() -> anyhow::Result<()> {
 
     let log_level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| log_level.into()),
-        )
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| log_level.into()))
         .init();
 
     let ferro_client = client::FerroClient::new(&cli.server_url, cli.token.as_deref())?;
@@ -447,10 +444,7 @@ async fn handle_user(cmd: UserCommands, client: &client::FerroClient) -> anyhow:
     match cmd {
         UserCommands::List => {
             let resp = client.list_users().await?;
-            println!(
-                "{:<20} {:<30} {:<10} {:<10}",
-                "USERNAME", "EMAIL", "ROLE", "STATUS"
-            );
+            println!("{:<20} {:<30} {:<10} {:<10}", "USERNAME", "EMAIL", "ROLE", "STATUS");
             println!("{}", "-".repeat(70));
             for user in &resp {
                 println!(
@@ -482,10 +476,7 @@ async fn handle_policy(cmd: PolicyCommands, client: &client::FerroClient) -> any
     match cmd {
         PolicyCommands::List => {
             let result = client.list_policies().await?;
-            let configured = result
-                .get("configured")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
+            let configured = result.get("configured").and_then(|v| v.as_bool()).unwrap_or(false);
             println!(
                 "Cedar authorization: {}",
                 if configured { "enabled" } else { "disabled" }
@@ -503,11 +494,7 @@ async fn handle_policy(cmd: PolicyCommands, client: &client::FerroClient) -> any
                     if let Some(s) = policy.as_str() {
                         println!("  [{}] {}", i, s);
                     } else {
-                        println!(
-                            "  [{}] {}",
-                            i,
-                            serde_json::to_string_pretty(policy).unwrap_or_default()
-                        );
+                        println!("  [{}] {}", i, serde_json::to_string_pretty(policy).unwrap_or_default());
                     }
                 }
             }
@@ -547,10 +534,7 @@ async fn handle_share(cmd: ShareCommands, client: &client::FerroClient) -> anyho
                 for share in &shares {
                     let token = share.get("token").and_then(|v| v.as_str()).unwrap_or("?");
                     let path = share.get("path").and_then(|v| v.as_str()).unwrap_or("?");
-                    let downloads = share
-                        .get("download_count")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
+                    let downloads = share.get("download_count").and_then(|v| v.as_u64()).unwrap_or(0);
                     println!("  {} -> {} ({} downloads)", token, path, downloads);
                 }
             }
@@ -561,9 +545,7 @@ async fn handle_share(cmd: ShareCommands, client: &client::FerroClient) -> anyho
             password,
         } => {
             println!("Creating share link for {}...", path);
-            let share = client
-                .create_share(&path, expires_hours, password.as_deref())
-                .await?;
+            let share = client.create_share(&path, expires_hours, password.as_deref()).await?;
             let token = share.get("token").and_then(|v| v.as_str()).unwrap_or("?");
             let url = share.get("url").and_then(|v| v.as_str()).unwrap_or("");
             println!("Token: {}", token);
@@ -577,10 +559,7 @@ async fn handle_share(cmd: ShareCommands, client: &client::FerroClient) -> anyho
     Ok(())
 }
 
-async fn handle_snapshot(
-    cmd: SnapshotCommands,
-    client: &client::FerroClient,
-) -> anyhow::Result<()> {
+async fn handle_snapshot(cmd: SnapshotCommands, client: &client::FerroClient) -> anyhow::Result<()> {
     match cmd {
         SnapshotCommands::List => {
             let snapshots = client.list_snapshots().await?;
@@ -592,10 +571,7 @@ async fn handle_snapshot(
                 for snap in &snapshots {
                     let id = snap.get("id").and_then(|v| v.as_str()).unwrap_or("?");
                     let file_count = snap.get("file_count").and_then(|v| v.as_u64()).unwrap_or(0);
-                    let created = snap
-                        .get("created_at")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("?");
+                    let created = snap.get("created_at").and_then(|v| v.as_str()).unwrap_or("?");
                     println!("  {} ({} files, created {})", id, file_count, created);
                 }
             }
@@ -729,10 +705,7 @@ fn print_migration_report(report: &ferro_migrate::MigrationReport) {
     println!("Shares:     {} migrated", report.shares_migrated);
     println!("Tags:       {} migrated", report.tags_migrated);
     println!("Favorites:  {} migrated", report.favorites_migrated);
-    println!(
-        "Total data: {:.2} MB",
-        report.total_bytes as f64 / 1_048_576.0
-    );
+    println!("Total data: {:.2} MB", report.total_bytes as f64 / 1_048_576.0);
     println!("Duration:   {:.1}s", report.duration_secs);
 
     if !report.errors.is_empty() {
@@ -748,18 +721,10 @@ async fn cmd_backup(client: &client::FerroClient, cmd: &BackupCommands) -> anyho
     match cmd {
         BackupCommands::Create => {
             println!("Creating backup...");
-            let resp = client
-                .post_json("/api/admin/backup", &serde_json::json!({}))
-                .await?;
-            let id = resp
-                .get("backup_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("?");
+            let resp = client.post_json("/api/admin/backup", &serde_json::json!({})).await?;
+            let id = resp.get("backup_id").and_then(|v| v.as_str()).unwrap_or("?");
             let files = resp.get("file_count").and_then(|v| v.as_u64()).unwrap_or(0);
-            let size = resp
-                .get("total_bytes")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0);
+            let size = resp.get("total_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
             println!(
                 "Backup {} created ({} files, {:.2} MB)",
                 id,
@@ -778,12 +743,7 @@ async fn cmd_backup(client: &client::FerroClient, cmd: &BackupCommands) -> anyho
                         let id = b.get("backup_id").and_then(|v| v.as_str()).unwrap_or("?");
                         let files = b.get("file_count").and_then(|v| v.as_u64()).unwrap_or(0);
                         let size = b.get("total_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
-                        println!(
-                            "{:<30} {:>10} {:>8.1} MB",
-                            id,
-                            files,
-                            size as f64 / 1_048_576.0
-                        );
+                        println!("{:<30} {:>10} {:>8.1} MB", id, files, size as f64 / 1_048_576.0);
                     }
                 }
                 _ => println!("No backups found"),
@@ -809,10 +769,7 @@ async fn cmd_info(client: &client::FerroClient) -> anyhow::Result<()> {
     println!("========================");
 
     let healthy = client.health_check().await?;
-    println!(
-        "Server Status: {}",
-        if healthy { "Connected" } else { "Disconnected" }
-    );
+    println!("Server Status: {}", if healthy { "Connected" } else { "Disconnected" });
     println!("Server URL:    {}", client.server_url());
 
     match client.get_capabilities().await {

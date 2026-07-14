@@ -54,13 +54,7 @@ async fn put_file(app: &axum::Router, path: &str, content: &str) -> StatusCode {
 async fn get_file(app: &axum::Router, path: &str) -> (StatusCode, String) {
     let resp = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(path)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().method("GET").uri(path).body(Body::empty()).unwrap())
         .await
         .unwrap();
     let status = resp.status();
@@ -98,11 +92,7 @@ async fn mkcol(app: &axum::Router, path: &str) -> StatusCode {
     resp.status()
 }
 
-async fn create_share(
-    app: &axum::Router,
-    path: &str,
-    password: Option<&str>,
-) -> (StatusCode, String) {
+async fn create_share(app: &axum::Router, path: &str, password: Option<&str>) -> (StatusCode, String) {
     let body = match password {
         Some(pw) => format!(
             r#"{{"path": "{}", "password": "{}", "expires_in_hours": 24}}"#,
@@ -230,12 +220,7 @@ async fn delete_backup(app: &axum::Router, backup_id: &str) -> StatusCode {
 
 async fn verify_file_exists(app: &axum::Router, path: &str, expected_content: &str) {
     let (status, body) = get_file(app, path).await;
-    assert_eq!(
-        status,
-        StatusCode::OK,
-        "File {} should exist after restore",
-        path
-    );
+    assert_eq!(status, StatusCode::OK, "File {} should exist after restore", path);
     assert_eq!(
         body, expected_content,
         "File {} content should match after restore",
@@ -245,12 +230,7 @@ async fn verify_file_exists(app: &axum::Router, path: &str, expected_content: &s
 
 async fn verify_file_missing(app: &axum::Router, path: &str) {
     let (status, _) = get_file(app, path).await;
-    assert_eq!(
-        status,
-        StatusCode::NOT_FOUND,
-        "File {} should be missing",
-        path
-    );
+    assert_eq!(status, StatusCode::NOT_FOUND, "File {} should be missing", path);
 }
 
 // ── Full Disaster Recovery Drill ─────────────────────────────────────
@@ -314,10 +294,7 @@ async fn test_full_disaster_recovery_drill() {
     // Step 4: Verify backup appears in list
     let (status, body) = list_backups(&app).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(
-        body.contains(&backup_id),
-        "Backup list should contain our backup"
-    );
+    assert!(body.contains(&backup_id), "Backup list should contain our backup");
 
     // Step 5: Simulate disaster - delete files
     delete_file(&app, "/dr-important.txt").await;
@@ -378,11 +355,7 @@ async fn test_backup_lifecycle() {
 
     // Verify backup is gone
     let (status, _) = get_latest_backup(&app).await;
-    assert_eq!(
-        status,
-        StatusCode::NOT_FOUND,
-        "Deleted backup should be gone"
-    );
+    assert_eq!(status, StatusCode::NOT_FOUND, "Deleted backup should be gone");
 }
 
 #[tokio::test]
@@ -544,11 +517,7 @@ async fn test_backup_empty_server() {
     let (app, _dir) = app_with_data_dir();
 
     let (status, _) = create_backup(&app).await;
-    assert_eq!(
-        status,
-        StatusCode::CREATED,
-        "Backup of empty server should succeed"
-    );
+    assert_eq!(status, StatusCode::CREATED, "Backup of empty server should succeed");
 
     let (status, body) = list_backups(&app).await;
     assert_eq!(status, StatusCode::OK);
@@ -563,8 +532,7 @@ async fn test_restore_fresh_server_instance() {
 
     // Phase 1: Original server - upload files and create backup
     {
-        let state =
-            AppState::in_memory().with_data_dir(data_dir_path.to_string_lossy().to_string());
+        let state = AppState::in_memory().with_data_dir(data_dir_path.to_string_lossy().to_string());
         let app = build_router(state);
 
         mkcol(&app, "/fresh-test").await;
@@ -591,17 +559,13 @@ async fn test_restore_fresh_server_instance() {
 
     // Phase 2: Fresh server instance - restore from backup
     {
-        let fresh_state =
-            AppState::in_memory().with_data_dir(data_dir_path.to_string_lossy().to_string());
+        let fresh_state = AppState::in_memory().with_data_dir(data_dir_path.to_string_lossy().to_string());
         let fresh_app = build_router(fresh_state);
 
         let (status, body) = list_backups(&fresh_app).await;
         assert_eq!(status, StatusCode::OK);
         let backups: Vec<serde_json::Value> = serde_json::from_str(&body).unwrap();
-        assert!(
-            !backups.is_empty(),
-            "Fresh server should see existing backups"
-        );
+        assert!(!backups.is_empty(), "Fresh server should see existing backups");
 
         let backup_id = backups[0]["id"].as_str().unwrap().to_string();
 

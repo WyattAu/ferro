@@ -118,10 +118,10 @@ pub fn SetupWizard() -> impl IntoView {
                                 <svg class="w-8 h-8 text-orange-600" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                                 </svg>
-                                <span id="setup-wizard-title" class="font-bold text-lg font-mono text-gray-900 dark:text-white">Ferro Setup</span>
+                                <span id="setup-wizard-title" class="font-bold text-lg font-mono text-[var(--text-primary)]">Ferro Setup</span>
                             </div>
                             <button
-                                class="text-sm text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 rounded px-2 py-1 font-mono min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                class="text-sm text-[var(--text-tertiary)] hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 rounded px-2 py-1 font-mono min-w-[44px] min-h-[44px] flex items-center justify-center"
                                 on:click=skip
                                 aria-label="Skip setup wizard"
                             >
@@ -130,7 +130,7 @@ pub fn SetupWizard() -> impl IntoView {
                         </div>
 
                         // Progress bar
-                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded h-2 mb-6" role="progressbar" aria-valuenow=move || progress.get() aria-valuemin="0" aria-valuemax="100" aria-label="Setup progress">
+                        <div class="w-full bg-[var(--border-default)] rounded h-2 mb-6" role="progressbar" aria-valuenow=move || progress.get() aria-valuemin="0" aria-valuemax="100" aria-label="Setup progress">
                             <div
                                 class="bg-orange-600 h-2 rounded transition-all duration-300"
                                 style=move || format!("width: {}%", progress.get())
@@ -145,22 +145,22 @@ pub fn SetupWizard() -> impl IntoView {
                                         <svg class="w-16 h-16 text-orange-600 mx-auto mb-4" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
                                             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                                         </svg>
-                                        <h2 class="text-2xl font-bold font-mono text-gray-900 dark:text-white mb-2">
+                                        <h2 class="text-2xl font-bold font-mono text-[var(--text-primary)] mb-2">
                                             "Welcome to Ferro"
                                         </h2>
-                                        <p class="text-gray-600 dark:text-gray-400 font-mono text-sm mb-6 leading-relaxed">
+                                        <p class="text-[var(--text-secondary)] font-mono text-sm mb-6 leading-relaxed">
                                             "Your personal distributed storage solution. This wizard will help you get started in just a few steps."
                                         </p>
                                         <div class="grid grid-cols-3 gap-4 mb-6 text-left">
-                                            <div class="p-3 rounded bg-gray-50 dark:bg-gray-800">
+                                            <div class="p-3 rounded bg-[var(--bg-surface-sunken)]">
                                                 <div class="text-orange-600 font-bold font-mono text-sm">"Step 1"</div>
                                                 <div class="text-xs text-gray-500 font-mono">"Admin account"</div>
                                             </div>
-                                            <div class="p-3 rounded bg-gray-50 dark:bg-gray-800">
+                                            <div class="p-3 rounded bg-[var(--bg-surface-sunken)]">
                                                 <div class="text-orange-600 font-bold font-mono text-sm">"Step 2"</div>
                                                 <div class="text-xs text-gray-500 font-mono">"Storage backend"</div>
                                             </div>
-                                            <div class="p-3 rounded bg-gray-50 dark:bg-gray-800">
+                                            <div class="p-3 rounded bg-[var(--bg-surface-sunken)]">
                                                 <div class="text-orange-600 font-bold font-mono text-sm">"Step 3"</div>
                                                 <div class="text-xs text-gray-500 font-mono">"Authentication"</div>
                                             </div>
@@ -174,38 +174,38 @@ pub fn SetupWizard() -> impl IntoView {
                                             <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                             </svg>
-                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Create Admin Account"</h3>
-                                            <p class="text-sm text-gray-500 font-mono mt-1">"Set up your administrator credentials"</p>
+                                            <h3 class="text-lg font-bold font-mono text-[var(--text-primary)]">"Create Admin Account"</h3>
+                                            <p class="text-sm text-[var(--text-tertiary)] font-mono mt-1">"Set up your administrator credentials"</p>
                                         </div>
                                         <div class="space-y-4">
                                             <div>
-                                                <label for="setup-username" class="block text-sm font-mono text-gray-700 dark:text-gray-300 mb-1">"Username"</label>
+                                                <label for="setup-username" class="block text-sm font-mono text-[var(--text-secondary)] mb-1">"Username"</label>
                                                 <input
                                                     id="setup-username"
                                                     type="text"
-                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                                                     placeholder="admin"
                                                     prop:value=move || admin_username.get()
                                                     on:input=move |ev| set_admin_username.set(event_target_value(&ev))
                                                 />
                                             </div>
                                             <div>
-                                                <label for="setup-email" class="block text-sm font-mono text-gray-700 dark:text-gray-300 mb-1">"Email"</label>
+                                                <label for="setup-email" class="block text-sm font-mono text-[var(--text-secondary)] mb-1">"Email"</label>
                                                 <input
                                                     id="setup-email"
                                                     type="email"
-                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                                                     placeholder="admin@example.com"
                                                     prop:value=move || admin_email.get()
                                                     on:input=move |ev| set_admin_email.set(event_target_value(&ev))
                                                 />
                                             </div>
                                             <div>
-                                                <label for="setup-password" class="block text-sm font-mono text-gray-700 dark:text-gray-300 mb-1">"Password"</label>
+                                                <label for="setup-password" class="block text-sm font-mono text-[var(--text-secondary)] mb-1">"Password"</label>
                                                 <input
                                                     id="setup-password"
                                                     type="password"
-                                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                                                     placeholder="Enter a strong password"
                                                     prop:value=move || admin_password.get()
                                                     on:input=move |ev| set_admin_password.set(event_target_value(&ev))
@@ -221,8 +221,8 @@ pub fn SetupWizard() -> impl IntoView {
                                             <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                                             </svg>
-                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Storage Backend"</h3>
-                                            <p class="text-sm text-gray-500 font-mono mt-1">"Choose where to store your files"</p>
+                                            <h3 class="text-lg font-bold font-mono text-[var(--text-primary)]">"Storage Backend"</h3>
+                                            <p class="text-sm text-[var(--text-tertiary)] font-mono mt-1">"Choose where to store your files"</p>
                                         </div>
                                         <div class="space-y-3">
                                             {[
@@ -237,12 +237,12 @@ pub fn SetupWizard() -> impl IntoView {
                                                     <button
                                                         class=move || format!(
                                                             "w-full p-4 text-left rounded-lg border-2 transition-all font-mono min-h-[44px] {}",
-                                                            if storage_backend.get() == k_for_class { "border-orange-500 bg-orange-50 dark:bg-orange-900/20" } else { "border-gray-200 dark:border-gray-700 hover:border-gray-300" }
+                                                            if storage_backend.get() == k_for_class { "border-orange-500 bg-orange-50 dark:bg-orange-900/20" } else { "border-[var(--border-default)] hover:border-gray-300" }
                                                         )
                                                         on:click=move |_| set_storage_backend.set(k.clone())
                                                     >
-                                                        <div class="font-bold text-sm text-gray-900 dark:text-white">{n}</div>
-                                                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{d}</div>
+                                                        <div class="font-bold text-sm text-[var(--text-primary)]">{n}</div>
+                                                        <div class="text-xs text-[var(--text-tertiary)] mt-1">{d}</div>
                                                     </button>
                                                 }
                                             }).collect::<Vec<_>>()}
@@ -256,11 +256,11 @@ pub fn SetupWizard() -> impl IntoView {
                                             <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                             </svg>
-                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Authentication"</h3>
-                                            <p class="text-sm text-gray-500 font-mono mt-1">"Optionally require login for file access"</p>
+                                            <h3 class="text-lg font-bold font-mono text-[var(--text-primary)]">"Authentication"</h3>
+                                            <p class="text-sm text-[var(--text-tertiary)] font-mono mt-1">"Optionally require login for file access"</p>
                                         </div>
                                         <div class="space-y-4">
-                                            <label for="setup-auth-toggle" class="flex items-center gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                            <label for="setup-auth-toggle" class="flex items-center gap-3 p-4 rounded-lg border border-[var(--border-default)] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                                                 <input
                                                     id="setup-auth-toggle"
                                                     type="checkbox"
@@ -269,11 +269,11 @@ pub fn SetupWizard() -> impl IntoView {
                                                     on:change=move |ev| set_auth_enabled.set(event_target_checked(&ev))
                                                 />
                                                 <div>
-                                                    <div class="font-mono text-sm font-bold text-gray-900 dark:text-white">"Enable authentication"</div>
-                                                    <div class="font-mono text-xs text-gray-500 mt-0.5">"Require users to log in before accessing files"</div>
+                                                    <div class="font-mono text-sm font-bold text-[var(--text-primary)]">"Enable authentication"</div>
+                                                    <div class="font-mono text-xs text-[var(--text-tertiary)] mt-0.5">"Require users to log in before accessing files"</div>
                                                 </div>
                                             </label>
-                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800 font-mono text-xs text-gray-600 dark:text-gray-400" aria-live="polite">
+                                            <div class="p-4 rounded-lg bg-[var(--bg-surface-sunken)] font-mono text-xs text-[var(--text-secondary)]" aria-live="polite">
                                                 {move || if auth_enabled.get() {
                                                     "Authentication will be configured. You can add users from the admin panel after setup."
                                                 } else {
@@ -290,11 +290,11 @@ pub fn SetupWizard() -> impl IntoView {
                                             <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                                             </svg>
-                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Sample Folders"</h3>
-                                            <p class="text-sm text-gray-500 font-mono mt-1">"Create a starter folder structure"</p>
+                                            <h3 class="text-lg font-bold font-mono text-[var(--text-primary)]">"Sample Folders"</h3>
+                                            <p class="text-sm text-[var(--text-tertiary)] font-mono mt-1">"Create a starter folder structure"</p>
                                         </div>
                                         <div class="space-y-3">
-                                            <label for="setup-samples-toggle" class="flex items-center gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                            <label for="setup-samples-toggle" class="flex items-center gap-3 p-4 rounded-lg border border-[var(--border-default)] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                                                 <input
                                                     id="setup-samples-toggle"
                                                     type="checkbox"
@@ -303,34 +303,34 @@ pub fn SetupWizard() -> impl IntoView {
                                                     on:change=move |ev| set_create_samples.set(event_target_checked(&ev))
                                                 />
                                                 <div>
-                                                    <div class="font-mono text-sm font-bold text-gray-900 dark:text-white">"Create sample folders"</div>
-                                                    <div class="font-mono text-xs text-gray-500 mt-0.5">"Adds Documents, Photos, Videos, Music, Shared with README files"</div>
+                                                    <div class="font-mono text-sm font-bold text-[var(--text-primary)]">"Create sample folders"</div>
+                                                    <div class="font-mono text-xs text-[var(--text-tertiary)] mt-0.5">"Adds Documents, Photos, Videos, Music, Shared with README files"</div>
                                                 </div>
                                             </label>
-                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
-                                                <div class="font-mono text-xs text-gray-500 mb-2">"Folders that will be created:"</div>
+                                            <div class="p-4 rounded-lg bg-[var(--bg-surface-sunken)]">
+                                                <div class="font-mono text-xs text-[var(--text-tertiary)] mb-2">"Folders that will be created:"</div>
                                                 <div class="grid grid-cols-2 gap-2 font-mono text-xs">
-                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                    <div class="flex items-center gap-2 text-[var(--text-secondary)]">
                                                         <svg class="w-4 h-4 text-orange-500" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                                                         "Documents"
                                                     </div>
-                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                    <div class="flex items-center gap-2 text-[var(--text-secondary)]">
                                                         <svg class="w-4 h-4 text-orange-500" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                                                         "Photos"
                                                     </div>
-                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                    <div class="flex items-center gap-2 text-[var(--text-secondary)]">
                                                         <svg class="w-4 h-4 text-orange-500" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                                                         "Videos"
                                                     </div>
-                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                    <div class="flex items-center gap-2 text-[var(--text-secondary)]">
                                                         <svg class="w-4 h-4 text-orange-500" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                                                         "Music"
                                                     </div>
-                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                    <div class="flex items-center gap-2 text-[var(--text-secondary)]">
                                                         <svg class="w-4 h-4 text-orange-500" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                                                         "Shared"
                                                     </div>
-                                                    <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                    <div class="flex items-center gap-2 text-[var(--text-secondary)]">
                                                         <svg class="w-4 h-4 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/></svg>
                                                         "Welcome.txt"
                                                     </div>
@@ -346,31 +346,31 @@ pub fn SetupWizard() -> impl IntoView {
                                             <svg class="w-10 h-10 text-orange-600 mx-auto mb-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                             </svg>
-                                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Quick Start Guide"</h3>
-                                            <p class="text-sm text-gray-500 font-mono mt-1">"You're all set! Here's how to get started."</p>
+                                            <h3 class="text-lg font-bold font-mono text-[var(--text-primary)]">"Quick Start Guide"</h3>
+                                            <p class="text-sm text-[var(--text-tertiary)] font-mono mt-1">"You're all set! Here's how to get started."</p>
                                         </div>
                                         <div class="space-y-4">
-                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                            <div class="p-4 rounded-lg bg-[var(--bg-surface-sunken)]">
                                                 <div class="font-mono text-sm font-bold text-orange-600 mb-2">"Upload Files"</div>
-                                                <p class="font-mono text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                <p class="font-mono text-xs text-[var(--text-secondary)] leading-relaxed">
                                                     "Drag and drop files onto the browser window, or use the upload button in the toolbar. Files are uploaded directly to your configured storage backend."
                                                 </p>
                                             </div>
-                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                            <div class="p-4 rounded-lg bg-[var(--bg-surface-sunken)]">
                                                 <div class="font-mono text-sm font-bold text-orange-600 mb-2">"Organize with Folders"</div>
-                                                <p class="font-mono text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                <p class="font-mono text-xs text-[var(--text-secondary)] leading-relaxed">
                                                     "Create folders using the new folder button. Navigate between folders by clicking or using the breadcrumb trail at the top."
                                                 </p>
                                             </div>
-                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                            <div class="p-4 rounded-lg bg-[var(--bg-surface-sunken)]">
                                                 <div class="font-mono text-sm font-bold text-orange-600 mb-2">"Admin Dashboard"</div>
-                                                <p class="font-mono text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                <p class="font-mono text-xs text-[var(--text-secondary)] leading-relaxed">
                                                     "Access the admin panel at /ui/admin to monitor storage, manage users, and configure server settings."
                                                 </p>
                                             </div>
-                                            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                            <div class="p-4 rounded-lg bg-[var(--bg-surface-sunken)]">
                                                 <div class="font-mono text-sm font-bold text-orange-600 mb-2">"Keyboard Shortcuts"</div>
-                                                <p class="font-mono text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                                <p class="font-mono text-xs text-[var(--text-secondary)] leading-relaxed">
                                                     "Press ? to view all available keyboard shortcuts. Navigate with arrow keys, select with Space, and delete with Del."
                                                 </p>
                                             </div>
@@ -381,11 +381,11 @@ pub fn SetupWizard() -> impl IntoView {
                         }}
 
                         // Navigation buttons
-                        <div class="flex items-center justify-between gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between gap-3 mt-6 pt-4 border-t border-[var(--border-default)]">
                             <button
                                 class=move || format!(
                                     "px-4 py-2 text-sm rounded font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[44px] {}",
-                                    if step.get() == SetupStep::Welcome { "invisible" } else { "text-gray-600 dark:text-gray-400 hover:text-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800" }
+                                    if step.get() == SetupStep::Welcome { "invisible" } else { "text-[var(--text-secondary)] hover:text-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800" }
                                 )
                                 on:click=move |_| {
                                     let s = step.get();
@@ -411,7 +411,7 @@ pub fn SetupWizard() -> impl IntoView {
                                     <div
                                         class=move || format!(
                                             "w-2 h-2 rounded-full transition-colors {}",
-                                            if i == step.get().index() { "bg-orange-500" } else { "bg-gray-300 dark:bg-gray-600" }
+                                            if i == step.get().index() { "bg-orange-500" } else { "bg-[var(--text-tertiary)]" }
                                         )
                                     ></div>
                                 }).collect::<Vec<_>>()}

@@ -66,10 +66,7 @@ pub struct FerroBytes {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ferro_client_new(
-    server_url: *const c_char,
-    token: *const c_char,
-) -> *mut FerroClientHandle {
+pub unsafe extern "C" fn ferro_client_new(server_url: *const c_char, token: *const c_char) -> *mut FerroClientHandle {
     if server_url.is_null() || token.is_null() {
         return ptr::null_mut();
     }
@@ -198,10 +195,7 @@ mod tests {
 
     #[test]
     fn test_result_from_error() {
-        assert_eq!(
-            FerroResult::from(&ClientError::AuthFailed),
-            FerroResult::ErrorAuth
-        );
+        assert_eq!(FerroResult::from(&ClientError::AuthFailed), FerroResult::ErrorAuth);
         assert_eq!(
             FerroResult::from(&ClientError::NotFound("/x".into())),
             FerroResult::ErrorNotFound

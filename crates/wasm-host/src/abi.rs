@@ -236,10 +236,7 @@ mod tests {
         assert_eq!(manifest.name, "test-plugin");
         assert!(Capability::has(manifest.capabilities, Capability::ReadFile));
         assert!(Capability::has(manifest.capabilities, Capability::Log));
-        assert!(!Capability::has(
-            manifest.capabilities,
-            Capability::WriteFile
-        ));
+        assert!(!Capability::has(manifest.capabilities, Capability::WriteFile));
     }
 
     #[test]

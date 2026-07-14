@@ -55,8 +55,7 @@ impl OcisClient {
         let encoded = base64_engine().encode(credentials.as_bytes());
         headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Basic {}", encoded))
-                .map_err(|e| MigrationError::config(e.to_string()))?,
+            HeaderValue::from_str(&format!("Basic {}", encoded)).map_err(|e| MigrationError::config(e.to_string()))?,
         );
 
         let http = reqwest::Client::builder()
@@ -81,8 +80,7 @@ impl OcisClient {
         let mut headers = HeaderMap::new();
         headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", token))
-                .map_err(|e| MigrationError::config(e.to_string()))?,
+            HeaderValue::from_str(&format!("Bearer {}", token)).map_err(|e| MigrationError::config(e.to_string()))?,
         );
 
         let http = reqwest::Client::builder()
@@ -103,37 +101,18 @@ impl OcisClient {
     ///
     /// This discovers the OIDC issuer from the oCIS `.well-known/openid-configuration`,
     /// then exchanges username + password for an access token.
-    pub async fn with_oidc(
-        url: &str,
-        username: &str,
-        password: &str,
-        oidc_client_id: &str,
-    ) -> MigrateResult<Self> {
+    pub async fn with_oidc(url: &str, username: &str, password: &str, oidc_client_id: &str) -> MigrateResult<Self> {
         let base_url = url.trim_end_matches('/');
 
         // Discover OIDC endpoints
         let discovery_url = format!("{}/.well-known/openid-configuration", base_url);
-        let http = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .build()?;
+        let http = reqwest::Client::builder().danger_accept_invalid_certs(true).build()?;
 
-        let discovery: OidcDiscovery = http
-            .get(&discovery_url)
-            .send()
-            .await?
-            .json()
-            .await
-            .map_err(|e| {
-                MigrationError::connection(format!(
-                    "Failed to fetch OIDC discovery from {}: {}",
-                    discovery_url, e
-                ))
-            })?;
+        let discovery: OidcDiscovery = http.get(&discovery_url).send().await?.json().await.map_err(|e| {
+            MigrationError::connection(format!("Failed to fetch OIDC discovery from {}: {}", discovery_url, e))
+        })?;
 
-        tracing::info!(
-            "OIDC discovery: token_endpoint={}",
-            discovery.token_endpoint
-        );
+        tracing::info!("OIDC discovery: token_endpoint={}", discovery.token_endpoint);
 
         // Exchange credentials for token via ROPC grant
         let token_resp: OidcTokenResponse = http
@@ -240,11 +219,7 @@ impl OcisClient {
         parse_propfind(&body)
     }
 
-    pub async fn list_directory_recursive(
-        &self,
-        user: &str,
-        path: &str,
-    ) -> MigrateResult<Vec<DavEntry>> {
+    pub async fn list_directory_recursive(&self, user: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {
         let mut all_entries = Vec::new();
         let mut dirs_to_process = vec![path.to_string()];
 

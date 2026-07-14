@@ -74,12 +74,8 @@ impl<S: InfraState> FederationSync<S> {
             .await;
     }
 
-    async fn publish_activity<F>(
-        &self,
-        activity_type: &str,
-        file_activity: &FileSyncActivity,
-        object_fn: F,
-    ) where
+    async fn publish_activity<F>(&self, activity_type: &str, file_activity: &FileSyncActivity, object_fn: F)
+    where
         F: Fn(&FileSyncActivity, &str) -> serde_json::Value,
     {
         if self.state.federation_secret().is_empty() {
@@ -127,8 +123,7 @@ impl<S: InfraState> FederationSync<S> {
 
         fed.activity_store.add_to_outbox(as_activity).ok();
 
-        let results =
-            ferro_server_activitypub::delivery::deliver_to_followers(&fed, &activity_value).await;
+        let results = ferro_server_activitypub::delivery::deliver_to_followers(&fed, &activity_value).await;
         let ok_count = results.iter().filter(|r| r.is_ok()).count();
         info!(
             "Published {} activity for {} to {}/{} followers",
@@ -146,19 +141,15 @@ impl<S: InfraState> FederationSync<S> {
         match activity.r#type {
             ferro_server_activitypub::activity::ActivityType::Create
             | ferro_server_activitypub::activity::ActivityType::Update => {
-                let file_sync: FileSyncActivity =
-                    serde_json::from_value(activity.object.clone())
-                        .map_err(|e| format!("Failed to parse file sync activity object: {}", e))?;
+                let file_sync: FileSyncActivity = serde_json::from_value(activity.object.clone())
+                    .map_err(|e| format!("Failed to parse file sync activity object: {}", e))?;
 
                 if let Some(url) = file_sync
                     .to_create_object(self.state.external_url())
                     .get("url")
                     .and_then(|v| v.as_str())
                 {
-                    info!(
-                        "Received activity for file {} from {}",
-                        file_sync.path, activity.actor
-                    );
+                    info!("Received activity for file {} from {}", file_sync.path, activity.actor);
 
                     if let Ok(meta) = self.state.storage().head(&file_sync.path).await {
                         let dominated = file_sync
@@ -171,39 +162,26 @@ impl<S: InfraState> FederationSync<S> {
                         }
                     }
 
-                    info!(
-                        "Applying remote file {} to local storage from {}",
-                        file_sync.path, url
-                    );
+                    info!("Applying remote file {} to local storage from {}", file_sync.path, url);
                 }
             }
             ferro_server_activitypub::activity::ActivityType::Delete => {
-                let file_sync: FileSyncActivity =
-                    serde_json::from_value(activity.object.clone())
-                        .map_err(|e| format!("Failed to parse file sync delete object: {}", e))?;
+                let file_sync: FileSyncActivity = serde_json::from_value(activity.object.clone())
+                    .map_err(|e| format!("Failed to parse file sync delete object: {}", e))?;
 
-                info!(
-                    "Received Delete for file {} from {}",
-                    file_sync.path, activity.actor
-                );
+                info!("Received Delete for file {} from {}", file_sync.path, activity.actor);
 
                 match self.state.storage().delete(&file_sync.path).await {
                     Ok(()) => {
                         info!("Applied remote delete for {}", file_sync.path);
                     }
                     Err(e) => {
-                        warn!(
-                            "Failed to apply remote delete for {}: {}",
-                            file_sync.path, e
-                        );
+                        warn!("Failed to apply remote delete for {}: {}", file_sync.path, e);
                     }
                 }
             }
             _ => {
-                return Err(format!(
-                    "Unhandled activity type for file sync: {:?}",
-                    activity.r#type
-                ));
+                return Err(format!("Unhandled activity type for file sync: {:?}", activity.r#type));
             }
         }
         Ok(())

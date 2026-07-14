@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 /// A single property within an iCalendar component.
+#[repr(C)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IcalProperty {
     /// Property name (e.g. "DTSTART", "SUMMARY").
@@ -12,6 +13,7 @@ pub struct IcalProperty {
 }
 
 /// A parsed iCalendar component (e.g. VCALENDAR, VEVENT, VTODO).
+#[repr(C)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IcalComponent {
     /// Component name (e.g. "VCALENDAR", "VEVENT").
@@ -115,11 +117,7 @@ fn parse_component_lines(lines: &[&str], offset: &mut usize) -> Option<IcalCompo
         }
 
         if let Some(prop) = parse_property(line) {
-            component
-                .properties
-                .entry(prop.name.clone())
-                .or_default()
-                .push(prop);
+            component.properties.entry(prop.name.clone()).or_default().push(prop);
         }
 
         *offset += 1;
@@ -159,7 +157,7 @@ fn escape_ical_value(s: &str) -> String {
 fn format_property(prop: &IcalProperty) -> String {
     let mut s = prop.name.clone();
     for (k, v) in &prop.params {
-        s.push_str(&format!(";{}={}", k, v));
+        s.push_str(&format!(";{k}={v}"));
     }
     s.push(':');
     s.push_str(&escape_ical_value(&prop.value));
@@ -188,6 +186,7 @@ fn serialize_component(component: &IcalComponent, indent: usize) -> String {
 }
 
 /// Serialize a list of iCalendar components back to an iCalendar string.
+#[must_use]
 pub fn serialize_ical(components: &[IcalComponent]) -> String {
     let mut s = String::new();
     for comp in components {
@@ -197,11 +196,13 @@ pub fn serialize_ical(components: &[IcalComponent]) -> String {
 }
 
 /// Get the first property with the given name from a component.
+#[must_use]
 pub fn get_first_prop<'a>(component: &'a IcalComponent, name: &str) -> Option<&'a IcalProperty> {
     component.properties.get(name).and_then(|v| v.first())
 }
 
 /// Get all properties with the given name from a component.
+#[must_use]
 pub fn get_all_props<'a>(component: &'a IcalComponent, name: &str) -> Vec<&'a IcalProperty> {
     component
         .properties

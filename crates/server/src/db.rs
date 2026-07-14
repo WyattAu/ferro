@@ -13,41 +13,17 @@ use std::sync::Arc;
 const SCHEMA_VERSION: i64 = 14;
 
 const MIGRATIONS: &[(&str, &str)] = &[
-    (
-        "001",
-        include_str!("../../../migrations/001_initial_schema.sql"),
-    ),
+    ("001", include_str!("../../../migrations/001_initial_schema.sql")),
     ("002", include_str!("../../../migrations/002_totp_2fa.sql")),
-    (
-        "003",
-        include_str!("../../../migrations/003_extended_features.sql"),
-    ),
-    (
-        "004",
-        include_str!("../../../migrations/004_retention_policies_v2.sql"),
-    ),
+    ("003", include_str!("../../../migrations/003_extended_features.sql")),
+    ("004", include_str!("../../../migrations/004_retention_policies_v2.sql")),
     ("005", include_str!("../../../migrations/005_comments.sql")),
-    (
-        "006",
-        include_str!("../../../migrations/006_event_triggers.sql"),
-    ),
-    (
-        "007",
-        include_str!("../../../migrations/007_worm_policies.sql"),
-    ),
-    (
-        "008",
-        include_str!("../../../migrations/008_remote_mounts.sql"),
-    ),
+    ("006", include_str!("../../../migrations/006_event_triggers.sql")),
+    ("007", include_str!("../../../migrations/007_worm_policies.sql")),
+    ("008", include_str!("../../../migrations/008_remote_mounts.sql")),
     ("009", include_str!("../../../migrations/009_api_keys.sql")),
-    (
-        "011",
-        include_str!("../../../migrations/011_push_notifications.sql"),
-    ),
-    (
-        "012",
-        include_str!("../../../migrations/012_notes_tasks.sql"),
-    ),
+    ("011", include_str!("../../../migrations/011_push_notifications.sql")),
+    ("012", include_str!("../../../migrations/012_notes_tasks.sql")),
     (
         "013",
         include_str!("../../../migrations/013_mail_analytics_watermark.sql"),
@@ -66,11 +42,9 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
     )?;
 
     let current_version: i64 = conn
-        .query_row(
-            "SELECT COALESCE(MAX(version), 0) FROM schema_version",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT COALESCE(MAX(version), 0) FROM schema_version", [], |row| {
+            row.get(0)
+        })
         .unwrap_or(0);
 
     for &(version_str, sql) in MIGRATIONS {
@@ -96,9 +70,7 @@ pub fn open_db(data_dir: &str) -> Result<Connection, rusqlite::Error> {
     let db_path = std::path::Path::new(data_dir).join("ferro.db");
     let mut conn = Connection::open(&db_path)?;
 
-    conn.execute_batch(
-        "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;",
-    )?;
+    conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;")?;
 
     // Slow query logging: warn on queries taking longer than 100ms.
     conn.profile(Some(|sql: &str, duration: std::time::Duration| {
@@ -152,9 +124,7 @@ mod tests {
         // CI enforces no format! in SQL outside this test function.
         for table in &tables {
             let count: i64 = conn
-                .query_row(&format!("SELECT COUNT(*) FROM {}", table), [], |row| {
-                    row.get(0)
-                })
+                .query_row(&format!("SELECT COUNT(*) FROM {}", table), [], |row| row.get(0))
                 .unwrap();
             assert_eq!(count, 0, "Table {} should be empty", table);
         }
@@ -177,11 +147,9 @@ mod tests {
         {
             let conn = open_db(path).unwrap();
             let name: String = conn
-                .query_row(
-                    "SELECT display_name FROM users WHERE id = 'user-1'",
-                    [],
-                    |row| row.get(0),
-                )
+                .query_row("SELECT display_name FROM users WHERE id = 'user-1'", [], |row| {
+                    row.get(0)
+                })
                 .unwrap();
             assert_eq!(name, "Admin");
         }
@@ -191,9 +159,7 @@ mod tests {
     fn test_wal_mode_enabled() {
         let dir = tempfile::tempdir().unwrap();
         let conn = open_db(dir.path().to_str().unwrap()).unwrap();
-        let mode: String = conn
-            .query_row("PRAGMA journal_mode", [], |row| row.get(0))
-            .unwrap();
+        let mode: String = conn.query_row("PRAGMA journal_mode", [], |row| row.get(0)).unwrap();
         assert_eq!(mode, "wal");
     }
 
@@ -203,9 +169,7 @@ mod tests {
         let conn = open_db(dir.path().to_str().unwrap()).unwrap();
 
         let version: i64 = conn
-            .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
-                row.get(0)
-            })
+            .query_row("SELECT MAX(version) FROM schema_version", [], |row| row.get(0))
             .unwrap();
         assert_eq!(version, SCHEMA_VERSION);
     }
@@ -217,16 +181,12 @@ mod tests {
 
         let conn1 = open_db(path).unwrap();
         let version1: i64 = conn1
-            .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
-                row.get(0)
-            })
+            .query_row("SELECT MAX(version) FROM schema_version", [], |row| row.get(0))
             .unwrap();
 
         let conn2 = open_db(path).unwrap();
         let version2: i64 = conn2
-            .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
-                row.get(0)
-            })
+            .query_row("SELECT MAX(version) FROM schema_version", [], |row| row.get(0))
             .unwrap();
 
         assert_eq!(version1, version2);

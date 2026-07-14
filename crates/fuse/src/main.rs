@@ -12,11 +12,7 @@ fn main() {
 
 #[cfg(target_os = "linux")]
 #[derive(Debug, clap::Parser)]
-#[command(
-    name = "ferro-fuse",
-    version,
-    about = "FUSE filesystem mount for Ferro"
-)]
+#[command(name = "ferro-fuse", version, about = "FUSE filesystem mount for Ferro")]
 struct Cli {
     #[arg(long, env = "FERRO_URL", default_value = "http://localhost:8080")]
     server_url: String,
@@ -47,9 +43,7 @@ async fn main() -> anyhow::Result<()> {
     use tracing::info;
 
     tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
 
     let cli = Cli::parse();
@@ -73,18 +67,9 @@ async fn main() -> anyhow::Result<()> {
     #[cfg(not(feature = "offline-cache"))]
     let cache_dir: Option<String> = None;
 
-    let fs_impl = fs::FerroFs::new(
-        &cli.server_url,
-        cli.token.as_deref(),
-        uid,
-        gid,
-        cache_dir.as_deref(),
-    )?;
+    let fs_impl = fs::FerroFs::new(&cli.server_url, cli.token.as_deref(), uid, gid, cache_dir.as_deref())?;
 
-    info!(
-        "Mounting Ferro at {} (server: {})",
-        cli.mount, cli.server_url
-    );
+    info!("Mounting Ferro at {} (server: {})", cli.mount, cli.server_url);
 
     let mut options = fuse3::MountOptions::default();
     options.allow_root(cli.allow_root);

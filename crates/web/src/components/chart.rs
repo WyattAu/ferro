@@ -31,19 +31,11 @@ pub fn BarChart(
     max_bars: usize,
 ) -> impl IntoView {
     let display_data: Vec<ChartDataPoint> = data.into_iter().take(max_bars).collect();
-    let max_value = display_data
-        .iter()
-        .map(|d| d.value)
-        .fold(0.0_f64, f64::max)
-        .max(1.0);
+    let max_value = display_data.iter().map(|d| d.value).fold(0.0_f64, f64::max).max(1.0);
 
     let chart_width = 100.0; // percentage-based
     let bar_count = display_data.len() as f64;
-    let bar_gap = if bar_count > 0.0 {
-        2.0 / bar_count
-    } else {
-        0.0
-    };
+    let bar_gap = if bar_count > 0.0 { 2.0 / bar_count } else { 0.0 };
     let bar_width = if bar_count > 0.0 {
         (chart_width - bar_gap * (bar_count + 1.0)) / bar_count
     } else {
@@ -159,11 +151,7 @@ pub fn LineChart(
     max_points: usize,
 ) -> impl IntoView {
     let display_data: Vec<ChartDataPoint> = data.into_iter().take(max_points).collect();
-    let max_value = display_data
-        .iter()
-        .map(|d| d.value)
-        .fold(0.0_f64, f64::max)
-        .max(1.0);
+    let max_value = display_data.iter().map(|d| d.value).fold(0.0_f64, f64::max).max(1.0);
 
     let chart_width = 100.0;
     let padding = 5.0;

@@ -172,11 +172,7 @@ impl Default for SpotlightConfig {
                     value: String::new(),
                 },
             ],
-            excluded_extensions: vec![
-                "db".to_string(),
-                "db-journal".to_string(),
-                "tmp".to_string(),
-            ],
+            excluded_extensions: vec!["db".to_string(), "db-journal".to_string(), "tmp".to_string()],
         }
     }
 }
@@ -361,10 +357,7 @@ impl UniversalBinaryConfig {
     /// Generate the cargo build commands for each architecture.
     pub fn build_commands(&self) -> Vec<String> {
         vec![
-            format!(
-                "cargo build --release --target {} --features tauri",
-                self.x86_64_target
-            ),
+            format!("cargo build --release --target {} --features tauri", self.x86_64_target),
             format!(
                 "cargo build --release --target {} --features tauri",
                 self.aarch64_target
@@ -373,10 +366,7 @@ impl UniversalBinaryConfig {
                 "lipo -create target/{}/release/ferro-desktop target/{}/release/ferro-desktop -output {}",
                 self.x86_64_target, self.aarch64_target, self.output_path
             ),
-            format!(
-                "install_name_tool -id @rpath/ferro-desktop {}",
-                self.output_path
-            ),
+            format!("install_name_tool -id @rpath/ferro-desktop {}", self.output_path),
         ]
     }
 
@@ -391,10 +381,7 @@ impl UniversalBinaryConfig {
         if self.strip {
             script.push_str(&format!("strip -x {}\n", self.output_path));
         }
-        script.push_str(&format!(
-            "echo \"Universal binary created at {}\"\n",
-            self.output_path
-        ));
+        script.push_str(&format!("echo \"Universal binary created at {}\"\n", self.output_path));
         script
     }
 }

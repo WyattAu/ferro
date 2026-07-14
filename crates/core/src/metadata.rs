@@ -17,13 +17,14 @@ pub trait MetadataStore: Send + Sync {
 }
 
 /// In-memory metadata store backed by a hash map.
-#[non_exhaustive]
+#[derive(Debug)]
 pub struct InMemoryMetadataStore {
     data: Arc<RwLock<HashMap<String, FileMetadata>>>,
 }
 
 impl InMemoryMetadataStore {
     /// Create a new empty in-memory metadata store.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             data: Arc::new(RwLock::new(HashMap::new())),
@@ -63,11 +64,7 @@ impl MetadataStore for InMemoryMetadataStore {
 
     async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>> {
         let data = self.data.read().await;
-        Ok(data
-            .values()
-            .filter(|m| m.path.starts_with(prefix))
-            .cloned()
-            .collect())
+        Ok(data.values().filter(|m| m.path.starts_with(prefix)).cloned().collect())
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {

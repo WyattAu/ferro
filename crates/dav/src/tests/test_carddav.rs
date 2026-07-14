@@ -15,10 +15,7 @@ END:VCARD\r\n",
 #[tokio::test]
 async fn test_create_and_list_address_books() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "Contacts")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "Contacts").await.unwrap();
     assert_eq!(book.name, "Contacts");
     assert_eq!(book.principal, "user1");
 
@@ -30,10 +27,7 @@ async fn test_create_and_list_address_books() {
 #[tokio::test]
 async fn test_delete_address_book() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "To Delete")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "To Delete").await.unwrap();
 
     store.delete_address_book("user1", &book.id).await.unwrap();
     let books = store.list_address_books("user1").await;
@@ -56,10 +50,7 @@ async fn test_get_address_book() {
 #[tokio::test]
 async fn test_create_and_list_contacts() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "Contacts")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "Contacts").await.unwrap();
 
     let vcard = sample_vcard("c-1", "Alice Smith", "Smith", "Alice");
     store.create_contact(&book.id, &vcard).await.unwrap();
@@ -72,10 +63,7 @@ async fn test_create_and_list_contacts() {
 #[tokio::test]
 async fn test_get_contact() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "Contacts")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "Contacts").await.unwrap();
 
     let vcard = sample_vcard("c-2", "Bob Jones", "Jones", "Bob");
     store.create_contact(&book.id, &vcard).await.unwrap();
@@ -88,29 +76,20 @@ async fn test_get_contact() {
 #[tokio::test]
 async fn test_update_contact() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "Contacts")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "Contacts").await.unwrap();
 
     let vcard = sample_vcard("c-3", "Original Name", "Orig", "Name");
     store.create_contact(&book.id, &vcard).await.unwrap();
 
     let updated_vcard = sample_vcard("c-3", "Updated Name", "Orig", "Name");
-    let contact = store
-        .update_contact(&book.id, "c-3", &updated_vcard)
-        .await
-        .unwrap();
+    let contact = store.update_contact(&book.id, "c-3", &updated_vcard).await.unwrap();
     assert!(contact.vcard_data.contains("Updated Name"));
 }
 
 #[tokio::test]
 async fn test_delete_contact() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "Contacts")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "Contacts").await.unwrap();
 
     let vcard = sample_vcard("c-4", "Delete Me", "Del", "Me");
     store.create_contact(&book.id, &vcard).await.unwrap();
@@ -138,10 +117,7 @@ async fn test_contact_isolation() {
 #[tokio::test]
 async fn test_create_duplicate_contact_fails() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "Contacts")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "Contacts").await.unwrap();
 
     let vcard = sample_vcard("dup-1", "Duplicate", "Dup", "Licate");
     store.create_contact(&book.id, &vcard).await.unwrap();
@@ -153,10 +129,7 @@ async fn test_create_duplicate_contact_fails() {
 #[tokio::test]
 async fn test_ctag_bumps_on_create_contact() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "Contacts")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "Contacts").await.unwrap();
     let ctag_before = book.ctag.clone();
 
     let vcard = sample_vcard("ctag-1", "CTag Test", "Test", "CTag");
@@ -169,55 +142,30 @@ async fn test_ctag_bumps_on_create_contact() {
 #[tokio::test]
 async fn test_ctag_bumps_on_update_contact() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "Contacts")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "Contacts").await.unwrap();
 
     let vcard = sample_vcard("ctag-2", "CTag Test", "Test", "CTag");
     store.create_contact(&book.id, &vcard).await.unwrap();
-    let ctag_before = store
-        .get_address_book("user1", &book.id)
-        .await
-        .unwrap()
-        .ctag;
+    let ctag_before = store.get_address_book("user1", &book.id).await.unwrap().ctag;
 
     let updated = sample_vcard("ctag-2", "Updated Name", "Test", "CTag");
-    store
-        .update_contact(&book.id, "ctag-2", &updated)
-        .await
-        .unwrap();
+    store.update_contact(&book.id, "ctag-2", &updated).await.unwrap();
 
-    let ctag_after = store
-        .get_address_book("user1", &book.id)
-        .await
-        .unwrap()
-        .ctag;
+    let ctag_after = store.get_address_book("user1", &book.id).await.unwrap().ctag;
     assert_ne!(ctag_before, ctag_after);
 }
 
 #[tokio::test]
 async fn test_ctag_bumps_on_delete_contact() {
     let store = InMemoryAddressBookStore::new();
-    let book = store
-        .create_address_book("user1", "Contacts")
-        .await
-        .unwrap();
+    let book = store.create_address_book("user1", "Contacts").await.unwrap();
 
     let vcard = sample_vcard("ctag-3", "CTag Test", "Test", "CTag");
     store.create_contact(&book.id, &vcard).await.unwrap();
-    let ctag_before = store
-        .get_address_book("user1", &book.id)
-        .await
-        .unwrap()
-        .ctag;
+    let ctag_before = store.get_address_book("user1", &book.id).await.unwrap().ctag;
 
     store.delete_contact(&book.id, "ctag-3").await.unwrap();
 
-    let ctag_after = store
-        .get_address_book("user1", &book.id)
-        .await
-        .unwrap()
-        .ctag;
+    let ctag_after = store.get_address_book("user1", &book.id).await.unwrap().ctag;
     assert_ne!(ctag_before, ctag_after);
 }

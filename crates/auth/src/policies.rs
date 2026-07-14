@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::cedar::CedarAuthorizer;
 
 /// Shared state for the policy API handlers.
+#[derive(Debug)]
 pub struct PolicyState {
     pub cedar: Option<Arc<CedarAuthorizer>>,
 }
@@ -38,10 +39,7 @@ pub struct AddPolicyRequest {
 }
 
 /// Add a new Cedar policy to the authorizer.
-pub async fn add_policy(
-    State(state): State<PolicyState>,
-    axum::Json(req): axum::Json<AddPolicyRequest>,
-) -> Response {
+pub async fn add_policy(State(state): State<PolicyState>, axum::Json(req): axum::Json<AddPolicyRequest>) -> Response {
     match &state.cedar {
         None => policy_error(
             StatusCode::SERVICE_UNAVAILABLE,
@@ -93,12 +91,7 @@ pub async fn delete_policy(
     }
 }
 
-fn policy_error(
-    status: StatusCode,
-    code: &str,
-    message: &str,
-    details: Option<String>,
-) -> Response {
+fn policy_error(status: StatusCode, code: &str, message: &str, details: Option<String>) -> Response {
     let mut body = serde_json::json!({
         "error": message,
         "error_code": code,
@@ -107,4 +100,79 @@ fn policy_error(
         body["details"] = serde_json::json!(d);
     }
     (status, axum::Json(body)).into_response()
+}
+
+#[cfg(test)]
+#[cfg(feature = "handlers")]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_list_policies_not_configured() {
+        let state = PolicyState { cedar: None };
+        let resp = list_policies(State(state)).await;
+        let (parts, body) = resp.into_parts();
+        assert_eq!(parts.status, StatusCode::OK);
+        let bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["configured"], false);
+    }
+
+    #[tokio::test]
+    async fn test_list_policies_configured() {
+        let cedar = std::sync::Arc::new(crate::cedar::CedarAuthorizer::new().unwrap());
+        let state = PolicyState { cedar: Some(cedar) };
+        let resp = list_policies(State(state)).await;
+        let (parts, body) = resp.into_parts();
+        assert_eq!(parts.status, StatusCode::OK);
+        let bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(json["configured"], true);
+    }
+
+    #[tokio::test]
+    async fn test_add_policy_not_configured() {
+        let state = PolicyState { cedar: None };
+        let req = AddPolicyRequest {
+            policy: "permit(principal, action, resource);".to_string(),
+        };
+        let resp = add_policy(State(state), axum::Json(req)).await;
+        let (parts, _) = resp.into_parts();
+        assert_eq!(parts.status, StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_add_policy_invalid() {
+        let cedar = std::sync::Arc::new(crate::cedar::CedarAuthorizer::new().unwrap());
+        let state = PolicyState { cedar: Some(cedar) };
+        let req = AddPolicyRequest {
+            policy: "NOT VALID CEDAR!!!".to_string(),
+        };
+        let resp = add_policy(State(state), axum::Json(req)).await;
+        let (parts, _) = resp.into_parts();
+        assert_eq!(parts.status, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_delete_policy_not_configured() {
+        let state = PolicyState { cedar: None };
+        let req = DeletePolicyRequest {
+            policy_id: "test".to_string(),
+        };
+        let resp = delete_policy(State(state), axum::Json(req)).await;
+        let (parts, _) = resp.into_parts();
+        assert_eq!(parts.status, StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_delete_policy_not_implemented() {
+        let cedar = std::sync::Arc::new(crate::cedar::CedarAuthorizer::new().unwrap());
+        let state = PolicyState { cedar: Some(cedar) };
+        let req = DeletePolicyRequest {
+            policy_id: "test".to_string(),
+        };
+        let resp = delete_policy(State(state), axum::Json(req)).await;
+        let (parts, _) = resp.into_parts();
+        assert_eq!(parts.status, StatusCode::NOT_IMPLEMENTED);
+    }
 }

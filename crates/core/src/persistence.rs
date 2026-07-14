@@ -1,6 +1,6 @@
-//! Unified SQLite persistence for CAS, snapshots, audit log, and locks.
+//! Unified `SQLite` persistence for CAS, snapshots, audit log, and locks.
 //!
-//! All persistent state is stored in a single SQLite database file with
+//! All persistent state is stored in a single `SQLite` database file with
 //! separate tables. This avoids managing multiple DB connections and
 //! simplifies deployment (one `--data-dir` flag).
 //!
@@ -42,7 +42,6 @@ pub trait AuditLogStore: Send + Sync {
 // ── Data types ─────────────────────────────────────────────────────────
 
 /// A persisted filesystem snapshot with its file entries serialized as JSON.
-#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedSnapshot {
     pub id: String,
@@ -53,7 +52,6 @@ pub struct PersistedSnapshot {
 }
 
 /// Summary of a persisted snapshot without its entries.
-#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistedSnapshotSummary {
     pub id: String,
@@ -74,26 +72,26 @@ pub struct PersistedAuditEntry {
     pub client_ip: Option<String>,
     pub user_agent: Option<String>,
     pub content_length: Option<u64>,
-    /// SHA-256 chain hash for tamper evidence: SHA-256(previous_hash || this_entry_data).
+    /// SHA-256 chain hash for tamper evidence: SHA-256(previous_hash || `this_entry_data`).
     /// Empty string for entries created before chain hashing was enabled.
     pub chain_hash: Option<String>,
 }
 
 // ── Unified SQLite Persistence ──────────────────────────────────────────
 
-/// Unified SQLite persistence backend implementing CAS, snapshot, and audit log storage.
-#[non_exhaustive]
+/// Unified `SQLite` persistence backend implementing CAS, snapshot, and audit log storage.
+#[derive(Debug)]
 pub struct SqlitePersistence {
     pool: SqlitePool,
 }
 
 impl SqlitePersistence {
-    /// Open a SQLite database and create all tables.
-    /// Accepts any SQLite URL, e.g. `sqlite:///data/ferro.db`.
+    /// Open a `SQLite` database and create all tables.
+    /// Accepts any `SQLite` URL, e.g. `sqlite:///data/ferro.db`.
     pub async fn new(database_url: &str) -> Result<Self> {
         // Ensure WAL mode and foreign keys for better concurrent access
         let opts = SqliteConnectOptions::from_str(database_url)
-            .map_err(|e| FerroError::Internal(format!("Invalid SQLite URL: {}", e)))?
+            .map_err(|e| FerroError::Internal(format!("Invalid SQLite URL: {e}")))?
             .create_if_missing(true)
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .foreign_keys(true);
@@ -102,28 +100,28 @@ impl SqlitePersistence {
             .max_connections(5)
             .connect_with(opts)
             .await
-            .map_err(|e| FerroError::Internal(format!("Failed to connect to SQLite: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Failed to connect to SQLite: {e}")))?;
 
         // Run all migrations
         let ddl = [
-            r#"
+            r"
             CREATE TABLE IF NOT EXISTS cas_content (
                 hash TEXT PRIMARY KEY,
                 content BLOB NOT NULL,
                 size INTEGER NOT NULL,
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
-            )"#,
+            )",
             "CREATE INDEX IF NOT EXISTS idx_cas_created ON cas_content(created_at)",
-            r#"
+            r"
             CREATE TABLE IF NOT EXISTS snapshots (
                 id TEXT PRIMARY KEY,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 description TEXT NOT NULL DEFAULT '',
                 entries_json TEXT NOT NULL,
                 entry_count INTEGER NOT NULL DEFAULT 0
-            )"#,
+            )",
             "CREATE INDEX IF NOT EXISTS idx_snapshots_created ON snapshots(created_at)",
-            r#"
+            r"
             CREATE TABLE IF NOT EXISTS audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT NOT NULL DEFAULT (datetime('now')),
@@ -134,12 +132,12 @@ impl SqlitePersistence {
                 client_ip TEXT,
                 user_agent TEXT,
                 content_length INTEGER
-            )"#,
+            )",
             "CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp)",
             // AV-009: Add chain_hash column for tamper-evident audit log (idempotent - skip if exists)
             "ALTER TABLE audit_log ADD COLUMN chain_hash TEXT",
-            r#"CREATE INDEX IF NOT EXISTS idx_audit_chain_hash ON audit_log(chain_hash)"#,
-            r#"
+            r"CREATE INDEX IF NOT EXISTS idx_audit_chain_hash ON audit_log(chain_hash)",
+            r"
             CREATE TABLE IF NOT EXISTS file_metadata (
                 path TEXT PRIMARY KEY,
                 content_hash TEXT NOT NULL,
@@ -150,7 +148,7 @@ impl SqlitePersistence {
                 modified_at TEXT NOT NULL DEFAULT (datetime('now')),
                 owner TEXT NOT NULL DEFAULT 'anonymous',
                 etag TEXT NOT NULL DEFAULT ''
-            )"#,
+            )",
         ];
 
         for stmt in &ddl {
@@ -162,10 +160,7 @@ impl SqlitePersistence {
                     if msg.contains("duplicate column") || msg.contains("already exists") {
                         debug!("Migration skip (already applied): {}", msg);
                     } else {
-                        return Err(FerroError::Internal(format!(
-                            "SQLite migration failed: {}",
-                            e
-                        )));
+                        return Err(FerroError::Internal(format!("SQLite migration failed: {e}")));
                     }
                 }
             }
@@ -175,8 +170,9 @@ impl SqlitePersistence {
         Ok(Self { pool })
     }
 
-    /// Return the inner pool for use by SqliteMetadataStore.
+    /// Return the inner pool for use by `SqliteMetadataStore`.
     /// This allows sharing a single connection pool across metadata + other stores.
+    #[must_use]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }
@@ -192,14 +188,13 @@ impl crate::cas::CasStore for SqlitePersistence {
         let size = content.len() as i64;
 
         // INSERT OR IGNORE handles dedup — if hash already exists, skip
-        let result =
-            sqlx::query("INSERT OR IGNORE INTO cas_content (hash, content, size) VALUES (?, ?, ?)")
-                .bind(hash_str)
-                .bind(content.as_ref())
-                .bind(size)
-                .execute(&self.pool)
-                .await
-                .map_err(|e| FerroError::Internal(format!("CAS put failed: {}", e)))?;
+        let result = sqlx::query("INSERT OR IGNORE INTO cas_content (hash, content, size) VALUES (?, ?, ?)")
+            .bind(hash_str)
+            .bind(content.as_ref())
+            .bind(size)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| FerroError::Internal(format!("CAS put failed: {e}")))?;
 
         if result.rows_affected() > 0 {
             debug!("CAS PUT: stored content {}", &hash_str[..16]);
@@ -211,26 +206,24 @@ impl crate::cas::CasStore for SqlitePersistence {
     }
 
     async fn get_content(&self, hash: &ContentHash) -> Result<Bytes> {
-        let row: Option<(Vec<u8>,)> =
-            sqlx::query_as("SELECT content FROM cas_content WHERE hash = ?")
-                .bind(hash.as_str())
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(|e| FerroError::Internal(format!("CAS get failed: {}", e)))?;
+        let row: Option<(Vec<u8>,)> = sqlx::query_as("SELECT content FROM cas_content WHERE hash = ?")
+            .bind(hash.as_str())
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| FerroError::Internal(format!("CAS get failed: {e}")))?;
 
         row.map(|(bytes,)| Bytes::from(bytes))
             .ok_or_else(|| FerroError::NotFound(format!("content hash {}", hash.as_str())))
     }
 
     async fn exists(&self, hash: &ContentHash) -> Result<bool> {
-        let result: Option<(i64,)> =
-            sqlx::query_as("SELECT COUNT(*) as cnt FROM cas_content WHERE hash = ?")
-                .bind(hash.as_str())
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(|e| FerroError::Internal(format!("CAS exists check failed: {}", e)))?;
+        let result: Option<(i64,)> = sqlx::query_as("SELECT COUNT(*) as cnt FROM cas_content WHERE hash = ?")
+            .bind(hash.as_str())
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| FerroError::Internal(format!("CAS exists check failed: {e}")))?;
 
-        Ok(result.map(|(cnt,)| cnt > 0).unwrap_or(false))
+        Ok(result.is_some_and(|(cnt,)| cnt > 0))
     }
 
     async fn dedup_check(&self, hash: &ContentHash) -> Result<bool> {
@@ -243,7 +236,7 @@ impl crate::cas::CasStore for SqlitePersistence {
             .await
             .unwrap_or(None);
 
-        result.map(|(cnt,)| cnt as usize).unwrap_or(0)
+        result.map_or(0, |(cnt,)| cnt as usize)
     }
 }
 
@@ -253,34 +246,30 @@ impl crate::cas::CasStore for SqlitePersistence {
 impl SnapshotStore for SqlitePersistence {
     async fn create(&self, description: String, entries: Vec<FileMetadata>) -> Result<String> {
         let id = uuid::Uuid::new_v4().to_string();
-        let entries_json = serde_json::to_string(&entries).map_err(|e| {
-            FerroError::Internal(format!("Failed to serialize snapshot entries: {}", e))
-        })?;
+        let entries_json = serde_json::to_string(&entries)
+            .map_err(|e| FerroError::Internal(format!("Failed to serialize snapshot entries: {e}")))?;
         let entry_count = entries.len();
 
-        sqlx::query(
-            "INSERT INTO snapshots (id, description, entries_json, entry_count) VALUES (?, ?, ?, ?)"
-        )
-        .bind(&id)
-        .bind(&description)
-        .bind(&entries_json)
-        .bind(entry_count as i64)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| FerroError::Internal(format!("Snapshot create failed: {}", e)))?;
+        sqlx::query("INSERT INTO snapshots (id, description, entries_json, entry_count) VALUES (?, ?, ?, ?)")
+            .bind(&id)
+            .bind(&description)
+            .bind(&entries_json)
+            .bind(entry_count as i64)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| FerroError::Internal(format!("Snapshot create failed: {e}")))?;
 
         debug!("Snapshot created: {} ({} entries)", id, entry_count);
         Ok(id)
     }
 
     async fn get(&self, id: &str) -> Result<PersistedSnapshot> {
-        let row: Option<(String, String, String, String, i64)> = sqlx::query_as(
-            "SELECT id, created_at, description, entries_json, entry_count FROM snapshots WHERE id = ?"
-        )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| FerroError::Internal(format!("Snapshot get failed: {}", e)))?;
+        let row: Option<(String, String, String, String, i64)> =
+            sqlx::query_as("SELECT id, created_at, description, entries_json, entry_count FROM snapshots WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("Snapshot get failed: {e}")))?;
 
         row.map(
             |(id, created_at, description, entries_json, entry_count)| PersistedSnapshot {
@@ -291,27 +280,24 @@ impl SnapshotStore for SqlitePersistence {
                 entry_count: entry_count as usize,
             },
         )
-        .ok_or_else(|| FerroError::NotFound(format!("snapshot {}", id)))
+        .ok_or_else(|| FerroError::NotFound(format!("snapshot {id}")))
     }
 
     async fn list(&self) -> Result<Vec<PersistedSnapshotSummary>> {
-        let rows: Vec<(String, String, String, i64)> = sqlx::query_as(
-            "SELECT id, created_at, description, entry_count FROM snapshots ORDER BY created_at DESC"
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| FerroError::Internal(format!("Snapshot list failed: {}", e)))?;
+        let rows: Vec<(String, String, String, i64)> =
+            sqlx::query_as("SELECT id, created_at, description, entry_count FROM snapshots ORDER BY created_at DESC")
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("Snapshot list failed: {e}")))?;
 
         Ok(rows
             .into_iter()
-            .map(
-                |(id, created_at, description, entry_count)| PersistedSnapshotSummary {
-                    id,
-                    created_at,
-                    description,
-                    entry_count: entry_count as usize,
-                },
-            )
+            .map(|(id, created_at, description, entry_count)| PersistedSnapshotSummary {
+                id,
+                created_at,
+                description,
+                entry_count: entry_count as usize,
+            })
             .collect())
     }
 
@@ -320,10 +306,10 @@ impl SnapshotStore for SqlitePersistence {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| FerroError::Internal(format!("Snapshot delete failed: {}", e)))?;
+            .map_err(|e| FerroError::Internal(format!("Snapshot delete failed: {e}")))?;
 
         if result.rows_affected() == 0 {
-            return Err(FerroError::NotFound(format!("snapshot {}", id)));
+            return Err(FerroError::NotFound(format!("snapshot {id}")));
         }
         Ok(())
     }
@@ -334,7 +320,7 @@ impl SnapshotStore for SqlitePersistence {
             .await
             .unwrap_or(None);
 
-        result.map(|(cnt,)| cnt as usize).unwrap_or(0)
+        result.map_or(0, |(cnt,)| cnt as usize)
     }
 }
 
@@ -344,12 +330,11 @@ impl SnapshotStore for SqlitePersistence {
 impl AuditLogStore for SqlitePersistence {
     async fn log(&self, entry: PersistedAuditEntry) -> Result<()> {
         // Compute chain hash for tamper evidence: SHA-256(previous_hash || entry_data)
-        let prev_hash: Option<String> = sqlx::query_scalar::<_, String>(
-            "SELECT chain_hash FROM audit_log ORDER BY id DESC LIMIT 1",
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| FerroError::Internal(format!("Audit chain hash lookup failed: {}", e)))?;
+        let prev_hash: Option<String> =
+            sqlx::query_scalar::<_, String>("SELECT chain_hash FROM audit_log ORDER BY id DESC LIMIT 1")
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| FerroError::Internal(format!("Audit chain hash lookup failed: {e}")))?;
 
         let chain_hash = {
             use sha2::{Digest, Sha256};
@@ -375,22 +360,22 @@ impl AuditLogStore for SqlitePersistence {
         };
 
         sqlx::query(
-            r#"INSERT INTO audit_log
+            r"INSERT INTO audit_log
                 (timestamp, method, path, user, status, client_ip, user_agent, content_length, chain_hash)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&entry.timestamp)
         .bind(&entry.method)
         .bind(&entry.path)
         .bind(&entry.user)
-        .bind(entry.status as i64)
+        .bind(i64::from(entry.status))
         .bind(&entry.client_ip)
         .bind(&entry.user_agent)
         .bind(entry.content_length.map(|c| c as i64))
         .bind(&chain_hash)
         .execute(&self.pool)
         .await
-        .map_err(|e| FerroError::Internal(format!("Audit log insert failed: {}", e)))?;
+        .map_err(|e| FerroError::Internal(format!("Audit log insert failed: {e}")))?;
 
         Ok(())
     }
@@ -399,12 +384,12 @@ impl AuditLogStore for SqlitePersistence {
         let limit = limit.min(10000) as i64; // Cap at 10k
         let rows: Vec<PersistedAuditEntry> = sqlx::query_as(
             "SELECT id, timestamp, method, path, user, status, client_ip, user_agent, content_length, chain_hash
-             FROM audit_log ORDER BY id DESC LIMIT ?"
+             FROM audit_log ORDER BY id DESC LIMIT ?",
         )
         .bind(limit)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| FerroError::Internal(format!("Audit log recent failed: {}", e)))?;
+        .map_err(|e| FerroError::Internal(format!("Audit log recent failed: {e}")))?;
 
         Ok(rows)
     }
@@ -415,7 +400,7 @@ impl AuditLogStore for SqlitePersistence {
             .await
             .unwrap_or(None);
 
-        result.map(|(cnt,)| cnt as usize).unwrap_or(0)
+        result.map_or(0, |(cnt,)| cnt as usize)
     }
 }
 
@@ -447,7 +432,7 @@ impl SqlitePersistence {
                         entry_id: 0,
                         stored_hash: String::new(),
                         computed_hash: String::new(),
-                        description: format!("Failed to read audit log: {}", e),
+                        description: format!("Failed to read audit log: {e}"),
                     }],
                 };
             }
@@ -501,10 +486,7 @@ impl SqlitePersistence {
                     entry_id: row.id,
                     stored_hash: stored.clone(),
                     computed_hash: computed,
-                    description: format!(
-                        "Chain hash mismatch at entry id={}: stored != computed",
-                        row.id
-                    ),
+                    description: format!("Chain hash mismatch at entry id={}: stored != computed", row.id),
                 });
             }
 
@@ -599,10 +581,7 @@ mod tests {
             42,
             "user1".to_string(),
         )];
-        let id = store
-            .create("test snapshot".to_string(), entries)
-            .await
-            .unwrap();
+        let id = store.create("test snapshot".to_string(), entries).await.unwrap();
 
         let summary = store.list().await.unwrap();
         assert_eq!(summary.len(), 1);

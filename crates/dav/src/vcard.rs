@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 /// A single property line in a vCard.
+#[repr(C)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VcardProperty {
     /// Property name (e.g. "FN", "EMAIL", "TEL").
@@ -201,8 +202,7 @@ pub fn parse_vcard(input: &str) -> Result<Vcard, String> {
             "UID" => vcard.uid = Some(prop.value),
             "FN" => vcard.fn_name = prop.value,
             "N" => {
-                let (family, given, additional, prefix, suffix) =
-                    parse_structured_name(&prop.value);
+                let (family, given, additional, prefix, suffix) = parse_structured_name(&prop.value);
                 vcard.family_name = family;
                 vcard.given_name = given;
                 vcard.additional_names = additional;
@@ -235,11 +235,7 @@ pub fn parse_vcard(input: &str) -> Result<Vcard, String> {
             "REV" => vcard.rev = Some(prop.value),
             "VERSION" => vcard.version = Some(prop.value),
             _ => {
-                vcard
-                    .properties
-                    .entry(prop.name.clone())
-                    .or_default()
-                    .push(prop);
+                vcard.properties.entry(prop.name.clone()).or_default().push(prop);
             }
         }
     }
@@ -255,12 +251,13 @@ fn escape_vcard_value(s: &str) -> String {
 }
 
 /// Serialize a vCard contact to its RFC 6350 string representation.
+#[must_use]
 pub fn serialize_vcard(vcard: &Vcard) -> String {
     let mut s = String::new();
     s.push_str("BEGIN:VCARD\r\n");
 
     if let Some(ref version) = vcard.version {
-        s.push_str(&format!("VERSION:{}\r\n", version));
+        s.push_str(&format!("VERSION:{version}\r\n"));
     } else {
         s.push_str("VERSION:3.0\r\n");
     }
@@ -289,16 +286,12 @@ pub fn serialize_vcard(vcard: &Vcard) -> String {
             if !params.is_empty() {
                 params.push(';');
             }
-            params.push_str(&format!("PREF={}", pref));
+            params.push_str(&format!("PREF={pref}"));
         }
-        if !params.is_empty() {
-            s.push_str(&format!(
-                "EMAIL;{}:{}\r\n",
-                params,
-                escape_vcard_value(&email.value)
-            ));
-        } else {
+        if params.is_empty() {
             s.push_str(&format!("EMAIL:{}\r\n", escape_vcard_value(&email.value)));
+        } else {
+            s.push_str(&format!("EMAIL;{}:{}\r\n", params, escape_vcard_value(&email.value)));
         }
     }
 
@@ -311,16 +304,12 @@ pub fn serialize_vcard(vcard: &Vcard) -> String {
             if !params.is_empty() {
                 params.push(';');
             }
-            params.push_str(&format!("PREF={}", pref));
+            params.push_str(&format!("PREF={pref}"));
         }
-        if !params.is_empty() {
-            s.push_str(&format!(
-                "TEL;{}:{}\r\n",
-                params,
-                escape_vcard_value(&phone.value)
-            ));
-        } else {
+        if params.is_empty() {
             s.push_str(&format!("TEL:{}\r\n", escape_vcard_value(&phone.value)));
+        } else {
+            s.push_str(&format!("TEL;{}:{}\r\n", params, escape_vcard_value(&phone.value)));
         }
     }
 
@@ -331,22 +320,12 @@ pub fn serialize_vcard(vcard: &Vcard) -> String {
         }
         let addr_val = format!(
             "{};{};{};{};{};{};{}",
-            addr.po_box,
-            addr.extended,
-            addr.street,
-            addr.city,
-            addr.region,
-            addr.postal_code,
-            addr.country
+            addr.po_box, addr.extended, addr.street, addr.city, addr.region, addr.postal_code, addr.country
         );
-        if !params.is_empty() {
-            s.push_str(&format!(
-                "ADR;{}:{}\r\n",
-                params,
-                escape_vcard_value(&addr_val)
-            ));
-        } else {
+        if params.is_empty() {
             s.push_str(&format!("ADR:{}\r\n", escape_vcard_value(&addr_val)));
+        } else {
+            s.push_str(&format!("ADR;{}:{}\r\n", params, escape_vcard_value(&addr_val)));
         }
     }
 
@@ -373,11 +352,11 @@ pub fn serialize_vcard(vcard: &Vcard) -> String {
             for prop in props {
                 let mut line = prop.name.clone();
                 for (k, v) in &prop.params {
-                    line.push_str(&format!(";{}={}", k, v));
+                    line.push_str(&format!(";{k}={v}"));
                 }
                 line.push(':');
                 line.push_str(&escape_vcard_value(&prop.value));
-                s.push_str(&format!("{}\r\n", line));
+                s.push_str(&format!("{line}\r\n"));
             }
         }
     }

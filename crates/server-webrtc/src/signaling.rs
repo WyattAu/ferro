@@ -39,18 +39,12 @@ pub async fn create_offer(
     let watch_url = format!("/api/webrtc/offer/{}", session_id);
     (
         StatusCode::OK,
-        axum::Json(CreateOfferResponse {
-            session_id,
-            watch_url,
-        }),
+        axum::Json(CreateOfferResponse { session_id, watch_url }),
     )
         .into_response()
 }
 
-pub async fn get_offer(
-    Extension(state): Extension<WebRtcState>,
-    Path(session_id): Path<String>,
-) -> Response {
+pub async fn get_offer(Extension(state): Extension<WebRtcState>, Path(session_id): Path<String>) -> Response {
     match state.offers.get(&session_id) {
         Some(offer) => (StatusCode::OK, axum::Json(offer)).into_response(),
         None => (StatusCode::NOT_FOUND, "Offer not found or expired").into_response(),
@@ -106,10 +100,7 @@ pub async fn add_ice_candidate(
     }
 }
 
-pub async fn poll_answer(
-    Extension(state): Extension<WebRtcState>,
-    Path(session_id): Path<String>,
-) -> Response {
+pub async fn poll_answer(Extension(state): Extension<WebRtcState>, Path(session_id): Path<String>) -> Response {
     let offer = match state.offers.get(&session_id) {
         Some(o) => o,
         None => return (StatusCode::NOT_FOUND, "Offer not found").into_response(),

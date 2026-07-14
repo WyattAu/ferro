@@ -25,11 +25,7 @@ pub fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() {
         return f32::INFINITY;
     }
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y).powi(2))
-        .sum::<f32>()
-        .sqrt()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum::<f32>().sqrt()
 }
 
 pub struct MockEmbeddingModel {

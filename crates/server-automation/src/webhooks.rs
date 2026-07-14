@@ -7,6 +7,7 @@ use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::warn;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::AutomationState;
 use crate::DbHandle;
@@ -29,13 +30,25 @@ static WEBHOOK_CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLoc
         })
 });
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct WebhookConfig {
     pub id: String,
     pub url: String,
     pub secret: String,
     pub events: Vec<String>,
     pub enabled: bool,
+}
+
+impl std::fmt::Debug for WebhookConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WebhookConfig")
+            .field("id", &self.id)
+            .field("url", &self.url)
+            .field("secret", &"[REDACTED]")
+            .field("events", &self.events)
+            .field("enabled", &self.enabled)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,11 +109,7 @@ pub fn sign_payload(secret: &str, payload: &[u8]) -> String {
     hex::encode(result.into_bytes())
 }
 
-pub async fn fire_webhooks(
-    webhooks: Arc<RwLock<Vec<WebhookConfig>>>,
-    event: WebhookEvent,
-    db: Option<DbHandle>,
-) {
+pub async fn fire_webhooks(webhooks: Arc<RwLock<Vec<WebhookConfig>>>, event: WebhookEvent, db: Option<DbHandle>) {
     let hooks = {
         let guard = webhooks.read().await;
         guard
@@ -172,12 +181,7 @@ pub async fn fire_webhooks(
                         );
                         if attempt == MAX_DELIVERY_ATTEMPTS - 1 {
                             if let Some(ref db) = db_clone {
-                                record_delivery_dead(
-                                    db,
-                                    &delivery_id,
-                                    status,
-                                    "Max attempts exceeded",
-                                );
+                                record_delivery_dead(db, &delivery_id, status, "Max attempts exceeded");
                             }
                             return;
                         }
@@ -191,12 +195,7 @@ pub async fn fire_webhooks(
                         );
                         if attempt == MAX_DELIVERY_ATTEMPTS - 1 {
                             if let Some(ref db) = db_clone {
-                                record_delivery_dead(
-                                    db,
-                                    &delivery_id,
-                                    0,
-                                    &format!("Network error: {e}"),
-                                );
+                                record_delivery_dead(db, &delivery_id, 0, &format!("Network error: {e}"));
                             }
                             return;
                         }
@@ -238,19 +237,14 @@ pub async fn create_webhook(
     {
         let hooks = state.webhooks.read().await;
         if hooks.len() >= MAX_WEBHOOKS {
-            return error_bad_request(&format!(
-                "Maximum number of webhooks ({}) reached",
-                MAX_WEBHOOKS
-            ));
+            return error_bad_request(&format!("Maximum number of webhooks ({}) reached", MAX_WEBHOOKS));
         }
     }
 
     let config = WebhookConfig {
         id: uuid::Uuid::new_v4().to_string(),
         url: input.url,
-        secret: input
-            .secret
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+        secret: input.secret.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
         events: input.events,
         enabled: input.enabled.unwrap_or(true),
     };
@@ -269,10 +263,7 @@ pub async fn list_webhooks(Extension(state): Extension<Arc<AutomationState>>) ->
     (StatusCode::OK, axum::Json(hooks.clone())).into_response()
 }
 
-pub async fn delete_webhook(
-    Extension(state): Extension<Arc<AutomationState>>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_webhook(Extension(state): Extension<Arc<AutomationState>>, Path(id): Path<String>) -> Response {
     let mut hooks = state.webhooks.write().await;
     let before = hooks.len();
     hooks.retain(|h| h.id != id);
@@ -318,9 +309,7 @@ pub fn persist_webhook_delete(db: &DbHandle, id: &str) {
     }
 }
 
-pub fn load_webhooks_from_db(
-    conn: &rusqlite::Connection,
-) -> Result<Vec<WebhookConfig>, rusqlite::Error> {
+pub fn load_webhooks_from_db(conn: &rusqlite::Connection) -> Result<Vec<WebhookConfig>, rusqlite::Error> {
     let mut stmt = conn.prepare("SELECT id, url, events, secret, enabled FROM webhooks")?;
     let rows = stmt.query_map([], |row| {
         let events_json: String = row.get(2)?;
@@ -340,14 +329,7 @@ pub fn load_webhooks_from_db(
     Ok(hooks)
 }
 
-fn record_delivery_start(
-    db: &DbHandle,
-    delivery_id: &str,
-    webhook_id: &str,
-    event: &str,
-    url: &str,
-    payload: &[u8],
-) {
+fn record_delivery_start(db: &DbHandle, delivery_id: &str, webhook_id: &str, event: &str, url: &str, payload: &[u8]) {
     let conn = match db.lock() {
         Ok(c) => c,
         Err(e) => {
@@ -395,12 +377,7 @@ fn record_delivery_dead(db: &DbHandle, delivery_id: &str, status_code: u16, erro
     }
 }
 
-fn update_delivery_retry(
-    db: &DbHandle,
-    delivery_id: &str,
-    attempt: u32,
-    delay: &std::time::Duration,
-) {
+fn update_delivery_retry(db: &DbHandle, delivery_id: &str, attempt: u32, delay: &std::time::Duration) {
     let conn = match db.lock() {
         Ok(c) => c,
         Err(e) => {
@@ -408,8 +385,8 @@ fn update_delivery_retry(
             return;
         }
     };
-    let next_retry = chrono::Utc::now()
-        + chrono::Duration::from_std(*delay).unwrap_or_else(|_| chrono::Duration::seconds(60));
+    let next_retry =
+        chrono::Utc::now() + chrono::Duration::from_std(*delay).unwrap_or_else(|_| chrono::Duration::seconds(60));
     if let Err(e) = conn.execute(
         "UPDATE webhook_deliveries SET attempt_count = ?1, next_retry_at = ?2 WHERE id = ?3",
         params![attempt, next_retry.to_rfc3339(), delivery_id],
@@ -524,7 +501,7 @@ pub fn create_webhook_delivery_tables(conn: &rusqlite::Connection) {
             delivered_at TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook_id ON webhook_deliveries(webhook_id);
-        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);"
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);",
     ) {
         warn!("Failed to create webhook_deliveries table: {e}");
     }
@@ -558,10 +535,7 @@ fn is_private_ip(ip: std::net::IpAddr) -> bool {
 
 fn validate_url(url: &str) -> Result<(), String> {
     if url.len() > MAX_URL_LENGTH {
-        return Err(format!(
-            "URL exceeds maximum length of {} characters",
-            MAX_URL_LENGTH
-        ));
+        return Err(format!("URL exceeds maximum length of {} characters", MAX_URL_LENGTH));
     }
     if url.is_empty() {
         return Err("URL must not be empty".to_string());
@@ -577,9 +551,7 @@ fn validate_url(url: &str) -> Result<(), String> {
     if !parsed.username().is_empty() {
         return Err("URL must not contain credentials (user:pass@host)".to_string());
     }
-    let host = parsed
-        .host_str()
-        .ok_or_else(|| "URL must have a host".to_string())?;
+    let host = parsed.host_str().ok_or_else(|| "URL must have a host".to_string())?;
     let host_lower = host.to_lowercase();
     if host_lower == "localhost"
         || host_lower == "metadata.google.internal"

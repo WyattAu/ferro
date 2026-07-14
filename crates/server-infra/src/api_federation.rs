@@ -6,17 +6,31 @@ use axum::response::{IntoResponse, Response};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
+use zeroize::Zeroize;
 
 use crate::ApiError;
 use crate::InfraState;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct FederationToken {
     pub token: String,
     pub peer_url: String,
     pub granted_at: String,
     pub expires_at: String,
     pub permissions: Vec<String>,
+}
+
+impl std::fmt::Debug for FederationToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FederationToken")
+            .field("token", &"[REDACTED]")
+            .field("peer_url", &self.peer_url)
+            .field("granted_at", &self.granted_at)
+            .field("expires_at", &self.expires_at)
+            .field("permissions", &self.permissions)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,11 +80,27 @@ pub struct FedSearchResult {
     pub score: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FederationTokenStore {
     pub tokens: Arc<DashMap<String, FederationToken>>,
     pub peers: Arc<RwLock<Vec<TrustedPeer>>>,
     pub federation_secret: String,
+}
+
+impl Drop for FederationTokenStore {
+    fn drop(&mut self) {
+        self.federation_secret.zeroize();
+    }
+}
+
+impl std::fmt::Debug for FederationTokenStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FederationTokenStore")
+            .field("tokens", &format_args!("<{} entries>", self.tokens.len()))
+            .field("peers", &format_args!("<{} peers>", "..."))
+            .field("federation_secret", &"[REDACTED]")
+            .finish()
+    }
 }
 
 impl FederationTokenStore {
@@ -115,10 +145,10 @@ impl FederationTokenStore {
         Some(ft.clone())
     }
 
-    pub async fn add_peer(&self, url: String, name: String) -> TrustedPeer {
+    pub async fn add_peer(&self, url: &str, name: &str) -> TrustedPeer {
         let peer = TrustedPeer {
-            url: url.clone(),
-            name,
+            url: url.to_string(),
+            name: name.to_string(),
             added_at: chrono::Utc::now().to_rfc3339(),
             active: true,
         };
@@ -162,9 +192,9 @@ pub async fn exchange_token<S: InfraState>(
     let permissions = req.permissions.unwrap_or_default();
     let ft = store.create_token(&req.peer_url, permissions).await;
     axum::Json(ExchangeTokenResponse {
-        token: ft.token,
-        peer_url: ft.peer_url,
-        expires_at: ft.expires_at,
+        token: ft.token.clone(),
+        peer_url: ft.peer_url.clone(),
+        expires_at: ft.expires_at.clone(),
     })
     .into_response()
 }
@@ -174,17 +204,12 @@ pub async fn get_fed_file<S: InfraState>(
     AxumPath(path): AxumPath<String>,
     headers: HeaderMap,
 ) -> Response {
-    let token_header = headers
-        .get("x-federation-token")
-        .and_then(|v| v.to_str().ok());
+    let token_header = headers.get("x-federation-token").and_then(|v| v.to_str().ok());
 
     let token = match token_header {
         Some(t) => t,
         None => {
-            return ApiError::unauthorized(
-                "FED_AUTH_REQUIRED",
-                "X-Federation-Token header required",
-            );
+            return ApiError::unauthorized("FED_AUTH_REQUIRED", "X-Federation-Token header required");
         }
     };
 
@@ -195,8 +220,7 @@ pub async fn get_fed_file<S: InfraState>(
             let url = format!("{}/dav/{}", ft.peer_url, path);
             match client.get(&url).send().await {
                 Ok(resp) => {
-                    let status = StatusCode::from_u16(resp.status().as_u16())
-                        .unwrap_or(StatusCode::BAD_GATEWAY);
+                    let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
                     match resp.bytes().await {
                         Ok(body) => (status, body).into_response(),
                         Err(_) => ApiError::respond(
@@ -206,11 +230,7 @@ pub async fn get_fed_file<S: InfraState>(
                         ),
                     }
                 }
-                Err(_) => ApiError::respond(
-                    StatusCode::BAD_GATEWAY,
-                    "FED_PEER_UNREACHABLE",
-                    "Could not reach peer",
-                ),
+                Err(_) => ApiError::respond(StatusCode::BAD_GATEWAY, "FED_PEER_UNREACHABLE", "Could not reach peer"),
             }
         }
         Some(_) => ApiError::forbidden("FED_FORBIDDEN", "Token lacks read permission"),
@@ -224,17 +244,12 @@ pub async fn put_fed_file<S: InfraState>(
     headers: HeaderMap,
     body: axum::body::Body,
 ) -> Response {
-    let token_header = headers
-        .get("x-federation-token")
-        .and_then(|v| v.to_str().ok());
+    let token_header = headers.get("x-federation-token").and_then(|v| v.to_str().ok());
 
     let token = match token_header {
         Some(t) => t,
         None => {
-            return ApiError::unauthorized(
-                "FED_AUTH_REQUIRED",
-                "X-Federation-Token header required",
-            );
+            return ApiError::unauthorized("FED_AUTH_REQUIRED", "X-Federation-Token header required");
         }
     };
 
@@ -251,8 +266,7 @@ pub async fn put_fed_file<S: InfraState>(
             let url = format!("{}/dav/{}", ft.peer_url, path);
             match client.put(&url).body(body_bytes).send().await {
                 Ok(resp) => {
-                    let status = StatusCode::from_u16(resp.status().as_u16())
-                        .unwrap_or(StatusCode::BAD_GATEWAY);
+                    let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
                     match resp.bytes().await {
                         Ok(body) => (status, body).into_response(),
                         Err(_) => ApiError::respond(
@@ -262,11 +276,7 @@ pub async fn put_fed_file<S: InfraState>(
                         ),
                     }
                 }
-                Err(_) => ApiError::respond(
-                    StatusCode::BAD_GATEWAY,
-                    "FED_PEER_UNREACHABLE",
-                    "Could not reach peer",
-                ),
+                Err(_) => ApiError::respond(StatusCode::BAD_GATEWAY, "FED_PEER_UNREACHABLE", "Could not reach peer"),
             }
         }
         Some(_) => ApiError::forbidden("FED_FORBIDDEN", "Token lacks write permission"),
@@ -279,17 +289,12 @@ pub async fn delete_fed_file<S: InfraState>(
     AxumPath(path): AxumPath<String>,
     headers: HeaderMap,
 ) -> Response {
-    let token_header = headers
-        .get("x-federation-token")
-        .and_then(|v| v.to_str().ok());
+    let token_header = headers.get("x-federation-token").and_then(|v| v.to_str().ok());
 
     let token = match token_header {
         Some(t) => t,
         None => {
-            return ApiError::unauthorized(
-                "FED_AUTH_REQUIRED",
-                "X-Federation-Token header required",
-            );
+            return ApiError::unauthorized("FED_AUTH_REQUIRED", "X-Federation-Token header required");
         }
     };
 
@@ -300,15 +305,10 @@ pub async fn delete_fed_file<S: InfraState>(
             let url = format!("{}/dav/{}", ft.peer_url, path);
             match client.delete(&url).send().await {
                 Ok(resp) => {
-                    let status = StatusCode::from_u16(resp.status().as_u16())
-                        .unwrap_or(StatusCode::BAD_GATEWAY);
+                    let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
                     (status, "").into_response()
                 }
-                Err(_) => ApiError::respond(
-                    StatusCode::BAD_GATEWAY,
-                    "FED_PEER_UNREACHABLE",
-                    "Could not reach peer",
-                ),
+                Err(_) => ApiError::respond(StatusCode::BAD_GATEWAY, "FED_PEER_UNREACHABLE", "Could not reach peer"),
             }
         }
         Some(_) => ApiError::forbidden("FED_FORBIDDEN", "Token lacks delete permission"),
@@ -375,26 +375,17 @@ pub async fn list_peers<S: InfraState>(State(state): State<S>) -> Response {
     axum::Json(serde_json::json!({ "peers": peers })).into_response()
 }
 
-pub async fn add_peer<S: InfraState>(
-    State(state): State<S>,
-    axum::Json(req): axum::Json<AddPeerRequest>,
-) -> Response {
+pub async fn add_peer<S: InfraState>(State(state): State<S>, axum::Json(req): axum::Json<AddPeerRequest>) -> Response {
     let store = federation_store(&state);
-    let peer = store.add_peer(req.url, req.name).await;
+    let peer = store.add_peer(&req.url, &req.name).await;
     (StatusCode::CREATED, axum::Json(peer)).into_response()
 }
 
 pub fn routes<S: InfraState>() -> axum::Router<S> {
     axum::Router::new()
-        .route(
-            "/fed/exchange-token",
-            axum::routing::post(exchange_token::<S>),
-        )
+        .route("/fed/exchange-token", axum::routing::post(exchange_token::<S>))
         .route("/fed/search", axum::routing::get(federated_search::<S>))
-        .route(
-            "/fed/peers",
-            axum::routing::get(list_peers::<S>).post(add_peer::<S>),
-        )
+        .route("/fed/peers", axum::routing::get(list_peers::<S>).post(add_peer::<S>))
 }
 
 #[cfg(test)]
@@ -421,12 +412,8 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let store = FederationTokenStore::new("secret".to_string());
-            let _p1 = store
-                .add_peer("https://a.example.com".into(), "Peer A".into())
-                .await;
-            let _p2 = store
-                .add_peer("https://b.example.com".into(), "Peer B".into())
-                .await;
+            let _p1 = store.add_peer("https://a.example.com", "Peer A").await;
+            let _p2 = store.add_peer("https://b.example.com", "Peer B").await;
             assert_eq!(store.list_peers().await.len(), 2);
             assert!(store.is_trusted("https://a.example.com").await);
             store.remove_peer("https://a.example.com").await;

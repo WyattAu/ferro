@@ -21,7 +21,7 @@ cedar-policy = "4"
 base64 = "0.22"
 axum = { version = "0.7", features = ["macros"], optional = true }
 dashmap = "6"
-bcrypt = "0.19"
+bcrypt = "0.19.2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 subtle = "2"
@@ -32,9 +32,9 @@ hex = "0.4"
 rand = "0.9"
 flate2 = "1"
 urlencoding = "2"
+zeroize = { workspace = true, features = ["derive"] }
 ring = "0.17"
 ciborium = "0.2"
-ciborium-io = "0.2"
 
 [features]
 default = ["handlers"]
@@ -43,3 +43,9 @@ handlers = ["axum"]
 [dev-dependencies]
 tower = "0.5"
 http-body-util = "0.1"
+criterion = { version = "0.8", features = ["html_reports"] }
+proptest = "1"
+
+[[bench]]
+name = "auth_bench"
+harness = false

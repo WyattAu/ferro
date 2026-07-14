@@ -41,9 +41,7 @@ mod mobile_app {
     }
 
     #[tauri::command]
-    pub async fn cmd_get_config(
-        state: State<'_, DesktopState>,
-    ) -> Result<crate::commands::ConfigResponse, String> {
+    pub async fn cmd_get_config(state: State<'_, DesktopState>) -> Result<crate::commands::ConfigResponse, String> {
         Ok(state.get_config().await)
     }
 
@@ -129,9 +127,7 @@ mod mobile_app {
 #[cfg(all(feature = "mobile", not(feature = "tauri")))]
 pub fn run_mobile() {
     tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
 
     tracing::info!("Ferro Mobile starting");

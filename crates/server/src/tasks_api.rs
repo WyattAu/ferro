@@ -82,6 +82,14 @@ pub struct TaskStore {
     db: Option<DbHandle>,
 }
 
+impl std::fmt::Debug for TaskStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TaskStore")
+            .field("db", &self.db.as_ref().map(|_| "..."))
+            .finish()
+    }
+}
+
 impl Default for TaskStore {
     fn default() -> Self {
         Self::new()

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 
+#[non_exhaustive]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PluginStatus {
     Available,

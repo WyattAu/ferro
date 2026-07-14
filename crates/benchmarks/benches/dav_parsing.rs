@@ -184,7 +184,7 @@ fn bench_multistatus_build(c: &mut Criterion) {
 
     c.bench_function("build_multistatus_3_responses", |b| {
         b.iter(|| {
-            ferro_dav::xml_ext::build_dav_multistatus(&responses);
+            std::hint::black_box(ferro_dav::xml_ext::build_dav_multistatus(&responses));
         })
     });
 }

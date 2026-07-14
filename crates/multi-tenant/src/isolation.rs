@@ -13,12 +13,7 @@ pub struct TenantContext {
 }
 
 impl TenantContext {
-    pub fn new(
-        tenant_id: TenantId,
-        organization_id: OrganizationId,
-        user_id: String,
-        role: OrganizationRole,
-    ) -> Self {
+    pub fn new(tenant_id: TenantId, organization_id: OrganizationId, user_id: String, role: OrganizationRole) -> Self {
         Self {
             tenant_id,
             organization_id,
@@ -42,10 +37,7 @@ impl TenantGuard {
         if self.context.tenant_id.0 == target_tenant_id {
             return true;
         }
-        matches!(
-            self.context.role,
-            OrganizationRole::Owner | OrganizationRole::Admin
-        )
+        matches!(self.context.role, OrganizationRole::Owner | OrganizationRole::Admin)
     }
 
     pub fn context(&self) -> &TenantContext {
@@ -55,16 +47,8 @@ impl TenantGuard {
 
 #[allow(async_fn_in_trait)]
 pub trait ResourceIsolation: Send + Sync {
-    fn check_read_access(
-        &self,
-        ctx: &TenantContext,
-        resource_path: &str,
-    ) -> Result<(), TenantError>;
-    fn check_write_access(
-        &self,
-        ctx: &TenantContext,
-        resource_path: &str,
-    ) -> Result<(), TenantError>;
+    fn check_read_access(&self, ctx: &TenantContext, resource_path: &str) -> Result<(), TenantError>;
+    fn check_write_access(&self, ctx: &TenantContext, resource_path: &str) -> Result<(), TenantError>;
     fn enforce_path_prefix(&self, ctx: &TenantContext, full_path: &str) -> Result<(), TenantError>;
 }
 
@@ -81,17 +65,10 @@ impl DefaultResourceIsolation {
 }
 
 impl ResourceIsolation for DefaultResourceIsolation {
-    fn check_read_access(
-        &self,
-        ctx: &TenantContext,
-        resource_path: &str,
-    ) -> Result<(), TenantError> {
+    fn check_read_access(&self, ctx: &TenantContext, resource_path: &str) -> Result<(), TenantError> {
         if matches!(
             ctx.role,
-            OrganizationRole::ReadOnly
-                | OrganizationRole::Member
-                | OrganizationRole::Admin
-                | OrganizationRole::Owner
+            OrganizationRole::ReadOnly | OrganizationRole::Member | OrganizationRole::Admin | OrganizationRole::Owner
         ) {
             self.enforce_path_prefix(ctx, resource_path)?;
             Ok(())
@@ -104,11 +81,7 @@ impl ResourceIsolation for DefaultResourceIsolation {
         }
     }
 
-    fn check_write_access(
-        &self,
-        ctx: &TenantContext,
-        resource_path: &str,
-    ) -> Result<(), TenantError> {
+    fn check_write_access(&self, ctx: &TenantContext, resource_path: &str) -> Result<(), TenantError> {
         if matches!(
             ctx.role,
             OrganizationRole::Owner | OrganizationRole::Admin | OrganizationRole::Member
@@ -181,12 +154,7 @@ impl TenantPathResolver {
 mod tests {
     use super::*;
 
-    fn make_ctx(
-        tenant_id: &str,
-        org_id: &str,
-        user_id: &str,
-        role: OrganizationRole,
-    ) -> TenantContext {
+    fn make_ctx(tenant_id: &str, org_id: &str, user_id: &str, role: OrganizationRole) -> TenantContext {
         TenantContext::new(
             TenantId(tenant_id.to_string()),
             OrganizationId(org_id.to_string()),

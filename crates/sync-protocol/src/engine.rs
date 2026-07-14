@@ -1,7 +1,5 @@
 use crate::detector::{ChangeDetector, DetectedChange};
-use crate::protocol::{
-    ConflictInfo, ConflictResolution, FileManifest, NodeId, SyncRequest, SyncResponse, VectorClock,
-};
+use crate::protocol::{ConflictInfo, ConflictResolution, FileManifest, NodeId, SyncRequest, SyncResponse, VectorClock};
 use crate::state::{PeerSyncState, SyncStateError, SyncStateManager, SyncStatus};
 use chrono::Utc;
 use sha2::{Digest, Sha256};
@@ -70,24 +68,21 @@ impl Default for SyncEngineConfig {
 pub struct SyncEngine {
     config: SyncEngineConfig,
     state_manager: Arc<SyncStateManager>,
-    change_detector: Arc<tokio::sync::Mutex<ChangeDetector>>,
+    change_detector: Arc<std::sync::Mutex<ChangeDetector>>,
     /// Pending conflicts that need resolution: path -> ConflictInfo.
     pending_conflicts: dashmap::DashMap<String, ConflictInfo>,
 }
 
 impl SyncEngine {
     /// Create a new sync engine.
-    pub fn new(
-        config: SyncEngineConfig,
-        state_manager: SyncStateManager,
-    ) -> Result<Self, SyncError> {
+    pub fn new(config: SyncEngineConfig, state_manager: SyncStateManager) -> Result<Self, SyncError> {
         let detector = ChangeDetector::new(config.sync_root.clone(), config.node_id.clone())
             .map_err(|e| SyncError::Io(std::io::Error::other(e.to_string())))?;
 
         Ok(Self {
             config,
             state_manager: Arc::new(state_manager),
-            change_detector: Arc::new(tokio::sync::Mutex::new(detector)),
+            change_detector: Arc::new(std::sync::Mutex::new(detector)),
             pending_conflicts: dashmap::DashMap::new(),
         })
     }
@@ -115,11 +110,8 @@ impl SyncEngine {
     /// Process an incoming SyncRequest from a peer and produce a response.
     /// This determines what files have changed since the peer's last sync
     /// clock and returns their manifests.
-    pub async fn handle_sync_request(
-        &self,
-        request: &SyncRequest,
-    ) -> Result<SyncResponse, SyncError> {
-        let detector = self.change_detector.lock().await;
+    pub async fn handle_sync_request(&self, request: &SyncRequest) -> Result<SyncResponse, SyncError> {
+        let detector = self.change_detector.lock().unwrap_or_else(|e| e.into_inner());
         let local_clock = detector.local_clock().clone();
 
         // In a real implementation this would diff the file manifests
@@ -136,10 +128,7 @@ impl SyncEngine {
 
     /// Process an incoming SyncResponse from a peer. This merges clocks,
     /// identifies conflicts, and updates local state.
-    pub async fn handle_sync_response(
-        &self,
-        response: &SyncResponse,
-    ) -> Result<Vec<ConflictInfo>, SyncError> {
+    pub async fn handle_sync_response(&self, response: &SyncResponse) -> Result<Vec<ConflictInfo>, SyncError> {
         let mut state = self.state_manager.get_or_create(&response.from_node)?;
 
         // Merge the remote clock into our last-synced clock for this peer
@@ -147,8 +136,7 @@ impl SyncEngine {
 
         // Record conflicts
         for conflict in &response.conflicts {
-            self.pending_conflicts
-                .insert(conflict.path.clone(), conflict.clone());
+            self.pending_conflicts.insert(conflict.path.clone(), conflict.clone());
         }
 
         if !response.conflicts.is_empty() {
@@ -160,18 +148,12 @@ impl SyncEngine {
     }
 
     /// Resolve a conflict for a specific file path.
-    pub async fn resolve_conflict(
-        &self,
-        file_path: &str,
-        resolution: ConflictResolution,
-    ) -> Result<(), SyncError> {
+    pub async fn resolve_conflict(&self, file_path: &str, resolution: ConflictResolution) -> Result<(), SyncError> {
         if let Some((_, conflict)) = self.pending_conflicts.remove(file_path) {
             match &resolution {
                 ConflictResolution::LastWriterWins => {
                     // Determine winner by wall clock
-                    let _winner = if conflict.local_manifest.modified_at
-                        >= conflict.remote_manifest.modified_at
-                    {
+                    let _winner = if conflict.local_manifest.modified_at >= conflict.remote_manifest.modified_at {
                         &conflict.local_manifest
                     } else {
                         &conflict.remote_manifest
@@ -189,16 +171,11 @@ impl SyncEngine {
                     remote_name,
                 } => {
                     // Rename both files to avoid collision
-                    tracing::info!(
-                        "Conflict resolved: keep both as '{}' and '{}'",
-                        local_name,
-                        remote_name
-                    );
+                    tracing::info!("Conflict resolved: keep both as '{}' and '{}'", local_name, remote_name);
                 }
                 ConflictResolution::Manual => {
                     // Leave for user to resolve
-                    self.pending_conflicts
-                        .insert(file_path.to_string(), conflict);
+                    self.pending_conflicts.insert(file_path.to_string(), conflict);
                     return Ok(());
                 }
             }
@@ -221,8 +198,7 @@ impl SyncEngine {
     /// Perform a full sync with a peer: exchange all manifests and resolve
     /// conflicts automatically.
     pub async fn full_sync(&self, peer_node_id: &str) -> Result<SyncResult, SyncError> {
-        self.state_manager
-            .set_status(peer_node_id, SyncStatus::Syncing)?;
+        self.state_manager.set_status(peer_node_id, SyncStatus::Syncing)?;
 
         let _request = self.build_sync_request(peer_node_id).await?;
 
@@ -231,7 +207,7 @@ impl SyncEngine {
         // caller sends over the wire. On receiving a response, call
         // handle_sync_response().
 
-        let detector = self.change_detector.lock().await;
+        let detector = self.change_detector.lock().unwrap_or_else(|e| e.into_inner());
         let local_clock = detector.local_clock().clone();
         drop(detector);
 
@@ -254,16 +230,30 @@ impl SyncEngine {
 
     /// Scan for local changes and return them.
     pub async fn scan_local_changes(&self) -> Vec<DetectedChange> {
-        let mut detector = self.change_detector.lock().await;
-        let mut changes = detector.scan();
-        let watcher_changes = detector.poll_changes();
-        changes.extend(watcher_changes);
+        // Phase 1: Drain watcher events (non-blocking, fine under std mutex)
+        let mut changes = {
+            let mut detector = self.change_detector.lock().unwrap_or_else(|e| e.into_inner());
+            detector.poll_changes()
+        };
+
+        // Phase 2: Full filesystem scan (blocking I/O, runs on blocking thread)
+        let scan_result = {
+            let change_detector = self.change_detector.clone();
+            tokio::task::spawn_blocking(move || {
+                let mut detector = change_detector.lock().unwrap_or_else(|e| e.into_inner());
+                detector.scan()
+            })
+            .await
+            .unwrap_or_default()
+        };
+
+        changes.extend(scan_result);
         changes
     }
 
     /// Get the current local vector clock.
     pub async fn local_clock(&self) -> VectorClock {
-        let detector = self.change_detector.lock().await;
+        let detector = self.change_detector.lock().unwrap_or_else(|e| e.into_inner());
         detector.local_clock().clone()
     }
 
@@ -293,11 +283,7 @@ pub fn build_file_manifest(
     let content = std::fs::read(full_path)?;
     let hash: [u8; 32] = Sha256::digest(&content).into();
 
-    let modified: chrono::DateTime<Utc> = metadata
-        .modified()
-        .ok()
-        .map(|t| t.into())
-        .unwrap_or_else(Utc::now);
+    let modified: chrono::DateTime<Utc> = metadata.modified().ok().map(|t| t.into()).unwrap_or_else(Utc::now);
 
     Ok(FileManifest {
         path: relative_path.to_string(),

@@ -85,12 +85,8 @@ pub async fn trigger_sync<S: IntegrationsState>(State(state): State<S>) -> Respo
 
     for op in &pending {
         let result: Result<(), common::error::FerroError> = match op.op {
-            ferro_offline::change_queue::OperationType::Put => {
-                state.storage().head(&op.source_path).await.map(|_| ())
-            }
-            ferro_offline::change_queue::OperationType::Delete => {
-                state.storage().delete(&op.source_path).await
-            }
+            ferro_offline::change_queue::OperationType::Put => state.storage().head(&op.source_path).await.map(|_| ()),
+            ferro_offline::change_queue::OperationType::Delete => state.storage().delete(&op.source_path).await,
             ferro_offline::change_queue::OperationType::Move => {
                 if let Some(ref dest) = op.dest_path {
                     state.storage().move_path(&op.source_path, dest).await
@@ -110,7 +106,6 @@ pub async fn trigger_sync<S: IntegrationsState>(State(state): State<S>) -> Respo
                 .create_collection(&op.source_path, &op.owner)
                 .await
                 .map(|_| ()),
-            _ => Ok(()),
         };
 
         match result {
@@ -321,8 +316,6 @@ pub async fn list_cached<S: IntegrationsState>(State(state): State<S>) -> Respon
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // TODO: Create a test mock implementing IntegrationsState for these tests.
     // AppState::in_memory() is not available in this crate.
 }

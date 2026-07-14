@@ -226,12 +226,11 @@ mod tests {
     #[tokio::test]
     async fn tenant_uses_default_config_when_not_set() {
         let store = make_store();
-        let limiter =
-            TenantAwareRateLimiter::new(store).with_default_config(TenantRateLimitConfig {
-                max_requests: 3,
-                refill_rate: 0,
-                refill_interval: Duration::from_secs(60),
-            });
+        let limiter = TenantAwareRateLimiter::new(store).with_default_config(TenantRateLimitConfig {
+            max_requests: 3,
+            refill_rate: 0,
+            refill_interval: Duration::from_secs(60),
+        });
 
         assert!(limiter.check("unknown-tenant").await.unwrap().allowed);
         assert!(limiter.check("unknown-tenant").await.unwrap().allowed);

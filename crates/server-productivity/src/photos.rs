@@ -124,10 +124,7 @@ fn load_albums<S: ProductivityState>(state: &S) -> Vec<Album> {
 fn save_albums<S: ProductivityState>(state: &S, albums: &[Album]) -> Result<(), std::io::Error> {
     let _ = ensure_photos_dir(state);
     let path = albums_file(state);
-    std::fs::write(
-        path,
-        serde_json::to_string_pretty(albums).unwrap_or_default(),
-    )
+    std::fs::write(path, serde_json::to_string_pretty(albums).unwrap_or_default())
 }
 
 pub async fn list_photos_impl<S: HasStorage>(state: &S, params: &PhotosQuery) -> Response {
@@ -270,9 +267,6 @@ pub async fn get_exif_impl<S: HasStorage>(state: &S, path: &str) -> Response {
     }
 }
 
-pub async fn get_exif<S: ProductivityState>(
-    State(state): State<S>,
-    Path(path): Path<String>,
-) -> impl IntoResponse {
+pub async fn get_exif<S: ProductivityState>(State(state): State<S>, Path(path): Path<String>) -> impl IntoResponse {
     get_exif_impl(&state, &path).await
 }

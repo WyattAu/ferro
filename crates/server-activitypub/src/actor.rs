@@ -96,10 +96,7 @@ mod tests {
             actor.public_key.public_key_pem.contains("-----"),
             "PEM should have END marker"
         );
-        assert!(
-            actor.public_key.public_key_pem.len() > 100,
-            "PEM should be substantial"
-        );
+        assert!(actor.public_key.public_key_pem.len() > 100, "PEM should be substantial");
         assert!(!actor.public_key.public_key_pem.contains("TODO"));
     }
 }

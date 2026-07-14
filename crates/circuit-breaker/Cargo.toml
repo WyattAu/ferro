@@ -1,0 +1,17 @@
+[package]
+name = "ferro-circuit-breaker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Circuit breaker for external dependency calls"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+anyhow = "1"
+parking_lot = "0.12"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }

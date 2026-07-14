@@ -12,10 +12,7 @@ pub struct BulkDeleteRequest {
 }
 
 /// POST /api/bulk/delete — delete multiple files in a single request.
-pub async fn bulk_delete(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<BulkDeleteRequest>,
-) -> Response {
+pub async fn bulk_delete(State(state): State<AppState>, axum::Json(body): axum::Json<BulkDeleteRequest>) -> Response {
     let mut succeeded: Vec<String> = Vec::new();
     let mut failed: Vec<serde_json::Value> = Vec::new();
 
@@ -116,11 +113,7 @@ mod tests {
     async fn test_bulk_delete_empty_list() {
         let state = test_state();
 
-        let resp = bulk_delete(
-            State(state),
-            axum::Json(BulkDeleteRequest { paths: vec![] }),
-        )
-        .await;
+        let resp = bulk_delete(State(state), axum::Json(BulkDeleteRequest { paths: vec![] })).await;
 
         assert_eq!(resp.status(), StatusCode::OK);
     }

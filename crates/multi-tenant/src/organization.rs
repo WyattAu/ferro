@@ -92,12 +92,7 @@ pub trait OrganizationStore: Send + Sync {
     async fn update(&self, org: Organization) -> Result<Organization, TenantError>;
     async fn delete(&self, id: &str) -> Result<(), TenantError>;
     async fn list_by_owner(&self, owner_id: &str) -> Result<Vec<Organization>, TenantError>;
-    async fn add_member(
-        &self,
-        org_id: &str,
-        user_id: &str,
-        role: OrganizationRole,
-    ) -> Result<(), TenantError>;
+    async fn add_member(&self, org_id: &str, user_id: &str, role: OrganizationRole) -> Result<(), TenantError>;
     async fn remove_member(&self, org_id: &str, user_id: &str) -> Result<(), TenantError>;
     async fn get_members(&self, org_id: &str) -> Result<Vec<OrganizationMember>, TenantError>;
 }
@@ -127,9 +122,7 @@ impl OrganizationStore for InMemoryOrganizationStore {
     async fn create(&self, org: Organization) -> Result<Organization, TenantError> {
         for existing in self.orgs.iter() {
             if existing.name == org.name {
-                return Err(TenantError::AlreadyExists {
-                    name: org.name.clone(),
-                });
+                return Err(TenantError::AlreadyExists { name: org.name.clone() });
             }
         }
         self.orgs.insert(org.id.0.clone(), org.clone());
@@ -142,9 +135,7 @@ impl OrganizationStore for InMemoryOrganizationStore {
         self.orgs
             .get(id)
             .map(|entry| entry.value().clone())
-            .ok_or_else(|| TenantError::OrganizationNotFound {
-                org_id: id.to_string(),
-            })
+            .ok_or_else(|| TenantError::OrganizationNotFound { org_id: id.to_string() })
     }
 
     async fn update(&self, org: Organization) -> Result<Organization, TenantError> {
@@ -162,9 +153,7 @@ impl OrganizationStore for InMemoryOrganizationStore {
         self.orgs
             .remove(id)
             .map(|_| ())
-            .ok_or_else(|| TenantError::OrganizationNotFound {
-                org_id: id.to_string(),
-            })
+            .ok_or_else(|| TenantError::OrganizationNotFound { org_id: id.to_string() })
     }
 
     async fn list_by_owner(&self, owner_id: &str) -> Result<Vec<Organization>, TenantError> {
@@ -177,12 +166,7 @@ impl OrganizationStore for InMemoryOrganizationStore {
         Ok(orgs)
     }
 
-    async fn add_member(
-        &self,
-        org_id: &str,
-        user_id: &str,
-        role: OrganizationRole,
-    ) -> Result<(), TenantError> {
+    async fn add_member(&self, org_id: &str, user_id: &str, role: OrganizationRole) -> Result<(), TenantError> {
         if !self.orgs.contains_key(org_id) {
             return Err(TenantError::OrganizationNotFound {
                 org_id: org_id.to_string(),
@@ -206,12 +190,12 @@ impl OrganizationStore for InMemoryOrganizationStore {
     }
 
     async fn get_members(&self, org_id: &str) -> Result<Vec<OrganizationMember>, TenantError> {
-        let member_map =
-            self.members
-                .get(org_id)
-                .ok_or_else(|| TenantError::OrganizationNotFound {
-                    org_id: org_id.to_string(),
-                })?;
+        let member_map = self
+            .members
+            .get(org_id)
+            .ok_or_else(|| TenantError::OrganizationNotFound {
+                org_id: org_id.to_string(),
+            })?;
         let members: Vec<OrganizationMember> = member_map
             .iter()
             .map(|entry| OrganizationMember {
@@ -296,10 +280,7 @@ mod tests {
         let id = org.id.0.clone();
         store.create(org).await.unwrap();
 
-        store
-            .add_member(&id, "user-2", OrganizationRole::Admin)
-            .await
-            .unwrap();
+        store.add_member(&id, "user-2", OrganizationRole::Admin).await.unwrap();
         let members = store.get_members(&id).await.unwrap();
         assert_eq!(members.len(), 2);
 

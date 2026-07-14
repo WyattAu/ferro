@@ -22,43 +22,28 @@ impl ProgressTracker {
     pub fn new() -> Self {
         let multi = MultiProgress::new();
 
-        let style_bytes = ProgressStyle::with_template(
-            "{spinner:.green} {prefix:12} [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
-        )
-        .unwrap()
-        .progress_chars("#>-");
+        let style_bytes =
+            ProgressStyle::with_template("{spinner:.green} {prefix:12} [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
+                .unwrap()
+                .progress_chars("#>-");
 
-        let users_pb = multi.add(
-            ProgressBar::new(0)
-                .with_prefix("Users")
-                .with_style(style_bytes.clone()),
-        );
+        let users_pb = multi.add(ProgressBar::new(0).with_prefix("Users").with_style(style_bytes.clone()));
         let files_pb = multi.add(
-            ProgressBar::new(0)
-                .with_prefix("Files")
-                .with_style(
-                    ProgressStyle::with_template(
-                        "{spinner:.green} {prefix:12} [{bar:40.cyan/blue}] {pos}/{len} {binary_bytes_per_sec} ({eta})",
-                    )
-                    .unwrap()
-                    .progress_chars("#>-"),
-                ),
+            ProgressBar::new(0).with_prefix("Files").with_style(
+                ProgressStyle::with_template(
+                    "{spinner:.green} {prefix:12} [{bar:40.cyan/blue}] {pos}/{len} {binary_bytes_per_sec} ({eta})",
+                )
+                .unwrap()
+                .progress_chars("#>-"),
+            ),
         );
         let shares_pb = multi.add(
             ProgressBar::new(0)
                 .with_prefix("Shares")
                 .with_style(style_bytes.clone()),
         );
-        let tags_pb = multi.add(
-            ProgressBar::new(0)
-                .with_prefix("Tags")
-                .with_style(style_bytes.clone()),
-        );
-        let favorites_pb = multi.add(
-            ProgressBar::new(0)
-                .with_prefix("Favorites")
-                .with_style(style_bytes),
-        );
+        let tags_pb = multi.add(ProgressBar::new(0).with_prefix("Tags").with_style(style_bytes.clone()));
+        let favorites_pb = multi.add(ProgressBar::new(0).with_prefix("Favorites").with_style(style_bytes));
 
         Self {
             multi,

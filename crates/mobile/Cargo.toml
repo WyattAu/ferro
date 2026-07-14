@@ -28,13 +28,13 @@ tauri-plugin-camera = { version = "0.1", optional = true }
 tauri-plugin-biometric = { version = "2", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
 serde = { workspace = true }
-serde_json = "1"
 tokio = { workspace = true }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-anyhow = "1"
 thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
 
 [build-dependencies]
 tauri-build = { version = "2", optional = true , features = [] }
+
+[package.metadata.cargo-machete]
+ignored = ["tauri-plugin-biometric", "tauri-plugin-camera", "tauri-plugin-dialog", "tauri-plugin-fs", "tauri-plugin-http", "tauri-plugin-notification", "tauri-plugin-shell"]

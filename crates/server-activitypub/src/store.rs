@@ -208,17 +208,11 @@ impl ActivityStore {
     }
 
     pub fn get_followers(&self, actor: &str) -> Vec<String> {
-        self.followers
-            .get(actor)
-            .map(|f| f.value().clone())
-            .unwrap_or_default()
+        self.followers.get(actor).map(|f| f.value().clone()).unwrap_or_default()
     }
 
     pub fn get_following(&self, actor: &str) -> Vec<String> {
-        self.following
-            .get(actor)
-            .map(|f| f.value().clone())
-            .unwrap_or_default()
+        self.following.get(actor).map(|f| f.value().clone()).unwrap_or_default()
     }
 
     pub fn add_following(&self, actor: &str, target: &str) -> Result<(), StoreError> {
@@ -246,12 +240,8 @@ impl ActivityStore {
         self.outbox.len()
     }
 
-    pub fn load_all_from_db(
-        &self,
-        conn: &rusqlite::Connection,
-    ) -> std::result::Result<(), rusqlite::Error> {
-        let mut stmt =
-            conn.prepare("SELECT activity_id, raw_json, box_type FROM fed_activities")?;
+    pub fn load_all_from_db(&self, conn: &rusqlite::Connection) -> std::result::Result<(), rusqlite::Error> {
+        let mut stmt = conn.prepare("SELECT activity_id, raw_json, box_type FROM fed_activities")?;
         let rows = stmt.query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -275,18 +265,14 @@ impl ActivityStore {
         }
 
         let mut stmt = conn.prepare("SELECT actor, follower FROM fed_followers")?;
-        let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?;
+        let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
         for row in rows {
             let (actor, follower): (String, String) = row?;
             self.followers.entry(actor).or_default().push(follower);
         }
 
         let mut stmt = conn.prepare("SELECT actor, target FROM fed_following")?;
-        let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?;
+        let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
         for row in rows {
             let (actor, target): (String, String) = row?;
             self.following.entry(actor).or_default().push(target);
@@ -314,9 +300,7 @@ mod tests {
             r#type: ActivityType::Create,
             actor: "https://example.com/actor/alice".to_string(),
             object: serde_json::json!({"type": "Note"}),
-            to: Some(vec![
-                "https://www.w3.org/ns/activitystreams#Public".to_string(),
-            ]),
+            to: Some(vec!["https://www.w3.org/ns/activitystreams#Public".to_string()]),
             cc: None,
             published: published.to_string(),
             target: None,

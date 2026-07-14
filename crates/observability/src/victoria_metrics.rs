@@ -5,10 +5,7 @@ use std::sync::Arc;
 
 use crate::registry::MetricsRegistry;
 
-pub async fn vm_write_handler(
-    State(_registry): State<Arc<MetricsRegistry>>,
-    _body: String,
-) -> StatusCode {
+pub async fn vm_write_handler(State(_registry): State<Arc<MetricsRegistry>>, _body: String) -> StatusCode {
     StatusCode::NO_CONTENT
 }
 

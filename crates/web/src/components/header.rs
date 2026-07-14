@@ -171,8 +171,7 @@ pub fn Header() -> impl IntoView {
                     move || {
                         if let Some(window) = web_sys::window() {
                             if let Some(doc) = window.document() {
-                                if let Ok(Some(input)) = doc.query_selector("#header-search-input")
-                                {
+                                if let Ok(Some(input)) = doc.query_selector("#header-search-input") {
                                     use wasm_bindgen::JsCast;
                                     if let Ok(el) = input.dyn_into::<web_sys::HtmlInputElement>() {
                                         let _ = el.focus();
@@ -210,10 +209,7 @@ pub fn Header() -> impl IntoView {
                     let results = if ff.is_empty() {
                         resp.results
                     } else {
-                        resp.results
-                            .into_iter()
-                            .filter(|r| r.path.starts_with(&ff))
-                            .collect()
+                        resp.results.into_iter().filter(|r| r.path.starts_with(&ff)).collect()
                     };
                     set_search_total.set(results.len());
                     set_search_results.set(results);
@@ -283,9 +279,8 @@ pub fn Header() -> impl IntoView {
                 use wasm_bindgen::JsCast;
                 let handler = wasm_bindgen::closure::Closure::<dyn Fn(ev::KeyboardEvent)>::new(
                     move |ev: web_sys::KeyboardEvent| {
-                        let input: Option<web_sys::HtmlInputElement> = ev
-                            .target()
-                            .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                        let input: Option<web_sys::HtmlInputElement> =
+                            ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
                         if let Some(input) = input {
                             // Only fire search for the dedicated search input, not any text field
                             if input.id() != "header-search-input" {
@@ -299,18 +294,14 @@ pub fn Header() -> impl IntoView {
                             }
                             if let Ok(handle) = web_sys::window()
                                 .expect("window must exist in browser context")
-                                .set_timeout_with_callback_and_timeout_and_arguments_0(
-                                    func.unchecked_ref(),
-                                    300,
-                                )
+                                .set_timeout_with_callback_and_timeout_and_arguments_0(func.unchecked_ref(), 300)
                             {
                                 *debounce_timer.borrow_mut() = Some(handle);
                             }
                         }
                     },
                 );
-                let _ = document
-                    .add_event_listener_with_callback("input", handler.as_ref().unchecked_ref());
+                let _ = document.add_event_listener_with_callback("input", handler.as_ref().unchecked_ref());
                 std::mem::forget(handler);
             }
         }
@@ -346,7 +337,7 @@ pub fn Header() -> impl IntoView {
                                 .into_any()
                             } else {
                                 view! {
-                                    <div class="w-10 h-10 brutal-border flex items-center justify-center bg-white dark:bg-gray-800" style="font-family: var(--font-display);">
+                                    <div class="w-10 h-10 brutal-border flex items-center justify-center bg-[var(--bg-surface)]" style="font-family: var(--font-display);">
                                         <span class="font-bold text-xl" style="color: var(--accent); letter-spacing: -0.03em;">{t!("brand.name")}</span>
                                     </div>
                                 }
@@ -378,18 +369,18 @@ pub fn Header() -> impl IntoView {
                             href=info.download_url
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="relative p-2 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
+                            class="relative p-2 text-[var(--warning)] hover:text-[var(--warning-hover)] hover:bg-[var(--warning-subtle)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
                             title=t!("update.available")
                         >
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
-                            <span class="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white dark:border-gray-900"></span>
+                            <span class="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-[var(--warning)] rounded-full border-2 border-[var(--bg-base)]"></span>
                         </a>
                     })}
 
                     <button
-                        class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
                         on:click=toggle_search
                         aria-label="Search files"
                     >
@@ -400,7 +391,7 @@ pub fn Header() -> impl IntoView {
 
                     <A
                         href="/ui/settings"
-                        attr:class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
+                        attr:class="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center no-underline"
                         attr:aria-label="Settings"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -425,14 +416,14 @@ pub fn Header() -> impl IntoView {
                             let auth_st = auth_state.clone();
                             view! {
                                 <div class="flex items-center gap-2 sm:gap-3">
-                                    <div class="w-8 h-8 brutal-border flex items-center justify-center bg-white dark:bg-gray-800">
+                                    <div class="w-8 h-8 brutal-border flex items-center justify-center bg-[var(--bg-surface)]">
                                         <span class="font-mono font-bold text-sm" style="color: var(--accent);">
                                             {display_name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_else(|| "?".to_string())}
                                         </span>
                                     </div>
                                     <span class="font-mono font-medium text-sm hidden sm:inline" style="color: var(--text-primary);">{display_name}</span>
                                     <button
-                                        class="text-xs text-label hover:text-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
+                                        class="text-xs text-label hover:text-[var(--accent)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
                                         style="text-transform: uppercase; letter-spacing: 0.08em;"
                                         on:click=move |_| auth::logout(&auth_st)
                                     >
@@ -444,7 +435,7 @@ pub fn Header() -> impl IntoView {
                             view! {
                                 <a
                                     href="/ui/auth/login"
-                                    class="font-mono text-xs font-bold uppercase no-underline px-3 py-2 brutal-border hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                                    class="font-mono text-xs font-bold uppercase no-underline px-3 py-2 brutal-border hover:bg-[var(--accent-subtle)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded"
                                     style="letter-spacing: 0.08em; color: var(--accent);"
                                 >
                                     {t!("common.sign_in")}
@@ -455,7 +446,7 @@ pub fn Header() -> impl IntoView {
                 </div>
             </div>
 
-            <div style:display=move || if show_search.get() { "block" } else { "none" } class="border-t bg-gray-50 dark:bg-gray-900 px-6 py-3 max-w-7xl mx-auto slide-up">
+            <div style:display=move || if show_search.get() { "block" } else { "none" } class="border-t bg-[var(--bg-base)] px-6 py-3 max-w-7xl mx-auto slide-up">
                 <div class="flex items-center gap-2 mb-2">
                     <label for="header-search-input" class="sr-only">{t!("search.aria_label")}</label>
                     <div class="relative flex-1">
@@ -464,7 +455,7 @@ pub fn Header() -> impl IntoView {
                             id="header-search-input"
                             placeholder=t!("search.placeholder")
                             aria-label=t!("search.aria_label")
-                            class="w-full px-4 py-2 pl-10 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                            class="w-full px-4 py-2 pl-10 border rounded bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent font-mono"
                             prop:value=search_query
                             on:input=on_search_input
                             on:keydown=on_search_submit
@@ -484,7 +475,7 @@ pub fn Header() -> impl IntoView {
                                 }
                             }
                         />
-                        <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="absolute left-3 top-2.5 w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
 
@@ -496,8 +487,8 @@ pub fn Header() -> impl IntoView {
                                 return view! { <div class="hidden"></div> }.into_any();
                             }
                             view! {
-                                <div class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50 max-h-48 overflow-y-auto">
-                                    <div class="px-3 py-1.5 text-xs font-mono text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+                                <div class="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded shadow-lg z-50 max-h-48 overflow-y-auto">
+                                    <div class="px-3 py-1.5 text-xs font-mono text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-subtle)]">
                                         "Recent Searches"
                                     </div>
                                     {queries.into_iter().map(|q| {
@@ -507,7 +498,7 @@ pub fn Header() -> impl IntoView {
                                         let set_show = set_show_suggestions;
                                         view! {
                                             <button
-                                                class="w-full text-left px-3 py-2 text-sm font-mono text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                                                class="w-full text-left px-3 py-2 text-sm font-mono text-[var(--text-secondary)] hover:bg-[var(--accent-subtle)] transition-colors flex items-center gap-2"
                                                 on:mousedown=move |ev| {
                                                     ev.prevent_default();
                                                     set_q.set(query.clone());
@@ -515,7 +506,7 @@ pub fn Header() -> impl IntoView {
                                                     set_show.set(false);
                                                 }
                                             >
-                                                <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg class="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
                                                 <span class="truncate">{q}</span>
@@ -527,7 +518,7 @@ pub fn Header() -> impl IntoView {
                         }}
                     </div>
                     <button
-                        class="p-2 text-gray-500 hover:text-blue-600 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent)] rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                         on:click=close_search
                         aria-label=t!("search.aria_close")
                     >
@@ -541,7 +532,7 @@ pub fn Header() -> impl IntoView {
                     <label for="search-filter-type" class="sr-only">{t!("search.filter_type")}</label>
                     <select
                         id="search-filter-type"
-                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] uppercase"
                         style="letter-spacing: 0.05em;"
                         aria-label=t!("search.filter_type")
                         on:change=on_type_change
@@ -553,7 +544,7 @@ pub fn Header() -> impl IntoView {
                     <label for="search-filter-sort" class="sr-only">{t!("search.sort_by")}</label>
                     <select
                         id="search-filter-sort"
-                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] uppercase"
                         style="letter-spacing: 0.05em;"
                         aria-label=t!("search.sort_by")
                         on:change=on_sort_change
@@ -568,7 +559,7 @@ pub fn Header() -> impl IntoView {
                         id="search-filter-folder"
                         type="text"
                         placeholder="/path/to/folder"
-                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                         style="letter-spacing: 0.05em; max-width: 180px;"
                         aria-label="Search in folder"
                         prop:value=filter_folder
@@ -581,10 +572,10 @@ pub fn Header() -> impl IntoView {
                 </div>
 
                 {move || searching.get().then(|| view! {
-                    <div class="text-sm font-mono text-gray-500">{t!("common.searching")}</div>
+                    <div class="text-sm font-mono text-[var(--text-tertiary)]">{t!("common.searching")}</div>
                 })}
                 {move || has_searched().then(|| view! {
-                    <div class="text-xs font-mono text-gray-400 mb-1" style="letter-spacing: 0.05em;" aria-live="polite">
+                    <div class="text-xs font-mono text-[var(--text-tertiary)] mb-1" style="letter-spacing: 0.05em;" aria-live="polite">
                         {move || format!("{} results", search_total.get())}
                     </div>
                 })}
@@ -601,19 +592,19 @@ fn QuotaIndicator(info: crate::api::QuotaInfo) -> impl IntoView {
     let percent = info.used_percent;
     let is_over_90 = percent > 90.0;
     let bar_color = if is_over_90 {
-        "bg-red-500"
+        "bg-[var(--danger)]"
     } else {
-        "bg-blue-500"
+        "bg-[var(--accent)]"
     };
     let text_color = if is_over_90 {
-        "text-red-600 dark:text-red-400"
+        "text-[var(--danger)]"
     } else {
-        "text-gray-500 dark:text-gray-400"
+        "text-[var(--text-tertiary)]"
     };
 
     view! {
         <div class="hidden md:flex items-center gap-2 font-mono text-xs" style="letter-spacing: 0.03em;">
-            <div class="w-28 h-3 bg-gray-200 dark:bg-gray-700 rounded-none overflow-hidden brutal-border" title=move || format!("{}% used", percent as u32)>
+            <div class="w-28 h-3 bg-[var(--bg-surface-sunken)] rounded-none overflow-hidden brutal-border" title=move || format!("{}% used", percent as u32)>
                 <div
                     class=move || format!("h-full transition-all {}", bar_color)
                     style=move || format!("width: {}%;", percent.min(100.0))
@@ -627,10 +618,7 @@ fn QuotaIndicator(info: crate::api::QuotaInfo) -> impl IntoView {
 }
 
 #[component]
-fn SearchResultsList(
-    results: ReadSignal<Vec<SearchResultEntry>>,
-    query: ReadSignal<String>,
-) -> impl IntoView {
+fn SearchResultsList(results: ReadSignal<Vec<SearchResultEntry>>, query: ReadSignal<String>) -> impl IntoView {
     view! {
         {move || {
             let empty = results.with(Vec::is_empty);
@@ -641,11 +629,11 @@ fn SearchResultsList(
             if empty {
                 return view! {
                     <div class="py-6 text-center">
-                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        <div class="font-mono font-semibold text-sm text-gray-500">{t!("search.no_results")}</div>
-                        <div class="text-xs text-gray-400 mt-1">{t!("search.no_results_hint")}</div>
+                        <div class="font-mono font-semibold text-sm text-[var(--text-tertiary)]">{t!("search.no_results")}</div>
+                        <div class="text-xs text-[var(--text-tertiary)] mt-1">{t!("search.no_results_hint")}</div>
                     </div>
                 }.into_any();
             }
@@ -663,22 +651,22 @@ fn SearchResultsList(
                             let highlighted_path = highlight_matches(&result.path, &q);
                             view! {
                                 <a
-                                    class="block w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-0 cursor-pointer no-underline text-inherit transition-colors"
+                                    class="block w-full text-left px-4 py-2 hover:bg-[var(--accent-subtle)] border-b border-[var(--border-subtle)] last:border-0 cursor-pointer no-underline text-inherit transition-colors"
                                     href=format!("/ui/files{}", parent)
                                 >
                                     <div class="flex items-center gap-2">
-                                        <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-4 h-4 text-[var(--text-tertiary)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
                                         <div class="min-w-0">
                                             <div class="text-sm font-semibold font-mono truncate" inner_html=highlighted_name></div>
-                                            <div class="text-xs text-gray-500 font-mono truncate" inner_html=highlighted_path></div>
+                                            <div class="text-xs text-[var(--text-tertiary)] font-mono truncate" inner_html=highlighted_path></div>
                                         </div>
                                     </div>
                                     {result.snippet.as_ref().map(|s| {
                                         let highlighted_snippet = highlight_matches(s, &q);
                                         view! {
-                                            <div class="text-xs text-gray-500 mt-0.5 ml-6 truncate" inner_html=highlighted_snippet></div>
+                                            <div class="text-xs text-[var(--text-tertiary)] mt-0.5 ml-6 truncate" inner_html=highlighted_snippet></div>
                                         }
                                     })}
                                 </a>

@@ -192,11 +192,7 @@ fn build_http_client(auth_token: &str) -> Result<reqwest::Client, MobileError> {
         .map_err(|e| MobileError::NetworkError(format!("Failed to create HTTP client: {}", e)))
 }
 
-async fn do_propfind_http(
-    client: &reqwest::Client,
-    server_url: &str,
-    path: &str,
-) -> Result<String, MobileError> {
+async fn do_propfind_http(client: &reqwest::Client, server_url: &str, path: &str) -> Result<String, MobileError> {
     let url = format!("{}{}", server_url.trim_end_matches('/'), path);
     let response = client
         .request(
@@ -237,8 +233,8 @@ fn parse_http_date(s: &str) -> chrono::DateTime<chrono::Utc> {
 }
 
 fn parse_propfind_xml(xml: &str, base_path: &str) -> Result<Vec<MobileFileInfo>, MobileError> {
-    let document = roxmltree::Document::parse(xml)
-        .map_err(|e| MobileError::NetworkError(format!("XML parse error: {}", e)))?;
+    let document =
+        roxmltree::Document::parse(xml).map_err(|e| MobileError::NetworkError(format!("XML parse error: {}", e)))?;
     let base_normalized = base_path.trim_end_matches('/');
     let mut entries = Vec::new();
 
@@ -273,10 +269,7 @@ fn parse_propfind_xml(xml: &str, base_path: &str) -> Result<Vec<MobileFileInfo>,
         let prop = node
             .children()
             .find(|n| n.is_element() && n.tag_name().name() == "propstat")
-            .and_then(|ps| {
-                ps.children()
-                    .find(|n| n.is_element() && n.tag_name().name() == "prop")
-            });
+            .and_then(|ps| ps.children().find(|n| n.is_element() && n.tag_name().name() == "prop"));
 
         let is_dir = prop.is_some_and(|p| {
             p.descendants()
@@ -383,10 +376,7 @@ impl IosFilesProvider {
         })
     }
 
-    pub async fn enumerate_directory(
-        &self,
-        path: &str,
-    ) -> Result<Vec<MobileFileInfo>, MobileError> {
+    pub async fn enumerate_directory(&self, path: &str) -> Result<Vec<MobileFileInfo>, MobileError> {
         let normalized = self.config.normalize_path(path);
         if normalized.is_empty() {
             return Ok(vec![]);
@@ -582,10 +572,7 @@ mod tests {
         assert_eq!(format!("{err}"), "File not found: test.pdf");
 
         let err = MobileError::CacheFull(100, 200);
-        assert_eq!(
-            format!("{err}"),
-            "Cache full: 100 bytes used, 200 bytes limit"
-        );
+        assert_eq!(format!("{err}"), "Cache full: 100 bytes used, 200 bytes limit");
 
         let err = MobileError::NotRegistered;
         assert_eq!(format!("{err}"), "Provider not registered");

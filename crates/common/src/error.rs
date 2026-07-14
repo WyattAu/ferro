@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 /// Top-level error type for the Ferro application.
+#[non_exhaustive]
 #[derive(Error, Debug)]
 pub enum FerroError {
     #[error("Not found: {0}")]
@@ -48,6 +49,7 @@ pub enum FerroError {
 
 impl FerroError {
     /// Map this error to an HTTP status code.
+    #[must_use]
     pub fn status_code(&self) -> u16 {
         match self {
             Self::NotFound(_) => 404,
@@ -84,14 +86,8 @@ mod tests {
         assert_eq!(FerroError::Internal("x".into()).status_code(), 500);
         assert_eq!(FerroError::LockConflict("x".into()).status_code(), 423);
         assert_eq!(FerroError::LockTokenNotFound("x".into()).status_code(), 409);
-        assert_eq!(
-            FerroError::PreconditionFailed("x".into()).status_code(),
-            412
-        );
-        assert_eq!(
-            FerroError::UnsupportedMediaType("x".into()).status_code(),
-            415
-        );
+        assert_eq!(FerroError::PreconditionFailed("x".into()).status_code(), 412);
+        assert_eq!(FerroError::UnsupportedMediaType("x".into()).status_code(), 415);
         assert_eq!(FerroError::Timeout.status_code(), 504);
         assert_eq!(FerroError::StorageBackend("x".into()).status_code(), 502);
         assert_eq!(FerroError::Unauthorized.status_code(), 401);
@@ -117,5 +113,44 @@ mod tests {
         }
         assert!(returns_ok().is_ok());
         assert!(returns_err().is_err());
+    }
+
+    #[test]
+    fn test_error_debug() {
+        let err = FerroError::NotFound("file.txt".into());
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("NotFound"));
+        assert!(debug.contains("file.txt"));
+    }
+
+    #[test]
+    fn test_error_display_all_variants() {
+        let errors = [
+            FerroError::NotFound("test".into()),
+            FerroError::AlreadyExists("test".into()),
+            FerroError::PermissionDenied("test".into()),
+            FerroError::InvalidArgument("test".into()),
+            FerroError::Internal("test".into()),
+            FerroError::LockConflict("test".into()),
+            FerroError::LockTokenNotFound("test".into()),
+            FerroError::PreconditionFailed("test".into()),
+            FerroError::UnsupportedMediaType("test".into()),
+            FerroError::Timeout,
+            FerroError::StorageBackend("test".into()),
+            FerroError::Unauthorized,
+            FerroError::XmlError("test".into()),
+            FerroError::WormProtected("test".into()),
+        ];
+        for err in errors {
+            let msg = format!("{}", err);
+            assert!(!msg.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_error_source() {
+        use std::error::Error;
+        let err = FerroError::NotFound("test".into());
+        assert!(err.source().is_none());
     }
 }

@@ -51,12 +51,10 @@ sync = [
     "dep:walkdir",
     "dep:sha2",
     "dep:hex",
-    "dep:base64",
     "dep:roxmltree",
 ]
 
 [dependencies]
-ferro-common = { package = "ferro-common", path = "../common" }
 tauri = { version = "2", features = ["tray-icon", "devtools"], optional = true }
 tauri-plugin-shell = { version = "2", optional = true }
 tauri-plugin-dialog = { version = "2", optional = true }
@@ -71,9 +69,7 @@ serde_json = "1"
 tokio = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-appender = "0.2"
 clap = { version = "4", features = ["derive"] }
-uuid = { version = "1", features = ["v4"] }
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
@@ -81,7 +77,6 @@ thiserror = "2"
 dirs = "5"
 sha2 = { version = "0.10", optional = true }
 hex = { version = "0.4", optional = true }
-base64 = { version = "0.22", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"

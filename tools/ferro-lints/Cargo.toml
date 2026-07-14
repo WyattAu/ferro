@@ -1,0 +1,15 @@
+[package]
+name = "ferro-lints"
+version = "0.1.0"
+edition = "2021"
+description = "Custom Clippy lints for Ferro domain invariants"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+[dev-dependencies]
+dylint_testing = "6"
+
+[workspace]

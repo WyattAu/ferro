@@ -4,12 +4,7 @@ use leptos::prelude::*;
 use super::focus_trap::FocusTrap;
 
 #[component]
-pub fn Modal(
-    title: String,
-    show: bool,
-    on_close: Callback<()>,
-    children: Children,
-) -> impl IntoView {
+pub fn Modal(title: String, show: bool, on_close: Callback<()>, children: Children) -> impl IntoView {
     let aria_title = title.clone();
     let close_handler = on_close;
     view! {

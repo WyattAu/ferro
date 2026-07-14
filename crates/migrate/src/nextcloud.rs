@@ -20,13 +20,10 @@ impl NextcloudClient {
         let encoded = base64_engine().encode(credentials.as_bytes());
         headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Basic {}", encoded))
-                .map_err(|e| MigrationError::config(e.to_string()))?,
+            HeaderValue::from_str(&format!("Basic {}", encoded)).map_err(|e| MigrationError::config(e.to_string()))?,
         );
 
-        let http = reqwest::Client::builder()
-            .default_headers(headers)
-            .build()?;
+        let http = reqwest::Client::builder().default_headers(headers).build()?;
 
         Ok(Self {
             http,
@@ -91,11 +88,7 @@ impl NextcloudClient {
         parse_propfind(&body)
     }
 
-    pub async fn list_directory_recursive(
-        &self,
-        user: &str,
-        path: &str,
-    ) -> MigrateResult<Vec<DavEntry>> {
+    pub async fn list_directory_recursive(&self, user: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {
         let mut all_entries = Vec::new();
         let mut dirs_to_process = vec![path.to_string()];
 

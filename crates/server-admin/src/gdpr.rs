@@ -39,10 +39,7 @@ pub struct GdprExportResponse {
 ///
 /// Initiate a GDPR data export for a user.
 /// Creates a ZIP archive containing all user data (files, metadata, audit log).
-pub async fn request_data_export(
-    State(state): State<AppState>,
-    Path(user_id): Path<String>,
-) -> Response {
+pub async fn request_data_export(State(state): State<AppState>, Path(user_id): Path<String>) -> Response {
     // Verify the user exists
     if !user_exists(&state, &user_id) {
         return ApiError::not_found(ApiError::USER_NOT_FOUND, "User not found");
@@ -97,10 +94,7 @@ pub async fn request_data_export(
 /// `GET /api/admin/users/{id}/export`
 ///
 /// Get the status of a GDPR data export request.
-pub async fn get_data_export_status(
-    State(state): State<AppState>,
-    Path(user_id): Path<String>,
-) -> Response {
+pub async fn get_data_export_status(State(state): State<AppState>, Path(user_id): Path<String>) -> Response {
     let request = get_latest_gdpr_request(&state, &user_id, "export");
 
     match request {
@@ -125,10 +119,7 @@ pub async fn get_data_export_status(
 ///
 /// Initiate GDPR data erasure for a user (right to be forgotten).
 /// Permanently deletes all user data including files, metadata, and audit log entries.
-pub async fn request_data_erasure(
-    State(state): State<AppState>,
-    Path(user_id): Path<String>,
-) -> Response {
+pub async fn request_data_erasure(State(state): State<AppState>, Path(user_id): Path<String>) -> Response {
     if !user_exists(&state, &user_id) {
         return ApiError::not_found(ApiError::USER_NOT_FOUND, "User not found");
     }
@@ -222,11 +213,7 @@ pub async fn list_gdpr_requests(State(state): State<AppState>) -> Response {
         Vec::new()
     };
 
-    (
-        StatusCode::OK,
-        axum::Json(serde_json::json!({ "requests": requests })),
-    )
-        .into_response()
+    (StatusCode::OK, axum::Json(serde_json::json!({ "requests": requests }))).into_response()
 }
 
 // ---------------------------------------------------------------------------
@@ -240,11 +227,9 @@ async fn process_data_export(state: &AppState, request_id: &str, user_id: &str) 
     // Get user info for the export
     let _username = if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT username FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get::<_, String>(0),
-        )
+        conn.query_row("SELECT username FROM users WHERE id = ?1", params![user_id], |row| {
+            row.get::<_, String>(0)
+        })
         .unwrap_or_else(|_| "unknown".to_string())
     } else {
         "unknown".to_string()
@@ -328,10 +313,7 @@ async fn process_data_erasure(state: &AppState, request_id: &str, user_id: &str)
         let tables_to_clean = ["favorites", "file_tags", "locks"];
         for table in &tables_to_clean {
             if let Err(e) = conn.execute(
-                &format!(
-                    "DELETE FROM {} WHERE path IN (SELECT 'unknown' WHERE 0)",
-                    table
-                ),
+                &format!("DELETE FROM {} WHERE path IN (SELECT 'unknown' WHERE 0)", table),
                 [],
             ) {
                 tracing::warn!(error = %e, table = table, "failed to clean table during erasure");
@@ -373,11 +355,9 @@ async fn process_data_erasure(state: &AppState, request_id: &str, user_id: &str)
 fn user_exists(state: &AppState, user_id: &str) -> bool {
     if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT COUNT(*) FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get::<_, i32>(0),
-        )
+        conn.query_row("SELECT COUNT(*) FROM users WHERE id = ?1", params![user_id], |row| {
+            row.get::<_, i32>(0)
+        })
         .unwrap_or(0)
             > 0
     } else {
@@ -388,11 +368,9 @@ fn user_exists(state: &AppState, user_id: &str) -> bool {
 fn is_user_admin(state: &AppState, user_id: &str) -> bool {
     if let Some(ref db) = state.db {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT role FROM users WHERE id = ?1",
-            params![user_id],
-            |row| row.get::<_, String>(0),
-        )
+        conn.query_row("SELECT role FROM users WHERE id = ?1", params![user_id], |row| {
+            row.get::<_, String>(0)
+        })
         .unwrap_or_default()
             == "Admin"
     } else {

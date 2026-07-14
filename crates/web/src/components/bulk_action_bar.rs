@@ -24,14 +24,14 @@ pub fn BulkActionBar(
                 </span>
                  <div class="flex items-center gap-2">
                      <button
-                         class="px-3 py-1.5 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[44px]"
+                          class="px-3 py-1.5 text-sm bg-[var(--danger)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[44px]"
                          on:click=move |_| on_delete.run(())
                          aria-label=t!("bulk.aria_delete")
                      >
                          {t!("common.delete")}
                      </button>
                      <button
-                         class="px-3 py-1.5 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]"
+                          class="px-3 py-1.5 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[44px]"
                          on:click=move |_| on_download.run(())
                          aria-label=t!("bulk.aria_download")
                      >

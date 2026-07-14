@@ -108,9 +108,7 @@ pub struct BackendRouter {
 
 impl BackendRouter {
     pub fn new() -> Self {
-        Self {
-            policies: Vec::new(),
-        }
+        Self { policies: Vec::new() }
     }
 
     pub fn add_policy(&mut self, policy: RoutingPolicy) -> Result<(), RoutingError> {
@@ -130,11 +128,7 @@ impl BackendRouter {
         Ok(self.policies.remove(idx))
     }
 
-    pub fn route(
-        &self,
-        path: &str,
-        metadata: &HashMap<String, String>,
-    ) -> Result<RoutingDecision, RoutingError> {
+    pub fn route(&self, path: &str, metadata: &HashMap<String, String>) -> Result<RoutingDecision, RoutingError> {
         if self.policies.is_empty() {
             return Err(RoutingError::NoDecision(path.to_string()));
         }
@@ -189,12 +183,7 @@ impl BackendRouter {
             }
 
             for ids in overlap_groups.values() {
-                let unique: Vec<String> = ids
-                    .iter()
-                    .cloned()
-                    .collect::<HashSet<_>>()
-                    .into_iter()
-                    .collect();
+                let unique: Vec<String> = ids.iter().cloned().collect::<HashSet<_>>().into_iter().collect();
                 warnings.push(RoutingWarning::OverlappingRules {
                     path_pattern: unique.join(", "),
                     rule_ids: unique,
@@ -250,10 +239,7 @@ impl Default for BackendRouter {
     }
 }
 
-fn metadata_filter_matches(
-    filter: &HashMap<String, String>,
-    metadata: &HashMap<String, String>,
-) -> bool {
+fn metadata_filter_matches(filter: &HashMap<String, String>, metadata: &HashMap<String, String>) -> bool {
     if filter.is_empty() {
         return true;
     }
@@ -274,10 +260,8 @@ fn rules_overlap(a: &RoutingRule, b: &RoutingRule) -> bool {
     let mut both_match = false;
 
     for path in &test_paths {
-        let a_match = glob_match(&a.pattern, path)
-            && metadata_filter_matches(&a.metadata_filter, &empty_meta);
-        let b_match = glob_match(&b.pattern, path)
-            && metadata_filter_matches(&b.metadata_filter, &empty_meta);
+        let a_match = glob_match(&a.pattern, path) && metadata_filter_matches(&a.metadata_filter, &empty_meta);
+        let b_match = glob_match(&b.pattern, path) && metadata_filter_matches(&b.metadata_filter, &empty_meta);
         if a_match && b_match {
             both_match = true;
             break;
@@ -522,27 +506,23 @@ mod tests {
         let mut router = BackendRouter::new();
 
         router
-            .add_policy(
-                RoutingPolicy::new("s3-policy", BackendId::S3).add_rule(RoutingRule {
-                    pattern: "uploads/**".to_string(),
-                    backend_id: BackendId::S3,
-                    priority: 5,
-                    metadata_filter: HashMap::new(),
-                    read_fallback: false,
-                }),
-            )
+            .add_policy(RoutingPolicy::new("s3-policy", BackendId::S3).add_rule(RoutingRule {
+                pattern: "uploads/**".to_string(),
+                backend_id: BackendId::S3,
+                priority: 5,
+                metadata_filter: HashMap::new(),
+                read_fallback: false,
+            }))
             .unwrap();
 
         router
-            .add_policy(
-                RoutingPolicy::new("catch-all", BackendId::Local).add_rule(RoutingRule {
-                    pattern: "**".to_string(),
-                    backend_id: BackendId::Local,
-                    priority: 1,
-                    metadata_filter: HashMap::new(),
-                    read_fallback: false,
-                }),
-            )
+            .add_policy(RoutingPolicy::new("catch-all", BackendId::Local).add_rule(RoutingRule {
+                pattern: "**".to_string(),
+                backend_id: BackendId::Local,
+                priority: 1,
+                metadata_filter: HashMap::new(),
+                read_fallback: false,
+            }))
             .unwrap();
 
         let decision = router.route("uploads/image.png", &HashMap::new()).unwrap();
@@ -558,15 +538,13 @@ mod tests {
     fn test_policy_removal() {
         let mut router = BackendRouter::new();
         router
-            .add_policy(
-                RoutingPolicy::new("s3-policy", BackendId::S3).add_rule(RoutingRule {
-                    pattern: "uploads/**".to_string(),
-                    backend_id: BackendId::S3,
-                    priority: 5,
-                    metadata_filter: HashMap::new(),
-                    read_fallback: false,
-                }),
-            )
+            .add_policy(RoutingPolicy::new("s3-policy", BackendId::S3).add_rule(RoutingRule {
+                pattern: "uploads/**".to_string(),
+                backend_id: BackendId::S3,
+                priority: 5,
+                metadata_filter: HashMap::new(),
+                read_fallback: false,
+            }))
             .unwrap();
 
         let removed = router.remove_policy("s3-policy").unwrap();
@@ -640,15 +618,13 @@ mod tests {
     fn test_validate_unreachable_default() {
         let mut router = BackendRouter::new();
         router
-            .add_policy(
-                RoutingPolicy::new("catch-all", BackendId::Local).add_rule(RoutingRule {
-                    pattern: "**".to_string(),
-                    backend_id: BackendId::S3,
-                    priority: 1,
-                    metadata_filter: HashMap::new(),
-                    read_fallback: false,
-                }),
-            )
+            .add_policy(RoutingPolicy::new("catch-all", BackendId::Local).add_rule(RoutingRule {
+                pattern: "**".to_string(),
+                backend_id: BackendId::S3,
+                priority: 1,
+                metadata_filter: HashMap::new(),
+                read_fallback: false,
+            }))
             .unwrap();
 
         let warnings = router.validate();
@@ -663,15 +639,13 @@ mod tests {
     fn test_validate_no_warnings_for_valid_policy() {
         let mut router = BackendRouter::new();
         router
-            .add_policy(
-                RoutingPolicy::new("clean", BackendId::Local).add_rule(RoutingRule {
-                    pattern: "public/**".to_string(),
-                    backend_id: BackendId::S3,
-                    priority: 1,
-                    metadata_filter: HashMap::new(),
-                    read_fallback: false,
-                }),
-            )
+            .add_policy(RoutingPolicy::new("clean", BackendId::Local).add_rule(RoutingRule {
+                pattern: "public/**".to_string(),
+                backend_id: BackendId::S3,
+                priority: 1,
+                metadata_filter: HashMap::new(),
+                read_fallback: false,
+            }))
             .unwrap();
 
         let warnings = router.validate();
@@ -749,19 +723,13 @@ mod tests {
         });
 
         let decision = policy.route("special/data.bin", &HashMap::new());
-        assert_eq!(
-            decision.backend_id,
-            BackendId::Custom("minio-prod".to_string())
-        );
+        assert_eq!(decision.backend_id, BackendId::Custom("minio-prod".to_string()));
     }
 
     #[test]
     fn test_backend_id_equality() {
         assert_eq!(BackendId::S3, BackendId::S3);
-        assert_eq!(
-            BackendId::Custom("a".to_string()),
-            BackendId::Custom("a".to_string())
-        );
+        assert_eq!(BackendId::Custom("a".to_string()), BackendId::Custom("a".to_string()));
         assert_ne!(BackendId::S3, BackendId::Gcs);
     }
 

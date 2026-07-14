@@ -136,18 +136,11 @@ pub async fn list_link_analytics(State(state): State<AppState>) -> Response {
         }));
     }
 
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({ "links": results })),
-    )
-        .into_response()
+    (StatusCode::OK, Json(serde_json::json!({ "links": results }))).into_response()
 }
 
 /// GET /analytics/links/{id}/stats — detailed stats for a link.
-pub async fn analytics_link_stats(
-    Path(token): Path<String>,
-    State(state): State<AppState>,
-) -> Response {
+pub async fn analytics_link_stats(Path(token): Path<String>, State(state): State<AppState>) -> Response {
     let link = match state.share_store.get(&token).await {
         Some(l) => l,
         None => return ApiError::not_found(ApiError::NOT_FOUND, "Share link not found"),

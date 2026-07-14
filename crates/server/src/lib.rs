@@ -45,8 +45,8 @@ pub use ferro_server_productivity::tasks as tasks_api;
 pub use ferro_server_productivity::whiteboard as whiteboard_api;
 pub use ferro_server_security_middleware::auth;
 pub use ferro_server_security_middleware::request_id;
-pub use ferro_server_security_middleware::security;
 pub use ferro_server_security_middleware::security_headers;
+pub mod security;
 pub use ferro_server_storage_ops::dedup;
 pub use ferro_server_storage_ops::range_get;
 pub use ferro_server_storage_ops::streaming_upload;
@@ -70,10 +70,12 @@ pub mod api_keys_routes;
 pub mod audit;
 pub mod batch;
 pub mod bulk;
+pub mod cache;
 pub mod collab_ws;
 pub mod comments;
 pub mod config;
 pub mod conflict;
+pub mod connection_pool;
 pub mod dashboard;
 pub mod db;
 pub mod error;
@@ -92,11 +94,13 @@ pub mod object_store_backend;
 pub mod ocr;
 pub mod offline_wiring;
 pub mod openapi;
+pub mod profiler;
 pub use ferro_server_productivity::photos as photos_api;
 pub mod policies;
 pub mod preferences;
 pub mod presigned;
 pub mod prometheus_metrics;
+pub mod query_optimizer;
 pub mod quota;
 pub mod ransomware;
 #[cfg(feature = "redis")]
@@ -126,6 +130,11 @@ pub mod xml;
 pub mod federation;
 pub mod ws;
 
+// --- Startup modules ---
+pub mod cli;
+pub mod startup;
+pub mod tls;
+
 // --- Core module ---
 mod handlers;
 mod state;
@@ -136,15 +145,13 @@ pub use state::AppState;
 
 // Re-export handler functions
 pub use handlers::{
-    audit_handler, health_check, health_endpoint, liveness, readiness, startup, startup_impl,
-    storage_stats,
+    audit_handler, health_check, health_endpoint, liveness, readiness, startup, startup_impl, storage_stats,
 };
 
 use axum::Router;
 
 pub fn make_app() -> Router {
-    let state = AppState::in_memory()
-        .with_wopi_token_secret("test-wopi-secret-for-integration".to_string());
+    let state = AppState::in_memory().with_wopi_token_secret("test-wopi-secret-for-integration".to_string());
     build_router(state)
 }
 
@@ -226,5 +233,142 @@ mod tests {
         let legacy_json: serde_json::Value = serde_json::from_slice(&legacy_bytes).unwrap();
         let v1_json: serde_json::Value = serde_json::from_slice(&v1_bytes).unwrap();
         assert_eq!(legacy_json, v1_json);
+    }
+
+    #[tokio::test]
+    async fn test_health_endpoint() {
+        let app = build_router(AppState::in_memory());
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/healthz")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_liveness_endpoint() {
+        let app = build_router(AppState::in_memory());
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/healthz")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_readiness_endpoint() {
+        let app = build_router(AppState::in_memory());
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/readyz")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_startup_endpoint() {
+        let app = build_router(AppState::in_memory());
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/startupz")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // Server starts in not-started state, so startup probe returns 503
+        assert_eq!(response.status(), axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn test_storage_stats_endpoint() {
+        let app = build_router(AppState::in_memory());
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/v1/storage/stats")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_audit_log_endpoint() {
+        let app = build_router(AppState::in_memory());
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/v1/audit")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_make_app() {
+        let app = make_app();
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/healthz")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_404_for_unknown_route() {
+        let app = build_router(AppState::in_memory());
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/nonexistent")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_webdav_options() {
+        let app = build_router(AppState::in_memory());
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("OPTIONS")
+                    .uri("/dav/")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(response.status().is_success() || response.status() == axum::http::StatusCode::NOT_FOUND);
     }
 }

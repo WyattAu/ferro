@@ -38,10 +38,7 @@ impl fmt::Display for TenantError {
                 quota,
                 current,
             } => {
-                write!(
-                    f,
-                    "quota exceeded for tenant {tenant_id}: {current}/{quota} bytes"
-                )
+                write!(f, "quota exceeded for tenant {tenant_id}: {current}/{quota} bytes")
             }
             Self::AlreadyExists { name } => write!(f, "resource already exists: {name}"),
             Self::PermissionDenied {
@@ -49,10 +46,7 @@ impl fmt::Display for TenantError {
                 resource,
                 action,
             } => {
-                write!(
-                    f,
-                    "permission denied: user {user_id} cannot {action} on {resource}"
-                )
+                write!(f, "permission denied: user {user_id} cannot {action} on {resource}")
             }
             Self::Suspended { tenant_id } => {
                 write!(f, "tenant is suspended: {tenant_id}")

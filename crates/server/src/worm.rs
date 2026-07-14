@@ -18,6 +18,14 @@ pub struct WormPolicyStore {
     db: Option<DbHandle>,
 }
 
+impl std::fmt::Debug for WormPolicyStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WormPolicyStore")
+            .field("db", &self.db.as_ref().map(|_| "..."))
+            .finish()
+    }
+}
+
 impl Default for WormPolicyStore {
     fn default() -> Self {
         Self::new()
@@ -159,6 +167,14 @@ pub trait WormStoreTrait: Send + Sync {
 
 pub struct SqliteWormStore {
     db: DbHandle,
+}
+
+impl std::fmt::Debug for SqliteWormStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SqliteWormStore")
+            .field("db", &"...")
+            .finish()
+    }
 }
 
 impl SqliteWormStore {

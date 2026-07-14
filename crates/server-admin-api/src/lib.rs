@@ -37,11 +37,7 @@ pub trait AuditLogTrait: Send + Sync {
 pub struct ApiError;
 
 impl ApiError {
-    pub fn respond(
-        status: axum::http::StatusCode,
-        code: &str,
-        message: impl Into<String>,
-    ) -> axum::response::Response {
+    pub fn respond(status: axum::http::StatusCode, code: &str, message: impl Into<String>) -> axum::response::Response {
         ferro_server_security::ApiError::respond(status, code, message)
     }
 

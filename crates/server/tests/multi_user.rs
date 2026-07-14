@@ -34,10 +34,7 @@ fn multi_user_app() -> axum::Router {
 }
 
 fn request_for(method: &str, uri: &str, user: &str, body: Body) -> Request<Body> {
-    let mut builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("X-Ferro-User", user);
+    let mut builder = Request::builder().method(method).uri(uri).header("X-Ferro-User", user);
     if method == "PUT" || method == "POST" {
         builder = builder.header("Content-Type", "application/octet-stream");
     }
@@ -47,12 +44,7 @@ fn request_for(method: &str, uri: &str, user: &str, body: Body) -> Request<Body>
 async fn put_file_as(app: &axum::Router, user: &str, path: &str, content: &str) -> StatusCode {
     let resp = app
         .clone()
-        .oneshot(request_for(
-            "PUT",
-            path,
-            user,
-            Body::from(content.to_string()),
-        ))
+        .oneshot(request_for("PUT", path, user, Body::from(content.to_string())))
         .await
         .unwrap();
     resp.status()
@@ -100,18 +92,10 @@ async fn test_user_isolation_basic() {
     assert_eq!(status, StatusCode::OK);
 
     let (status, _) = get_file_as(&app, "bob", "/secret.txt").await;
-    assert_eq!(
-        status,
-        StatusCode::NOT_FOUND,
-        "Bob should not see Alice's file"
-    );
+    assert_eq!(status, StatusCode::NOT_FOUND, "Bob should not see Alice's file");
 
     let (status, _) = get_file_as(&app, "", "/secret.txt").await;
-    assert_eq!(
-        status,
-        StatusCode::NOT_FOUND,
-        "Anonymous should not see Alice's file"
-    );
+    assert_eq!(status, StatusCode::NOT_FOUND, "Anonymous should not see Alice's file");
 }
 
 #[tokio::test]
@@ -125,11 +109,7 @@ async fn test_user_isolation_directory() {
     assert_eq!(status, StatusCode::CREATED);
 
     let status = mkcol_as(&app, "bob", "/docs").await;
-    assert_eq!(
-        status,
-        StatusCode::CREATED,
-        "Bob can create their own /docs"
-    );
+    assert_eq!(status, StatusCode::CREATED, "Bob can create their own /docs");
 
     let status = put_file_as(&app, "bob", "/docs/notes.txt", "bob notes").await;
     assert_eq!(status, StatusCode::CREATED);
@@ -195,11 +175,7 @@ async fn test_user_isolation_copy_move() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        resp.status(),
-        StatusCode::NOT_FOUND,
-        "Bob cannot COPY Alice's file"
-    );
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND, "Bob cannot COPY Alice's file");
 
     let resp = app
         .clone()
@@ -214,11 +190,7 @@ async fn test_user_isolation_copy_move() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        resp.status(),
-        StatusCode::CREATED,
-        "Alice can COPY her own file"
-    );
+    assert_eq!(resp.status(), StatusCode::CREATED, "Alice can COPY her own file");
 }
 
 // ── Share Workflow ───────────────────────────────────────────────────
@@ -338,11 +310,7 @@ async fn test_share_password_protected() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Should require password"
-    );
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "Should require password");
 
     let resp = app
         .clone()
@@ -355,11 +323,7 @@ async fn test_share_password_protected() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Wrong password should fail"
-    );
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "Wrong password should fail");
 
     let resp = app
         .clone()
@@ -468,11 +432,7 @@ async fn test_share_crud_lifecycle() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        resp.status(),
-        StatusCode::NOT_FOUND,
-        "Deleted share should return 404"
-    );
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND, "Deleted share should return 404");
 }
 
 // ── Concurrent Edit (Last-Write-Wins) ────────────────────────────────
@@ -554,9 +514,7 @@ async fn test_directory_sharing_workflow() {
                 .uri("/api/shares")
                 .header("Content-Type", "application/json")
                 .header("X-Ferro-User", "alice")
-                .body(Body::from(
-                    r#"{"path": "/shared-dir", "expires_in_hours": 24}"#,
-                ))
+                .body(Body::from(r#"{"path": "/shared-dir", "expires_in_hours": 24}"#))
                 .unwrap(),
         )
         .await
@@ -610,9 +568,7 @@ async fn test_guest_access_via_public_link() {
                 .uri("/api/shares")
                 .header("Content-Type", "application/json")
                 .header("X-Ferro-User", "alice")
-                .body(Body::from(
-                    r#"{"path": "/public-doc.txt", "expires_in_hours": 1}"#,
-                ))
+                .body(Body::from(r#"{"path": "/public-doc.txt", "expires_in_hours": 1}"#))
                 .unwrap(),
         )
         .await
@@ -660,11 +616,7 @@ async fn test_permission_enforcement_no_cross_user_access() {
     assert_eq!(status, StatusCode::NOT_FOUND);
 
     let status = put_file_as(&app, "bob", "/alice-private.txt", "overwritten by bob").await;
-    assert_eq!(
-        status,
-        StatusCode::CREATED,
-        "Bob creates his own file at same path"
-    );
+    assert_eq!(status, StatusCode::CREATED, "Bob creates his own file at same path");
 
     let (status, body) = get_file_as(&app, "bob", "/alice-private.txt").await;
     assert_eq!(status, StatusCode::OK);
@@ -737,13 +689,7 @@ async fn test_concurrent_upload_stress_10_users() {
                 let path = format!("/stress-test/file-{:03}.txt", j);
                 let content = format!("user-{} file-{}", i, j);
                 let status = put_file_as(&app, &user, &path, &content).await;
-                assert_eq!(
-                    status,
-                    StatusCode::CREATED,
-                    "PUT {} for user {} failed",
-                    path,
-                    user
-                );
+                assert_eq!(status, StatusCode::CREATED, "PUT {} for user {} failed", path, user);
             }
         });
         handles.push(handle);
@@ -757,13 +703,7 @@ async fn test_concurrent_upload_stress_10_users() {
         for j in 0..10 {
             let path = format!("/stress-test/file-{:03}.txt", j);
             let (status, content) = get_file_as(&app, user, &path).await;
-            assert_eq!(
-                status,
-                StatusCode::OK,
-                "GET {} for user {} failed",
-                path,
-                user
-            );
+            assert_eq!(status, StatusCode::OK, "GET {} for user {} failed", path, user);
             assert_eq!(content, format!("user-{} file-{}", i, j));
         }
     }
@@ -804,11 +744,7 @@ async fn test_concurrent_upload_100_files_per_user() {
     assert_eq!(resp.status(), StatusCode::MULTI_STATUS);
     let body = body_string(resp).await;
     let count = body.matches("<D:response>").count();
-    assert_eq!(
-        count, 101,
-        "Expected 101 responses (dir + 100 files), got {}",
-        count
-    );
+    assert_eq!(count, 101, "Expected 101 responses (dir + 100 files), got {}", count);
 }
 
 // ── Notification Delivery ────────────────────────────────────────────
@@ -828,9 +764,7 @@ async fn test_notification_on_share_creation() {
                 .uri("/api/shares")
                 .header("Content-Type", "application/json")
                 .header("X-Ferro-User", "alice")
-                .body(Body::from(
-                    r#"{"path": "/notify-test.txt", "expires_in_hours": 24}"#,
-                ))
+                .body(Body::from(r#"{"path": "/notify-test.txt", "expires_in_hours": 24}"#))
                 .unwrap(),
         )
         .await
@@ -851,10 +785,7 @@ async fn test_notification_on_share_creation() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_string(resp).await;
-    assert!(
-        body.contains("shares"),
-        "Audit log should record share creation"
-    );
+    assert!(body.contains("shares"), "Audit log should record share creation");
 }
 
 #[tokio::test]
@@ -909,11 +840,7 @@ async fn test_propfind_user_isolation() {
     assert_eq!(resp.status(), StatusCode::MULTI_STATUS);
     let body = body_string(resp).await;
     let count = body.matches("<D:response>").count();
-    assert_eq!(
-        count, 3,
-        "Alice should see her dir + 2 files, got {}",
-        count
-    );
+    assert_eq!(count, 3, "Alice should see her dir + 2 files, got {}", count);
 
     let resp = app
         .clone()
@@ -1013,11 +940,7 @@ async fn test_lock_conflict_between_users() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        resp.status(),
-        StatusCode::NO_CONTENT,
-        "Alice can write with lock token"
-    );
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT, "Alice can write with lock token");
 
     let resp = app
         .clone()
@@ -1160,16 +1083,13 @@ async fn test_concurrent_mixed_operations() {
             .await;
             assert_eq!(status, StatusCode::CREATED);
 
-            let (status, _) =
-                get_file_as(&app_clone, &user, &format!("/mixed-ops/{}.txt", user)).await;
+            let (status, _) = get_file_as(&app_clone, &user, &format!("/mixed-ops/{}.txt", user)).await;
             assert_eq!(status, StatusCode::OK);
 
-            let status =
-                delete_file_as(&app_clone, &user, &format!("/mixed-ops/{}.txt", user)).await;
+            let status = delete_file_as(&app_clone, &user, &format!("/mixed-ops/{}.txt", user)).await;
             assert_eq!(status, StatusCode::NO_CONTENT);
 
-            let (status, _) =
-                get_file_as(&app_clone, &user, &format!("/mixed-ops/{}.txt", user)).await;
+            let (status, _) = get_file_as(&app_clone, &user, &format!("/mixed-ops/{}.txt", user)).await;
             assert_eq!(status, StatusCode::NOT_FOUND);
         });
         handles.push(handle);

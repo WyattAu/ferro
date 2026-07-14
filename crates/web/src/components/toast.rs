@@ -99,19 +99,16 @@ pub fn ProvideToastContext(children: Children) -> impl IntoView {
         let toasts_clone = toasts;
         if let Some(window) = web_sys::window() {
             if let Some(document) = window.document() {
-                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
-                    move |ev: web_sys::KeyboardEvent| {
-                        if ev.key() == "Escape" {
-                            let current = toasts_clone.get();
-                            if let Some(last) = current.last() {
-                                dismiss_clone.run(last.id);
-                            }
+                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move |ev: web_sys::KeyboardEvent| {
+                    if ev.key() == "Escape" {
+                        let current = toasts_clone.get();
+                        if let Some(last) = current.last() {
+                            dismiss_clone.run(last.id);
                         }
-                    },
-                )
+                    }
+                })
                     as Box<dyn Fn(web_sys::KeyboardEvent)>);
-                let _ = document
-                    .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+                let _ = document.add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
                 std::mem::forget(cb);
             }
         }
@@ -143,24 +140,24 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
 
     let bg_class = match toast.toast_type {
         ToastType::Success => {
-            "surface brutal-border border-l-4 border-l-green-600 text-green-700 dark:text-green-400"
+            "bg-[var(--bg-surface)] border border-[var(--border-default)] border-l-4 border-l-[var(--success)] shadow-lg"
         }
         ToastType::Error => {
-            "surface brutal-border border-l-4 border-l-red-600 text-red-700 dark:text-red-400"
+            "bg-[var(--bg-surface)] border border-[var(--border-default)] border-l-4 border-l-[var(--danger)] shadow-lg"
         }
         ToastType::Info => {
-            "surface brutal-border border-l-4 border-l-blue-600 text-blue-700 dark:text-blue-400"
+            "bg-[var(--bg-surface)] border border-[var(--border-default)] border-l-4 border-l-[var(--accent)] shadow-lg"
         }
         ToastType::Warning => {
-            "surface brutal-border border-l-4 border-l-yellow-600 text-yellow-700 dark:text-yellow-400"
+            "bg-[var(--bg-surface)] border border-[var(--border-default)] border-l-4 border-l-[var(--warning)] shadow-lg"
         }
     };
 
     let icon_class = match toast.toast_type {
-        ToastType::Success => "text-green-500 dark:text-green-400",
-        ToastType::Error => "text-red-500 dark:text-red-400",
-        ToastType::Info => "text-blue-500 dark:text-blue-400",
-        ToastType::Warning => "text-yellow-500 dark:text-yellow-400",
+        ToastType::Success => "text-[var(--success)]",
+        ToastType::Error => "text-[var(--danger)]",
+        ToastType::Info => "text-[var(--accent)]",
+        ToastType::Warning => "text-[var(--warning)]",
     };
 
     let icon = match toast.toast_type {
@@ -216,18 +213,15 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
         let visible_esc = set_visible;
         if let Some(window) = web_sys::window() {
             if let Some(document) = window.document() {
-                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(
-                    move |ev: web_sys::KeyboardEvent| {
-                        if ev.key() == "Escape" {
-                            dismissed_esc.set(true);
-                            visible_esc.set(false);
-                            on_dismiss_esc.run(());
-                        }
-                    },
-                )
+                let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move |ev: web_sys::KeyboardEvent| {
+                    if ev.key() == "Escape" {
+                        dismissed_esc.set(true);
+                        visible_esc.set(false);
+                        on_dismiss_esc.run(());
+                    }
+                })
                     as Box<dyn Fn(web_sys::KeyboardEvent)>);
-                let _ = document
-                    .add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+                let _ = document.add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
                 std::mem::forget(cb);
             }
         }
@@ -236,18 +230,18 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
     view! {
         <div
             class=move || format!(
-                "pointer-events-auto brutal-border surface shadow-iron px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-in-out rounded-sm relative overflow-hidden {} {}",
+                "pointer-events-auto rounded-lg px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-in-out relative overflow-hidden {} {}",
                 bg_class,
-                if dismissed.get() { "opacity-0 -translate-x-full scale-95" } else { "opacity-100 translate-x-0 scale-100" }
+                if dismissed.get() { "opacity-0 translate-x-full scale-95" } else { "opacity-100 translate-x-0 scale-100" }
             )
-            role="alert"
             aria-live="polite"
+            aria-atomic="true"
             style=move || if visible.get() || dismissed.get() { "display: flex" } else { "display: none" }
         >
             <span class={icon_class} aria-hidden="true">{icon}</span>
-            <p class="flex-1 text-sm font-medium">{message_text}</p>
+            <p class="flex-1 text-sm font-medium text-[var(--text-primary)]">{message_text}</p>
             <button
-                class="min-w-[44px] min-h-[44px] flex items-center justify-center p-0.5 rounded-sm opacity-60 hover:opacity-100 transition-opacity focus:outline-none focus:ring-2 focus:ring-current font-mono"
+                class="min-w-[44px] min-h-[44px] flex items-center justify-center p-0.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-colors focus-ring"
                 aria-label=t!("toast.aria_dismiss")
                 on:click=handle_dismiss
             >
@@ -255,7 +249,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
-            <div class="toast-progress-bar" aria-hidden="true"></div>
+            <div class="absolute bottom-0 left-0 h-0.5 bg-[var(--accent)] opacity-30" style="animation: toast-progress 5s linear forwards;" aria-hidden="true"></div>
         </div>
     }
 }

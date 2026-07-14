@@ -63,31 +63,19 @@ mod tests {
             resolve_user_path("/docs/file.txt", Some(&alice_claims())),
             "/users/alice/docs/file.txt"
         );
-        assert_eq!(
-            resolve_user_path("/", Some(&alice_claims())),
-            "/users/alice"
-        );
+        assert_eq!(resolve_user_path("/", Some(&alice_claims())), "/users/alice");
     }
 
     #[test]
     fn test_can_access_authenticated() {
-        assert!(can_access_path(
-            "/users/alice/docs/file.txt",
-            Some(&alice_claims())
-        ));
+        assert!(can_access_path("/users/alice/docs/file.txt", Some(&alice_claims())));
         assert!(can_access_path("/users/alice", Some(&alice_claims())));
-        assert!(!can_access_path(
-            "/users/bob/docs/file.txt",
-            Some(&alice_claims())
-        ));
+        assert!(!can_access_path("/users/bob/docs/file.txt", Some(&alice_claims())));
     }
 
     #[test]
     fn test_can_access_anonymous() {
         assert!(can_access_path("/docs/file.txt", None));
-        assert!(can_access_path(
-            "/users/alice/docs/file.txt",
-            Some(&anonymous_claims())
-        ));
+        assert!(can_access_path("/users/alice/docs/file.txt", Some(&anonymous_claims())));
     }
 }

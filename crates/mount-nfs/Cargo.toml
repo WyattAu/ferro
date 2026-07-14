@@ -14,13 +14,12 @@ ffi = ["dep:libc"]
 
 [dependencies]
 serde = { workspace = true }
-thiserror = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "fs", "macros", "rt"] }
-bytes = { workspace = true }
 chrono = "0.4"
 async-trait = "0.1"
 dashmap = "6"
 uuid = { version = "1", features = ["v4"] }
+zeroize = { workspace = true, features = ["derive"] }
 libc = { version = "0.2", optional = true }
 
 [dev-dependencies]

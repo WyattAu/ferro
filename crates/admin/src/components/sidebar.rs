@@ -8,8 +8,7 @@ use crate::api::ApiState;
 pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
     let location = use_location();
     let is_connected = move || api.with(|a| a.is_connected());
-    let server_url =
-        move || api.with(|a| a.config.as_ref().map(|c| c.url.clone()).unwrap_or_default());
+    let server_url = move || api.with(|a| a.config.as_ref().map(|c| c.url.clone()).unwrap_or_default());
 
     let disconnect = Callback::new(move |_: ()| {
         api.update(|a| a.disconnect());
@@ -20,17 +19,9 @@ pub fn Sidebar(api: RwSignal<ApiState>) -> impl IntoView {
         ("/".into(), "Dashboard".into(), "dashboard".into()),
         ("/users".into(), "Users".into(), "users".into()),
         ("/storage".into(), "Storage".into(), "storage".into()),
-        (
-            "/monitoring".into(),
-            "Monitoring".into(),
-            "monitoring".into(),
-        ),
+        ("/monitoring".into(), "Monitoring".into(), "monitoring".into()),
         ("/settings".into(), "Settings".into(), "settings".into()),
-        (
-            "/federation".into(),
-            "Federation".into(),
-            "federation".into(),
-        ),
+        ("/federation".into(), "Federation".into(), "federation".into()),
         ("/webhooks".into(), "Webhooks".into(), "webhooks".into()),
         ("/plugins".into(), "Plugins".into(), "plugins".into()),
         ("/audit".into(), "Audit Log".into(), "audit".into()),

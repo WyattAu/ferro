@@ -6,10 +6,7 @@ pub enum CacheError {
     CapacityExceeded { entries: usize, max_entries: usize },
 
     #[error("cache size exceeded ({size_bytes} bytes, max: {max_size_bytes} bytes)")]
-    SizeExceeded {
-        size_bytes: u64,
-        max_size_bytes: u64,
-    },
+    SizeExceeded { size_bytes: u64, max_size_bytes: u64 },
 
     #[error("serialization failed: {0}")]
     SerializationFailed(String),

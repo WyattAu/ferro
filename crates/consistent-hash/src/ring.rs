@@ -98,11 +98,7 @@ impl<T: Clone> HashRing<T> {
         let position = hash_to_position(&hash);
 
         // Find the first node with position >= key position (clockwise)
-        let result = self
-            .nodes
-            .range(position..)
-            .next()
-            .or_else(|| self.nodes.iter().next());
+        let result = self.nodes.range(position..).next().or_else(|| self.nodes.iter().next());
 
         result.map(|(_pos, metadata)| (metadata, self.find_node_id_for_position(*_pos)))
     }

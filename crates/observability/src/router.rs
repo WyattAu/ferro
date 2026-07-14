@@ -27,14 +27,8 @@ impl FromRef<ObservabilityState> for Arc<LogBuffer> {
     }
 }
 
-pub fn build_observability_router(
-    registry: Arc<MetricsRegistry>,
-    log_buffer: Arc<LogBuffer>,
-) -> Router {
-    let state = ObservabilityState {
-        registry,
-        log_buffer,
-    };
+pub fn build_observability_router(registry: Arc<MetricsRegistry>, log_buffer: Arc<LogBuffer>) -> Router {
+    let state = ObservabilityState { registry, log_buffer };
 
     Router::new()
         .route("/metrics", get(prometheus_metrics_handler))
@@ -44,10 +38,7 @@ pub fn build_observability_router(
         .route("/loki/api/v1/labels", get(loki::loki_labels_handler))
         .route("/api/v1/write", post(victoria_metrics::vm_write_handler))
         .route("/api/v1/targets", get(victoria_metrics::vm_targets_handler))
-        .route(
-            "/api/v1/status/tsdb",
-            get(victoria_metrics::vm_tsdb_status_handler),
-        )
+        .route("/api/v1/status/tsdb", get(victoria_metrics::vm_tsdb_status_handler))
         .route("/insert/jsonline", post(victoria_logs::vl_insert_handler))
         .route("/insert/promtail", post(victoria_logs::vl_promtail_handler))
         .route("/api/v1/logs", get(query_logs_handler))

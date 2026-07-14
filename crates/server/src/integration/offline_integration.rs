@@ -38,8 +38,7 @@ mod tests {
 
     #[test]
     fn test_connectivity_check_failure_backoff() {
-        let monitor =
-            ConnectionMonitor::with_backoff(Duration::from_secs(1), Duration::from_secs(60));
+        let monitor = ConnectionMonitor::with_backoff(Duration::from_secs(1), Duration::from_secs(60));
         let backoff = simulate_connectivity_check(&monitor, false);
         assert!(backoff > Duration::ZERO);
         assert_eq!(monitor.consecutive_failures(), 1);

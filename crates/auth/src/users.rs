@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
+pub use common::zeroize::ZeroizeString;
 use dashmap::DashMap;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -7,12 +8,11 @@ use tracing::warn;
 
 /// # Safety
 /// The wrapped `rusqlite::Connection` is only accessed via short-lived lock guards
-/// that never cross an `.await` point. SQLite operations are synchronous
+/// that never cross an `.await` point. `SQLite` operations are synchronous
 /// and complete in microseconds, well below the threshold for async poisoning.
 pub type DbHandle = std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>;
 
 /// Role assigned to a user, controlling their access level.
-#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum UserRole {
     #[default]
@@ -22,7 +22,6 @@ pub enum UserRole {
 }
 
 /// Account status of a user.
-#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum UserStatus {
     Active,
@@ -31,7 +30,7 @@ pub enum UserStatus {
 }
 
 /// A registered user in the system.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
     pub username: String,
@@ -45,27 +44,51 @@ pub struct User {
     pub storage_used_bytes: u64,
     pub is_ldap: bool,
     #[serde(skip_serializing)]
-    pub password_hash: Option<String>,
+    pub password_hash: Option<ZeroizeString>,
     /// Base32-encoded TOTP secret. Present when TOTP is enabled.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub totp_secret: Option<String>,
+    pub totp_secret: Option<ZeroizeString>,
     /// Whether TOTP two-factor authentication is enabled.
     #[serde(default)]
     pub totp_enabled: bool,
 }
 
+impl std::fmt::Debug for User {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("User")
+            .field("id", &self.id)
+            .field("username", &self.username)
+            .field("display_name", &self.display_name)
+            .field("email", &self.email)
+            .field("role", &self.role)
+            .field("created_at", &self.created_at)
+            .field("last_login", &self.last_login)
+            .field("status", &self.status)
+            .field("storage_quota_bytes", &self.storage_quota_bytes)
+            .field("storage_used_bytes", &self.storage_used_bytes)
+            .field("is_ldap", &self.is_ldap)
+            .field("password_hash", &self.password_hash.as_ref().map(|_| "[REDACTED]"))
+            .field("totp_secret", &self.totp_secret.as_ref().map(|_| "[REDACTED]"))
+            .field("totp_enabled", &self.totp_enabled)
+            .finish()
+    }
+}
+
 impl User {
     /// Check whether the user account is active.
+    #[must_use]
     pub fn is_active(&self) -> bool {
         self.status == UserStatus::Active
     }
 
     /// Check whether the user has admin privileges.
+    #[must_use]
     pub fn is_admin(&self) -> bool {
         self.role == UserRole::Admin
     }
 
     /// Check whether the user can read and write (admin or user role).
+    #[must_use]
     pub fn has_read_write(&self) -> bool {
         self.role == UserRole::Admin || self.role == UserRole::User
     }
@@ -90,15 +113,28 @@ impl From<&User> for UserInfo {
 }
 
 /// Request body for creating a new user.
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct CreateUserRequest {
     pub username: String,
     pub display_name: String,
     pub email: String,
-    pub password: String,
+    pub password: ZeroizeString,
     #[serde(default)]
     pub role: UserRole,
     pub storage_quota_bytes: Option<u64>,
+}
+
+impl std::fmt::Debug for CreateUserRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CreateUserRequest")
+            .field("username", &self.username)
+            .field("display_name", &self.display_name)
+            .field("email", &self.email)
+            .field("password", &"[REDACTED]")
+            .field("role", &self.role)
+            .field("storage_quota_bytes", &self.storage_quota_bytes)
+            .finish()
+    }
 }
 
 /// Request body for updating an existing user (admin-only fields).
@@ -112,16 +148,33 @@ pub struct UpdateUserRequest {
 }
 
 /// Request body for a user updating their own profile.
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct UpdateSelfRequest {
     pub display_name: Option<String>,
-    pub password: Option<String>,
+    pub password: Option<ZeroizeString>,
+}
+
+impl std::fmt::Debug for UpdateSelfRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UpdateSelfRequest")
+            .field("display_name", &self.display_name)
+            .field("password", &self.password.as_ref().map(|_| "[REDACTED]"))
+            .finish()
+    }
 }
 
 /// Request body for resetting a user's password.
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct ResetPasswordRequest {
-    pub new_password: String,
+    pub new_password: ZeroizeString,
+}
+
+impl std::fmt::Debug for ResetPasswordRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResetPasswordRequest")
+            .field("new_password", &"[REDACTED]")
+            .finish()
+    }
 }
 
 /// Error returned by user store operations.
@@ -132,6 +185,7 @@ pub struct UserError {
 }
 
 /// Kind of user store error.
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum UserErrorKind {
     NotFound,
@@ -218,7 +272,7 @@ fn verify_password(password: &str, hash: &str) -> bool {
 
 const MAX_USERS: usize = 10_000;
 
-/// In-memory user store backed by concurrent hash maps, with optional SQLite persistence.
+/// In-memory user store backed by concurrent hash maps, with optional `SQLite` persistence.
 pub struct InMemoryUserStore {
     users: DashMap<String, User>,
     username_index: DashMap<String, String>,
@@ -228,6 +282,7 @@ pub struct InMemoryUserStore {
 
 impl InMemoryUserStore {
     /// Create a new empty in-memory user store.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             users: DashMap::new(),
@@ -237,7 +292,7 @@ impl InMemoryUserStore {
         }
     }
 
-    /// Attach a SQLite database handle for persistent storage.
+    /// Attach a `SQLite` database handle for persistent storage.
     pub fn with_db(mut self, db: DbHandle) -> Self {
         self.db = Some(db);
         self
@@ -246,6 +301,7 @@ impl InMemoryUserStore {
     /// Create a pre-configured admin user with the given credentials.
     ///
     /// Returns `None` if password hashing fails.
+    #[must_use]
     pub fn create_admin(username: &str, password: &str) -> Option<User> {
         let password_hash = hash_password(password).ok()?;
         Some(User {
@@ -260,7 +316,7 @@ impl InMemoryUserStore {
             storage_quota_bytes: None,
             storage_used_bytes: 0,
             is_ldap: false,
-            password_hash: Some(password_hash),
+            password_hash: Some(ZeroizeString::new(password_hash)),
             totp_secret: None,
             totp_enabled: false,
         })
@@ -282,7 +338,7 @@ impl InMemoryUserStore {
 
     fn persist_user(&self, user: &User) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO users (id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash, totp_secret, totp_enabled) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                 params![
@@ -296,10 +352,10 @@ impl InMemoryUserStore {
                     format!("{:?}", user.status),
                     user.storage_quota_bytes.unwrap_or(0) as i64,
                     user.storage_used_bytes as i64,
-                    user.is_ldap as i32,
-                    user.password_hash,
-                    user.totp_secret,
-                    user.totp_enabled as i32,
+                    i32::from(user.is_ldap),
+                    user.password_hash.as_ref().map(|s| s.as_str()),
+                    user.totp_secret.as_ref().map(|s| s.as_str()),
+                    i32::from(user.totp_enabled),
                 ],
             ) {
                 warn!("Failed to persist user to SQLite: {}", e);
@@ -309,14 +365,14 @@ impl InMemoryUserStore {
 
     fn delete_user_from_db(&self, id: &str) {
         if let Some(ref db) = self.db {
-            let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+            let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Err(e) = conn.execute("DELETE FROM users WHERE id = ?1", params![id]) {
                 warn!("Failed to delete user from SQLite: {}", e);
             }
         }
     }
 
-    /// Load all users from a SQLite connection into a vector.
+    /// Load all users from a `SQLite` connection into a vector.
     pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<User>, rusqlite::Error> {
         let mut stmt = conn.prepare(
             "SELECT id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash FROM users",
@@ -338,8 +394,7 @@ impl InMemoryUserStore {
             };
             let created_at_str: String = row.get(5)?;
             let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .unwrap_or_else(|_| Utc::now());
+                .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&chrono::Utc));
             let last_login: Option<String> = row.get(6)?;
             let last_login = last_login.and_then(|s| {
                 chrono::DateTime::parse_from_rfc3339(&s)
@@ -359,8 +414,8 @@ impl InMemoryUserStore {
                 storage_quota_bytes: if quota == 0 { None } else { Some(quota as u64) },
                 storage_used_bytes: row.get::<_, i64>(9)? as u64,
                 is_ldap: row.get::<_, i32>(10)? != 0,
-                password_hash: row.get(11)?,
-                totp_secret: row.get(12).unwrap_or(None),
+                password_hash: row.get::<_, Option<String>>(11)?.map(ZeroizeString::new),
+                totp_secret: row.get::<_, Option<String>>(12).unwrap_or(None).map(ZeroizeString::new),
                 totp_enabled: row.get::<_, i32>(13).unwrap_or(0) != 0,
             })
         })?;
@@ -391,10 +446,7 @@ impl UserStoreTrait for InMemoryUserStore {
             )));
         }
         if !user.email.is_empty() && self.email_index.contains_key(&user.email) {
-            return Err(UserError::conflict(format!(
-                "Email '{}' already in use",
-                user.email
-            )));
+            return Err(UserError::conflict(format!("Email '{}' already in use", user.email)));
         }
         let id = user.id.clone();
         let username = user.username.clone();
@@ -412,7 +464,7 @@ impl UserStoreTrait for InMemoryUserStore {
         self.users
             .get(id)
             .map(|r| r.value().clone())
-            .ok_or_else(|| UserError::not_found(format!("User '{}' not found", id)))
+            .ok_or_else(|| UserError::not_found(format!("User '{id}' not found")))
     }
 
     async fn get_user_by_username(&self, username: &str) -> Result<User, UserError> {
@@ -420,7 +472,7 @@ impl UserStoreTrait for InMemoryUserStore {
             .username_index
             .get(username)
             .map(|r| r.value().clone())
-            .ok_or_else(|| UserError::not_found(format!("User '{}' not found", username)))?;
+            .ok_or_else(|| UserError::not_found(format!("User '{username}' not found")))?;
         self.get_user(&id).await
     }
 
@@ -429,7 +481,7 @@ impl UserStoreTrait for InMemoryUserStore {
             .email_index
             .get(email)
             .map(|r| r.value().clone())
-            .ok_or_else(|| UserError::not_found(format!("No user with email '{}'", email)))?;
+            .ok_or_else(|| UserError::not_found(format!("No user with email '{email}'")))?;
         self.get_user(&id).await
     }
 
@@ -448,10 +500,7 @@ impl UserStoreTrait for InMemoryUserStore {
                 if let Some(existing_id) = self.email_index.get(new_email)
                     && existing_id.value() != id
                 {
-                    return Err(UserError::conflict(format!(
-                        "Email '{}' already in use",
-                        new_email
-                    )));
+                    return Err(UserError::conflict(format!("Email '{new_email}' already in use")));
                 }
                 if !user.email.is_empty() {
                     self.email_index.remove(&user.email);
@@ -494,7 +543,7 @@ impl UserStoreTrait for InMemoryUserStore {
             let u = user.clone();
             drop(user);
             if let Some(ref db) = self.db {
-                let conn = db.lock().unwrap_or_else(|e| e.into_inner());
+                let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
                 if let Err(e) = conn.execute(
                     "UPDATE users SET last_login = ?1 WHERE id = ?2",
                     params![u.last_login.map(|l| l.to_rfc3339()), u.id],
@@ -507,7 +556,7 @@ impl UserStoreTrait for InMemoryUserStore {
 
     async fn set_password(&self, id: &str, password_hash: &str) -> Result<(), UserError> {
         let mut user = self.get_user(id).await?;
-        user.password_hash = Some(password_hash.to_string());
+        user.password_hash = Some(ZeroizeString::new(password_hash.to_string()));
         self.users.insert(id.to_string(), user.clone());
         self.persist_user(&user);
         Ok(())
@@ -520,7 +569,8 @@ impl UserStoreTrait for InMemoryUserStore {
         }
         let hash = user
             .password_hash
-            .as_deref()
+            .as_ref()
+            .map(|s| s.as_str())
             .ok_or_else(|| UserError::forbidden("No password set for this user"))?;
         if !verify_password(password, hash) {
             return Err(UserError::forbidden("Invalid password"));
@@ -547,7 +597,7 @@ mod tests {
             storage_quota_bytes: None,
             storage_used_bytes: 0,
             is_ldap: false,
-            password_hash: Some(hash_password("testpass").unwrap()),
+            password_hash: Some(ZeroizeString::new(hash_password("testpass").unwrap())),
             totp_secret: None,
             totp_enabled: false,
         }
@@ -735,9 +785,7 @@ mod tests {
         let id = user.id.clone();
         s.create_user(user).await.unwrap();
 
-        s.set_password(&id, &hash_password("newpass").unwrap())
-            .await
-            .unwrap();
+        s.set_password(&id, &hash_password("newpass").unwrap()).await.unwrap();
         assert!(s.authenticate("kate", "newpass").await.is_ok());
         assert!(s.authenticate("kate", "testpass").await.is_err());
     }
@@ -772,5 +820,392 @@ mod tests {
         assert!(admin.has_read_write());
         assert!(user.has_read_write());
         assert!(!readonly.has_read_write());
+    }
+
+    #[test]
+    fn test_user_error_constructors() {
+        let e = UserError::not_found("missing");
+        assert_eq!(e.kind, UserErrorKind::NotFound);
+        assert_eq!(e.message, "missing");
+
+        let e = UserError::conflict("dup");
+        assert_eq!(e.kind, UserErrorKind::Conflict);
+        assert_eq!(e.message, "dup");
+
+        let e = UserError::forbidden("no");
+        assert_eq!(e.kind, UserErrorKind::Forbidden);
+        assert_eq!(e.message, "no");
+
+        let e = UserError::bad_request("bad");
+        assert_eq!(e.kind, UserErrorKind::BadRequest);
+        assert_eq!(e.message, "bad");
+    }
+
+    #[test]
+    fn test_user_error_debug_format() {
+        let e = UserError::not_found("test");
+        let debug = format!("{:?}", e);
+        assert!(debug.contains("UserError"));
+    }
+
+    #[test]
+    fn test_user_is_active() {
+        let mut user = make_user("a", "a@x.com", UserRole::User);
+        user.status = UserStatus::Active;
+        assert!(user.is_active());
+        user.status = UserStatus::Disabled;
+        assert!(!user.is_active());
+        user.status = UserStatus::Locked;
+        assert!(!user.is_active());
+    }
+
+    #[test]
+    fn test_user_is_admin() {
+        let user = make_user("a", "a@x.com", UserRole::Admin);
+        assert!(user.is_admin());
+        let user = make_user("u", "u@x.com", UserRole::User);
+        assert!(!user.is_admin());
+    }
+
+    #[test]
+    fn test_user_info_from_user() {
+        let user = make_user("alice", "alice@x.com", UserRole::Admin);
+        let info = UserInfo::from(&user);
+        assert_eq!(info.user_id, user.id);
+        assert_eq!(info.username, "alice");
+        assert_eq!(info.role, UserRole::Admin);
+    }
+
+    #[test]
+    fn test_user_role_default() {
+        let role = UserRole::default();
+        assert_eq!(role, UserRole::Admin);
+    }
+
+    #[test]
+    fn test_user_role_serialization_roundtrip() {
+        let roles = vec![UserRole::Admin, UserRole::User, UserRole::ReadOnly];
+        for role in roles {
+            let json = serde_json::to_string(&role).unwrap();
+            let deser: UserRole = serde_json::from_str(&json).unwrap();
+            assert_eq!(deser, role);
+        }
+    }
+
+    #[test]
+    fn test_user_status_serialization_roundtrip() {
+        let statuses = vec![UserStatus::Active, UserStatus::Disabled, UserStatus::Locked];
+        for status in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            let deser: UserStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(deser, status);
+        }
+    }
+
+    #[test]
+    fn test_user_serialization_roundtrip() {
+        let user = make_user("test", "test@x.com", UserRole::User);
+        let json = serde_json::to_string(&user).unwrap();
+        let deser: User = serde_json::from_str(&json).unwrap();
+        assert_eq!(deser.username, "test");
+        assert_eq!(deser.role, UserRole::User);
+    }
+
+    #[test]
+    fn test_hash_password_deterministic_per_call() {
+        let h1 = hash_password("test123").unwrap();
+        let h2 = hash_password("test123").unwrap();
+        assert_ne!(h1, h2); // bcrypt uses random salt
+        assert!(verify_password("test123", &h1));
+        assert!(verify_password("test123", &h2));
+    }
+
+    #[test]
+    fn test_hash_password_empty() {
+        let h = hash_password("").unwrap();
+        assert!(verify_password("", &h));
+    }
+
+    #[test]
+    fn test_verify_password_wrong() {
+        let h = hash_password("correct").unwrap();
+        assert!(!verify_password("wrong", &h));
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_username_not_found() {
+        let s = store();
+        let err = s.get_user_by_username("nobody").await.unwrap_err();
+        assert_eq!(err.kind, UserErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_email_not_found() {
+        let s = store();
+        let err = s.get_user_by_email("nobody@x.com").await.unwrap_err();
+        assert_eq!(err.kind, UserErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_email() {
+        let s = store();
+        s.create_user(make_user("bob", "bob@x.com", UserRole::User))
+            .await
+            .unwrap();
+        let user = s.get_user_by_email("bob@x.com").await.unwrap();
+        assert_eq!(user.username, "bob");
+    }
+
+    #[tokio::test]
+    async fn test_delete_nonexistent_user() {
+        let s = store();
+        let err = s.delete_user("nonexistent").await.unwrap_err();
+        assert_eq!(err.kind, UserErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_update_nonexistent_user() {
+        let s = store();
+        let err = s
+            .update_user("nonexistent", UpdateUserRequest::default())
+            .await
+            .unwrap_err();
+        assert_eq!(err.kind, UserErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_set_password_nonexistent_user() {
+        let s = store();
+        let err = s.set_password("nonexistent", "hash").await.unwrap_err();
+        assert_eq!(err.kind, UserErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_authenticate_nonexistent_user() {
+        let s = store();
+        let err = s.authenticate("nobody", "pass").await.unwrap_err();
+        assert_eq!(err.kind, UserErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_update_user_email_conflict() {
+        let s = store();
+        s.create_user(make_user("u1", "u1@x.com", UserRole::User))
+            .await
+            .unwrap();
+        s.create_user(make_user("u2", "u2@x.com", UserRole::User))
+            .await
+            .unwrap();
+        let u2 = s.get_user_by_username("u2").await.unwrap();
+        let err = s
+            .update_user(
+                &u2.id,
+                UpdateUserRequest {
+                    email: Some("u1@x.com".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(err.kind, UserErrorKind::Conflict);
+    }
+
+    #[tokio::test]
+    async fn test_update_user_email_to_empty() {
+        let s = store();
+        s.create_user(make_user("u1", "u1@x.com", UserRole::User))
+            .await
+            .unwrap();
+        let u1 = s.get_user_by_username("u1").await.unwrap();
+        s.update_user(
+            &u1.id,
+            UpdateUserRequest {
+                email: Some("".to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(s.get_user_by_email("u1@x.com").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_user_display_name() {
+        let s = store();
+        s.create_user(make_user("u1", "u1@x.com", UserRole::User))
+            .await
+            .unwrap();
+        let u1 = s.get_user_by_username("u1").await.unwrap();
+        let updated = s
+            .update_user(
+                &u1.id,
+                UpdateUserRequest {
+                    display_name: Some("New Name".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.display_name, "New Name");
+    }
+
+    #[tokio::test]
+    async fn test_update_user_status() {
+        let s = store();
+        s.create_user(make_user("u1", "u1@x.com", UserRole::User))
+            .await
+            .unwrap();
+        let u1 = s.get_user_by_username("u1").await.unwrap();
+        let updated = s
+            .update_user(
+                &u1.id,
+                UpdateUserRequest {
+                    status: Some(UserStatus::Locked),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.status, UserStatus::Locked);
+    }
+
+    #[tokio::test]
+    async fn test_update_user_storage_quota() {
+        let s = store();
+        s.create_user(make_user("u1", "u1@x.com", UserRole::User))
+            .await
+            .unwrap();
+        let u1 = s.get_user_by_username("u1").await.unwrap();
+        let updated = s
+            .update_user(
+                &u1.id,
+                UpdateUserRequest {
+                    storage_quota_bytes: Some(Some(1024 * 1024)),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.storage_quota_bytes, Some(1024 * 1024));
+    }
+
+    #[tokio::test]
+    async fn test_update_user_clear_storage_quota() {
+        let s = store();
+        let mut user = make_user("u1", "u1@x.com", UserRole::User);
+        user.storage_quota_bytes = Some(1024);
+        let id = user.id.clone();
+        s.create_user(user).await.unwrap();
+        let updated = s
+            .update_user(
+                &id,
+                UpdateUserRequest {
+                    storage_quota_bytes: Some(None),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.storage_quota_bytes, None);
+    }
+
+    #[tokio::test]
+    async fn test_create_user_empty_email() {
+        let s = store();
+        let user = User {
+            id: uuid::Uuid::new_v4().to_string(),
+            username: "noemail".to_string(),
+            display_name: "No Email".to_string(),
+            email: String::new(),
+            role: UserRole::User,
+            created_at: Utc::now(),
+            last_login: None,
+            status: UserStatus::Active,
+            storage_quota_bytes: None,
+            storage_used_bytes: 0,
+            is_ldap: false,
+            password_hash: Some(ZeroizeString::new(hash_password("pass").unwrap())),
+            totp_secret: None,
+            totp_enabled: false,
+        };
+        let result = s.create_user(user).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_load_from_db() {
+        let s = InMemoryUserStore::new();
+        let user = make_user("loaded", "loaded@x.com", UserRole::Admin);
+        s.load_from_db(user.clone());
+        let fetched = s.get_user_by_username("loaded").await.unwrap();
+        assert_eq!(fetched.id, user.id);
+        assert!(s.get_user_by_email("loaded@x.com").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_load_from_db_empty_email() {
+        let s = InMemoryUserStore::new();
+        let mut user = make_user("noemail", "", UserRole::User);
+        user.email = String::new();
+        s.load_from_db(user);
+        let user = s.get_user_by_username("noemail").await.unwrap();
+        assert!(user.email.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_user_store_default() {
+        let s = InMemoryUserStore::default();
+        assert!(s.list_users().await.is_empty());
+    }
+
+    #[test]
+    fn test_user_debug_format() {
+        let user = make_user("test", "test@x.com", UserRole::User);
+        let debug = format!("{:?}", user);
+        assert!(debug.contains("User"));
+        assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn test_user_info_debug_format() {
+        let user = make_user("test", "test@x.com", UserRole::User);
+        let info = UserInfo::from(&user);
+        let debug = format!("{:?}", info);
+        assert!(debug.contains("UserInfo"));
+    }
+
+    #[test]
+    fn test_create_user_request_deserialization() {
+        let json = r#"{"username":"alice","display_name":"Alice","email":"alice@x.com","password":"pass123"}"#;
+        let req: CreateUserRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.username, "alice");
+        assert_eq!(req.email, "alice@x.com");
+    }
+
+    #[test]
+    fn test_update_user_request_default() {
+        let req = UpdateUserRequest::default();
+        assert!(req.display_name.is_none());
+        assert!(req.email.is_none());
+        assert!(req.role.is_none());
+        assert!(req.status.is_none());
+        assert!(req.storage_quota_bytes.is_none());
+    }
+
+    #[test]
+    fn test_user_serialization_skips_password_hash() {
+        let user = make_user("test", "test@x.com", UserRole::User);
+        let json = serde_json::to_string(&user).unwrap();
+        assert!(!json.contains("password_hash"));
+    }
+
+    #[test]
+    fn test_user_with_totp_secret() {
+        let mut user = make_user("test", "test@x.com", UserRole::User);
+        user.totp_secret = Some(ZeroizeString::new("secret123".to_string()));
+        user.totp_enabled = true;
+        let json = serde_json::to_string(&user).unwrap();
+        // totp_secret is serialized (skip_serializing_if = Option::is_none)
+        assert!(json.contains("totp_enabled"));
     }
 }
