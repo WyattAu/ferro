@@ -1729,24 +1729,24 @@ All 14 roadmap items are DONE (PR-001 through PR-014). iOS and Android targets a
 
 **Objective:** Eliminate duplication across 60+ crates, unify error types, reduce maintenance burden.
 
-| # | Priority | Item | Description | Effort |
-|---|----------|------|-------------|--------|
-| CC-001 | P0 | Unify ApiError | Eliminate 9 duplicate ApiError definitions. Standardize JSON error format across all endpoints (currently "detail" vs "details" inconsistency). Canonical: server-security-middleware. | 3 days |
-| CC-002 | P0 | Unify InMemoryStorageEngine | Remove 2 of 3 copies (server + server-collaboration). Keep only core/src/storage.rs version. | 1 day |
-| CC-003 | P0 | Eliminate PushNotificationStore duplication | Merge server-automation and server-integrations push notification implementations. One canonical store. | 2 days |
-| CC-004 | P0 | Eliminate WormPolicy duplication | Merge server-automation/src/worm.rs and server-compliance/src/worm.rs. One canonical store. | 2 days |
-| CC-005 | P0 | Eliminate RetentionPolicy duplication | Merge server-automation/src/retention.rs and server-compliance/src/retention.rs. One canonical store. | 2 days |
-| CC-006 | P1 | Unify AuditEntry and AuditLogTrait | Extract to server-api-core or a new audit-common crate. 9 copies of AuditEntry, 4 copies of AuditLogTrait. | 2 days |
-| CC-007 | P1 | Unify LdapConfig | Merge server/src/ldap_auth.rs and server-admin/src/ldap.rs. One canonical LDAP implementation. | 1 day |
-| CC-008 | P1 | Eliminate ThumbnailService duplication | Remove server/src/thumbnails.rs (381 lines), use server-storage-utils version exclusively. | 1 day |
-| CC-009 | P1 | Eliminate StorageHealth duplication | Remove server/src/storage_health.rs, use server-storage-utils version. | 1 day |
-| CC-010 | P1 | Unify DbHandle | Extract Arc<Mutex<Connection>> type alias to common crate. Currently defined in 19 places. | 1 day |
-| CC-011 | P1 | Merge server-storage-utils into server-storage-ops | Both serve same domain. Reduce crate count by 1. | 2 days |
-| CC-012 | P2 | Merge server-admin into server-admin-api | Overlapping LDAP code, small crates. Reduce crate count by 1. | 2 days |
-| CC-013 | P2 | Absorb webhook crate into server-automation | server-automation reimplements webhook crate functionality. | 2 days |
-| CC-014 | P2 | Merge caldav into dav | caldav is just error types. Merge into dav crate. | 1 day |
-| CC-015 | P2 | Merge server-webdav + server-webdav-core | Both are WebDAV handler crates with overlapping responsibilities. | 3 days |
-| CC-016 | P3 | Fix pre-existing memory leak | Address 105-byte leak in ferro-core detected by AddressSanitizer. | 2 days |
+| # | Priority | Item | Description | Effort | Status |
+|---|----------|------|-------------|--------|--------|
+| CC-001 | P0 | Unify ApiError | Eliminated 9 duplicate ApiError definitions. Canonical: server-security-middleware. WebDAV "detail" -> "details" format fixed. | 3 days | DONE |
+| CC-002 | P0 | Unify InMemoryStorageEngine | Replaced server copy with re-export from core. Core version upgraded with normalize_path, sorting, 100-item cap. | 1 day | DONE |
+| CC-003 | P0 | Eliminate PushNotificationStore duplication | Merged into server-integrations. server-automation re-exports from integrations. | 2 days | DONE |
+| CC-004 | P0 | Eliminate WormPolicy duplication | Deleted dead code in server-automation (307 lines). Canonical in server-compliance. | 2 days | DONE |
+| CC-005 | P0 | Eliminate RetentionPolicy duplication | Deleted dead code in server-automation (467 lines). Canonical in server-compliance. | 2 days | DONE |
+| CC-006 | P1 | Unify AuditEntry and AuditLogTrait | Extracted to common/src/audit.rs. Replaced in 6 crates. Created AdminAuditLogExt extension trait. | 2 days | DONE |
+| CC-007 | P1 | Unify LdapConfig | Consolidated into server/src/ldap_auth.rs with Zeroize + Debug redaction. | 1 day | DONE |
+| CC-008 | P1 | Eliminate ThumbnailService duplication | Skipped -- incompatible state types (AppState vs StorageUtilsState trait) | 1 day | SKIPPED |
+| CC-009 | P1 | Eliminate StorageHealth duplication | Deleted server/src/storage_health.rs. Re-exported from server-storage-ops. | 1 day | DONE |
+| CC-010 | P1 | Unify DbHandle | Added to common crate behind 'db' feature. Updated 19 crates to re-export. | 1 day | DONE |
+| CC-011 | P2 | Merge server-storage-utils into server-storage-ops | Moved thumbnails, cache, snapshots, health. Deleted server-storage-utils. | 2 days | DONE |
+| CC-012 | P2 | Merge server-admin into server-admin-api | Deleted server-admin (dead code). All functionality in server-admin-api + server. | 2 days | DONE |
+| CC-013 | P2 | Absorb webhook crate into server-automation | Deleted webhook crate (unused). server-automation already had complete impl. | 2 days | DONE |
+| CC-014 | P2 | Merge caldav into dav | Skipped -- caldav is 1500+ line CalDAV protocol stack, not just error types. | 1 day | SKIPPED |
+| CC-015 | P2 | Merge server-webdav + server-webdav-core | Deleted server-webdav (3801 lines, dead code). Copied sanitize_path to webdav-core. | 3 days | DONE |
+| CC-016 | P3 | Fix memory leak in ferro-core | Root cause: mem::forget(dir) on TempDir in tests. Fixed by returning TempDir to caller. | 2 days | DONE |
 
-**Estimated total effort:** 30 days (Phase 6.0)
-**Target:** Reduce crate count from 60 to ~48, eliminate all critical duplications
+**Results:** 13/16 items DONE, 2 SKIPPED (documented), 1 fixed. Crates: 60 -> 56 (4 deleted: server-admin, webhook, server-storage-utils, server-webdav).
+**Net code deleted:** ~12,000 lines of duplicated/dead code.
