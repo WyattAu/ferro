@@ -83,7 +83,7 @@ pub async fn list_push_tokens(Extension(state): Extension<Arc<AutomationState>>)
 
 #[cfg(test)]
 mod tests {
-    use ferro_server_integrations::push_notifications::{PushPlatform, PushNotificationStore};
+    use ferro_server_integrations::push_notifications::{PushNotificationStore, PushPlatform};
 
     fn test_db() -> common::DbHandle {
         let conn = rusqlite::Connection::open_in_memory().unwrap();

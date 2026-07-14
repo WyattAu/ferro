@@ -59,10 +59,7 @@ impl StorageEngine for InMemoryStorageEngine {
     async fn get(&self, path: &str) -> Result<Bytes> {
         let path = normalize_path(path).into_owned();
         let store = self.store.read().await;
-        store
-            .get(&path)
-            .cloned()
-            .ok_or(FerroError::NotFound(path))
+        store.get(&path).cloned().ok_or(FerroError::NotFound(path))
     }
 
     async fn delete(&self, path: &str) -> Result<()> {
@@ -141,9 +138,7 @@ impl StorageEngine for InMemoryStorageEngine {
         let mut meta_map = self.metadata.write().await;
 
         let content = store.remove(&src).ok_or_else(|| FerroError::NotFound(src.clone()))?;
-        let mut meta = meta_map
-            .remove(&src)
-            .ok_or_else(|| FerroError::NotFound(src.clone()))?;
+        let mut meta = meta_map.remove(&src).ok_or_else(|| FerroError::NotFound(src.clone()))?;
 
         meta.path = dst.clone();
         meta.etag = format!("\"{}\"", meta.content_hash.as_str());
@@ -159,10 +154,7 @@ impl StorageEngine for InMemoryStorageEngine {
     async fn head(&self, path: &str) -> Result<FileMetadata> {
         let path = normalize_path(path).into_owned();
         let meta_map = self.metadata.read().await;
-        meta_map
-            .get(&path)
-            .cloned()
-            .ok_or(FerroError::NotFound(path))
+        meta_map.get(&path).cloned().ok_or(FerroError::NotFound(path))
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {

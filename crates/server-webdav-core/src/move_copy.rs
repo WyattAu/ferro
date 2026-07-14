@@ -39,7 +39,12 @@ pub async fn move_file<S: WebDavCoreState>(
 
     match state.storage().move_path(&source, &destination).await {
         Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({"status": "ok"}))).into_response(),
-        Err(e) => ApiError::with_details(StatusCode::INTERNAL_SERVER_ERROR, "MOVE_FAILED", "Move failed", e.to_string()),
+        Err(e) => ApiError::with_details(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "MOVE_FAILED",
+            "Move failed",
+            e.to_string(),
+        ),
     }
 }
 
@@ -61,6 +66,11 @@ pub async fn copy_file<S: WebDavCoreState>(
 
     match state.storage().copy(&source, &destination).await {
         Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({"status": "ok"}))).into_response(),
-        Err(e) => ApiError::with_details(StatusCode::INTERNAL_SERVER_ERROR, "COPY_FAILED", "Copy failed", e.to_string()),
+        Err(e) => ApiError::with_details(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "COPY_FAILED",
+            "Copy failed",
+            e.to_string(),
+        ),
     }
 }
