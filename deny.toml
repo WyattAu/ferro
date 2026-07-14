@@ -14,19 +14,7 @@ targets = [
 [advisories]
 version = 2
 yanked = "deny"
-ignore = [
-    # Active advisories in dependency tree as of 2026-06-08:
-    # bincode unmaintained -- transitive via fuse3 (FUSE-only, no server impact)
-    { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained -- transitive via fuse3 (FUSE-only)" },
-    # paste unmaintained -- transitive via leptos (web frontend only)
-    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained -- transitive via leptos (web frontend)" },
-    # proc-macro-error unmaintained -- transitive via leptos (web frontend only)
-    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error unmaintained -- transitive via leptos (web frontend)" },
-    # instant unmaintained -- transitive via reed-solomon-erasure v6 -> parking_lot v0.11.2
-    { id = "RUSTSEC-2024-0384", reason = "instant unmaintained -- transitive via reed-solomon-erasure (distributed crate only)" },
-    # proc-macro-error2 unmaintained -- transitive via leptos (web frontend only)
-    { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 unmaintained -- transitive via leptos (web frontend)" },
-]
+ignore = []
 
 [licenses]
 version = 2
@@ -58,16 +46,3 @@ allow-wildcard-paths = true
 unknown-registry = "deny"
 unknown-git = "deny"
 required-git-spec = "tag"
-
-# === UPSTREAM BLOCKERS ===
-# bincode (RUSTSEC-2025-0141): unmaintained transitive via fuse3.
-#   FUSE-only, no server impact. Monitor fuse3 upstream for replacement.
-#
-# paste (RUSTSEC-2024-0436): unmaintained transitive via leptos.
-#   Web frontend only. Monitor leptos for migration to paste2 or alternative.
-#
-# proc-macro-error (RUSTSEC-2024-0370): unmaintained transitive via leptos.
-#   Web frontend only. Monitor leptos for migration to proc-macro-error2.
-#
-# instant (RUSTSEC-2024-0384): unmaintained transitive via reed-solomon-erasure v6 -> parking_lot v0.11.2.
-#   Distributed crate only. Monitor reed-solomon-erasure upstream for parking_lot upgrade.

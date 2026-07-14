@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure nightly toolchain is available (rust-toolchain.toml pins stable)
+rustup toolchain install nightly --component rust-src 2>/dev/null || true
+export RUSTUP_TOOLCHAIN=nightly
+
 echo "Running AddressSanitizer..."
 RUSTFLAGS="-Z sanitizer=address" \
 RUSTDOCFLAGS="-Z sanitizer=address" \

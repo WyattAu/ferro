@@ -47,11 +47,7 @@ We follow responsible disclosure practices:
 
 ### Transitive Dependencies (Documented, Accepted Risk)
 
-| Package | Version | Advisory | Risk | Mitigation |
-|---------|---------|----------|------|------------|
-| bincode | 1.3 | RUSTSEC-2025-0141 | Unmaintained transitive dep (FUSE-only) | Pending fuse3 upstream update |
-| paste | 1.0 | RUSTSEC-2024-0436 | Unmaintained transitive dep (web-only) | Pending leptos upstream migration |
-| proc-macro-error | 1.0 | RUSTSEC-2024-0370 | Unmaintained transitive dep (web-only) | Pending leptos upstream migration |
+No active advisories in the dependency tree as of 2026-07-14. The `cargo-deny` configuration in `deny.toml` is clean with no ignore entries.
 
 ### Security Decisions
 
