@@ -3525,6 +3525,7 @@ dependencies = [
  "ferro-selective-sync",
  "ferro-server-activitypub",
  "ferro-server-admin-api",
+ "ferro-server-api",
  "ferro-server-api-core",
  "ferro-server-collaboration",
  "ferro-server-compliance",
@@ -3636,6 +3637,34 @@ dependencies = [
  "utoipa",
  "uuid",
  "zip 2.4.2",
+]
+
+[[package]]
+name = "ferro-server-api"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "ferro-auth",
+ "ferro-common",
+ "ferro-server-security",
+ "ferro-server-security-middleware",
+ "ferro-server-state",
+ "ferro-server-storage-ops",
+ "http 1.4.2",
+ "hyper",
+ "rand 0.9.4",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "utoipa",
+ "uuid",
 ]
 
 [[package]]
