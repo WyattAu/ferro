@@ -9,7 +9,7 @@ publish = false
 [dependencies]
 chrono = { workspace = true }
 dashmap = "6"
-hmac = "0.12"
+hmac = "0.13"
 hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
