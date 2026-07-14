@@ -701,23 +701,23 @@ impl ferro_server_productivity::ProductivityState for AppState {
 // StorageUtilsState
 // ---------------------------------------------------------------------------
 
-impl ferro_server_storage_utils::StorageUtilsState for AppState {
+impl ferro_server_storage_ops::StorageUtilsState for AppState {
     fn storage(&self) -> &Arc<dyn common::storage::StorageEngine> {
         &self.storage
     }
     fn data_dir(&self) -> Option<&str> {
         self.data_dir.as_deref()
     }
-    fn thumbnail_cache(&self) -> &Arc<dyn ferro_server_storage_utils::ThumbnailCacheTrait> {
+    fn thumbnail_cache(&self) -> &Arc<dyn ferro_server_storage_ops::ThumbnailCacheTrait> {
         &self.thumbnail_cache
     }
     fn thumbnail_size(&self) -> u32 {
         self.thumbnail_size
     }
-    fn snapshot_store(&self) -> &Arc<ferro_server_storage_utils::snapshots::SnapshotStore> {
+    fn snapshot_store(&self) -> &Arc<ferro_server_storage_ops::snapshots::SnapshotStore> {
         &self.snapshot_store
     }
-    fn storage_health(&self) -> &Arc<ferro_server_storage_utils::storage_health::StorageHealthMonitor> {
+    fn storage_health(&self) -> &Arc<ferro_server_storage_ops::storage_health::StorageHealthMonitor> {
         &self.storage_health
     }
 }

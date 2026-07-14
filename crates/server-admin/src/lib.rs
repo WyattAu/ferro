@@ -1,9 +1,0 @@
-pub mod admin_api;
-pub mod branding;
-pub mod gdpr;
-#[cfg(feature = "ldap")]
-pub mod ldap;
-pub mod metrics;
-pub mod quota;
-pub mod tenant_rate_limit;
-pub mod user_api;

@@ -130,7 +130,7 @@ impl AppState {
     pub fn with_snapshot_persistence(self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
         let mut s = self;
         s.snapshot_store = Arc::new(
-            ferro_server_storage_utils::snapshots::SnapshotStore::new(s.max_snapshot_versions)
+            ferro_server_storage_ops::snapshots::SnapshotStore::new(s.max_snapshot_versions)
                 .with_persistence(persistence),
         );
         s

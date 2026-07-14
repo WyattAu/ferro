@@ -3536,7 +3536,6 @@ dependencies = [
  "ferro-server-security-middleware",
  "ferro-server-sharing",
  "ferro-server-storage-ops",
- "ferro-server-storage-utils",
  "ferro-server-user-mgmt",
  "ferro-server-versioning",
  "ferro-server-webdav-core",
@@ -3605,31 +3604,6 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "ferro-server-admin"
-version = "3.0.0"
-dependencies = [
- "axum",
- "base64 0.22.1",
- "bytes",
- "chrono",
- "ferro-rate-limiter",
- "ferro-server",
- "http-body-util",
- "ldap3",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tower 0.5.3",
- "tracing",
- "utoipa",
- "uuid",
- "zeroize",
- "zip 2.4.2",
 ]
 
 [[package]]
@@ -3967,26 +3941,6 @@ version = "3.0.0"
 dependencies = [
  "axum",
  "bytes",
- "ferro-common",
- "ferro-server-security",
- "hex",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "tempfile",
- "tokio",
- "tokio-util",
- "tracing",
- "utoipa",
- "uuid",
-]
-
-[[package]]
-name = "ferro-server-storage-utils"
-version = "3.0.0"
-dependencies = [
- "axum",
- "bytes",
  "chrono",
  "dashmap",
  "ferro-common",
@@ -4002,7 +3956,9 @@ dependencies = [
  "sha2 0.11.0",
  "tempfile",
  "tokio",
+ "tokio-util",
  "tracing",
+ "utoipa",
  "uuid",
 ]
 
@@ -4179,23 +4135,6 @@ dependencies = [
  "bytes",
  "ferro-common",
  "quick-xml 0.41.0",
-]
-
-[[package]]
-name = "ferro-webhook"
-version = "3.0.0"
-dependencies = [
- "chrono",
- "dashmap",
- "hex",
- "hmac 0.12.1",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
- "zeroize",
 ]
 
 [[package]]

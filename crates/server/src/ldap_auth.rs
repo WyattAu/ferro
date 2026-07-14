@@ -1,4 +1,5 @@
-#[derive(Debug)]
+use zeroize::Zeroize;
+
 pub struct LdapConfig {
     pub url: String,
     pub bind_dn: String,
@@ -17,6 +18,29 @@ pub struct LdapConfig {
     /// `{"ferro-admins": "Admin", "ferro-readonly": "ReadOnly"}`
     /// Unmatched users get the default role (User).
     pub group_role_map: std::collections::HashMap<String, String>,
+}
+
+impl Drop for LdapConfig {
+    fn drop(&mut self) {
+        self.bind_password.zeroize();
+    }
+}
+
+impl std::fmt::Debug for LdapConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LdapConfig")
+            .field("url", &self.url)
+            .field("bind_dn", &self.bind_dn)
+            .field("bind_password", &"[REDACTED]")
+            .field("user_search_base", &self.user_search_base)
+            .field("user_filter", &self.user_filter)
+            .field("email_attribute", &self.email_attribute)
+            .field("display_name_attribute", &self.display_name_attribute)
+            .field("group_search_base", &self.group_search_base)
+            .field("group_filter", &self.group_filter)
+            .field("group_role_map", &self.group_role_map)
+            .finish()
+    }
 }
 
 #[derive(Debug)]

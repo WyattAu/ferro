@@ -25,7 +25,7 @@ use crate::search::PreferenceStore;
 use crate::shares::ShareStoreTrait;
 use crate::sync::ops::SyncStore;
 
-use ferro_server_storage_utils::snapshots::SnapshotStore;
+use ferro_server_storage_ops::snapshots::SnapshotStore;
 use ferro_server_webdav_core::lock::LockManager;
 use ferro_server_webdav_core::trash::TrashStore;
 
@@ -84,7 +84,7 @@ pub struct AppState {
     pub sync_clock: Arc<std::sync::atomic::AtomicU64>,
     pub webhooks: Arc<tokio::sync::RwLock<Vec<ferro_server_api_core::webhooks::WebhookConfig>>>,
     pub thumbnail_size: u32,
-    pub thumbnail_cache: Arc<dyn ferro_server_storage_utils::ThumbnailCacheTrait>,
+    pub thumbnail_cache: Arc<dyn ferro_server_storage_ops::ThumbnailCacheTrait>,
     pub data_dir: Option<String>,
     pub user_store: Arc<dyn UserStoreTrait>,
     pub max_file_versions: u64,
@@ -100,7 +100,7 @@ pub struct AppState {
     pub tags: Arc<ferro_server_collaboration::tags::TagStore>,
     pub comments: Arc<crate::comments::CommentStore>,
     pub idempotency_store: Arc<crate::idempotency::IdempotencyStore>,
-    pub storage_health: Arc<ferro_server_storage_utils::storage_health::StorageHealthMonitor>,
+    pub storage_health: Arc<ferro_server_storage_ops::storage_health::StorageHealthMonitor>,
     pub ws_manager: Arc<ferro_server_api_core::ws::WsManager>,
     pub collab_rooms: crate::collab_ws::CollabRoomManager,
     pub collab_audit_adapter: Arc<dyn ferro_server_collaboration::AuditLogTrait>,
@@ -256,7 +256,7 @@ impl AppState {
             tags: Arc::new(ferro_server_collaboration::tags::TagStore::new()),
             comments: Arc::new(crate::comments::CommentStore::new()),
             idempotency_store: Arc::new(crate::idempotency::IdempotencyStore::new()),
-            storage_health: Arc::new(ferro_server_storage_utils::storage_health::StorageHealthMonitor::new()),
+            storage_health: Arc::new(ferro_server_storage_ops::storage_health::StorageHealthMonitor::new()),
             ws_manager: Arc::new(ferro_server_api_core::ws::WsManager::new()),
             collab_rooms: crate::collab_ws::CollabRoomManager::new(),
             collab_audit_adapter: Arc::new(adapters::CollaborationAuditLogAdapter(Arc::new(AuditLog::new()))),

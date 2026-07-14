@@ -1,1 +1,1 @@
-pub use ferro_server_storage_utils::thumbnail_cache::ThumbnailCache;
+pub use ferro_server_storage_ops::thumbnail_cache::ThumbnailCache;
