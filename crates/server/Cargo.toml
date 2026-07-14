@@ -13,9 +13,9 @@ default = []
 s3 = ["ferro-core/s3", "object_store/aws"]
 gcs = ["ferro-core/gcs", "object_store/gcp"]
 azure = ["ferro-core/azure", "object_store/azure"]
-pg = ["ferro-core/postgres", "sqlx", "sqlx/postgres", "sqlx/chrono"]
-redis = ["dep:redis", "ferro-health/redis", "ferro-server-infra/redis"]
-ldap = ["dep:ldap3"]
+pg = ["ferro-core/postgres", "sqlx", "sqlx/postgres", "sqlx/chrono", "ferro-server-config/pg"]
+redis = ["dep:redis", "ferro-health/redis", "ferro-server-infra/redis", "ferro-server-config/redis"]
+ldap = ["dep:ldap3", "ferro-server-config/ldap"]
 webauthn = []
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
 
@@ -103,6 +103,7 @@ ferro-server-storage-ops = { path = "../server-storage-ops" }
 ferro-server-webdav-core = { path = "../server-webdav-core" }
 ferro-server-productivity = { path = "../server-productivity" }
 ferro-server-infra = { path = "../server-infra" }
+ferro-server-config = { path = "../server-config" }
 zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]

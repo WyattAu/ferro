@@ -772,13 +772,13 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
            // Drag overlay
            {move || upload_drag.get().then(|| view! {
-               <div class="fixed inset-0 bg-blue-500 bg-opacity-20 z-50 flex items-center justify-center pointer-events-none backdrop-blur-sm" aria-hidden="true">
+                <div class="fixed inset-0 bg-[var(--accent)] bg-opacity-20 z-50 flex items-center justify-center pointer-events-none backdrop-blur-sm" aria-hidden="true">
                    <div class="surface brutal-border shadow-2xl p-12 text-center blob-shape float-animation">
                        <svg class="w-16 h-16 text-accent mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                        </svg>
-                        <p class="text-xl font-semibold text-gray-700">{t!("drop.overlay")}</p>
-                        <p class="text-sm text-gray-500 mt-1">{t!("drop.overlay_hint")}</p>
+                         <p class="text-xl font-semibold text-[var(--text-primary)]">{t!("drop.overlay")}</p>
+                         <p class="text-sm text-[var(--text-tertiary)] mt-1">{t!("drop.overlay_hint")}</p>
                    </div>
                </div>
            })}
@@ -807,11 +807,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
 
             // Error display
             {move || error.get().map(|e| view! {
-               <div class="bg-red-50 border-b border-l-4 border-l-red-500 px-6 py-3" role="alert" aria-live="assertive">
-                   <div class="flex items-center justify-between">
-                        <span class="text-red-700 text-sm">{t!("error.prefix")} {e}</span>
-                       <button
-                           class="text-red-500 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded p-0.5"
+               <div class="bg-[var(--danger-subtle)] border-b border-l-4 border-l-[var(--danger)] px-6 py-3" role="alert" aria-live="assertive">
+                    <div class="flex items-center justify-between">
+                         <span class="text-[var(--danger)] text-sm">{t!("error.prefix")} {e}</span>
+                        <button
+                            class="text-[var(--danger)] hover:text-[var(--danger)] focus:outline-none focus:ring-2 focus:ring-[var(--danger)] focus:ring-offset-2 rounded p-0.5"
                             aria-label=t!("error.dismiss")
                            on:click=move |_| set_error.set(None)
                        >
@@ -845,10 +845,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                    let favs = fav_entries();
                    if favs.is_empty() {
                        view! {
-                           <div class="px-6 py-16 text-center text-gray-500" role="status">
-                               <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976 2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519 4.674z" />
-                               </svg>
+                            <div class="px-6 py-16 text-center text-[var(--text-tertiary)]" role="status">
+                                <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976 2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519 4.674z" />
+                                </svg>
                                 <div class="text-lg font-medium">{t!("empty.favorites")}</div>
                                 <div class="text-sm mt-1">{t!("empty.favorites_hint")}</div>
                            </div>
@@ -856,18 +856,18 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                    } else {
                        view! {
                            <table class="w-full table-fixed" role="grid">
-                               <thead class="bg-gray-50 border-b sticky top-0">
-                                   <tr>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">{t!("common.name")}</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.size")}</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">{t!("common.modified")}</th>
-                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.actions")}</th>
-                                   </tr>
-                               </thead>
-                               <tbody>
-                                   <For
-                                       each=move || fav_entries()
+                                <thead class="bg-[var(--bg-surface-sunken)] border-b sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-10" scope="col"></th>
+                                         <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]" scope="col">{t!("common.name")}</th>
+                                         <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-24" scope="col">{t!("common.size")}</th>
+                                         <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-40" scope="col">{t!("common.modified")}</th>
+                                         <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-24" scope="col">{t!("common.actions")}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <For
+                                        each=move || fav_entries()
                                        key=|entry| entry.path.clone()
                                        let:entry
                                    >
@@ -918,10 +918,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                    let recent = recent_files.get();
                    if recent.is_empty() {
                        view! {
-                           <div class="px-6 py-16 text-center text-gray-500" role="status">
-                               <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                               </svg>
+                            <div class="px-6 py-16 text-center text-[var(--text-tertiary)]" role="status">
+                                <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
                                 <div class="text-lg font-medium">{t!("empty.recent")}</div>
                                 <div class="text-sm mt-1">{t!("empty.recent_hint")}</div>
                            </div>
@@ -929,18 +929,18 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                    } else {
                        view! {
                            <table class="w-full table-fixed" role="grid">
-                               <thead class="bg-gray-50 border-b sticky top-0">
-                                   <tr>
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">{t!("common.name")}</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.size")}</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">{t!("common.modified")}</th>
-                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.actions")}</th>
-                                   </tr>
-                               </thead>
-                               <tbody>
-                                   <For
-                                       each=move || recent_files.get()
+                                <thead class="bg-[var(--bg-surface-sunken)] border-b sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-10" scope="col"></th>
+                                         <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]" scope="col">{t!("common.name")}</th>
+                                         <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-24" scope="col">{t!("common.size")}</th>
+                                         <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-40" scope="col">{t!("common.modified")}</th>
+                                         <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-24" scope="col">{t!("common.actions")}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <For
+                                        each=move || recent_files.get()
                                        key=|entry| entry.path.clone()
                                        let:entry
                                    >
@@ -988,11 +988,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                <div class="px-4 py-2 flex items-center gap-2">
                                    <input
                                        type="checkbox"
-                                       class="rounded border text-blue-600 focus:ring-blue-500"
-                                        aria-label=t!("file_list.aria_select_all")
-                                        on:click=select_all
-                                    />
-                                    <span class="text-xs text-gray-500">{t!("toolbar.select_all")}</span>
+                                        class="rounded border text-[var(--accent)] focus:ring-[var(--border-focus)]"
+                                         aria-label=t!("file_list.aria_select_all")
+                                         on:click=select_all
+                                     />
+                                     <span class="text-xs text-[var(--text-tertiary)]">{t!("toolbar.select_all")}</span>
                                </div>
                            })}
                             <GridView
@@ -1018,23 +1018,23 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                    ViewMode::List => view! {
                        <div class="transition-opacity duration-200">
                            <table class="w-full table-fixed" role="grid">
-                               <thead class="bg-gray-50 border-b sticky top-0 hidden md:table-header-group">
-                                   <tr>
-                                       {move || select_mode.get().then(|| view! {
-                                           <th class="px-4 py-2 w-10" scope="col">
-                                               <input
-                                                   type="checkbox"
-                                                   class="rounded border text-blue-600 focus:ring-blue-500"
-                                                    aria-label=t!("file_list.aria_select_all")
-                                                   on:click=select_all
-                                               />
-                                           </th>
-                                       })}
-                                       <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-10" scope="col"></th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">{t!("common.name")}</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.size")}</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40 hidden lg:table-cell" scope="col">{t!("common.modified")}</th>
-                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.actions")}</th>
+                                <thead class="bg-[var(--bg-surface-sunken)] border-b sticky top-0 hidden md:table-header-group">
+                                    <tr>
+                                        {move || select_mode.get().then(|| view! {
+                                            <th class="px-4 py-2 w-10" scope="col">
+                                                <input
+                                                    type="checkbox"
+                                                    class="rounded border text-[var(--accent)] focus:ring-[var(--border-focus)]"
+                                                     aria-label=t!("file_list.aria_select_all")
+                                                    on:click=select_all
+                                                />
+                                            </th>
+                                        })}
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-10" scope="col"></th>
+                                         <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]" scope="col">{t!("common.name")}</th>
+                                         <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-24" scope="col">{t!("common.size")}</th>
+                                         <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-40 hidden lg:table-cell" scope="col">{t!("common.modified")}</th>
+                                         <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-24" scope="col">{t!("common.actions")}</th>
                                    </tr>
                                </thead>
                                <tbody class="block md:table-row-group">

@@ -289,6 +289,8 @@ html {
 .border-default { border-color: var(--border-default); }
 .border-strong { border-color: var(--border-strong); }
 
+.font-display { font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif); }
+
 /* ── Scrollbar styling ─────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 8px;

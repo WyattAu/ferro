@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::config::ServerConfig as Cli;
+use ferro_server_config::ServerConfig as Cli;
 use crate::users::UserStoreTrait;
 use ferro_offline::change_queue::ChangeQueueStore;
 use tokio_util::sync::CancellationToken;
@@ -397,7 +397,7 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
         let state = if let Some(db_url) = &cli.metadata_db {
             info!(
                 "PostgreSQL metadata enabled: {}",
-                crate::config::redact_url_credentials(db_url)
+                ferro_server_config::redact_url_credentials(db_url)
             );
             #[cfg(feature = "pg")]
             match ferro_core::sqlx_metadata::PgMetadataStore::new(db_url).await {
@@ -572,7 +572,7 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
             if let Some(ref redis_url) = cli.redis_url {
                 info!(
                     "Redis distributed lock manager enabled: {}",
-                    crate::config::redact_url_credentials(redis_url)
+                    ferro_server_config::redact_url_credentials(redis_url)
                 );
                 match crate::redis_lock::RedisLockManager::new(redis_url).await {
                     Ok(lock_mgr) => state.with_lock_manager(std::sync::Arc::new(lock_mgr)),
@@ -598,7 +598,7 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
             if let Some(ref database_url) = cli.database_url {
                 info!(
                     "PostgreSQL distributed state enabled: {}",
-                    crate::config::redact_url_credentials(database_url)
+                    ferro_server_config::redact_url_credentials(database_url)
                 );
                 match sqlx::PgPool::connect(database_url).await {
                     Ok(pool) => match crate::pg_state::create_pg_stores(pool).await {

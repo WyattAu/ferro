@@ -3527,6 +3527,7 @@ dependencies = [
  "ferro-server-api-core",
  "ferro-server-collaboration",
  "ferro-server-compliance",
+ "ferro-server-config",
  "ferro-server-content",
  "ferro-server-infra",
  "ferro-server-integrations",
@@ -3739,6 +3740,21 @@ dependencies = [
  "tracing",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "ferro-server-config"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "clap_complete",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml 0.8.2",
+ "url",
 ]
 
 [[package]]

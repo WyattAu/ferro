@@ -6,6 +6,7 @@ members = [
     "crates/common",
     "crates/dav",
     "crates/server",
+    "crates/server-config",
     "crates/web",
     "crates/desktop",
     "crates/cli",

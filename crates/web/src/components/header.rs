@@ -64,7 +64,7 @@ fn highlight_matches(text: &str, query: &str) -> String {
     for start in lower_text.match_indices(&lower_query).map(|(i, _)| i) {
         let end = start + query.len();
         result.push_str(&html_escape(&text[last_end..start]));
-        result.push_str("<mark class=\"bg-yellow-200 dark:bg-yellow-800 rounded px-0.5\">");
+        result.push_str("<mark class=\"bg-[var(--accent-subtle)] rounded px-0.5\">");
         result.push_str(&html_escape(&text[start..end]));
         result.push_str("</mark>");
         last_end = end;
@@ -322,6 +322,7 @@ pub fn Header() -> impl IntoView {
     let has_searched = move || search_total.get() > 0 || !search_results.with(Vec::is_empty);
 
     view! {
+        <a href="#main-content" class="skip-link">{t!("nav.skip_to_content")}</a>
         <header class="fixed top-0 left-0 right-0 w-full z-30 surface border-b px-2 sm:px-6 py-1.5 sm:py-3 shadow-concrete">
             <div class="flex items-center justify-between max-w-7xl mx-auto">
                 <div class="flex items-center gap-3">
@@ -337,8 +338,8 @@ pub fn Header() -> impl IntoView {
                                 .into_any()
                             } else {
                                 view! {
-                                    <div class="w-10 h-10 brutal-border flex items-center justify-center bg-[var(--bg-surface)]" style="font-family: var(--font-display);">
-                                        <span class="font-bold text-xl" style="color: var(--accent); letter-spacing: -0.03em;">{t!("brand.name")}</span>
+                                    <div class="w-10 h-10 brutal-border flex items-center justify-center bg-[var(--bg-surface)] font-display">
+                                        <span class="font-bold text-xl text-[var(--accent)] tracking-tighter">{t!("brand.name")}</span>
                                     </div>
                                 }
                                 .into_any()
@@ -351,7 +352,7 @@ pub fn Header() -> impl IntoView {
                                     .map(|b| b.title)
                                     .unwrap_or_else(|| t!("brand.name").to_string());
                                 view! {
-                                    <h1 class="font-mono font-bold text-xl leading-none" style="letter-spacing: -0.02em; color: var(--text-primary);">{title}</h1>
+                                    <h1 class="font-mono font-bold text-xl leading-none tracking-tight text-primary">{title}</h1>
                                     <span class="text-label">{t!("brand.tagline")}</span>
                                 }
                             }}
@@ -417,14 +418,13 @@ pub fn Header() -> impl IntoView {
                             view! {
                                 <div class="flex items-center gap-2 sm:gap-3">
                                     <div class="w-8 h-8 brutal-border flex items-center justify-center bg-[var(--bg-surface)]">
-                                        <span class="font-mono font-bold text-sm" style="color: var(--accent);">
+                                        <span class="font-mono font-bold text-sm text-[var(--accent)]">
                                             {display_name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_else(|| "?".to_string())}
                                         </span>
                                     </div>
-                                    <span class="font-mono font-medium text-sm hidden sm:inline" style="color: var(--text-primary);">{display_name}</span>
+                                    <span class="font-mono font-medium text-sm hidden sm:inline text-primary">{display_name}</span>
                                     <button
-                                        class="text-xs text-label hover:text-[var(--accent)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
-                                        style="text-transform: uppercase; letter-spacing: 0.08em;"
+                                        class="text-xs text-label hover:text-[var(--accent)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px] uppercase tracking-widest"
                                         on:click=move |_| auth::logout(&auth_st)
                                     >
                                         {t!("common.sign_out")}
@@ -435,8 +435,7 @@ pub fn Header() -> impl IntoView {
                             view! {
                                 <a
                                     href="/ui/auth/login"
-                                    class="font-mono text-xs font-bold uppercase no-underline px-3 py-2 brutal-border hover:bg-[var(--accent-subtle)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded"
-                                    style="letter-spacing: 0.08em; color: var(--accent);"
+                                    class="font-mono text-xs font-bold uppercase no-underline px-3 py-2 brutal-border hover:bg-[var(--accent-subtle)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded tracking-widest text-[var(--accent)]"
                                 >
                                     {t!("common.sign_in")}
                                 </a>
@@ -532,8 +531,7 @@ pub fn Header() -> impl IntoView {
                     <label for="search-filter-type" class="sr-only">{t!("search.filter_type")}</label>
                     <select
                         id="search-filter-type"
-                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] uppercase"
-                        style="letter-spacing: 0.05em;"
+                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] uppercase tracking-wide"
                         aria-label=t!("search.filter_type")
                         on:change=on_type_change
                     >
@@ -544,8 +542,7 @@ pub fn Header() -> impl IntoView {
                     <label for="search-filter-sort" class="sr-only">{t!("search.sort_by")}</label>
                     <select
                         id="search-filter-sort"
-                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] uppercase"
-                        style="letter-spacing: 0.05em;"
+                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] uppercase tracking-wide"
                         aria-label=t!("search.sort_by")
                         on:change=on_sort_change
                     >
@@ -559,8 +556,7 @@ pub fn Header() -> impl IntoView {
                         id="search-filter-folder"
                         type="text"
                         placeholder="/path/to/folder"
-                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
-                        style="letter-spacing: 0.05em; max-width: 180px;"
+                        class="px-3 py-1 text-xs font-mono font-medium border rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] tracking-wide max-w-[180px]"
                         aria-label="Search in folder"
                         prop:value=filter_folder
                         on:input=move |ev| set_filter_folder.set(event_target_value(&ev))
@@ -575,7 +571,7 @@ pub fn Header() -> impl IntoView {
                     <div class="text-sm font-mono text-[var(--text-tertiary)]">{t!("common.searching")}</div>
                 })}
                 {move || has_searched().then(|| view! {
-                    <div class="text-xs font-mono text-[var(--text-tertiary)] mb-1" style="letter-spacing: 0.05em;" aria-live="polite">
+                    <div class="text-xs font-mono text-[var(--text-tertiary)] mb-1 tracking-wide" aria-live="polite">
                         {move || format!("{} results", search_total.get())}
                     </div>
                 })}
@@ -603,14 +599,14 @@ fn QuotaIndicator(info: crate::api::QuotaInfo) -> impl IntoView {
     };
 
     view! {
-        <div class="hidden md:flex items-center gap-2 font-mono text-xs" style="letter-spacing: 0.03em;">
+        <div class="hidden md:flex items-center gap-2 font-mono text-xs tracking-tight">
             <div class="w-28 h-3 bg-[var(--bg-surface-sunken)] rounded-none overflow-hidden brutal-border" title=move || format!("{}% used", percent as u32)>
                 <div
                     class=move || format!("h-full transition-all {}", bar_color)
                     style=move || format!("width: {}%;", percent.min(100.0))
                 ></div>
             </div>
-            <span class=text_color style="font-weight: 600;">
+            <span class=move || format!("{} font-semibold", text_color)>
                 {move || format!("{} / {} ({}%)", used_str, quota_str, percent as u32)}
             </span>
         </div>
