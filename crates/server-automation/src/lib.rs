@@ -2,11 +2,11 @@ pub mod batch;
 pub mod event_triggers;
 pub mod ocr;
 pub mod policies;
-pub mod push_notifications;
-pub mod retention;
+pub mod push_api;
 pub mod triggers;
 pub mod webhooks;
-pub mod worm;
+
+pub use ferro_server_integrations::push_notifications;
 
 use common::storage::StorageEngine;
 use ferro_core::wasm::WasmWorkerRuntime;

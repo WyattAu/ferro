@@ -310,9 +310,12 @@ impl ApnsClient {
     }
 
     /// Generate a simplified APNS JWT token from the .p8 key file.
-    fn generate_token(&self) -> Result<String, PushError> {
-        let key_bytes =
-            std::fs::read(&self.key_path).map_err(|e| PushError::Config(format!("Failed to read APNS key: {}", e)))?;
+    async fn generate_token(&self) -> Result<String, PushError> {
+        let key_path = self.key_path.clone();
+        let key_bytes = tokio::task::spawn_blocking(move || std::fs::read(&key_path))
+            .await
+            .map_err(|e| PushError::Config(format!("Failed to spawn APNS key read: {}", e)))?
+            .map_err(|e| PushError::Config(format!("Failed to read APNS key: {}", e)))?;
 
         let header = serde_json::json!({
             "alg": "ES256",
@@ -359,7 +362,7 @@ impl ApnsClient {
 
     /// Send a push notification via APNS to an iOS device.
     pub async fn send(&self, device_token: &str, payload: &NotificationPayload) -> Result<(), PushError> {
-        let jwt = self.generate_token()?;
+        let jwt = self.generate_token().await?;
 
         let body = serde_json::json!({
             "aps": {
