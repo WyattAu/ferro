@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 8.2 | **Date:** 2026-07-14 | **Status:** Audit Cycle 16 COMPLETE -- clippy clean, CI consolidated, GUI hardened
+**Version:** 8.3 | **Date:** 2026-07-14 | **Status:** v8.3 Full Audit + Consolidation + Decomposition COMPLETE
 
 ---
 
@@ -8,19 +8,47 @@
 
 | Metric | Value |
 |--------|-------|
-| Crates | 60 (46 original + 14 extracted) |
+| Crates | 60 (56 consolidated + 3 decomposed + 1 extracted) |
 | Tests | 2500+ (unit + integration + property + security) |
-| Code | ~110K lines Rust |
+| Code | ~115K lines Rust |
 | Clippy warnings | 0 (all features: s3,gcs,azure,pg,redis,ldap) |
 | CI workflows | 14 (consolidated from 16) |
-| Security | cargo-deny clean, 18/18 pen test checks, zero yanked deps |
+| CI feature matrix | 6 features tested individually |
+| Security | cargo-deny clean, zero yanked deps, zero memory leaks |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | MSRV | 1.92 (enforced in CI) |
 | Pre-commit hook | fmt + clippy + secret scan + TODO scan + targeted tests |
+| Unified types | DbHandle (19->1), ApiError (9->2), AuditEntry (9->1) |
+| Dead code removed | ~12,000 lines |
+| Frontend | Zero hardcoded colors, skip-link added, 1 inline style remaining |
 
 ## Recently Completed
 
-### 2026-07-14: Audit Cycle 16 -- Comprehensive Codebase Audit
+### 2026-07-14: Phase 7.0 Server Decomposition + Phase 7.5 Frontend + Phase 8.0-9.0
+
+**Phase 7.0: Server Decomposition**
+- Extracted ferro-server-config: ServerConfig, FileConfig, CLI utils (~1138 lines)
+- Extracted ferro-server-state: shared trait interfaces (SyncStoreTrait, IdempotencyStoreTrait, etc.)
+- Extracted ferro-server-routes: middleware utilities (CORS validation, compression, concurrency limits)
+- Moved AuditLog from server to common crate with AuditLogPersistence trait abstraction
+- Implemented AuditLogPersistence for SqlitePersistence in core
+- AppState struct stays in server due to orphan rules (20+ foreign trait impls)
+- db_init.rs stays in server (wires concrete stores)
+
+**Phase 7.5: Frontend Improvements**
+- Replaced 15+ hardcoded Tailwind colors with CSS custom properties
+- Added skip-link navigation (CSS already existed, now rendered)
+- Removed 13 inline style= attributes from header.rs
+- Only 1 inline style remaining (dynamic progress bar width)
+
+**Phase 8.0: Test Coverage**
+- Added test-features CI job: matrix testing pg, redis, ldap, s3, gcs, azure individually
+- Added property tests for normalize_path (double-slash removal, idempotence)
+- Added property tests for ContentHash (determinism, collision resistance)
+
+**Phase 9.0: Documentation**
+- Updated CONTRIBUTING.md with crate architecture table and design principles
+- Updated README.md with unified type system feature bullet
 
 **Phase 1: Deep Testing & Code Quality**
 - Fixed all clippy warnings across 60+ crates (zero warnings with all features)
