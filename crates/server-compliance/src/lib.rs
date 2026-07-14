@@ -28,32 +28,7 @@ pub trait AuditLogTrait: Send + Sync {
     async fn log(&self, entry: AuditEntry);
 }
 
-/// API error type for compliance handlers.
-///
-/// Re-exports `ferro_server_security::ApiError` and adds missing constants.
-pub struct ApiError;
-
-impl ApiError {
-    pub fn respond(status: axum::http::StatusCode, code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::respond(status, code, message)
-    }
-
-    pub fn bad_request(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::bad_request(code, message)
-    }
-
-    pub fn not_found(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::not_found(code, message)
-    }
-
-    pub fn internal(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::internal(code, message)
-    }
-
-    pub const BAD_REQUEST: &'static str = "BAD_REQUEST";
-    pub const NOT_FOUND: &'static str = "NOT_FOUND";
-    pub const INTERNAL_ERROR: &'static str = "INTERNAL_ERROR";
-}
+pub use ferro_server_security_middleware::api_error::ApiError;
 
 /// Trait that AppState must implement for compliance handlers.
 ///

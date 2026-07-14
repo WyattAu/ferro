@@ -14,7 +14,7 @@ pub use ferro_auth::users::{
     CreateUserRequest, ResetPasswordRequest, UpdateSelfRequest, UpdateUserRequest, User, UserError, UserErrorKind,
     UserRole, UserStatus, ZeroizeString, hash_password,
 };
-pub use ferro_server_security::ApiError;
+pub use ferro_server_security_middleware::api_error::ApiError;
 
 // Blanket impl: Arc<S> delegates to S when S: UserMgmtState
 impl<S: UserMgmtState> UserMgmtState for Arc<S> {

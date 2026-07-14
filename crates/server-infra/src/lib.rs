@@ -10,7 +10,7 @@ pub mod redis_lock;
 use common::storage::StorageEngine;
 use std::sync::Arc;
 
-pub use ferro_server_security::error::ApiError;
+pub use ferro_server_security_middleware::api_error::ApiError;
 
 pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
 

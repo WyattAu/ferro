@@ -17,6 +17,7 @@ azure = []
 [dependencies]
 common = { package = "ferro-common", path = "../common", features = ["db"] }
 ferro-server-security = { path = "../server-security" }
+ferro-server-security-middleware = { path = "../server-security-middleware" }
 ferro-core = { path = "../core" }
 ferro-auth = { path = "../auth" }
 axum = { workspace = true }

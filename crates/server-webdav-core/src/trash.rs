@@ -9,56 +9,9 @@ use std::sync::Arc;
 use tracing::warn;
 
 use crate::{DbHandle, WebDavCoreState};
+use ferro_server_security_middleware::api_error::ApiError;
 
 const MAX_TRASH_ENTRIES: usize = 1_000;
-
-/// Local API error type for trash operations.
-#[allow(dead_code)]
-pub struct ApiError {
-    status: StatusCode,
-    code: &'static str,
-    message: String,
-}
-
-impl ApiError {
-    pub const PATH_INVALID: &'static str = "PATH_INVALID";
-    pub const FILE_NOT_FOUND: &'static str = "FILE_NOT_FOUND";
-    pub const TRASH_NOT_FOUND: &'static str = "TRASH_NOT_FOUND";
-    pub const INTERNAL_ERROR: &'static str = "INTERNAL_ERROR";
-
-    pub fn bad_request(code: &'static str, message: &'static str) -> Response {
-        (
-            StatusCode::BAD_REQUEST,
-            axum::Json(serde_json::json!({
-                "error": code,
-                "detail": message,
-            })),
-        )
-            .into_response()
-    }
-
-    pub fn not_found(code: &'static str, message: &'static str) -> Response {
-        (
-            StatusCode::NOT_FOUND,
-            axum::Json(serde_json::json!({
-                "error": code,
-                "detail": message,
-            })),
-        )
-            .into_response()
-    }
-
-    pub fn internal(code: &'static str, message: impl Into<String>) -> Response {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(serde_json::json!({
-                "error": code,
-                "detail": message.into(),
-            })),
-        )
-            .into_response()
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrashedEntry {

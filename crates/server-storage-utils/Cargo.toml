@@ -12,6 +12,7 @@ publish = false
 common = { package = "ferro-common", path = "../common" }
 ferro-core = { path = "../core", features = ["sqlite", "search"] }
 ferro-server-security = { path = "../server-security" }
+ferro-server-security-middleware = { path = "../server-security-middleware" }
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = "1"

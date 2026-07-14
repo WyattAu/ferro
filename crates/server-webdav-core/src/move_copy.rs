@@ -5,30 +5,7 @@ use common::path::normalize_path;
 use serde::Deserialize;
 
 use crate::WebDavCoreState;
-
-/// Local API error type for move/copy operations.
-#[allow(dead_code)]
-pub struct ApiError {
-    status: StatusCode,
-    code: &'static str,
-    message: &'static str,
-}
-
-impl ApiError {
-    pub const PATH_INVALID: &'static str = "PATH_INVALID";
-    pub const BAD_REQUEST: &'static str = "BAD_REQUEST";
-
-    pub fn bad_request(code: &'static str, message: &'static str) -> Response {
-        (
-            StatusCode::BAD_REQUEST,
-            axum::Json(serde_json::json!({
-                "error": code,
-                "detail": message,
-            })),
-        )
-            .into_response()
-    }
-}
+use ferro_server_security_middleware::api_error::ApiError;
 
 /// Request body for move and copy operations.
 #[derive(Debug, Deserialize)]
@@ -54,36 +31,15 @@ pub async fn move_file<S: WebDavCoreState>(
     }
 
     if let Err(e) = state.lock_manager().check_lock_for_write(&source).await {
-        return (
-            StatusCode::LOCKED,
-            axum::Json(serde_json::json!({
-                "error": "Locked",
-                "detail": e.to_string(),
-            })),
-        )
-            .into_response();
+        return ApiError::with_details(StatusCode::LOCKED, "FILE_LOCKED", "Locked", e.to_string());
     }
     if let Err(e) = state.lock_manager().check_lock_for_write(&destination).await {
-        return (
-            StatusCode::LOCKED,
-            axum::Json(serde_json::json!({
-                "error": "Locked",
-                "detail": e.to_string(),
-            })),
-        )
-            .into_response();
+        return ApiError::with_details(StatusCode::LOCKED, "FILE_LOCKED", "Locked", e.to_string());
     }
 
     match state.storage().move_path(&source, &destination).await {
         Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({"status": "ok"}))).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(serde_json::json!({
-                "error": "MoveFailed",
-                "detail": e.to_string(),
-            })),
-        )
-            .into_response(),
+        Err(e) => ApiError::with_details(StatusCode::INTERNAL_SERVER_ERROR, "MOVE_FAILED", "Move failed", e.to_string()),
     }
 }
 
@@ -105,13 +61,6 @@ pub async fn copy_file<S: WebDavCoreState>(
 
     match state.storage().copy(&source, &destination).await {
         Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({"status": "ok"}))).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(serde_json::json!({
-                "error": "CopyFailed",
-                "detail": e.to_string(),
-            })),
-        )
-            .into_response(),
+        Err(e) => ApiError::with_details(StatusCode::INTERNAL_SERVER_ERROR, "COPY_FAILED", "Copy failed", e.to_string()),
     }
 }

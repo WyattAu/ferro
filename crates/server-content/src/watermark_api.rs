@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tracing::warn;
 
 use common::storage::StorageEngine;
-use ferro_server_security::error::ApiError;
+use ferro_server_security_middleware::api_error::ApiError;
 
 pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
 

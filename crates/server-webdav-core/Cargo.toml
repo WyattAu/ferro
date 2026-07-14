@@ -15,6 +15,7 @@ ferro-dav = { path = "../dav", features = ["handlers"] }
 ferro-offline = { path = "../offline" }
 ferro-server-compliance = { path = "../server-compliance" }
 ferro-server-security = { path = "../server-security" }
+ferro-server-security-middleware = { path = "../server-security-middleware" }
 ferro-server-storage-ops = { path = "../server-storage-ops" }
 ferro-server-versioning = { path = "../server-versioning" }
 ferro-server-webdav = { path = "../server-webdav" }

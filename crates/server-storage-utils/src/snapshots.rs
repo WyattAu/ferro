@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 use tracing::info;
 
 use crate::StorageUtilsState;
-use ferro_server_security::error::ApiError;
+use ferro_server_security_middleware::api_error::ApiError;
 
 /// A filesystem snapshot containing metadata for all files at a point in time.
 #[derive(Debug, Clone, Serialize, SerdeDeserialize)]

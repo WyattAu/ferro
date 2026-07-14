@@ -7,45 +7,7 @@ use std::sync::Arc;
 
 pub use common::DbHandle;
 
-/// API error type for collaboration handlers.
-///
-/// Re-exports `ferro_server_security::ApiError` and adds missing constants.
-pub struct ApiError;
-
-impl ApiError {
-    pub fn respond(status: axum::http::StatusCode, code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::respond(status, code, message)
-    }
-
-    pub fn bad_request(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::bad_request(code, message)
-    }
-
-    pub fn not_found(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::not_found(code, message)
-    }
-
-    pub fn forbidden(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::forbidden(code, message)
-    }
-
-    pub fn internal(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::internal(code, message)
-    }
-
-    pub fn service_unavailable(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::respond(axum::http::StatusCode::SERVICE_UNAVAILABLE, code, message)
-    }
-
-    pub const BAD_REQUEST: &'static str = "BAD_REQUEST";
-    pub const NOT_FOUND: &'static str = "NOT_FOUND";
-    pub const INTERNAL_ERROR: &'static str = "INTERNAL_ERROR";
-    pub const NOT_CONFIGURED: &'static str = "NOT_CONFIGURED";
-    pub const INVALID_BODY: &'static str = "INVALID_BODY";
-    pub const INVALID_JSON: &'static str = "INVALID_JSON";
-    pub const PATH_INVALID: &'static str = "PATH_INVALID";
-    pub const POLICY_DENIED: &'static str = "POLICY_DENIED";
-}
+pub use ferro_server_security_middleware::api_error::ApiError;
 
 pub use ferro_server_security_middleware::security::contains_html;
 /// Re-export security functions used by collaboration modules.

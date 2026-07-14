@@ -30,35 +30,7 @@ pub trait AuditLogTrait: Send + Sync {
     async fn verify_chain(&self) -> Option<serde_json::Value>;
 }
 
-/// API error type for admin handlers.
-///
-/// Re-exports `ferro_server_security::ApiError` and adds missing constants.
-pub struct ApiError;
-
-impl ApiError {
-    pub fn respond(status: axum::http::StatusCode, code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::respond(status, code, message)
-    }
-
-    pub fn bad_request(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::bad_request(code, message)
-    }
-
-    pub fn not_found(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::not_found(code, message)
-    }
-
-    pub fn internal(code: &str, message: impl Into<String>) -> axum::response::Response {
-        ferro_server_security::ApiError::internal(code, message)
-    }
-
-    pub const BAD_REQUEST: &'static str = "BAD_REQUEST";
-    pub const NOT_FOUND: &'static str = "NOT_FOUND";
-    pub const INTERNAL_ERROR: &'static str = "INTERNAL_ERROR";
-    pub const USER_NOT_FOUND: &'static str = "USER_NOT_FOUND";
-    pub const USER_ERROR: &'static str = "USER_ERROR";
-    pub const INVALID_INPUT: &'static str = "INVALID_INPUT";
-}
+pub use ferro_server_security_middleware::api_error::ApiError;
 
 /// Minimal share store trait for admin handlers.
 #[async_trait::async_trait]

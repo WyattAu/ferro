@@ -12,6 +12,7 @@ publish = false
 common = { package = "ferro-common", path = "../common", features = ["db"] }
 ferro-auth = { path = "../auth" }
 ferro-server-security = { path = "../server-security" }
+ferro-server-security-middleware = { path = "../server-security-middleware" }
 ferro-server-integrations = { path = "../server-integrations" }
 ferro-server-sharing = { path = "../server-sharing" }
 axum = { workspace = true }

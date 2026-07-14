@@ -1,6 +1,47 @@
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+/// HTTP audit log entry.
+#[derive(Debug, Clone, Serialize)]
+pub struct AuditEntry {
+    pub timestamp: String,
+    pub method: String,
+    pub path: String,
+    pub user: String,
+    pub status: u16,
+    pub client_ip: Option<String>,
+    pub user_agent: Option<String>,
+    pub content_length: Option<u64>,
+}
+
+/// Minimal audit log trait for handlers that need to record audit events.
+#[async_trait]
+pub trait AuditLogTrait: Send + Sync {
+    async fn log(&self, entry: AuditEntry);
+}
+
+/// Build an audit entry from request details.
+pub fn build_audit_entry(
+    method: &str,
+    path: &str,
+    user: &str,
+    status: u16,
+    client_ip: Option<String>,
+    user_agent: Option<String>,
+) -> AuditEntry {
+    AuditEntry {
+        timestamp: Utc::now().to_rfc3339(),
+        method: method.to_string(),
+        path: path.to_string(),
+        user: user.to_string(),
+        status,
+        client_ip,
+        user_agent,
+        content_length: None,
+    }
+}
 
 /// Audit event level
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

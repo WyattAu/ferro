@@ -9,40 +9,7 @@ use std::sync::Arc;
 
 pub use common::DbHandle;
 
-// ---------------------------------------------------------------------------
-// ApiError (local copy matching ferro-server's api_error module)
-// ---------------------------------------------------------------------------
-
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
-
-pub struct ApiError;
-
-impl ApiError {
-    pub fn respond(status: StatusCode, code: &str, message: impl Into<String>) -> Response {
-        let body = axum::Json(serde_json::json!({
-            "error": message.into(),
-            "error_code": code,
-        }));
-        (status, body).into_response()
-    }
-
-    pub fn bad_request(code: &str, message: impl Into<String>) -> Response {
-        Self::respond(StatusCode::BAD_REQUEST, code, message)
-    }
-
-    pub fn not_found(code: &str, message: impl Into<String>) -> Response {
-        Self::respond(StatusCode::NOT_FOUND, code, message)
-    }
-
-    pub fn internal(code: &str, message: impl Into<String>) -> Response {
-        Self::respond(StatusCode::INTERNAL_SERVER_ERROR, code, message)
-    }
-
-    pub const INTERNAL_ERROR: &str = "INTERNAL_ERROR";
-    pub const NOT_FOUND: &str = "NOT_FOUND";
-    pub const BAD_REQUEST: &str = "BAD_REQUEST";
-}
+pub use ferro_server_security_middleware::api_error::ApiError;
 
 // ---------------------------------------------------------------------------
 // AiSearchBridge trait (implemented by server's AiSearchBridge)

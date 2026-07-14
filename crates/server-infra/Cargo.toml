@@ -18,6 +18,7 @@ common = { package = "ferro-common", path = "../common" }
 ferro-circuit-breaker = { path = "../circuit-breaker" }
 ferro-server-activitypub = { path = "../server-activitypub" }
 ferro-server-security = { path = "../server-security" }
+ferro-server-security-middleware = { path = "../server-security-middleware" }
 ferro-server-api-core = { path = "../server-api-core" }
 ferro-server-sharing = { path = "../server-sharing", optional = true }
 axum = { workspace = true }
