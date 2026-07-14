@@ -352,31 +352,31 @@ pub fn ContactsPage() -> impl IntoView {
     };
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 overflow-auto px-2 sm:px-4 pt-16">
                 <main id="main-content" class="max-w-7xl w-full mx-auto p-6">
                     <div class="flex items-center justify-between mb-6">
-                        <h1 class="text-2xl font-bold font-mono text-gray-900 dark:text-white">{t!("contacts.title")}</h1>
+                        <h1 class="text-2xl font-bold font-mono text-[var(--text-primary)]">{t!("contacts.title")}</h1>
                         <div class="flex items-center gap-2">
                             <button
                                 on:click=import_contacts
-                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg hover:bg-[var(--interactive-hover)] transition-colors"
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                                 {t!("contacts.import")}
                             </button>
                             <button
                                 on:click=export_contacts
-                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg hover:bg-[var(--interactive-hover)] transition-colors"
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                                 {t!("contacts.export")}
                             </button>
                             <button
                                 on:click=open_create_dialog
-                                class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                                class="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                                 {t!("contacts.new_contact")}
@@ -387,25 +387,25 @@ pub fn ContactsPage() -> impl IntoView {
                     // Search bar
                     <div class="mb-6">
                         <div class="relative">
-                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             <input
                                 type="text"
                                 placeholder={t!("contacts.search_placeholder")}
                                 prop:value=move || search_query.get()
                                 on:input=move |ev| set_search_query.set(event_target_value(&ev))
-                                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                class="w-full pl-10 pr-4 py-2.5 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                             />
                         </div>
                     </div>
 
                     {move || loading.get().then(|| view! {
                         <div class="flex items-center justify-center py-12" role="status" aria-busy="true">
-                            <div class="text-sm text-gray-500 font-mono">{t!("common.loading")}</div>
+                            <div class="text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
                         </div>
                     })}
 
                     {move || (!error_msg.get().is_empty() && !loading.get()).then(|| view! {
-                        <div class="p-4 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
+                        <div class="p-4 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">
                             <span class="font-bold">{t!("error.prefix")}</span> {error_msg}
                         </div>
                     })}
@@ -413,8 +413,8 @@ pub fn ContactsPage() -> impl IntoView {
                     <div class="flex gap-6">
                         // Contact list
                         <div class="w-1/3">
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
-                                <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
+                                <div class="divide-y divide-[var(--border-default)]">
                                     <For
                                         each=move || filtered_contacts()
                                         key=|c| c.uid.clone()
@@ -431,17 +431,17 @@ pub fn ContactsPage() -> impl IntoView {
                                             view! {
                                                 <div
                                                     class=move || format!("px-4 py-3 cursor-pointer transition-colors {}",
-                                                        if is_selected() { "bg-blue-50 dark:bg-blue-900/20" } else { "hover:bg-gray-50 dark:hover:bg-gray-700/50" }
+                                                        if is_selected() { "bg-[var(--accent-subtle)]" } else { "hover:bg-[var(--interactive-hover)]/50" }
                                                     )
                                                     on:click=move |_: ev::MouseEvent| set_selected_contact.set(Some(contact_clone.clone()))
                                                 >
                                                     <div class="flex items-center gap-3">
-                                                        <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-bold text-blue-600 dark:text-blue-400 shrink-0">
+                                                        <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-bold text-[var(--accent)] dark:text-[var(--accent)] shrink-0">
                                                             {initials}
                                                         </div>
                                                         <div class="min-w-0">
-                                                            <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{name}</div>
-                                                            <div class="text-xs text-gray-500 truncate">{primary_email}</div>
+                                                            <div class="text-sm font-medium text-[var(--text-primary)] truncate">{name}</div>
+                                                            <div class="text-xs text-[var(--text-tertiary)] truncate">{primary_email}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -467,7 +467,7 @@ pub fn ContactsPage() -> impl IntoView {
                                     let uid_for_delete = contact.uid.clone();
                                     let org_clone = org.clone();
                                     view! {
-                                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-6">
+                                        <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-6">
                                             <div class="flex items-start justify-between mb-6">
                                                 <div class="flex items-center gap-4">
                                                     {if let Some(ref photo_url) = photo {
@@ -476,15 +476,15 @@ pub fn ContactsPage() -> impl IntoView {
                                                         }.into_any()
                                                     } else {
                                                         view! {
-                                                            <div class="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xl font-bold text-blue-600 dark:text-blue-400">
+                                                            <div class="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xl font-bold text-[var(--accent)] dark:text-[var(--accent)]">
                                                                 {initials}
                                                             </div>
                                                         }.into_any()
                                                     }}
                                                     <div>
-                                                        <h2 class="text-xl font-bold font-mono text-gray-900 dark:text-white">{name}</h2>
+                                                        <h2 class="text-xl font-bold font-mono text-[var(--text-primary)]">{name}</h2>
                                                         {if !org_clone.is_empty() {
-                                                            view! { <div class="text-sm text-gray-500">{org_clone}</div> }.into_any()
+                                                            view! { <div class="text-sm text-[var(--text-tertiary)]">{org_clone}</div> }.into_any()
                                                         } else {
                                                             ().into_any()
                                                         }}
@@ -493,14 +493,14 @@ pub fn ContactsPage() -> impl IntoView {
                                                 <div class="flex items-center gap-2">
                                                     <button
                                                         on:click=move |_: ev::MouseEvent| open_edit_dialog(contact_clone.clone())
-                                                        class="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                                        class="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                                                         aria-label="Edit"
                                                     >
                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                     </button>
                                                     <button
                                                         on:click=move |_: ev::MouseEvent| delete_contact(uid_for_delete.clone())
-                                                        class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        class="p-2 text-[var(--danger)] hover:text-[var(--danger)] hover:bg-[var(--danger-subtle)] rounded-lg transition-colors"
                                                         aria-label="Delete"
                                                     >
                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -512,10 +512,10 @@ pub fn ContactsPage() -> impl IntoView {
                                                 {if !emails.is_empty() {
                                                     view! {
                                                         <div>
-                                                            <h3 class="text-xs font-bold uppercase text-gray-500 mb-2">{t!("contacts.email")}</h3>
+                                                            <h3 class="text-xs font-bold uppercase text-[var(--text-tertiary)] mb-2">{t!("contacts.email")}</h3>
                                                             <div class="space-y-1">
                                                                 {emails.into_iter().map(|email| view! {
-                                                                    <div class="text-sm text-gray-900 dark:text-white font-mono">{email}</div>
+                                                                    <div class="text-sm text-[var(--text-primary)] font-mono">{email}</div>
                                                                 }).collect::<Vec<_>>()}
                                                             </div>
                                                         </div>
@@ -527,10 +527,10 @@ pub fn ContactsPage() -> impl IntoView {
                                                 {if !phones.is_empty() {
                                                     view! {
                                                         <div>
-                                                            <h3 class="text-xs font-bold uppercase text-gray-500 mb-2">{t!("contacts.phone")}</h3>
+                                                            <h3 class="text-xs font-bold uppercase text-[var(--text-tertiary)] mb-2">{t!("contacts.phone")}</h3>
                                                             <div class="space-y-1">
                                                                 {phones.into_iter().map(|phone| view! {
-                                                                    <div class="text-sm text-gray-900 dark:text-white font-mono">{phone}</div>
+                                                                    <div class="text-sm text-[var(--text-primary)] font-mono">{phone}</div>
                                                                 }).collect::<Vec<_>>()}
                                                             </div>
                                                         </div>
@@ -542,8 +542,8 @@ pub fn ContactsPage() -> impl IntoView {
                                                 {if !org.is_empty() {
                                                     view! {
                                                         <div>
-                                                            <h3 class="text-xs font-bold uppercase text-gray-500 mb-2">{t!("contacts.organization")}</h3>
-                                                            <div class="text-sm text-gray-900 dark:text-white font-mono">{org}</div>
+                                                            <h3 class="text-xs font-bold uppercase text-[var(--text-tertiary)] mb-2">{t!("contacts.organization")}</h3>
+                                                            <div class="text-sm text-[var(--text-primary)] font-mono">{org}</div>
                                                         </div>
                                                     }.into_any()
                                                 } else {
@@ -553,8 +553,8 @@ pub fn ContactsPage() -> impl IntoView {
                                                 {if !note.is_empty() {
                                                     view! {
                                                         <div>
-                                                            <h3 class="text-xs font-bold uppercase text-gray-500 mb-2">{t!("contacts.notes")}</h3>
-                                                            <div class="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{note}</div>
+                                                            <h3 class="text-xs font-bold uppercase text-[var(--text-tertiary)] mb-2">{t!("contacts.notes")}</h3>
+                                                            <div class="text-sm text-[var(--text-primary)] whitespace-pre-wrap">{note}</div>
                                                         </div>
                                                     }.into_any()
                                                 } else {
@@ -562,8 +562,8 @@ pub fn ContactsPage() -> impl IntoView {
                                                 }}
                                             </div>
 
-                                            <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                                <div class="text-xs text-gray-400 font-mono">
+                                            <div class="mt-6 pt-4 border-t border-[var(--border-default)]">
+                                                <div class="text-xs text-[var(--text-tertiary)] font-mono">
                                                     {t!("contacts.created")} ": " {contact.created_at.as_str()}
                                                     " · " {t!("contacts.updated")} ": " {contact.updated_at.as_str()}
                                                 </div>
@@ -572,9 +572,9 @@ pub fn ContactsPage() -> impl IntoView {
                                     }.into_any()
                                 } else {
                                     view! {
-                                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-12 text-center">
-                                            <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                            <p class="text-sm text-gray-500">{t!("contacts.select_contact")}</p>
+                                        <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-12 text-center">
+                                            <svg class="w-12 h-12 mx-auto text-[var(--text-tertiary)] dark:text-[var(--text-secondary)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                            <p class="text-sm text-[var(--text-tertiary)]">{t!("contacts.select_contact")}</p>
                                         </div>
                                     }.into_any()
                                 }
@@ -585,56 +585,56 @@ pub fn ContactsPage() -> impl IntoView {
                     // Contact creation/editing dialog
                     {move || show_dialog.get().then(|| view! {
                         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_dialog.set(false)>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                                <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                                <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">
                                     {move || if editing_contact.get().is_some() { t!("contacts.edit_contact") } else { t!("contacts.new_contact") }}
                                 </h3>
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("contacts.full_name")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("contacts.full_name")}</label>
                                         <input
                                             type="text"
                                             prop:value=move || dialog_fn.get()
                                             on:input=move |ev| set_dialog_fn.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("contacts.emails")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("contacts.emails")}</label>
                                         <input
                                             type="text"
                                             placeholder="email1@example.com, email2@example.com"
                                             prop:value=move || dialog_emails.get()
                                             on:input=move |ev| set_dialog_emails.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("contacts.phones")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("contacts.phones")}</label>
                                         <input
                                             type="text"
                                             placeholder="+1 555-123-4567, +1 555-987-6543"
                                             prop:value=move || dialog_phones.get()
                                             on:input=move |ev| set_dialog_phones.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("contacts.organization")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("contacts.organization")}</label>
                                         <input
                                             type="text"
                                             prop:value=move || dialog_org.get()
                                             on:input=move |ev| set_dialog_org.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("contacts.notes")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("contacts.notes")}</label>
                                         <textarea
                                             prop:value=move || dialog_note.get()
                                             on:input=move |ev| set_dialog_note.set(event_target_value(&ev))
                                             rows="3"
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         ></textarea>
                                     </div>
                                 </div>
@@ -648,7 +648,7 @@ pub fn ContactsPage() -> impl IntoView {
                                                         set_show_dialog.set(false);
                                                         delete_contact(uid.clone());
                                                     }
-                                                    class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                    class="px-4 py-2 text-sm font-medium text-[var(--danger)] hover:text-[var(--danger)] hover:bg-[var(--danger-subtle)] rounded-lg transition-colors"
                                                 >
                                                     {t!("contacts.delete")}
                                                 </button>
@@ -658,13 +658,13 @@ pub fn ContactsPage() -> impl IntoView {
                                     <div class="flex items-center gap-3">
                                         <button
                                             on:click=move |_: ev::MouseEvent| set_show_dialog.set(false)
-                                            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                            class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                                         >
                                             {t!("common.cancel")}
                                         </button>
                                         <button
                                             on:click=save_contact
-                                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                            class="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                                         >
                                             {t!("common.save")}
                                         </button>

@@ -37,7 +37,7 @@ pub fn ActivitySidebar(
                 <div class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
                     <h3 class="text-label font-mono text-[var(--text-primary)]">{t!("aria.activity_heading")}</h3>
                     <button
-                        class="p-1 text-[var(--text-tertiary)] hover:text-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
                         on:click=move |_| set_open.set(false)
                         aria-label=t!("aria.close_activity")
                     >
@@ -69,7 +69,7 @@ pub fn ActivitySidebar(
                                         }}
                                     </span>
                                     <div class="min-w-0">
-                                        <div class="text-sm font-mono text-gray-900 truncate" title=entry_path.clone()>
+                                        <div class="text-sm font-mono text-[var(--text-primary)] truncate" title=entry_path.clone()>
                                             {file_name}
                                         </div>
                                         <div class="text-xs text-[var(--text-tertiary)] font-mono">

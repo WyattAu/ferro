@@ -276,28 +276,28 @@ pub fn AnalyticsPage() -> impl IntoView {
     let max_views = move || views_over_time.get().iter().map(|v| v.views).max().unwrap_or(1).max(1);
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 flex overflow-hidden pt-16">
                 <NavigationSidebar />
                 <main id="main-content" class="flex-1 overflow-auto p-6">
                     <div class="flex items-center justify-between mb-6">
-                        <h1 class="text-2xl font-bold font-mono text-gray-900 dark:text-white">{t!("analytics.title")}</h1>
+                        <h1 class="text-2xl font-bold font-mono text-[var(--text-primary)]">{t!("analytics.title")}</h1>
                         <div class="flex items-center gap-2">
-                            <label class="text-sm font-mono text-gray-600 dark:text-gray-400">{t!("analytics.from")}</label>
+                            <label class="text-sm font-mono text-[var(--text-secondary)]">{t!("analytics.from")}</label>
                             <input
                                 type="date"
                                 prop:value=move || date_from.get()
                                 on:input=move |ev| set_date_from.set(event_target_value(&ev))
-                                class="px-3 py-1.5 text-sm font-mono border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                class="px-3 py-1.5 text-sm font-mono border rounded bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)]"
                             />
-                            <label class="text-sm font-mono text-gray-600 dark:text-gray-400">{t!("analytics.to")}</label>
+                            <label class="text-sm font-mono text-[var(--text-secondary)]">{t!("analytics.to")}</label>
                             <input
                                 type="date"
                                 prop:value=move || date_to.get()
                                 on:input=move |ev| set_date_to.set(event_target_value(&ev))
-                                class="px-3 py-1.5 text-sm font-mono border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                class="px-3 py-1.5 text-sm font-mono border rounded bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)]"
                             />
                         </div>
                     </div>
@@ -307,7 +307,7 @@ pub fn AnalyticsPage() -> impl IntoView {
                         <button
                             on:click=move |_| set_tab.set(AnalyticsTab::Overview)
                             class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}",
-                                if tab.get() == AnalyticsTab::Overview { "bg-blue-600 text-white" } else { "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" }
+                                if tab.get() == AnalyticsTab::Overview { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" }
                             )
                         >
                             {t!("analytics.overview")}
@@ -315,7 +315,7 @@ pub fn AnalyticsPage() -> impl IntoView {
                         <button
                             on:click=move |_| set_tab.set(AnalyticsTab::Links)
                             class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}",
-                                if tab.get() == AnalyticsTab::Links { "bg-blue-600 text-white" } else { "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" }
+                                if tab.get() == AnalyticsTab::Links { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" }
                             )
                         >
                             {t!("analytics.links")}
@@ -324,12 +324,12 @@ pub fn AnalyticsPage() -> impl IntoView {
 
                     {move || loading.get().then(|| view! {
                         <div class="flex items-center justify-center py-12" role="status" aria-busy="true">
-                            <div class="text-sm text-gray-500 font-mono">{t!("common.loading")}</div>
+                            <div class="text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
                         </div>
                     })}
 
                     {move || (!error_msg.get().is_empty() && !loading.get()).then(|| view! {
-                        <div class="p-4 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
+                        <div class="p-4 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">
                             <span class="font-bold">{t!("error.prefix")}</span> {error_msg}
                         </div>
                     })}
@@ -346,8 +346,8 @@ pub fn AnalyticsPage() -> impl IntoView {
                                 <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
                                     {move || ov.as_ref().map(|o| view! { <><StatCard label=t!("analytics.total_views") value=o.total_views.to_string() /><StatCard label=t!("analytics.total_downloads") value=o.total_downloads.to_string() /><StatCard label=t!("analytics.total_links") value=o.total_links.to_string() /><StatCard label=t!("analytics.storage_used") value=format_bytes(o.storage_used) /><StatCard label=t!("analytics.active_users") value=o.active_users.to_string() /></> })}
                                 </div>
-                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-6">
-                                    <h2 class="text-sm font-bold uppercase font-mono text-gray-500 mb-4">{t!("analytics.views_over_time")}</h2>
+                                <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-6">
+                                    <h2 class="text-sm font-bold uppercase font-mono text-[var(--text-tertiary)] mb-4">{t!("analytics.views_over_time")}</h2>
                                     <div class="flex items-end gap-1 h-48">
                                             {vot.iter().map(|v| {
                                                 let height_pct = if mv > 0 { v.views as f64 / mv as f64 * 100.0 } else { 0.0 };
@@ -356,25 +356,25 @@ pub fn AnalyticsPage() -> impl IntoView {
                                                 let views = v.views;
                                                 view! {
                                                     <div class="flex-1 flex flex-col items-center gap-1" title=format!("{}: {} views", date, views)>
-                                                        <div class="w-full bg-blue-500 rounded-t transition-all" style=format!("height: {}%", height_pct.max(2.0))></div>
-                                                        <span class="text-[10px] font-mono text-gray-500 truncate w-full text-center">{date_short}</span>
+                                                        <div class="w-full bg-[var(--accent)] rounded-t transition-all" style=format!("height: {}%", height_pct.max(2.0))></div>
+                                                        <span class="text-[10px] font-mono text-[var(--text-tertiary)] truncate w-full text-center">{date_short}</span>
                                                     </div>
                                                 }
                                             }).collect::<Vec<_>>()}
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-6">
-                                        <h2 class="text-sm font-bold uppercase font-mono text-gray-500 mb-4">{t!("analytics.top_links")}</h2>
+                                    <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-6">
+                                        <h2 class="text-sm font-bold uppercase font-mono text-[var(--text-tertiary)] mb-4">{t!("analytics.top_links")}</h2>
                                         <div class="space-y-2">
                                             {tl.iter().take(5).map(|link| {
                                                 let path = link.path.clone();
                                                 let views = link.views;
                                                 let downloads = link.downloads;
                                                 view! {
-                                                    <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                                                        <div class="text-sm font-mono text-gray-900 dark:text-white truncate">{path}</div>
-                                                        <div class="flex items-center gap-3 text-xs text-gray-500 shrink-0">
+                                                    <div class="flex items-center justify-between py-2 border-b border-[var(--border-subtle)] border-[var(--border-default)] last:border-0">
+                                                        <div class="text-sm font-mono text-[var(--text-primary)] truncate">{path}</div>
+                                                        <div class="flex items-center gap-3 text-xs text-[var(--text-tertiary)] shrink-0">
                                                             <span>{views} " views"</span>
                                                             <span>{downloads} " downloads"</span>
                                                         </div>
@@ -383,25 +383,25 @@ pub fn AnalyticsPage() -> impl IntoView {
                                             }).collect::<Vec<_>>()}
                                         </div>
                                     </div>
-                                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-6">
-                                        <h2 class="text-sm font-bold uppercase font-mono text-gray-500 mb-4">{t!("analytics.storage_breakdown")}</h2>
+                                    <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-6">
+                                        <h2 class="text-sm font-bold uppercase font-mono text-[var(--text-tertiary)] mb-4">{t!("analytics.storage_breakdown")}</h2>
                                         {move || st.as_ref().map(|s| view! {
                                             <div class="space-y-3">
                                                 <div class="flex justify-between text-sm font-mono">
-                                                    <span class="text-gray-600 dark:text-gray-400">{t!("analytics.used")}</span>
-                                                    <span class="font-bold text-gray-900 dark:text-white">{format_bytes(s.used_bytes)}</span>
+                                                    <span class="text-[var(--text-secondary)]">{t!("analytics.used")}</span>
+                                                    <span class="font-bold text-[var(--text-primary)]">{format_bytes(s.used_bytes)}</span>
                                                 </div>
                                                 <div class="flex justify-between text-sm font-mono">
-                                                    <span class="text-gray-600 dark:text-gray-400">{t!("analytics.total")}</span>
-                                                    <span class="font-bold text-gray-900 dark:text-white">{format_bytes(s.total_bytes)}</span>
+                                                    <span class="text-[var(--text-secondary)]">{t!("analytics.total")}</span>
+                                                    <span class="font-bold text-[var(--text-primary)]">{format_bytes(s.total_bytes)}</span>
                                                 </div>
                                                 {s.by_type.iter().map(|(type_name, size)| {
                                                     let tn = type_name.clone();
                                                     let sz = *size;
                                                     view! {
                                                         <div class="flex justify-between text-xs font-mono">
-                                                            <span class="text-gray-500">{tn}</span>
-                                                            <span class="text-gray-700 dark:text-gray-300">{format_bytes(sz)}</span>
+                                                            <span class="text-[var(--text-tertiary)]">{tn}</span>
+                                                            <span class="text-[var(--text-secondary)]">{format_bytes(sz)}</span>
                                                         </div>
                                                     }
                                                 }).collect::<Vec<_>>()}
@@ -418,15 +418,15 @@ pub fn AnalyticsPage() -> impl IntoView {
                     {move || if !loading.get() && tab.get() == AnalyticsTab::Links {
                         let links = share_links.get();
                         view! {
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
                                 <table class="w-full">
                                     <thead>
-                                        <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("analytics.path")}</th>
-                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-gray-500">{t!("analytics.views")}</th>
-                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-gray-500">{t!("analytics.downloads")}</th>
-                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-gray-500">{t!("analytics.unique_visitors")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("analytics.created")}</th>
+                                        <tr class="border-b border-[var(--border-default)] bg-[var(--bg-inset)]">
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("analytics.path")}</th>
+                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("analytics.views")}</th>
+                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("analytics.downloads")}</th>
+                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("analytics.unique_visitors")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("analytics.created")}</th>
                                             <th class="px-4 py-3"></th>
                                         </tr>
                                     </thead>
@@ -440,19 +440,19 @@ pub fn AnalyticsPage() -> impl IntoView {
                                                 let created = link.created_at.clone();
                                                 let created_display = if created.len() >= 10 { created[..10].to_string() } else { created };
                                                 view! {
-                                                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white truncate max-w-xs">{path}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 text-right">{views}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 text-right">{downloads}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 text-right">{unique}</td>
-                                                        <td class="px-4 py-3 text-xs font-mono text-gray-500">{created_display}</td>
+                                                    <tr class="border-b border-[var(--border-subtle)] border-[var(--border-default)] hover:bg-[var(--interactive-hover)]/50 transition-colors">
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-primary)] truncate max-w-xs">{path}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)] text-right">{views}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)] text-right">{downloads}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)] text-right">{unique}</td>
+                                                        <td class="px-4 py-3 text-xs font-mono text-[var(--text-tertiary)]">{created_display}</td>
                                                     <td class="px-4 py-3">
                                                         <button
                                                             on:click=move |_: ev::MouseEvent| {
                                                                 set_tab.set(AnalyticsTab::LinkDetail(token.clone()));
                                                                 fetch_link_detail(&token);
                                                             }
-                                                            class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                                                            class="text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium transition-colors"
                                                         >
                                                             {t!("analytics.details")}
                                                         </button>
@@ -463,7 +463,7 @@ pub fn AnalyticsPage() -> impl IntoView {
                                     </tbody>
                                 </table>
                                 {move || links.is_empty().then(|| view! {
-                                    <div class="p-8 text-center text-gray-500 text-sm">{t!("analytics.no_links")}</div>
+                                    <div class="p-8 text-center text-[var(--text-tertiary)] text-sm">{t!("analytics.no_links")}</div>
                                 })}
                             </div>
                         }.into_any()
@@ -482,15 +482,15 @@ pub fn AnalyticsPage() -> impl IntoView {
                                 <div class="flex items-center gap-3">
                                     <button
                                         on:click=move |_| set_tab.set(AnalyticsTab::Links)
-                                        class="p-1 text-gray-500 hover:text-gray-700 rounded transition-colors"
+                                        class="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] rounded transition-colors"
                                         aria-label=t!("common.back")
                                     >
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                                     </button>
-                                    <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{t!("analytics.link_detail")} ": " {tk}</h2>
+                                    <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{t!("analytics.link_detail")} ": " {tk}</h2>
                                 </div>
-                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-6">
-                                    <h3 class="text-sm font-bold uppercase font-mono text-gray-500 mb-4">{t!("analytics.daily_breakdown")}</h3>
+                                <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-6">
+                                    <h3 class="text-sm font-bold uppercase font-mono text-[var(--text-tertiary)] mb-4">{t!("analytics.daily_breakdown")}</h3>
                                     <div class="flex items-end gap-1 h-48">
                                             {daily.iter().map(|d| {
                                                 let height_pct = if max_daily > 0 { d.views as f64 / max_daily as f64 * 100.0 } else { 0.0 };
@@ -499,28 +499,28 @@ pub fn AnalyticsPage() -> impl IntoView {
                                                 let views = d.views;
                                                 view! {
                                                     <div class="flex-1 flex flex-col items-center gap-1" title=format!("{}: {} views", date, views)>
-                                                        <div class="w-full bg-blue-500 rounded-t transition-all" style=format!("height: {}%", height_pct.max(2.0))></div>
-                                                        <span class="text-[10px] font-mono text-gray-500 truncate w-full text-center">{date_short}</span>
+                                                        <div class="w-full bg-[var(--accent)] rounded-t transition-all" style=format!("height: {}%", height_pct.max(2.0))></div>
+                                                        <span class="text-[10px] font-mono text-[var(--text-tertiary)] truncate w-full text-center">{date_short}</span>
                                                     </div>
                                                 }
                                             }).collect::<Vec<_>>()}
                                     </div>
                                 </div>
-                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-6">
-                                    <h3 class="text-sm font-bold uppercase font-mono text-gray-500 mb-4">{t!("analytics.referrers")}</h3>
+                                <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-6">
+                                    <h3 class="text-sm font-bold uppercase font-mono text-[var(--text-tertiary)] mb-4">{t!("analytics.referrers")}</h3>
                                     <div class="space-y-2">
                                         {referrers.iter().map(|r| {
                                             let referrer = r.referrer.clone();
                                             let count = r.count;
                                             view! {
-                                                <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                                                    <span class="text-sm font-mono text-gray-900 dark:text-white">{referrer}</span>
-                                                    <span class="text-xs font-mono text-gray-500">{count}</span>
+                                                <div class="flex items-center justify-between py-2 border-b border-[var(--border-subtle)] border-[var(--border-default)] last:border-0">
+                                                    <span class="text-sm font-mono text-[var(--text-primary)]">{referrer}</span>
+                                                    <span class="text-xs font-mono text-[var(--text-tertiary)]">{count}</span>
                                                 </div>
                                             }
                                         }).collect::<Vec<_>>()}
                                         {move || referrers.is_empty().then(|| view! {
-                                            <div class="text-sm text-gray-500 text-center py-4">{t!("analytics.no_referrers")}</div>
+                                            <div class="text-sm text-[var(--text-tertiary)] text-center py-4">{t!("analytics.no_referrers")}</div>
                                         })}
                                     </div>
                                 </div>
@@ -538,9 +538,9 @@ pub fn AnalyticsPage() -> impl IntoView {
 #[component]
 fn StatCard(label: &'static str, value: String) -> impl IntoView {
     view! {
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-4">
-            <div class="text-xs font-bold uppercase font-mono text-gray-500 mb-1">{label}</div>
-            <div class="text-2xl font-bold font-mono text-gray-900 dark:text-white">{value}</div>
+        <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-4">
+            <div class="text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] mb-1">{label}</div>
+            <div class="text-2xl font-bold font-mono text-[var(--text-primary)]">{value}</div>
         </div>
     }
 }

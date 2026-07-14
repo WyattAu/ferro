@@ -18,7 +18,7 @@ pub fn Tooltip(
             {children()}
             <span
                 class={format!(
-                    "absolute z-50 px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-700 rounded shadow-lg whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100 pointer-events-none transition-opacity duration-150 {}",
+                    "absolute z-50 px-2 py-1 text-xs font-medium text-[var(--text-on-accent)] bg-[var(--bg-base)] bg-[var(--bg-surface-raised)] rounded shadow-lg whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100 pointer-events-none transition-opacity duration-150 {}",
                     position_class
                 )}
                 role="tooltip"

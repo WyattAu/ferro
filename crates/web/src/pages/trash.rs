@@ -80,8 +80,8 @@ pub fn TrashPage() -> impl IntoView {
     };
 
     view! {
-        <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="min-h-screen bg-[var(--bg-base)] flex flex-col">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
 
             // Header
             <header class="surface brutal-border border-b px-6 py-3 shadow-concrete">
@@ -92,7 +92,7 @@ pub fn TrashPage() -> impl IntoView {
                                 <span class="font-bold text-sm">{t!("brand.name")}</span>
                             </div>
                             <div>
-                                <h1 class="text-lg font-bold font-mono text-gray-900 leading-none">{t!("brand.name")}</h1>
+                                <h1 class="text-lg font-bold font-mono text-[var(--text-primary)] leading-none">{t!("brand.name")}</h1>
                                 <span class="text-label text-muted">{t!("trash.title")}</span>
                             </div>
                         </A>
@@ -100,13 +100,13 @@ pub fn TrashPage() -> impl IntoView {
                     <nav aria-label=t!("nav.back_to_files") class="flex items-center gap-2">
                         <A
                             href="/ui/"
-                            attr:class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 no-underline rounded hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            attr:class="px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] no-underline rounded hover:bg-[var(--bg-inset)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                         >
                             {t!("nav.back_to_files")}
                         </A>
                         {move || (!entries.with(Vec::is_empty)).then(|| view! {
                             <button
-                                class="px-3 py-1.5 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                                class="px-3 py-1.5 text-sm bg-[var(--danger)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--danger-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--danger)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
                                 on:click=move |_| set_show_confirm_empty.set(true)
                             >
                                 {t!("trash.empty_btn")}
@@ -133,19 +133,19 @@ pub fn TrashPage() -> impl IntoView {
                         aria-describedby="empty-trash-desc"
                         tabindex="-1"
                     >
-                        <h3 id="empty-trash-title" class="text-section font-mono text-gray-900 mb-2">{t!("dialog.empty_trash.title")}</h3>
-                        <p id="empty-trash-desc" class="text-sm text-gray-600 mb-6">
+                        <h3 id="empty-trash-title" class="text-section font-mono text-[var(--text-primary)] mb-2">{t!("dialog.empty_trash.title")}</h3>
+                        <p id="empty-trash-desc" class="text-sm text-[var(--text-secondary)] mb-6">
                             {t!("dialog.empty_trash.description")}
                         </p>
                         <div class="flex justify-end gap-2">
                             <button
-                                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded min-h-[44px]"
+                                class="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
                                 on:click=move |_| set_show_confirm_empty.set(false)
                             >
                                 {t!("common.cancel")}
                             </button>
                             <button
-                                class="px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                                class="px-4 py-2 text-sm bg-[var(--danger)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--danger-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--danger)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
                                 on:click=do_empty
                             >
                                 {t!("trash.empty_btn")}
@@ -159,7 +159,7 @@ pub fn TrashPage() -> impl IntoView {
             // Main content
             <main id="main-content" class="flex-1 max-w-7xl w-full mx-auto surface brutal-border shadow-concrete my-4 rounded-lg overflow-hidden">
                 {move || loading.get().then(|| view! {
-                    <div class="px-6 py-12 text-center text-gray-500" role="status" aria-live="polite">
+                    <div class="px-6 py-12 text-center text-[var(--text-tertiary)]" role="status" aria-live="polite">
                         <div class="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
                         {t!("trash.loading")}
                     </div>
@@ -172,7 +172,7 @@ pub fn TrashPage() -> impl IntoView {
                     let ents = display_entries();
                     if ents.is_empty() {
                         view! {
-                            <div class="px-6 py-16 text-center text-gray-400" role="status">
+                            <div class="px-6 py-16 text-center text-[var(--text-tertiary)]" role="status">
                                 <svg class="w-16 h-16 mx-auto mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
@@ -183,12 +183,12 @@ pub fn TrashPage() -> impl IntoView {
                     } else {
                         view! {
                             <table class="w-full" role="grid">
-                                <thead class="bg-gray-50 border-b sticky top-0">
+                                <thead class="bg-[var(--bg-inset)] border-b sticky top-0">
                                     <tr>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500" scope="col">{t!("trash.original_path")}</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-40" scope="col">{t!("trash.deleted")}</th>
-                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-gray-500 w-24" scope="col">{t!("common.size")}</th>
-                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-gray-500 w-48" scope="col">{t!("common.actions")}</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]" scope="col">{t!("trash.original_path")}</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-40" scope="col">{t!("trash.deleted")}</th>
+                                        <th class="px-4 py-2 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-24" scope="col">{t!("common.size")}</th>
+                                        <th class="px-4 py-2 text-right text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] w-48" scope="col">{t!("common.actions")}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -203,27 +203,27 @@ pub fn TrashPage() -> impl IntoView {
                                             let restore_name = entry.original_path.clone();
                                             let purge_name = entry.original_path.clone();
                                             view! {
-                                                <tr class="hover:bg-gray-50 border-b border-gray-100 transition-colors" role="row">
-                                                    <td class="px-4 py-2.5 text-gray-700 text-sm" role="rowheader">
+                                                <tr class="hover:bg-[var(--bg-inset)] border-b border-[var(--border-subtle)] transition-colors" role="row">
+                                                    <td class="px-4 py-2.5 text-[var(--text-secondary)] text-sm" role="rowheader">
                                                         {entry.original_path.clone()}
                                                     </td>
-                                                    <td class="px-4 py-2.5 text-gray-500 text-sm" role="gridcell">
+                                                    <td class="px-4 py-2.5 text-[var(--text-tertiary)] text-sm" role="gridcell">
                                                         {entry.deleted_at.clone()}
                                                     </td>
-                                                    <td class="px-4 py-2.5 text-gray-500 text-sm tabular-nums" role="gridcell">
+                                                    <td class="px-4 py-2.5 text-[var(--text-tertiary)] text-sm tabular-nums" role="gridcell">
                                                         {format_size(entry.size)}
                                                     </td>
                                                     <td class="px-4 py-2.5 text-right" role="gridcell">
                                                         <div class="flex items-center justify-end gap-2">
                                                             <button
-                                                                 class="px-2.5 py-1 text-xs bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                                                                 class="px-2.5 py-1 text-xs bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
                                                                   attr:aria-label=format!("Restore {}", restore_name)
                                                                 on:click=move |_| do_restore(restore_path.clone())
                                                             >
                                                                 {t!("common.restore")}
                                                             </button>
                                                             <button
-                                                                 class="px-2.5 py-1 text-xs bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                                                                 class="px-2.5 py-1 text-xs bg-[var(--danger)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--danger-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--danger)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
                                                                   attr:aria-label=format!("Permanently delete {}", purge_name)
                                                                 on:click=move |_| do_purge(purge_path.clone())
                                                             >

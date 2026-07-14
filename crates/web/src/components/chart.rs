@@ -85,7 +85,7 @@ pub fn BarChart(
                                         x=format!("{:.2}", text_x)
                                         y=format!("{:.2}", y - 4.0)
                                         text-anchor="middle"
-                                        class="text-xs fill-current text-gray-600 dark:text-gray-400"
+                                        class="text-xs fill-current text-[var(--text-secondary)]"
                                         font-size="10"
                                     >
                                         {point.value}

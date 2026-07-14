@@ -124,11 +124,11 @@ pub fn DataTable(
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left" role="grid" aria-label=aria_label>
                     <thead>
-                        <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <tr class="border-b border-[var(--border-default)]">
                             <th class="px-4 py-3 w-10">
                                 <input
                                     type="checkbox"
-                                    class="rounded border text-blue-600 focus:ring-blue-500"
+                                    class="rounded border text-[var(--accent)] focus:ring-[var(--border-focus)]"
                                     prop:checked=all_selected
                                     aria-label="Select all rows"
                                     on:click=move |_| on_toggle_select_all.run(())
@@ -150,7 +150,7 @@ pub fn DataTable(
                                     let on_sort_cb = on_sort;
                                     let col_key2 = col_key.clone();
                                     view! {
-                                        <th class=format!("px-4 py-3 font-bold uppercase text-xs tracking-wider text-gray-600 dark:text-gray-400 {}", col_class)>
+                                        <th class=format!("px-4 py-3 font-bold uppercase text-xs tracking-wider text-[var(--text-secondary)] {}", col_class)>
                                             {if col_sortable {
                                                 let current_sort = move || {
                                                     let sb = sort_by_sig.get();
@@ -163,7 +163,7 @@ pub fn DataTable(
                                                 };
                                                 view! {
                                                     <button
-                                                        class="flex items-center gap-1 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded min-h-[44px] px-1"
+                                                        class="flex items-center gap-1 hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded min-h-[44px] px-1"
                                                         aria-label=format!("Sort by {}", col_label_for_aria)
                                                         on:click=move |_| {
                                                             let sb = sort_by_sig.get();
@@ -180,7 +180,7 @@ pub fn DataTable(
                                                         }
                                                     >
                                                         {col_label}
-                                                            <span class="text-gray-400">
+                                                            <span class="text-[var(--text-tertiary)]">
                                                             {move || match current_sort() {
                                                                 Some(SortDir::Asc) => view! {
                                                                     <Icon name=IconName::ArrowUp class="w-3 h-3".to_string() />
@@ -210,7 +210,7 @@ pub fn DataTable(
                             empty_state
                                 .map(|es| view! {
                                     <tr>
-                                        <td class="px-4 py-16 text-center text-gray-400" colspan=columns_count + 2>
+                                        <td class="px-4 py-16 text-center text-[var(--text-tertiary)]" colspan=columns_count + 2>
                                             {es()}
                                         </td>
                                     </tr>
@@ -218,8 +218,8 @@ pub fn DataTable(
                                 .unwrap_or_else(|| {
                                     view! {
                                         <tr>
-                                            <td class="px-4 py-16 text-center text-gray-400" colspan=columns_count + 2>
-                                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <td class="px-4 py-16 text-center text-[var(--text-tertiary)]" colspan=columns_count + 2>
+                                                <svg class="w-12 h-12 mx-auto mb-3 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                 </svg>
                                                 <div class="text-lg font-medium">"No data"</div>
@@ -235,8 +235,8 @@ pub fn DataTable(
                 </table>
             </div>
 
-            <div class="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                <div class="text-sm text-gray-500">
+            <div class="flex items-center justify-between px-4 py-3 border-t border-[var(--border-default)]">
+                <div class="text-sm text-[var(--text-tertiary)]">
                     {move || {
                         if total_rows == 0 {
                             "No records".to_string()
@@ -247,7 +247,7 @@ pub fn DataTable(
                 </div>
                 <nav class="flex items-center gap-1" aria-label="Pagination">
                     <button
-                        class="p-2 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 rounded text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center"
                         disabled=move || page.get() == 0
                         aria-label="First page"
                         on:click=on_first
@@ -256,7 +256,7 @@ pub fn DataTable(
                         <Icon name=IconName::ArrowLeft class="w-4 h-4 -ml-2".to_string() />
                     </button>
                     <button
-                        class="p-2 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 rounded text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center"
                         disabled=move || page.get() == 0
                         aria-label="Previous page"
                         on:click=on_prev
@@ -264,12 +264,12 @@ pub fn DataTable(
                         <Icon name=IconName::ArrowLeft class="w-4 h-4".to_string() />
                     </button>
 
-                    <span class="px-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <span class="px-3 text-sm font-medium text-[var(--text-secondary)]">
                         {move || format!("{} / {}", page.get() + 1, total_pages)}
                     </span>
 
                     <button
-                        class="p-2 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 rounded text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center"
                         disabled=move || page.get() + 1 >= total_pages
                         aria-label="Next page"
                         on:click=on_next
@@ -277,7 +277,7 @@ pub fn DataTable(
                         <Icon name=IconName::ArrowRight class="w-4 h-4".to_string() />
                     </button>
                     <button
-                        class="p-2 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 rounded text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] flex items-center justify-center"
                         disabled=move || page.get() + 1 >= total_pages
                         aria-label="Last page"
                         on:click=on_last
@@ -309,11 +309,11 @@ pub fn TableRow(
     view! {
         <tr
             class=move || {
-                let base = "border-b border-gray-100 dark:border-gray-800 transition-colors";
+                let base = "border-b border-[var(--border-subtle)] dark:border-[var(--border-strong)] transition-colors";
                 if is_selected.get() {
-                    format!("{} bg-blue-50 dark:bg-blue-900/20", base)
+                    format!("{} bg-[var(--accent-subtle)]", base)
                 } else {
-                    format!("{} hover:bg-gray-50 dark:hover:bg-gray-800", base)
+                    format!("{} hover:bg-[var(--bg-inset)] dark:hover:bg-[var(--interactive-hover)]", base)
                 }
             }
             role="row"
@@ -322,7 +322,7 @@ pub fn TableRow(
             <td class="px-4 py-2.5 w-10" role="gridcell">
                 <input
                     type="checkbox"
-                    class="rounded border text-blue-600 focus:ring-blue-500"
+                    class="rounded border text-[var(--accent)] focus:ring-[var(--border-focus)]"
                     prop:checked=move || is_selected.get()
                     attr:aria-label=format!("Select row {}", row_key)
                     on:click=move |_| on_toggle_select.run(key_clone.clone())

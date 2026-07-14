@@ -226,23 +226,23 @@ pub fn PhotosPage() -> impl IntoView {
     });
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 overflow-hidden px-2 sm:px-4 pt-16">
                 <main id="main-content" class="h-full flex">
                     // Sidebar
-                    <div class="w-72 flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                        <div class="p-3 border-b border-gray-200 dark:border-gray-700">
+                    <div class="w-72 flex-shrink-0 flex flex-col border-r border-[var(--border-default)] bg-[var(--bg-surface)]">
+                        <div class="p-3 border-b border-[var(--border-default)]">
                             <div class="flex items-center justify-between mb-3">
-                                <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Photos"</h2>
+                                <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">"Photos"</h2>
                                 <button
                                     on:click=move |_: ev::MouseEvent| {
                                         set_new_album_name.set(String::new());
                                         set_new_album_description.set(String::new());
                                         set_show_create_album.set(true);
                                     }
-                                    class="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    class="p-1.5 bg-[var(--accent)] text-[var(--text-on-accent)] rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                                     title="New Album"
                                 >
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -251,12 +251,12 @@ pub fn PhotosPage() -> impl IntoView {
                         </div>
 
                         // View mode toggle
-                        <div class="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-                            <div class="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                        <div class="px-3 py-2 border-b border-[var(--border-default)]">
+                            <div class="flex gap-1 bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] rounded-lg p-1">
                                 <button
                                     on:click=move |_| set_view_mode.set(ViewMode::Grid)
                                     class=move || format!("flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors {}",
-                                        if view_mode.get() == ViewMode::Grid { "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow" } else { "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" }
+                                        if view_mode.get() == ViewMode::Grid { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] shadow" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:text-[var(--text-secondary)]" }
                                     )
                                 >
                                     "Grid"
@@ -264,7 +264,7 @@ pub fn PhotosPage() -> impl IntoView {
                                 <button
                                     on:click=move |_| set_view_mode.set(ViewMode::Timeline)
                                     class=move || format!("flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors {}",
-                                        if view_mode.get() == ViewMode::Timeline { "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow" } else { "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" }
+                                        if view_mode.get() == ViewMode::Timeline { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] shadow" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:text-[var(--text-secondary)]" }
                                     )
                                 >
                                     "Timeline"
@@ -272,7 +272,7 @@ pub fn PhotosPage() -> impl IntoView {
                                 <button
                                     on:click=move |_| set_view_mode.set(ViewMode::Albums)
                                     class=move || format!("flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors {}",
-                                        if view_mode.get() == ViewMode::Albums { "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow" } else { "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" }
+                                        if view_mode.get() == ViewMode::Albums { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] shadow" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:text-[var(--text-secondary)]" }
                                     )
                                 >
                                     "Albums"
@@ -281,23 +281,23 @@ pub fn PhotosPage() -> impl IntoView {
                         </div>
 
                         // Date range filter
-                        <div class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 space-y-2">
+                        <div class="px-3 py-2 border-b border-[var(--border-default)] space-y-2">
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">"From"</label>
+                                <label class="block text-xs text-[var(--text-tertiary)] mb-1">"From"</label>
                                 <input
                                     type="date"
                                     prop:value=move || date_start.get()
                                     on:input=move |ev| set_date_start.set(event_target_value(&ev))
-                                    class="w-full text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                    class="w-full text-xs px-2 py-1 border border-[var(--border-default)] rounded bg-[var(--bg-surface)] text-[var(--text-secondary)]"
                                 />
                             </div>
                             <div>
-                                <label class="block text-xs text-gray-500 mb-1">"To"</label>
+                                <label class="block text-xs text-[var(--text-tertiary)] mb-1">"To"</label>
                                 <input
                                     type="date"
                                     prop:value=move || date_end.get()
                                     on:input=move |ev| set_date_end.set(event_target_value(&ev))
-                                    class="w-full text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                    class="w-full text-xs px-2 py-1 border border-[var(--border-default)] rounded bg-[var(--bg-surface)] text-[var(--text-secondary)]"
                                 />
                             </div>
                         </div>
@@ -305,7 +305,7 @@ pub fn PhotosPage() -> impl IntoView {
                         // Albums list
                         <div class="flex-1 overflow-y-auto">
                             <div class="px-3 py-2">
-                                <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">"Albums"</h3>
+                                <h3 class="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-2">"Albums"</h3>
                                 <For
                                     each=move || albums.get()
                                     key=|a| a.id.clone()
@@ -313,9 +313,9 @@ pub fn PhotosPage() -> impl IntoView {
                                 >
                                     {
                                         view! {
-                                            <div class="px-2 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors">
-                                                <div class="text-sm text-gray-700 dark:text-gray-300">{album.name}</div>
-                                                <div class="text-xs text-gray-400">{album.photo_paths.len()}" photos"</div>
+                                            <div class="px-2 py-1.5 rounded hover:bg-[var(--interactive-hover)] cursor-pointer transition-colors">
+                                                <div class="text-sm text-[var(--text-secondary)]">{album.name}</div>
+                                                <div class="text-xs text-[var(--text-tertiary)]">{album.photo_paths.len()}" photos"</div>
                                             </div>
                                         }
                                     }
@@ -325,10 +325,10 @@ pub fn PhotosPage() -> impl IntoView {
                     </div>
 
                     // Main content area
-                    <div class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-800">
+                    <div class="flex-1 flex flex-col overflow-hidden bg-[var(--bg-surface)]">
                         {move || loading.get().then(|| view! {
                             <div class="flex items-center justify-center py-8">
-                                <div class="text-sm text-gray-500 font-mono">{t!("common.loading")}</div>
+                                <div class="text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
                             </div>
                         })}
 
@@ -347,7 +347,7 @@ pub fn PhotosPage() -> impl IntoView {
                                                         let photo_clone = photo.clone();
                                                         view! {
                                                             <div
-                                                                class="aspect-square rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all bg-gray-100 dark:bg-gray-700"
+                                                                class="aspect-square rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)]"
                                                                 on:click=move |_: ev::MouseEvent| open_lightbox(photo_clone.clone())
                                                             >
                                                                 <img
@@ -371,13 +371,13 @@ pub fn PhotosPage() -> impl IntoView {
                                             {groups.into_iter().map(|(date, photos)| {
                                                 view! {
                                                     <div>
-                                                        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 sticky top-0 bg-white dark:bg-gray-800 py-1">{date}</h3>
+                                                        <h3 class="text-sm font-medium text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] mb-3 sticky top-0 bg-[var(--bg-surface)] py-1">{date}</h3>
                                                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                                                             {photos.into_iter().map(|photo| {
                                                                 let photo_clone = photo.clone();
                                                                 view! {
                                                                     <div
-                                                                        class="aspect-square rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all bg-gray-100 dark:bg-gray-700"
+                                                                        class="aspect-square rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)]"
                                                                         on:click=move |_: ev::MouseEvent| open_lightbox(photo_clone.clone())
                                                                     >
                                                                         <img
@@ -407,15 +407,15 @@ pub fn PhotosPage() -> impl IntoView {
                                                 >
                                                     {
                                                         view! {
-                                                            <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                                                                <div class="aspect-video bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                                                                    <svg class="w-12 h-12 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                                            <div class="border border-[var(--border-default)] rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                                                                <div class="aspect-video bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] flex items-center justify-center">
+                                                                    <svg class="w-12 h-12 text-[var(--text-tertiary)] dark:text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                                                                 </div>
                                                                 <div class="p-3">
-                                                                    <div class="font-medium text-gray-900 dark:text-white">{album.name}</div>
-                                                                    <div class="text-sm text-gray-500">{album.photo_paths.len()}" photos"</div>
+                                                                    <div class="font-medium text-[var(--text-primary)]">{album.name}</div>
+                                                                    <div class="text-sm text-[var(--text-tertiary)]">{album.photo_paths.len()}" photos"</div>
                                                                     {if !album.description.is_empty() {
-                                                                        view! { <div class="text-xs text-gray-400 mt-1 truncate">{album.description}</div> }.into_any()
+                                                                        view! { <div class="text-xs text-[var(--text-tertiary)] mt-1 truncate">{album.description}</div> }.into_any()
                                                                     } else {
                                                                         ().into_any()
                                                                     }}
@@ -440,7 +440,7 @@ pub fn PhotosPage() -> impl IntoView {
                     view! {
                         <div class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" on:click=close_lightbox>
                             <button
-                                class="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+                                class="absolute top-4 right-4 text-[var(--text-on-accent)] hover:text-[var(--text-tertiary)] z-10"
                                 on:click=close_lightbox
                             >
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -454,16 +454,16 @@ pub fn PhotosPage() -> impl IntoView {
                                 />
 
                                 <div class="mt-4 flex items-center justify-between">
-                                    <div class="text-white">
+                                    <div class="text-[var(--text-on-accent)]">
                                         <div class="font-medium">{photo.name.clone()}</div>
-                                        <div class="text-sm text-gray-400">{photo.modified_at[..10.min(photo.modified_at.len())].to_string()}</div>
+                                        <div class="text-sm text-[var(--text-tertiary)]">{photo.modified_at[..10.min(photo.modified_at.len())].to_string()}</div>
                                     </div>
                                     <button
                                         on:click=move |_: ev::MouseEvent| {
                                             let current = show_exif.get();
                                             set_show_exif.set(!current);
                                         }
-                                        class="px-3 py-1.5 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors text-sm"
+                                        class="px-3 py-1.5 bg-[var(--bg-surface)]/10 text-[var(--text-on-accent)] rounded-lg hover:bg-[var(--interactive-hover)]/20 transition-colors text-sm"
                                     >
                                         {move || if show_exif.get() { "Hide Info" } else { "Show Info" }}
                                     </button>
@@ -473,7 +473,7 @@ pub fn PhotosPage() -> impl IntoView {
                                     if show_exif.get() {
                                         if let Some(ref exif) = exif_data.get() {
                                             view! {
-                                                <div class="mt-4 p-4 bg-white/10 rounded-lg text-white text-sm space-y-2">
+                                                <div class="mt-4 p-4 bg-[var(--bg-surface)]/10 rounded-lg text-[var(--text-on-accent)] text-sm space-y-2">
                                                     {if let Some(ref make) = exif.camera_make {
                                                         let make_clone = make.clone();
                                                         let model_clone = exif.camera_model.clone();
@@ -517,25 +517,25 @@ pub fn PhotosPage() -> impl IntoView {
             // Create album dialog
             {move || show_create_album.get().then(|| view! {
                 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_create_album.set(false)>
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                        <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">"New Album"</h3>
+                    <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                        <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">"New Album"</h3>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">"Album Name"</label>
+                                <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">"Album Name"</label>
                                 <input
                                     type="text"
                                     prop:value=move || new_album_name.get()
                                     on:input=move |ev| set_new_album_name.set(event_target_value(&ev))
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     placeholder="Enter album name"
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">"Description"</label>
+                                <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">"Description"</label>
                                 <textarea
                                     prop:value=move || new_album_description.get()
                                     on:input=move |ev| set_new_album_description.set(event_target_value(&ev))
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     placeholder="Optional description"
                                     rows="3"
                                 ></textarea>
@@ -544,13 +544,13 @@ pub fn PhotosPage() -> impl IntoView {
                         <div class="flex items-center justify-end gap-3 mt-6">
                             <button
                                 on:click=move |_: ev::MouseEvent| set_show_create_album.set(false)
-                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                             >
                                 {t!("common.cancel")}
                             </button>
                             <button
                                 on:click=create_album
-                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                class="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                             >
                                 {t!("common.save")}
                             </button>

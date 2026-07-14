@@ -38,8 +38,8 @@ pub fn DragHint(
                 }.into_any()
             } else if has_entries.get() {
                 view! {
-                    <div class="border-t border-gray-100 dark:border-gray-800 px-6 py-2 text-center">
-                        <span class="text-xs text-[var(--text-tertiary)] dark:text-gray-500">{t!("drop.hint")}</span>
+                    <div class="border-t border-[var(--border-subtle)] dark:border-[var(--border-strong)] px-6 py-2 text-center">
+                        <span class="text-xs text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]">{t!("drop.hint")}</span>
                     </div>
                 }.into_any()
             } else {

@@ -370,16 +370,16 @@ pub fn CalendarPage() -> impl IntoView {
     let header_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 overflow-auto px-2 sm:px-4 pt-16">
                 <main id="main-content" class="max-w-7xl w-full mx-auto p-6">
                     <div class="flex items-center justify-between mb-6">
-                        <h1 class="text-2xl font-bold font-mono text-gray-900 dark:text-white">{t!("calendar.title")}</h1>
+                        <h1 class="text-2xl font-bold font-mono text-[var(--text-primary)]">{t!("calendar.title")}</h1>
                         <button
                             on:click=open_create_dialog
-                            class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                         >
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                             {t!("calendar.new_event")}
@@ -389,17 +389,17 @@ pub fn CalendarPage() -> impl IntoView {
                     // Navigation controls
                     <div class="flex items-center gap-4 mb-6">
                         <div class="flex items-center gap-2">
-                            <button on:click=navigate_prev class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Previous">
-                                <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                            <button on:click=navigate_prev class="p-2 rounded-lg hover:bg-[var(--interactive-hover)] transition-colors" aria-label="Previous">
+                                <svg class="w-5 h-5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                             </button>
-                            <button on:click=navigate_today class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <button on:click=navigate_today class="px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg hover:bg-[var(--interactive-hover)] transition-colors">
                                 {t!("calendar.today")}
                             </button>
-                            <button on:click=navigate_next class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Next">
-                                <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                            <button on:click=navigate_next class="p-2 rounded-lg hover:bg-[var(--interactive-hover)] transition-colors" aria-label="Next">
+                                <svg class="w-5 h-5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                             </button>
                         </div>
-                        <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">
+                        <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">
                             {move || {
                                 let mode = view_mode.get();
                                 let d = current_date.get();
@@ -419,9 +419,9 @@ pub fn CalendarPage() -> impl IntoView {
                                 on:click=move |_| set_view_mode.set(ViewMode::Month)
                                 class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}",
                                     if view_mode.get() == ViewMode::Month {
-                                        "bg-blue-600 text-white"
+                                        "bg-[var(--accent)] text-[var(--text-on-accent)]"
                                     } else {
-                                        "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                        "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]"
                                     }
                                 )
                             >
@@ -431,9 +431,9 @@ pub fn CalendarPage() -> impl IntoView {
                                 on:click=move |_| set_view_mode.set(ViewMode::Week)
                                 class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}",
                                     if view_mode.get() == ViewMode::Week {
-                                        "bg-blue-600 text-white"
+                                        "bg-[var(--accent)] text-[var(--text-on-accent)]"
                                     } else {
-                                        "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                        "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]"
                                     }
                                 )
                             >
@@ -443,9 +443,9 @@ pub fn CalendarPage() -> impl IntoView {
                                 on:click=move |_| set_view_mode.set(ViewMode::Day)
                                 class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}",
                                     if view_mode.get() == ViewMode::Day {
-                                        "bg-blue-600 text-white"
+                                        "bg-[var(--accent)] text-[var(--text-on-accent)]"
                                     } else {
-                                        "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                        "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]"
                                     }
                                 )
                             >
@@ -456,12 +456,12 @@ pub fn CalendarPage() -> impl IntoView {
 
                     {move || loading.get().then(|| view! {
                         <div class="flex items-center justify-center py-12" role="status" aria-busy="true">
-                            <div class="text-sm text-gray-500 font-mono">{t!("common.loading")}</div>
+                            <div class="text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
                         </div>
                     })}
 
                     {move || (!error_msg.get().is_empty() && !loading.get()).then(|| view! {
-                        <div class="p-4 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
+                        <div class="p-4 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">
                             <span class="font-bold">{t!("error.prefix")}</span> {error_msg}
                         </div>
                     })}
@@ -477,7 +477,7 @@ pub fn CalendarPage() -> impl IntoView {
 
                         let mut cells: Vec<_> = Vec::new();
                         for _ in 0..first_day {
-                            cells.push(view! { <div class="min-h-[80px] bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-1"></div> }.into_any());
+                            cells.push(view! { <div class="min-h-[80px] bg-[var(--bg-inset)] border border-[var(--border-default)] p-1"></div> }.into_any());
                         }
                         for day in 1..=days {
                             let day_num = day;
@@ -488,11 +488,11 @@ pub fn CalendarPage() -> impl IntoView {
                                     .unwrap_or(false)
                             }).cloned().collect();
 
-                            let cell_class = format!("min-h-[80px] border border-gray-200 dark:border-gray-700 p-1 {}",
-                                if is_today { "bg-blue-50 dark:bg-blue-900/20" } else { "bg-white dark:bg-gray-800" }
+                            let cell_class = format!("min-h-[80px] border border-[var(--border-default)] p-1 {}",
+                                if is_today { "bg-[var(--accent-subtle)]" } else { "bg-[var(--bg-surface)]" }
                             );
                             let day_class = format!("text-xs font-mono mb-1 {}",
-                                if is_today { "font-bold text-blue-600 dark:text-blue-400" } else { "text-gray-500" }
+                                if is_today { "font-bold text-[var(--accent)] dark:text-[var(--accent)]" } else { "text-[var(--text-tertiary)]" }
                             );
 
                             cells.push(view! {
@@ -510,7 +510,7 @@ pub fn CalendarPage() -> impl IntoView {
                                             let evt_clone = event.clone();
                                             view! {
                                                 <div
-                                                    class="text-xs px-1 py-0.5 mb-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity text-white"
+                                                    class="text-xs px-1 py-0.5 mb-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity text-[var(--text-on-accent)]"
                                                     style=format!("background-color: {}", color)
                                                     on:click=move |_: ev::MouseEvent| open_edit_dialog(evt_clone.clone())
                                                     title=summary_clone
@@ -527,17 +527,17 @@ pub fn CalendarPage() -> impl IntoView {
                         let remainder = total_cells % 7;
                         if remainder != 0 {
                             for _ in 0..(7 - remainder) {
-                                cells.push(view! { <div class="min-h-[80px] bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-1"></div> }.into_any());
+                                cells.push(view! { <div class="min-h-[80px] bg-[var(--bg-inset)] border border-[var(--border-default)] p-1"></div> }.into_any());
                             }
                         }
 
                         view! {
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
                                 <div class="grid grid-cols-7">
                                     {header_labels.iter().map(|label| {
                                         let label = (*label).to_string();
                                         view! {
-                                            <div class="px-2 py-2 text-xs font-bold uppercase font-mono text-gray-500 text-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">{label}</div>
+                                            <div class="px-2 py-2 text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] text-center border-b border-[var(--border-default)] bg-[var(--bg-inset)]">{label}</div>
                                         }
                                     }).collect::<Vec<_>>()}
                                 </div>
@@ -566,13 +566,13 @@ pub fn CalendarPage() -> impl IntoView {
                             }).cloned().collect();
 
                             day_cols.push(view! {
-                                <div class="flex-1 min-w-[120px] border-r border-gray-200 dark:border-gray-700">
-                                    <div class=format!("px-2 py-2 text-center border-b border-gray-200 dark:border-gray-700 {}",
-                                        if is_today { "bg-blue-50 dark:bg-blue-900/20" } else { "bg-gray-50 dark:bg-gray-800/50" }
+                                <div class="flex-1 min-w-[120px] border-r border-[var(--border-default)]">
+                                    <div class=format!("px-2 py-2 text-center border-b border-[var(--border-default)] {}",
+                                        if is_today { "bg-[var(--accent-subtle)]" } else { "bg-[var(--bg-inset)]" }
                                     )>
-                                        <div class="text-xs font-mono text-gray-500">{header_labels[i as usize]}</div>
+                                        <div class="text-xs font-mono text-[var(--text-tertiary)]">{header_labels[i as usize]}</div>
                                         <div class=format!("text-lg font-bold font-mono {}",
-                                            if is_today { "text-blue-600 dark:text-blue-400" } else { "text-gray-900 dark:text-white" }
+                                            if is_today { "text-[var(--accent)] dark:text-[var(--accent)]" } else { "text-[var(--text-primary)]" }
                                         )>{day.day()}</div>
                                     </div>
                                     <div class="p-1">
@@ -587,7 +587,7 @@ pub fn CalendarPage() -> impl IntoView {
                                                 let evt_clone = event.clone();
                                                 view! {
                                                     <div
-                                                        class="text-xs px-2 py-1 mb-1 rounded cursor-pointer hover:opacity-80 transition-opacity text-white"
+                                                        class="text-xs px-2 py-1 mb-1 rounded cursor-pointer hover:opacity-80 transition-opacity text-[var(--text-on-accent)]"
                                                         style=format!("background-color: {}", color)
                                                         on:click=move |_: ev::MouseEvent| open_edit_dialog(evt_clone.clone())
                                                     >
@@ -602,7 +602,7 @@ pub fn CalendarPage() -> impl IntoView {
                         }
 
                         view! {
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden flex">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden flex">
                                 {day_cols}
                             </div>
                         }
@@ -635,8 +635,8 @@ pub fn CalendarPage() -> impl IntoView {
                             }).cloned().collect();
 
                             hours.push(view! {
-                                <div class="flex border-b border-gray-200 dark:border-gray-700">
-                                    <div class="w-16 px-2 py-3 text-xs font-mono text-gray-500 text-right border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">{hour_str}</div>
+                                <div class="flex border-b border-[var(--border-default)]">
+                                    <div class="w-16 px-2 py-3 text-xs font-mono text-[var(--text-tertiary)] text-right border-r border-[var(--border-default)] bg-[var(--bg-inset)]">{hour_str}</div>
                                     <div class="flex-1 p-1 min-h-[48px]">
                                         <For
                                             each=move || hour_evts.clone()
@@ -651,7 +651,7 @@ pub fn CalendarPage() -> impl IntoView {
                                                 let evt_clone = event.clone();
                                                 view! {
                                                     <div
-                                                        class="flex items-center gap-2 px-2 py-1 mb-1 rounded cursor-pointer hover:opacity-80 transition-opacity text-white"
+                                                        class="flex items-center gap-2 px-2 py-1 mb-1 rounded cursor-pointer hover:opacity-80 transition-opacity text-[var(--text-on-accent)]"
                                                         style=format!("background-color: {}", color)
                                                         on:click=move |_: ev::MouseEvent| open_edit_dialog(evt_clone.clone())
                                                     >
@@ -667,9 +667,9 @@ pub fn CalendarPage() -> impl IntoView {
                         }
 
                         view! {
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
-                                <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                    <div class="text-lg font-bold font-mono text-gray-900 dark:text-white">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
+                                <div class="px-4 py-3 border-b border-[var(--border-default)] bg-[var(--bg-inset)]">
+                                    <div class="text-lg font-bold font-mono text-[var(--text-primary)]">
                                         {format!("{} {}, {}", month_name(), d.day(), d.year())}
                                     </div>
                                 </div>
@@ -683,37 +683,37 @@ pub fn CalendarPage() -> impl IntoView {
                     // Event creation/editing dialog
                     {move || show_dialog.get().then(|| view! {
                         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_dialog.set(false)>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                                <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                                <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">
                                     {move || if editing_event.get().is_some() { t!("calendar.edit_event") } else { t!("calendar.new_event") }}
                                 </h3>
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("calendar.title")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("calendar.title")}</label>
                                         <input
                                             type="text"
                                             prop:value=move || dialog_title.get()
                                             on:input=move |ev| set_dialog_title.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         />
                                     </div>
                                     <div class="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("calendar.start")}</label>
+                                            <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("calendar.start")}</label>
                                             <input
                                                 type="datetime-local"
                                                 prop:value=move || dialog_start.get()
                                                 on:input=move |ev| set_dialog_start.set(event_target_value(&ev))
-                                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                             />
                                         </div>
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("calendar.end")}</label>
+                                            <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("calendar.end")}</label>
                                             <input
                                                 type="datetime-local"
                                                 prop:value=move || dialog_end.get()
                                                 on:input=move |ev| set_dialog_end.set(event_target_value(&ev))
-                                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                             />
                                         </div>
                                     </div>
@@ -723,35 +723,35 @@ pub fn CalendarPage() -> impl IntoView {
                                                 type="checkbox"
                                                 prop:checked=move || dialog_allday.get()
                                                 on:change=move |ev| set_dialog_allday.set(event_target_checked(&ev))
-                                                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                class="w-4 h-4 text-[var(--accent)] border-[var(--border-default)] rounded focus:ring-[var(--border-focus)]"
                                             />
-                                            <span class="text-sm text-gray-700 dark:text-gray-300">{t!("calendar.all_day")}</span>
+                                            <span class="text-sm text-[var(--text-secondary)]">{t!("calendar.all_day")}</span>
                                         </label>
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("calendar.color")}</label>
+                                            <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("calendar.color")}</label>
                                             <input
                                                 type="color"
                                                 prop:value=move || dialog_color.get()
                                                 on:input=move |ev| set_dialog_color.set(event_target_value(&ev))
-                                                class="w-10 h-8 border border-gray-300 dark:border-gray-600 rounded cursor-pointer"
+                                                class="w-10 h-8 border border-[var(--border-default)] rounded cursor-pointer"
                                             />
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("calendar.description")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("calendar.description")}</label>
                                         <textarea
                                             prop:value=move || dialog_description.get()
                                             on:input=move |ev| set_dialog_description.set(event_target_value(&ev))
                                             rows="3"
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         ></textarea>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("calendar.recurrence")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("calendar.recurrence")}</label>
                                         <select
                                             prop:value=move || dialog_recurrence.get()
                                             on:change=move |ev| set_dialog_recurrence.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         >
                                             <option value="">{t!("calendar.none")}</option>
                                             <option value="DAILY">{t!("calendar.daily")}</option>
@@ -771,7 +771,7 @@ pub fn CalendarPage() -> impl IntoView {
                                                         set_show_dialog.set(false);
                                                         delete_event(uid.clone());
                                                     }
-                                                    class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                    class="px-4 py-2 text-sm font-medium text-[var(--danger)] hover:text-[var(--danger)] hover:bg-[var(--danger-subtle)] rounded-lg transition-colors"
                                                 >
                                                     {t!("calendar.delete")}
                                                 </button>
@@ -781,13 +781,13 @@ pub fn CalendarPage() -> impl IntoView {
                                     <div class="flex items-center gap-3">
                                         <button
                                             on:click=move |_: ev::MouseEvent| set_show_dialog.set(false)
-                                            class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                            class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                                         >
                                             {t!("common.cancel")}
                                         </button>
                                         <button
                                             on:click=save_event
-                                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                            class="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                                         >
                                             {t!("common.save")}
                                         </button>

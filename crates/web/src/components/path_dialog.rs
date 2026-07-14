@@ -49,31 +49,31 @@ pub fn PathDialog(
                     aria-labelledby="path-dialog-title"
                     tabindex="-1"
                 >
-                    <h3 id="path-dialog-title" class="text-section font-mono text-gray-900 mb-4">{title}</h3>
+                    <h3 id="path-dialog-title" class="text-section font-mono text-[var(--text-primary)] mb-4">{title}</h3>
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.path.source_label")}</label>
-                        <div class="px-3 py-2 bg-[var(--bg-base)] border rounded text-sm text-gray-600 truncate">
+                        <label class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("dialog.path.source_label")}</label>
+                        <div class="px-3 py-2 bg-[var(--bg-base)] border rounded text-sm text-[var(--text-secondary)] truncate">
                             {source}
                         </div>
                     </div>
                     <div class="mb-4">
-                        <label for="path-dialog-dest" class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.path.destination_label")}</label>
+                        <label for="path-dialog-dest" class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("dialog.path.destination_label")}</label>
                         <input
                             id="path-dialog-dest"
                             type="text"
                             placeholder="/new/path/file.txt"
-                            class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
+                            class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                             prop:value=dest
                             on:input=move |ev| set_dest.set(event_target_value(&ev))
                         />
                     </div>
                     <div class="flex justify-end gap-2">
                         <button
-                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
+                            class="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
                             on:click=move |_| set_open.set(false)
                         >{t!("common.cancel")}</button>
                         <button
-                            class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                            class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
                             on:click=do_execute
                         >{action_label}</button>
                     </div>

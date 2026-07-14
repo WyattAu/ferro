@@ -107,9 +107,9 @@ pub fn DialogFooter(
     confirm_disabled: bool,
 ) -> impl IntoView {
     let confirm_class = if destructive {
-        "px-4 py-2 text-sm bg-[var(--danger)] text-white brutal-border rounded-sm font-bold uppercase hover:bg-[var(--danger-hover)] focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+        "px-4 py-2 text-sm bg-[var(--danger)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--danger-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--danger)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
     } else {
-        "px-4 py-2 text-sm bg-[var(--accent)] text-white brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+        "px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
     };
 
     view! {

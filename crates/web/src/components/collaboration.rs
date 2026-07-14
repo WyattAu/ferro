@@ -446,10 +446,10 @@ fn ConnectionBadge(state: ReadSignal<CollabConnectionState>) -> impl IntoView {
     };
 
     let color_class = move || match state.get() {
-        CollabConnectionState::Connected => "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-        CollabConnectionState::Connecting => "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+        CollabConnectionState::Connected => "bg-[var(--success-subtle)] text-[var(--success)] dark:bg-green-900 dark:text-[var(--success)]",
+        CollabConnectionState::Connecting => "bg-[var(--warning-subtle)] text-[var(--warning)] bg-[var(--warning-subtle)] text-[var(--warning)]",
         CollabConnectionState::ReadOnly => "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-        CollabConnectionState::Disconnected => "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
+        CollabConnectionState::Disconnected => "bg-[var(--bg-inset)] text-[var(--text-primary)] bg-[var(--bg-surface-raised)] dark:text-gray-200",
     };
 
     view! {
@@ -480,10 +480,10 @@ pub fn PresenceIndicator() -> impl IntoView {
                         <div class="flex items-center gap-1">
                             <div class="flex -space-x-1">
                                 <div
-                                    class="w-6 h-6 rounded-full bg-blue-500 border-2 border-white dark:border-gray-800 flex items-center justify-center"
+                                    class="w-6 h-6 rounded-full bg-[var(--accent)] border-2 border-white dark:border-[var(--border-strong)] flex items-center justify-center"
                                     title=user_name
                                 >
-                                    <span class="text-[10px] font-bold text-white">
+                                    <span class="text-[10px] font-bold text-[var(--text-on-accent)]">
                                         {user_initial}
                                     </span>
                                 </div>
@@ -492,10 +492,10 @@ pub fn PresenceIndicator() -> impl IntoView {
                                     let name = p.name.clone();
                                     view! {
                                         <div
-                                            class="w-6 h-6 rounded-full bg-gray-400 border-2 border-white dark:border-gray-800 flex items-center justify-center"
+                                            class="w-6 h-6 rounded-full bg-[var(--text-tertiary)] border-2 border-white dark:border-[var(--border-strong)] flex items-center justify-center"
                                             title=name
                                         >
-                                            <span class="text-[10px] font-bold text-white">{initial}</span>
+                                            <span class="text-[10px] font-bold text-[var(--text-on-accent)]">{initial}</span>
                                         </div>
                                     }
                                 }).collect::<Vec<_>>()}
@@ -517,7 +517,7 @@ pub fn CollabAwarenessBar() -> impl IntoView {
     let ctx = use_context::<CollabContext>();
 
     view! {
-        <div class="flex items-center gap-3 px-4 py-2 text-xs font-mono border-t bg-[var(--bg-base)] dark:border-gray-700">
+        <div class="flex items-center gap-3 px-4 py-2 text-xs font-mono border-t bg-[var(--bg-base)] border-[var(--border-default)]">
             <PresenceIndicator />
             {move || {
                 match ctx {

@@ -38,17 +38,17 @@ enum SortBy {
 
 fn priority_color(priority: &str) -> &'static str {
     match priority {
-        "urgent" => "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700",
+        "urgent" => "bg-[var(--danger-subtle)] text-[var(--danger)] border-[var(--danger-subtle)] dark:border-red-700",
         "high" => {
             "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700"
         }
         "medium" => {
-            "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700"
+            "bg-[var(--warning-subtle)] text-[var(--warning)] border-[var(--warning-subtle)] dark:border-yellow-700"
         }
         "low" => {
-            "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700"
+            "bg-[var(--success-subtle)] text-[var(--success)] border-[var(--success-subtle)] dark:border-green-700"
         }
-        _ => "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600",
+        _ => "bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] border-[var(--border-default)]",
     }
 }
 
@@ -324,24 +324,24 @@ pub fn TasksPage() -> impl IntoView {
     };
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 overflow-auto px-2 sm:px-4 pt-16">
                 <main id="main-content" class="max-w-full w-full mx-auto p-6">
                     // Header
                     <div class="flex items-center justify-between mb-6">
-                        <h1 class="text-2xl font-bold font-mono text-gray-900 dark:text-white">{t!("tasks.title")}</h1>
+                        <h1 class="text-2xl font-bold font-mono text-[var(--text-primary)]">{t!("tasks.title")}</h1>
                         <div class="flex items-center gap-3">
                             // View mode toggle
-                            <div class="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+                            <div class="flex items-center gap-1 bg-[var(--border-subtle)] bg-[var(--bg-surface-raised)] rounded-lg p-1">
                                 <button
                                     on:click=move |_| set_view_mode.set(ViewMode::Kanban)
                                     class=move || format!("px-3 py-1.5 text-sm font-medium rounded-md transition-colors {}",
                                         if view_mode.get() == ViewMode::Kanban {
-                                            "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow"
+                                            "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] shadow"
                                         } else {
-                                            "text-gray-600 dark:text-gray-300"
+                                            "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]"
                                         }
                                     )
                                 >
@@ -351,9 +351,9 @@ pub fn TasksPage() -> impl IntoView {
                                     on:click=move |_| set_view_mode.set(ViewMode::Calendar)
                                     class=move || format!("px-3 py-1.5 text-sm font-medium rounded-md transition-colors {}",
                                         if view_mode.get() == ViewMode::Calendar {
-                                            "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow"
+                                            "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] shadow"
                                         } else {
-                                            "text-gray-600 dark:text-gray-300"
+                                            "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]"
                                         }
                                     )
                                 >
@@ -371,7 +371,7 @@ pub fn TasksPage() -> impl IntoView {
                                     set_create_tags.set(String::new());
                                     set_show_create_dialog.set(true);
                                 }
-                                class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                                class="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                                 {t!("tasks.new_task")}
@@ -382,21 +382,21 @@ pub fn TasksPage() -> impl IntoView {
                     // Filters
                     <div class="flex items-center gap-4 mb-6">
                         <div class="flex items-center gap-2">
-                            <label class="text-sm text-gray-600 dark:text-gray-400">Assignee:</label>
+                            <label class="text-sm text-[var(--text-secondary)]">Assignee:</label>
                             <input
                                 type="text"
                                 prop:value=move || filter_assignee.get()
                                 on:input=move |ev| set_filter_assignee.set(event_target_value(&ev))
-                                class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                class="px-2 py-1 text-sm border border-[var(--border-default)] rounded bg-[var(--bg-surface)] text-[var(--text-primary)]"
                                 placeholder="Filter..."
                             />
                         </div>
                         <div class="flex items-center gap-2">
-                            <label class="text-sm text-gray-600 dark:text-gray-400">Priority:</label>
+                            <label class="text-sm text-[var(--text-secondary)]">Priority:</label>
                             <select
                                 prop:value=move || filter_priority.get()
                                 on:change=move |ev| set_filter_priority.set(event_target_value(&ev))
-                                class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                class="px-2 py-1 text-sm border border-[var(--border-default)] rounded bg-[var(--bg-surface)] text-[var(--text-primary)]"
                             >
                                 <option value="">All</option>
                                 <option value="urgent">Urgent</option>
@@ -406,7 +406,7 @@ pub fn TasksPage() -> impl IntoView {
                             </select>
                         </div>
                         <div class="flex items-center gap-2">
-                            <label class="text-sm text-gray-600 dark:text-gray-400">Sort:</label>
+                            <label class="text-sm text-[var(--text-secondary)]">Sort:</label>
                             <select
                                 prop:value=move || match sort_by.get() {
                                     SortBy::Priority => "priority",
@@ -421,7 +421,7 @@ pub fn TasksPage() -> impl IntoView {
                                         _ => SortBy::CreatedAt,
                                     });
                                 }
-                                class="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                class="px-2 py-1 text-sm border border-[var(--border-default)] rounded bg-[var(--bg-surface)] text-[var(--text-primary)]"
                             >
                                 <option value="created_at">Created</option>
                                 <option value="priority">Priority</option>
@@ -432,12 +432,12 @@ pub fn TasksPage() -> impl IntoView {
 
                     {move || loading.get().then(|| view! {
                         <div class="flex items-center justify-center py-12" role="status" aria-busy="true">
-                            <div class="text-sm text-gray-500 font-mono">{t!("common.loading")}</div>
+                            <div class="text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
                         </div>
                     })}
 
                     {move || (!error_msg.get().is_empty() && !loading.get()).then(|| view! {
-                        <div class="p-4 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
+                        <div class="p-4 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">
                             <span class="font-bold">{t!("error.prefix")}</span> {error_msg}
                         </div>
                     })}
@@ -453,17 +453,17 @@ pub fn TasksPage() -> impl IntoView {
                                                     let status_clone2 = status_clone.to_string();
                                     view! {
                                         <div
-                                            class="flex-shrink-0 w-80 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700"
+                                            class="flex-shrink-0 w-80 bg-[var(--bg-inset)] rounded-xl border border-[var(--border-default)]"
                                             on:dragover=on_drag_over
                                             on:drop={
                                                 let status_clone3 = status_clone.clone();
                                                 move |ev: ev::DragEvent| on_drop(status_clone3.clone(), ev)
                                             }
                                         >
-                                            <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                                            <div class="px-4 py-3 border-b border-[var(--border-default)]">
                                                 <div class="flex items-center justify-between">
-                                                    <h3 class="font-bold font-mono text-gray-900 dark:text-white">{label}</h3>
-                                                    <span class="text-xs text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">{column_tasks.len()}</span>
+                                                    <h3 class="font-bold font-mono text-[var(--text-primary)]">{label}</h3>
+                                                    <span class="text-xs text-[var(--text-tertiary)] bg-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-2 py-0.5 rounded-full">{column_tasks.len()}</span>
                                                 </div>
                                             </div>
                                             <div class="p-3 space-y-3 min-h-[200px]">
@@ -477,7 +477,7 @@ pub fn TasksPage() -> impl IntoView {
                                                         let task_id = task.id.clone();
                                                         view! {
                                                             <div
-                                                                class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                                                                class="bg-[var(--bg-surface)] rounded-lg border border-[var(--border-default)] p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
                                                                 draggable="true"
                                                                 on:dragstart={
                                                                     let task_id_for_drag = task_id.clone();
@@ -486,14 +486,14 @@ pub fn TasksPage() -> impl IntoView {
                                                                 on:click=move |_: ev::MouseEvent| open_detail(task_clone.clone())
                                                             >
                                                                 <div class="flex items-start justify-between gap-2">
-                                                                    <h4 class="text-sm font-medium text-gray-900 dark:text-white flex-1">{task.title.clone()}</h4>
+                                                                    <h4 class="text-sm font-medium text-[var(--text-primary)] flex-1">{task.title.clone()}</h4>
                                                                     <span class=move || format!("text-xs px-1.5 py-0.5 rounded border {}", priority_color(&task.priority))>
                                                                         {task.priority.clone()}
                                                                     </span>
                                                                 </div>
                                                                 {if !task.description.is_empty() {
                                                                     view! {
-                                                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{task.description.clone()}</p>
+                                                                        <p class="text-xs text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] mt-1 line-clamp-2">{task.description.clone()}</p>
                                                                     }.into_any()
                                                                 } else {
                                                                     ().into_any()
@@ -503,7 +503,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                     {if let Some(ref due) = task.due_date {
                                                                         let due_clone = due.clone();
                                                                         view! {
-                                                                            <span class="text-xs text-gray-500">{due_clone}</span>
+                                                                            <span class="text-xs text-[var(--text-tertiary)]">{due_clone}</span>
                                                                         }.into_any()
                                                                         } else {
                                                                             ().into_any()
@@ -511,7 +511,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                     </div>
                                                                     {if !task.assignee.is_empty() {
                                                                         view! {
-                                                                            <span class="text-xs text-blue-600 dark:text-blue-400">{task.assignee.clone()}</span>
+                                                                            <span class="text-xs text-[var(--accent)] dark:text-[var(--accent)]">{task.assignee.clone()}</span>
                                                                         }.into_any()
                                                                     } else {
                                                                         ().into_any()
@@ -521,7 +521,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                     view! {
                                                                         <div class="flex flex-wrap gap-1 mt-2">
                                                                             {task.tags.split(',').filter(|t| !t.trim().is_empty()).map(|tag| {
-                                                                                view! { <span class="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">{tag.trim()}</span> }
+                                                                                view! { <span class="text-xs px-1.5 py-0.5 bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] rounded">{tag.trim()}</span> }
                                                                             }).collect::<Vec<_>>()}
                                                                         </div>
                                                                     }.into_any()
@@ -529,7 +529,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                     ().into_any()
                                                                 }}
                                                                 // Quick move buttons
-                                                                <div class="flex items-center gap-1 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                                                <div class="flex items-center gap-1 mt-2 pt-2 border-t border-[var(--border-subtle)] border-[var(--border-default)]">
                                                                     {if status_clone2 != "todo" {
                                                                         let task_id_back = task_id.clone();
                                                                         let status_back = status_clone2.clone();
@@ -540,7 +540,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                                     let new_status = if status_back == "done" { "in_progress".to_string() } else { "todo".to_string() };
                                                                                     move_task(task_id_back.clone(), new_status);
                                                                                 }
-                                                                                class="text-xs px-2 py-0.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                                                                                class="text-xs px-2 py-0.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded"
                                                                             >
                                                                                 {if status_clone2 == "done" { "Reopen" } else { "Back" }}
                                                                             </button>
@@ -558,7 +558,7 @@ pub fn TasksPage() -> impl IntoView {
                                                                                     let new_status = if status_forward == "todo" { "in_progress".to_string() } else { "done".to_string() };
                                                                                     move_task(task_id_forward.clone(), new_status);
                                                                                 }
-                                                                                class="text-xs px-2 py-0.5 text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                                                                                class="text-xs px-2 py-0.5 text-[var(--accent)] hover:text-[var(--accent)] dark:hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] hover:bg-[var(--accent-subtle)] rounded"
                                                                             >
                                                                                 {if status_clone2 == "todo" { "Start" } else { "Complete" }}
                                                                             </button>
@@ -602,27 +602,27 @@ pub fn TasksPage() -> impl IntoView {
                         }
 
                         view! {
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
-                                <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                    <h3 class="font-bold font-mono text-gray-900 dark:text-white">Upcoming Tasks</h3>
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
+                                <div class="px-4 py-3 border-b border-[var(--border-default)] bg-[var(--bg-inset)]">
+                                    <h3 class="font-bold font-mono text-[var(--text-primary)]">Upcoming Tasks</h3>
                                 </div>
-                                <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                                <div class="divide-y divide-[var(--border-default)]">
                                     {days.into_iter().map(|(_date_str, date, day_tasks)| {
                                         let is_today = date == today;
                                         view! {
                                             <div class=move || format!("px-4 py-3 {}",
-                                                if is_today { "bg-blue-50 dark:bg-blue-900/10" } else { "" }
+                                                if is_today { "bg-[var(--accent-subtle)]" } else { "" }
                                             )>
                                                 <div class="flex items-center gap-3">
                                                     <div class=move || format!("w-16 text-center {}",
-                                                        if is_today { "text-blue-600 dark:text-blue-400 font-bold" } else { "text-gray-500" }
+                                                        if is_today { "text-[var(--accent)] dark:text-[var(--accent)] font-bold" } else { "text-[var(--text-tertiary)]" }
                                                     )>
                                                         <div class="text-xs">{format!("{:?}", date.weekday())}</div>
                                                         <div class="text-lg font-mono">{date.day()}</div>
                                                     </div>
                                                     <div class="flex-1">
                                                         {if day_tasks.is_empty() {
-                                                            view! { <div class="text-sm text-gray-400">No tasks</div> }.into_any()
+                                                            view! { <div class="text-sm text-[var(--text-tertiary)]">No tasks</div> }.into_any()
                                                         } else {
                                                             view! {
                                                                 <div class="space-y-1">
@@ -630,11 +630,11 @@ pub fn TasksPage() -> impl IntoView {
                                                                         let task_clone = task.clone();
                                                                         view! {
                                                                             <div
-                                                                                class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                                                                                class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[var(--interactive-hover)] cursor-pointer"
                                                                                 on:click=move |_: ev::MouseEvent| open_detail(task_clone.clone())
                                                                             >
                                                                                 <span class=move || format!("w-2 h-2 rounded-full {}", status_icon(&task.status))></span>
-                                                                                <span class="text-sm text-gray-900 dark:text-white flex-1">{task.title.clone()}</span>
+                                                                                <span class="text-sm text-[var(--text-primary)] flex-1">{task.title.clone()}</span>
                                                                                 <span class=move || format!("text-xs px-1.5 py-0.5 rounded {}", priority_color(&task.priority))>
                                                                                     {task.priority.clone()}
                                                                                 </span>
@@ -659,36 +659,36 @@ pub fn TasksPage() -> impl IntoView {
             // Create task dialog
             {move || show_create_dialog.get().then(|| view! {
                 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_create_dialog.set(false)>
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                        <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">{t!("tasks.new_task")}</h3>
+                    <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                        <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">{t!("tasks.new_task")}</h3>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.title")}</label>
+                                <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.title")}</label>
                                 <input
                                     type="text"
                                     prop:value=move || create_title.get()
                                     on:input=move |ev| set_create_title.set(event_target_value(&ev))
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     placeholder="Task title"
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.description")}</label>
+                                <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.description")}</label>
                                 <textarea
                                     prop:value=move || create_description.get()
                                     on:input=move |ev| set_create_description.set(event_target_value(&ev))
                                     rows="3"
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     placeholder="Description (optional)"
                                 ></textarea>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.status")}</label>
+                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.status")}</label>
                                     <select
                                         prop:value=move || create_status.get()
                                         on:change=move |ev| set_create_status.set(event_target_value(&ev))
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     >
                                         <option value="todo">To Do</option>
                                         <option value="in_progress">In Progress</option>
@@ -696,11 +696,11 @@ pub fn TasksPage() -> impl IntoView {
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.priority")}</label>
+                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.priority")}</label>
                                     <select
                                         prop:value=move || create_priority.get()
                                         on:change=move |ev| set_create_priority.set(event_target_value(&ev))
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     >
                                         <option value="low">Low</option>
                                         <option value="medium">Medium</option>
@@ -711,32 +711,32 @@ pub fn TasksPage() -> impl IntoView {
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.assignee")}</label>
+                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.assignee")}</label>
                                     <input
                                         type="text"
                                         prop:value=move || create_assignee.get()
                                         on:input=move |ev| set_create_assignee.set(event_target_value(&ev))
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         placeholder="Assignee"
                                     />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.due_date")}</label>
+                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.due_date")}</label>
                                     <input
                                         type="date"
                                         prop:value=move || create_due_date.get()
                                         on:input=move |ev| set_create_due_date.set(event_target_value(&ev))
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     />
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.tags")}</label>
+                                <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.tags")}</label>
                                 <input
                                     type="text"
                                     prop:value=move || create_tags.get()
                                     on:input=move |ev| set_create_tags.set(event_target_value(&ev))
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     placeholder="Comma-separated tags"
                                 />
                             </div>
@@ -744,13 +744,13 @@ pub fn TasksPage() -> impl IntoView {
                         <div class="flex items-center justify-end gap-3 mt-6">
                             <button
                                 on:click=move |_: ev::MouseEvent| set_show_create_dialog.set(false)
-                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                             >
                                 {t!("common.cancel")}
                             </button>
                             <button
                                 on:click=create_task
-                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                class="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                             >
                                 {t!("common.save")}
                             </button>
@@ -764,34 +764,34 @@ pub fn TasksPage() -> impl IntoView {
                 let task_id = selected_task.get().map(|t| t.id.clone()).unwrap_or_default();
                 view! {
                     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_detail_modal.set(false)>
-                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                            <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">{t!("tasks.edit_task")}</h3>
+                        <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-2xl w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                            <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">{t!("tasks.edit_task")}</h3>
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.title")}</label>
+                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.title")}</label>
                                     <input
                                         type="text"
                                         prop:value=move || detail_title.get()
                                         on:input=move |ev| set_detail_title.set(event_target_value(&ev))
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.description")}</label>
+                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.description")}</label>
                                     <textarea
                                         prop:value=move || detail_description.get()
                                         on:input=move |ev| set_detail_description.set(event_target_value(&ev))
                                         rows="4"
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     ></textarea>
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.status")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.status")}</label>
                                         <select
                                             prop:value=move || detail_status.get()
                                             on:change=move |ev| set_detail_status.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         >
                                             <option value="todo">To Do</option>
                                             <option value="in_progress">In Progress</option>
@@ -799,11 +799,11 @@ pub fn TasksPage() -> impl IntoView {
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.priority")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.priority")}</label>
                                         <select
                                             prop:value=move || detail_priority.get()
                                             on:change=move |ev| set_detail_priority.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         >
                                             <option value="low">Low</option>
                                             <option value="medium">Medium</option>
@@ -814,31 +814,31 @@ pub fn TasksPage() -> impl IntoView {
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.assignee")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.assignee")}</label>
                                         <input
                                             type="text"
                                             prop:value=move || detail_assignee.get()
                                             on:input=move |ev| set_detail_assignee.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.due_date")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.due_date")}</label>
                                         <input
                                             type="date"
                                             prop:value=move || detail_due_date.get()
                                             on:input=move |ev| set_detail_due_date.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("tasks.tags")}</label>
+                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("tasks.tags")}</label>
                                     <input
                                         type="text"
                                         prop:value=move || detail_tags.get()
                                         on:input=move |ev| set_detail_tags.set(event_target_value(&ev))
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                         placeholder="Comma-separated tags"
                                     />
                                 </div>
@@ -849,20 +849,20 @@ pub fn TasksPage() -> impl IntoView {
                                         set_show_detail_modal.set(false);
                                         delete_task(task_id.clone());
                                     }
-                                    class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                    class="px-4 py-2 text-sm font-medium text-[var(--danger)] hover:text-[var(--danger)] hover:bg-[var(--danger-subtle)] rounded-lg transition-colors"
                                 >
                                     {t!("tasks.delete")}
                                 </button>
                                 <div class="flex items-center gap-3">
                                     <button
                                         on:click=move |_: ev::MouseEvent| set_show_detail_modal.set(false)
-                                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                        class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                                     >
                                         {t!("common.cancel")}
                                     </button>
                                     <button
                                         on:click=save_task_detail
-                                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                        class="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                                     >
                                         {t!("common.save")}
                                     </button>

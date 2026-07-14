@@ -362,33 +362,33 @@ pub fn AdminPage() -> impl IntoView {
     };
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 flex overflow-hidden pt-16">
                 <NavigationSidebar />
                 <main id="main-content" class="flex-1 overflow-auto p-6">
-                    <h1 class="text-2xl font-bold font-mono text-gray-900 dark:text-white mb-6">{t!("admin.title")}</h1>
+                    <h1 class="text-2xl font-bold font-mono text-[var(--text-primary)] mb-6">{t!("admin.title")}</h1>
 
                     {/* Tab Navigation */}
                     <div class="flex flex-wrap items-center gap-1 mb-6">
-                        <button on:click=move |_| on_tab_change(AdminTab::Overview) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Overview { "bg-blue-600 text-white" } else { "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" })>{t!("admin.tab_overview")}</button>
-                        <button on:click=move |_| on_tab_change(AdminTab::Users) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Users { "bg-blue-600 text-white" } else { "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" })>{t!("admin.tab_users")}</button>
-                        <button on:click=move |_| on_tab_change(AdminTab::DlpPolicies) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::DlpPolicies { "bg-blue-600 text-white" } else { "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" })>{t!("admin.tab_dlp")}</button>
-                        <button on:click=move |_| on_tab_change(AdminTab::DlpAlerts) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::DlpAlerts { "bg-blue-600 text-white" } else { "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" })>{t!("admin.tab_dlp_alerts")}</button>
-                        <button on:click=move |_| on_tab_change(AdminTab::Antivirus) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Antivirus { "bg-blue-600 text-white" } else { "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" })>{t!("admin.tab_antivirus")}</button>
-                        <button on:click=move |_| on_tab_change(AdminTab::Watermarks) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Watermarks { "bg-blue-600 text-white" } else { "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" })>{t!("admin.tab_watermarks")}</button>
-                        <button on:click=move |_| on_tab_change(AdminTab::Notifications) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Notifications { "bg-blue-600 text-white" } else { "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700" })>{t!("admin.tab_notifications")}</button>
+                        <button on:click=move |_| on_tab_change(AdminTab::Overview) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Overview { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("admin.tab_overview")}</button>
+                        <button on:click=move |_| on_tab_change(AdminTab::Users) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Users { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("admin.tab_users")}</button>
+                        <button on:click=move |_| on_tab_change(AdminTab::DlpPolicies) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::DlpPolicies { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("admin.tab_dlp")}</button>
+                        <button on:click=move |_| on_tab_change(AdminTab::DlpAlerts) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::DlpAlerts { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("admin.tab_dlp_alerts")}</button>
+                        <button on:click=move |_| on_tab_change(AdminTab::Antivirus) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Antivirus { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("admin.tab_antivirus")}</button>
+                        <button on:click=move |_| on_tab_change(AdminTab::Watermarks) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Watermarks { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("admin.tab_watermarks")}</button>
+                        <button on:click=move |_| on_tab_change(AdminTab::Notifications) class=move || format!("px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == AdminTab::Notifications { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("admin.tab_notifications")}</button>
                     </div>
 
                     {move || loading.get().then(|| view! {
                         <div class="flex items-center justify-center py-12" role="status" aria-busy="true">
-                            <div class="text-sm text-gray-500 font-mono">{t!("common.loading")}</div>
+                            <div class="text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
                         </div>
                     })}
 
                     {move || (!error_msg.get().is_empty() && !loading.get()).then(|| view! {
-                        <div class="p-4 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
+                        <div class="p-4 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">
                             <span class="font-bold">{t!("error.prefix")}</span> {error_msg}
                         </div>
                     })}
@@ -397,15 +397,15 @@ pub fn AdminPage() -> impl IntoView {
                     {move || (tab.get() == AdminTab::Overview && !loading.get()).then(|| view! {
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <div class="surface brutal-border rounded-lg shadow-sm p-6">
-                                <h2 class="text-sm font-bold uppercase font-mono text-gray-500 mb-4">{t!("admin.storage")}</h2>
+                                <h2 class="text-sm font-bold uppercase font-mono text-[var(--text-tertiary)] mb-4">{t!("admin.storage")}</h2>
                                 <StorageStatsCard stats=storage_stats.into() />
                             </div>
                             <div class="surface brutal-border rounded-lg shadow-sm p-6">
-                                <h2 class="text-sm font-bold uppercase font-mono text-gray-500 mb-4">{t!("admin.share_links")}</h2>
+                                <h2 class="text-sm font-bold uppercase font-mono text-[var(--text-tertiary)] mb-4">{t!("admin.share_links")}</h2>
                                 <ShareLinksCard links=share_links.into() />
                             </div>
                             <div class="surface brutal-border rounded-lg shadow-sm p-6">
-                                <h2 class="text-sm font-bold uppercase font-mono text-gray-500 mb-4">{t!("admin.recent_activity")}</h2>
+                                <h2 class="text-sm font-bold uppercase font-mono text-[var(--text-tertiary)] mb-4">{t!("admin.recent_activity")}</h2>
                                 <AuditLogCard entries=audit_entries.into() />
                             </div>
                         </div>
@@ -415,35 +415,35 @@ pub fn AdminPage() -> impl IntoView {
                     {move || (tab.get() == AdminTab::Users).then(|| view! {
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{t!("admin.user_management")}</h2>
+                                <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{t!("admin.user_management")}</h2>
                                 <div class="flex items-center gap-2">
                                     <button
                                         on:click=move |_| {
                                             set_transfer_source.set(String::new());
                                             set_transfer_target.set(String::new());
                                         }
-                                        class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                        class="px-3 py-1.5 text-sm text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                                     >
                                         {t!("admin.account_transfer")}
                                     </button>
                                     <button
                                         on:click=move |_| set_show_create_user.set(true)
-                                        class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                                        class="px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                                     >
                                         {t!("admin.create_user")}
                                     </button>
                                 </div>
                             </div>
 
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
                                 <table class="w-full">
                                     <thead>
-                                        <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.username")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.email")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.role")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.status")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.created")}</th>
+                                        <tr class="border-b border-[var(--border-default)] bg-[var(--bg-inset)]">
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.username")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.email")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.role")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.status")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.created")}</th>
                                             <th class="px-4 py-3"></th>
                                         </tr>
                                     </thead>
@@ -466,21 +466,21 @@ pub fn AdminPage() -> impl IntoView {
                                                 let created_display = if created.len() >= 10 { created[..10].to_string() } else { created.clone() };
                                                 let user_clone = user.clone();
                                                 view! {
-                                                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white">{username}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300">{email}</td>
+                                                    <tr class="border-b border-[var(--border-subtle)] border-[var(--border-default)] hover:bg-[var(--interactive-hover)]/50 transition-colors">
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-primary)]">{username}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)]">{email}</td>
                                                         <td class="px-4 py-3 text-sm font-mono">
-                                                            <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if role2 == "admin" { "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" } else { "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300" })>{role}</span>
+                                                            <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if role2 == "admin" { "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" } else { "bg-[var(--bg-inset)] text-[var(--text-secondary)] bg-[var(--bg-surface-raised)] dark:text-[var(--text-tertiary)]" })>{role}</span>
                                                         </td>
                                                         <td class="px-4 py-3 text-sm font-mono">
-                                                            <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if is_active { "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" } else { "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" })>{if is_active { t!("common.enabled") } else { t!("common.disabled") }}</span>
+                                                            <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if is_active { "bg-[var(--success-subtle)] text-[var(--success)] dark:bg-green-900/30 text-[var(--success)]" } else { "bg-[var(--danger-subtle)] text-[var(--danger)] dark:bg-red-900/30 text-[var(--danger)]" })>{if is_active { t!("common.enabled") } else { t!("common.disabled") }}</span>
                                                         </td>
-                                                        <td class="px-4 py-3 text-xs font-mono text-gray-500">{created_display}</td>
+                                                        <td class="px-4 py-3 text-xs font-mono text-[var(--text-tertiary)]">{created_display}</td>
                                                         <td class="px-4 py-3">
                                                             <div class="flex items-center gap-1">
-                                                                <button on:click=move |_| { set_editing_user.set(Some(user_clone.clone())); set_show_create_user.set(true); } class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">{t!("common.edit")}</button>
-                                                                <button on:click=move |_| { fetch_devices(&uid2); set_show_devices.set(true); } class="text-xs text-gray-600 hover:text-gray-800 font-medium transition-colors">{t!("admin.devices")}</button>
-                                                                <button on:click=move |_| { let u = uid3.clone(); spawn_local(async move { let _ = api::fetch_json_with_method(&format!("/api/admin/users/{}", u), "DELETE", None).await; }); fetch_users(); } class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">{t!("common.delete")}</button>
+                                                                <button on:click=move |_| { set_editing_user.set(Some(user_clone.clone())); set_show_create_user.set(true); } class="text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium transition-colors">{t!("common.edit")}</button>
+                                                                <button on:click=move |_| { fetch_devices(&uid2); set_show_devices.set(true); } class="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors">{t!("admin.devices")}</button>
+                                                                <button on:click=move |_| { let u = uid3.clone(); spawn_local(async move { let _ = api::fetch_json_with_method(&format!("/api/admin/users/{}", u), "DELETE", None).await; }); fetch_users(); } class="text-xs text-[var(--danger)] hover:text-[var(--danger-hover)] font-medium transition-colors">{t!("common.delete")}</button>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -490,24 +490,24 @@ pub fn AdminPage() -> impl IntoView {
                                     </tbody>
                                 </table>
                                 {move || users.with(Vec::is_empty).then(|| view! {
-                                    <div class="p-8 text-center text-gray-500 text-sm">{t!("admin.no_users")}</div>
+                                    <div class="p-8 text-center text-[var(--text-tertiary)] text-sm">{t!("admin.no_users")}</div>
                                 })}
                             </div>
 
                             {/* Account Transfer */}
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-6">
-                                <h3 class="text-sm font-bold uppercase font-mono text-gray-500 mb-4">{t!("admin.account_transfer")}</h3>
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-6">
+                                <h3 class="text-sm font-bold uppercase font-mono text-[var(--text-tertiary)] mb-4">{t!("admin.account_transfer")}</h3>
                                 <div class="flex items-end gap-4">
                                     <div class="flex-1">
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.source_user")}</label>
-                                        <select prop:value=move || transfer_source.get() on:change=move |ev| set_transfer_source.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500">
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.source_user")}</label>
+                                        <select prop:value=move || transfer_source.get() on:change=move |ev| set_transfer_source.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]">
                                             <option value="">{t!("admin.select_user")}</option>
                                             {move || users.get().iter().map(|u| { let uid = u.id.clone(); let un = u.username.clone(); view! { <option value=uid.clone() selected=move || transfer_source.get() == uid>{un}</option> } }).collect::<Vec<_>>()}
                                         </select>
                                     </div>
                                     <div class="flex-1">
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.target_user")}</label>
-                                        <select prop:value=move || transfer_target.get() on:change=move |ev| set_transfer_target.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500">
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.target_user")}</label>
+                                        <select prop:value=move || transfer_target.get() on:change=move |ev| set_transfer_target.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]">
                                             <option value="">{t!("admin.select_user")}</option>
                                             {move || users.get().iter().map(|u| { let uid = u.id.clone(); let un = u.username.clone(); view! { <option value=uid.clone() selected=move || transfer_target.get() == uid>{un}</option> } }).collect::<Vec<_>>()}
                                         </select>
@@ -523,7 +523,7 @@ pub fn AdminPage() -> impl IntoView {
                                                 });
                                             }
                                         }
-                                        class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                                        class="px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                                     >
                                         {t!("admin.transfer")}
                                     </button>
@@ -536,18 +536,18 @@ pub fn AdminPage() -> impl IntoView {
                     {move || (tab.get() == AdminTab::DlpPolicies).then(|| view! {
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{t!("admin.dlp_policies")}</h2>
-                                <button on:click=move |_| set_show_create_policy.set(true) class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors">{t!("admin.create_policy")}</button>
+                                <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{t!("admin.dlp_policies")}</h2>
+                                <button on:click=move |_| set_show_create_policy.set(true) class="px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors">{t!("admin.create_policy")}</button>
                             </div>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
                                 <table class="w-full">
                                     <thead>
-                                        <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.policy_name")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.description")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.rule_type")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.action")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.status")}</th>
+                                        <tr class="border-b border-[var(--border-default)] bg-[var(--bg-inset)]">
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.policy_name")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.description")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.rule_type")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.action")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.status")}</th>
                                             <th class="px-4 py-3"></th>
                                         </tr>
                                     </thead>
@@ -565,14 +565,14 @@ pub fn AdminPage() -> impl IntoView {
                                                 let action = policy.action.clone();
                                                 let enabled = policy.enabled;
                                                 view! {
-                                                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white">{name}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 truncate max-w-xs">{desc}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300">{rtype}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300">{action}</td>
-                                                        <td class="px-4 py-3"><span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if enabled { "bg-green-100 text-green-700" } else { "bg-gray-100 text-gray-500" })>{if enabled { t!("common.enabled") } else { t!("common.disabled") }}</span></td>
+                                                    <tr class="border-b border-[var(--border-subtle)] border-[var(--border-default)] hover:bg-[var(--interactive-hover)]/50 transition-colors">
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-primary)]">{name}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)] truncate max-w-xs">{desc}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)]">{rtype}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)]">{action}</td>
+                                                        <td class="px-4 py-3"><span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if enabled { "bg-[var(--success-subtle)] text-[var(--success)]" } else { "bg-[var(--bg-inset)] text-[var(--text-tertiary)]" })>{if enabled { t!("common.enabled") } else { t!("common.disabled") }}</span></td>
                                                         <td class="px-4 py-3">
-                                                            <button on:click=move |_| { let p = pid.clone(); spawn_local(async move { let _ = api::fetch_json_with_method(&format!("/api/admin/dlp/policies/{}", p), "DELETE", None).await; }); fetch_dlp(); } class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">{t!("common.delete")}</button>
+                                                            <button on:click=move |_| { let p = pid.clone(); spawn_local(async move { let _ = api::fetch_json_with_method(&format!("/api/admin/dlp/policies/{}", p), "DELETE", None).await; }); fetch_dlp(); } class="text-xs text-[var(--danger)] hover:text-[var(--danger-hover)] font-medium transition-colors">{t!("common.delete")}</button>
                                                         </td>
                                                     </tr>
                                                 }
@@ -587,16 +587,16 @@ pub fn AdminPage() -> impl IntoView {
                     {/* DLP Alerts Tab */}
                     {move || (tab.get() == AdminTab::DlpAlerts).then(|| view! {
                         <div class="space-y-4">
-                            <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{t!("admin.dlp_alerts")}</h2>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
+                            <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{t!("admin.dlp_alerts")}</h2>
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
                                 <table class="w-full">
                                     <thead>
-                                        <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.policy")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.user")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.filename")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.detected_at")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.status")}</th>
+                                        <tr class="border-b border-[var(--border-default)] bg-[var(--bg-inset)]">
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.policy")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.user")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.filename")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.detected_at")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.status")}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -614,12 +614,12 @@ pub fn AdminPage() -> impl IntoView {
                                                 let status = alert.status.clone();
                                                 let status2 = status.clone();
                                                 view! {
-                                                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white">{policy}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300">{user}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 truncate max-w-xs">{filename}</td>
-                                                        <td class="px-4 py-3 text-xs font-mono text-gray-500">{detected_display}</td>
-                                                        <td class="px-4 py-3"><span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", match status2.as_str() { "resolved" => "bg-green-100 text-green-700", "pending" => "bg-yellow-100 text-yellow-700", _ => "bg-red-100 text-red-700" })>{status}</span></td>
+                                                    <tr class="border-b border-[var(--border-subtle)] border-[var(--border-default)] hover:bg-[var(--interactive-hover)]/50 transition-colors">
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-primary)]">{policy}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)]">{user}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)] truncate max-w-xs">{filename}</td>
+                                                        <td class="px-4 py-3 text-xs font-mono text-[var(--text-tertiary)]">{detected_display}</td>
+                                                        <td class="px-4 py-3"><span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", match status2.as_str() { "resolved" => "bg-[var(--success-subtle)] text-[var(--success)]", "pending" => "bg-[var(--warning-subtle)] text-[var(--warning)]", _ => "bg-[var(--danger-subtle)] text-[var(--danger)]" })>{status}</span></td>
                                                     </tr>
                                                 }
                                             }
@@ -627,7 +627,7 @@ pub fn AdminPage() -> impl IntoView {
                                     </tbody>
                                 </table>
                                 {move || dlp_alerts.with(Vec::is_empty).then(|| view! {
-                                    <div class="p-8 text-center text-gray-500 text-sm">{t!("admin.no_alerts")}</div>
+                                    <div class="p-8 text-center text-[var(--text-tertiary)] text-sm">{t!("admin.no_alerts")}</div>
                                 })}
                             </div>
                         </div>
@@ -637,7 +637,7 @@ pub fn AdminPage() -> impl IntoView {
                     {move || (tab.get() == AdminTab::Antivirus).then(|| view! {
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{t!("admin.antivirus")}</h2>
+                                <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{t!("admin.antivirus")}</h2>
                                 <button
                                     on:click=move |_| {
                                         set_av_scan_running.set(true);
@@ -648,20 +648,20 @@ pub fn AdminPage() -> impl IntoView {
                                         });
                                     }
                                     disabled=move || av_scan_running.get()
-                                    class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                    class="px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
                                 >
                                     {move || if av_scan_running.get() { t!("admin.scanning") } else { t!("admin.trigger_scan") }}
                                 </button>
                             </div>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
                                 <table class="w-full">
                                     <thead>
-                                        <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.scan_id")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.status")}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.scanned_at")}</th>
-                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.files_scanned")}</th>
-                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.threats_found")}</th>
+                                        <tr class="border-b border-[var(--border-default)] bg-[var(--bg-inset)]">
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.scan_id")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.status")}</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.scanned_at")}</th>
+                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.files_scanned")}</th>
+                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.threats_found")}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -679,12 +679,12 @@ pub fn AdminPage() -> impl IntoView {
                                                 let files = scan.files_scanned;
                                                 let threats = scan.threats_found;
                                                 view! {
-                                                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white">{sid}</td>
-                                                        <td class="px-4 py-3"><span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", match status2.as_str() { "clean" => "bg-green-100 text-green-700", "threats" => "bg-red-100 text-red-700", "running" => "bg-yellow-100 text-yellow-700", _ => "bg-gray-100 text-gray-500" })>{status}</span></td>
-                                                        <td class="px-4 py-3 text-xs font-mono text-gray-500">{scanned_display}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-700 dark:text-gray-300 text-right">{files}</td>
-                                                        <td class="px-4 py-3 text-sm font-mono text-right"><span class=move || (if threats > 0 { "text-red-600 font-bold" } else { "text-gray-500" }).to_string()>{threats}</span></td>
+                                                    <tr class="border-b border-[var(--border-subtle)] border-[var(--border-default)] hover:bg-[var(--interactive-hover)]/50 transition-colors">
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-primary)]">{sid}</td>
+                                                        <td class="px-4 py-3"><span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", match status2.as_str() { "clean" => "bg-[var(--success-subtle)] text-[var(--success)]", "threats" => "bg-[var(--danger-subtle)] text-[var(--danger)]", "running" => "bg-[var(--warning-subtle)] text-[var(--warning)]", _ => "bg-[var(--bg-inset)] text-[var(--text-tertiary)]" })>{status}</span></td>
+                                                        <td class="px-4 py-3 text-xs font-mono text-[var(--text-tertiary)]">{scanned_display}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-secondary)] text-right">{files}</td>
+                                                        <td class="px-4 py-3 text-sm font-mono text-right"><span class=move || (if threats > 0 { "text-[var(--danger)] font-bold" } else { "text-[var(--text-tertiary)]" }).to_string()>{threats}</span></td>
                                                     </tr>
                                                 }
                                             }
@@ -699,8 +699,8 @@ pub fn AdminPage() -> impl IntoView {
                     {move || (tab.get() == AdminTab::Watermarks).then(|| view! {
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{t!("admin.watermark_policies")}</h2>
-                                <button on:click=move |_| set_show_create_watermark.set(true) class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors">{t!("admin.create_watermark")}</button>
+                                <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{t!("admin.watermark_policies")}</h2>
+                                <button on:click=move |_| set_show_create_watermark.set(true) class="px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors">{t!("admin.create_watermark")}</button>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <For
@@ -715,14 +715,14 @@ pub fn AdminPage() -> impl IntoView {
                                         let enabled = wm.enabled;
                                         let wid = wm.id.clone();
                                         view! {
-                                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border p-4">
+                                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border p-4">
                                                 <div class="flex items-center justify-between mb-2">
-                                                    <span class="text-sm font-bold font-mono text-gray-900 dark:text-white">{name}</span>
-                                                    <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if enabled { "bg-green-100 text-green-700" } else { "bg-gray-100 text-gray-500" })>{if enabled { t!("common.enabled") } else { t!("common.disabled") }}</span>
+                                                    <span class="text-sm font-bold font-mono text-[var(--text-primary)]">{name}</span>
+                                                    <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if enabled { "bg-[var(--success-subtle)] text-[var(--success)]" } else { "bg-[var(--bg-inset)] text-[var(--text-tertiary)]" })>{if enabled { t!("common.enabled") } else { t!("common.disabled") }}</span>
                                                 </div>
-                                                <div class="text-xs font-mono text-gray-500 mb-1">{t!("admin.pattern")}: {pattern}</div>
-                                                <div class="text-xs font-mono text-gray-500 mb-3">{t!("admin.opacity")}: {opacity}</div>
-                                                <button on:click=move |_| { let w = wid.clone(); spawn_local(async move { let _ = api::fetch_json_with_method(&format!("/api/admin/watermarks/{}", w), "DELETE", None).await; }); fetch_watermarks(); } class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">{t!("common.delete")}</button>
+                                                <div class="text-xs font-mono text-[var(--text-tertiary)] mb-1">{t!("admin.pattern")}: {pattern}</div>
+                                                <div class="text-xs font-mono text-[var(--text-tertiary)] mb-3">{t!("admin.opacity")}: {opacity}</div>
+                                                <button on:click=move |_| { let w = wid.clone(); spawn_local(async move { let _ = api::fetch_json_with_method(&format!("/api/admin/watermarks/{}", w), "DELETE", None).await; }); fetch_watermarks(); } class="text-xs text-[var(--danger)] hover:text-[var(--danger-hover)] font-medium transition-colors">{t!("common.delete")}</button>
                                             </div>
                                         }
                                     }
@@ -734,14 +734,14 @@ pub fn AdminPage() -> impl IntoView {
                     {/* Notifications Tab */}
                     {move || (tab.get() == AdminTab::Notifications).then(|| view! {
                         <div class="space-y-4">
-                            <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{t!("admin.notification_preferences")}</h2>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden">
+                            <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{t!("admin.notification_preferences")}</h2>
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden">
                                 <table class="w-full">
                                     <thead>
-                                        <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.event_type")}</th>
-                                            <th class="px-4 py-3 text-center text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.email")}</th>
-                                            <th class="px-4 py-3 text-center text-xs font-bold uppercase font-mono text-gray-500">{t!("admin.push")}</th>
+                                        <tr class="border-b border-[var(--border-default)] bg-[var(--bg-inset)]">
+                                            <th class="px-4 py-3 text-left text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.event_type")}</th>
+                                            <th class="px-4 py-3 text-center text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.email")}</th>
+                                            <th class="px-4 py-3 text-center text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("admin.push")}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -755,13 +755,13 @@ pub fn AdminPage() -> impl IntoView {
                                                 let email = pref.email_enabled;
                                                 let push = pref.push_enabled;
                                                 view! {
-                                                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                        <td class="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white">{event}</td>
+                                                    <tr class="border-b border-[var(--border-subtle)] border-[var(--border-default)] hover:bg-[var(--interactive-hover)]/50 transition-colors">
+                                                        <td class="px-4 py-3 text-sm font-mono text-[var(--text-primary)]">{event}</td>
                                                         <td class="px-4 py-3 text-center">
-                                                            <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if email { "bg-green-100 text-green-700" } else { "bg-gray-100 text-gray-500" })>{if email { t!("common.enabled") } else { t!("common.disabled") }}</span>
+                                                            <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if email { "bg-[var(--success-subtle)] text-[var(--success)]" } else { "bg-[var(--bg-inset)] text-[var(--text-tertiary)]" })>{if email { t!("common.enabled") } else { t!("common.disabled") }}</span>
                                                         </td>
                                                         <td class="px-4 py-3 text-center">
-                                                            <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if push { "bg-green-100 text-green-700" } else { "bg-gray-100 text-gray-500" })>{if push { t!("common.enabled") } else { t!("common.disabled") }}</span>
+                                                            <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if push { "bg-[var(--success-subtle)] text-[var(--success)]" } else { "bg-[var(--bg-inset)] text-[var(--text-tertiary)]" })>{if push { t!("common.enabled") } else { t!("common.disabled") }}</span>
                                                         </td>
                                                     </tr>
                                                 }
@@ -776,27 +776,27 @@ pub fn AdminPage() -> impl IntoView {
                     {/* Create User Dialog */}
                     {move || show_create_user.get().then(|| view! {
                         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| { set_show_create_user.set(false); set_editing_user.set(None); }>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                                <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">{move || if editing_user.get().is_some() { t!("admin.edit_user") } else { t!("admin.create_user") }}</h3>
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                                <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">{move || if editing_user.get().is_some() { t!("admin.edit_user") } else { t!("admin.create_user") }}</h3>
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.username")}</label>
-                                        <input type="text" prop:value=move || new_user_username.get() on:input=move |ev| set_new_user_username.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500" />
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.username")}</label>
+                                        <input type="text" prop:value=move || new_user_username.get() on:input=move |ev| set_new_user_username.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]" />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.email")}</label>
-                                        <input type="email" prop:value=move || new_user_email.get() on:input=move |ev| set_new_user_email.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500" />
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.email")}</label>
+                                        <input type="email" prop:value=move || new_user_email.get() on:input=move |ev| set_new_user_email.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]" />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.role")}</label>
-                                        <select prop:value=move || new_user_role.get() on:change=move |ev| set_new_user_role.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500">
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.role")}</label>
+                                        <select prop:value=move || new_user_role.get() on:change=move |ev| set_new_user_role.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]">
                                             <option value="user">{t!("admin.role_user")}</option>
                                             <option value="admin">{t!("admin.role_admin")}</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="flex items-center justify-end gap-3 mt-6">
-                                    <button on:click=move |_: ev::MouseEvent| { set_show_create_user.set(false); set_editing_user.set(None); } class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">{t!("common.cancel")}</button>
+                                    <button on:click=move |_: ev::MouseEvent| { set_show_create_user.set(false); set_editing_user.set(None); } class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors">{t!("common.cancel")}</button>
                                     <button
                                         on:click=move |_: ev::MouseEvent| {
                                             let username = new_user_username.get();
@@ -815,7 +815,7 @@ pub fn AdminPage() -> impl IntoView {
                                             set_editing_user.set(None);
                                             fetch_users();
                                         }
-                                        class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                        class="px-4 py-2 text-sm font-bold text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                                     >
                                         {t!("common.save")}
                                     </button>
@@ -827,28 +827,28 @@ pub fn AdminPage() -> impl IntoView {
                     {/* Create DLP Policy Dialog */}
                     {move || show_create_policy.get().then(|| view! {
                         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_create_policy.set(false)>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                                <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">{t!("admin.create_policy")}</h3>
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                                <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">{t!("admin.create_policy")}</h3>
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.policy_name")}</label>
-                                        <input type="text" prop:value=move || new_policy_name.get() on:input=move |ev| set_new_policy_name.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500" />
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.policy_name")}</label>
+                                        <input type="text" prop:value=move || new_policy_name.get() on:input=move |ev| set_new_policy_name.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]" />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.description")}</label>
-                                        <textarea prop:value=move || new_policy_desc.get() on:input=move |ev| set_new_policy_desc.set(event_target_value(&ev)) rows="2" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"></textarea>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.description")}</label>
+                                        <textarea prop:value=move || new_policy_desc.get() on:input=move |ev| set_new_policy_desc.set(event_target_value(&ev)) rows="2" class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]"></textarea>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.rule_type")}</label>
-                                        <select prop:value=move || new_policy_type.get() on:change=move |ev| set_new_policy_type.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500">
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.rule_type")}</label>
+                                        <select prop:value=move || new_policy_type.get() on:change=move |ev| set_new_policy_type.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]">
                                             <option value="content">{t!("admin.dlp_content")}</option>
                                             <option value="metadata">{t!("admin.dlp_metadata")}</option>
                                             <option value="filename">{t!("admin.dlp_filename")}</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.action")}</label>
-                                        <select prop:value=move || new_policy_action.get() on:change=move |ev| set_new_policy_action.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500">
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.action")}</label>
+                                        <select prop:value=move || new_policy_action.get() on:change=move |ev| set_new_policy_action.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]">
                                             <option value="block">{t!("admin.dlp_block")}</option>
                                             <option value="warn">{t!("admin.dlp_warn")}</option>
                                             <option value="log">{t!("admin.dlp_log")}</option>
@@ -856,7 +856,7 @@ pub fn AdminPage() -> impl IntoView {
                                     </div>
                                 </div>
                                 <div class="flex items-center justify-end gap-3 mt-6">
-                                    <button on:click=move |_| set_show_create_policy.set(false) class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">{t!("common.cancel")}</button>
+                                    <button on:click=move |_| set_show_create_policy.set(false) class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors">{t!("common.cancel")}</button>
                                     <button
                                         on:click=move |_: ev::MouseEvent| {
                                             let name = new_policy_name.get();
@@ -870,7 +870,7 @@ pub fn AdminPage() -> impl IntoView {
                                             set_show_create_policy.set(false);
                                             fetch_dlp();
                                         }
-                                        class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                        class="px-4 py-2 text-sm font-bold text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                                     >
                                         {t!("common.create")}
                                     </button>
@@ -882,26 +882,26 @@ pub fn AdminPage() -> impl IntoView {
                     {/* Create Watermark Dialog */}
                     {move || show_create_watermark.get().then(|| view! {
                         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_create_watermark.set(false)>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                                <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">{t!("admin.create_watermark")}</h3>
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                                <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">{t!("admin.create_watermark")}</h3>
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.policy_name")}</label>
-                                        <input type="text" prop:value=move || new_wm_name.get() on:input=move |ev| set_new_wm_name.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500" />
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.policy_name")}</label>
+                                        <input type="text" prop:value=move || new_wm_name.get() on:input=move |ev| set_new_wm_name.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]" />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.pattern")}</label>
-                                        <input type="text" prop:value=move || new_wm_pattern.get() on:input=move |ev| set_new_wm_pattern.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500" />
-                                        <p class="text-xs text-gray-500 mt-1">{t!("admin.pattern_hint")}</p>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.pattern")}</label>
+                                        <input type="text" prop:value=move || new_wm_pattern.get() on:input=move |ev| set_new_wm_pattern.set(event_target_value(&ev)) class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]" />
+                                        <p class="text-xs text-[var(--text-tertiary)] mt-1">{t!("admin.pattern_hint")}</p>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("admin.opacity")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("admin.opacity")}</label>
                                         <input type="range" min="0" max="1" step="0.1" prop:value=move || new_wm_opacity.get().to_string() on:input=move |ev| { if let Ok(v) = event_target_value(&ev).parse::<f64>() { set_new_wm_opacity.set(v); } } class="w-full" />
-                                        <span class="text-xs font-mono text-gray-500">{move || format!("{:.1}", new_wm_opacity.get())}</span>
+                                        <span class="text-xs font-mono text-[var(--text-tertiary)]">{move || format!("{:.1}", new_wm_opacity.get())}</span>
                                     </div>
                                 </div>
                                 <div class="flex items-center justify-end gap-3 mt-6">
-                                    <button on:click=move |_| set_show_create_watermark.set(false) class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">{t!("common.cancel")}</button>
+                                    <button on:click=move |_| set_show_create_watermark.set(false) class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors">{t!("common.cancel")}</button>
                                     <button
                                         on:click=move |_: ev::MouseEvent| {
                                             let name = new_wm_name.get();
@@ -914,7 +914,7 @@ pub fn AdminPage() -> impl IntoView {
                                             set_show_create_watermark.set(false);
                                             fetch_watermarks();
                                         }
-                                        class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                        class="px-4 py-2 text-sm font-bold text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                                     >
                                         {t!("common.create")}
                                     </button>
@@ -926,8 +926,8 @@ pub fn AdminPage() -> impl IntoView {
                     {/* Devices Dialog */}
                     {move || show_devices.get().then(|| view! {
                         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_devices.set(false)>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                                <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">{t!("admin.user_devices")}</h3>
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                                <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">{t!("admin.user_devices")}</h3>
                                 <div class="space-y-2">
                                     <For
                                         each=move || selected_user_devices.get()
@@ -942,14 +942,14 @@ pub fn AdminPage() -> impl IntoView {
                                             let is_active = device.is_active;
                                             let did = device.id.clone();
                                             view! {
-                                                <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                                                <div class="flex items-center justify-between py-2 border-b border-[var(--border-subtle)] border-[var(--border-default)] last:border-0">
                                                     <div>
-                                                        <div class="text-sm font-mono text-gray-900 dark:text-white">{name} <span class="text-xs text-gray-500">({dtype})</span></div>
-                                                        <div class="text-xs text-gray-500">{t!("admin.last_seen")}: {last_seen_display}</div>
+                                                        <div class="text-sm font-mono text-[var(--text-primary)]">{name} <span class="text-xs text-[var(--text-tertiary)]">({dtype})</span></div>
+                                                        <div class="text-xs text-[var(--text-tertiary)]">{t!("admin.last_seen")}: {last_seen_display}</div>
                                                     </div>
                                                     <div class="flex items-center gap-2">
-                                                        <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if is_active { "bg-green-100 text-green-700" } else { "bg-gray-100 text-gray-500" })>{if is_active { t!("common.enabled") } else { t!("common.disabled") }}</span>
-                                                        <button on:click=move |_| { let d = did.clone(); spawn_local(async move { let _ = api::fetch_json_with_method(&format!("/api/admin/devices/{}/revoke", d), "POST", None).await; }); } class="text-xs text-red-600 hover:text-red-800 font-medium transition-colors">{t!("admin.revoke")}</button>
+                                                        <span class=move || format!("px-2 py-0.5 rounded text-xs font-bold {}", if is_active { "bg-[var(--success-subtle)] text-[var(--success)]" } else { "bg-[var(--bg-inset)] text-[var(--text-tertiary)]" })>{if is_active { t!("common.enabled") } else { t!("common.disabled") }}</span>
+                                                        <button on:click=move |_| { let d = did.clone(); spawn_local(async move { let _ = api::fetch_json_with_method(&format!("/api/admin/devices/{}/revoke", d), "POST", None).await; }); } class="text-xs text-[var(--danger)] hover:text-[var(--danger-hover)] font-medium transition-colors">{t!("admin.revoke")}</button>
                                                     </div>
                                                 </div>
                                             }
@@ -957,7 +957,7 @@ pub fn AdminPage() -> impl IntoView {
                                     </For>
                                 </div>
                                 <div class="mt-4 flex justify-end">
-                                    <button on:click=move |_| set_show_devices.set(false) class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">{t!("common.close")}</button>
+                                    <button on:click=move |_| set_show_devices.set(false) class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors">{t!("common.close")}</button>
                                 </div>
                             </div>
                         </div>
@@ -975,20 +975,20 @@ fn StorageStatsCard(stats: Signal<Option<serde_json::Value>>) -> impl IntoView {
             {move || stats.get().map(|s| view! {
                 <div class="space-y-3">
                     <div class="flex justify-between">
-                        <span class="text-gray-600 font-mono text-sm">{t!("admin.files")}</span>
-                        <span class="font-bold font-mono text-gray-900">{s.get("files").and_then(|v| v.as_u64()).unwrap_or(0)}</span>
+                        <span class="text-[var(--text-secondary)] font-mono text-sm">{t!("admin.files")}</span>
+                        <span class="font-bold font-mono text-[var(--text-primary)]">{s.get("files").and_then(|v| v.as_u64()).unwrap_or(0)}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-gray-600 font-mono text-sm">{t!("admin.collections")}</span>
-                        <span class="font-bold font-mono text-gray-900">{s.get("collections").and_then(|v| v.as_u64()).unwrap_or(0)}</span>
+                        <span class="text-[var(--text-secondary)] font-mono text-sm">{t!("admin.collections")}</span>
+                        <span class="font-bold font-mono text-[var(--text-primary)]">{s.get("collections").and_then(|v| v.as_u64()).unwrap_or(0)}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-gray-600 font-mono text-sm">{t!("admin.total_size")}</span>
-                        <span class="font-bold font-mono text-gray-900">{format_size(s.get("total_bytes").and_then(|v| v.as_u64()).unwrap_or(0))}</span>
+                        <span class="text-[var(--text-secondary)] font-mono text-sm">{t!("admin.total_size")}</span>
+                        <span class="font-bold font-mono text-[var(--text-primary)]">{format_size(s.get("total_bytes").and_then(|v| v.as_u64()).unwrap_or(0))}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-gray-600 font-mono text-sm">{t!("admin.cas_dedup")}</span>
-                        <span class={if s.get("cas").and_then(|c| c.get("enabled")).and_then(|e| e.as_bool()).unwrap_or(false) { "text-green-600" } else { "text-gray-500" }}>
+                        <span class="text-[var(--text-secondary)] font-mono text-sm">{t!("admin.cas_dedup")}</span>
+                        <span class={if s.get("cas").and_then(|c| c.get("enabled")).and_then(|e| e.as_bool()).unwrap_or(false) { "text-[var(--success)]" } else { "text-[var(--text-tertiary)]" }}>
                             {if s.get("cas").and_then(|c| c.get("enabled")).and_then(|e| e.as_bool()).unwrap_or(false) { t!("common.enabled") } else { t!("common.disabled") }}
                         </span>
                     </div>
@@ -1003,7 +1003,7 @@ fn ShareLinksCard(links: Signal<Vec<serde_json::Value>>) -> impl IntoView {
     view! {
         <div>
             {move || links.with(Vec::is_empty).then(|| view! {
-                <div class="text-sm text-gray-500">{t!("empty.share_links")}</div>
+                <div class="text-sm text-[var(--text-tertiary)]">{t!("empty.share_links")}</div>
             })}
             <For
                 each=move || links.get()
@@ -1014,9 +1014,9 @@ fn ShareLinksCard(links: Signal<Vec<serde_json::Value>>) -> impl IntoView {
                     let path = share.get("path").and_then(|p| p.as_str()).unwrap_or("?").to_string();
                     let expires = share.get("expires_at").and_then(|e| e.as_str()).unwrap_or("?").to_string();
                     view! {
-                        <div class="py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                            <div class="text-sm font-mono text-gray-900 dark:text-white">{path}</div>
-                            <div class="text-xs text-gray-500 mt-0.5">{t!("admin.expires")} {expires}</div>
+                        <div class="py-2 border-b border-[var(--border-subtle)] border-[var(--border-default)] last:border-0">
+                            <div class="text-sm font-mono text-[var(--text-primary)]">{path}</div>
+                            <div class="text-xs text-[var(--text-tertiary)] mt-0.5">{t!("admin.expires")} {expires}</div>
                         </div>
                     }
                 }}
@@ -1030,7 +1030,7 @@ fn AuditLogCard(entries: Signal<Vec<serde_json::Value>>) -> impl IntoView {
     view! {
         <div>
             {move || entries.with(Vec::is_empty).then(|| view! {
-                <div class="text-sm text-gray-500">{t!("empty.admin_activity")}</div>
+                <div class="text-sm text-[var(--text-tertiary)]">{t!("empty.admin_activity")}</div>
             })}
             <For
                 each=move || entries.get()
@@ -1043,16 +1043,16 @@ fn AuditLogCard(entries: Signal<Vec<serde_json::Value>>) -> impl IntoView {
                     let path = entry.get("path").and_then(|p| p.as_str()).unwrap_or("?").to_string();
                     let user = entry.get("user").and_then(|u| u.as_str()).unwrap_or("?").to_string();
                     let color = match status {
-                        200..=299 => "text-green-600",
-                        400..=499 => "text-yellow-600",
-                        _ => "text-red-600",
+                        200..=299 => "text-[var(--success)]",
+                        400..=499 => "text-[var(--warning)]",
+                        _ => "text-[var(--danger)]",
                     };
                     view! {
-                        <div class="py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0 text-xs">
+                        <div class="py-1.5 border-b border-[var(--border-subtle)] border-[var(--border-default)] last:border-0 text-xs">
                             <div class="flex items-center gap-2">
                                 <span class={color}>{method}</span>
-                                <span class="text-gray-600 truncate">{path}</span>
-                                <span class="text-gray-500 ml-auto">{user}</span>
+                                <span class="text-[var(--text-secondary)] truncate">{path}</span>
+                                <span class="text-[var(--text-tertiary)] ml-auto">{user}</span>
                             </div>
                         </div>
                     }

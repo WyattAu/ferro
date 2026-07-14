@@ -32,19 +32,19 @@ pub fn DeleteConfirmDialog(
                     aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-desc"
                     tabindex="-1"
                 >
-                    <h3 id="delete-confirm-title" class="text-lg font-semibold text-gray-900 mb-2">{t!("dialog.delete_confirm.title")}</h3>
-                    <p id="delete-confirm-desc" class="text-sm text-gray-600 mb-6">
+                    <h3 id="delete-confirm-title" class="text-lg font-semibold text-[var(--text-primary)] mb-2">{t!("dialog.delete_confirm.title")}</h3>
+                    <p id="delete-confirm-desc" class="text-sm text-[var(--text-secondary)] mb-6">
                         {move || format!("Are you sure you want to delete {} file(s)? This action cannot be undone.", count.get())}
                     </p>
                     <div class="flex justify-end gap-2">
                         <button
-                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
+                            class="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
                             on:click=move |_| set_open.set(false)
                         >
                             {t!("common.cancel")}
                         </button>
                         <button
-                            class="px-4 py-2 text-sm bg-red-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                            class="px-4 py-2 text-sm bg-[var(--danger)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--danger-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--danger)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
                             on:click=move |ev| {
                                 set_open.set(false);
                                 on_confirm.run(ev);

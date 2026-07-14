@@ -42,10 +42,10 @@ pub fn ErrorBoundary(children: Children) -> impl IntoView {
         {move || error_msg.get().map(|msg| view! {
             <div class="fixed inset-0 z-[9999] bg-[var(--bg-base)] flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-labelledby="error-boundary-title" aria-describedby="error-boundary-desc">
                 <div class="max-w-md w-full text-center">
-                    <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-16 h-16 text-[var(--danger)] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.832c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
-                    <h1 id="error-boundary-title" class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t!("error_boundary.title")}</h1>
+                    <h1 id="error-boundary-title" class="text-xl font-bold text-[var(--text-primary)] dark:text-gray-100 mb-2">{t!("error_boundary.title")}</h1>
                     <p id="error-boundary-desc" class="text-sm text-[var(--text-tertiary)] mb-6">
                         {t!("error_boundary.description")}
                     </p>
@@ -53,7 +53,7 @@ pub fn ErrorBoundary(children: Children) -> impl IntoView {
                         <p class="text-xs font-mono text-[var(--danger)] break-all max-h-32 overflow-y-auto">{msg}</p>
                     </div>
                     <button
-                        class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                        class="px-6 py-2.5 bg-[var(--accent)] text-[var(--text-on-accent)] rounded-lg hover:bg-[var(--accent-hover)] transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)]"
                         on:click=move |_| {
                             if let Some(window) = web_sys::window() {
                                 let _ = window.location().reload();

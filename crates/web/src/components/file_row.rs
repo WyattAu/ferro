@@ -33,7 +33,7 @@ pub fn FileRow(
     #[prop(default = Callback::new(move |_: String| {}))] on_version_history: Callback<String>,
 ) -> impl IntoView {
     let folder_icon = view! {
-        <svg class="w-5 h-5 text-yellow-500" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
+        <svg class="w-5 h-5 text-[var(--warning)]" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
         </svg>
     };
@@ -167,7 +167,7 @@ pub fn FileRow(
     view! {
         <tr
             class=move || format!(
-                "border-b border-gray-100 md:group cursor-pointer transition-colors {} {} block md:table-row mb-2 md:mb-0 px-3 py-2 md:px-0 md:py-0 rounded md:rounded-none mx-2 md:mx-0 md:border-0 md:first:border-t-0 {}",
+                "border-b border-[var(--border-subtle)] md:group cursor-pointer transition-colors {} {} block md:table-row mb-2 md:mb-0 px-3 py-2 md:px-0 md:py-0 rounded md:rounded-none mx-2 md:mx-0 md:border-0 md:first:border-t-0 {}",
                 if is_selected { "bg-[var(--accent-subtle)]" } else { "hover:bg-[var(--interactive-hover)] md:hover:bg-[var(--interactive-hover)]" },
                 if show_checkbox { "select-none" } else { "" },
                 if entry_is_collection && folder_hovering.get() { "ring-2 ring-blue-400 border-blue-400 bg-[var(--accent-subtle)]" } else { "" }
@@ -211,7 +211,7 @@ pub fn FileRow(
                     {if entry.is_collection { folder_icon.into_any() } else { file_icon.into_any() }}
                     {is_locked.then(|| view! {
                         <span class="text-xs" title=lock_tooltip.clone()>
-                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" title=lock_tooltip.clone()>
+                            <svg class="w-4 h-4 text-[var(--danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" title=lock_tooltip.clone()>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         </span>
@@ -223,7 +223,7 @@ pub fn FileRow(
                     <span class="md:hidden shrink-0 flex items-center gap-1">
                         {if entry.is_collection {
                             view! {
-                                <svg class="w-5 h-5 text-yellow-500" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
+                                <svg class="w-5 h-5 text-[var(--warning)]" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                                 </svg>
                             }.into_any()
@@ -235,7 +235,7 @@ pub fn FileRow(
                             }.into_any()
                         }}
                         {is_locked.then(|| view! {
-                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 text-[var(--danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         })}
@@ -244,7 +244,7 @@ pub fn FileRow(
                         {entry_name.clone()}
                     </span>
                     {is_locked.then(|| view! {
-                        <span class="text-xs text-red-500 font-medium">{t!("common.locked")}</span>
+                        <span class="text-xs text-[var(--danger)] font-medium">{t!("common.locked")}</span>
                     })}
                 </div>
             </td>
@@ -269,7 +269,7 @@ pub fn FileRow(
                     <button
                         class=move || {
                             let base = "p-2 md:p-1.5 rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center";
-                            let color = if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50" };
+                            let color = if is_favorited { "text-[var(--warning)] hover:text-[var(--warning)] hover:bg-[var(--warning-subtle)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--warning)] hover:bg-[var(--warning-subtle)]" };
                             format!("{} {}", base, color)
                         }
                         attr:aria-label=format!("{} {}", if is_favorited { t!("fav.unfavorite") } else { t!("fav.favorite") }, name_for_favorite)
@@ -300,7 +300,7 @@ pub fn FileRow(
                     })}
                     {(!entry.is_collection && !is_locked).then(|| view! {
                         <button
-                            class="p-2 md:p-1.5 text-[var(--text-tertiary)] hover:text-green-600 hover:bg-[var(--success-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
+                            class="p-2 md:p-1.5 text-[var(--text-tertiary)] hover:text-[var(--success)] hover:bg-[var(--success-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                             attr:aria-label=format!("Share {}", name_for_share)
                             title=t!("common.share")
                             on:click=move |ev| {
@@ -370,7 +370,7 @@ pub fn FileRow(
                         </button>
                     })}
                     {is_locked.then(|| view! {
-                        <span class="text-xs text-red-500 font-medium px-2">{t!("common.locked")}</span>
+                        <span class="text-xs text-[var(--danger)] font-medium px-2">{t!("common.locked")}</span>
                     })}
                     {(!is_locked).then(|| view! {
                         <button

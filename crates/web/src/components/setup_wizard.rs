@@ -106,7 +106,7 @@ pub fn SetupWizard() -> impl IntoView {
                 <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" on:click=move |_| { complete_setup(); set_visible.set(false); }></div>
                 <FocusTrap>
                 <div
-                    class="relative bg-white dark:bg-gray-900 rounded-lg shadow-2xl w-full sm:w-[560px] max-h-[90vh] overflow-y-auto"
+                    class="relative bg-[var(--bg-surface)] bg-[var(--bg-base)] rounded-lg shadow-2xl w-full sm:w-[560px] max-h-[90vh] overflow-y-auto"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="setup-wizard-title"
@@ -121,7 +121,7 @@ pub fn SetupWizard() -> impl IntoView {
                                 <span id="setup-wizard-title" class="font-bold text-lg font-mono text-[var(--text-primary)]">Ferro Setup</span>
                             </div>
                             <button
-                                class="text-sm text-[var(--text-tertiary)] hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 rounded px-2 py-1 font-mono min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                class="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 rounded px-2 py-1 font-mono min-w-[44px] min-h-[44px] flex items-center justify-center"
                                 on:click=skip
                                 aria-label="Skip setup wizard"
                             >
@@ -154,15 +154,15 @@ pub fn SetupWizard() -> impl IntoView {
                                         <div class="grid grid-cols-3 gap-4 mb-6 text-left">
                                             <div class="p-3 rounded bg-[var(--bg-surface-sunken)]">
                                                 <div class="text-orange-600 font-bold font-mono text-sm">"Step 1"</div>
-                                                <div class="text-xs text-gray-500 font-mono">"Admin account"</div>
+                                                <div class="text-xs text-[var(--text-tertiary)] font-mono">"Admin account"</div>
                                             </div>
                                             <div class="p-3 rounded bg-[var(--bg-surface-sunken)]">
                                                 <div class="text-orange-600 font-bold font-mono text-sm">"Step 2"</div>
-                                                <div class="text-xs text-gray-500 font-mono">"Storage backend"</div>
+                                                <div class="text-xs text-[var(--text-tertiary)] font-mono">"Storage backend"</div>
                                             </div>
                                             <div class="p-3 rounded bg-[var(--bg-surface-sunken)]">
                                                 <div class="text-orange-600 font-bold font-mono text-sm">"Step 3"</div>
-                                                <div class="text-xs text-gray-500 font-mono">"Authentication"</div>
+                                                <div class="text-xs text-[var(--text-tertiary)] font-mono">"Authentication"</div>
                                             </div>
                                         </div>
                                     </div>
@@ -183,7 +183,7 @@ pub fn SetupWizard() -> impl IntoView {
                                                 <input
                                                     id="setup-username"
                                                     type="text"
-                                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded font-mono text-sm bg-[var(--bg-surface)] dark:text-[var(--text-on-accent)] focus:outline-none focus:ring-2 focus:ring-orange-500"
                                                     placeholder="admin"
                                                     prop:value=move || admin_username.get()
                                                     on:input=move |ev| set_admin_username.set(event_target_value(&ev))
@@ -194,7 +194,7 @@ pub fn SetupWizard() -> impl IntoView {
                                                 <input
                                                     id="setup-email"
                                                     type="email"
-                                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded font-mono text-sm bg-[var(--bg-surface)] dark:text-[var(--text-on-accent)] focus:outline-none focus:ring-2 focus:ring-orange-500"
                                                     placeholder="admin@example.com"
                                                     prop:value=move || admin_email.get()
                                                     on:input=move |ev| set_admin_email.set(event_target_value(&ev))
@@ -205,7 +205,7 @@ pub fn SetupWizard() -> impl IntoView {
                                                 <input
                                                     id="setup-password"
                                                     type="password"
-                                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded font-mono text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded font-mono text-sm bg-[var(--bg-surface)] dark:text-[var(--text-on-accent)] focus:outline-none focus:ring-2 focus:ring-orange-500"
                                                     placeholder="Enter a strong password"
                                                     prop:value=move || admin_password.get()
                                                     on:input=move |ev| set_admin_password.set(event_target_value(&ev))
@@ -237,7 +237,7 @@ pub fn SetupWizard() -> impl IntoView {
                                                     <button
                                                         class=move || format!(
                                                             "w-full p-4 text-left rounded-lg border-2 transition-all font-mono min-h-[44px] {}",
-                                                            if storage_backend.get() == k_for_class { "border-orange-500 bg-orange-50 dark:bg-orange-900/20" } else { "border-[var(--border-default)] hover:border-gray-300" }
+                                                            if storage_backend.get() == k_for_class { "border-orange-500 bg-orange-50 dark:bg-orange-900/20" } else { "border-[var(--border-default)] hover:border-[var(--border-default)]" }
                                                         )
                                                         on:click=move |_| set_storage_backend.set(k.clone())
                                                     >
@@ -260,11 +260,11 @@ pub fn SetupWizard() -> impl IntoView {
                                             <p class="text-sm text-[var(--text-tertiary)] font-mono mt-1">"Optionally require login for file access"</p>
                                         </div>
                                         <div class="space-y-4">
-                                            <label for="setup-auth-toggle" class="flex items-center gap-3 p-4 rounded-lg border border-[var(--border-default)] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                            <label for="setup-auth-toggle" class="flex items-center gap-3 p-4 rounded-lg border border-[var(--border-default)] cursor-pointer hover:bg-[var(--bg-inset)] dark:hover:bg-[var(--interactive-hover)] transition-colors">
                                                 <input
                                                     id="setup-auth-toggle"
                                                     type="checkbox"
-                                                    class="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                                                    class="w-5 h-5 rounded border-[var(--border-default)] text-orange-600 focus:ring-orange-500"
                                                     prop:checked=move || auth_enabled.get()
                                                     on:change=move |ev| set_auth_enabled.set(event_target_checked(&ev))
                                                 />
@@ -294,11 +294,11 @@ pub fn SetupWizard() -> impl IntoView {
                                             <p class="text-sm text-[var(--text-tertiary)] font-mono mt-1">"Create a starter folder structure"</p>
                                         </div>
                                         <div class="space-y-3">
-                                            <label for="setup-samples-toggle" class="flex items-center gap-3 p-4 rounded-lg border border-[var(--border-default)] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                            <label for="setup-samples-toggle" class="flex items-center gap-3 p-4 rounded-lg border border-[var(--border-default)] cursor-pointer hover:bg-[var(--bg-inset)] dark:hover:bg-[var(--interactive-hover)] transition-colors">
                                                 <input
                                                     id="setup-samples-toggle"
                                                     type="checkbox"
-                                                    class="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                                                    class="w-5 h-5 rounded border-[var(--border-default)] text-orange-600 focus:ring-orange-500"
                                                     prop:checked=move || create_samples.get()
                                                     on:change=move |ev| set_create_samples.set(event_target_checked(&ev))
                                                 />
@@ -331,7 +331,7 @@ pub fn SetupWizard() -> impl IntoView {
                                                         "Shared"
                                                     </div>
                                                     <div class="flex items-center gap-2 text-[var(--text-secondary)]">
-                                                        <svg class="w-4 h-4 text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/></svg>
+                                                        <svg class="w-4 h-4 text-[var(--text-tertiary)]" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/></svg>
                                                         "Welcome.txt"
                                                     </div>
                                                 </div>
@@ -385,7 +385,7 @@ pub fn SetupWizard() -> impl IntoView {
                             <button
                                 class=move || format!(
                                     "px-4 py-2 text-sm rounded font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[44px] {}",
-                                    if step.get() == SetupStep::Welcome { "invisible" } else { "text-[var(--text-secondary)] hover:text-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800" }
+                                    if step.get() == SetupStep::Welcome { "invisible" } else { "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-inset)] dark:hover:bg-[var(--interactive-hover)]" }
                                 )
                                 on:click=move |_| {
                                     let s = step.get();
@@ -421,9 +421,9 @@ pub fn SetupWizard() -> impl IntoView {
                                 class=move || format!(
                                     "px-5 py-2 text-sm font-medium font-mono rounded transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 min-h-[44px] {}",
                                     if step.get() == SetupStep::QuickStart {
-                                        "bg-green-600 text-white hover:bg-green-700"
+                                        "bg-[var(--success)] text-[var(--text-on-accent)] hover:bg-[var(--success-hover)]"
                                     } else {
-                                        "bg-orange-600 text-white hover:bg-orange-700"
+                                        "bg-orange-600 text-[var(--text-on-accent)] hover:bg-orange-700"
                                     }
                                 )
                                 on:click=move |ev| {

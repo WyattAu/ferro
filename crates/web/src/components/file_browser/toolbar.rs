@@ -29,7 +29,7 @@ pub fn Toolbar(
            <div class="flex items-center justify-between gap-2">
                <div class="flex items-center gap-2 min-w-0 flex-1">
                    <button
-                       class="p-2 text-[var(--text-tertiary)] hover:text-gray-700 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
+                       class="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
                         aria-label=t!("breadcrumb.parent")
                        on:click=go_up
                        disabled=move || current_path.get() == "/"
@@ -42,11 +42,11 @@ pub fn Toolbar(
                     {children()}
 
                    <div class="flex items-center gap-1 sm:gap-2 flex-wrap justify-end shrink-0">
-                       <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded p-0.5">
+                       <div class="flex items-center bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] rounded p-0.5">
                            <button
                                class=move || {
                                    let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
-                                   let active = if active_tab.get() == BrowserTab::Files { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-[var(--text-tertiary)] hover:text-gray-700" };
+                                   let active = if active_tab.get() == BrowserTab::Files { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] dark:text-gray-100 shadow-sm border-b-2 border-b-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]" };
                                    format!("{} {}", base, active)
                                }
                                 on:click=move |_| switch_tab.run(BrowserTab::Files)
@@ -57,7 +57,7 @@ pub fn Toolbar(
                           <button
                               class=move || {
                                   let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
-                                  let active = if active_tab.get() == BrowserTab::Favorites { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-[var(--text-tertiary)] hover:text-gray-700" };
+                                  let active = if active_tab.get() == BrowserTab::Favorites { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] dark:text-gray-100 shadow-sm border-b-2 border-b-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]" };
                                   format!("{} {}", base, active)
                               }
                               on:click=move |_| switch_tab.run(BrowserTab::Favorites)
@@ -69,7 +69,7 @@ pub fn Toolbar(
                          <button
                              class=move || {
                                  let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
-                                 let active = if active_tab.get() == BrowserTab::Recent { "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm border-b-2 border-b-blue-600" } else { "text-[var(--text-tertiary)] hover:text-gray-700" };
+                                 let active = if active_tab.get() == BrowserTab::Recent { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] dark:text-gray-100 shadow-sm border-b-2 border-b-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]" };
                                  format!("{} {}", base, active)
                              }
                              on:click=move |_| switch_tab.run(BrowserTab::Recent)
@@ -88,7 +88,7 @@ pub fn Toolbar(
                          }).unwrap_or_default();
                           view! {
                               <button
-                                  class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-green-600 text-white rounded-sm brutal-border font-bold uppercase hover:bg-green-700 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                                  class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-[var(--success)] text-[var(--text-on-accent)] rounded-sm brutal-border font-bold uppercase hover:bg-[var(--success-hover)] transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[var(--success)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
                                   on:click=move |_| clipboard_paste.run(())
                                   title=move || format!("{} file(s) on clipboard ({})", count, al)
                                   aria-label=move || format!("Paste {} file(s)", count)
@@ -103,7 +103,7 @@ pub fn Toolbar(
                      })}
 
                      <button
-                         class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-[var(--accent)] text-[var(--text-on-accent)] rounded-sm hover:bg-blue-700 brutal-border shadow-iron transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px] uppercase font-bold tracking-wider"
+                         class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-[var(--accent)] text-[var(--text-on-accent)] rounded-sm hover:bg-[var(--accent-hover)] brutal-border shadow-iron transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px] uppercase font-bold tracking-wider"
                          aria-label=t!("toolbar.aria_upload")
                          on:click=move |_| set_show_upload.set(true)
                      >
@@ -113,7 +113,7 @@ pub fn Toolbar(
                          <span class="hidden sm:inline">{t!("common.upload")}</span>
                      </button>
                      <button
-                         class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 rounded-sm brutal-border font-bold uppercase hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px] tracking-wider"
+                         class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] rounded-sm brutal-border font-bold uppercase hover:bg-[var(--border-subtle)] hover:bg-[var(--interactive-hover)] transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px] tracking-wider"
                           aria-label=t!("toolbar.aria_new_folder")
                          on:click=move |_| set_show_new_folder.set(true)
                      >
@@ -124,7 +124,7 @@ pub fn Toolbar(
                      </button>
                      <A
                          href="/ui/trash"
-                         attr:class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-800 rounded hover:bg-gray-100 transition-colors no-underline flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                         attr:class="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--bg-inset)] transition-colors no-underline flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
                           attr:aria-label=t!("toolbar.aria_trash")
                      >
                          <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,7 +135,7 @@ pub fn Toolbar(
 
                      // View mode toggle
                      <button
-                         class="p-2 text-[var(--text-tertiary)] hover:text-gray-700 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
+                         class="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
                           aria-label=move || if view_mode.get() == ViewMode::Grid { t!("toolbar.aria_toggle_view") } else { t!("toolbar.aria_toggle_grid") }
                           title=move || if view_mode.get() == ViewMode::Grid { t!("toolbar.list_view") } else { t!("toolbar.grid_view") }
                          on:click=toggle_view_mode
@@ -157,7 +157,7 @@ pub fn Toolbar(
                      <button
                          class=move || format!(
                              "p-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center {}",
-                             if select_mode.get() { "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" } else { "text-[var(--text-tertiary)] hover:text-gray-700 hover:bg-gray-100" }
+                             if select_mode.get() { "bg-[var(--accent-subtle)] text-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)]" }
                          )
                           aria-label=t!("toolbar.aria_select_mode")
                          aria_pressed=move || select_mode.get()
@@ -170,7 +170,7 @@ pub fn Toolbar(
                      <button
                          class=move || format!(
                              "p-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center transition-all duration-200 {}",
-                             if show_activity.get() { "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" } else { "text-[var(--text-tertiary)] hover:text-gray-700 hover:bg-gray-100" }
+                             if show_activity.get() { "bg-[var(--accent-subtle)] text-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)]" }
                          )
                           aria-label=t!("toolbar.aria_activity")
                          on:click=toggle_activity

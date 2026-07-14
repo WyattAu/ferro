@@ -167,17 +167,17 @@ pub fn OnboardingOverlay() -> impl IntoView {
     let step_icon = move |s: OnboardingStep| {
         match s {
             OnboardingStep::Welcome => view! {
-                <svg class="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-12 h-12 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
             }.into_any(),
             OnboardingStep::Upload => view! {
-                <svg class="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-12 h-12 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
             }.into_any(),
             OnboardingStep::Organize => view! {
-                <svg class="w-12 h-12 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-12 h-12 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                 </svg>
             }.into_any(),
@@ -209,7 +209,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
                     <div class="p-6 sm:p-8">
                         <div class="flex justify-end mb-2">
                             <button
-                                class="text-sm text-[var(--text-tertiary)] hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded px-2 py-1 font-mono text-label"
+                                class="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded px-2 py-1 font-mono text-label"
                                 on:click=handle_skip
                             >
                                 {t!("onboarding.skip_tour")}
@@ -218,7 +218,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
 
                         <div class="text-center mb-6">
                             {step_icon(current_step())}
-                            <h2 class="text-xl font-bold font-mono text-gray-900 mt-4 tracking-tight">
+                            <h2 class="text-xl font-bold font-mono text-[var(--text-primary)] mt-4 tracking-tight">
                                 {current_step().title()}
                             </h2>
                             <div class="w-full bg-[var(--border-default)] rounded-sm h-3 mt-4">
@@ -239,8 +239,8 @@ pub fn OnboardingOverlay() -> impl IntoView {
                         <div class="flex items-center justify-between gap-3">
                             <button
                                 class=move || format!(
-                                    "px-4 py-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 {}",
-                                    if is_first() { "invisible" } else { "text-[var(--text-secondary)] hover:text-gray-800 hover:bg-gray-100" }
+                                    "px-4 py-2 text-sm rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] {}",
+                                    if is_first() { "invisible" } else { "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-inset)]" }
                                 )
                                 on:click=handle_back
                                 disabled=is_first()
@@ -253,7 +253,7 @@ pub fn OnboardingOverlay() -> impl IntoView {
                                     <div
                                         class=move || format!(
                                             "w-2 h-2 rounded-full transition-colors {}",
-                                            if i == current_step().index() { "bg-blue-500" } else { "bg-[var(--text-tertiary)]" }
+                                            if i == current_step().index() { "bg-[var(--accent)]" } else { "bg-[var(--text-tertiary)]" }
                                         )
                                     ></div>
                                 }).collect::<Vec<_>>()
@@ -262,8 +262,8 @@ pub fn OnboardingOverlay() -> impl IntoView {
 
                             <button
                                 class=move || format!(
-                                    "px-5 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 brutal-border font-bold uppercase {}",
-                                    if is_last() { "bg-green-600 text-white hover:bg-green-700" } else { "bg-[var(--accent)] text-[var(--text-on-accent)] hover:bg-blue-700" }
+                                    "px-5 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] brutal-border font-bold uppercase {}",
+                                    if is_last() { "bg-[var(--success)] text-[var(--text-on-accent)] hover:bg-[var(--success-hover)]" } else { "bg-[var(--accent)] text-[var(--text-on-accent)] hover:bg-[var(--accent-hover)]" }
                                 )
                                 on:click=handle_next
                             >

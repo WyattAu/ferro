@@ -41,17 +41,17 @@ pub fn file_type_from_extension(name: &str) -> FileType {
 
 pub fn file_type_color(ft: FileType) -> &'static str {
     match ft {
-        FileType::Folder => "text-yellow-500",
+        FileType::Folder => "text-[var(--warning)]",
         FileType::Image => "text-purple-500",
-        FileType::Video => "text-red-600",
-        FileType::Audio => "text-green-600",
-        FileType::Pdf => "text-yellow-500",
-        FileType::Text => "text-gray-800 dark:text-gray-300",
-        FileType::Code => "text-gray-800 dark:text-gray-300",
+        FileType::Video => "text-[var(--danger)]",
+        FileType::Audio => "text-[var(--success)]",
+        FileType::Pdf => "text-[var(--warning)]",
+        FileType::Text => "text-[var(--text-primary)] dark:text-[var(--text-tertiary)]",
+        FileType::Code => "text-[var(--text-primary)] dark:text-[var(--text-tertiary)]",
         FileType::Archive => "text-amber-600",
         FileType::Spreadsheet => "text-emerald-500",
         FileType::Presentation => "text-orange-600",
-        FileType::Generic => "text-gray-500 dark:text-gray-400",
+        FileType::Generic => "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
     }
 }
 

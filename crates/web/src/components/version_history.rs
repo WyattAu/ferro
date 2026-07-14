@@ -145,7 +145,7 @@ pub fn VersionHistory(
                         <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)]">
                             <div class="flex items-center gap-2">
                                 <Icon name=IconName::Clock class="w-5 h-5 text-[var(--text-tertiary)]".to_string() />
-                                <h3 id="version-history-title" class="text-lg font-semibold font-mono text-gray-900">
+                                <h3 id="version-history-title" class="text-lg font-semibold font-mono text-[var(--text-primary)]">
                                     {t!("dialog.version_history.title")}
                                 </h3>
                             </div>
@@ -154,9 +154,9 @@ pub fn VersionHistory(
                                     class=move || {
                                         let base = "px-3 py-1.5 text-xs font-bold uppercase rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[36px]";
                                         if compare_mode.get() {
-                                            format!("{} bg-[var(--accent)] text-[var(--text-on-accent)] hover:bg-blue-700", base)
+                                            format!("{} bg-[var(--accent)] text-[var(--text-on-accent)] hover:bg-[var(--accent-hover)]", base)
                                         } else {
-                                            format!("{} text-gray-600 hover:text-gray-800 hover:bg-[var(--interactive-hover)]", base)
+                                            format!("{} text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]", base)
                                         }
                                     }
                                     on:click=move |ev| {
@@ -173,7 +173,7 @@ pub fn VersionHistory(
                                     {t!("dialog.version_history.compare")}
                                 </button>
                                 <button
-                                    class="p-1 text-[var(--text-tertiary)] hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                    class="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
                                     aria-label=t!("aria.close_dialog")
                                     on:click=close_panel
                                 >
@@ -186,8 +186,8 @@ pub fn VersionHistory(
 
                         // Compare bar
                         {move || compare_mode.get().then(|| view! {
-                            <div class="px-4 py-2 bg-[var(--accent-subtle)] border-b border-blue-200 flex items-center justify-between">
-                                <span class="text-sm text-blue-700 font-mono">
+                            <div class="px-4 py-2 bg-[var(--accent-subtle)] border-b border-[var(--border-default)] flex items-center justify-between">
+                                <span class="text-sm text-[var(--accent)] font-mono">
                                     {move || {
                                         let count = selected_for_compare.with(|s| s.len());
                                         match count {
@@ -198,7 +198,7 @@ pub fn VersionHistory(
                                     }}
                                 </span>
                                 <button
-                                    class="px-3 py-1.5 text-xs font-bold uppercase bg-[var(--accent)] text-[var(--text-on-accent)] rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
+                                    class="px-3 py-1.5 text-xs font-bold uppercase bg-[var(--accent)] text-[var(--text-on-accent)] rounded hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                                     disabled=move || selected_for_compare.with(|s| s.len()) != 2
                                     on:click=do_compare
                                 >
@@ -216,14 +216,14 @@ pub fn VersionHistory(
                             })}
 
                             {move || error.get().map(|e| view! {
-                                <div class="p-3 bg-[var(--danger-subtle)] border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">
+                                <div class="p-3 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">
                                     {e}
                                 </div>
                             })}
 
                             {move || (!loading.get() && error.get().is_none() && versions.with(Vec::is_empty)).then(|| view! {
                                 <div class="text-center py-8 text-[var(--text-tertiary)]" role="status">
-                                    <Icon name=IconName::Clock class="w-12 h-12 mx-auto mb-3 text-gray-300".to_string() />
+                                    <Icon name=IconName::Clock class="w-12 h-12 mx-auto mb-3 text-[var(--text-tertiary)]".to_string() />
                                     <div class="text-sm font-medium">{t!("dialog.version_history.empty")}</div>
                                     <div class="text-xs text-[var(--text-tertiary)] mt-1">{t!("dialog.version_history.empty_hint")}</div>
                                 </div>
@@ -256,7 +256,7 @@ pub fn VersionHistory(
                                             class=move || {
                                                 let base = "flex items-center gap-3 p-3 rounded-lg border transition-colors";
                                                 if is_selected() {
-                                                    format!("{} bg-[var(--accent-subtle)] border-blue-300", base)
+                                                    format!("{} bg-[var(--accent-subtle)] border-[var(--border-default)]", base)
                                                 } else {
                                                     format!("{} bg-[var(--bg-surface)] border-[var(--border-default)] hover:bg-[var(--interactive-hover)]", base)
                                                 }
@@ -278,11 +278,11 @@ pub fn VersionHistory(
 
                                             <div class="flex-1 min-w-0">
                                                 <div class="flex items-center gap-2">
-                                                    <span class="font-mono text-sm font-semibold text-gray-900">
+                                                    <span class="font-mono text-sm font-semibold text-[var(--text-primary)]">
                                                         {format!("v{}", vid)}
                                                     </span>
                                                     {is_latest.then(|| view! {
-                                                        <span class="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-green-100 text-green-700 rounded">
+                                                        <span class="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-[var(--success-subtle)] text-[var(--success)] rounded">
                                                             {t!("dialog.version_history.current")}
                                                         </span>
                                                     })}
@@ -301,7 +301,7 @@ pub fn VersionHistory(
 
                                             {(!compare_mode.get()).then(|| view! {
                                                 <button
-                                                    class="px-3 py-1.5 text-xs font-bold uppercase bg-[var(--accent)] text-[var(--text-on-accent)] rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[36px] whitespace-nowrap"
+                                                    class="px-3 py-1.5 text-xs font-bold uppercase bg-[var(--accent)] text-[var(--text-on-accent)] rounded hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[36px] whitespace-nowrap"
                                                     disabled=is_restoring
                                                     on:click=move |ev| {
                                                         ev.stop_propagation();
@@ -326,11 +326,11 @@ pub fn VersionHistory(
                         {move || diff_result.get().map(|diff| view! {
                             <div class="border-t border-[var(--border-default)] px-4 py-3 max-h-[40vh] overflow-y-auto">
                                 <div class="flex items-center justify-between mb-2">
-                                    <h4 class="text-sm font-semibold font-mono text-gray-900">
+                                    <h4 class="text-sm font-semibold font-mono text-[var(--text-primary)]">
                                         {format!("Diff: v{} → v{}", diff.from_version, diff.to_version)}
                                     </h4>
                                     <button
-                                        class="text-xs text-[var(--text-tertiary)] hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded px-2 py-1"
+                                        class="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded px-2 py-1"
                                         on:click=move |_| set_diff_result.set(None)
                                         aria-label="Close diff"
                                     >
@@ -340,7 +340,7 @@ pub fn VersionHistory(
                                     </button>
                                 </div>
                                 <div class="text-xs text-[var(--text-tertiary)] font-mono mb-2">
-                                    <span class="text-green-600">+{diff.stats.additions}</span>
+                                    <span class="text-[var(--success)]">+{diff.stats.additions}</span>
                                     <span class="mx-1">/</span>
                                     <span class="text-[var(--danger)]">-{diff.stats.deletions}</span>
                                     <span class="mx-1">/</span>
@@ -354,12 +354,12 @@ pub fn VersionHistory(
                                     }.into_any()
                                 } else {
                                     view! {
-                                        <pre class="text-xs font-mono bg-gray-50 rounded p-2 overflow-x-auto"><code>
+                                        <pre class="text-xs font-mono bg-[var(--bg-inset)] rounded p-2 overflow-x-auto"><code>
                                             {diff.lines.iter().map(|line| {
                                                 let class = match line.type_.as_str() {
-                                                    "added" => "text-green-700 bg-[var(--success-subtle)]",
-                                                    "removed" => "text-red-700 bg-[var(--danger-subtle)]",
-                                                    _ => "text-gray-600",
+                                                    "added" => "text-[var(--success)] bg-[var(--success-subtle)]",
+                                                    "removed" => "text-[var(--danger)] bg-[var(--danger-subtle)]",
+                                                    _ => "text-[var(--text-secondary)]",
                                                 };
                                                 let prefix = match line.type_.as_str() {
                                                     "added" => "+",

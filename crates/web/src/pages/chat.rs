@@ -228,7 +228,7 @@ pub fn ChatPage() -> impl IntoView {
                 .unwrap_or(after_at.len());
             let username = &after_at[..word_end];
             result.push_str(&format!(
-                "<span class=\"text-blue-500 font-semibold\">@{}</span>",
+                "<span class=\"text-[var(--accent)] font-semibold\">@{}</span>",
                 username
             ));
             remaining = &after_at[word_end..];
@@ -238,29 +238,29 @@ pub fn ChatPage() -> impl IntoView {
     };
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 overflow-hidden px-2 sm:px-4 pt-16">
                 <main id="main-content" class="h-full flex">
                     // Sidebar - Room list
-                    <div class="w-72 flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                        <div class="p-3 border-b border-gray-200 dark:border-gray-700">
+                    <div class="w-72 flex-shrink-0 flex flex-col border-r border-[var(--border-default)] bg-[var(--bg-surface)]">
+                        <div class="p-3 border-b border-[var(--border-default)]">
                             <div class="flex items-center justify-between mb-3">
-                                <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">"Chat"</h2>
+                                <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">"Chat"</h2>
                                 <button
                                     on:click=move |_: ev::MouseEvent| {
                                         set_new_room_name.set(String::new());
                                         set_show_create_room.set(true);
                                     }
-                                    class="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    class="p-1.5 bg-[var(--accent)] text-[var(--text-on-accent)] rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                                     title="New Room"
                                 >
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                                 </button>
                             </div>
-                            <div class="flex items-center gap-2 text-xs text-gray-500">
-                                <div class=move || format!("w-2 h-2 rounded-full {}", if ws_connected.get() { "bg-green-500" } else { "bg-gray-400" })></div>
+                            <div class="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                                <div class=move || format!("w-2 h-2 rounded-full {}", if ws_connected.get() { "bg-[var(--success-subtle)]0" } else { "bg-[var(--text-tertiary)]" })></div>
                                 <span>{move || if ws_connected.get() { "Connected" } else { "Disconnected" }}</span>
                             </div>
                         </div>
@@ -268,7 +268,7 @@ pub fn ChatPage() -> impl IntoView {
                         <div class="flex-1 overflow-y-auto">
                             {move || loading.get().then(|| view! {
                                 <div class="flex items-center justify-center py-8">
-                                    <div class="text-sm text-gray-500 font-mono">{t!("common.loading")}</div>
+                                    <div class="text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
                                 </div>
                             })}
 
@@ -283,16 +283,16 @@ pub fn ChatPage() -> impl IntoView {
                                     let room_clone = room.clone();
                                     view! {
                                         <div
-                                            class=move || format!("px-3 py-2 cursor-pointer border-b border-gray-100 dark:border-gray-700/50 transition-colors {}",
-                                                if is_selected() { "bg-blue-50 dark:bg-blue-900/20" } else { "hover:bg-gray-50 dark:hover:bg-gray-700/50" }
+                                            class=move || format!("px-3 py-2 cursor-pointer border-b border-[var(--border-subtle)] border-[var(--border-default)]/50 transition-colors {}",
+                                                if is_selected() { "bg-[var(--accent-subtle)]" } else { "hover:bg-[var(--interactive-hover)]/50" }
                                             )
                                             on:click=move |_: ev::MouseEvent| select_room(room_clone.id.clone())
                                         >
                                             <div class="flex items-center gap-2">
-                                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                                <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{room.name}</div>
+                                                <svg class="w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                                <div class="text-sm font-medium text-[var(--text-primary)] truncate">{room.name}</div>
                                             </div>
-                                            <div class="text-xs text-gray-400 mt-1">{room.room_type}</div>
+                                            <div class="text-xs text-[var(--text-tertiary)] mt-1">{room.room_type}</div>
                                         </div>
                                     }
                                 }
@@ -308,10 +308,10 @@ pub fn ChatPage() -> impl IntoView {
                                 view! {
                                     <div class="flex-1 flex flex-col overflow-hidden">
                                         // Room header
-                                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                                        <div class="px-6 py-4 border-b border-[var(--border-default)] bg-[var(--bg-surface)]">
                                             <div class="flex items-center gap-3">
-                                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                                <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{room_name}</h3>
+                                                <svg class="w-5 h-5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                                <h3 class="text-lg font-bold font-mono text-[var(--text-primary)]">{room_name}</h3>
                                             </div>
                                         </div>
 
@@ -325,28 +325,28 @@ pub fn ChatPage() -> impl IntoView {
                                                 {
                                                     view! {
                                                         <div class="flex gap-3">
-                                                            <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                                            <div class="w-8 h-8 rounded-full bg-[var(--accent)] flex items-center justify-center text-[var(--text-on-accent)] text-sm font-bold flex-shrink-0">
                                                                 {msg.user_id.chars().next().unwrap_or('U').to_uppercase().collect::<String>()}
                                                             </div>
                                                             <div class="flex-1 min-w-0">
                                                                 <div class="flex items-baseline gap-2">
-                                                                    <span class="text-sm font-medium text-gray-900 dark:text-white">{msg.user_id.clone()}</span>
-                                                                    <span class="text-xs text-gray-400">{msg.timestamp[..19.min(msg.timestamp.len())].to_string()}</span>
+                                                                    <span class="text-sm font-medium text-[var(--text-primary)]">{msg.user_id.clone()}</span>
+                                                                    <span class="text-xs text-[var(--text-tertiary)]">{msg.timestamp[..19.min(msg.timestamp.len())].to_string()}</span>
                                                                 </div>
                                                                 {if let Some(ref reply_to) = msg.reply_to {
                                                                     view! {
-                                                                        <div class="text-xs text-gray-400 mb-1">"Replying to "{reply_to.clone()}</div>
+                                                                        <div class="text-xs text-[var(--text-tertiary)] mb-1">"Replying to "{reply_to.clone()}</div>
                                                                     }.into_any()
                                                                 } else {
                                                                     ().into_any()
                                                                 }}
-                                                                <div class="text-sm text-gray-700 dark:text-gray-300 mt-0.5" inner_html=highlight_mentions(msg.content.clone())></div>
+                                                                <div class="text-sm text-[var(--text-secondary)] mt-0.5" inner_html=highlight_mentions(msg.content.clone())></div>
                                                                 {if let Some(ref attachment) = msg.attachment_path {
                                                                     let attachment_clone = attachment.clone();
                                                                     view! {
-                                                                        <div class="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 inline-flex items-center gap-2">
-                                                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                                                            <span class="text-xs text-gray-600 dark:text-gray-400">{attachment_clone}</span>
+                                                                        <div class="mt-2 p-2 bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] rounded-lg border border-[var(--border-default)] border-[var(--border-default)] inline-flex items-center gap-2">
+                                                                            <svg class="w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                                                            <span class="text-xs text-[var(--text-secondary)]">{attachment_clone}</span>
                                                                         </div>
                                                                     }.into_any()
                                                                 } else {
@@ -364,7 +364,7 @@ pub fn ChatPage() -> impl IntoView {
                                             let typing = typing_users.get();
                                             if !typing.is_empty() {
                                                 view! {
-                                                    <div class="px-6 py-1 text-xs text-gray-400">
+                                                    <div class="px-6 py-1 text-xs text-[var(--text-tertiary)]">
                                                         {typing.join(", ")}
 
                                                         {if typing.len() == 1 { " is typing..." } else { " are typing..." }}
@@ -376,19 +376,19 @@ pub fn ChatPage() -> impl IntoView {
                                         }}
 
                                         // Message input
-                                        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                                        <div class="px-6 py-4 border-t border-[var(--border-default)] bg-[var(--bg-surface)]">
                                             <div class="flex gap-3">
                                                 <input
                                                     type="text"
                                                     prop:value=move || new_message.get()
                                                     on:input=move |ev| set_new_message.set(event_target_value(&ev))
                                                     on:keydown=handle_keydown
-                                                    class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    class="flex-1 px-4 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                                     placeholder="Type a message... (use @ to mention)"
                                                 />
                                                 <button
                                                     on:click=send_message
-                                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                                    class="px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] rounded-lg hover:bg-[var(--accent-hover)] transition-colors font-medium"
                                                 >
                                                     "Send"
                                                 </button>
@@ -398,10 +398,10 @@ pub fn ChatPage() -> impl IntoView {
                                 }.into_any()
                             } else {
                                 view! {
-                                    <div class="flex-1 flex items-center justify-center bg-white dark:bg-gray-800">
+                                    <div class="flex-1 flex items-center justify-center bg-[var(--bg-surface)]">
                                         <div class="text-center">
-                                            <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                            <p class="text-gray-500">Select a chat room</p>
+                                            <svg class="w-16 h-16 mx-auto text-[var(--text-tertiary)] dark:text-[var(--text-secondary)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                            <p class="text-[var(--text-tertiary)]">Select a chat room</p>
                                         </div>
                                     </div>
                                 }.into_any()
@@ -414,16 +414,16 @@ pub fn ChatPage() -> impl IntoView {
             // Create room dialog
             {move || show_create_room.get().then(|| view! {
                 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_create_room.set(false)>
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                        <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">"New Chat Room"</h3>
+                    <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                        <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">"New Chat Room"</h3>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">"Room Name"</label>
+                                <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">"Room Name"</label>
                                 <input
                                     type="text"
                                     prop:value=move || new_room_name.get()
                                     on:input=move |ev| set_new_room_name.set(event_target_value(&ev))
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     placeholder="Enter room name"
                                 />
                             </div>
@@ -431,13 +431,13 @@ pub fn ChatPage() -> impl IntoView {
                         <div class="flex items-center justify-end gap-3 mt-6">
                             <button
                                 on:click=move |_: ev::MouseEvent| set_show_create_room.set(false)
-                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                             >
                                 {t!("common.cancel")}
                             </button>
                             <button
                                 on:click=create_room
-                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                class="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                             >
                                 {t!("common.save")}
                             </button>

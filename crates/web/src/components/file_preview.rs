@@ -133,7 +133,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                         </div>
                     </div>
                     <button
-                        class="p-2 text-[var(--text-tertiary)] hover:text-gray-600 hover:bg-[var(--interactive-hover)] rounded surface shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] ml-4 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded surface shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] ml-4 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         aria-label=t!("preview.aria_close")
                         on:click=close
                     >
@@ -153,13 +153,13 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                     })}
 
                     {move || error.get().map(|e| view! {
-                        <div class="bg-red-50 border-l-4 border-l-red-500 rounded p-4 text-red-700">
+                        <div class="bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded p-4 text-[var(--danger)]">
                             "Failed to load file: " {e}
                         </div>
                     })}
 
                     {move || content.get().map(|text| view! {
-                        <pre class="bg-[var(--bg-base)] border rounded p-4 text-sm text-gray-800 overflow-auto whitespace-pre-wrap font-mono">{text}</pre>
+                        <pre class="bg-[var(--bg-base)] border rounded p-4 text-sm text-[var(--text-primary)] overflow-auto whitespace-pre-wrap font-mono">{text}</pre>
                     })}
 
                     {move || (!loading.get() && content.get().is_none() && error.get().is_none()).then(|| view! {
@@ -199,12 +199,12 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                 }.into_any(),
                                 _ => view! {
                                     <div class="flex flex-col items-center justify-center py-12 text-center">
-                                        <svg class="w-16 h-16 text-gray-300 mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-16 h-16 text-[var(--text-tertiary)] mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
                                         <p class="text-[var(--text-tertiary)] mb-4">{t!("preview.not_available")}</p>
                                         <button
-                                            class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px]"
+                                            class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
                                             on:click=move |_| {
                                                 let path = p.clone();
                                                 spawn_local(async move {

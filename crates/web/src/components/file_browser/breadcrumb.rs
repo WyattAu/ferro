@@ -36,7 +36,7 @@ pub fn Breadcrumb(current_path: Signal<String>, navigate: Callback<String>) -> i
                                      <span class="text-[var(--text-tertiary)] mx-1" aria-hidden="true">{t!("breadcrumb.separator")}</span>
                                 })}
                                  <button
-                                     class="text-[var(--accent)] hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded truncate max-w-[120px] sm:max-w-none min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                     class="text-[var(--accent)] hover:text-[var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded truncate max-w-[120px] sm:max-w-none min-w-[44px] min-h-[44px] flex items-center justify-center"
                                      attr:aria-current=move || if is_current() { Some("page") } else { None }
                                      on:click=move |_| navigate.run(p.clone())
                                 >

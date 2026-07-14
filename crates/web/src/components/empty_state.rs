@@ -25,7 +25,7 @@ pub fn EmptyState(
                     <div class="text-lg font-medium text-[var(--text-tertiary)]">{t!("empty.folder")}</div>
                     <div class="text-sm text-[var(--text-tertiary)] mt-1 mb-4">{t!("empty.folder_hint")}</div>
                     <button
-                        class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                        class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)]"
                         on:click=move |_| on_upload.run(())
                         aria-label=t!("empty.folder_upload_btn")
                     >

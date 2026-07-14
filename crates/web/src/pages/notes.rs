@@ -201,24 +201,24 @@ pub fn NotesPage() -> impl IntoView {
     };
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 overflow-hidden px-2 sm:px-4 pt-16">
                 <main id="main-content" class="h-full flex">
                     // Sidebar
-                    <div class="w-72 flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <div class="w-72 flex-shrink-0 flex flex-col border-r border-[var(--border-default)] bg-[var(--bg-surface)]">
                         // Sidebar header
-                        <div class="p-3 border-b border-gray-200 dark:border-gray-700">
+                        <div class="p-3 border-b border-[var(--border-default)]">
                             <div class="flex items-center justify-between mb-3">
-                                <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{t!("notes.title")}</h2>
+                                <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{t!("notes.title")}</h2>
                                 <button
                                     on:click=move |_: ev::MouseEvent| {
                                         set_create_title.set(String::new());
                                         set_create_folder.set(String::new());
                                         set_show_create_dialog.set(true);
                                     }
-                                    class="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    class="p-1.5 bg-[var(--accent)] text-[var(--text-on-accent)] rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                                     title="New Note"
                                 >
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -226,19 +226,19 @@ pub fn NotesPage() -> impl IntoView {
                             </div>
                             // Search
                             <div class="relative">
-                                <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                 <input
                                     type="text"
                                     placeholder="Search notes..."
                                     prop:value=move || search_query.get()
                                     on:input=move |ev| set_search_query.set(event_target_value(&ev))
-                                    class="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full pl-8 pr-3 py-1.5 text-sm border border-[var(--border-default)] rounded-lg bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                 />
                             </div>
                         </div>
 
                         // Sort controls
-                        <div class="px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+                        <div class="px-3 py-2 border-b border-[var(--border-default)] flex items-center gap-2">
                             <select
                                 prop:value=move || match sort_by.get() {
                                     SortBy::UpdatedAt => "updated_at",
@@ -253,7 +253,7 @@ pub fn NotesPage() -> impl IntoView {
                                         _ => SortBy::UpdatedAt,
                                     });
                                 }
-                                class="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                class="text-xs px-2 py-1 border border-[var(--border-default)] rounded bg-[var(--bg-surface)] text-[var(--text-secondary)]"
                             >
                                 <option value="updated_at">Updated</option>
                                 <option value="created_at">Created</option>
@@ -265,7 +265,7 @@ pub fn NotesPage() -> impl IntoView {
                                         *o = if *o == "desc" { "asc".to_string() } else { "desc".to_string() };
                                     });
                                 }
-                                class="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                class="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
                             >
                                 {move || if sort_order.get() == "desc" {
                                     view! { <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> }.into_any()
@@ -284,11 +284,11 @@ pub fn NotesPage() -> impl IntoView {
                                 };
                             }
                             view! {
-                                <div class="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+                                <div class="px-3 py-2 border-b border-[var(--border-default)]">
                                     <select
                                         prop:value=move || folder_filter.get()
                                         on:change=move |ev| set_folder_filter.set(event_target_value(&ev))
-                                        class="w-full text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                        class="w-full text-xs px-2 py-1 border border-[var(--border-default)] rounded bg-[var(--bg-surface)] text-[var(--text-secondary)]"
                                     >
                                         <option value="">All folders</option>
                                         {f.into_iter().map(|folder| {
@@ -304,7 +304,7 @@ pub fn NotesPage() -> impl IntoView {
                         <div class="flex-1 overflow-y-auto">
                             {move || loading.get().then(|| view! {
                                 <div class="flex items-center justify-center py-8">
-                                    <div class="text-sm text-gray-500 font-mono">{t!("common.loading")}</div>
+                                    <div class="text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
                                 </div>
                             })}
 
@@ -319,25 +319,25 @@ pub fn NotesPage() -> impl IntoView {
                                     let note_clone = note.clone();
                                     view! {
                                         <div
-                                            class=move || format!("px-3 py-2 cursor-pointer border-b border-gray-100 dark:border-gray-700/50 transition-colors {}",
-                                                if is_selected() { "bg-blue-50 dark:bg-blue-900/20" } else { "hover:bg-gray-50 dark:hover:bg-gray-700/50" }
+                                            class=move || format!("px-3 py-2 cursor-pointer border-b border-[var(--border-subtle)] border-[var(--border-default)]/50 transition-colors {}",
+                                                if is_selected() { "bg-[var(--accent-subtle)]" } else { "hover:bg-[var(--interactive-hover)]/50" }
                                             )
                                             on:click=move |_: ev::MouseEvent| open_note(note_clone.id.clone())
                                         >
-                                            <div class="text-sm font-medium text-gray-900 dark:text-white truncate">{note.title}</div>
+                                            <div class="text-sm font-medium text-[var(--text-primary)] truncate">{note.title}</div>
                                             <div class="flex items-center gap-2 mt-1">
                                                 {if !note.folder.is_empty() {
-                                                    view! { <span class="text-xs text-blue-500 dark:text-blue-400">{note.folder}</span> }.into_any()
+                                                    view! { <span class="text-xs text-[var(--accent)] dark:text-[var(--accent)]">{note.folder}</span> }.into_any()
                                                 } else {
                                                     ().into_any()
                                                 }}
-                                                <span class="text-xs text-gray-400">{note.updated_at[..10.min(note.updated_at.len())].to_string()}</span>
+                                                <span class="text-xs text-[var(--text-tertiary)]">{note.updated_at[..10.min(note.updated_at.len())].to_string()}</span>
                                             </div>
                                             {if !note.tags.is_empty() {
                                                 view! {
                                                     <div class="flex flex-wrap gap-1 mt-1">
                                                         {note.tags.split(',').filter(|t| !t.trim().is_empty()).map(|tag| {
-                                                            view! { <span class="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">{tag.trim()}</span> }
+                                                            view! { <span class="text-xs px-1.5 py-0.5 bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] rounded">{tag.trim()}</span> }
                                                         }).collect::<Vec<_>>()}
                                                     </div>
                                                 }.into_any()
@@ -368,7 +368,7 @@ pub fn NotesPage() -> impl IntoView {
                                 view! {
                                     <div class="flex-1 flex flex-col overflow-hidden">
                                         // Note header
-                                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                                        <div class="px-6 py-4 border-b border-[var(--border-default)] bg-[var(--bg-surface)]">
                                             <div class="flex items-center justify-between">
                                                 <div class="flex-1">
                                                     <input
@@ -396,9 +396,9 @@ pub fn NotesPage() -> impl IntoView {
                                                                 fetch_notes();
                                                             });
                                                         }
-                                                        class="text-xl font-bold font-mono text-gray-900 dark:text-white bg-transparent border-none focus:outline-none focus:ring-0 w-full"
+                                                        class="text-xl font-bold font-mono text-[var(--text-primary)] bg-transparent border-none focus:outline-none focus:ring-0 w-full"
                                                     />
-                                                    <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                                    <div class="flex items-center gap-4 mt-2 text-xs text-[var(--text-tertiary)]">
                                                         <span>"Created: " {note_created[..10.min(note_created.len())].to_string()}</span>
                                                         <span>"Updated: " {note_updated[..10.min(note_updated.len())].to_string()}</span>
                                                     </div>
@@ -406,7 +406,7 @@ pub fn NotesPage() -> impl IntoView {
                                                 <div class="flex items-center gap-2 ml-4">
                                                     <button
                                                         on:click=move |_: ev::MouseEvent| delete_note(note_id_for_delete.clone())
-                                                        class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        class="p-2 text-[var(--danger)] hover:text-[var(--danger)] hover:bg-[var(--danger-subtle)] rounded-lg transition-colors"
                                                         title="Delete note"
                                                     >
                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -426,10 +426,10 @@ pub fn NotesPage() -> impl IntoView {
                                 }.into_any()
                             } else {
                                 view! {
-                                    <div class="flex-1 flex items-center justify-center bg-white dark:bg-gray-800">
+                                    <div class="flex-1 flex items-center justify-center bg-[var(--bg-surface)]">
                                         <div class="text-center">
-                                            <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                            <p class="text-gray-500">Select a note or create a new one</p>
+                                            <svg class="w-16 h-16 mx-auto text-[var(--text-tertiary)] dark:text-[var(--text-secondary)] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                            <p class="text-[var(--text-tertiary)]">Select a note or create a new one</p>
                                         </div>
                                     </div>
                                 }.into_any()
@@ -442,26 +442,26 @@ pub fn NotesPage() -> impl IntoView {
             // Create note dialog
             {move || show_create_dialog.get().then(|| view! {
                 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_create_dialog.set(false)>
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                        <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">{t!("notes.new_note")}</h3>
+                    <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                        <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">{t!("notes.new_note")}</h3>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("notes.title")}</label>
+                                <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("notes.title")}</label>
                                 <input
                                     type="text"
                                     prop:value=move || create_title.get()
                                     on:input=move |ev| set_create_title.set(event_target_value(&ev))
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     placeholder="Note title"
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("notes.folder")}</label>
+                                <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("notes.folder")}</label>
                                 <input
                                     type="text"
                                     prop:value=move || create_folder.get()
                                     on:input=move |ev| set_create_folder.set(event_target_value(&ev))
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--border-focus)] focus:border-transparent"
                                     placeholder="Folder (optional)"
                                 />
                             </div>
@@ -469,13 +469,13 @@ pub fn NotesPage() -> impl IntoView {
                         <div class="flex items-center justify-end gap-3 mt-6">
                             <button
                                 on:click=move |_: ev::MouseEvent| set_show_create_dialog.set(false)
-                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                             >
                                 {t!("common.cancel")}
                             </button>
                             <button
                                 on:click=create_note
-                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                class="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                             >
                                 {t!("common.save")}
                             </button>

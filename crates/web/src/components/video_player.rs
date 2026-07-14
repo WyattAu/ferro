@@ -242,7 +242,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
             // Title overlay
             {move || (!title.is_empty() && show_controls.get()).then(|| view! {
                 <div class="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent px-4 py-2 pointer-events-none">
-                    <span class="text-white text-sm font-mono truncate block">{title.clone()}</span>
+                    <span class="text-[var(--text-on-accent)] text-sm font-mono truncate block">{title.clone()}</span>
                 </div>
             })}
 
@@ -254,15 +254,15 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                 )
             }>
                 // Progress bar
-                <div class="relative w-full h-1.5 bg-gray-600 rounded-full mb-3 cursor-pointer group/progress">
+                <div class="relative w-full h-1.5 bg-[var(--text-tertiary)] rounded-full mb-3 cursor-pointer group/progress">
                     // Buffered
                     <div
-                        class="absolute h-full bg-gray-500 rounded-full"
+                        class="absolute h-full bg-[var(--bg-inset)]0 rounded-full"
                         style:width=move || format!("{}%", buffered_pct())
                     ></div>
                     // Progress
                     <div
-                        class="absolute h-full bg-red-500 rounded-full"
+                        class="absolute h-full bg-[var(--danger-subtle)]0 rounded-full"
                         style:width=move || format!("{}%", progress_pct())
                     ></div>
                     // Seek input
@@ -280,7 +280,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                 <div class="flex items-center gap-3">
                     // Play/Pause
                     <button
-                        class="text-white hover:text-red-400 transition-colors focus:outline-none"
+                        class="text-[var(--text-on-accent)] hover:text-[var(--danger)] transition-colors focus:outline-none"
                         on:click=toggle_play
                         aria-label=move || if is_playing.get() { "Pause" } else { "Play" }
                     >
@@ -301,7 +301,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                     </button>
 
                     // Time display
-                    <span class="text-white text-xs font-mono">
+                    <span class="text-[var(--text-on-accent)] text-xs font-mono">
                         {current_time_str} " / " {duration_str}
                     </span>
 
@@ -315,7 +315,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                         on:mouseleave=move |_| set_show_volume_slider.set(false)
                     >
                         <button
-                            class="text-white hover:text-red-400 transition-colors focus:outline-none"
+                            class="text-[var(--text-on-accent)] hover:text-[var(--danger)] transition-colors focus:outline-none"
                             on:click=toggle_mute
                             aria-label=move || if is_muted.get() { "Unmute" } else { "Mute" }
                         >
@@ -341,7 +341,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                             }}
                         </button>
                         {move || show_volume_slider.get().then(|| view! {
-                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-800 rounded-lg p-2 shadow-lg">
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[var(--bg-surface)] rounded-lg p-2 shadow-lg">
                                 <input
                                     type="range"
                                     min="0"
@@ -358,13 +358,13 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                     // Speed control
                     <div class="relative">
                         <button
-                            class="text-white text-xs font-mono hover:text-red-400 transition-colors px-1.5 py-0.5 rounded bg-gray-700/50 focus:outline-none"
+                            class="text-[var(--text-on-accent)] text-xs font-mono hover:text-[var(--danger)] transition-colors px-1.5 py-0.5 rounded bg-[var(--bg-surface-raised)]/50 focus:outline-none"
                             on:click=move |_| set_show_speed_menu.update(|v| *v = !*v)
                         >
                             {move || playback_speed.get().label()}
                         </button>
                         {move || show_speed_menu.get().then(|| view! {
-                            <div class="absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+                            <div class="absolute bottom-full right-0 mb-2 bg-[var(--bg-surface)] rounded-lg shadow-lg overflow-hidden">
                                 {vec![
                                     PlaybackSpeed::Half,
                                     PlaybackSpeed::Normal,
@@ -376,8 +376,8 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                                     view! {
                                         <button
                                             class=move || format!(
-                                                "block w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-gray-700 {}",
-                                                if is_active() { "text-red-400" } else { "text-white" }
+                                                "block w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-[var(--interactive-hover)] {}",
+                                                if is_active() { "text-[var(--danger)]" } else { "text-[var(--text-on-accent)]" }
                                             )
                                             on:click=move |ev| set_speed(speed.clone(), ev)
                                         >
@@ -392,13 +392,13 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                     // Quality selector
                     <div class="relative">
                         <button
-                            class="text-white text-xs font-mono hover:text-red-400 transition-colors px-1.5 py-0.5 rounded bg-gray-700/50 focus:outline-none"
+                            class="text-[var(--text-on-accent)] text-xs font-mono hover:text-[var(--danger)] transition-colors px-1.5 py-0.5 rounded bg-[var(--bg-surface-raised)]/50 focus:outline-none"
                             on:click=move |_| set_show_quality_menu.update(|v| *v = !*v)
                         >
                             {move || quality.get().label()}
                         </button>
                         {move || show_quality_menu.get().then(|| view! {
-                            <div class="absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+                            <div class="absolute bottom-full right-0 mb-2 bg-[var(--bg-surface)] rounded-lg shadow-lg overflow-hidden">
                                 {vec![
                                     VideoQuality::Auto,
                                     VideoQuality::Low,
@@ -410,8 +410,8 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                                     view! {
                                         <button
                                             class=move || format!(
-                                                "block w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-gray-700 {}",
-                                                if is_active() { "text-red-400" } else { "text-white" }
+                                                "block w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-[var(--interactive-hover)] {}",
+                                                if is_active() { "text-[var(--danger)]" } else { "text-[var(--text-on-accent)]" }
                                             )
                                             on:click=move |ev| set_quality_level(q.clone(), ev)
                                         >
@@ -425,7 +425,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
 
                     // Fullscreen
                     <button
-                        class="text-white hover:text-red-400 transition-colors focus:outline-none"
+                        class="text-[var(--text-on-accent)] hover:text-[var(--danger)] transition-colors focus:outline-none"
                         on:click=toggle_fullscreen
                         aria-label=move || if is_fullscreen.get() { "Exit fullscreen" } else { "Fullscreen" }
                     >

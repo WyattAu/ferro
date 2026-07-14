@@ -44,25 +44,25 @@ pub fn AuthCallbackPage() -> impl IntoView {
     });
 
     view! {
-        <div class="min-h-screen bg-gray-100 flex items-center justify-center">
-            <div class="bg-white rounded-xl shadow-sm p-8 max-w-md w-full text-center">
+        <div class="min-h-screen bg-[var(--bg-inset)] flex items-center justify-center">
+            <div class="bg-[var(--bg-surface)] rounded-xl shadow-sm p-8 max-w-md w-full text-center">
                 {move || processing.get().then(|| view! {
                     <div>
                         <div class="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p class="text-gray-600">{t!("error.completing_sign_in")}</p>
+                        <p class="text-[var(--text-secondary)]">{t!("error.completing_sign_in")}</p>
                     </div>
                 })}
 
                 {move || error.get().map(|e| view! {
                     <div>
-                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg class="w-6 h-6 text-red-600" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="w-12 h-12 bg-[var(--danger-subtle)] rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-6 h-6 text-[var(--danger)]" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </div>
-                        <h2 class="text-lg font-semibold text-gray-900 mb-2">{t!("error.sign_in_failed")}</h2>
-                        <p class="text-gray-500 mb-4">{e}</p>
-                        <a href="/ui/auth/login" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 no-underline">
+                        <h2 class="text-lg font-semibold text-[var(--text-primary)] mb-2">{t!("error.sign_in_failed")}</h2>
+                        <p class="text-[var(--text-tertiary)] mb-4">{e}</p>
+                        <a href="/ui/auth/login" class="inline-block bg-[var(--accent)] text-[var(--text-on-accent)] px-4 py-2 rounded-lg hover:bg-[var(--accent-hover)] no-underline">
                             {t!("common.try_again")}
                         </a>
                     </div>

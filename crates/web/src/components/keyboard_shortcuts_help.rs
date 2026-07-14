@@ -146,15 +146,15 @@ pub fn KeyboardShortcutsHelp() -> impl IntoView {
                                         let keys_owned = keys.to_string();
                                         let label_owned = label.to_string();
                                         shortcut_rows.push(view! {
-                                            <div class="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-gray-800 last:border-0">
-                                                <span class="text-sm text-[var(--text-secondary)] dark:text-gray-300">{label_owned}</span>
-                                                <kbd class="px-2 py-0.5 text-xs font-mono text-[var(--text-tertiary)] dark:text-gray-400 bg-[var(--bg-base)] rounded-sm brutal-border">{keys_owned}</kbd>
+                                            <div class="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-[var(--border-strong)] last:border-0">
+                                                <span class="text-sm text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]">{label_owned}</span>
+                                                <kbd class="px-2 py-0.5 text-xs font-mono text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] bg-[var(--bg-base)] rounded-sm brutal-border">{keys_owned}</kbd>
                                             </div>
                                         }.into_any());
                                     }
                                     sections.push(view! {
                                         <div class="mb-4">
-                                            <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] dark:text-gray-400 mb-2 font-mono">
+                                            <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] mb-2 font-mono">
                                                 {cat_str}
                                             </h3>
                                             <div class="space-y-1">

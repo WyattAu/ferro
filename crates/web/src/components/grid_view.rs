@@ -201,11 +201,11 @@ pub fn GridCard(
         <div
             class=move || {
                 let base = format!(
-                    "group relative surface brutal-border rounded-xl p-3 sm:p-4 cursor-pointer transition-all duration-200 hover:shadow-xl hover:border-blue-400 {}",
-                    if is_selected { "border-blue-500 dark:border-blue-400 ring-2 ring-200" } else { "" }
+                    "group relative surface brutal-border rounded-xl p-3 sm:p-4 cursor-pointer transition-all duration-200 hover:shadow-xl hover:border-[var(--accent)] {}",
+                    if is_selected { "border-[var(--accent)] ring-2 ring-200" } else { "" }
                 );
                 if entry_is_collection && folder_hovering.get() {
-                    format!("{} ring-2 ring-blue-400 border-blue-400 bg-[var(--accent-subtle)] scale-[1.02]", base)
+                    format!("{} ring-2 ring-[var(--accent)] border-[var(--accent)] bg-[var(--accent-subtle)] scale-[1.02]", base)
                 } else if entry_is_collection {
                     format!("{} hover:ring-1 hover:ring-blue-200", base)
                 } else {
@@ -258,7 +258,7 @@ pub fn GridCard(
             <button
                 class=move || {
                             let base = "absolute top-2 right-2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]";
-                    let color = if is_favorited { "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50" } else { "text-gray-300 hover:text-yellow-500 hover:bg-yellow-50 opacity-0 group-hover:opacity-100" };
+                    let color = if is_favorited { "text-[var(--warning)] hover:text-[var(--warning)] hover:bg-[var(--warning-subtle)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--warning)] hover:bg-[var(--warning-subtle)] opacity-0 group-hover:opacity-100" };
                     format!("{} {}", base, color)
                 }
                 attr:aria-label=format!("{} {}", if is_favorited { t!("fav.unfavorite") } else { t!("fav.favorite") }, name_for_actions)
@@ -279,7 +279,7 @@ pub fn GridCard(
                     />
                     {is_locked.then(|| view! {
                         <span class="absolute -bottom-1 -right-1">
-                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" title=lock_tooltip.clone()>
+                            <svg class="w-4 h-4 text-[var(--danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" title=lock_tooltip.clone()>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         </span>
@@ -288,7 +288,7 @@ pub fn GridCard(
 
                 <div class="w-full min-h-[2.5rem] flex items-center justify-center">
                     <span class=move || {
-                        let base = "text-xs sm:text-sm font-medium text-gray-900 truncate max-w-full px-1";
+                        let base = "text-xs sm:text-sm font-medium text-[var(--text-primary)] truncate max-w-full px-1";
                         let weight = if entry_is_collection { "font-semibold" } else { "font-medium" };
                         format!("{} {}", base, weight)
                     }
@@ -302,7 +302,7 @@ pub fn GridCard(
                 <span class="text-[10px] text-[var(--text-tertiary)] hidden sm:block">{modified_display.clone()}</span>
             </div>
 
-            <div class="flex items-center justify-center gap-1 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+            <div class="flex items-center justify-center gap-1 pt-2 border-t border-[var(--border-subtle)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
                         class="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
@@ -317,7 +317,7 @@ pub fn GridCard(
                 })}
                 {(!entry_is_collection && !is_locked).then(|| view! {
                     <button
-                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-green-600 hover:bg-[var(--success-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--success)] hover:bg-[var(--success-subtle)] rounded shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                         attr:aria-label=format!("Share {}", name_for_actions)
                         title=t!("common.share")
                         on:click=handle_share_click

@@ -27,7 +27,7 @@ pub fn Button(
             "bg-[var(--bg-surface-raised)] text-[var(--text-primary)] border border-[var(--border-default)] hover:bg-[var(--interactive-hover)] hover:border-[var(--border-strong)] focus:ring-[var(--border-focus)]"
         }
         ButtonVariant::Danger => {
-            "bg-[var(--danger)] text-white hover:bg-[var(--danger-hover)] focus:ring-[var(--danger)]"
+            "bg-[var(--danger)] text-[var(--text-on-accent)] hover:bg-[var(--danger-hover)] focus:ring-[var(--danger)]"
         }
         ButtonVariant::Ghost => {
             "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] focus:ring-[var(--border-focus)]"

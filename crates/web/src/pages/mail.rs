@@ -305,18 +305,18 @@ pub fn MailPage() -> impl IntoView {
     };
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded">{t!("nav.skip_to_content")}</a>
+        <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 flex overflow-hidden pt-16">
                 <NavigationSidebar />
                 <main id="main-content" class="flex-1 overflow-auto p-6">
                     <div class="flex items-center justify-between mb-6">
-                        <h1 class="text-2xl font-bold font-mono text-gray-900 dark:text-white">{t!("mail.title")}</h1>
+                        <h1 class="text-2xl font-bold font-mono text-[var(--text-primary)]">{t!("mail.title")}</h1>
                         <div class="flex items-center gap-2">
                             <button
                                 on:click=move |_| set_view.set(MailView::Compose)
-                                class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                                class="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                                 {t!("mail.compose")}
@@ -326,13 +326,13 @@ pub fn MailPage() -> impl IntoView {
 
                     <div class="flex gap-4 h-[calc(100vh-10rem)]">
                         {/* Account Sidebar */}
-                        <div class="w-56 shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden flex flex-col">
-                            <div class="p-3 border-b border-gray-200 dark:border-gray-700">
+                        <div class="w-56 shrink-0 bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden flex flex-col">
+                            <div class="p-3 border-b border-[var(--border-default)]">
                                 <div class="flex items-center justify-between">
-                                    <h2 class="text-xs font-bold uppercase font-mono text-gray-500">{t!("mail.accounts")}</h2>
+                                    <h2 class="text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("mail.accounts")}</h2>
                                     <button
                                         on:click=move |_| set_show_add_account.set(true)
-                                        class="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                                        class="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent)] rounded transition-colors"
                                         aria-label=t!("mail.add_account")
                                     >
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -341,7 +341,7 @@ pub fn MailPage() -> impl IntoView {
                             </div>
                             <div class="flex-1 overflow-y-auto">
                                 {move || loading.get().then(|| view! {
-                                    <div class="p-4 text-sm text-gray-500">{t!("common.loading")}</div>
+                                    <div class="p-4 text-sm text-[var(--text-tertiary)]">{t!("common.loading")}</div>
                                 })}
                                 <For
                                     each=move || accounts.get()
@@ -355,12 +355,12 @@ pub fn MailPage() -> impl IntoView {
                                         let selected = selected_account;
                                         view! {
                                             <div
-                                                class=move || format!("px-3 py-2.5 cursor-pointer border-b border-gray-100 dark:border-gray-700 transition-colors {}",
-                                                    if selected.get() == Some(aid.clone()) { "bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-600" } else { "hover:bg-gray-50 dark:hover:bg-gray-700" }
+                                                class=move || format!("px-3 py-2.5 cursor-pointer border-b border-[var(--border-subtle)] border-[var(--border-default)] transition-colors {}",
+                                                    if selected.get() == Some(aid.clone()) { "bg-[var(--accent-subtle)] border-l-2 border-l-[var(--accent)]" } else { "hover:bg-[var(--interactive-hover)]" }
                                                 )
                                                 on:click=move |_: ev::MouseEvent| select_account(aid2.clone())
                                             >
-                                                <div class="text-sm font-mono text-gray-900 dark:text-white truncate">{email}</div>
+                                                <div class="text-sm font-mono text-[var(--text-primary)] truncate">{email}</div>
                                             </div>
                                         }
                                     }
@@ -369,9 +369,9 @@ pub fn MailPage() -> impl IntoView {
                         </div>
 
                         {/* Folder List */}
-                        <div class="w-44 shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden flex flex-col">
-                            <div class="p-3 border-b border-gray-200 dark:border-gray-700">
-                                <h2 class="text-xs font-bold uppercase font-mono text-gray-500">{t!("mail.folders")}</h2>
+                        <div class="w-44 shrink-0 bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden flex flex-col">
+                            <div class="p-3 border-b border-[var(--border-default)]">
+                                <h2 class="text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">{t!("mail.folders")}</h2>
                             </div>
                             <div class="flex-1 overflow-y-auto">
                                 <For
@@ -388,13 +388,13 @@ pub fn MailPage() -> impl IntoView {
                                         view! {
                                             <div
                                                 class=move || format!("px-3 py-2 cursor-pointer flex items-center justify-between transition-colors {}",
-                                                    if selected.get() == Some(fid.clone()) { "bg-blue-50 dark:bg-blue-900/20" } else { "hover:bg-gray-50 dark:hover:bg-gray-700" }
+                                                    if selected.get() == Some(fid.clone()) { "bg-[var(--accent-subtle)]" } else { "hover:bg-[var(--interactive-hover)]" }
                                                 )
                                                 on:click=move |_: ev::MouseEvent| select_folder(fid2.clone())
                                             >
-                                                <span class="text-sm font-mono text-gray-700 dark:text-gray-300 truncate">{name}</span>
+                                                <span class="text-sm font-mono text-[var(--text-secondary)] truncate">{name}</span>
                                                 {move || (unread > 0).then(|| view! {
-                                                    <span class="text-xs font-bold bg-blue-600 text-white rounded-full px-1.5 py-0.5 min-w-[20px] text-center">{unread}</span>
+                                                    <span class="text-xs font-bold bg-[var(--accent)] text-[var(--text-on-accent)] rounded-full px-1.5 py-0.5 min-w-[20px] text-center">{unread}</span>
                                                 })}
                                             </div>
                                         }
@@ -404,7 +404,7 @@ pub fn MailPage() -> impl IntoView {
                         </div>
 
                         {/* Main Content Area */}
-                        <div class="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm brutal-border overflow-hidden flex flex-col">
+                        <div class="flex-1 bg-[var(--bg-surface)] rounded-xl shadow-sm brutal-border overflow-hidden flex flex-col">
                             {move || match view.get() {
                                 MailView::List => {
                                     let msgs = messages.get();
@@ -420,21 +420,21 @@ pub fn MailPage() -> impl IntoView {
 
                                     view! {
                                         <>
-                                            <div class="p-3 border-b border-gray-200 dark:border-gray-700">
+                                            <div class="p-3 border-b border-[var(--border-default)]">
                                                 <div class="relative">
                                                     <input
                                                         type="text"
                                                         placeholder=t!("mail.search_placeholder")
                                                         prop:value=move || search_query.get()
                                                         on:input=move |ev| set_search_query.set(event_target_value(&ev))
-                                                        class="w-full px-3 py-2 pl-8 text-sm font-mono border rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                        class="w-full px-3 py-2 pl-8 text-sm font-mono border rounded bg-[var(--bg-inset)] bg-[var(--bg-base)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                                                     />
-                                                    <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                                    <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                                 </div>
                                             </div>
                                             <div class="flex-1 overflow-y-auto">
                                                 {let f2 = filtered.clone(); move || f2.is_empty().then(|| view! {
-                                                    <div class="p-8 text-center text-gray-500 text-sm">{t!("mail.no_messages")}</div>
+                                                    <div class="p-8 text-center text-[var(--text-tertiary)] text-sm">{t!("mail.no_messages")}</div>
                                                 })}
                                                 <For
                                                     each=move || filtered.clone()
@@ -451,25 +451,25 @@ pub fn MailPage() -> impl IntoView {
                                                         let snippet = message.snippet.clone();
                                                         view! {
                                                             <div
-                                                                class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                                                class="px-4 py-3 border-b border-[var(--border-subtle)] border-[var(--border-default)] cursor-pointer hover:bg-[var(--interactive-hover)] transition-colors"
                                                                 on:click=move |_: ev::MouseEvent| select_message(mid.clone())
                                                             >
                                                                 <div class="flex items-center justify-between mb-1">
                                                                     <div class="flex items-center gap-2 min-w-0">
                                                                         {move || (!is_read).then(|| view! {
-                                                                            <span class="w-2 h-2 bg-blue-600 rounded-full shrink-0"></span>
+                                                                            <span class="w-2 h-2 bg-[var(--accent)] rounded-full shrink-0"></span>
                                                                         })}
-                                                                        <span class=move || format!("text-sm truncate {}", if is_read { "text-gray-600 dark:text-gray-400" } else { "font-bold text-gray-900 dark:text-white" })>{subject.clone()}</span>
+                                                                        <span class=move || format!("text-sm truncate {}", if is_read { "text-[var(--text-secondary)]" } else { "font-bold text-[var(--text-primary)]" })>{subject.clone()}</span>
                                                                     </div>
                                                                     <div class="flex items-center gap-2 shrink-0">
                                                                         {move || has_attach.then(|| view! {
-                                                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                                                            <svg class="w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                                                                         })}
-                                                                        <span class="text-xs text-gray-500 font-mono">{format_mail_date(&date)}</span>
+                                                                        <span class="text-xs text-[var(--text-tertiary)] font-mono">{format_mail_date(&date)}</span>
                                                                     </div>
                                                                 </div>
-                                                                <div class="text-xs text-gray-500 mb-1">{from}</div>
-                                                                <div class="text-xs text-gray-400 truncate">{snippet}</div>
+                                                                <div class="text-xs text-[var(--text-tertiary)] mb-1">{from}</div>
+                                                                <div class="text-xs text-[var(--text-tertiary)] truncate">{snippet}</div>
                                                             </div>
                                                         }
                                                     }
@@ -483,27 +483,27 @@ pub fn MailPage() -> impl IntoView {
                                         Some(msg) => {
                                             view! {
                                                 <div class="flex flex-col h-full">
-                                                    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                                                    <div class="p-4 border-b border-[var(--border-default)]">
                                                         <div class="flex items-center gap-2 mb-2">
                                                             <button
                                                                 on:click=move |_| set_view.set(MailView::List)
-                                                                class="p-1 text-gray-500 hover:text-gray-700 rounded transition-colors"
+                                                                class="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] rounded transition-colors"
                                                                 aria-label=t!("common.back")
                                                             >
                                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                                                             </button>
-                                                            <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{msg.subject.clone()}</h2>
+                                                            <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{msg.subject.clone()}</h2>
                                                         </div>
-                                                        <div class="text-sm text-gray-600 dark:text-gray-400">
+                                                        <div class="text-sm text-[var(--text-secondary)]">
                                                             <span class="font-medium">{t!("mail.from")}</span> {msg.from.clone()} " · " {format_mail_date(&msg.date)}
                                                         </div>
                                                         {move || (!msg.to.is_empty()).then(|| view! {
-                                                            <div class="text-xs text-gray-500 mt-1">
+                                                            <div class="text-xs text-[var(--text-tertiary)] mt-1">
                                                                 <span class="font-medium">{t!("mail.to")}</span> {msg.to.join(", ")}
                                                             </div>
                                                         })}
                                                         {move || (!msg.cc.is_empty()).then(|| view! {
-                                                            <div class="text-xs text-gray-500 mt-1">
+                                                            <div class="text-xs text-[var(--text-tertiary)] mt-1">
                                                                 <span class="font-medium">{t!("mail.cc")}</span> {msg.cc.join(", ")}
                                                             </div>
                                                         })}
@@ -513,23 +513,23 @@ pub fn MailPage() -> impl IntoView {
                                                             <div class="prose prose-sm dark:prose-invert max-w-none" inner_html=html.clone()></div>
                                                         })}
                                                         {move || msg.body_text.as_ref().map(|text| view! {
-                                                            <pre class="text-sm font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{text.clone()}</pre>
+                                                            <pre class="text-sm font-mono text-[var(--text-secondary)] whitespace-pre-wrap">{text.clone()}</pre>
                                                         })}
                                                     </div>
                                                     {move || (!msg.attachments.is_empty()).then(|| view! {
-                                                        <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-                                                            <h3 class="text-xs font-bold uppercase font-mono text-gray-500 mb-2">{t!("mail.attachments")}</h3>
+                                                        <div class="p-4 border-t border-[var(--border-default)]">
+                                                            <h3 class="text-xs font-bold uppercase font-mono text-[var(--text-tertiary)] mb-2">{t!("mail.attachments")}</h3>
                                                             <div class="flex flex-wrap gap-2">
                                                                 {msg.attachments.iter().map(|att| {
                                                                     let filename = att.filename.clone();
                                                                     let size = att.size;
                                                                     let format_bytes_fn = format_bytes;
                                                                     view! {
-                                                                        <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                                                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                                        <div class="flex items-center gap-2 px-3 py-2 bg-[var(--bg-inset)] bg-[var(--bg-base)] rounded-lg border border-[var(--border-default)]">
+                                                                            <svg class="w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                                                             <div>
-                                                                                <div class="text-sm font-mono text-gray-900 dark:text-white">{filename}</div>
-                                                                                <div class="text-xs text-gray-500">{format_bytes_fn(size)}</div>
+                                                                                <div class="text-sm font-mono text-[var(--text-primary)]">{filename}</div>
+                                                                                <div class="text-xs text-[var(--text-tertiary)]">{format_bytes_fn(size)}</div>
                                                                             </div>
                                                                         </div>
                                                                     }
@@ -541,18 +541,18 @@ pub fn MailPage() -> impl IntoView {
                                             }.into_any()
                                         }
                                         None => view! {
-                                            <div class="flex items-center justify-center h-full text-gray-500">{t!("mail.select_message")}</div>
+                                            <div class="flex items-center justify-center h-full text-[var(--text-tertiary)]">{t!("mail.select_message")}</div>
                                         }.into_any(),
                                     }
                                 }
                                 MailView::Compose => {
                                     view! {
                                         <div class="flex flex-col h-full">
-                                            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                                                <h2 class="text-lg font-bold font-mono text-gray-900 dark:text-white">{t!("mail.compose")}</h2>
+                                            <div class="p-4 border-b border-[var(--border-default)] flex items-center justify-between">
+                                                <h2 class="text-lg font-bold font-mono text-[var(--text-primary)]">{t!("mail.compose")}</h2>
                                                 <button
                                                     on:click=move |_| set_view.set(MailView::List)
-                                                    class="p-1 text-gray-500 hover:text-gray-700 rounded transition-colors"
+                                                    class="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] rounded transition-colors"
                                                     aria-label=t!("common.close")
                                                 >
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -560,54 +560,54 @@ pub fn MailPage() -> impl IntoView {
                                             </div>
                                             <div class="flex-1 overflow-y-auto p-4 space-y-4">
                                                 <div>
-                                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("mail.to")}</label>
+                                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("mail.to")}</label>
                                                     <input
                                                         type="text"
                                                         prop:value=move || compose_to.get()
                                                         on:input=move |ev| set_compose_to.set(event_target_value(&ev))
                                                         placeholder="recipient@example.com"
-                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("mail.cc")}</label>
+                                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("mail.cc")}</label>
                                                     <input
                                                         type="text"
                                                         prop:value=move || compose_cc.get()
                                                         on:input=move |ev| set_compose_cc.set(event_target_value(&ev))
                                                         placeholder="cc@example.com (optional)"
-                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("mail.subject")}</label>
+                                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("mail.subject")}</label>
                                                     <input
                                                         type="text"
                                                         prop:value=move || compose_subject.get()
                                                         on:input=move |ev| set_compose_subject.set(event_target_value(&ev))
                                                         placeholder="Subject"
-                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]"
                                                     />
                                                 </div>
                                                 <div class="flex-1">
-                                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("mail.body")}</label>
+                                                    <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("mail.body")}</label>
                                                     <textarea
                                                         prop:value=move || compose_body.get()
                                                         on:input=move |ev| set_compose_body.set(event_target_value(&ev))
                                                         rows="12"
-                                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                                        class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]"
                                                     ></textarea>
                                                 </div>
                                                 <div class="flex items-center gap-2">
                                                     <button
                                                         on:click=send_compose
-                                                        class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                                                        class="px-4 py-2 bg-[var(--accent)] text-[var(--text-on-accent)] text-sm font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
                                                     >
                                                         {t!("mail.send")}
                                                     </button>
                                                     <button
                                                         on:click=move |_| set_view.set(MailView::List)
-                                                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                                        class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                                                     >
                                                         {t!("common.cancel")}
                                                     </button>
@@ -623,24 +623,24 @@ pub fn MailPage() -> impl IntoView {
                     {/* Add Account Dialog */}
                     {move || show_add_account.get().then(|| view! {
                         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" on:click=move |_: ev::MouseEvent| set_show_add_account.set(false)>
-                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
-                                <h3 class="text-lg font-bold font-mono text-gray-900 dark:text-white mb-4">{t!("mail.add_account")}</h3>
+                            <div class="bg-[var(--bg-surface)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6" on:click=move |e: ev::MouseEvent| e.stop_propagation()>
+                                <h3 class="text-lg font-bold font-mono text-[var(--text-primary)] mb-4">{t!("mail.add_account")}</h3>
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("mail.email")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("mail.email")}</label>
                                         <input
                                             type="email"
                                             prop:value=move || new_account_email.get()
                                             on:input=move |ev| set_new_account_email.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]"
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t!("mail.provider")}</label>
+                                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t!("mail.provider")}</label>
                                         <select
                                             prop:value=move || new_account_provider.get()
                                             on:change=move |ev| set_new_account_provider.set(event_target_value(&ev))
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500"
+                                            class="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)] font-mono text-sm focus:ring-2 focus:ring-[var(--border-focus)]"
                                         >
                                             <option value="imap">{t!("mail.provider_imap")}</option>
                                             <option value="exchange">{t!("mail.provider_exchange")}</option>
@@ -651,7 +651,7 @@ pub fn MailPage() -> impl IntoView {
                                 <div class="flex items-center justify-end gap-3 mt-6">
                                     <button
                                         on:click=move |_| set_show_add_account.set(false)
-                                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                        class="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded-lg transition-colors"
                                     >
                                         {t!("common.cancel")}
                                     </button>
@@ -665,7 +665,7 @@ pub fn MailPage() -> impl IntoView {
                                             });
                                             set_show_add_account.set(false);
                                         }
-                                        class="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                        class="px-4 py-2 text-sm font-bold text-[var(--text-on-accent)] bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg transition-colors"
                                     >
                                         {t!("mail.add_account")}
                                     </button>

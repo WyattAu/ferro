@@ -67,7 +67,7 @@ pub fn Thumbnail(
                 if !show_image || load_error.get() {
                     view! { <span><FileIcon file_type=file_type size=size /></span> }.into_any()
                 } else if !in_view.get() {
-                    let c = format!("{} rounded bg-gray-100 dark:bg-gray-700 animate-pulse", size_class);
+                    let c = format!("{} rounded bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] animate-pulse", size_class);
                     view! { <div class=c /> }.into_any()
                 } else {
                     let cls = format!(

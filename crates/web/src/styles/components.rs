@@ -13,7 +13,7 @@ pub mod button {
     pub const VARIANT_SECONDARY: &str = "bg-[var(--bg-surface-raised)] text-[var(--text-primary)] border border-[var(--border-default)] \
          hover:bg-[var(--interactive-hover)] hover:border-[var(--border-strong)] focus:ring-[var(--border-focus)]";
     pub const VARIANT_DANGER: &str =
-        "bg-[var(--danger)] text-white hover:bg-[var(--danger-hover)] focus:ring-[var(--danger)]";
+        "bg-[var(--danger)] text-[var(--text-on-accent)] hover:bg-[var(--danger-hover)] focus:ring-[var(--danger)]";
     pub const VARIANT_GHOST: &str = "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] focus:ring-[var(--border-focus)]";
     pub const VARIANT_LINK: &str =
         "text-[var(--accent)] hover:underline focus:ring-[var(--border-focus)] p-0 min-w-0 min-h-0";

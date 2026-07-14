@@ -430,12 +430,12 @@ pub fn WhiteboardPage() -> impl IntoView {
     };
 
     view! {
-        <div class="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+        <div class="h-screen flex flex-col bg-[var(--bg-inset)] bg-[var(--bg-base)]">
             // Header
             <Header />
 
             // Toolbar
-            <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+            <div class="flex items-center gap-2 px-4 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-default)] shadow-sm">
                 // Tool buttons
                 <div class="flex items-center gap-1">
                     {vec![
@@ -454,9 +454,9 @@ pub fn WhiteboardPage() -> impl IntoView {
                                 class=move || format!(
                                     "p-2 rounded-lg transition-colors {}",
                                     if is_active() {
-                                        "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400"
+                                        "bg-blue-100 dark:bg-blue-900 text-[var(--accent)] dark:text-[var(--accent)]"
                                     } else {
-                                        "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                        "text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)]"
                                     }
                                 )
                                 title={tool.label()}
@@ -470,24 +470,24 @@ pub fn WhiteboardPage() -> impl IntoView {
                     }).collect::<Vec<_>>()}
                 </div>
 
-                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+                <div class="w-px h-6 bg-[var(--border-subtle)] dark:bg-[var(--text-tertiary)]"></div>
 
                 // Color picker
                 <div class="relative">
                     <button
-                        class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        class="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)]"
                         on:click=move |_| set_show_color_picker.update(|v| *v = !*v)
                     >
-                        <div class="w-5 h-5 rounded border border-gray-300 dark:border-gray-600" style:background-color=move || current_color.get().clone()></div>
+                        <div class="w-5 h-5 rounded border border-[var(--border-default)]" style:background-color=move || current_color.get().clone()></div>
                     </button>
                     {move || show_color_picker.get().then(|| view! {
-                        <div class="absolute top-full left-0 mt-2 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                        <div class="absolute top-full left-0 mt-2 p-2 bg-[var(--bg-surface)] rounded-lg shadow-lg border border-[var(--border-default)] z-50">
                             <div class="grid grid-cols-6 gap-1">
                                 {PRESET_COLORS.iter().map(|color| {
                                     let c = color.to_string();
                                     view! {
                                         <button
-                                            class="w-6 h-6 rounded border border-gray-300 dark:border-gray-600 hover:scale-110 transition-transform"
+                                            class="w-6 h-6 rounded border border-[var(--border-default)] hover:scale-110 transition-transform"
                                             style:background-color=c.clone()
                                             on:click=move |_| {
                                                 set_current_color.set(c.clone());
@@ -504,20 +504,20 @@ pub fn WhiteboardPage() -> impl IntoView {
                 // Stroke width
                 <div class="relative">
                     <button
-                        class="px-2 py-1 rounded-lg text-sm font-mono text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        class="px-2 py-1 rounded-lg text-sm font-mono text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)]"
                         on:click=move |_| set_show_stroke_picker.update(|v| *v = !*v)
                     >
                         {move || format!("{}px", stroke_width.get())}
                     </button>
                     {move || show_stroke_picker.get().then(|| view! {
-                        <div class="absolute top-full left-0 mt-2 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                        <div class="absolute top-full left-0 mt-2 p-2 bg-[var(--bg-surface)] rounded-lg shadow-lg border border-[var(--border-default)] z-50">
                             {STROKE_WIDTHS.iter().map(|w| {
                                 let sw = *w;
                                 view! {
                                     <button
                                         class=move || format!(
-                                            "block w-full text-left px-3 py-1 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 {}",
-                                            if stroke_width.get() == sw { "text-blue-600 dark:text-blue-400" } else { "text-gray-600 dark:text-gray-400" }
+                                            "block w-full text-left px-3 py-1 text-sm rounded hover:bg-[var(--interactive-hover)] {}",
+                                            if stroke_width.get() == sw { "text-[var(--accent)] dark:text-[var(--accent)]" } else { "text-[var(--text-secondary)]" }
                                         )
                                         on:click=move |_| {
                                             set_stroke_width.set(sw);
@@ -532,11 +532,11 @@ pub fn WhiteboardPage() -> impl IntoView {
                     })}
                 </div>
 
-                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+                <div class="w-px h-6 bg-[var(--border-subtle)] dark:bg-[var(--text-tertiary)]"></div>
 
                 // Undo/Redo
                 <button
-                    class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                    class="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] disabled:opacity-50"
                     title="Undo (Ctrl+Z)"
                     on:click=undo
                     disabled=move || undo_stack.get().is_empty()
@@ -546,7 +546,7 @@ pub fn WhiteboardPage() -> impl IntoView {
                     </svg>
                 </button>
                 <button
-                    class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                    class="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] disabled:opacity-50"
                     title="Redo (Ctrl+Shift+Z)"
                     on:click=redo
                     disabled=move || redo_stack.get().is_empty()
@@ -557,7 +557,7 @@ pub fn WhiteboardPage() -> impl IntoView {
                 </button>
 
                 <button
-                    class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    class="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)]"
                     title="Clear canvas"
                     on:click=clear_canvas
                 >
@@ -566,11 +566,11 @@ pub fn WhiteboardPage() -> impl IntoView {
                     </svg>
                 </button>
 
-                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+                <div class="w-px h-6 bg-[var(--border-subtle)] dark:bg-[var(--text-tertiary)]"></div>
 
                 // Zoom controls
                 <button
-                    class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    class="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)]"
                     on:click=zoom_out
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -578,13 +578,13 @@ pub fn WhiteboardPage() -> impl IntoView {
                     </svg>
                 </button>
                 <button
-                    class="px-2 py-1 rounded text-sm font-mono text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    class="px-2 py-1 rounded text-sm font-mono text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)]"
                     on:click=reset_view
                 >
                     {move || format!("{:.0}%", viewport.get().zoom * 100.0)}
                 </button>
                 <button
-                    class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    class="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)]"
                     on:click=zoom_in
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -596,13 +596,13 @@ pub fn WhiteboardPage() -> impl IntoView {
 
                 // Save/Export
                 <button
-                    class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                    class="px-3 py-1.5 text-sm bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--border-subtle)] hover:bg-[var(--interactive-hover)]"
                     on:click=export_png
                 >
                     "Export PNG"
                 </button>
                 <button
-                    class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    class="px-3 py-1.5 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] rounded-lg hover:bg-[var(--accent-hover)]"
                     on:click=save_to_server
                 >
                     "Save"

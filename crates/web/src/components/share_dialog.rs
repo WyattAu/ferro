@@ -155,7 +155,7 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                 >
                     <div class="flex items-center justify-between mb-4">
                         <h3 id="share-title" class="text-lg font-semibold text-[var(--text-primary)]">{t!("dialog.share.title")}</h3>
-                        <button class="p-1 text-[var(--text-tertiary)] hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        <button class="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
                             aria-label=t!("aria.close_dialog") on:click=move |_| set_open.set(false)
                         >
                             <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,26 +165,26 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.path_label")}</label>
-                        <div class="px-3 py-2 bg-[var(--bg-base)] border rounded text-sm text-gray-600 truncate">{share_path}</div>
+                        <label class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("dialog.share.path_label")}</label>
+                        <div class="px-3 py-2 bg-[var(--bg-base)] border rounded text-sm text-[var(--text-secondary)] truncate">{share_path}</div>
                     </div>
 
                     <div class="flex border-b border-[var(--border-default)] mb-4" role="tablist">
                         <button class="px-3 py-2 text-sm font-mono font-bold uppercase border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[44px]"
                             class=("border-blue-500 text-[var(--accent)]", move || active_tab.get() == 0)
-                            class=("border-transparent text-[var(--text-tertiary)] hover:text-gray-700", move || active_tab.get() != 0)
+                            class=("border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]", move || active_tab.get() != 0)
                             role="tab" aria-selected=move || active_tab.get() == 0
                             on:click=move |_| set_active_tab.set(0)
                         >{t!("share.tab_create")}</button>
                         <button class="px-3 py-2 text-sm font-mono font-bold uppercase border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[44px]"
                             class=("border-blue-500 text-[var(--accent)]", move || active_tab.get() == 1)
-                            class=("border-transparent text-[var(--text-tertiary)] hover:text-gray-700", move || active_tab.get() != 1)
+                            class=("border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]", move || active_tab.get() != 1)
                             role="tab" aria-selected=move || active_tab.get() == 1
                             on:click=move |_| set_active_tab.set(1)
                         >{t!("share.tab_invite")}</button>
                         <button class="px-3 py-2 text-sm font-mono font-bold uppercase border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[44px]"
                             class=("border-blue-500 text-[var(--accent)]", move || active_tab.get() == 2)
-                            class=("border-transparent text-[var(--text-tertiary)] hover:text-gray-700", move || active_tab.get() != 2)
+                            class=("border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]", move || active_tab.get() != 2)
                             role="tab" aria-selected=move || active_tab.get() == 2
                             on:click=move |_| set_active_tab.set(2)
                         >{t!("share.tab_list")}</button>
@@ -194,15 +194,15 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                         <div class:hidden=move || active_tab.get() != 0>
                             <div class="space-y-4">
                                 <div>
-                                    <label for="share-password" class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.password_label")}</label>
+                                    <label for="share-password" class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("dialog.share.password_label")}</label>
                                     <input id="share-password" type="password" placeholder=t!("dialog.share.password_placeholder")
-                                        class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
+                                        class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
                                         prop:value=share_password on:input=move |ev| set_share_password.set(event_target_value(&ev))
                                     />
                                 </div>
                                 <div>
-                                    <label for="share-expires" class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.expires_label")}</label>
-                                    <select id="share-expires" class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
+                                    <label for="share-expires" class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("dialog.share.expires_label")}</label>
+                                    <select id="share-expires" class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
                                         on:change=move |ev| set_share_expires.set(event_target_value(&ev))
                                     >
                                         <option value="1" selected=move || share_expires.get() == "1">{t!("dialog.share.1h")}</option>
@@ -212,9 +212,9 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                                     </select>
                                 </div>
                                 <div>
-                                    <label for="share-dl-limit" class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("share.download_limit_label")}</label>
+                                    <label for="share-dl-limit" class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("share.download_limit_label")}</label>
                                     <input id="share-dl-limit" type="number" min="1" placeholder=t!("share.download_limit_placeholder")
-                                        class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
+                                        class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
                                         prop:value=share_download_limit on:input=move |ev| set_share_download_limit.set(event_target_value(&ev))
                                     />
                                 </div>
@@ -224,21 +224,21 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                         <div class:hidden=move || active_tab.get() != 1>
                             <div class="space-y-4">
                                 {move || (!invite_error.get().is_empty()).then(|| view! {
-                                    <div class="p-2 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">{invite_error}</div>
+                                    <div class="p-2 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">{invite_error}</div>
                                 })}
                                 {move || invite_sent.get().then(|| view! {
-                                    <div class="p-2 bg-green-50 border-l-4 border-l-green-500 rounded text-sm text-green-700">"Invite sent successfully"</div>
+                                    <div class="p-2 bg-[var(--success-subtle)] border-l-4 border-l-[var(--success)] rounded text-sm text-[var(--success)]">"Invite sent successfully"</div>
                                 })}
                                 <div>
-                                    <label for="invite-email" class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("share.invite_email_label")}</label>
+                                    <label for="invite-email" class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("share.invite_email_label")}</label>
                                     <input id="invite-email" type="text" placeholder=t!("share.invite_email_placeholder")
-                                        class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
+                                        class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
                                         prop:value=invite_email on:input=move |ev| set_invite_email.set(event_target_value(&ev))
                                     />
                                 </div>
                                 <div>
-                                    <label for="invite-permission" class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("share.invite_permission_label")}</label>
-                                    <select id="invite-permission" class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
+                                    <label for="invite-permission" class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("share.invite_permission_label")}</label>
+                                    <select id="invite-permission" class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
                                         on:change=move |ev| set_invite_permission.set(event_target_value(&ev))
                                     >
                                         <option value="view" selected=move || invite_permission.get() == "view">{t!("share.permission_view")}</option>
@@ -251,7 +251,7 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
 
                         <div class:hidden=move || active_tab.get() != 2>
                             <div class:hidden=move || !shares_loading.get() class="text-center py-4 text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
-                            <div class:hidden=move || shares_error.get().is_empty() class="p-2 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">{shares_error}</div>
+                            <div class:hidden=move || shares_error.get().is_empty() class="p-2 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">{shares_error}</div>
                             {move || shares_list.get().is_empty().then(|| view! {
                                 <div class="text-center py-4 text-sm text-[var(--text-tertiary)] font-mono">{t!("share.no_shares")}</div>
                             })}
@@ -277,7 +277,7 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                                                                 {format!(" · Expires {}", expires)}
                                                             </div>
                                                         </div>
-                                                        <button class="px-2 py-1 text-xs font-mono font-bold uppercase text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[36px]"
+                                                        <button class="px-2 py-1 text-xs font-mono font-bold uppercase text-[var(--danger)] hover:text-[var(--danger-hover)] hover:bg-[var(--danger-subtle)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[36px]"
                                                             aria-label=t!("share.revoke")
                                                             on:click=move |_| do_revoke(share_token.clone())
                                                         >{t!("share.revoke")}</button>
@@ -292,17 +292,17 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                     </div>
 
                     {move || (active_tab.get() == 0 && !share_error.get().is_empty()).then(|| view! {
-                        <div class="mt-4 p-2 bg-red-50 border-l-4 border-l-red-500 rounded text-sm text-red-700" role="alert">{share_error}</div>
+                        <div class="mt-4 p-2 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">{share_error}</div>
                     })}
 
                     {move || (active_tab.get() == 0 && !share_url.get().is_empty()).then(|| view! {
                         <div class="mt-4">
-                            <label class="block text-xs font-bold uppercase font-mono text-gray-700 mb-1">{t!("dialog.share.url_label")}</label>
+                            <label class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("dialog.share.url_label")}</label>
                             <div class="flex items-center gap-2">
                                 <input type="text" readonly aria-label=t!("dialog.share.url_label")
-                                    class="flex-1 px-3 py-2 bg-[var(--bg-base)] border rounded text-sm text-gray-600 font-mono" prop:value=share_url
+                                    class="flex-1 px-3 py-2 bg-[var(--bg-base)] border rounded text-sm text-[var(--text-secondary)] font-mono" prop:value=share_url
                                 />
-                                <button class="px-3 py-2 text-sm bg-green-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-green-700 transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                <button class="px-3 py-2 text-sm bg-[var(--success)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--success-hover)] transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-[var(--success)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)]"
                                     on:click=do_copy_share_url
                                 >{move || if share_copied.get() { t!("dialog.share.copied") } else { t!("common.copy") }}</button>
                             </div>
@@ -310,16 +310,16 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                     })}
 
                     <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-[var(--border-default)]">
-                        <button class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
+                        <button class="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 rounded min-h-[44px]"
                             on:click=move |_| set_open.set(false)
                         >{t!("common.close")}</button>
                         <div class:hidden=move || active_tab.get() != 0 || !share_url.get().is_empty()>
-                            <button class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                            <button class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)]"
                                 disabled=share_creating on:click=do_create_share
                             >{move || if share_creating.get() { t!("dialog.share.creating") } else { t!("dialog.share.create_share") }}</button>
                         </div>
                         <div class:hidden=move || active_tab.get() != 1 || invite_sent.get()>
-                            <button class="px-4 py-2 text-sm bg-blue-600 text-white brutal-border rounded-sm font-bold uppercase hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                            <button class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)]"
                                 disabled=invite_sending on:click=do_invite
                             >{t!("share.invite_button")}</button>
                         </div>

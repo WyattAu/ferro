@@ -41,19 +41,19 @@ pub fn MarkdownEditor(
 
     let container_class = move || {
         if fullscreen.get() {
-            "fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-900"
+            "fixed inset-0 z-50 flex flex-col bg-[var(--bg-surface)] bg-[var(--bg-base)]"
         } else {
-            "flex flex-col border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden"
+            "flex flex-col border border-[var(--border-default)] rounded-lg overflow-hidden"
         }
     };
 
     view! {
         <div class=container_class>
             // Toolbar
-            <div class="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center gap-1 px-2 py-1 bg-[var(--bg-inset)] bg-[var(--bg-surface)] border-b border-[var(--border-default)]">
                 <button
                     on:click=move |_| insert_markdown("**", "**")
-                    class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-sm font-bold"
+                    class="p-1.5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)] rounded transition-colors text-sm font-bold"
                     title="Bold"
                     disabled=readonly
                 >
@@ -61,7 +61,7 @@ pub fn MarkdownEditor(
                 </button>
                 <button
                     on:click=move |_| insert_markdown("*", "*")
-                    class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-sm italic"
+                    class="p-1.5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)] rounded transition-colors text-sm italic"
                     title="Italic"
                     disabled=readonly
                 >
@@ -69,16 +69,16 @@ pub fn MarkdownEditor(
                 </button>
                 <button
                     on:click=move |_| insert_markdown("# ", "")
-                    class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-sm font-bold"
+                    class="p-1.5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)] rounded transition-colors text-sm font-bold"
                     title="Heading"
                     disabled=readonly
                 >
                     "H"
                 </button>
-                <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+                <div class="w-px h-4 bg-[var(--border-subtle)] dark:bg-[var(--text-tertiary)] mx-1"></div>
                 <button
                     on:click=move |_| insert_markdown("[", "](url)")
-                    class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-sm"
+                    class="p-1.5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)] rounded transition-colors text-sm"
                     title="Link"
                     disabled=readonly
                 >
@@ -86,7 +86,7 @@ pub fn MarkdownEditor(
                 </button>
                 <button
                     on:click=move |_| insert_markdown("![alt](", ")")
-                    class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-sm"
+                    class="p-1.5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)] rounded transition-colors text-sm"
                     title="Image"
                     disabled=readonly
                 >
@@ -94,7 +94,7 @@ pub fn MarkdownEditor(
                 </button>
                 <button
                     on:click=move |_| insert_markdown("`", "`")
-                    class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-sm font-mono"
+                    class="p-1.5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)] rounded transition-colors text-sm font-mono"
                     title="Code"
                     disabled=readonly
                 >
@@ -102,7 +102,7 @@ pub fn MarkdownEditor(
                 </button>
                 <button
                     on:click=move |_| insert_markdown("\n- ", "")
-                    class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-sm"
+                    class="p-1.5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)] rounded transition-colors text-sm"
                     title="List"
                     disabled=readonly
                 >
@@ -113,9 +113,9 @@ pub fn MarkdownEditor(
                     on:click=toggle_preview
                     class=move || format!("p-1.5 rounded transition-colors text-sm {}",
                         if show_preview.get() {
-                            "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400"
+                            "bg-blue-100 dark:bg-blue-900 text-[var(--accent)] dark:text-[var(--accent)]"
                         } else {
-                            "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]"
                         }
                     )
                     title="Toggle Preview"
@@ -124,7 +124,7 @@ pub fn MarkdownEditor(
                 </button>
                 <button
                     on:click=toggle_fullscreen
-                    class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-sm"
+                    class="p-1.5 text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)] rounded transition-colors text-sm"
                     title="Toggle Fullscreen"
                 >
                     {move || if fullscreen.get() {
@@ -142,7 +142,7 @@ pub fn MarkdownEditor(
                     <textarea
                         prop:value=move || content.get()
                         on:input=handle_input
-                        class="w-full h-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none focus:outline-none"
+                        class="w-full h-full p-3 font-mono text-sm bg-[var(--bg-surface)] bg-[var(--bg-base)] text-[var(--text-primary)] resize-none focus:outline-none"
                         placeholder="Write your markdown here..."
                         readonly=readonly
                     ></textarea>
@@ -150,7 +150,7 @@ pub fn MarkdownEditor(
 
                 // Preview panel
                 {move || show_preview.get().then(|| view! {
-                    <div class="w-1/2 border-l border-gray-200 dark:border-gray-700 overflow-y-auto p-3 bg-gray-50 dark:bg-gray-800">
+                    <div class="w-1/2 border-l border-[var(--border-default)] overflow-y-auto p-3 bg-[var(--bg-inset)] bg-[var(--bg-surface)]">
                         <div class="prose prose-sm dark:prose-invert max-w-none">
                             {move || render_markdown(&content.get())}
                         </div>
@@ -173,7 +173,7 @@ fn render_markdown(text: &str) -> String {
                 in_code_block = false;
             } else {
                 html.push_str(
-                    "<pre class=\"bg-gray-100 dark:bg-gray-800 rounded p-2 font-mono text-xs overflow-x-auto\"><code>",
+                    "<pre class=\"bg-[var(--bg-inset)] bg-[var(--bg-surface)] rounded p-2 font-mono text-xs overflow-x-auto\"><code>",
                 );
                 in_code_block = true;
             }
@@ -215,11 +215,11 @@ fn render_markdown(text: &str) -> String {
             html.push_str(&format!("<li>{}</li>", render_inline(rest)));
         } else if let Some(rest) = line.strip_prefix("> ") {
             html.push_str(&format!(
-                "<blockquote class=\"border-l-4 border-gray-300 dark:border-gray-600 pl-3 italic text-gray-600 dark:text-gray-400 mb-2\">{}</blockquote>",
+                "<blockquote class=\"border-l-4 border-[var(--border-default)] pl-3 italic text-[var(--text-secondary)] mb-2\">{}</blockquote>",
                 render_inline(rest)
             ));
         } else if line.starts_with("---") {
-            html.push_str("<hr class=\"my-4 border-gray-300 dark:border-gray-600\" />");
+            html.push_str("<hr class=\"my-4 border-[var(--border-default)]\" />");
         } else if line.is_empty() {
             if in_list {
                 html.push_str("</ul>");
@@ -283,7 +283,7 @@ fn render_inline(text: &str) -> String {
         if let Some(end) = result[start + 1..].find('`') {
             let code = &result[start + 1..start + 1 + end].to_string();
             result = format!(
-                "{}<code class=\"bg-gray-100 dark:bg-gray-800 px-1 rounded font-mono text-xs\">{}</code>{}",
+                "{}<code class=\"bg-[var(--bg-inset)] bg-[var(--bg-surface)] px-1 rounded font-mono text-xs\">{}</code>{}",
                 &result[..start],
                 html_escape(code),
                 &result[start + 2 + end..]
@@ -300,7 +300,7 @@ fn render_inline(text: &str) -> String {
                 let link_text = &result[start + 1..start + mid].to_string();
                 let url = &result[start + mid + 2..start + mid + 2 + end].to_string();
                 result = format!(
-                    "{}<a href=\"{}\" class=\"text-blue-600 dark:text-blue-400 hover:underline\" target=\"_blank\">{}</a>{}",
+                    "{}<a href=\"{}\" class=\"text-[var(--accent)] dark:text-[var(--accent)] hover:underline\" target=\"_blank\">{}</a>{}",
                     &result[..start],
                     html_escape(url),
                     html_escape(link_text),
