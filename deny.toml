@@ -14,7 +14,15 @@ targets = [
 [advisories]
 version = 2
 yanked = "deny"
-ignore = []
+ignore = [
+    # Unmaintained transitive dependencies with limited blast radius:
+    { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained -- transitive via fuse3 (FUSE-only, no server impact)" },
+    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained -- transitive via leptos (web frontend only)" },
+    { id = "RUSTSEC-2024-0384", reason = "instant unmaintained -- transitive via reed-solomon-erasure (distributed crate only)" },
+    { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 unmaintained -- transitive via leptos (web frontend only)" },
+    { id = "RUSTSEC-2026-0204", reason = "transitive dep -- limited scope, no server impact" },
+    { id = "RUSTSEC-2025-0119", reason = "transitive dep -- limited scope, no server impact" },
+]
 
 [licenses]
 version = 2
