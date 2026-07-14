@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 8.3 | **Date:** 2026-07-14 | **Status:** v8.3 Full Audit + Consolidation + Decomposition COMPLETE
+**Version:** 8.4 | **Date:** 2026-07-14 | **Status:** v8.4 COMPLETE -- All phases executed, zero warnings, full decomposition
 
 ---
 
@@ -8,19 +8,21 @@
 
 | Metric | Value |
 |--------|-------|
-| Crates | 60 (56 consolidated + 3 decomposed + 1 extracted) |
+| Crates | 63 (56 consolidated + 4 decomposed + 3 new) |
 | Tests | 2500+ (unit + integration + property + security) |
 | Code | ~115K lines Rust |
-| Clippy warnings | 0 (all features: s3,gcs,azure,pg,redis,ldap) |
+| Clippy warnings | 0 (all features + all combinations) |
 | CI workflows | 14 (consolidated from 16) |
-| CI feature matrix | 6 features tested individually |
+| CI feature matrix | 6 individual + 6 combinations = 12 test configs |
 | Security | cargo-deny clean, zero yanked deps, zero memory leaks |
 | Fuzzing | 4 cargo-fuzz harnesses, 2.6M+ iterations, 0 crashes |
 | MSRV | 1.92 (enforced in CI) |
 | Pre-commit hook | fmt + clippy + secret scan + TODO scan + targeted tests |
 | Unified types | DbHandle (19->1), ApiError (9->2), AuditEntry (9->1) |
 | Dead code removed | ~12,000 lines |
-| Frontend | Zero hardcoded colors, skip-link added, 1 inline style remaining |
+| Frontend | 929 color replacements, 0 hardcoded colors, 0 static inline styles |
+| ServerState trait | 30 methods across 10 categories, implemented for AppState |
+| Architecture graph | 59 crates mapped across 5 layers in Mermaid |
 
 ## Recently Completed
 
