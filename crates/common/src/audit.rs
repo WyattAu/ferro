@@ -2,6 +2,59 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::VecDeque;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::{info, warn};
+
+const MAX_AUDIT_ENTRIES: usize = 10_000;
+
+// ── Persisted types ────────────────────────────────────────────────────
+
+/// A single audit log entry stored in a persistence backend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistedAuditEntry {
+    pub id: i64,
+    pub timestamp: String,
+    pub method: String,
+    pub path: String,
+    pub user: String,
+    pub status: u16,
+    pub client_ip: Option<String>,
+    pub user_agent: Option<String>,
+    pub content_length: Option<u64>,
+    pub chain_hash: Option<String>,
+}
+
+/// Report from verifying audit log chain hash integrity.
+#[derive(Debug, Clone, Serialize)]
+pub struct ChainVerificationReport {
+    pub total_entries: usize,
+    pub verified: usize,
+    pub mismatches: usize,
+    pub skipped_no_hash: usize,
+    pub findings: Vec<ChainMismatch>,
+}
+
+/// A single chain hash mismatch found during verification.
+#[derive(Debug, Clone, Serialize)]
+pub struct ChainMismatch {
+    pub entry_id: i64,
+    pub stored_hash: String,
+    pub computed_hash: String,
+    pub description: String,
+}
+
+// ── Persistence trait ──────────────────────────────────────────────────
+
+/// Persistence backend for audit log entries (e.g. SQLite).
+#[async_trait]
+pub trait AuditLogPersistence: Send + Sync {
+    async fn log(&self, entry: PersistedAuditEntry) -> Result<(), String>;
+    async fn count(&self) -> usize;
+    async fn recent(&self, limit: usize) -> Vec<PersistedAuditEntry>;
+    async fn verify_audit_chain(&self) -> Option<ChainVerificationReport>;
+}
 
 /// HTTP audit log entry.
 #[derive(Debug, Clone, Serialize)]
@@ -40,6 +93,150 @@ pub fn build_audit_entry(
         client_ip,
         user_agent,
         content_length: None,
+    }
+}
+
+// ── AuditLog struct ────────────────────────────────────────────────────
+
+/// In-memory audit log with optional persistence backend.
+pub struct AuditLog {
+    entries: Arc<RwLock<VecDeque<AuditEntry>>>,
+    persistence: Option<Arc<dyn AuditLogPersistence>>,
+}
+
+impl std::fmt::Debug for AuditLog {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuditLog")
+            .field("persistence", &self.persistence.is_some())
+            .finish()
+    }
+}
+
+impl AuditLog {
+    /// Create a new in-memory audit log.
+    pub fn new() -> Self {
+        Self {
+            entries: Arc::new(RwLock::new(VecDeque::new())),
+            persistence: None,
+        }
+    }
+
+    /// Add an optional persistence backend.
+    pub fn with_persistence(mut self, persistence: Arc<dyn AuditLogPersistence>) -> Self {
+        self.persistence = Some(persistence);
+        self
+    }
+
+    /// Record an audit entry.
+    pub async fn log(&self, entry: AuditEntry) {
+        info!(
+            method = %entry.method,
+            path = %entry.path,
+            user = %entry.user,
+            status = entry.status,
+            "AUDIT"
+        );
+        {
+            let mut entries = self.entries.write().await;
+            entries.push_back(entry.clone());
+            if entries.len() > MAX_AUDIT_ENTRIES {
+                let excess = entries.len() - MAX_AUDIT_ENTRIES;
+                entries.drain(..excess);
+            }
+        }
+
+        if let Some(ref p) = self.persistence
+            && let Err(e) = p
+                .log(PersistedAuditEntry {
+                    id: 0,
+                    timestamp: entry.timestamp,
+                    method: entry.method,
+                    path: entry.path,
+                    user: entry.user,
+                    status: entry.status,
+                    client_ip: entry.client_ip,
+                    user_agent: entry.user_agent,
+                    content_length: entry.content_length,
+                    chain_hash: None,
+                })
+                .await
+        {
+            warn!(error = %e, "audit log persistence failed");
+        }
+    }
+
+    /// Return all in-memory audit entries.
+    pub async fn entries(&self) -> Vec<AuditEntry> {
+        self.entries.read().await.iter().cloned().collect()
+    }
+
+    /// Return the most recent audit entries from in-memory buffer.
+    pub async fn recent_entries(&self, limit: usize) -> Vec<AuditEntry> {
+        let entries = self.entries.read().await;
+        entries
+            .iter()
+            .rev()
+            .take(limit)
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect()
+    }
+
+    /// Return the total number of audit entries (from persistence if available,
+    /// otherwise from in-memory buffer).
+    pub async fn len(&self) -> usize {
+        if let Some(ref p) = self.persistence {
+            p.count().await
+        } else {
+            self.entries.read().await.len()
+        }
+    }
+
+    /// Check whether the audit log is empty.
+    pub async fn is_empty(&self) -> bool {
+        self.len().await == 0
+    }
+
+    /// Verify the chain hash integrity of persisted audit entries.
+    /// Returns `None` if persistence is not configured.
+    pub async fn verify_chain(&self) -> Option<ChainVerificationReport> {
+        if let Some(ref p) = self.persistence {
+            p.verify_audit_chain().await
+        } else {
+            None
+        }
+    }
+
+    /// Return audit entries with pagination offset.
+    pub async fn recent_with_offset(&self, limit: usize, offset: usize) -> Vec<AuditEntry> {
+        if let Some(ref p) = self.persistence {
+            let persisted = p.recent(limit).await;
+            persisted
+                .into_iter()
+                .skip(offset)
+                .map(|e| AuditEntry {
+                    timestamp: e.timestamp,
+                    method: e.method,
+                    path: e.path,
+                    user: e.user,
+                    status: e.status,
+                    client_ip: e.client_ip,
+                    user_agent: e.user_agent,
+                    content_length: e.content_length,
+                })
+                .collect()
+        } else {
+            let entries = self.entries.read().await;
+            entries.iter().skip(offset).take(limit).cloned().collect()
+        }
+    }
+}
+
+impl Default for AuditLog {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

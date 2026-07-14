@@ -1,0 +1,41 @@
+[package]
+name = "ferro-server-routes"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Ferro server route middleware configuration and utilities"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+axum = { workspace = true, features = ["macros", "multipart", "ws"] }
+tower = { version = "0.5", features = ["limit"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+tracing = "0.1"
+hyper = { version = "1", features = ["full"] }
+http = "1"
+serde_json = { workspace = true }
+tokio = { workspace = true }
+common = { package = "ferro-common", path = "../common", features = ["db"] }
+ferro-server-state = { path = "../server-state" }
+ferro-server-security-middleware = { path = "../server-security-middleware" }
+ferro-server-storage-ops = { path = "../server-storage-ops" }
+ferro-server-webdav-core = { path = "../server-webdav-core" }
+ferro-server-collaboration = { path = "../server-collaboration" }
+ferro-server-compliance = { path = "../server-compliance" }
+ferro-server-admin-api = { path = "../server-admin-api" }
+ferro-server-integrations = { path = "../server-integrations" }
+ferro-server-api-core = { path = "../server-api-core" }
+ferro-server-user-mgmt = { path = "../server-user-mgmt" }
+ferro-server-productivity = { path = "../server-productivity" }
+ferro-server-content = { path = "../server-content" }
+ferro-server-sharing = { path = "../server-sharing" }
+ferro-auth = { path = "../auth" }
+ferro-core = { path = "../core" }
+ferro-rate-limiter = { path = "../rate-limiter" }
+ferro-cache = { path = "../cache" }
+ferro-health = { path = "../health" }
+ferro-multi-tenant = { path = "../multi-tenant" }
+ferro-offline = { path = "../offline" }
+ferro-selective-sync = { path = "../selective-sync" }

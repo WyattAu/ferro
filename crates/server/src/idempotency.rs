@@ -74,6 +74,27 @@ impl Default for IdempotencyStore {
     }
 }
 
+impl ferro_server_state::traits::IdempotencyStoreTrait for IdempotencyStore {
+    fn get(&self, key: &str) -> Option<ferro_server_state::traits::IdempotentResponse> {
+        IdempotencyStore::get(self, key).map(|r| ferro_server_state::traits::IdempotentResponse {
+            status: r.status,
+            body: r.body,
+            content_type: r.content_type,
+            created_at: r.created_at,
+        })
+    }
+
+    fn store(&self, key: &str, response: ferro_server_state::traits::IdempotentResponse) {
+        let local_response = IdempotentResponse {
+            status: response.status,
+            body: response.body,
+            content_type: response.content_type,
+            created_at: response.created_at,
+        };
+        IdempotencyStore::store(self, key, local_response);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

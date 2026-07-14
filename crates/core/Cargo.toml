@@ -28,7 +28,7 @@ gcs = ["object_store", "object_store/gcp"]
 azure = ["object_store", "object_store/azure"]
 
 [dependencies]
-ferro-common = { package = "ferro-common", path = "../common" }
+ferro-common = { package = "ferro-common", path = "../common", features = ["db"] }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

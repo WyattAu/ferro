@@ -104,6 +104,8 @@ ferro-server-webdav-core = { path = "../server-webdav-core" }
 ferro-server-productivity = { path = "../server-productivity" }
 ferro-server-infra = { path = "../server-infra" }
 ferro-server-config = { path = "../server-config" }
+ferro-server-state = { path = "../server-state" }
+ferro-server-routes = { path = "../server-routes" }
 zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]

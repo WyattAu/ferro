@@ -522,6 +522,74 @@ pub struct ChainMismatch {
     pub description: String,
 }
 
+// ── AuditLogPersistence trait impl ────────────────────────────────────────
+
+#[async_trait]
+impl ferro_common::audit::AuditLogPersistence for SqlitePersistence {
+    async fn log(&self, entry: ferro_common::audit::PersistedAuditEntry) -> std::result::Result<(), String> {
+        let persisted = PersistedAuditEntry {
+            id: entry.id,
+            timestamp: entry.timestamp,
+            method: entry.method,
+            path: entry.path,
+            user: entry.user,
+            status: entry.status,
+            client_ip: entry.client_ip,
+            user_agent: entry.user_agent,
+            content_length: entry.content_length,
+            chain_hash: entry.chain_hash,
+        };
+        AuditLogStore::log(self, persisted)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    async fn count(&self) -> usize {
+        AuditLogStore::count(self).await
+    }
+
+    async fn recent(&self, limit: usize) -> Vec<ferro_common::audit::PersistedAuditEntry> {
+        AuditLogStore::recent(self, limit)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|e| ferro_common::audit::PersistedAuditEntry {
+                id: e.id,
+                timestamp: e.timestamp,
+                method: e.method,
+                path: e.path,
+                user: e.user,
+                status: e.status,
+                client_ip: e.client_ip,
+                user_agent: e.user_agent,
+                content_length: e.content_length,
+                chain_hash: e.chain_hash,
+            })
+            .collect()
+    }
+
+    async fn verify_audit_chain(&self) -> Option<ferro_common::audit::ChainVerificationReport> {
+        let report = self.verify_audit_chain().await;
+        Some(ferro_common::audit::ChainVerificationReport {
+            total_entries: report.total_entries,
+            verified: report.verified,
+            mismatches: report.mismatches,
+            skipped_no_hash: report.skipped_no_hash,
+            findings: report
+                .findings
+                .into_iter()
+                .map(|f| ferro_common::audit::ChainMismatch {
+                    entry_id: f.entry_id,
+                    stored_hash: f.stored_hash,
+                    computed_hash: f.computed_hash,
+                    description: f.description,
+                })
+                .collect(),
+        })
+    }
+}
+
 // ── Metadata Store: reuse existing SqliteMetadataStore ────────────────────
 //
 // The existing `SqliteMetadataStore` in `sqlx_metadata.rs` already has the

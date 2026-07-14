@@ -84,6 +84,9 @@ use crate::{audit_handler, health_check, health_endpoint, liveness, readiness, s
 
 use std::sync::Arc;
 
+use ferro_server_routes::validate_cors_config;
+use ferro_server_routes::versioned_api_path;
+
 use axum::Router;
 use axum::body::Body;
 use axum::extract::State;
@@ -880,19 +883,8 @@ pub fn build_router_with_static(
     });
 
     let cors_origins = cors_allowed_origins.to_string();
-    if cors_origins == "*" {
-        tracing::warn!(
-            "SECURITY WARNING: CORS is configured to allow all origins ('*'). \
-             This is appropriate for development but should be restricted in production."
-        );
-    }
     let cors_auth_enabled = state.auth_enabled();
-    if cors_origins == "*" && cors_auth_enabled {
-        tracing::error!(
-            "CORS allowed origins is '*' while auth is enabled -- \
-             set a specific origin in production to prevent credential theft"
-        );
-    }
+    validate_cors_config(&cors_origins, cors_auth_enabled);
     let cors_layer = axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
         let allowed = cors_origins.clone();
         async move {
@@ -966,7 +958,7 @@ pub fn build_router_with_static(
         }
     });
 
-    let versioned_api_path = format!("/api/{}", api_version);
+    let versioned_api_path = versioned_api_path(api_version);
     let api_version_for_header = api_version.to_string();
     let deprecation_layer =
         axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {

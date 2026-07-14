@@ -3130,6 +3130,7 @@ dependencies = [
  "sha2 0.11.0",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
  "uuid",
  "zeroize",
 ]
@@ -3533,9 +3534,11 @@ dependencies = [
  "ferro-server-integrations",
  "ferro-server-plugins",
  "ferro-server-productivity",
+ "ferro-server-routes",
  "ferro-server-security",
  "ferro-server-security-middleware",
  "ferro-server-sharing",
+ "ferro-server-state",
  "ferro-server-storage-ops",
  "ferro-server-user-mgmt",
  "ferro-server-versioning",
@@ -3874,6 +3877,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-routes"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "ferro-auth",
+ "ferro-cache",
+ "ferro-common",
+ "ferro-core",
+ "ferro-health",
+ "ferro-multi-tenant",
+ "ferro-offline",
+ "ferro-rate-limiter",
+ "ferro-selective-sync",
+ "ferro-server-admin-api",
+ "ferro-server-api-core",
+ "ferro-server-collaboration",
+ "ferro-server-compliance",
+ "ferro-server-content",
+ "ferro-server-integrations",
+ "ferro-server-productivity",
+ "ferro-server-security-middleware",
+ "ferro-server-sharing",
+ "ferro-server-state",
+ "ferro-server-storage-ops",
+ "ferro-server-user-mgmt",
+ "ferro-server-webdav-core",
+ "http 1.4.2",
+ "hyper",
+ "serde_json",
+ "tokio",
+ "tower 0.5.3",
+ "tower-http",
+ "tracing",
+]
+
+[[package]]
 name = "ferro-server-security"
 version = "3.0.0"
 dependencies = [
@@ -3949,6 +3988,16 @@ dependencies = [
  "tokio-util",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "ferro-server-state"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -58,6 +58,8 @@ members = [
     "crates/server-webdav-core",
     "crates/server-productivity",
     "crates/server-infra",
+    "crates/server-state",
+    "crates/server-routes",
     "crates/chaos",
     "crates/plugin",
     "crates/feature-flags",
