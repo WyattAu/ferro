@@ -171,8 +171,7 @@ impl LockManagerTrait for RedisLockManager {
             return Err(FerroError::LockConflict(format!(
                 "Resource {} is exclusively locked by {}",
                 path, lock.principal
-            ))
-            .context("Failed to check lock conflict for resource"));
+            )));
         }
 
         let mut check_path = path;
@@ -184,8 +183,7 @@ impl LockManagerTrait for RedisLockManager {
                 return Err(FerroError::LockConflict(format!(
                     "Parent {} has an exclusive infinity lock by {}",
                     parent, lock.principal
-                ))
-                .context("Failed to check lock conflict for resource"));
+                )));
             }
             check_path = parent;
             if check_path == "/" {
@@ -210,8 +208,7 @@ impl LockManagerTrait for RedisLockManager {
             return Err(FerroError::LockConflict(format!(
                 "Resource {} is exclusively locked by {}",
                 path, existing.principal
-            ))
-            .context("Failed to check lock conflict for resource"));
+            )));
         }
 
         let timeout = timeout_secs.unwrap_or(self.default_timeout_secs);
@@ -254,9 +251,7 @@ impl LockManagerTrait for RedisLockManager {
         let path = match path {
             Some(p) => p,
             None => {
-                return Err(
-                    FerroError::LockTokenNotFound(token.to_string()).context("Failed to release lock: token not found")
-                );
+                return Err(FerroError::LockTokenNotFound(token.to_string()));
             }
         };
 
@@ -294,7 +289,7 @@ impl LockManagerTrait for RedisLockManager {
             debug!("LOCK released (Redis): {}", path);
             Ok(())
         } else {
-            Err(FerroError::LockTokenNotFound(token.to_string()).context("Failed to release lock: token not found"))
+            Err(FerroError::LockTokenNotFound(token.to_string()))
         }
     }
 
@@ -314,18 +309,14 @@ impl LockManagerTrait for RedisLockManager {
         let path = match path {
             Some(p) => p,
             None => {
-                return Err(
-                    FerroError::LockTokenNotFound(token.to_string()).context("Failed to refresh lock: token not found")
-                );
+                return Err(FerroError::LockTokenNotFound(token.to_string()));
             }
         };
 
         let mut lock = match self.get_lock_info(&path).await {
             Some(l) if !l.is_expired() => l,
             _ => {
-                return Err(
-                    FerroError::LockTokenNotFound(token.to_string()).context("Failed to refresh lock: token not found")
-                );
+                return Err(FerroError::LockTokenNotFound(token.to_string()));
             }
         };
 

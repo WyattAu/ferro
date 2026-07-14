@@ -34,12 +34,12 @@ impl PgShareStore {
 }
 
 #[async_trait]
-impl ferro_server_api_core::shares::ShareStoreTrait for PgShareStore {
+impl ferro_server_sharing::shares::ShareStoreTrait for PgShareStore {
     async fn create(
         &self,
-        req: ferro_server_api_core::shares::CreateShareRequest,
+        req: ferro_server_sharing::shares::CreateShareRequest,
         created_by: String,
-    ) -> ferro_server_api_core::shares::ShareLink {
+    ) -> ferro_server_sharing::shares::ShareLink {
         let token = uuid::Uuid::new_v4().to_string();
         let expires_at = match req.expires_in_hours {
             Some(hours) => Utc::now() + chrono::Duration::hours(hours),
@@ -66,7 +66,7 @@ impl ferro_server_api_core::shares::ShareStoreTrait for PgShareStore {
             warn!(error = %e, "failed to persist share to database");
         }
 
-        ferro_server_api_core::shares::ShareLink {
+        ferro_server_sharing::shares::ShareLink {
             token: token.clone(),
             path: req.path,
             password: req.password,
@@ -79,7 +79,7 @@ impl ferro_server_api_core::shares::ShareStoreTrait for PgShareStore {
         }
     }
 
-    async fn get(&self, token: &str) -> Option<ferro_server_api_core::shares::ShareLink> {
+    async fn get(&self, token: &str) -> Option<ferro_server_sharing::shares::ShareLink> {
         let row: Option<(String, String, Option<String>, chrono::DateTime<Utc>, Option<i32>, i32, String)> =
             sqlx::query_as(
                 "SELECT token, path, password, expires_at, max_downloads, download_count, created_by FROM shares WHERE token = $1"
@@ -91,7 +91,7 @@ impl ferro_server_api_core::shares::ShareStoreTrait for PgShareStore {
 
         let (token, path, password, expires_at, max_downloads, download_count, created_by) = row?;
 
-        Some(ferro_server_api_core::shares::ShareLink {
+        Some(ferro_server_sharing::shares::ShareLink {
             token,
             path,
             password,
@@ -115,7 +115,7 @@ impl ferro_server_api_core::shares::ShareStoreTrait for PgShareStore {
         result.unwrap_or(false)
     }
 
-    async fn list(&self) -> Vec<ferro_server_api_core::shares::ShareLink> {
+    async fn list(&self) -> Vec<ferro_server_sharing::shares::ShareLink> {
         let rows: Vec<(String, String, Option<String>, chrono::DateTime<Utc>, Option<i32>, i32, String)> =
             sqlx::query_as(
                 "SELECT token, path, password, expires_at, max_downloads, download_count, created_by FROM shares ORDER BY created_at DESC"
@@ -127,7 +127,7 @@ impl ferro_server_api_core::shares::ShareStoreTrait for PgShareStore {
         rows.into_iter()
             .map(
                 |(token, path, password, expires_at, max_downloads, download_count, created_by)| {
-                    ferro_server_api_core::shares::ShareLink {
+                    ferro_server_sharing::shares::ShareLink {
                         token,
                         path,
                         password,
@@ -180,7 +180,7 @@ impl PgFavoriteStore {
 }
 
 #[async_trait]
-impl ferro_server_api_core::favorites::FavoriteStore for PgFavoriteStore {
+impl ferro_server_sharing::favorites::FavoriteStore for PgFavoriteStore {
     async fn list(&self) -> Vec<String> {
         sqlx::query_scalar("SELECT path FROM favorites WHERE user_id = 'default' ORDER BY created_at DESC")
             .fetch_all(&self.pool)
@@ -243,7 +243,7 @@ impl PgPreferenceStore {
         .await?;
 
         if let Err(e) = sqlx::query("INSERT INTO preferences (user_id) VALUES ('default') ON CONFLICT DO NOTHING")
-            .execute(&self.pool)
+            .execute(&pool)
             .await
         {
             warn!(error = %e, "failed to insert default preferences row");

@@ -10,7 +10,7 @@ publish = false
 
 [features]
 default = []
-pg = ["dep:sqlx", "sqlx/postgres", "sqlx/chrono"]
+pg = ["dep:sqlx", "sqlx/postgres", "sqlx/chrono", "dep:ferro-server-sharing"]
 redis = ["dep:redis"]
 
 [dependencies]
@@ -19,6 +19,7 @@ ferro-circuit-breaker = { path = "../circuit-breaker" }
 ferro-server-activitypub = { path = "../server-activitypub" }
 ferro-server-security = { path = "../server-security" }
 ferro-server-api-core = { path = "../server-api-core" }
+ferro-server-sharing = { path = "../server-sharing", optional = true }
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = "1"

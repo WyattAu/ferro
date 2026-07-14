@@ -25,8 +25,6 @@ ignore = [
     # instant unmaintained -- transitive via reed-solomon-erasure v6 -> parking_lot v0.11.2
     { id = "RUSTSEC-2024-0384", reason = "instant unmaintained -- transitive via reed-solomon-erasure (distributed crate only)" },
     # proc-macro-error2 unmaintained -- transitive via leptos (web frontend only)
-    { id = "RUSTSEC-0000-0000", reason = "proc-macro-error2 unmaintained -- transitive via leptos (web frontend)" },
-    # proc-macro-error2 unmaintained -- alternate advisory ID
     { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 unmaintained -- transitive via leptos (web frontend)" },
 ]
 

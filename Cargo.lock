@@ -3793,6 +3793,7 @@ dependencies = [
  "ferro-server-activitypub",
  "ferro-server-api-core",
  "ferro-server-security",
+ "ferro-server-sharing",
  "http-body-util",
  "redis",
  "reqwest 0.12.28",
