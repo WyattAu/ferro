@@ -1252,9 +1252,7 @@ pub fn apply_custom_theme_overrides() {
                             let _ = style.set_text_content(Some(&css));
                             if let Some(head) = doc.head() {
                                 if let Some(existing) =
-                                    doc.query_selector("#ferro-custom-theme-overrides")
-                                        .ok()
-                                        .flatten()
+                                    doc.query_selector("#ferro-custom-theme-overrides").ok().flatten()
                                 {
                                     let _ = head.remove_child(&existing);
                                 }

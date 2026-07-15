@@ -71,9 +71,7 @@ impl FileRequestStoreTrait for FileRequestStore {
     async fn create(&self, req: CreateFileRequest, created_by: String) -> FileRequest {
         let id = uuid::Uuid::new_v4().to_string();
         let token = uuid::Uuid::new_v4().to_string();
-        let expires_at = req
-            .expires_in_hours
-            .map(|h| Utc::now() + chrono::Duration::hours(h));
+        let expires_at = req.expires_in_hours.map(|h| Utc::now() + chrono::Duration::hours(h));
 
         let file_request = FileRequest {
             id: id.clone(),
@@ -114,11 +112,7 @@ impl FileRequestStoreTrait for FileRequestStore {
         let requests = self.requests.read().await;
         requests
             .iter()
-            .filter(|r| {
-                r.expires_at
-                    .map(|e| e > Utc::now())
-                    .unwrap_or(true)
-            })
+            .filter(|r| r.expires_at.map(|e| e > Utc::now()).unwrap_or(true))
             .cloned()
             .collect()
     }

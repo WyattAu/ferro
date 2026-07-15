@@ -413,10 +413,7 @@ impl FerroClient {
         match response.status().as_u16() {
             200 => {
                 let body: serde_json::Value = response.json().await.map_err(ClientError::Network)?;
-                let wipe_pending = body
-                    .get("wipe_pending")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
+                let wipe_pending = body.get("wipe_pending").and_then(|v| v.as_bool()).unwrap_or(false);
                 Ok(wipe_pending)
             }
             status => {

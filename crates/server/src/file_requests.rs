@@ -15,10 +15,7 @@ pub async fn create_file_request(
     State(state): State<AppState>,
     axum::Json(req): axum::Json<CreateFileRequest>,
 ) -> Response {
-    let created_by = state
-        .admin_user
-        .clone()
-        .unwrap_or_else(|| "anonymous".to_string());
+    let created_by = state.admin_user.clone().unwrap_or_else(|| "anonymous".to_string());
 
     // Validate path
     for component in std::path::Path::new(&req.path).components() {
@@ -93,10 +90,7 @@ pub async fn list_file_requests(State(state): State<AppState>) -> Response {
 }
 
 /// Delete a file request by ID.
-pub async fn delete_file_request(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_file_request(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     if state.file_request_store.delete(&id).await {
         (StatusCode::NO_CONTENT, "").into_response()
     } else {

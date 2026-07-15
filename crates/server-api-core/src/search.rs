@@ -2,11 +2,11 @@ use async_trait::async_trait;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use chrono::Utc;
 
 use crate::ApiCoreState;
 use crate::ApiError;
@@ -535,9 +535,7 @@ pub async fn handle_update_preferences<S: ApiCoreState>(
 
 // --- Saved Searches Handlers ---
 
-pub async fn list_saved_searches<S: ApiCoreState>(
-    State(state): State<S>,
-) -> Response {
+pub async fn list_saved_searches<S: ApiCoreState>(State(state): State<S>) -> Response {
     let store = state.saved_search_store();
     let searches = store.list().await;
     (
@@ -547,10 +545,7 @@ pub async fn list_saved_searches<S: ApiCoreState>(
         .into_response()
 }
 
-pub async fn get_saved_search<S: ApiCoreState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn get_saved_search<S: ApiCoreState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let store = state.saved_search_store();
     match store.get(&id).await {
         Some(search) => (StatusCode::OK, axum::Json(search)).into_response(),
@@ -564,11 +559,7 @@ pub async fn create_saved_search<S: ApiCoreState>(
 ) -> Response {
     let store = state.saved_search_store();
     let search = store.create(body.name, body.query).await;
-    (
-        StatusCode::CREATED,
-        axum::Json(search),
-    )
-        .into_response()
+    (StatusCode::CREATED, axum::Json(search)).into_response()
 }
 
 pub async fn update_saved_search<S: ApiCoreState>(
@@ -583,10 +574,7 @@ pub async fn update_saved_search<S: ApiCoreState>(
     }
 }
 
-pub async fn delete_saved_search<S: ApiCoreState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_saved_search<S: ApiCoreState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let store = state.saved_search_store();
     if store.delete(&id).await {
         (StatusCode::OK, axum::Json(serde_json::json!({ "deleted": true }))).into_response()
@@ -595,10 +583,7 @@ pub async fn delete_saved_search<S: ApiCoreState>(
     }
 }
 
-pub async fn run_saved_search<S: ApiCoreState>(
-    State(state): State<S>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn run_saved_search<S: ApiCoreState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let store = state.saved_search_store();
     match store.get(&id).await {
         Some(search) => {

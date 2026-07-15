@@ -1,14 +1,11 @@
 use axum::extract::{Path, State};
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 
 use crate::AppState;
 
 /// Generate a QR code SVG for a share link.
-pub async fn share_qr_code(
-    State(state): State<AppState>,
-    Path(token): Path<String>,
-) -> Response {
+pub async fn share_qr_code(State(state): State<AppState>, Path(token): Path<String>) -> Response {
     // Verify the share exists
     let _link = match state.share_store.get(&token).await {
         Some(l) => l,
@@ -17,19 +14,14 @@ pub async fn share_qr_code(
                 StatusCode::NOT_FOUND,
                 axum::Json(serde_json::json!({"error": "share_not_found"})),
             )
-                .into_response()
+                .into_response();
         }
     };
 
     let share_url = format!("{}/s/{}", state.external_url, token);
 
     match generate_qr_svg(&share_url) {
-        Ok(svg) => (
-            StatusCode::OK,
-            [(header::CONTENT_TYPE, "image/svg+xml")],
-            svg,
-        )
-            .into_response(),
+        Ok(svg) => (StatusCode::OK, [(header::CONTENT_TYPE, "image/svg+xml")], svg).into_response(),
         Err(e) => {
             tracing::warn!(error = %e, "failed to generate QR code");
             (

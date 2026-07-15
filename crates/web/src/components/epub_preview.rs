@@ -33,11 +33,7 @@ pub fn EpubPreview(
         let window = web_sys::window().expect("no global window");
 
         // Check if ePub.js is available
-        let has_epub = js_sys::Reflect::has(
-            &window.into(),
-            &JsValue::from_str("ePub"),
-        )
-        .unwrap_or(false);
+        let has_epub = js_sys::Reflect::has(&window.into(), &JsValue::from_str("ePub")).unwrap_or(false);
 
         if !has_epub {
             set_error.set(Some("EPUB.js library not loaded".to_string()));
@@ -112,7 +108,10 @@ pub fn EpubPreview(
                             let meta = EpubMetadata {
                                 title: meta_obj.get("title").and_then(|v| v.as_str()).map(|s| s.to_string()),
                                 creator: meta_obj.get("creator").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                description: meta_obj.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                description: meta_obj
+                                    .get("description")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
                                 cover_url: meta_obj.get("cover").and_then(|v| v.as_str()).map(|s| s.to_string()),
                             };
                             set_metadata.set(Some(meta));
@@ -156,34 +155,32 @@ pub fn EpubPreview(
         set_current_chapter.update(|c| *c += 1);
     };
 
-    let handle_keydown = move |ev: ev::KeyboardEvent| {
-        match ev.key().as_str() {
-            "ArrowLeft" => {
-                let _ = js_sys::eval(
-                    r#"
+    let handle_keydown = move |ev: ev::KeyboardEvent| match ev.key().as_str() {
+        "ArrowLeft" => {
+            let _ = js_sys::eval(
+                r#"
                     if (window._epubRendition) {
                         window._epubRendition.prev();
                     }
                     "#,
-                );
-                set_current_chapter.update(|c| {
-                    if *c > 0 {
-                        *c -= 1;
-                    }
-                });
-            }
-            "ArrowRight" => {
-                let _ = js_sys::eval(
-                    r#"
+            );
+            set_current_chapter.update(|c| {
+                if *c > 0 {
+                    *c -= 1;
+                }
+            });
+        }
+        "ArrowRight" => {
+            let _ = js_sys::eval(
+                r#"
                     if (window._epubRendition) {
                         window._epubRendition.next();
                     }
                     "#,
-                );
-                set_current_chapter.update(|c| *c += 1);
-            }
-            _ => {}
+            );
+            set_current_chapter.update(|c| *c += 1);
         }
+        _ => {}
     };
 
     view! {

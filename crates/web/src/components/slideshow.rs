@@ -50,11 +50,7 @@ pub struct SlideshowImage {
 }
 
 #[component]
-pub fn Slideshow(
-    images: Vec<SlideshowImage>,
-    initial_index: usize,
-    on_close: Callback<()>,
-) -> impl IntoView {
+pub fn Slideshow(images: Vec<SlideshowImage>, initial_index: usize, on_close: Callback<()>) -> impl IntoView {
     let (current_index, set_current_index) = signal(initial_index);
     let (is_playing, set_is_playing) = signal(true);
     let (slideshow_interval, set_slideshow_interval) = signal(SlideshowInterval::FiveSeconds);
@@ -192,12 +188,10 @@ pub fn Slideshow(
                     set_current_index.set(0);
                 }
             });
-            
+
             let window = web_sys::window().expect("no global window");
-            let _ = window.set_interval_with_callback_and_timeout_and_arguments_0(
-                closure.as_ref().unchecked_ref(),
-                ms as i32,
-            );
+            let _ = window
+                .set_interval_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), ms as i32);
             closure.forget();
         }
     });

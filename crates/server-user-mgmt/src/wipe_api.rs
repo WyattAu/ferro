@@ -75,10 +75,7 @@ pub async fn confirm_wipe<S: UserMgmtState>(
 
     // Clear the wipe pending flag
     if let Err(e) = state.user_store().set_wipe_pending(&user.id, false).await {
-        return ApiError::internal(
-            "WIPE_CONFIRM_ERROR",
-            format!("Failed to clear wipe status: {:?}", e),
-        );
+        return ApiError::internal("WIPE_CONFIRM_ERROR", format!("Failed to clear wipe status: {:?}", e));
     }
 
     tracing::info!(

@@ -24,10 +24,7 @@ enum MapLoadState {
 /// Interactive map view for photos with GPS location data.
 /// Falls back to a list view if Leaflet.js cannot be loaded or no photos have location data.
 #[component]
-pub fn PhotoMap(
-    photos: Signal<Vec<Photo>>,
-    on_photo_click: impl Fn(Photo) + Clone + 'static,
-) -> impl IntoView {
+pub fn PhotoMap(photos: Signal<Vec<Photo>>, on_photo_click: impl Fn(Photo) + Clone + 'static) -> impl IntoView {
     provide_theme_state();
 
     let (map_state, set_map_state) = signal(MapLoadState::Loading);

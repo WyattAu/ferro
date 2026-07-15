@@ -13,10 +13,7 @@ pub struct DuplicateRequest {
 }
 
 #[instrument(name = "duplicate_file", skip(state))]
-pub async fn duplicate_file(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<DuplicateRequest>,
-) -> Response {
+pub async fn duplicate_file(State(state): State<AppState>, axum::Json(body): axum::Json<DuplicateRequest>) -> Response {
     let source = body.path.trim_start_matches('/');
     if source.is_empty() {
         return ApiError::bad_request(ApiError::BAD_REQUEST, "Path is required");
@@ -44,10 +41,7 @@ pub async fn duplicate_file(
             }
             copy_num += 1;
             if copy_num > 100 {
-                return ApiError::internal(
-                    ApiError::INTERNAL_ERROR,
-                    "Too many copies already exist",
-                );
+                return ApiError::internal(ApiError::INTERNAL_ERROR, "Too many copies already exist");
             }
         }
     }

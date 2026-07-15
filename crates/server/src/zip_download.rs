@@ -5,8 +5,8 @@ use bytes::Bytes;
 use serde::Deserialize;
 use std::io::Write;
 use tracing::instrument;
-use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
+use zip::write::SimpleFileOptions;
 
 use crate::AppState;
 use crate::api_error::ApiError;
@@ -17,10 +17,7 @@ pub struct ZipDownloadRequest {
 }
 
 #[instrument(name = "zip_download", skip(state))]
-pub async fn zip_download(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<ZipDownloadRequest>,
-) -> Response {
+pub async fn zip_download(State(state): State<AppState>, axum::Json(body): axum::Json<ZipDownloadRequest>) -> Response {
     if body.paths.is_empty() {
         return ApiError::bad_request(ApiError::BAD_REQUEST, "No paths provided");
     }

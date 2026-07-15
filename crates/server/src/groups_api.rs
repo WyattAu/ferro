@@ -4,23 +4,15 @@ use axum::response::{IntoResponse, Response};
 
 use crate::AppState;
 use crate::api_error::ApiError;
-use ferro_server_user_mgmt::groups::{
-    CreateGroupRequest, UpdateGroupRequest,
-};
+use ferro_server_user_mgmt::groups::{CreateGroupRequest, UpdateGroupRequest};
 
 // ---------------------------------------------------------------------------
 // Group CRUD handlers
 // ---------------------------------------------------------------------------
 
 /// Create a new group.
-pub async fn create_group(
-    State(state): State<AppState>,
-    axum::Json(req): axum::Json<CreateGroupRequest>,
-) -> Response {
-    let created_by = state
-        .admin_user
-        .clone()
-        .unwrap_or_else(|| "anonymous".to_string());
+pub async fn create_group(State(state): State<AppState>, axum::Json(req): axum::Json<CreateGroupRequest>) -> Response {
+    let created_by = state.admin_user.clone().unwrap_or_else(|| "anonymous".to_string());
 
     let group = state.group_store.create(req, created_by).await;
 
@@ -109,10 +101,7 @@ pub async fn delete_group(State(state): State<AppState>, Path(id): Path<String>)
 }
 
 /// Add a member to a group.
-pub async fn add_group_member(
-    State(state): State<AppState>,
-    Path((id, username)): Path<(String, String)>,
-) -> Response {
+pub async fn add_group_member(State(state): State<AppState>, Path((id, username)): Path<(String, String)>) -> Response {
     if state.group_store.add_member(&id, &username).await {
         match state.group_store.get(&id).await {
             Some(group) => (
@@ -145,10 +134,7 @@ pub async fn remove_group_member(
 
 /// List groups for the current user.
 pub async fn list_user_groups(State(state): State<AppState>) -> Response {
-    let username = state
-        .admin_user
-        .clone()
-        .unwrap_or_else(|| "anonymous".to_string());
+    let username = state.admin_user.clone().unwrap_or_else(|| "anonymous".to_string());
 
     let groups = state.group_store.list_user_groups(&username).await;
     let items: Vec<serde_json::Value> = groups

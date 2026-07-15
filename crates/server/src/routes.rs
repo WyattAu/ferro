@@ -23,6 +23,7 @@ use crate::contacts_api;
 use crate::dashboard;
 use crate::dav;
 use crate::dlp_api;
+use crate::duplicate;
 use crate::e2ee;
 use crate::encryption;
 use crate::event_triggers;
@@ -30,8 +31,8 @@ use crate::favorites;
 use crate::federation;
 use crate::file_requests;
 use crate::gdpr;
-use crate::guests;
 use crate::groups_api;
+use crate::guests;
 use crate::link_analytics_api;
 use crate::mail_api;
 use crate::metrics;
@@ -46,8 +47,8 @@ use crate::plugin_permissions;
 use crate::policies;
 use crate::presigned;
 use crate::prometheus_metrics;
-use crate::qr_sharing;
 use crate::push_notifications;
+use crate::qr_sharing;
 use crate::quota;
 use crate::remote_mount;
 use crate::request_id;
@@ -72,7 +73,6 @@ use crate::totp_api;
 use crate::trash;
 use crate::upload;
 use crate::user_api;
-use crate::wipe_api;
 use crate::wasm_upload;
 use crate::watermark_api;
 #[cfg(feature = "webauthn")]
@@ -80,11 +80,11 @@ use crate::webauthn_api;
 use crate::webdav;
 use crate::webhooks;
 use crate::whiteboard_api;
+use crate::wipe_api;
 use crate::workers;
 use crate::worm;
 use crate::ws;
 use crate::zip_download;
-use crate::duplicate;
 
 use crate::{audit_handler, health_check, health_endpoint, liveness, readiness, startup, storage_stats};
 
@@ -162,8 +162,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         .route("/search", axum::routing::get(search::handle_search::<AppState>))
         .route(
             "/saved-searches",
-            axum::routing::get(search::list_saved_searches::<AppState>)
-                .post(search::create_saved_search::<AppState>),
+            axum::routing::get(search::list_saved_searches::<AppState>).post(search::create_saved_search::<AppState>),
         )
         .route(
             "/saved-searches/:id",
@@ -507,10 +506,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             "/wipe-status",
             axum::routing::get(wipe_api::get_wipe_status::<AppState>),
         )
-        .route(
-            "/wipe-confirm",
-            axum::routing::post(wipe_api::confirm_wipe::<AppState>),
-        )
+        .route("/wipe-confirm", axum::routing::post(wipe_api::confirm_wipe::<AppState>))
         .route(
             "/admin/users/:id/devices",
             axum::routing::get(account_api::list_user_devices::<AppState>),
@@ -539,28 +535,20 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         // File Requests (upload-only public links)
         .route(
             "/file-requests",
-            axum::routing::get(file_requests::list_file_requests)
-                .post(file_requests::create_file_request),
+            axum::routing::get(file_requests::list_file_requests).post(file_requests::create_file_request),
         )
         .route(
             "/file-requests/:id",
             axum::routing::delete(file_requests::delete_file_request),
         )
         // QR Code sharing
-        .route(
-            "/shares/:token/qr",
-            axum::routing::get(qr_sharing::share_qr_code),
-        )
+        .route("/shares/:token/qr", axum::routing::get(qr_sharing::share_qr_code))
         // Group Management
         .route(
             "/groups",
-            axum::routing::get(groups_api::list_groups)
-                .post(groups_api::create_group),
+            axum::routing::get(groups_api::list_groups).post(groups_api::create_group),
         )
-        .route(
-            "/groups/me",
-            axum::routing::get(groups_api::list_user_groups),
-        )
+        .route("/groups/me", axum::routing::get(groups_api::list_user_groups))
         .route(
             "/groups/:id",
             axum::routing::get(groups_api::get_group)
@@ -569,8 +557,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         )
         .route(
             "/groups/:id/members/:username",
-            axum::routing::post(groups_api::add_group_member)
-                .delete(groups_api::remove_group_member),
+            axum::routing::post(groups_api::add_group_member).delete(groups_api::remove_group_member),
         )
         .route(
             "/users/me",

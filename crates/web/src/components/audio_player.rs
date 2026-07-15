@@ -209,11 +209,7 @@ pub fn AudioPlayer() -> impl IntoView {
 
     let progress_pct = move || {
         let d = duration.get();
-        if d > 0.0 {
-            (current_time.get() / d) * 100.0
-        } else {
-            0.0
-        }
+        if d > 0.0 { (current_time.get() / d) * 100.0 } else { 0.0 }
     };
 
     let has_tracks = move || !queue.get().is_empty();
