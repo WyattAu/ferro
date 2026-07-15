@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 9.0 | **Date:** 2026-07-14 | **Status:** v9.0 COMPLETE -- Full audit, consolidation, decomposition, genericization
+**Version:** 9.1 | **Date:** 2026-07-14 | **Status:** v9.1 COMPLETE -- All handler conversion done
 
 ---
 
@@ -10,7 +10,7 @@
 |--------|-------|
 | Crates | 67 (56 consolidated + 8 decomposed + 3 new) |
 | Tests | 2500+ (unit + integration + property + security) |
-| Code | ~115K lines Rust |
+| Code | ~115K lines Rust (server: 21K, down from 25K) |
 | Clippy warnings | 0 (all features + all combinations) |
 | CI workflows | 14 (consolidated from 16) |
 | CI feature matrix | 12 individual + 12 combinations = 24 test configs |
@@ -22,7 +22,7 @@
 | Dead code removed | ~12,000 lines |
 | Frontend | 929 color replacements, 0 hardcoded colors, 0 static inline styles |
 | ServerState trait | 30 methods across 10 categories, implemented for AppState |
-| Handler genericization | 180/219 handlers converted (82%) |
+| Handler genericization | 180/219 handlers converted (82%), 59 _impl calls |
 | API docs | Automated cargo doc + GitHub Pages deployment |
 | Extracted crates | server-api, server-health, server-federation, server-sync-handlers |
 | Architecture graph | 59 crates mapped across 5 layers in Mermaid |
