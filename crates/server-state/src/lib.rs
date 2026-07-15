@@ -136,6 +136,8 @@ pub trait ServerState: Send + Sync + Clone + 'static {
     fn email_config(&self) -> &ferro_server_api_core::email::EmailConfig;
 
     // Push notifications
-    fn push_notification_store(&self) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>>;
+    fn push_notification_store(
+        &self,
+    ) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>>;
     fn push_notification_config(&self) -> &ferro_server_integrations::push_notifications::PushNotificationConfig;
 }

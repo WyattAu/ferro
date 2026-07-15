@@ -20,10 +20,7 @@ pub use ferro_server_sharing::shares_ext::{
 // ---------------------------------------------------------------------------
 
 /// `POST /api/shares/ext` -- Create a share link with extended type support.
-pub async fn create_share_ext_impl<S: ServerState>(
-    state: &S,
-    req: CreateShareRequestExt,
-) -> Response {
+pub async fn create_share_ext_impl<S: ServerState>(state: &S, req: CreateShareRequestExt) -> Response {
     use crate::shares::CreateShareRequest;
 
     if req.share_type == ShareType::Upload
@@ -103,11 +100,7 @@ pub async fn create_share_ext(
 }
 
 /// `POST /s/:token/upload` -- Upload a file to an upload-only share.
-pub async fn upload_to_share_impl<S: ServerState>(
-    state: &S,
-    token: String,
-    body: axum::body::Body,
-) -> Response {
+pub async fn upload_to_share_impl<S: ServerState>(state: &S, token: String, body: axum::body::Body) -> Response {
     let link = match state.share_store().get(&token).await {
         Some(l) => l,
         None => return ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found"),
@@ -150,14 +143,8 @@ pub async fn upload_to_share_impl<S: ServerState>(
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to store uploaded file");
     }
 
-    let audit_entry = crate::audit::build_audit_entry(
-        "POST",
-        &format!("/s/{}/upload", token),
-        "anonymous",
-        201,
-        None,
-        None,
-    );
+    let audit_entry =
+        crate::audit::build_audit_entry("POST", &format!("/s/{}/upload", token), "anonymous", 201, None, None);
     state
         .audit_log()
         .log(ferro_server_state::AuditEntry {

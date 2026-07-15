@@ -1018,7 +1018,9 @@ impl ferro_server_state::ServerState for AppState {
         &self.plugin_registry
     }
 
-    fn upload_store(&self) -> &Arc<tokio::sync::RwLock<std::collections::HashMap<String, ferro_server_state::ChunkedUpload>>> {
+    fn upload_store(
+        &self,
+    ) -> &Arc<tokio::sync::RwLock<std::collections::HashMap<String, ferro_server_state::ChunkedUpload>>> {
         &self.upload_store
     }
 
@@ -1070,7 +1072,9 @@ impl ferro_server_state::ServerState for AppState {
         &self.email_config
     }
 
-    fn push_notification_store(&self) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>> {
+    fn push_notification_store(
+        &self,
+    ) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>> {
         &self.push_notification_store
     }
 
