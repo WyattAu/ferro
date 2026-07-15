@@ -3,6 +3,7 @@ use axum::response::{IntoResponse, Response};
 use base64::Engine as _;
 use rand::RngCore as _;
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
 use crate::encryption::{decrypt_content, encrypt_content};
 use crate::error::ApiError;
@@ -75,6 +76,9 @@ pub async fn e2ee_key_generate() -> Response {
     let key_id = hex::encode(Sha256::digest(public_key_bytes));
 
     let created_at = chrono::Utc::now().timestamp();
+
+    // Zeroize the raw secret key material from the stack
+    secret_bytes.zeroize();
 
     (
         StatusCode::OK,

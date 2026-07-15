@@ -3585,7 +3585,7 @@ dependencies = [
  "tokio-util",
  "toml 0.8.2",
  "tower 0.5.3",
- "tower-http",
+ "tower-http 0.6.11",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
@@ -3962,6 +3962,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-router"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "ferro-health",
+ "ferro-server-state",
+ "http 1.4.2",
+ "hyper",
+ "serde_json",
+ "tokio",
+ "tower 0.4.13",
+ "tower-http 0.5.2",
+]
+
+[[package]]
 name = "ferro-server-routes"
 version = "3.0.0"
 dependencies = [
@@ -3993,7 +4008,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower 0.5.3",
- "tower-http",
+ "tower-http 0.6.11",
  "tracing",
 ]
 
@@ -4022,6 +4037,7 @@ dependencies = [
  "url",
  "uuid",
  "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]
@@ -9021,7 +9037,7 @@ dependencies = [
  "tokio-rustls",
  "tokio-util",
  "tower 0.5.3",
- "tower-http",
+ "tower-http 0.6.11",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -9061,7 +9077,7 @@ dependencies = [
  "tokio-rustls",
  "tokio-util",
  "tower 0.5.3",
- "tower-http",
+ "tower-http 0.6.11",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -11654,6 +11670,26 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "tower-http"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e9cd434a998747dd2c4276bc96ee2e0c7a2eadf3cae88e52be55a05fa9053f5"
+dependencies = [
+ "async-compression",
+ "bitflags 2.13.0",
+ "bytes",
+ "futures-core",
+ "http 1.4.2",
+ "http-body",
+ "http-body-util",
+ "pin-project-lite",
+ "tokio",
+ "tokio-util",
+ "tower-layer",
+ "tower-service",
 ]
 
 [[package]]

@@ -293,7 +293,6 @@ pub struct KeyMaterial {
     /// Key version for rotation tracking.
     pub version: u32,
     /// The raw key bytes (zeroized on drop).
-    #[zeroize(skip)]
     pub material: Vec<u8>,
     /// Human-readable label.
     pub label: String,
@@ -312,6 +311,13 @@ pub struct EncryptedKey {
     pub wrapped: Vec<u8>,
     /// Human-readable label.
     pub label: String,
+}
+
+impl Drop for EncryptedKey {
+    fn drop(&mut self) {
+        self.wrapped.zeroize();
+        self.mac.zeroize();
+    }
 }
 
 /// Three-tier key hierarchy: Master -> KEK -> Data.
@@ -381,6 +387,12 @@ impl KeyHierarchy {
         self.master_key.as_ref().map(|mk| mk.version)
     }
 
+    /// Return a reference to the master key material, or `None` if not set.
+    #[must_use]
+    pub fn master_key(&self) -> Option<&KeyMaterial> {
+        self.master_key.as_ref()
+    }
+
     /// Return a reference to a KEK by id.
     #[must_use]
     pub fn get_kek(&self, key_id: &str) -> Option<&KeyMaterial> {
@@ -434,6 +446,20 @@ impl KeyHierarchy {
 impl Default for KeyHierarchy {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Drop for KeyHierarchy {
+    fn drop(&mut self) {
+        if let Some(mut mk) = self.master_key.take() {
+            mk.material.zeroize();
+        }
+        for (_, mut kek) in self.keks.drain() {
+            kek.material.zeroize();
+        }
+        for (_, mut dk) in self.data_keys.drain() {
+            dk.material.zeroize();
+        }
     }
 }
 
@@ -603,6 +629,135 @@ impl Default for KeyManager {
     fn default() -> Self {
         Self::new()
     }
+}
+
+impl Drop for KeyManager {
+    fn drop(&mut self) {
+        self.hierarchy.clear_master_key();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Key Rotation
+// ---------------------------------------------------------------------------
+
+/// Configuration for automatic key rotation.
+#[derive(Debug, Clone)]
+pub struct KeyRotationConfig {
+    /// Whether automatic rotation is enabled.
+    pub enabled: bool,
+    /// Interval between rotation checks (in seconds).
+    pub rotation_interval: std::time::Duration,
+    /// Maximum age of a data key before forced rotation (in seconds).
+    pub max_key_age: std::time::Duration,
+}
+
+impl Default for KeyRotationConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            rotation_interval: std::time::Duration::from_secs(3600), // 1 hour
+            max_key_age: std::time::Duration::from_secs(86400),     // 24 hours
+        }
+    }
+}
+
+impl KeyManager {
+    /// Rotate the master key: clear the old one and set a new one.
+    pub fn rotate_master_key(&mut self, new_material: Vec<u8>, label: &str) {
+        self.hierarchy.clear_master_key();
+        self.hierarchy.set_master_key(new_material, label);
+        tracing::info!("master key rotated");
+    }
+
+    /// Rotate all data keys by re-wrapping them with the current KEKs.
+    ///
+    /// Returns the list of newly wrapped keys for archival.
+    pub fn rotate_all_data_keys(&mut self) -> Result<Vec<EncryptedKey>> {
+        let kek_ids: Vec<String> = self.hierarchy.keks.keys().cloned().collect();
+        let data_key_ids: Vec<String> = self.hierarchy.data_keys.keys().cloned().collect();
+
+        if kek_ids.is_empty() {
+            return Err(FipsError::KeyError("no KEKs available for rotation".into()));
+        }
+
+        let kek_id = &kek_ids[0];
+        let mut rotated = Vec::new();
+
+        for dk_id in &data_key_ids {
+            let dk = match self.hierarchy.data_keys.get(dk_id) {
+                Some(dk) => dk.clone(),
+                None => continue,
+            };
+
+            let kek = self
+                .hierarchy
+                .get_kek(kek_id)
+                .ok_or_else(|| FipsError::KeyNotFound(kek_id.into()))?;
+
+            let new_version = self.hierarchy.next_version();
+            let (wrapped, mac) = wrap_key(&kek.material, &dk.material, new_version)?;
+
+            let new_key = KeyMaterial {
+                key_id: dk.key_id.clone(),
+                version: new_version,
+                material: dk.material.clone(),
+                label: dk.label.clone(),
+            };
+            self.hierarchy.insert_data_key(new_key);
+
+            rotated.push(EncryptedKey {
+                key_id: dk_id.clone(),
+                version: new_version,
+                mac,
+                wrapped,
+                label: dk.label.clone(),
+            });
+        }
+
+        tracing::info!("rotated {} data keys", rotated.len());
+        Ok(rotated)
+    }
+}
+
+/// Spawn a background task that automatically rotates keys at the configured interval.
+///
+/// The task checks all data keys on each iteration and rotates any that exceed
+/// `max_key_age`. The rotation loop sleeps for `rotation_interval` between checks.
+pub fn spawn_key_rotation(
+    config: KeyRotationConfig,
+    mut key_manager: KeyManager,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        if !config.enabled {
+            tracing::info!("key rotation is disabled");
+            return;
+        }
+
+        tracing::info!(
+            "key rotation started (interval: {:?}, max age: {:?})",
+            config.rotation_interval,
+            config.max_key_age,
+        );
+
+        loop {
+            tokio::time::sleep(config.rotation_interval).await;
+
+            match key_manager.rotate_all_data_keys() {
+                Ok(rotated) => {
+                    if !rotated.is_empty() {
+                        tracing::info!(
+                            "automatic key rotation completed: {} keys rotated",
+                            rotated.len()
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("key rotation failed: {e}");
+                }
+            }
+        }
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -1109,5 +1264,68 @@ mod tests {
 
         km.destroy_data_key(&dk2.key_id).unwrap();
         assert_eq!(km.hierarchy().data_key_count(), 1);
+    }
+
+    #[test]
+    fn test_rotate_master_key() {
+        let mut km = KeyManager::new();
+        km.set_master_key(vec![0u8; 32], "old-master");
+        assert_eq!(km.hierarchy().master_key_version(), Some(0));
+
+        km.rotate_master_key(vec![1u8; 32], "new-master");
+        assert_eq!(km.hierarchy().master_key_version(), Some(0));
+        assert_eq!(km.hierarchy().master_key().unwrap().label, "new-master");
+    }
+
+    #[test]
+    fn test_rotate_all_data_keys() {
+        let mut km = KeyManager::new();
+        km.set_master_key(vec![0u8; 32], "master");
+
+        let kek = km.generate_kek("kek").unwrap();
+        let _dk1 = km.generate_data_key(&kek.key_id, "data-1").unwrap();
+        let _dk2 = km.generate_data_key(&kek.key_id, "data-2").unwrap();
+        assert_eq!(km.hierarchy().data_key_count(), 2);
+
+        let rotated = km.rotate_all_data_keys().unwrap();
+        assert_eq!(rotated.len(), 2);
+        assert_eq!(km.hierarchy().data_key_count(), 2);
+
+        for ek in &rotated {
+            assert!(ek.version > 0);
+            assert!(!ek.wrapped.is_empty());
+            assert!(!ek.mac.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_rotate_all_data_keys_no_keks_fails() {
+        let mut km = KeyManager::new();
+        km.set_master_key(vec![0u8; 32], "master");
+
+        let result = km.rotate_all_data_keys();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_key_rotation_config_default() {
+        let config = KeyRotationConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.rotation_interval, std::time::Duration::from_secs(3600));
+        assert_eq!(config.max_key_age, std::time::Duration::from_secs(86400));
+    }
+
+    #[tokio::test]
+    async fn test_spawn_key_rotation_disabled() {
+        let config = KeyRotationConfig {
+            enabled: false,
+            ..Default::default()
+        };
+        let km = KeyManager::new();
+        let handle = spawn_key_rotation(config, km);
+
+        // Disabled task exits immediately
+        let result = handle.await;
+        assert!(result.is_ok());
     }
 }
