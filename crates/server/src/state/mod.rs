@@ -137,6 +137,8 @@ pub struct AppState {
     pub email_config: ferro_server_api_core::email::EmailConfig,
     pub remote_mounts: Arc<ferro_server_integrations::remote_mount::RemoteMountStore>,
     pub ransomware_detector: Arc<crate::ransomware::RansomwareDetector>,
+    pub group_store: Arc<dyn ferro_server_user_mgmt::groups::GroupStoreTrait>,
+    pub file_request_store: Arc<dyn ferro_server_api_core::file_requests::FileRequestStoreTrait>,
     #[cfg(feature = "webauthn")]
     pub webauthn_store: Arc<tokio::sync::RwLock<crate::auth::webauthn::WebAuthnStore>>,
     /// Per-tenant rate limit configuration store.
@@ -314,6 +316,8 @@ impl AppState {
             ransomware_detector: Arc::new(crate::ransomware::RansomwareDetector::new(
                 crate::ransomware::RansomwareConfig::default(),
             )),
+            group_store: Arc::new(ferro_server_user_mgmt::groups::GroupStore::new()),
+            file_request_store: Arc::new(ferro_server_api_core::file_requests::FileRequestStore::new()),
             #[cfg(feature = "webauthn")]
             webauthn_store: Arc::new(tokio::sync::RwLock::new(crate::auth::webauthn::WebAuthnStore::new())),
             tenant_rate_limit_store: None,

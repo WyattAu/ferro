@@ -1,6 +1,7 @@
 pub mod email;
 pub mod event_triggers;
 pub mod events;
+pub mod file_requests;
 pub mod search;
 pub mod webhooks;
 pub mod ws;

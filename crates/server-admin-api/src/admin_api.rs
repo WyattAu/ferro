@@ -1223,6 +1223,9 @@ mod tests {
         ) -> Result<ferro_auth::users::User, ferro_auth::users::UserError> {
             unimplemented!()
         }
+        async fn set_wipe_pending(&self, _id: &str, _pending: bool) -> Result<(), ferro_auth::users::UserError> {
+            unimplemented!()
+        }
     }
 
     struct MockAdminShareStore;
@@ -1380,6 +1383,7 @@ mod tests {
             password_hash: None,
             totp_secret: None,
             totp_enabled: false,
+            wipe_pending: false,
         }
     }
 

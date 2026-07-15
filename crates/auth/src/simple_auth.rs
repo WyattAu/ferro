@@ -377,6 +377,7 @@ mod tests {
             )),
             totp_secret: None,
             totp_enabled: false,
+            wipe_pending: false,
         };
         store.create_user(user).await.unwrap();
 
@@ -427,6 +428,7 @@ mod tests {
             )),
             totp_secret: None,
             totp_enabled: false,
+            wipe_pending: false,
         };
         store.create_user(user).await.unwrap();
 
@@ -478,6 +480,7 @@ mod tests {
             )),
             totp_secret: None,
             totp_enabled: false,
+            wipe_pending: false,
         };
         store.create_user(user).await.unwrap();
 
@@ -611,6 +614,7 @@ mod tests {
             )),
             totp_secret: None,
             totp_enabled: false,
+            wipe_pending: false,
         };
         store.create_user(user).await.unwrap();
 

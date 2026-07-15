@@ -115,6 +115,7 @@ ferro-server-routes = { path = "../server-routes" }
 ferro-server-slo = { path = "../server-slo" }
 ferro-server-fips = { path = "../server-fips" }
 zeroize = { workspace = true, features = ["derive"] }
+qrcode = "0.14"
 
 [dev-dependencies]
 http-body-util = "0.1"

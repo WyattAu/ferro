@@ -401,6 +401,51 @@ impl FerroClient {
         }
     }
 
+    /// Check if a remote wipe is pending for the authenticated user.
+    ///
+    /// Clients should call this on startup and periodically during operation.
+    /// If `wipe_pending` is true, the client should delete local data and
+    /// call `confirm_wipe()` to clear the flag on the server.
+    pub async fn check_wipe_status(&self) -> Result<bool, ClientError> {
+        let url = format!("{}/api/wipe-status", self.base_url);
+        let response = self.http.get(&url).bearer_auth(&self.token).send().await?;
+
+        match response.status().as_u16() {
+            200 => {
+                let body: serde_json::Value = response.json().await.map_err(ClientError::Network)?;
+                let wipe_pending = body
+                    .get("wipe_pending")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                Ok(wipe_pending)
+            }
+            status => {
+                let body = response.text().await.unwrap_or_default();
+                Err(ClientError::Http { status, body })
+            }
+        }
+    }
+
+    /// Confirm that the client has completed a remote wipe.
+    ///
+    /// After deleting local data, the client calls this to clear the
+    /// `wipe_pending` flag on the server.
+    pub async fn confirm_wipe(&self, device_id: Option<&str>) -> Result<(), ClientError> {
+        let url = format!("{}/api/wipe-confirm", self.base_url);
+        let body = serde_json::json!({
+            "device_id": device_id,
+        });
+        let response = self.http.post(&url).bearer_auth(&self.token).json(&body).send().await?;
+
+        match response.status().as_u16() {
+            200 => Ok(()),
+            status => {
+                let body = response.text().await.unwrap_or_default();
+                Err(ClientError::Http { status, body })
+            }
+        }
+    }
+
     fn build_url(&self, path: &str) -> String {
         let path = path.trim_start_matches('/');
         format!("{}/{}", self.base_url, path)

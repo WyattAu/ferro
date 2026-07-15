@@ -51,6 +51,9 @@ pub struct User {
     /// Whether TOTP two-factor authentication is enabled.
     #[serde(default)]
     pub totp_enabled: bool,
+    /// Whether a remote wipe is pending for this user's devices.
+    #[serde(default)]
+    pub wipe_pending: bool,
 }
 
 impl std::fmt::Debug for User {
@@ -70,6 +73,7 @@ impl std::fmt::Debug for User {
             .field("password_hash", &self.password_hash.as_ref().map(|_| "[REDACTED]"))
             .field("totp_secret", &self.totp_secret.as_ref().map(|_| "[REDACTED]"))
             .field("totp_enabled", &self.totp_enabled)
+            .field("wipe_pending", &self.wipe_pending)
             .finish()
     }
 }
@@ -184,6 +188,14 @@ pub struct UserError {
     pub message: String,
 }
 
+impl std::fmt::Display for UserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}: {}", self.kind, self.message)
+    }
+}
+
+impl std::error::Error for UserError {}
+
 /// Kind of user store error.
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
@@ -248,6 +260,8 @@ pub trait UserStoreTrait: Send + Sync {
     async fn set_password(&self, id: &str, password_hash: &str) -> Result<(), UserError>;
     /// Authenticate a username and password, returning the user on success.
     async fn authenticate(&self, username: &str, password: &str) -> Result<User, UserError>;
+    /// Set the wipe_pending flag for a user.
+    async fn set_wipe_pending(&self, id: &str, pending: bool) -> Result<(), UserError>;
 
     /// Blocking wrapper around [`Self::get_user_by_username`].
     fn get_user_by_username_blocking(&self, username: &str) -> Result<User, UserError> {
@@ -319,6 +333,7 @@ impl InMemoryUserStore {
             password_hash: Some(ZeroizeString::new(password_hash)),
             totp_secret: None,
             totp_enabled: false,
+            wipe_pending: false,
         })
     }
 
@@ -340,7 +355,7 @@ impl InMemoryUserStore {
         if let Some(ref db) = self.db {
             let conn = db.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Err(e) = conn.execute(
-                "INSERT OR REPLACE INTO users (id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash, totp_secret, totp_enabled) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                "INSERT OR REPLACE INTO users (id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash, totp_secret, totp_enabled, wipe_pending) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
                 params![
                     user.id,
                     user.username,
@@ -356,6 +371,7 @@ impl InMemoryUserStore {
                     user.password_hash.as_ref().map(|s| s.as_str()),
                     user.totp_secret.as_ref().map(|s| s.as_str()),
                     i32::from(user.totp_enabled),
+                    i32::from(user.wipe_pending),
                 ],
             ) {
                 warn!("Failed to persist user to SQLite: {}", e);
@@ -375,7 +391,7 @@ impl InMemoryUserStore {
     /// Load all users from a `SQLite` connection into a vector.
     pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<User>, rusqlite::Error> {
         let mut stmt = conn.prepare(
-            "SELECT id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash FROM users",
+            "SELECT id, username, display_name, email, role, created_at, last_login, status, storage_quota_bytes, storage_used_bytes, is_ldap, password_hash, totp_secret, totp_enabled, wipe_pending FROM users",
         )?;
         let rows = stmt.query_map([], |row| {
             let role_str: String = row.get(4)?;
@@ -417,6 +433,7 @@ impl InMemoryUserStore {
                 password_hash: row.get::<_, Option<String>>(11)?.map(ZeroizeString::new),
                 totp_secret: row.get::<_, Option<String>>(12).unwrap_or(None).map(ZeroizeString::new),
                 totp_enabled: row.get::<_, i32>(13).unwrap_or(0) != 0,
+                wipe_pending: row.get::<_, i32>(14).unwrap_or(0) != 0,
             })
         })?;
         let mut users = Vec::new();
@@ -577,6 +594,14 @@ impl UserStoreTrait for InMemoryUserStore {
         }
         Ok(user)
     }
+
+    async fn set_wipe_pending(&self, id: &str, pending: bool) -> Result<(), UserError> {
+        let mut user = self.get_user(id).await?;
+        user.wipe_pending = pending;
+        self.users.insert(id.to_string(), user.clone());
+        self.persist_user(&user);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -600,6 +625,7 @@ mod tests {
             password_hash: Some(ZeroizeString::new(hash_password("testpass").unwrap())),
             totp_secret: None,
             totp_enabled: false,
+            wipe_pending: false,
         }
     }
 
@@ -1127,6 +1153,7 @@ mod tests {
             password_hash: Some(ZeroizeString::new(hash_password("pass").unwrap())),
             totp_secret: None,
             totp_enabled: false,
+            wipe_pending: false,
         };
         let result = s.create_user(user).await;
         assert!(result.is_ok());

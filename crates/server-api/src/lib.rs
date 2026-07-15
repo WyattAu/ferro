@@ -191,6 +191,7 @@ pub async fn auth_change_password_impl<S: ferro_server_state::ServerState>(
                 password_hash: Some(ferro_auth::users::ZeroizeString::new(new_hash)),
                 totp_secret: None,
                 totp_enabled: false,
+                wipe_pending: false,
             };
             if let Err(e) = state.user_store().create_user(admin_user).await {
                 tracing::error!(error = ?e, "Failed to create admin user after password change");

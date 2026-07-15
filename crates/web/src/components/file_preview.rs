@@ -3,6 +3,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 
 use crate::api::FileEntry;
+use crate::components::epub_preview::EpubPreview;
 use crate::components::focus_trap::FocusTrap;
 use crate::components::video_player::VideoPlayer;
 
@@ -38,6 +39,8 @@ const VIDEO_EXTENSIONS: &[&str] = &["mp4", "webm", "ogg", "mov", "avi"];
 
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "wav", "ogg", "flac", "aac"];
 
+const EPUB_EXTENSIONS: &[&str] = &["epub"];
+
 fn get_extension(name: &str) -> &str {
     name.rsplit('.').next().unwrap_or("")
 }
@@ -54,6 +57,8 @@ fn file_category(name: &str) -> &'static str {
         "video"
     } else if AUDIO_EXTENSIONS.contains(&ext) {
         "audio"
+    } else if EPUB_EXTENSIONS.contains(&ext) {
+        "epub"
     } else {
         "other"
     }
@@ -188,6 +193,11 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                             <source src={p} type="audio/mpeg" />
                                             {t!("preview.no_audio")}
                                         </audio>
+                                    </div>
+                                }.into_any(),
+                                "epub" => view! {
+                                    <div class="h-[60vh]">
+                                        <EpubPreview src=p title=n />
                                     </div>
                                 }.into_any(),
                                 "pdf" => view! {

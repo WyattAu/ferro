@@ -6,6 +6,7 @@ use leptos_router::path;
 
 use crate::api::BrandingConfig;
 use crate::auth;
+use crate::components::audio_player::AudioPlayer;
 use crate::components::error_boundary::ErrorBoundary;
 use crate::components::onboarding::OnboardingOverlay;
 use crate::components::setup_wizard::SetupWizard;
@@ -136,6 +137,7 @@ pub fn App() -> impl IntoView {
                     </Routes>
                 </Router>
             </ProvideToastContext>
+            <AudioPlayer />
             <OnboardingOverlay />
             <SetupWizard />
         </ErrorBoundary>

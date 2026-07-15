@@ -56,6 +56,7 @@ pub async fn create_user<S: UserMgmtState>(
         },
         totp_secret: None,
         totp_enabled: false,
+        wipe_pending: false,
     };
 
     match state.user_store().create_user(user).await {

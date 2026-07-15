@@ -28,8 +28,10 @@ use crate::encryption;
 use crate::event_triggers;
 use crate::favorites;
 use crate::federation;
+use crate::file_requests;
 use crate::gdpr;
 use crate::guests;
+use crate::groups_api;
 use crate::link_analytics_api;
 use crate::mail_api;
 use crate::metrics;
@@ -44,6 +46,7 @@ use crate::plugin_permissions;
 use crate::policies;
 use crate::presigned;
 use crate::prometheus_metrics;
+use crate::qr_sharing;
 use crate::push_notifications;
 use crate::quota;
 use crate::remote_mount;
@@ -69,6 +72,7 @@ use crate::totp_api;
 use crate::trash;
 use crate::upload;
 use crate::user_api;
+use crate::wipe_api;
 use crate::wasm_upload;
 use crate::watermark_api;
 #[cfg(feature = "webauthn")]
@@ -498,6 +502,15 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             "/admin/devices/:user_id/wipe",
             axum::routing::post(account_api::wipe_user_devices::<AppState>),
         )
+        // Client-side wipe status and confirmation (P4-08)
+        .route(
+            "/wipe-status",
+            axum::routing::get(wipe_api::get_wipe_status::<AppState>),
+        )
+        .route(
+            "/wipe-confirm",
+            axum::routing::post(wipe_api::confirm_wipe::<AppState>),
+        )
         .route(
             "/admin/users/:id/devices",
             axum::routing::get(account_api::list_user_devices::<AppState>),
@@ -523,6 +536,42 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         )
         // Extended shares (G-24, G-25)
         .route("/shares/ext", axum::routing::post(shares_ext::create_share_ext))
+        // File Requests (upload-only public links)
+        .route(
+            "/file-requests",
+            axum::routing::get(file_requests::list_file_requests)
+                .post(file_requests::create_file_request),
+        )
+        .route(
+            "/file-requests/:id",
+            axum::routing::delete(file_requests::delete_file_request),
+        )
+        // QR Code sharing
+        .route(
+            "/shares/:token/qr",
+            axum::routing::get(qr_sharing::share_qr_code),
+        )
+        // Group Management
+        .route(
+            "/groups",
+            axum::routing::get(groups_api::list_groups)
+                .post(groups_api::create_group),
+        )
+        .route(
+            "/groups/me",
+            axum::routing::get(groups_api::list_user_groups),
+        )
+        .route(
+            "/groups/:id",
+            axum::routing::get(groups_api::get_group)
+                .put(groups_api::update_group)
+                .delete(groups_api::delete_group),
+        )
+        .route(
+            "/groups/:id/members/:username",
+            axum::routing::post(groups_api::add_group_member)
+                .delete(groups_api::remove_group_member),
+        )
         .route(
             "/users/me",
             axum::routing::get(user_api::get_current_user::<AppState>).put(user_api::update_current_user::<AppState>),

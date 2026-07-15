@@ -4,10 +4,11 @@ use leptos::task::spawn_local;
 
 use crate::api;
 use crate::components::header::{Header, provide_header_state};
+use crate::components::photo_map::PhotoMap;
 use crate::components::theme_toggle::provide_theme_state;
 use crate::t;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Photo {
     pub id: String,
     pub path: String,
@@ -45,6 +46,7 @@ enum ViewMode {
     Timeline,
     Grid,
     Albums,
+    Map,
 }
 
 #[component]
@@ -277,6 +279,14 @@ pub fn PhotosPage() -> impl IntoView {
                                 >
                                     "Albums"
                                 </button>
+                                <button
+                                    on:click=move |_| set_view_mode.set(ViewMode::Map)
+                                    class=move || format!("flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors {}",
+                                        if view_mode.get() == ViewMode::Map { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] shadow" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:text-[var(--text-secondary)]" }
+                                    )
+                                >
+                                    "Map"
+                                </button>
                             </div>
                         </div>
 
@@ -426,6 +436,13 @@ pub fn PhotosPage() -> impl IntoView {
                                                 </For>
                                             </div>
                                         </div>
+                                    }.into_any()
+                                }
+                                ViewMode::Map => {
+                                    let photos_signal = photos.into();
+                                    let on_photo = open_lightbox;
+                                    view! {
+                                        <PhotoMap photos=photos_signal on_photo_click=on_photo />
                                     }.into_any()
                                 }
                             }

@@ -3600,6 +3600,7 @@ dependencies = [
  "opentelemetry_sdk",
  "pdf",
  "proptest",
+ "qrcode",
  "rand 0.9.4",
  "redis",
  "reqwest 0.12.28",
@@ -4206,6 +4207,7 @@ dependencies = [
 name = "ferro-server-user-mgmt"
 version = "3.0.0"
 dependencies = [
+ "async-trait",
  "axum",
  "chrono",
  "ferro-auth",
@@ -8573,6 +8575,15 @@ name = "pxfm"
 version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0c5ccf5294c6ccd63a74f1565028353830a9c2f5eb0c682c355c471726a6e3f"
+
+[[package]]
+name = "qrcode"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d68782463e408eb1e668cf6152704bd856c78c5b6417adaee3203d8f4c1fc9ec"
+dependencies = [
+ "image",
+]
 
 [[package]]
 name = "quick-error"
@@ -12981,6 +12992,7 @@ dependencies = [
  "console_error_panic_hook",
  "ferro-common",
  "ferro-crdt",
+ "futures",
  "getrandom 0.2.17",
  "js-sys",
  "leptos",

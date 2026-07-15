@@ -264,6 +264,11 @@ pub async fn wipe_user_devices<S: UserMgmtState>(
         }
     };
 
+    // Set wipe_pending flag on the user so clients can check via /api/wipe-status
+    if let Err(e) = state.user_store().set_wipe_pending(&user_id, true).await {
+        return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to set wipe flag: {:?}", e));
+    }
+
     let store = DeviceStore::new(db);
     let devices = match store.list_devices_for_user(&user_id) {
         Ok(d) => d,
