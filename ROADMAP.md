@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 9.2 | **Date:** 2026-07-14 | **Status:** v9.2 COMPLETE -- 100% handler conversion, all work streams done
+**Version:** 10.0 | **Date:** 2026-07-14 | **Status:** v10.0 COMPLETE -- Parity roadmap phases 1-3 executed
 
 ---
 
@@ -8,7 +8,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Crates | 67 (56 consolidated + 8 decomposed + 3 new) |
+| Crates | 70 (56 consolidated + 9 decomposed + 5 new) |
 | Tests | 2500+ (unit + integration + property + security) |
 | Code | ~115K lines Rust (server: 21K, down from 25K) |
 | Clippy warnings | 0 (all features + all combinations) |
@@ -24,7 +24,9 @@
 | ServerState trait | 51 methods across 15 categories, implemented for AppState |
 | Handler genericization | 219/219 handlers converted (100%), 78 _impl calls |
 | API docs | Automated cargo doc + GitHub Pages deployment |
-| Extracted crates | server-api, server-health, server-federation, server-sync-handlers |
+| Extracted crates | server-api, server-health, server-federation, server-sync-handlers, server-resilience, server-slo, server-fips |
+| Resilience | Circuit breakers, retry w/backoff, bulkhead isolation, SLO/SLI tracking |
+| Defense compliance | FIPS self-test, 3-level key hierarchy, key rotation/destroy |
 | Architecture graph | 59 crates mapped across 5 layers in Mermaid |
 
 ## Recently Completed
