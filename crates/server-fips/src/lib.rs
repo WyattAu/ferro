@@ -878,4 +878,234 @@ mod tests {
         let decrypted = header.decrypt(&key).unwrap();
         assert_eq!(decrypted, data);
     }
+
+    // ---- Additional tests ----
+
+    #[test]
+    fn test_fips_mode_strict_not_disabled() {
+        assert_ne!(FipsMode::Strict, FipsMode::Disabled);
+        assert_ne!(FipsMode::Strict, FipsMode::Enabled);
+        assert_ne!(FipsMode::Enabled, FipsMode::Disabled);
+    }
+
+    #[test]
+    fn test_fips_self_test_returns_five_results() {
+        let results = fips_self_test();
+        assert_eq!(results.len(), 5);
+    }
+
+    #[test]
+    fn test_fips_self_test_names() {
+        let results = fips_self_test();
+        let names: Vec<&str> = results.iter().map(|r| r.name).collect();
+        assert!(names.contains(&"SHA-256 KAT"));
+        assert!(names.contains(&"HMAC-SHA-256 KAT"));
+        assert!(names.contains(&"HKDF-SHA-256 KAT"));
+        assert!(names.contains(&"RNG Health"));
+        assert!(names.contains(&"RNG Non-Determinism"));
+    }
+
+    #[test]
+    fn test_validator_strict_mode() {
+        let v = FipsValidator::new(FipsMode::Strict);
+        assert!(v.is_valid());
+        assert!(v.mode().is_strict());
+        assert!(v.test_count() >= 5);
+    }
+
+    #[test]
+    fn test_key_hierarchy_empty_initially() {
+        let hierarchy = KeyHierarchy::new();
+        assert_eq!(hierarchy.kek_count(), 0);
+        assert_eq!(hierarchy.data_key_count(), 0);
+        assert!(hierarchy.master_key_version().is_none());
+    }
+
+    #[test]
+    fn test_key_hierarchy_master_key_set_and_clear() {
+        let mut hierarchy = KeyHierarchy::new();
+        hierarchy.set_master_key(vec![1u8; 32], "master");
+        assert_eq!(hierarchy.master_key_version(), Some(0));
+
+        hierarchy.clear_master_key();
+        assert!(hierarchy.master_key_version().is_none());
+    }
+
+    #[test]
+    fn test_key_hierarchy_next_version_monotonic() {
+        let hierarchy = KeyHierarchy::new();
+        let v1 = hierarchy.next_version();
+        let v2 = hierarchy.next_version();
+        let v3 = hierarchy.next_version();
+        assert!(v1 < v2);
+        assert!(v2 < v3);
+    }
+
+    #[test]
+    fn test_key_hierarchy_insert_and_remove_kek() {
+        let mut hierarchy = KeyHierarchy::new();
+        hierarchy.insert_kek(KeyMaterial {
+            key_id: "kek1".into(),
+            version: 1,
+            material: vec![1u8; 32],
+            label: "test".into(),
+        });
+        assert_eq!(hierarchy.kek_count(), 1);
+
+        let removed = hierarchy.remove_kek("kek1");
+        assert!(removed.is_some());
+        assert_eq!(hierarchy.kek_count(), 0);
+    }
+
+    #[test]
+    fn test_key_hierarchy_insert_and_remove_data_key() {
+        let mut hierarchy = KeyHierarchy::new();
+        hierarchy.insert_data_key(KeyMaterial {
+            key_id: "dk1".into(),
+            version: 1,
+            material: vec![2u8; 32],
+            label: "test".into(),
+        });
+        assert_eq!(hierarchy.data_key_count(), 1);
+
+        let removed = hierarchy.remove_data_key("dk1");
+        assert!(removed.is_some());
+        assert_eq!(hierarchy.data_key_count(), 0);
+    }
+
+    #[test]
+    fn test_key_manager_generate_kek_without_master_key_fails() {
+        let mut km = KeyManager::new();
+        let result = km.generate_kek("kek");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_key_manager_generate_data_key_without_kek_fails() {
+        let mut km = KeyManager::new();
+        km.set_master_key(vec![0u8; 32], "master");
+        let result = km.generate_data_key("nonexistent", "data");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_key_manager_unwrap_data_key_without_kek_fails() {
+        let km = KeyManager::new();
+        let _encrypted = EncryptedKey {
+            key_id: "test".into(),
+            version: 1,
+            mac: vec![0u8; 32],
+            wrapped: vec![0u8; 32],
+            label: "test".into(),
+        };
+        let result = km.hierarchy().get_kek("nonexistent");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_key_manager_destroy_nonexistent_key_fails() {
+        let mut km = KeyManager::new();
+        let result = km.destroy_data_key("nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_wrap_unwrap_different_versions() {
+        let key = vec![10u8; 32];
+        let material = vec![20u8; 32];
+
+        let (w1, mac1) = wrap_key(&key, &material, 1).unwrap();
+        let (w2, mac2) = wrap_key(&key, &material, 2).unwrap();
+
+        // Different versions produce different ciphertext
+        assert_ne!(w1, w2);
+        assert_ne!(mac1, mac2);
+
+        // Both unwrap correctly
+        let u1 = unwrap_key(&key, &mac1, &w1, 1).unwrap();
+        let u2 = unwrap_key(&key, &mac2, &w2, 2).unwrap();
+        assert_eq!(u1, material);
+        assert_eq!(u2, material);
+    }
+
+    #[test]
+    fn test_wrap_tampered_mac_fails() {
+        let key = vec![42u8; 32];
+        let material = vec![99u8; 32];
+
+        let (wrapped, mut mac) = wrap_key(&key, &material, 1).unwrap();
+        mac[0] ^= 0xff; // tamper
+
+        let result = unwrap_key(&key, &mac, &wrapped, 1);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_encrypted_data_header_tampered_ciphertext_fails() {
+        let key = vec![0u8; 32];
+        let data = b"secret";
+
+        let mut header = EncryptedDataHeader::encrypt(&key, data).unwrap();
+        if !header.ciphertext.is_empty() {
+            header.ciphertext[0] ^= 0xff;
+        }
+
+        let result = header.decrypt(&key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_encrypted_data_header_wrong_key_fails() {
+        let key1 = vec![0u8; 32];
+        let key2 = vec![1u8; 32];
+        let data = b"secret";
+
+        let header = EncryptedDataHeader::encrypt(&key1, data).unwrap();
+        let result = header.decrypt(&key2);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_encrypted_data_header_empty_data() {
+        let key = vec![0u8; 32];
+        let data = b"";
+
+        let header = EncryptedDataHeader::encrypt(&key, data).unwrap();
+        let decrypted = header.decrypt(&key).unwrap();
+        assert_eq!(decrypted, data);
+    }
+
+    #[test]
+    fn test_encrypted_data_header_large_data() {
+        let key = vec![42u8; 32];
+        let data = vec![0xabu8; 4096]; // Must be <= 8192 due to HKDF max output
+
+        let header = EncryptedDataHeader::encrypt(&key, &data).unwrap();
+        let decrypted = header.decrypt(&key).unwrap();
+        assert_eq!(decrypted, data);
+    }
+
+    #[test]
+    fn test_key_manager_full_lifecycle() {
+        let mut km = KeyManager::new();
+        km.set_master_key(vec![0u8; 32], "master");
+
+        let kek = km.generate_kek("primary-kek").unwrap();
+        assert_eq!(km.hierarchy().kek_count(), 1);
+
+        let dk1 = km.generate_data_key(&kek.key_id, "data-key-v1").unwrap();
+        assert_eq!(dk1.version, 2);
+
+        let dk2 = km.generate_data_key(&kek.key_id, "data-key-v2").unwrap();
+        assert_eq!(dk2.version, 3);
+        assert_eq!(km.hierarchy().data_key_count(), 2);
+
+        let (old, new) = km.rotate_data_key(&kek.key_id, &dk1.key_id, "data-key-v1-rotated").unwrap();
+        assert_eq!(old.key_id, dk1.key_id);
+        assert_eq!(new.version, 4);
+        assert_eq!(km.hierarchy().data_key_count(), 2);
+
+        km.destroy_data_key(&dk2.key_id).unwrap();
+        assert_eq!(km.hierarchy().data_key_count(), 1);
+    }
 }

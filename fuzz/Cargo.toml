@@ -18,6 +18,8 @@ ferro-server = { path = "../crates/server" }
 serde_json = "1"
 quick-xml = { version = "0.41", features = ["serialize"] }
 toml = "0.8"
+ferro-server-fips = { path = "../crates/server-fips" }
+ferro-circuit-breaker = { path = "../crates/circuit-breaker" }
 
 [[bin]]
 name = "fuzz_proppatch"
@@ -88,5 +90,23 @@ doc = false
 [[bin]]
 name = "fuzz_ical"
 path = "fuzz_targets/fuzz_ical.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_crypto"
+path = "fuzz_targets/fuzz_crypto.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_fips"
+path = "fuzz_targets/fuzz_fips.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_circuit_breaker"
+path = "fuzz_targets/fuzz_circuit_breaker.rs"
 test = false
 doc = false

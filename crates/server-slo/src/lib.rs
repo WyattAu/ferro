@@ -204,4 +204,121 @@ mod tests {
         assert!(output.contains("ferro_slo_error_budget_remaining"));
         assert!(output.contains("ferro_slo_breached"));
     }
+
+    // ---- Additional tests ----
+
+    #[test]
+    fn test_availability_no_data_returns_one() {
+        let collector = SliCollector::new();
+        assert!((collector.get_availability("nonexistent") - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_availability_all_success() {
+        let collector = SliCollector::new();
+        for _ in 0..100 {
+            collector.record_success("slo");
+        }
+        assert!((collector.get_availability("slo") - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_availability_all_failure() {
+        let collector = SliCollector::new();
+        for _ in 0..100 {
+            collector.record_failure("slo");
+        }
+        assert!((collector.get_availability("slo")).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_error_budget_fully_consumed() {
+        let collector = SliCollector::new();
+        for _ in 0..1000 {
+            collector.record_failure("slo");
+        }
+        let remaining = collector.get_error_budget_remaining("slo", 0.999);
+        assert!((remaining).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_error_budget_zero_target_returns_zero() {
+        let collector = SliCollector::new();
+        collector.record_success("slo");
+        let remaining = collector.get_error_budget_remaining("slo", 1.0);
+        assert!((remaining).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_is_breached_unknown_slo() {
+        let collector = SliCollector::new();
+        assert!(!collector.is_breached("unknown", 0.999));
+    }
+
+    #[test]
+    fn test_is_breached_exactly_at_target() {
+        let collector = SliCollector::new();
+        for _ in 0..999 {
+            collector.record_success("slo");
+        }
+        collector.record_failure("slo");
+        assert!(!collector.is_breached("slo", 0.999));
+    }
+
+    #[test]
+    fn test_prometheus_contains_all_metric_names() {
+        let collector = SliCollector::new();
+        let slos = vec![SloDefinition {
+            name: "my_slo".to_string(),
+            target: 0.99,
+            window: "7d".to_string(),
+            metric: SliMetric::ErrorRate,
+        }];
+        collector.record_success("my_slo");
+        collector.record_failure("my_slo");
+        let output = collector.prometheus_metrics(&slos);
+        assert!(output.contains("ferro_slo_availability{"));
+        assert!(output.contains("slo=\"my_slo\""));
+        assert!(output.contains("# TYPE ferro_slo_availability gauge"));
+        assert!(output.contains("# TYPE ferro_slo_error_budget_remaining gauge"));
+        assert!(output.contains("# TYPE ferro_slo_breached gauge"));
+    }
+
+    #[test]
+    fn test_prometheus_breached_metric_is_one_when_breached() {
+        let collector = SliCollector::new();
+        let slos = vec![SloDefinition {
+            name: "tight_slo".to_string(),
+            target: 0.9999,
+            window: "30d".to_string(),
+            metric: SliMetric::Availability,
+        }];
+        for _ in 0..99 {
+            collector.record_failure("tight_slo");
+        }
+        let output = collector.prometheus_metrics(&slos);
+        assert!(output.contains("ferro_slo_breached{slo=\"tight_slo\"} 1"));
+    }
+
+    #[test]
+    fn test_prometheus_breached_metric_is_zero_when_not_breached() {
+        let collector = SliCollector::new();
+        let slos = vec![SloDefinition {
+            name: "easy_slo".to_string(),
+            target: 0.5,
+            window: "30d".to_string(),
+            metric: SliMetric::Availability,
+        }];
+        collector.record_success("easy_slo");
+        let output = collector.prometheus_metrics(&slos);
+        assert!(output.contains("ferro_slo_breached{slo=\"easy_slo\"} 0"));
+    }
+
+    #[test]
+    fn test_prometheus_no_data_shows_zero_counts() {
+        let collector = SliCollector::new();
+        let slos = default_slos();
+        let output = collector.prometheus_metrics(&slos);
+        assert!(output.contains("ferro_slo_availability{slo=\"api_availability\"} 1"));
+    }
 }

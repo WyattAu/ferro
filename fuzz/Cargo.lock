@@ -111,6 +111,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
 dependencies = [
  "cfg-if",
+ "getrandom 0.3.4",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -1352,6 +1353,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1137cd7e7fc0fb5d3c5a8678be38ec56e819125d8d7907411fe24ccb943faca8"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-epoch",
+ "crossbeam-queue",
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2003,15 +2017,19 @@ name = "ferro-common"
 version = "3.0.0"
 dependencies = [
  "async-trait",
+ "bumpalo",
  "bytes",
  "chrono",
+ "dashmap",
  "hex",
  "mime_guess",
+ "rusqlite",
  "serde",
  "serde_json",
  "sha2 0.11.0",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
  "uuid",
  "zeroize",
 ]
@@ -2051,13 +2069,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-crypto"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "bcrypt",
+ "ring",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "ferro-dav"
 version = "3.0.0"
 dependencies = [
+ "ahash 0.8.12",
  "async-trait",
  "axum",
  "chrono",
  "dashmap",
+ "ferro-common",
+ "hashbrown 0.15.5",
  "quick-xml",
  "serde",
  "tokio",
@@ -2088,9 +2121,12 @@ dependencies = [
 name = "ferro-event-bus"
 version = "3.0.0"
 dependencies = [
+ "ahash 0.8.12",
  "async-trait",
  "chrono",
+ "crossbeam",
  "dashmap",
+ "hashbrown 0.15.5",
  "parking_lot 0.12.5",
  "serde",
  "serde_json",
@@ -2104,9 +2140,11 @@ dependencies = [
 name = "ferro-fuzz"
 version = "0.0.0"
 dependencies = [
+ "ferro-circuit-breaker",
  "ferro-common",
  "ferro-dav",
  "ferro-server",
+ "ferro-server-fips",
  "ferro-webdav-handler",
  "libfuzzer-sys",
  "quick-xml",
@@ -2150,6 +2188,7 @@ dependencies = [
  "serde",
  "tokio",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -2238,19 +2277,28 @@ dependencies = [
  "ferro-selective-sync",
  "ferro-server-activitypub",
  "ferro-server-admin-api",
+ "ferro-server-api",
  "ferro-server-api-core",
  "ferro-server-collaboration",
  "ferro-server-compliance",
+ "ferro-server-config",
  "ferro-server-content",
+ "ferro-server-federation",
+ "ferro-server-fips",
+ "ferro-server-health",
  "ferro-server-infra",
  "ferro-server-integrations",
  "ferro-server-plugins",
  "ferro-server-productivity",
+ "ferro-server-resilience",
+ "ferro-server-routes",
  "ferro-server-security",
  "ferro-server-security-middleware",
  "ferro-server-sharing",
+ "ferro-server-slo",
+ "ferro-server-state",
  "ferro-server-storage-ops",
- "ferro-server-storage-utils",
+ "ferro-server-sync-handlers",
  "ferro-server-user-mgmt",
  "ferro-server-versioning",
  "ferro-server-webdav-core",
@@ -2287,6 +2335,7 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -2297,6 +2346,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "dashmap",
+ "ferro-common",
  "hmac 0.13.0",
  "rcgen",
  "reqwest",
@@ -2321,6 +2371,7 @@ dependencies = [
  "ferro-common",
  "ferro-core",
  "ferro-server-security",
+ "ferro-server-security-middleware",
  "hex",
  "rusqlite",
  "serde",
@@ -2335,6 +2386,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-api"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "ferro-auth",
+ "ferro-common",
+ "ferro-server-security",
+ "ferro-server-security-middleware",
+ "ferro-server-state",
+ "ferro-server-storage-ops",
+ "http",
+ "hyper",
+ "rand 0.9.4",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ferro-server-api-core"
 version = "3.0.0"
 dependencies = [
@@ -2346,6 +2425,7 @@ dependencies = [
  "ferro-event-bus",
  "ferro-server-integrations",
  "ferro-server-security",
+ "ferro-server-security-middleware",
  "hex",
  "hmac 0.13.0",
  "lettre",
@@ -2358,6 +2438,7 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -2393,6 +2474,7 @@ dependencies = [
  "ferro-circuit-breaker",
  "ferro-common",
  "ferro-server-security",
+ "ferro-server-security-middleware",
  "regex",
  "rusqlite",
  "serde",
@@ -2405,6 +2487,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-config"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "clap_complete",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "toml 0.8.23",
+ "url",
+]
+
+[[package]]
 name = "ferro-server-content"
 version = "3.0.0"
 dependencies = [
@@ -2413,6 +2509,7 @@ dependencies = [
  "chrono",
  "ferro-common",
  "ferro-server-security",
+ "ferro-server-security-middleware",
  "image",
  "pdf",
  "rusqlite",
@@ -2420,6 +2517,43 @@ dependencies = [
  "serde_json",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "ferro-server-federation"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "ferro-server-activitypub",
+ "serde_json",
+]
+
+[[package]]
+name = "ferro-server-fips"
+version = "3.0.0"
+dependencies = [
+ "ferro-crypto",
+ "hkdf",
+ "hmac 0.12.1",
+ "rand 0.8.6",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
+ "tracing",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "ferro-server-health"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -2436,6 +2570,7 @@ dependencies = [
  "ferro-server-activitypub",
  "ferro-server-api-core",
  "ferro-server-security",
+ "ferro-server-security-middleware",
  "http-body-util",
  "reqwest",
  "rusqlite",
@@ -2444,6 +2579,7 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -2458,6 +2594,7 @@ dependencies = [
  "ferro-circuit-breaker",
  "ferro-common",
  "ferro-offline",
+ "ferro-server-security-middleware",
  "http-body-util",
  "imap",
  "lettre",
@@ -2473,6 +2610,7 @@ dependencies = [
  "tracing",
  "utoipa",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -2502,6 +2640,53 @@ dependencies = [
  "serde",
  "serde_json",
  "uuid",
+]
+
+[[package]]
+name = "ferro-server-resilience"
+version = "3.0.0"
+dependencies = [
+ "ferro-circuit-breaker",
+ "parking_lot 0.12.5",
+ "rand 0.9.4",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "ferro-server-routes"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "ferro-auth",
+ "ferro-cache",
+ "ferro-common",
+ "ferro-core",
+ "ferro-health",
+ "ferro-multi-tenant",
+ "ferro-offline",
+ "ferro-rate-limiter",
+ "ferro-selective-sync",
+ "ferro-server-admin-api",
+ "ferro-server-api-core",
+ "ferro-server-collaboration",
+ "ferro-server-compliance",
+ "ferro-server-content",
+ "ferro-server-integrations",
+ "ferro-server-productivity",
+ "ferro-server-security-middleware",
+ "ferro-server-sharing",
+ "ferro-server-state",
+ "ferro-server-storage-ops",
+ "ferro-server-user-mgmt",
+ "ferro-server-webdav-core",
+ "http",
+ "hyper",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
 ]
 
 [[package]]
@@ -2561,6 +2746,7 @@ dependencies = [
  "ferro-common",
  "ferro-core",
  "ferro-server-activitypub",
+ "ferro-server-security-middleware",
  "futures",
  "hex",
  "rand 0.9.4",
@@ -2576,14 +2762,61 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-slo"
+version = "3.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "ferro-server-state"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "dashmap",
+ "ferro-auth",
+ "ferro-common",
+ "ferro-core",
+ "ferro-dav",
+ "ferro-event-bus",
+ "ferro-health",
+ "ferro-rate-limiter",
+ "ferro-selective-sync",
+ "ferro-server-activitypub",
+ "ferro-server-api-core",
+ "ferro-server-collaboration",
+ "ferro-server-compliance",
+ "ferro-server-fips",
+ "ferro-server-integrations",
+ "ferro-server-plugins",
+ "ferro-server-productivity",
+ "ferro-server-resilience",
+ "ferro-server-sharing",
+ "ferro-server-slo",
+ "ferro-server-storage-ops",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "ferro-server-storage-ops"
 version = "3.0.0"
 dependencies = [
  "axum",
  "bytes",
+ "chrono",
+ "dashmap",
  "ferro-common",
+ "ferro-core",
  "ferro-server-security",
+ "ferro-server-security-middleware",
  "hex",
+ "image",
+ "lru 0.16.4",
+ "pdf",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -2596,27 +2829,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferro-server-storage-utils"
+name = "ferro-server-sync-handlers"
 version = "3.0.0"
 dependencies = [
  "axum",
- "bytes",
- "chrono",
- "dashmap",
  "ferro-common",
- "ferro-core",
- "ferro-server-security",
- "hex",
- "image",
- "lru 0.16.4",
- "pdf",
+ "futures",
  "serde",
  "serde_json",
- "sha2 0.11.0",
- "tempfile",
  "tokio",
- "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -2626,8 +2847,10 @@ dependencies = [
  "axum",
  "chrono",
  "ferro-auth",
+ "ferro-common",
  "ferro-server-integrations",
  "ferro-server-security",
+ "ferro-server-security-middleware",
  "ferro-server-sharing",
  "rand 0.8.6",
  "rusqlite",
@@ -2658,33 +2881,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferro-server-webdav"
-version = "3.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "bytes",
- "chrono",
- "dashmap",
- "ferro-common",
- "ferro-core",
- "ferro-offline",
- "ferro-server-storage-ops",
- "ferro-server-versioning",
- "ferro-webdav-handler",
- "http-body-util",
- "mime_guess",
- "rusqlite",
- "serde",
- "serde_json",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "ferro-server-webdav-core"
 version = "3.0.0"
 dependencies = [
@@ -2699,9 +2895,9 @@ dependencies = [
  "ferro-offline",
  "ferro-server-compliance",
  "ferro-server-security",
+ "ferro-server-security-middleware",
  "ferro-server-storage-ops",
  "ferro-server-versioning",
- "ferro-server-webdav",
  "ferro-webdav-handler",
  "futures",
  "http-body-util",
@@ -3136,6 +3332,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "h2"
+version = "0.4.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cb093c84e8bd9b188d4c4a8cb6579fc016968d14c99882163cd3ff402a4f155"
+dependencies = [
+ "atomic-waker",
+ "bytes",
+ "fnv",
+ "futures-core",
+ "futures-sink",
+ "http",
+ "indexmap 2.14.0",
+ "slab",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "half"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3189,6 +3404,7 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash 0.1.5",
+ "serde",
 ]
 
 [[package]]
@@ -3361,6 +3577,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-core",
+ "h2",
  "http",
  "http-body",
  "httparse",

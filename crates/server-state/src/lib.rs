@@ -163,3 +163,69 @@ pub trait ServerState: Send + Sync + Clone + 'static {
         NONE.get_or_init(|| None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Verify that the ServerState trait compiles. We cannot use dyn ServerState
+    /// because it requires Clone (not dyn-compatible), so we verify the trait
+    /// bound constraints are satisfied by the types used in the module.
+    fn _assert_trait_bounds() {
+        fn _assert_send_sync<T: Send + Sync + ?Sized>() {}
+        fn _assert_send_sync_clone<T: Send + Sync + Clone>() {}
+        _assert_send_sync::<dyn AuditLogTrait>();
+        _assert_send_sync_clone::<ChunkedUpload>();
+        _assert_send_sync_clone::<AuditEntry>();
+    }
+
+    #[test]
+    fn test_chunked_upload_fields() {
+        let upload = ChunkedUpload {
+            path: "/test.txt".to_string(),
+            chunk_size: 1024,
+            received_chunks: std::collections::HashMap::new(),
+            total_chunks: Some(5),
+            created_at: std::time::Instant::now(),
+        };
+        assert_eq!(upload.path, "/test.txt");
+        assert_eq!(upload.chunk_size, 1024);
+        assert_eq!(upload.total_chunks, Some(5));
+    }
+
+    #[test]
+    fn test_audit_entry_serialization() {
+        let entry = AuditEntry {
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+            method: "GET".to_string(),
+            path: "/files/test.txt".to_string(),
+            user: "alice".to_string(),
+            status: 200,
+            client_ip: Some("127.0.0.1".to_string()),
+            user_agent: Some("curl/8.0".to_string()),
+            content_length: Some(1024),
+        };
+        let json = serde_json::to_string(&entry).unwrap();
+        let deserialized: AuditEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.method, "GET");
+        assert_eq!(deserialized.status, 200);
+        assert_eq!(deserialized.user, "alice");
+    }
+
+    #[test]
+    fn test_audit_entry_optional_fields() {
+        let entry = AuditEntry {
+            timestamp: "2024-01-01T00:00:00Z".to_string(),
+            method: "POST".to_string(),
+            path: "/upload".to_string(),
+            user: "bob".to_string(),
+            status: 201,
+            client_ip: None,
+            user_agent: None,
+            content_length: None,
+        };
+        assert!(entry.client_ip.is_none());
+        assert!(entry.user_agent.is_none());
+        assert!(entry.content_length.is_none());
+    }
+}
