@@ -149,11 +149,7 @@ pub async fn health_check_impl<S: HealthState>(state: &S) -> Response {
 
     subsystems.insert(
         "cas".to_string(),
-        serde_json::json!(if state.has_cas_store() {
-            "enabled"
-        } else {
-            "disabled"
-        }),
+        serde_json::json!(if state.has_cas_store() { "enabled" } else { "disabled" }),
     );
 
     let status = if healthy { "ok" } else { "degraded" };

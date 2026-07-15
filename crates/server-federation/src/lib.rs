@@ -24,10 +24,7 @@ fn fed_state<S: FederationStateProvider>(s: &S) -> FederationState {
     }
 }
 
-pub async fn get_actor<S: FederationStateProvider>(
-    State(s): State<S>,
-    path: axum::extract::Path<String>,
-) -> Response {
+pub async fn get_actor<S: FederationStateProvider>(State(s): State<S>, path: axum::extract::Path<String>) -> Response {
     ferro_server_activitypub::get_actor(State(fed_state(&s)), path).await
 }
 

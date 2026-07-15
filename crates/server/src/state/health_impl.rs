@@ -5,8 +5,7 @@ use ferro_server_state::ServerState as _;
 #[async_trait::async_trait]
 impl HealthState for AppState {
     fn is_started(&self) -> bool {
-        self.startup_complete
-            .load(std::sync::atomic::Ordering::Relaxed)
+        self.startup_complete.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     async fn storage_list(&self, prefix: &str) -> Result<(), String> {

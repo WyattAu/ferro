@@ -1012,7 +1012,9 @@ impl ferro_server_state::ServerState for AppState {
         &self.selective_sync_store
     }
 
-    fn plugin_registry(&self) -> &Arc<dashmap::DashMap<String, ferro_server_plugins::plugin_permissions::PluginManifest>> {
+    fn plugin_registry(
+        &self,
+    ) -> &Arc<dashmap::DashMap<String, ferro_server_plugins::plugin_permissions::PluginManifest>> {
         &self.plugin_registry
     }
 }

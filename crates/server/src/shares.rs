@@ -75,7 +75,10 @@ async fn get_share_impl<S: ServerState>(state: &S, token: &str) -> Response {
 // ---------------------------------------------------------------------------
 
 /// Core logic for creating a share link.
-async fn create_share_impl<S: ServerState + ferro_server_api_core::ApiCoreState>(state: &S, req: CreateShareRequest) -> Response {
+async fn create_share_impl<S: ServerState + ferro_server_api_core::ApiCoreState>(
+    state: &S,
+    req: CreateShareRequest,
+) -> Response {
     for component in std::path::Path::new(&req.path).components() {
         match component {
             std::path::Component::ParentDir | std::path::Component::CurDir => {
@@ -138,11 +141,7 @@ pub async fn get_share(State(state): State<AppState>, Path(token): Path<String>)
 }
 
 /// Core logic for serving a shared file by token.
-async fn serve_share_impl<S: ServerState>(
-    state: &S,
-    token: &str,
-    params: &HashMap<String, String>,
-) -> Response {
+async fn serve_share_impl<S: ServerState>(state: &S, token: &str, params: &HashMap<String, String>) -> Response {
     // Check if this token is temporarily locked due to too many failed attempts
     if state.share_store().is_share_locked(token) {
         return ApiError::with_details(

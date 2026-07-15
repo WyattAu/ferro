@@ -4,8 +4,8 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
-use ferro_server_state::ServerState;
 use crate::activity::ActivityEntry;
+use ferro_server_state::ServerState;
 
 /// Dashboard overview returned to the web frontend.
 #[derive(Debug, Serialize, Deserialize)]

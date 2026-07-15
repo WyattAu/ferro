@@ -93,5 +93,7 @@ pub trait ServerState: Send + Sync + Clone + 'static {
     fn selective_sync_store(&self) -> &Option<Arc<ferro_selective_sync::ProfileStore>>;
 
     // Plugins
-    fn plugin_registry(&self) -> &Arc<dashmap::DashMap<String, ferro_server_plugins::plugin_permissions::PluginManifest>>;
+    fn plugin_registry(
+        &self,
+    ) -> &Arc<dashmap::DashMap<String, ferro_server_plugins::plugin_permissions::PluginManifest>>;
 }

@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 use crate::AppState;
-use ferro_server_state::ServerState;
 use crate::api_error::ApiError;
+use ferro_server_state::ServerState;
 
 /// Link analytics entry for a single access event.
 #[derive(Debug, Clone, Serialize, Deserialize)]
