@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 10.1 | **Date:** 2026-07-14 | **Status:** v10.1 COMPLETE -- All parity roadmap phases executed
+**Version:** 11.0 | **Date:** 2026-07-14 | **Status:** v11.0 COMPLETE -- All parity roadmap items executed, zero remaining
 
 ---
 
@@ -27,7 +27,10 @@
 | Extracted crates | server-api, server-health, server-federation, server-sync-handlers, server-resilience, server-slo, server-fips |
 | Resilience | Circuit breakers, retry w/backoff, bulkhead isolation, SLO/SLI tracking |
 | Defense compliance | FIPS self-test, 3-level key hierarchy, key rotation/destroy |
+| Storage engine | DashMap (lock-free), no async RwLock overhead |
 | Test coverage | 31 new tests + 3 fuzz targets added this session |
+| NIST 800-53 | 27 controls mapped across 7 families |
+| Common Criteria | EAL 3 preparation complete, 11 assurance families |
 | Architecture graph | 59 crates mapped across 5 layers in Mermaid |
 
 ## Recently Completed
