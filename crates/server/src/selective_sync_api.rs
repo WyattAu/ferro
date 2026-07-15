@@ -77,8 +77,9 @@ fn get_or_create_store(
     })
 }
 
-pub async fn list_profiles(State(state): State<AppState>) -> Response {
-    let store = match get_or_create_store(&state) {
+/// Core logic for listing sync profiles.
+async fn list_profiles_impl<S: ferro_server_state::ServerState>(state: &S) -> Response {
+    let store = match get_or_create_store(state) {
         Ok(s) => s,
         Err(r) => return *r,
     };
@@ -90,11 +91,13 @@ pub async fn list_profiles(State(state): State<AppState>) -> Response {
     }
 }
 
-pub async fn create_profile(
-    State(state): State<AppState>,
-    axum::Json(body): axum::Json<CreateProfileRequest>,
-) -> Response {
-    let store = match get_or_create_store(&state) {
+pub async fn list_profiles(State(state): State<AppState>) -> Response {
+    list_profiles_impl(&state).await
+}
+
+/// Core logic for creating a sync profile.
+async fn create_profile_impl<S: ferro_server_state::ServerState>(state: &S, body: CreateProfileRequest) -> Response {
+    let store = match get_or_create_store(state) {
         Ok(s) => s,
         Err(r) => return *r,
     };
@@ -123,17 +126,25 @@ pub async fn create_profile(
     }
 }
 
-pub async fn update_profile(
+pub async fn create_profile(
     State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-    axum::Json(body): axum::Json<UpdateProfileRequest>,
+    axum::Json(body): axum::Json<CreateProfileRequest>,
 ) -> Response {
-    let store = match get_or_create_store(&state) {
+    create_profile_impl(&state, body).await
+}
+
+/// Core logic for updating a sync profile.
+async fn update_profile_impl<S: ferro_server_state::ServerState>(
+    state: &S,
+    id: &str,
+    body: UpdateProfileRequest,
+) -> Response {
+    let store = match get_or_create_store(state) {
         Ok(s) => s,
         Err(r) => return *r,
     };
 
-    let mut profile = match store.get_profile(&id) {
+    let mut profile = match store.get_profile(id) {
         Ok(p) => p,
         Err(e) => return store_error_response(e),
     };
@@ -162,22 +173,33 @@ pub async fn update_profile(
     }
 }
 
-pub async fn delete_profile(State(state): State<AppState>, AxumPath(id): AxumPath<String>) -> Response {
-    let store = match get_or_create_store(&state) {
+pub async fn update_profile(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+    axum::Json(body): axum::Json<UpdateProfileRequest>,
+) -> Response {
+    update_profile_impl(&state, &id, body).await
+}
+
+/// Core logic for deleting a sync profile.
+async fn delete_profile_impl<S: ferro_server_state::ServerState>(state: &S, id: &str) -> Response {
+    let store = match get_or_create_store(state) {
         Ok(s) => s,
         Err(r) => return *r,
     };
 
-    match store.delete_profile(&id) {
+    match store.delete_profile(id) {
         Ok(()) => (StatusCode::OK, axum::Json(serde_json::json!({ "status": "deleted" }))).into_response(),
         Err(e) => store_error_response(e),
     }
 }
 
-pub async fn filter_preview(
-    State(_state): State<AppState>,
-    axum::Json(body): axum::Json<FilterPreviewRequest>,
-) -> Response {
+pub async fn delete_profile(State(state): State<AppState>, AxumPath(id): AxumPath<String>) -> Response {
+    delete_profile_impl(&state, &id).await
+}
+
+/// Core logic for filtering preview.
+async fn filter_preview_impl<S: ferro_server_state::ServerState>(_state: &S, body: FilterPreviewRequest) -> Response {
     let filter = match PathFilter::from_rules(&body.rules) {
         Ok(f) => f,
         Err(e) => {
@@ -191,4 +213,11 @@ pub async fn filter_preview(
 
     let response = FilterPreviewResponse { matched, missed };
     (StatusCode::OK, axum::Json(response)).into_response()
+}
+
+pub async fn filter_preview(
+    State(_state): State<AppState>,
+    axum::Json(body): axum::Json<FilterPreviewRequest>,
+) -> Response {
+    filter_preview_impl(&_state, body).await
 }

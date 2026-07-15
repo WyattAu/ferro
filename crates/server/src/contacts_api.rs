@@ -28,7 +28,8 @@ pub struct UpdateContactRequest {
     pub vcard_data: String,
 }
 
-pub async fn list_contacts(State(state): State<AppState>) -> impl IntoResponse {
+/// Core logic for listing contacts.
+async fn list_contacts_impl<S: ferro_server_state::ServerState>(state: &S) -> impl IntoResponse {
     let books = state.address_book_store().list_address_books("default").await;
     let mut all_contacts = Vec::new();
 
@@ -52,9 +53,14 @@ pub async fn list_contacts(State(state): State<AppState>) -> impl IntoResponse {
     }))
 }
 
-pub async fn create_contact(
-    State(state): State<AppState>,
-    Json(req): Json<CreateContactRequest>,
+pub async fn list_contacts(State(state): State<AppState>) -> impl IntoResponse {
+    list_contacts_impl(&state).await
+}
+
+/// Core logic for creating a contact.
+async fn create_contact_impl<S: ferro_server_state::ServerState>(
+    state: &S,
+    req: CreateContactRequest,
 ) -> impl IntoResponse {
     let books = state.address_book_store().list_address_books("default").await;
     let book_id = if req.address_book_id.is_empty() {
@@ -62,7 +68,7 @@ pub async fn create_contact(
             book.id.clone()
         } else {
             match state
-                .address_book_store
+                .address_book_store()
                 .create_address_book("default", "Contacts")
                 .await
             {
@@ -81,7 +87,7 @@ pub async fn create_contact(
     };
 
     match state
-        .address_book_store
+        .address_book_store()
         .create_contact(&book_id, &req.vcard_data)
         .await
     {
@@ -105,23 +111,31 @@ pub async fn create_contact(
     }
 }
 
-pub async fn update_contact(
+pub async fn create_contact(
     State(state): State<AppState>,
-    Path(uid): Path<String>,
-    Json(req): Json<UpdateContactRequest>,
+    Json(req): Json<CreateContactRequest>,
+) -> impl IntoResponse {
+    create_contact_impl(&state, req).await
+}
+
+/// Core logic for updating a contact.
+async fn update_contact_impl<S: ferro_server_state::ServerState>(
+    state: &S,
+    uid: &str,
+    req: UpdateContactRequest,
 ) -> impl IntoResponse {
     let books = state.address_book_store().list_address_books("default").await;
 
     for book in &books {
         if state
-            .address_book_store
-            .get_contact(&book.id, &uid)
+            .address_book_store()
+            .get_contact(&book.id, uid)
             .await
             .is_some()
         {
             match state
-                .address_book_store
-                .update_contact(&book.id, &uid, &req.vcard_data)
+                .address_book_store()
+                .update_contact(&book.id, uid, &req.vcard_data)
                 .await
             {
                 Ok(updated) => {
@@ -153,22 +167,28 @@ pub async fn update_contact(
         .into_response()
 }
 
-pub async fn delete_contact(
+pub async fn update_contact(
     State(state): State<AppState>,
     Path(uid): Path<String>,
+    Json(req): Json<UpdateContactRequest>,
 ) -> impl IntoResponse {
+    update_contact_impl(&state, &uid, req).await
+}
+
+/// Core logic for deleting a contact.
+async fn delete_contact_impl<S: ferro_server_state::ServerState>(state: &S, uid: &str) -> impl IntoResponse {
     let books = state.address_book_store().list_address_books("default").await;
 
     for book in &books {
         if state
-            .address_book_store
-            .get_contact(&book.id, &uid)
+            .address_book_store()
+            .get_contact(&book.id, uid)
             .await
             .is_some()
         {
             match state
-                .address_book_store
-                .delete_contact(&book.id, &uid)
+                .address_book_store()
+                .delete_contact(&book.id, uid)
                 .await
             {
                 Ok(()) => return StatusCode::NO_CONTENT.into_response(),
@@ -190,7 +210,15 @@ pub async fn delete_contact(
         .into_response()
 }
 
-pub async fn export_contacts(State(state): State<AppState>) -> impl IntoResponse {
+pub async fn delete_contact(
+    State(state): State<AppState>,
+    Path(uid): Path<String>,
+) -> impl IntoResponse {
+    delete_contact_impl(&state, &uid).await
+}
+
+/// Core logic for exporting contacts.
+async fn export_contacts_impl<S: ferro_server_state::ServerState>(state: &S) -> impl IntoResponse {
     let books = state.address_book_store().list_address_books("default").await;
     let mut vcard_data = String::from("BEGIN:VCARD\r\nVERSION:3.0\r\n");
 
@@ -223,13 +251,18 @@ pub async fn export_contacts(State(state): State<AppState>) -> impl IntoResponse
         .into_response()
 }
 
-pub async fn import_contacts(State(state): State<AppState>, body: String) -> impl IntoResponse {
+pub async fn export_contacts(State(state): State<AppState>) -> impl IntoResponse {
+    export_contacts_impl(&state).await
+}
+
+/// Core logic for importing contacts.
+async fn import_contacts_impl<S: ferro_server_state::ServerState>(state: &S, body: String) -> impl IntoResponse {
     let books = state.address_book_store().list_address_books("default").await;
     let book_id = if let Some(book) = books.first() {
         book.id.clone()
     } else {
         match state
-            .address_book_store
+            .address_book_store()
             .create_address_book("default", "Contacts")
             .await
         {
@@ -254,7 +287,7 @@ pub async fn import_contacts(State(state): State<AppState>, body: String) -> imp
         }
         let full_vcard = format!("BEGIN:VCARD\r\n{}", vcard);
         if let Err(e) = state
-            .address_book_store
+            .address_book_store()
             .create_contact(&book_id, &full_vcard)
             .await
         {
@@ -269,4 +302,8 @@ pub async fn import_contacts(State(state): State<AppState>, body: String) -> imp
         "errors": errors,
     }))
     .into_response()
+}
+
+pub async fn import_contacts(State(state): State<AppState>, body: String) -> impl IntoResponse {
+    import_contacts_impl(&state, body).await
 }

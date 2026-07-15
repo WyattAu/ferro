@@ -38,7 +38,8 @@ pub struct PluginManifest {
     pub capabilities: PluginCapabilities,
 }
 
-pub async fn list_plugins(State(state): State<AppState>) -> Response {
+/// Core logic for listing plugins.
+async fn list_plugins_impl<S: ferro_server_state::ServerState>(state: &S) -> Response {
     let mut plugins: Vec<serde_json::Value> = state
         .plugin_registry()
         .iter()
@@ -62,4 +63,8 @@ pub async fn list_plugins(State(state): State<AppState>) -> Response {
         })),
     )
         .into_response()
+}
+
+pub async fn list_plugins(State(state): State<AppState>) -> Response {
+    list_plugins_impl(&state).await
 }

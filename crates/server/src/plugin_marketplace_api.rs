@@ -116,12 +116,18 @@ fn mock_plugins() -> Vec<MarketplacePlugin> {
     ]
 }
 
-pub async fn list_marketplace_plugins(State(_state): State<AppState>) -> Response {
+/// Core logic for listing marketplace plugins.
+async fn list_marketplace_plugins_impl<S: ferro_server_state::ServerState>(_state: &S) -> Response {
     let plugins = mock_plugins();
     (StatusCode::OK, axum::Json(MarketplaceResponse { plugins })).into_response()
 }
 
-pub async fn install_plugin(State(_state): State<AppState>, Path(id): Path<String>) -> Response {
+pub async fn list_marketplace_plugins(State(_state): State<AppState>) -> Response {
+    list_marketplace_plugins_impl(&_state).await
+}
+
+/// Core logic for installing a plugin.
+async fn install_plugin_impl<S: ferro_server_state::ServerState>(_state: &S, id: &str) -> Response {
     tracing::info!(plugin_id = %id, "install plugin requested");
     (
         StatusCode::OK,
@@ -134,7 +140,12 @@ pub async fn install_plugin(State(_state): State<AppState>, Path(id): Path<Strin
         .into_response()
 }
 
-pub async fn uninstall_plugin(State(_state): State<AppState>, Path(id): Path<String>) -> Response {
+pub async fn install_plugin(State(_state): State<AppState>, Path(id): Path<String>) -> Response {
+    install_plugin_impl(&_state, &id).await
+}
+
+/// Core logic for uninstalling a plugin.
+async fn uninstall_plugin_impl<S: ferro_server_state::ServerState>(_state: &S, id: &str) -> Response {
     tracing::info!(plugin_id = %id, "uninstall plugin requested");
     (
         StatusCode::OK,
@@ -147,7 +158,12 @@ pub async fn uninstall_plugin(State(_state): State<AppState>, Path(id): Path<Str
         .into_response()
 }
 
-pub async fn enable_plugin(State(_state): State<AppState>, Path(id): Path<String>) -> Response {
+pub async fn uninstall_plugin(State(_state): State<AppState>, Path(id): Path<String>) -> Response {
+    uninstall_plugin_impl(&_state, &id).await
+}
+
+/// Core logic for enabling a plugin.
+async fn enable_plugin_impl<S: ferro_server_state::ServerState>(_state: &S, id: &str) -> Response {
     tracing::info!(plugin_id = %id, "enable plugin requested");
     (
         StatusCode::OK,
@@ -160,7 +176,12 @@ pub async fn enable_plugin(State(_state): State<AppState>, Path(id): Path<String
         .into_response()
 }
 
-pub async fn disable_plugin(State(_state): State<AppState>, Path(id): Path<String>) -> Response {
+pub async fn enable_plugin(State(_state): State<AppState>, Path(id): Path<String>) -> Response {
+    enable_plugin_impl(&_state, &id).await
+}
+
+/// Core logic for disabling a plugin.
+async fn disable_plugin_impl<S: ferro_server_state::ServerState>(_state: &S, id: &str) -> Response {
     tracing::info!(plugin_id = %id, "disable plugin requested");
     (
         StatusCode::OK,
@@ -171,6 +192,10 @@ pub async fn disable_plugin(State(_state): State<AppState>, Path(id): Path<Strin
         })),
     )
         .into_response()
+}
+
+pub async fn disable_plugin(State(_state): State<AppState>, Path(id): Path<String>) -> Response {
+    disable_plugin_impl(&_state, &id).await
 }
 
 #[cfg(test)]

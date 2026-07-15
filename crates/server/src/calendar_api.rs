@@ -35,9 +35,10 @@ pub struct UpdateEventRequest {
     pub ical_data: String,
 }
 
-pub async fn list_events(
-    State(state): State<AppState>,
-    axum::extract::Query(query): axum::extract::Query<EventRangeQuery>,
+/// Core logic for listing calendar events.
+async fn list_events_impl<S: ferro_server_state::ServerState>(
+    state: &S,
+    query: EventRangeQuery,
 ) -> impl IntoResponse {
     let calendars = state.calendar_store().list_calendars("default").await;
 
@@ -75,9 +76,17 @@ pub async fn list_events(
     }))
 }
 
-pub async fn create_event(
+pub async fn list_events(
     State(state): State<AppState>,
-    Json(req): Json<CreateEventRequest>,
+    axum::extract::Query(query): axum::extract::Query<EventRangeQuery>,
+) -> impl IntoResponse {
+    list_events_impl(&state, query).await
+}
+
+/// Core logic for creating a calendar event.
+async fn create_event_impl<S: ferro_server_state::ServerState>(
+    state: &S,
+    req: CreateEventRequest,
 ) -> impl IntoResponse {
     let calendars = state.calendar_store().list_calendars("default").await;
     let calendar_id = if req.calendar_id.is_empty() {
@@ -85,7 +94,7 @@ pub async fn create_event(
             cal.id.clone()
         } else {
             match state
-                .calendar_store
+                .calendar_store()
                 .create_calendar("default", "Default", "#3b82f6")
                 .await
             {
@@ -104,7 +113,7 @@ pub async fn create_event(
     };
 
     match state
-        .calendar_store
+        .calendar_store()
         .create_event(&calendar_id, &req.ical_data)
         .await
     {
@@ -128,23 +137,31 @@ pub async fn create_event(
     }
 }
 
-pub async fn update_event(
+pub async fn create_event(
     State(state): State<AppState>,
-    Path(uid): Path<String>,
-    Json(req): Json<UpdateEventRequest>,
+    Json(req): Json<CreateEventRequest>,
+) -> impl IntoResponse {
+    create_event_impl(&state, req).await
+}
+
+/// Core logic for updating a calendar event.
+async fn update_event_impl<S: ferro_server_state::ServerState>(
+    state: &S,
+    uid: &str,
+    req: UpdateEventRequest,
 ) -> impl IntoResponse {
     let calendars = state.calendar_store().list_calendars("default").await;
 
     for cal in &calendars {
         if state
-            .calendar_store
-            .get_event(&cal.id, &uid)
+            .calendar_store()
+            .get_event(&cal.id, uid)
             .await
             .is_some()
         {
             match state
-                .calendar_store
-                .update_event(&cal.id, &uid, &req.ical_data)
+                .calendar_store()
+                .update_event(&cal.id, uid, &req.ical_data)
                 .await
             {
                 Ok(updated) => {
@@ -176,20 +193,26 @@ pub async fn update_event(
         .into_response()
 }
 
-pub async fn delete_event(
+pub async fn update_event(
     State(state): State<AppState>,
     Path(uid): Path<String>,
+    Json(req): Json<UpdateEventRequest>,
 ) -> impl IntoResponse {
+    update_event_impl(&state, &uid, req).await
+}
+
+/// Core logic for deleting a calendar event.
+async fn delete_event_impl<S: ferro_server_state::ServerState>(state: &S, uid: &str) -> impl IntoResponse {
     let calendars = state.calendar_store().list_calendars("default").await;
 
     for cal in &calendars {
         if state
-            .calendar_store
-            .get_event(&cal.id, &uid)
+            .calendar_store()
+            .get_event(&cal.id, uid)
             .await
             .is_some()
         {
-            match state.calendar_store().delete_event(&cal.id, &uid).await {
+            match state.calendar_store().delete_event(&cal.id, uid).await {
                 Ok(()) => return StatusCode::NO_CONTENT.into_response(),
                 Err(e) => {
                     return (
@@ -207,4 +230,11 @@ pub async fn delete_event(
         Json(serde_json::json!({"error": "Event not found"})),
     )
         .into_response()
+}
+
+pub async fn delete_event(
+    State(state): State<AppState>,
+    Path(uid): Path<String>,
+) -> impl IntoResponse {
+    delete_event_impl(&state, &uid).await
 }

@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::AppState;
 use ferro_server_state::ServerState as _;
 
-/// GET /api/workers — list registered WASM workers.
-pub async fn list_workers(State(state): State<AppState>) -> Response {
+/// Core logic for listing WASM workers.
+async fn list_workers_impl<S: ferro_server_state::ServerState>(state: &S) -> Response {
     match state.wasm_runtime() {
         Some(runtime) => {
             let workers = runtime.list_workers().await;
@@ -39,6 +39,11 @@ pub async fn list_workers(State(state): State<AppState>) -> Response {
     }
 }
 
+/// GET /api/workers — list registered WASM workers.
+pub async fn list_workers(State(state): State<AppState>) -> Response {
+    list_workers_impl(&state).await
+}
+
 /// POST /api/workers — register a new WASM worker.
 /// Request body for registering a WASM worker.
 #[derive(Debug, Deserialize)]
@@ -59,11 +64,8 @@ pub struct RegisterWorkerResponse {
     pub function_name: String,
 }
 
-/// POST /api/workers — register a new WASM worker.
-pub async fn register_worker(
-    State(state): State<AppState>,
-    axum::Json(req): axum::Json<RegisterWorkerRequest>,
-) -> Response {
+/// Core logic for registering a WASM worker.
+async fn register_worker_impl<S: ferro_server_state::ServerState>(state: &S, req: RegisterWorkerRequest) -> Response {
     match state.wasm_runtime() {
         Some(runtime) => {
             let event = ferro_core::wasm::WorkerEvent {
@@ -95,4 +97,12 @@ pub async fn register_worker(
             (StatusCode::SERVICE_UNAVAILABLE, axum::Json(body)).into_response()
         }
     }
+}
+
+/// POST /api/workers — register a new WASM worker.
+pub async fn register_worker(
+    State(state): State<AppState>,
+    axum::Json(req): axum::Json<RegisterWorkerRequest>,
+) -> Response {
+    register_worker_impl(&state, req).await
 }
