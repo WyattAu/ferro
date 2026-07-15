@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 12.0 | **Date:** 2026-07-14 | **Status:** v12.0 COMPLETE -- UI/UX gaps addressed, 14 themes, critical features
+**Version:** 12.1 | **Date:** 2026-07-14 | **Status:** v12.1 COMPLETE -- All UI/UX phases 1-4 executed
 
 ---
 
