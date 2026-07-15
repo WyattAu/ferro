@@ -1109,4 +1109,14 @@ impl ferro_server_state::ServerState for AppState {
     fn slo_definitions(&self) -> &Vec<ferro_server_slo::SloDefinition> {
         &self.slo_definitions
     }
+
+    fn fips_validator(&self) -> &Option<std::sync::Arc<ferro_server_fips::FipsValidator>> {
+        &self.fips_validator
+    }
+
+    fn key_manager(
+        &self,
+    ) -> &Option<std::sync::Arc<tokio::sync::RwLock<ferro_server_fips::KeyManager>>> {
+        &self.key_manager
+    }
 }

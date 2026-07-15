@@ -3532,6 +3532,7 @@ dependencies = [
  "ferro-server-config",
  "ferro-server-content",
  "ferro-server-federation",
+ "ferro-server-fips",
  "ferro-server-health",
  "ferro-server-infra",
  "ferro-server-integrations",
@@ -3823,6 +3824,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-fips"
+version = "3.0.0"
+dependencies = [
+ "ferro-crypto",
+ "hkdf",
+ "hmac 0.12.1",
+ "rand 0.8.6",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
 name = "ferro-server-health"
 version = "3.0.0"
 dependencies = [
@@ -4083,6 +4101,7 @@ dependencies = [
  "ferro-server-api-core",
  "ferro-server-collaboration",
  "ferro-server-compliance",
+ "ferro-server-fips",
  "ferro-server-integrations",
  "ferro-server-plugins",
  "ferro-server-productivity",

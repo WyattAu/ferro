@@ -69,6 +69,7 @@ members = [
     "crates/server-federation",
     "crates/server-resilience",
     "crates/server-slo",
+    "crates/server-fips",
 ]
 resolver = "2"
 

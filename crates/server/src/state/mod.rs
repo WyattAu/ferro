@@ -210,6 +210,12 @@ pub struct AppState {
     pub slo_collector: Arc<ferro_server_slo::SliCollector>,
     /// SLO definitions for the server.
     pub slo_definitions: Vec<ferro_server_slo::SloDefinition>,
+
+    // --- FIPS 140-2/3 ---
+    /// FIPS 140-2/3 runtime validator.
+    pub fips_validator: Option<Arc<ferro_server_fips::FipsValidator>>,
+    /// Key hierarchy manager for FIPS-compliant key wrapping.
+    pub key_manager: Option<Arc<tokio::sync::RwLock<ferro_server_fips::KeyManager>>>,
 }
 
 impl AppState {
@@ -361,6 +367,10 @@ impl AppState {
             retry_policy: ferro_server_resilience::RetryPolicy::default(),
             slo_collector: Arc::new(ferro_server_slo::SliCollector::new()),
             slo_definitions: ferro_server_slo::default_slos(),
+
+            // FIPS 140-2/3 defaults (disabled)
+            fips_validator: None,
+            key_manager: None,
         }
     }
 

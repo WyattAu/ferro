@@ -4,6 +4,7 @@ use std::path::{Component, Path, PathBuf};
 
 /// Normalize a path by resolving `.` and `..` components and ensuring a leading `/`.
 /// Returns a borrowed string if no normalization was needed, or an owned string otherwise.
+#[inline]
 #[must_use]
 pub fn normalize_path(path: &str) -> Cow<'_, str> {
     // Fast path: if path already starts with '/' and contains no '.' or '..' components,
@@ -47,6 +48,7 @@ pub fn parent_path(path: &str) -> Option<String> {
 }
 
 /// Return the final path component (file or directory name).
+#[inline]
 #[must_use]
 pub fn base_name(path: &str) -> &str {
     let trimmed = path.trim_end_matches('/');
@@ -54,6 +56,7 @@ pub fn base_name(path: &str) -> &str {
 }
 
 /// Check whether a path represents a collection (ends with `/`).
+#[inline]
 #[must_use]
 pub fn is_collection_path(path: &str) -> bool {
     path.ends_with('/')

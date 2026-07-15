@@ -1,0 +1,24 @@
+[package]
+name = "ferro-server-fips"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "FIPS 140-2/3 runtime validation and key hierarchy for Ferro"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+ferro-crypto = { path = "../crypto" }
+hkdf = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+hmac = "0.12"
+thiserror = { workspace = true }
+tracing = { workspace = true }
+zeroize = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

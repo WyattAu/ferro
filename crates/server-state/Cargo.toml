@@ -28,6 +28,7 @@ ferro-server-plugins = { path = "../server-plugins" }
 ferro-event-bus = { path = "../event-bus" }
 ferro-server-resilience = { path = "../server-resilience" }
 ferro-server-slo = { path = "../server-slo" }
+ferro-server-fips = { path = "../server-fips" }
 dashmap = "6"
 serde = { workspace = true }
 serde_json = "1"

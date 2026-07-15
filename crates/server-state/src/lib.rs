@@ -151,4 +151,19 @@ pub trait ServerState: Send + Sync + Clone + 'static {
     // SLO/SLI
     fn slo_collector(&self) -> &Arc<ferro_server_slo::SliCollector>;
     fn slo_definitions(&self) -> &Vec<ferro_server_slo::SloDefinition>;
+
+    // FIPS 140-2/3
+    fn fips_validator(&self) -> &Option<Arc<ferro_server_fips::FipsValidator>> {
+        static NONE: std::sync::OnceLock<Option<Arc<ferro_server_fips::FipsValidator>>> =
+            std::sync::OnceLock::new();
+        NONE.get_or_init(|| None)
+    }
+    fn key_manager(
+        &self,
+    ) -> &Option<Arc<tokio::sync::RwLock<ferro_server_fips::KeyManager>>> {
+        static NONE: std::sync::OnceLock<
+            Option<Arc<tokio::sync::RwLock<ferro_server_fips::KeyManager>>>,
+        > = std::sync::OnceLock::new();
+        NONE.get_or_init(|| None)
+    }
 }

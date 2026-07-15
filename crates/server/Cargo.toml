@@ -112,6 +112,7 @@ ferro-server-sync-handlers = { path = "../server-sync-handlers" }
 ferro-server-federation = { path = "../server-federation" }
 ferro-server-routes = { path = "../server-routes" }
 ferro-server-slo = { path = "../server-slo" }
+ferro-server-fips = { path = "../server-fips" }
 zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]

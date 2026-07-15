@@ -64,15 +64,18 @@ impl CasStore for InMemoryCasStore {
             .ok_or_else(|| FerroError::NotFound(format!("content hash {}", hash.as_str())))
     }
 
+    #[inline]
     async fn exists(&self, hash: &ContentHash) -> Result<bool> {
         let store = self.content.read().await;
         Ok(store.contains_key(hash.as_str()))
     }
 
+    #[inline]
     async fn dedup_check(&self, hash: &ContentHash) -> Result<bool> {
         self.exists(hash).await
     }
 
+    #[inline]
     async fn content_count(&self) -> usize {
         let store = self.content.read().await;
         store.len()

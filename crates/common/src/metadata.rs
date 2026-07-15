@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// SHA-256 content hash stored as 64 hex characters.
+#[repr(align(64))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ContentHash(String);
 
@@ -27,6 +28,7 @@ impl ContentHash {
     }
 
     /// Compute the SHA-256 hash of the given byte slice.
+    #[inline]
     #[must_use]
     pub fn compute(data: &[u8]) -> Self {
         let hash = Sha256::digest(data);
@@ -48,6 +50,7 @@ impl ContentHash {
     }
 
     /// Return the hash as a hex string slice.
+    #[inline]
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -73,6 +76,7 @@ impl ContentHash {
 }
 
 /// Metadata for a file or collection (directory) in the virtual filesystem.
+#[repr(align(64))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileMetadata {
     /// Virtual filesystem path of the file or collection.
@@ -97,6 +101,7 @@ pub struct FileMetadata {
 
 impl FileMetadata {
     /// Create metadata for a regular file with sensible defaults.
+    #[inline]
     #[must_use]
     pub fn new(path: String, content_hash: ContentHash, size: u64, owner: String) -> Self {
         let now = Utc::now();
@@ -114,6 +119,7 @@ impl FileMetadata {
     }
 
     /// Create metadata for a collection (directory).
+    #[inline]
     #[must_use]
     pub fn new_collection(path: String, owner: String) -> Self {
         let now = Utc::now();

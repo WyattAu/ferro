@@ -59,7 +59,13 @@ impl StorageEngine for InMemoryStorageEngine {
     async fn get(&self, path: &str) -> Result<Bytes> {
         let path = normalize_path(path).into_owned();
         let store = self.store.read().await;
-        store.get(&path).cloned().ok_or(FerroError::NotFound(path))
+        store.get(&path).cloned().ok_or_else(|| {
+            #[cold]
+            fn not_found(p: String) -> FerroError {
+                FerroError::NotFound(p)
+            }
+            not_found(path)
+        })
     }
 
     async fn delete(&self, path: &str) -> Result<()> {
@@ -67,7 +73,11 @@ impl StorageEngine for InMemoryStorageEngine {
 
         let meta_guard = self.metadata.read().await;
         if !meta_guard.contains_key(&path) {
-            return Err(FerroError::NotFound(path));
+            #[cold]
+            fn not_found(p: String) -> FerroError {
+                FerroError::NotFound(p)
+            }
+            return Err(not_found(path));
         }
         drop(meta_guard);
 
@@ -112,11 +122,23 @@ impl StorageEngine for InMemoryStorageEngine {
 
         let content = match store.get(&src).cloned() {
             Some(c) => c,
-            None => return Err(FerroError::NotFound(src)),
+            None => {
+                #[cold]
+                fn not_found(p: String) -> FerroError {
+                    FerroError::NotFound(p)
+                }
+                return Err(not_found(src));
+            }
         };
         let mut meta = match meta_map.get(&src).cloned() {
             Some(m) => m,
-            None => return Err(FerroError::NotFound(src)),
+            None => {
+                #[cold]
+                fn not_found(p: String) -> FerroError {
+                    FerroError::NotFound(p)
+                }
+                return Err(not_found(src));
+            }
         };
 
         meta.path = dst.clone();
@@ -137,8 +159,20 @@ impl StorageEngine for InMemoryStorageEngine {
         let mut store = self.store.write().await;
         let mut meta_map = self.metadata.write().await;
 
-        let content = store.remove(&src).ok_or_else(|| FerroError::NotFound(src.clone()))?;
-        let mut meta = meta_map.remove(&src).ok_or_else(|| FerroError::NotFound(src.clone()))?;
+        let content = store.remove(&src).ok_or_else(|| {
+            #[cold]
+            fn not_found(p: String) -> FerroError {
+                FerroError::NotFound(p)
+            }
+            not_found(src.clone())
+        })?;
+        let mut meta = meta_map.remove(&src).ok_or_else(|| {
+            #[cold]
+            fn not_found(p: String) -> FerroError {
+                FerroError::NotFound(p)
+            }
+            not_found(src.clone())
+        })?;
 
         meta.path = dst.clone();
         meta.etag = format!("\"{}\"", meta.content_hash.as_str());
@@ -154,7 +188,13 @@ impl StorageEngine for InMemoryStorageEngine {
     async fn head(&self, path: &str) -> Result<FileMetadata> {
         let path = normalize_path(path).into_owned();
         let meta_map = self.metadata.read().await;
-        meta_map.get(&path).cloned().ok_or(FerroError::NotFound(path))
+        meta_map.get(&path).cloned().ok_or_else(|| {
+            #[cold]
+            fn not_found(p: String) -> FerroError {
+                FerroError::NotFound(p)
+            }
+            not_found(path)
+        })
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {
@@ -167,7 +207,11 @@ impl StorageEngine for InMemoryStorageEngine {
         let path = normalize_path(path).into_owned();
 
         if self.metadata.read().await.contains_key(&path) {
-            return Err(FerroError::AlreadyExists(path));
+            #[cold]
+            fn already_exists(p: String) -> FerroError {
+                FerroError::AlreadyExists(p)
+            }
+            return Err(already_exists(path));
         }
 
         let meta = FileMetadata::new_collection(path.clone(), owner.to_string());
