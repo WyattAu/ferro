@@ -169,11 +169,7 @@ mod tests {
             let cc = cc.clone();
             async move {
                 let count = cc.fetch_add(1, Ordering::Relaxed) + 1;
-                if count < 2 {
-                    Err("not yet")
-                } else {
-                    Ok(42)
-                }
+                if count < 2 { Err("not yet") } else { Ok(42) }
             }
         })
         .await;
@@ -191,8 +187,7 @@ mod tests {
             jitter: 0.0,
         };
 
-        let result: Result<(), &str> =
-            retry_with_backoff(&policy, || async { Err("always fail") }).await;
+        let result: Result<(), &str> = retry_with_backoff(&policy, || async { Err("always fail") }).await;
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "always fail");

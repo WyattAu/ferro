@@ -174,10 +174,8 @@ pub fn fips_self_test() -> Vec<SelfTestResult> {
 fn test_sha256_kat() -> SelfTestResult {
     let input = b"abc";
     let expected: [u8; 32] = [
-        0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
-        0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
-        0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
-        0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad,
+        0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea, 0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23, 0xb0, 0x03,
+        0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c, 0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad,
     ];
 
     let mut hasher = Sha256::new();
@@ -200,10 +198,8 @@ fn test_hmac_sha256_kat() -> SelfTestResult {
     let key = b"Jefe";
     let data = b"what do ya want for nothing?";
     let expected: [u8; 32] = [
-        0x5b, 0xdc, 0xc1, 0x46, 0xbf, 0x60, 0x75, 0x4e,
-        0x6a, 0x04, 0x24, 0x26, 0x08, 0x95, 0x75, 0xc7,
-        0x5a, 0x00, 0x3f, 0x08, 0x9d, 0x27, 0x39, 0x83,
-        0x9d, 0xec, 0x58, 0xb9, 0x64, 0xec, 0x38, 0x43,
+        0x5b, 0xdc, 0xc1, 0x46, 0xbf, 0x60, 0x75, 0x4e, 0x6a, 0x04, 0x24, 0x26, 0x08, 0x95, 0x75, 0xc7, 0x5a, 0x00,
+        0x3f, 0x08, 0x9d, 0x27, 0x39, 0x83, 0x9d, 0xec, 0x58, 0xb9, 0x64, 0xec, 0x38, 0x43,
     ];
 
     let mut mac = HmacSha256::new_from_slice(key).expect("HMAC key creation should not fail");
@@ -471,11 +467,7 @@ impl KeyManager {
     /// Generate a new random data key, wrap it with the KEK, and store it.
     ///
     /// Returns the wrapped key ready for persistent storage.
-    pub fn generate_data_key(
-        &mut self,
-        kek_id: &str,
-        label: &str,
-    ) -> Result<EncryptedKey> {
+    pub fn generate_data_key(&mut self, kek_id: &str, label: &str) -> Result<EncryptedKey> {
         let kek = self
             .hierarchy
             .get_kek(kek_id)
@@ -507,11 +499,7 @@ impl KeyManager {
     }
 
     /// Unwrap (decrypt) a data key from its encrypted form.
-    pub fn unwrap_data_key(
-        &mut self,
-        kek_id: &str,
-        encrypted: &EncryptedKey,
-    ) -> Result<()> {
+    pub fn unwrap_data_key(&mut self, kek_id: &str, encrypted: &EncryptedKey) -> Result<()> {
         let kek = self
             .hierarchy
             .get_kek(kek_id)
@@ -649,8 +637,7 @@ fn wrap_key(wrapping_key: &[u8], key_material: &[u8], version: u32) -> Result<(V
     }
 
     // Authenticate with HMAC
-    let mut mac = HmacSha256::new_from_slice(&prk_buf)
-        .map_err(|e| FipsError::KeyError(format!("HMAC init: {e}")))?;
+    let mut mac = HmacSha256::new_from_slice(&prk_buf).map_err(|e| FipsError::KeyError(format!("HMAC init: {e}")))?;
     mac.update(&wrapped);
     let mac_tag = mac.finalize().into_bytes().to_vec();
 
@@ -668,8 +655,7 @@ fn unwrap_key(wrapping_key: &[u8], mac_tag: &[u8], wrapped_key: &[u8], version: 
         .map_err(|e| FipsError::Hkdf(e.to_string()))?;
 
     // Verify HMAC
-    let mut mac = HmacSha256::new_from_slice(&prk_buf)
-        .map_err(|e| FipsError::KeyError(format!("HMAC init: {e}")))?;
+    let mut mac = HmacSha256::new_from_slice(&prk_buf).map_err(|e| FipsError::KeyError(format!("HMAC init: {e}")))?;
     mac.update(wrapped_key);
     mac.verify_slice(mac_tag)
         .map_err(|_| FipsError::KeyError("HMAC verification failed".into()))?;
@@ -729,8 +715,8 @@ impl EncryptedDataHeader {
         }
 
         // Authenticate
-        let mut mac = HmacSha256::new_from_slice(data_key)
-            .map_err(|e| FipsError::KeyError(format!("HMAC init: {e}")))?;
+        let mut mac =
+            HmacSha256::new_from_slice(data_key).map_err(|e| FipsError::KeyError(format!("HMAC init: {e}")))?;
         mac.update(&nonce);
         mac.update(&ciphertext);
         let mac_tag = mac.finalize().into_bytes().to_vec();
@@ -755,8 +741,8 @@ impl EncryptedDataHeader {
             .map_err(|e| FipsError::Hkdf(e.to_string()))?;
 
         // Verify HMAC
-        let mut mac = HmacSha256::new_from_slice(data_key)
-            .map_err(|e| FipsError::KeyError(format!("HMAC init: {e}")))?;
+        let mut mac =
+            HmacSha256::new_from_slice(data_key).map_err(|e| FipsError::KeyError(format!("HMAC init: {e}")))?;
         mac.update(&self.nonce);
         mac.update(&self.ciphertext);
         mac.verify_slice(&self.mac)
@@ -838,9 +824,7 @@ mod tests {
         let kek_encrypted = km.generate_kek("test-kek").unwrap();
         assert_eq!(km.hierarchy().kek_count(), 1);
 
-        let dk = km
-            .generate_data_key(&kek_encrypted.key_id, "test-data")
-            .unwrap();
+        let dk = km.generate_data_key(&kek_encrypted.key_id, "test-data").unwrap();
         assert_eq!(km.hierarchy().data_key_count(), 1);
         assert_eq!(dk.version, 2);
 
@@ -856,9 +840,7 @@ mod tests {
         let kek = km.generate_kek("kek").unwrap();
         let dk1 = km.generate_data_key(&kek.key_id, "data-v1").unwrap();
 
-        let (old, new) = km
-            .rotate_data_key(&kek.key_id, &dk1.key_id, "data-v2")
-            .unwrap();
+        let (old, new) = km.rotate_data_key(&kek.key_id, &dk1.key_id, "data-v2").unwrap();
         assert_eq!(old.version, 2);
         assert_eq!(new.version, 3);
         assert_eq!(km.hierarchy().data_key_count(), 1);

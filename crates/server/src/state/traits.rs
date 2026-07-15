@@ -1114,9 +1114,7 @@ impl ferro_server_state::ServerState for AppState {
         &self.fips_validator
     }
 
-    fn key_manager(
-        &self,
-    ) -> &Option<std::sync::Arc<tokio::sync::RwLock<ferro_server_fips::KeyManager>>> {
+    fn key_manager(&self) -> &Option<std::sync::Arc<tokio::sync::RwLock<ferro_server_fips::KeyManager>>> {
         &self.key_manager
     }
 }

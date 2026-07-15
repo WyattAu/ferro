@@ -12,11 +12,7 @@ pub struct BulkheadError {
 
 impl std::fmt::Display for BulkheadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Bulkhead pool '{}' is at capacity: {}",
-            self.pool_name, self.message
-        )
+        write!(f, "Bulkhead pool '{}' is at capacity: {}", self.pool_name, self.message)
     }
 }
 
@@ -67,10 +63,7 @@ impl BulkheadPool {
     /// Acquire a permit, waiting up to `timeout`.
     ///
     /// Returns `BulkheadError` if the timeout expires.
-    pub async fn acquire(
-        &self,
-        timeout: Duration,
-    ) -> Result<OwnedSemaphorePermit, BulkheadError> {
+    pub async fn acquire(&self, timeout: Duration) -> Result<OwnedSemaphorePermit, BulkheadError> {
         match tokio::time::timeout(timeout, self.semaphore.clone().acquire_owned()).await {
             Ok(Ok(permit)) => Ok(permit),
             Ok(Err(_)) => Err(BulkheadError {
@@ -78,10 +71,7 @@ impl BulkheadPool {
                 message: "semaphore closed".to_string(),
             }),
             Err(_) => {
-                warn!(
-                    "Bulkhead pool '{}' timed out after {:?}",
-                    self.name, timeout
-                );
+                warn!("Bulkhead pool '{}' timed out after {:?}", self.name, timeout);
                 Err(BulkheadError {
                     pool_name: self.name.clone(),
                     message: format!("timed out after {:?}", timeout),
@@ -127,10 +117,7 @@ impl NamedBulkhead {
     }
 
     /// Acquire a permit, waiting up to `timeout`.
-    pub async fn acquire(
-        &self,
-        timeout: Duration,
-    ) -> Result<OwnedSemaphorePermit, BulkheadError> {
+    pub async fn acquire(&self, timeout: Duration) -> Result<OwnedSemaphorePermit, BulkheadError> {
         self.inner.acquire(timeout).await
     }
 }

@@ -98,9 +98,15 @@ impl SliCollector {
                  # HELP ferro_slo_breached{{slo=\"{}\"}} Whether SLO is currently breached\n\
                  # TYPE ferro_slo_breached gauge\n\
                  ferro_slo_breached{{slo=\"{}\"}} {}\n",
-                slo.name, slo.name, availability,
-                slo.name, slo.name, error_budget_remaining,
-                slo.name, slo.name, breached_val,
+                slo.name,
+                slo.name,
+                availability,
+                slo.name,
+                slo.name,
+                error_budget_remaining,
+                slo.name,
+                slo.name,
+                breached_val,
             ));
         }
 

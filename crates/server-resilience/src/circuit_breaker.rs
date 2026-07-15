@@ -44,10 +44,7 @@ impl ResilientCall {
     /// Create a new `ResilientCall` with the given configuration.
     #[must_use]
     pub fn new(config: CircuitBreakerConfig) -> Self {
-        let breaker = Arc::new(CircuitBreaker::new(
-            config.failure_threshold,
-            config.recovery_timeout,
-        ));
+        let breaker = Arc::new(CircuitBreaker::new(config.failure_threshold, config.recovery_timeout));
         Self { breaker, config }
     }
 
@@ -111,10 +108,7 @@ impl NamedCircuitBreaker {
         if let Err(ref e) = result
             && e.state == CircuitState::Open
         {
-            warn!(
-                "Circuit breaker '{}' is open, call rejected",
-                self.name
-            );
+            warn!("Circuit breaker '{}' is open, call rejected", self.name);
         }
         result
     }
