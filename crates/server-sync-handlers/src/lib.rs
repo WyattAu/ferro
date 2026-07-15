@@ -1,7 +1,9 @@
-//! Pure sync functions: content-defined chunking (Buzhash-based).
+//! Pure sync functions: content-defined chunking (Buzhash-based) and sync event handlers.
 //!
 //! Extracted from `ferro-server` so they can be used independently
 //! by client crates without pulling in the full server dependency tree.
+
+pub mod events;
 
 use common::metadata::ContentHash;
 

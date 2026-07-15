@@ -53,6 +53,7 @@ pub trait SyncStoreTrait: Send + Sync {
     fn pending_ops(&self) -> Vec<SyncOp>;
     fn current_clock(&self) -> u64;
     fn get_ops_since(&self, clock: u64) -> Vec<SyncOp>;
+    fn total_ops(&self) -> usize;
 }
 
 // ---------------------------------------------------------------------------

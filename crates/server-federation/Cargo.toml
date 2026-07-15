@@ -1,0 +1,14 @@
+[package]
+name = "ferro-server-federation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Federation handler adapters for the Ferro server"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+axum = { workspace = true }
+ferro-server-activitypub = { path = "../server-activitypub" }
+serde_json = { workspace = true }

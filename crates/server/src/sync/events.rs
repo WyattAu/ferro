@@ -1,65 +1,36 @@
-use axum::extract::{Query, State};
-use axum::response::sse::{Event, KeepAlive, Sse};
-use axum::response::{IntoResponse, Response};
-use futures::stream::{self, StreamExt};
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::time::Duration;
+use axum::extract::State;
+use axum::response::Response;
 
 use crate::AppState;
-// NOTE: sync_store is not in ServerState trait due to type mismatch between
-// ferro_server_state::SyncStoreTrait and crate::sync::ops::SyncStore.
-// These handlers access state.sync_store directly.
 
-pub async fn sync_events(State(state): State<AppState>) -> Response {
-    let store = state.sync_store.clone();
+impl ferro_server_sync_handlers::events::SyncEventStore for crate::sync::ops::SyncStore {
+    fn event_clock(&self) -> u64 {
+        self.current_clock()
+    }
 
-    let stream = stream::unfold(store.current_clock(), move |clock| {
-        let store = store.clone();
-        async move {
-            loop {
-                tokio::time::sleep(Duration::from_millis(500)).await;
-                let current = store.current_clock();
-                if current > clock {
-                    let ops = store.get_ops_since(clock);
-                    return Some((ops, current));
-                }
-            }
-        }
-    })
-    .flat_map(|ops| {
-        stream::iter(ops).map(|op| {
-            let data = serde_json::to_string(&op).unwrap_or_default();
-            Ok::<_, Infallible>(Event::default().event("file-change").data(data))
-        })
-    });
+    fn ops_since(&self, clock: u64) -> Vec<serde_json::Value> {
+        self.get_ops_since(clock)
+            .into_iter()
+            .map(|op| serde_json::to_value(&op).unwrap_or_default())
+            .collect()
+    }
 
-    Sse::new(stream).keep_alive(KeepAlive::new()).into_response()
+    fn event_total_ops(&self) -> usize {
+        self.ops.len()
+    }
 }
 
-pub async fn sync_delta(State(state): State<AppState>, Query(params): Query<HashMap<String, String>>) -> Response {
-    let since: u64 = params.get("since").and_then(|v| v.parse().ok()).unwrap_or(0);
-    let ops = state.sync_store.get_ops_since(since);
+pub async fn sync_events(State(state): State<AppState>) -> Response {
+    ferro_server_sync_handlers::events::sync_events(State(state.sync_store)).await
+}
 
-    (
-        axum::http::StatusCode::OK,
-        axum::Json(serde_json::json!({
-            "current_clock": state.sync_store.current_clock(),
-            "ops": ops,
-            "count": ops.len(),
-        })),
-    )
-        .into_response()
+pub async fn sync_delta(
+    State(state): State<AppState>,
+    query: axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    ferro_server_sync_handlers::events::sync_delta(State(state.sync_store), query).await
 }
 
 pub async fn sync_status(State(state): State<AppState>) -> Response {
-    (
-        axum::http::StatusCode::OK,
-        axum::Json(serde_json::json!({
-            "current_clock": state.sync_store.current_clock(),
-            "total_ops": state.sync_store.ops.len(),
-            "max_ops": 100000,
-        })),
-    )
-        .into_response()
+    ferro_server_sync_handlers::events::sync_status(State(state.sync_store)).await
 }

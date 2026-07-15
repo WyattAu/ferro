@@ -3531,6 +3531,7 @@ dependencies = [
  "ferro-server-compliance",
  "ferro-server-config",
  "ferro-server-content",
+ "ferro-server-federation",
  "ferro-server-health",
  "ferro-server-infra",
  "ferro-server-integrations",
@@ -3808,6 +3809,15 @@ dependencies = [
  "serde_json",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "ferro-server-federation"
+version = "3.0.0"
+dependencies = [
+ "axum",
+ "ferro-server-activitypub",
+ "serde_json",
 ]
 
 [[package]]
@@ -4092,7 +4102,12 @@ dependencies = [
 name = "ferro-server-sync-handlers"
 version = "3.0.0"
 dependencies = [
+ "axum",
  "ferro-common",
+ "futures",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

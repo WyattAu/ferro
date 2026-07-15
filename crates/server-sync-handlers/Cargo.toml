@@ -3,10 +3,15 @@ name = "ferro-server-sync-handlers"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "Pure sync functions (content-defined chunking) extracted from the ferro server"
+description = "Pure sync functions (content-defined chunking, event handlers) extracted from the ferro server"
 license.workspace = true
 repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+futures = "0.3"

@@ -250,7 +250,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         .route("/batch/move", axum::routing::post(batch::batch_move))
         .route("/batch/delete", axum::routing::post(batch::batch_delete))
         .route("/batch/share", axum::routing::post(batch::batch_share))
-        .route("/fed/share", axum::routing::post(federation::federated_share))
+        .route("/fed/share", axum::routing::post(federation::federated_share::<AppState>))
         .merge(api_federation::routes::<AppState>())
         .route(
             "/files/encrypt",
@@ -1039,22 +1039,22 @@ pub fn build_router_with_static(
             "/metrics/prometheus",
             axum::routing::get(prometheus_metrics::prometheus_metrics_handler),
         )
-        .route("/.well-known/webfinger", axum::routing::get(federation::webfinger))
-        .route("/fed/actor/:username", axum::routing::get(federation::get_actor))
+        .route("/.well-known/webfinger", axum::routing::get(federation::webfinger::<AppState>))
+        .route("/fed/actor/:username", axum::routing::get(federation::get_actor::<AppState>))
         .route(
             "/fed/actor/:username/followers",
-            axum::routing::get(federation::list_followers),
+            axum::routing::get(federation::list_followers::<AppState>),
         )
         .route(
             "/fed/actor/:username/following",
-            axum::routing::get(federation::list_following),
+            axum::routing::get(federation::list_following::<AppState>),
         )
         .route(
             "/fed/inbox",
-            axum::routing::post(federation::inbox).get(federation::list_inbox),
+            axum::routing::post(federation::inbox::<AppState>).get(federation::list_inbox::<AppState>),
         )
-        .route("/fed/outbox", axum::routing::get(federation::list_outbox))
-        .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo))
+        .route("/fed/outbox", axum::routing::get(federation::list_outbox::<AppState>))
+        .route("/fed/nodeinfo", axum::routing::get(federation::nodeinfo::<AppState>))
         .nest(&versioned_api_path, api_routes(&state, state.webrtc_offers.clone()))
         .nest(
             "/api",
