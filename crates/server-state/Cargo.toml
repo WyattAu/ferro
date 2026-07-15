@@ -25,6 +25,7 @@ ferro-server-activitypub = { path = "../server-activitypub" }
 ferro-rate-limiter = { path = "../rate-limiter" }
 ferro-selective-sync = { path = "../selective-sync" }
 ferro-server-plugins = { path = "../server-plugins" }
+ferro-event-bus = { path = "../event-bus" }
 dashmap = "6"
 serde = { workspace = true }
 serde_json = "1"

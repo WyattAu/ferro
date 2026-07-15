@@ -3,25 +3,31 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 
 pub use ferro_server_config::*;
 
 /// GET /api/config — return server configuration and capabilities.
-pub async fn get_server_config(State(state): State<AppState>) -> Response {
+pub async fn get_server_config_impl<S: ServerState>(state: &S) -> Response {
     let body = serde_json::json!({
         "version": env!("CARGO_PKG_VERSION"),
         "auth_enabled": state.auth_enabled(),
-        "search_enabled": state.search.is_some(),
-        "wasm_enabled": state.wasm_runtime.is_some(),
-        "wasm_workers_enabled": state.wasm_runtime.is_some(),
-        "cedar_enabled": state.cedar.is_some(),
-        "metadata_persistent": state.metadata_store.is_some(),
-        "cas_enabled": state.cas_store.is_some(),
+        "search_enabled": state.search().is_some(),
+        "wasm_enabled": state.wasm_runtime().is_some(),
+        "wasm_workers_enabled": state.wasm_runtime().is_some(),
+        "cedar_enabled": state.cedar().is_some(),
+        "metadata_persistent": state.metadata_store().is_some(),
+        "cas_enabled": state.cas_store().is_some(),
         "storage": "configured",
-        "external_url": state.external_url,
-        "wopi_configured": !state.wopi_office_url.is_empty(),
+        "external_url": state.external_url(),
+        "wopi_configured": !state.wopi_office_url().is_empty(),
     });
     (StatusCode::OK, axum::Json(body)).into_response()
+}
+
+/// GET /api/config — return server configuration and capabilities.
+pub async fn get_server_config(State(state): State<AppState>) -> Response {
+    get_server_config_impl(&state).await
 }
 
 #[cfg(test)]

@@ -1017,4 +1017,64 @@ impl ferro_server_state::ServerState for AppState {
     ) -> &Arc<dashmap::DashMap<String, ferro_server_plugins::plugin_permissions::PluginManifest>> {
         &self.plugin_registry
     }
+
+    fn upload_store(&self) -> &Arc<tokio::sync::RwLock<std::collections::HashMap<String, ferro_server_state::ChunkedUpload>>> {
+        &self.upload_store
+    }
+
+    fn event_bus(&self) -> &Arc<ferro_event_bus::EventBus> {
+        &self.event_bus
+    }
+
+    fn request_duration_buckets(&self) -> &Arc<[std::sync::atomic::AtomicU64; 11]> {
+        &self.request_duration_buckets
+    }
+
+    fn request_duration_sum_ms(&self) -> &std::sync::atomic::AtomicU64 {
+        &self.request_duration_sum_ms
+    }
+
+    fn request_status_counts(&self) -> &Arc<[std::sync::atomic::AtomicU64; 4]> {
+        &self.request_status_counts
+    }
+
+    fn wasm_dispatch_count(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.wasm_dispatch_count
+    }
+
+    fn wasm_error_count(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.wasm_error_count
+    }
+
+    fn wasm_fuel_total(&self) -> &Arc<std::sync::atomic::AtomicU64> {
+        &self.wasm_fuel_total
+    }
+
+    fn auth_enabled(&self) -> bool {
+        self.oidc.is_some()
+    }
+
+    fn wopi_office_url(&self) -> &str {
+        &self.wopi_office_url
+    }
+
+    fn webhooks(&self) -> &Arc<tokio::sync::RwLock<Vec<ferro_server_api_core::webhooks::WebhookConfig>>> {
+        &self.webhooks
+    }
+
+    fn webhook_delivery_store(&self) -> &ferro_server_api_core::webhooks::WebhookDeliveryStore {
+        &self.webhook_delivery_store
+    }
+
+    fn email_config(&self) -> &ferro_server_api_core::email::EmailConfig {
+        &self.email_config
+    }
+
+    fn push_notification_store(&self) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>> {
+        &self.push_notification_store
+    }
+
+    fn push_notification_config(&self) -> &ferro_server_integrations::push_notifications::PushNotificationConfig {
+        &self.push_notification_config
+    }
 }

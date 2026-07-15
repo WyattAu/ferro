@@ -1,9 +1,20 @@
 pub mod traits;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 
 use common::storage::{LockManagerTrait, StorageEngine};
+
+/// A single chunked upload session.
+#[derive(Debug, Clone)]
+pub struct ChunkedUpload {
+    pub path: String,
+    pub chunk_size: usize,
+    pub received_chunks: HashMap<usize, Vec<u8>>,
+    pub total_chunks: Option<usize>,
+    pub created_at: std::time::Instant,
+}
 
 /// A single audit log entry.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -81,6 +92,22 @@ pub trait ServerState: Send + Sync + Clone + 'static {
     fn cas_store(&self) -> &Option<Arc<dyn ferro_core::cas::CasStore>>;
     fn started_at(&self) -> std::time::Instant;
 
+    // Upload store
+    fn upload_store(&self) -> &Arc<tokio::sync::RwLock<HashMap<String, ChunkedUpload>>>;
+
+    // Event bus
+    fn event_bus(&self) -> &Arc<ferro_event_bus::EventBus>;
+
+    // Prometheus metrics
+    fn request_duration_buckets(&self) -> &Arc<[AtomicU64; 11]>;
+    fn request_duration_sum_ms(&self) -> &AtomicU64;
+    fn request_status_counts(&self) -> &Arc<[AtomicU64; 4]>;
+
+    // WASM metrics
+    fn wasm_dispatch_count(&self) -> &Arc<AtomicU64>;
+    fn wasm_error_count(&self) -> &Arc<AtomicU64>;
+    fn wasm_fuel_total(&self) -> &Arc<AtomicU64>;
+
     // Federation
     fn federation_secret(&self) -> &str;
     fn activity_store(&self) -> &Arc<ferro_server_activitypub::store::ActivityStore>;
@@ -96,4 +123,19 @@ pub trait ServerState: Send + Sync + Clone + 'static {
     fn plugin_registry(
         &self,
     ) -> &Arc<dashmap::DashMap<String, ferro_server_plugins::plugin_permissions::PluginManifest>>;
+
+    // Config helpers
+    fn auth_enabled(&self) -> bool;
+    fn wopi_office_url(&self) -> &str;
+
+    // Webhooks
+    fn webhooks(&self) -> &Arc<tokio::sync::RwLock<Vec<ferro_server_api_core::webhooks::WebhookConfig>>>;
+    fn webhook_delivery_store(&self) -> &ferro_server_api_core::webhooks::WebhookDeliveryStore;
+
+    // Email
+    fn email_config(&self) -> &ferro_server_api_core::email::EmailConfig;
+
+    // Push notifications
+    fn push_notification_store(&self) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>>;
+    fn push_notification_config(&self) -> &ferro_server_integrations::push_notifications::PushNotificationConfig;
 }

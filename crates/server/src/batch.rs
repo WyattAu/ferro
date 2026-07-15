@@ -4,6 +4,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 
 pub use ferro_server_storage_ops::batch::{BatchCopyMoveRequest, BatchOperation, batch_copy_impl, batch_move_impl};
 
@@ -35,7 +36,7 @@ pub async fn batch_delete(State(state): State<AppState>, axum::Json(body): axum:
             continue;
         }
 
-        match state.storage.delete(&normalized).await {
+        match state.storage().delete(&normalized).await {
             Ok(()) => {
                 succeeded.push(path.clone());
                 crate::indexer::remove_file(&state, &normalized).await;
@@ -67,10 +68,10 @@ pub struct BatchShareRequest {
     pub expiry: Option<i64>,
 }
 
-pub async fn batch_share(State(state): State<AppState>, axum::Json(body): axum::Json<BatchShareRequest>) -> Response {
+pub async fn batch_share_impl<S: ServerState>(state: &S, req: BatchShareRequest) -> Response {
     let mut results: Vec<serde_json::Value> = Vec::new();
 
-    for path in &body.paths {
+    for path in &req.paths {
         let normalized = common::path::normalize_path(path);
 
         if !common::path::validate_path(&normalized) {
@@ -82,25 +83,29 @@ pub async fn batch_share(State(state): State<AppState>, axum::Json(body): axum::
             continue;
         }
 
-        let req = crate::shares::CreateShareRequest {
+        let share_req = crate::shares::CreateShareRequest {
             path: normalized.to_string(),
             password: None,
-            expires_in_hours: body.expiry,
+            expires_in_hours: req.expiry,
             max_downloads: None,
             allow_download: Some(true),
             allow_upload: None,
         };
 
-        let share = state.share_store.create(req, "batch".to_string()).await;
+        let share = state.share_store().create(share_req, "batch".to_string()).await;
         results.push(serde_json::json!({
             "path": path,
             "status": "ok",
             "token": share.token,
-            "permissions": body.permissions,
+            "permissions": req.permissions,
         }));
     }
 
     (StatusCode::OK, axum::Json(serde_json::json!({ "results": results }))).into_response()
+}
+
+pub async fn batch_share(State(state): State<AppState>, axum::Json(body): axum::Json<BatchShareRequest>) -> Response {
+    batch_share_impl(&state, body).await
 }
 
 #[cfg(test)]

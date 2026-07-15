@@ -9,16 +9,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 
-#[derive(Debug, Clone)]
-pub struct ChunkedUpload {
-    pub path: String,
-    pub chunk_size: usize,
-    pub received_chunks: HashMap<usize, Vec<u8>>,
-    pub total_chunks: Option<usize>,
-    pub created_at: std::time::Instant,
-}
-
+pub use ferro_server_state::ChunkedUpload;
 pub type UploadStore = Arc<RwLock<HashMap<String, ChunkedUpload>>>;
 
 #[derive(Debug, Serialize)]
@@ -39,9 +32,9 @@ pub struct CompleteUploadRequest {
     path: Option<String>,
 }
 
-pub async fn init_upload(
-    State(state): State<AppState>,
-    Json(req): Json<InitUploadRequest>,
+pub async fn init_upload_impl<S: ServerState>(
+    state: &S,
+    req: InitUploadRequest,
 ) -> (StatusCode, Json<InitUploadResponse>) {
     // Validate the upload path before accepting the upload
     if crate::security::validate_path(&req.path).is_err() {
@@ -65,17 +58,25 @@ pub async fn init_upload(
         created_at: std::time::Instant::now(),
     };
 
-    state.upload_store.write().await.insert(upload_id.clone(), upload);
+    state.upload_store().write().await.insert(upload_id.clone(), upload);
 
     (StatusCode::OK, Json(InitUploadResponse { upload_id, chunk_size }))
 }
 
-pub async fn upload_chunk(
+pub async fn init_upload(
     State(state): State<AppState>,
-    Path((upload_id, chunk_index)): Path<(String, usize)>,
+    Json(req): Json<InitUploadRequest>,
+) -> (StatusCode, Json<InitUploadResponse>) {
+    init_upload_impl(&state, req).await
+}
+
+pub async fn upload_chunk_impl<S: ServerState>(
+    state: &S,
+    upload_id: String,
+    chunk_index: usize,
     bytes: axum::body::Bytes,
 ) -> StatusCode {
-    let mut store = state.upload_store.write().await;
+    let mut store = state.upload_store().write().await;
 
     match store.get_mut(&upload_id) {
         Some(upload) => {
@@ -89,12 +90,20 @@ pub async fn upload_chunk(
     }
 }
 
-pub async fn complete_upload(
+pub async fn upload_chunk(
     State(state): State<AppState>,
-    Path(upload_id): Path<String>,
-    Json(req): Json<CompleteUploadRequest>,
+    Path((upload_id, chunk_index)): Path<(String, usize)>,
+    bytes: axum::body::Bytes,
 ) -> StatusCode {
-    let mut store = state.upload_store.write().await;
+    upload_chunk_impl(&state, upload_id, chunk_index, bytes).await
+}
+
+pub async fn complete_upload_impl<S: ServerState>(
+    state: &S,
+    upload_id: String,
+    req: CompleteUploadRequest,
+) -> StatusCode {
+    let mut store = state.upload_store().write().await;
 
     match store.remove(&upload_id) {
         Some(upload) => {
@@ -116,7 +125,7 @@ pub async fn complete_upload(
                 }
             }
 
-            match state.storage.put(&path, bytes::Bytes::from(data), "anonymous").await {
+            match state.storage().put(&path, bytes::Bytes::from(data), "anonymous").await {
                 Ok(_) => StatusCode::CREATED,
                 Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
             }
@@ -125,13 +134,25 @@ pub async fn complete_upload(
     }
 }
 
-pub async fn cancel_upload(State(state): State<AppState>, Path(upload_id): Path<String>) -> StatusCode {
-    state.upload_store.write().await.remove(&upload_id);
+pub async fn complete_upload(
+    State(state): State<AppState>,
+    Path(upload_id): Path<String>,
+    Json(req): Json<CompleteUploadRequest>,
+) -> StatusCode {
+    complete_upload_impl(&state, upload_id, req).await
+}
+
+pub async fn cancel_upload_impl<S: ServerState>(state: &S, upload_id: String) -> StatusCode {
+    state.upload_store().write().await.remove(&upload_id);
     StatusCode::NO_CONTENT
 }
 
-pub async fn list_uploads(State(state): State<AppState>) -> Json<Vec<serde_json::Value>> {
-    let store = state.upload_store.read().await;
+pub async fn cancel_upload(State(state): State<AppState>, Path(upload_id): Path<String>) -> StatusCode {
+    cancel_upload_impl(&state, upload_id).await
+}
+
+pub async fn list_uploads_impl<S: ServerState>(state: &S) -> Json<Vec<serde_json::Value>> {
+    let store = state.upload_store().read().await;
     let uploads: Vec<_> = store
         .iter()
         .map(|(id, upload)| {
@@ -146,6 +167,10 @@ pub async fn list_uploads(State(state): State<AppState>) -> Json<Vec<serde_json:
         })
         .collect();
     Json(uploads)
+}
+
+pub async fn list_uploads(State(state): State<AppState>) -> Json<Vec<serde_json::Value>> {
+    list_uploads_impl(&state).await
 }
 
 #[cfg(test)]

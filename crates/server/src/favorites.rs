@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
 use crate::AppState;
+use ferro_server_state::ServerState;
 
 pub use ferro_server_sharing::favorites::{
     FavoritePath, FavoriteStore, InMemoryFavoriteStore, add_favorite_impl, list_favorites_impl, remove_favorite_impl,
@@ -22,8 +23,8 @@ pub async fn remove_favorite(State(state): State<AppState>, axum::Json(body): ax
 }
 
 /// List recently created/modified files from the audit log.
-pub async fn list_recent(State(state): State<AppState>) -> Response {
-    let entries = state.audit_log.recent(50).await;
+pub async fn list_recent_impl<S: ServerState>(state: &S) -> Response {
+    let entries = state.audit_log().recent(50).await;
     let mut seen = std::collections::HashSet::new();
     let mut recent_files: Vec<serde_json::Value> = Vec::new();
 
@@ -48,6 +49,11 @@ pub async fn list_recent(State(state): State<AppState>) -> Response {
     }
 
     (StatusCode::OK, axum::Json(serde_json::json!({ "files": recent_files }))).into_response()
+}
+
+/// List recently created/modified files from the audit log.
+pub async fn list_recent(State(state): State<AppState>) -> Response {
+    list_recent_impl(&state).await
 }
 
 #[cfg(test)]

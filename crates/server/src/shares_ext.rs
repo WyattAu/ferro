@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use crate::AppState;
 use crate::api_error::ApiError;
 use crate::shares::ShareLink;
+use ferro_server_state::ServerState;
 
 pub use ferro_server_sharing::shares_ext::{
     CreateShareRequestExt, ShareType, ShareUploadEntry, sanitize_filename, sniff_mime_type,
@@ -19,21 +20,21 @@ pub use ferro_server_sharing::shares_ext::{
 // ---------------------------------------------------------------------------
 
 /// `POST /api/shares/ext` -- Create a share link with extended type support.
-pub async fn create_share_ext(
-    State(state): State<AppState>,
-    axum::Json(req): axum::Json<CreateShareRequestExt>,
+pub async fn create_share_ext_impl<S: ServerState>(
+    state: &S,
+    req: CreateShareRequestExt,
 ) -> Response {
     use crate::shares::CreateShareRequest;
 
     if req.share_type == ShareType::Upload
-        && let Ok(meta) = state.storage.head(&req.path).await
+        && let Ok(meta) = state.storage().head(&req.path).await
         && !meta.is_collection
     {
         return ApiError::bad_request(ApiError::INVALID_INPUT, "Upload share target must be a directory");
     }
 
     if req.share_type == ShareType::View
-        && let Ok(meta) = state.storage.head(&req.path).await
+        && let Ok(meta) = state.storage().head(&req.path).await
         && meta.is_collection
     {
         return ApiError::bad_request(
@@ -56,9 +57,9 @@ pub async fn create_share_ext(
             }
         }),
     };
-    let link = state.share_store.create(base_req, "anonymous".to_string()).await;
+    let link = state.share_store().create(base_req, "anonymous".to_string()).await;
 
-    if let Some(ref db) = state.db {
+    if let Some(db) = state.db() {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         if let Err(e) = conn.execute(
             "UPDATE shares SET share_type = ?1, allow_download = ?2, upload_target = ?3 WHERE token = ?4",
@@ -93,13 +94,21 @@ pub async fn create_share_ext(
         .into_response()
 }
 
-/// `POST /s/:token/upload` -- Upload a file to an upload-only share.
-pub async fn upload_to_share(
+/// `POST /api/shares/ext` -- Create a share link with extended type support.
+pub async fn create_share_ext(
     State(state): State<AppState>,
-    Path(token): Path<String>,
+    axum::Json(req): axum::Json<CreateShareRequestExt>,
+) -> Response {
+    create_share_ext_impl(&state, req).await
+}
+
+/// `POST /s/:token/upload` -- Upload a file to an upload-only share.
+pub async fn upload_to_share_impl<S: ServerState>(
+    state: &S,
+    token: String,
     body: axum::body::Body,
 ) -> Response {
-    let link = match state.share_store.get(&token).await {
+    let link = match state.share_store().get(&token).await {
         Some(l) => l,
         None => return ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found"),
     };
@@ -108,12 +117,12 @@ pub async fn upload_to_share(
         return ApiError::gone(ApiError::SHARE_EXPIRED, "Share expired");
     }
 
-    let share_type = get_share_type(&state, &token);
+    let share_type = get_share_type(state, &token);
     if share_type != ShareType::Upload {
         return ApiError::bad_request(ApiError::INVALID_INPUT, "This share link does not accept uploads");
     }
 
-    let bytes = match axum::body::to_bytes(body, state.max_body_size as usize).await {
+    let bytes = match axum::body::to_bytes(body, state.max_body_size() as usize).await {
         Ok(b) => b,
         Err(e) => {
             return ApiError::with_details(
@@ -128,32 +137,42 @@ pub async fn upload_to_share(
     let file_name = format!("upload_{}", uuid::Uuid::new_v4());
     let target_path = format!("{}/{}", link.path.trim_end_matches('/'), file_name);
 
-    if state.storage.head(&link.path).await.is_err()
-        && let Err(e) = state.storage.create_collection(&link.path, "anonymous").await
+    if state.storage().head(&link.path).await.is_err()
+        && let Err(e) = state.storage().create_collection(&link.path, "anonymous").await
     {
         tracing::warn!(error = %e, path = %link.path, "failed to create upload target directory");
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to create upload directory");
     }
 
     let content_type = sniff_mime_type(&file_name);
-    if let Err(e) = state.storage.put(&target_path, bytes.clone(), "anonymous").await {
+    if let Err(e) = state.storage().put(&target_path, bytes.clone(), "anonymous").await {
         tracing::warn!(error = %e, path = %target_path, "failed to store uploaded file");
         return ApiError::internal(ApiError::INTERNAL_ERROR, "Failed to store uploaded file");
     }
 
+    let audit_entry = crate::audit::build_audit_entry(
+        "POST",
+        &format!("/s/{}/upload", token),
+        "anonymous",
+        201,
+        None,
+        None,
+    );
     state
-        .audit_log
-        .log(crate::audit::build_audit_entry(
-            "POST",
-            &format!("/s/{}/upload", token),
-            "anonymous",
-            201,
-            None,
-            None,
-        ))
+        .audit_log()
+        .log(ferro_server_state::AuditEntry {
+            timestamp: audit_entry.timestamp,
+            method: audit_entry.method,
+            path: audit_entry.path,
+            user: audit_entry.user,
+            status: audit_entry.status,
+            client_ip: audit_entry.client_ip,
+            user_agent: audit_entry.user_agent,
+            content_length: audit_entry.content_length,
+        })
         .await;
 
-    if let Some(ref db) = state.db {
+    if let Some(db) = state.db() {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         let upload_id = uuid::Uuid::new_v4().to_string();
         if let Err(e) = conn.execute(
@@ -175,9 +194,18 @@ pub async fn upload_to_share(
         .into_response()
 }
 
+/// `POST /s/:token/upload` -- Upload a file to an upload-only share.
+pub async fn upload_to_share(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+    body: axum::body::Body,
+) -> Response {
+    upload_to_share_impl(&state, token, body).await
+}
+
 /// `GET /s/:token/uploads` -- List uploads for an upload share.
-pub async fn list_share_uploads(State(state): State<AppState>, Path(token): Path<String>) -> Response {
-    let entries = if let Some(ref db) = state.db {
+pub async fn list_share_uploads_impl<S: ServerState>(state: &S, token: String) -> Response {
+    let entries = if let Some(db) = state.db() {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = match conn.prepare(
             "SELECT id, file_path, size, mime_type, uploaded_at FROM share_uploads WHERE share_token = ?1 ORDER BY uploaded_at DESC",
@@ -218,13 +246,18 @@ pub async fn list_share_uploads(State(state): State<AppState>, Path(token): Path
     (StatusCode::OK, axum::Json(serde_json::json!({ "uploads": entries }))).into_response()
 }
 
+/// `GET /s/:token/uploads` -- List uploads for an upload share.
+pub async fn list_share_uploads(State(state): State<AppState>, Path(token): Path<String>) -> Response {
+    list_share_uploads_impl(&state, token).await
+}
+
 /// `GET /s/:token/view` -- Serve a secure view share (preview only).
-pub async fn serve_view_share(
-    State(state): State<AppState>,
-    Path(token): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
+pub async fn serve_view_share_impl<S: ServerState>(
+    state: &S,
+    token: String,
+    params: HashMap<String, String>,
 ) -> Response {
-    if state.share_store.is_share_locked(&token) {
+    if state.share_store().is_share_locked(&token) {
         return ApiError::with_details(
             StatusCode::TOO_MANY_REQUESTS,
             ApiError::RATE_LIMITED,
@@ -233,7 +266,7 @@ pub async fn serve_view_share(
         );
     }
 
-    let link = match state.share_store.get(&token).await {
+    let link = match state.share_store().get(&token).await {
         Some(l) => l,
         None => return ApiError::not_found(ApiError::SHARE_NOT_FOUND, "Share not found"),
     };
@@ -242,7 +275,7 @@ pub async fn serve_view_share(
         return ApiError::gone(ApiError::SHARE_EXPIRED, "Share expired");
     }
 
-    let share_type = get_share_type(&state, &token);
+    let share_type = get_share_type(state, &token);
     if share_type != ShareType::View {
         return ApiError::bad_request(ApiError::INVALID_INPUT, "This share link is not a view share");
     }
@@ -251,10 +284,10 @@ pub async fn serve_view_share(
         let provided = params.get("password").map(|s| s.as_str());
         match provided {
             Some(pw) if constant_time_eq(pw, required_password) => {
-                state.share_store.clear_failed_attempts(&token);
+                state.share_store().clear_failed_attempts(&token);
             }
             Some(_) => {
-                state.share_store.record_failed_attempt(&token);
+                state.share_store().record_failed_attempt(&token);
                 return ApiError::unauthorized(ApiError::SHARE_PASSWORD_INVALID, "Invalid password");
             }
             None => {
@@ -268,7 +301,7 @@ pub async fn serve_view_share(
         }
     }
 
-    let meta = match state.storage.head(&link.path).await {
+    let meta = match state.storage().head(&link.path).await {
         Ok(m) => m,
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
     };
@@ -280,14 +313,14 @@ pub async fn serve_view_share(
         );
     }
 
-    let allow_download = get_allow_download(&state, &token);
+    let allow_download = get_allow_download(state, &token);
 
-    let reader = match state.storage.get_stream(&link.path).await {
+    let reader = match state.storage().get_stream(&link.path).await {
         Ok(r) => r,
         Err(_) => return ApiError::not_found(ApiError::FILE_NOT_FOUND, "File not found"),
     };
 
-    state.share_store.increment_download(&token).await;
+    state.share_store().increment_download(&token).await;
 
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(
@@ -323,6 +356,15 @@ pub async fn serve_view_share(
     let stream = tokio_util::io::ReaderStream::new(reader);
     let body = axum::body::Body::from_stream(stream);
     (StatusCode::OK, headers, body).into_response()
+}
+
+/// `GET /s/:token/view` -- Serve a secure view share (preview only).
+pub async fn serve_view_share(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+) -> Response {
+    serve_view_share_impl(&state, token, params).await
 }
 
 // ---------------------------------------------------------------------------
@@ -497,8 +539,8 @@ fn html_escape(s: &str) -> String {
 // Helpers
 // ---------------------------------------------------------------------------
 
-pub(crate) fn get_share_type(state: &AppState, token: &str) -> ShareType {
-    if let Some(ref db) = state.db {
+pub(crate) fn get_share_type<S: ServerState>(state: &S, token: &str) -> ShareType {
+    if let Some(db) = state.db() {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         if let Ok(st) = conn.query_row(
             "SELECT share_type FROM shares WHERE token = ?1",
@@ -511,8 +553,8 @@ pub(crate) fn get_share_type(state: &AppState, token: &str) -> ShareType {
     ShareType::Download
 }
 
-pub(crate) fn get_allow_download(state: &AppState, token: &str) -> bool {
-    if let Some(ref db) = state.db {
+pub(crate) fn get_allow_download<S: ServerState>(state: &S, token: &str) -> bool {
+    if let Some(db) = state.db() {
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         if let Ok(allowed) = conn.query_row(
             "SELECT allow_download FROM shares WHERE token = ?1",

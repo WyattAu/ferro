@@ -1,7 +1,7 @@
 use ferro_event_bus::event::FileEvent as BusFileEvent;
 
 use crate::AppState;
-use ferro_server_state::ServerState as _;
+use ferro_server_state::ServerState;
 
 #[derive(Clone, Debug)]
 pub struct FileEvent {
@@ -15,7 +15,7 @@ pub struct FileEvent {
     pub already_existed: bool,
 }
 
-pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
+pub async fn dispatch_post_op_impl<S: ServerState>(state: &S, event: FileEvent) {
     let ws_event = match event.op_type {
         "put" | "mkcol" => {
             if event.already_existed {
@@ -105,14 +105,14 @@ pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
         _ => return,
     };
     crate::webhooks::fire_webhooks(
-        state.webhooks.clone(),
+        state.webhooks().clone(),
         webhook_event.clone(),
-        state.webhook_delivery_store.clone(),
+        state.webhook_delivery_store(),
     )
     .await;
 
     // Email notifications when enabled
-    if state.email_config.enabled {
+    if state.email_config().enabled {
         let subject = format!("Ferro: {}", webhook_event.event);
         let body = format!(
             "Event: {}\nPath: {}\nTimestamp: {}",
@@ -134,8 +134,8 @@ pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
     }
 
     // Push notifications when configured
-    if let Some(ref push_store) = state.push_notification_store {
-        let push_config = state.push_notification_config.clone();
+    if let Some(ref push_store) = state.push_notification_store() {
+        let push_config = state.push_notification_config().clone();
         let store = push_store.clone();
         let user_id = event.owner.clone();
         let event_type_str = event.op_type.to_string();
@@ -172,8 +172,12 @@ pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
     if let Some(ref etag) = event.etag {
         bus_event.metadata.insert("etag".to_string(), etag.clone());
     }
-    let bus = state.event_bus.clone();
+    let bus = state.event_bus().clone();
     tokio::spawn(async move {
         bus.publish(bus_event).await;
     });
+}
+
+pub async fn dispatch_post_op(state: &AppState, event: FileEvent) {
+    dispatch_post_op_impl(state, event).await
 }

@@ -4054,6 +4054,7 @@ dependencies = [
  "ferro-common",
  "ferro-core",
  "ferro-dav",
+ "ferro-event-bus",
  "ferro-health",
  "ferro-rate-limiter",
  "ferro-selective-sync",

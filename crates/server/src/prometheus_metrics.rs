@@ -2,10 +2,10 @@ use crate::AppState;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use ferro_server_state::ServerState as _;
+use ferro_server_state::ServerState;
 
 /// GET /metrics/prometheus — return server metrics in Prometheus format.
-pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Response {
+pub async fn prometheus_metrics_handler_impl<S: ServerState>(state: &S) -> Response {
     use std::sync::atomic::Ordering;
 
     let uptime = state.started_at().elapsed().as_secs_f64();
@@ -22,10 +22,10 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     }
 
     let request_count = state.request_count().load(Ordering::Relaxed);
-    let request_duration_sum = state.request_duration_sum_ms.load(Ordering::Relaxed) as f64 / 1000.0;
+    let request_duration_sum = state.request_duration_sum_ms().load(Ordering::Relaxed) as f64 / 1000.0;
 
     // Read histogram buckets.
-    let buckets = &state.request_duration_buckets;
+    let buckets = state.request_duration_buckets();
     let le_001ms = buckets[0].load(Ordering::Relaxed);
     let le_005ms = buckets[1].load(Ordering::Relaxed);
     let le_010ms = buckets[2].load(Ordering::Relaxed);
@@ -39,7 +39,7 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     let le_inf = buckets[10].load(Ordering::Relaxed);
 
     // Read per-status-class counters.
-    let statuses = &state.request_status_counts;
+    let statuses = state.request_status_counts();
     let status_2xx = statuses[0].load(Ordering::Relaxed);
     let status_3xx = statuses[1].load(Ordering::Relaxed);
     let status_4xx = statuses[2].load(Ordering::Relaxed);
@@ -67,9 +67,9 @@ pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Respon
     let cache_evictions = cache_stats.evictions;
 
     // Read WASM worker metrics
-    let wasm_dispatches = state.wasm_dispatch_count.load(Ordering::Relaxed);
-    let wasm_errors = state.wasm_error_count.load(Ordering::Relaxed);
-    let wasm_fuel = state.wasm_fuel_total.load(Ordering::Relaxed);
+    let wasm_dispatches = state.wasm_dispatch_count().load(Ordering::Relaxed);
+    let wasm_errors = state.wasm_error_count().load(Ordering::Relaxed);
+    let wasm_fuel = state.wasm_fuel_total().load(Ordering::Relaxed);
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -151,6 +151,11 @@ ferro_wasm_fuel_consumed_total {wasm_fuel}
     );
 
     (StatusCode::OK, headers, output).into_response()
+}
+
+/// GET /metrics/prometheus — return server metrics in Prometheus format.
+pub async fn prometheus_metrics_handler(State(state): State<AppState>) -> Response {
+    prometheus_metrics_handler_impl(&state).await
 }
 
 #[cfg(test)]
