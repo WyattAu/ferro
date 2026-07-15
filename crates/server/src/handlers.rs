@@ -29,151 +29,16 @@ pub async fn health_endpoint(State(state): State<AppState>) -> Response {
     (status, axum::Json(body)).into_response()
 }
 
-/// GET /startupz — Kubernetes-style startup probe.
-/// Returns 200 once the server has completed all startup checks
-/// (storage reachability, CAS verification, DB init). Returns 503 until then.
-pub async fn startup_impl<S: common::server_context::HasStartupState>(state: &S) -> Response {
-    if state.is_started() {
-        (StatusCode::OK, axum::Json(serde_json::json!({"status": "ok"}))).into_response()
-    } else {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            axum::Json(serde_json::json!({"status": "starting"})),
-        )
-            .into_response()
-    }
-}
-
 pub async fn startup(State(state): State<AppState>) -> Response {
-    startup_impl(&state).await
+    ferro_server_health::startup_impl(&state).await
 }
 
 pub async fn readiness(State(state): State<AppState>) -> Response {
-    let mut subsystems = serde_json::Map::new();
-    let mut healthy = true;
-
-    let storage_ok = state.storage().list("/").await.is_ok();
-    subsystems.insert(
-        "storage".to_string(),
-        serde_json::json!(if storage_ok { "ok" } else { "error" }),
-    );
-    if !storage_ok {
-        healthy = false;
-    }
-
-    subsystems.insert(
-        "metadata".to_string(),
-        serde_json::json!(if state.metadata_store().is_some() {
-            "persistent"
-        } else {
-            "in-memory"
-        }),
-    );
-
-    // Check SQLite database reachability if configured.
-    let db_ok = match state.db() {
-        Some(db) => db
-            .lock()
-            .ok()
-            .and_then(|conn| conn.execute_batch("SELECT 1;").ok())
-            .is_some(),
-        None => true, // No DB configured, not a failure.
-    };
-    subsystems.insert(
-        "database".to_string(),
-        serde_json::json!(if db_ok { "ok" } else { "error" }),
-    );
-    if !db_ok {
-        healthy = false;
-    }
-
-    // Check search index readiness if configured.
-    let search_ok = match state.search() {
-        Some(search) => search.try_read().is_ok(),
-        None => true, // No search configured, not a failure.
-    };
-    subsystems.insert(
-        "search".to_string(),
-        serde_json::json!(if search_ok { "ok" } else { "error" }),
-    );
-    if !search_ok {
-        healthy = false;
-    }
-
-    let status = if healthy { "ok" } else { "degraded" };
-    let code = if healthy {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-
-    let body = serde_json::json!({
-        "status": status,
-        "subsystems": subsystems,
-    });
-    (code, axum::Json(body)).into_response()
+    ferro_server_health::readiness_impl(&state).await
 }
 
 pub async fn health_check(State(state): State<AppState>) -> Response {
-    let mut subsystems = serde_json::Map::new();
-    let mut healthy = true;
-
-    let storage_ok = state.storage().list("/").await.is_ok();
-    subsystems.insert(
-        "storage".to_string(),
-        serde_json::json!(if storage_ok { "ok" } else { "error" }),
-    );
-    if !storage_ok {
-        healthy = false;
-    }
-
-    subsystems.insert(
-        "metadata".to_string(),
-        serde_json::json!(if state.metadata_store().is_some() {
-            "persistent"
-        } else {
-            "in-memory"
-        }),
-    );
-
-    subsystems.insert(
-        "wasm".to_string(),
-        serde_json::json!(if state.wasm_runtime().is_some() { "ok" } else { "disabled" }),
-    );
-
-    subsystems.insert(
-        "search".to_string(),
-        serde_json::json!(if state.search().is_some() { "ok" } else { "disabled" }),
-    );
-
-    subsystems.insert(
-        "auth".to_string(),
-        serde_json::json!(if state.oidc().is_some() { "configured" } else { "disabled" }),
-    );
-
-    subsystems.insert(
-        "cas".to_string(),
-        serde_json::json!(if state.cas_store().is_some() {
-            "enabled"
-        } else {
-            "disabled"
-        }),
-    );
-
-    let status = if healthy { "ok" } else { "degraded" };
-    let code = if healthy {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-
-    let body = serde_json::json!({
-        "status": status,
-        "version": env!("CARGO_PKG_VERSION"),
-        "uptime_seconds": state.started_at().elapsed().as_secs(),
-        "subsystems": subsystems,
-    });
-    (code, axum::Json(body)).into_response()
+    ferro_server_health::health_check_impl(&state).await
 }
 
 pub async fn audit_handler(
@@ -237,6 +102,7 @@ pub async fn storage_stats(State(state): State<AppState>) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ferro_server_health::startup_impl;
     use http_body_util::BodyExt;
 
     fn test_state() -> AppState {

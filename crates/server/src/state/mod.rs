@@ -2,6 +2,7 @@ mod adapters;
 mod builder;
 mod db_init;
 mod graphql;
+mod health_impl;
 pub(crate) mod traits;
 
 use common::storage::LockManagerTrait;

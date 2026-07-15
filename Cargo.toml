@@ -64,6 +64,8 @@ members = [
     "crates/plugin",
     "crates/feature-flags",
     "crates/server-api",
+    "crates/server-health",
+    "crates/server-sync-handlers",
 ]
 resolver = "2"
 

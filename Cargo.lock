@@ -3531,6 +3531,7 @@ dependencies = [
  "ferro-server-compliance",
  "ferro-server-config",
  "ferro-server-content",
+ "ferro-server-health",
  "ferro-server-infra",
  "ferro-server-integrations",
  "ferro-server-plugins",
@@ -3541,6 +3542,7 @@ dependencies = [
  "ferro-server-sharing",
  "ferro-server-state",
  "ferro-server-storage-ops",
+ "ferro-server-sync-handlers",
  "ferro-server-user-mgmt",
  "ferro-server-versioning",
  "ferro-server-webdav-core",
@@ -3809,6 +3811,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-health"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ferro-server-infra"
 version = "3.0.0"
 dependencies = [
@@ -4072,6 +4086,13 @@ dependencies = [
  "tracing",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "ferro-server-sync-handlers"
+version = "3.0.0"
+dependencies = [
+ "ferro-common",
 ]
 
 [[package]]

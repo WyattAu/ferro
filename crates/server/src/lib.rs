@@ -144,9 +144,7 @@ pub use routes::build_router_with_static;
 pub use state::AppState;
 
 // Re-export handler functions
-pub use handlers::{
-    audit_handler, health_check, health_endpoint, liveness, readiness, startup, startup_impl, storage_stats,
-};
+pub use handlers::{audit_handler, health_check, health_endpoint, liveness, readiness, startup, storage_stats};
 
 use axum::Router;
 
