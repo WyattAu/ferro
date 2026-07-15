@@ -146,7 +146,8 @@ pub(crate) mod tests {
 
         async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>> {
             let prefix = normalize_path(prefix).into_owned();
-            Ok(self.metadata
+            Ok(self
+                .metadata
                 .iter()
                 .filter(|entry| entry.key().starts_with(&prefix))
                 .map(|entry| entry.value().clone())

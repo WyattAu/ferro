@@ -145,20 +145,28 @@ impl StorageEngine for InMemoryStorageEngine {
         let src = normalize_path(src).into_owned();
         let dst = normalize_path(dst).into_owned();
 
-        let content = self.store.remove(&src).ok_or_else(|| {
-            #[cold]
-            fn not_found(p: String) -> FerroError {
-                FerroError::NotFound(p)
-            }
-            not_found(src.clone())
-        })?.1;
-        let mut meta = self.metadata.remove(&src).ok_or_else(|| {
-            #[cold]
-            fn not_found(p: String) -> FerroError {
-                FerroError::NotFound(p)
-            }
-            not_found(src.clone())
-        })?.1;
+        let content = self
+            .store
+            .remove(&src)
+            .ok_or_else(|| {
+                #[cold]
+                fn not_found(p: String) -> FerroError {
+                    FerroError::NotFound(p)
+                }
+                not_found(src.clone())
+            })?
+            .1;
+        let mut meta = self
+            .metadata
+            .remove(&src)
+            .ok_or_else(|| {
+                #[cold]
+                fn not_found(p: String) -> FerroError {
+                    FerroError::NotFound(p)
+                }
+                not_found(src.clone())
+            })?
+            .1;
 
         meta.path = dst.clone();
         meta.etag = format!("\"{}\"", meta.content_hash.as_str());
