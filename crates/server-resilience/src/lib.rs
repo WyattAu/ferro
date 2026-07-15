@@ -10,8 +10,8 @@ pub use retry::{RetryPolicy, retry_with_backoff};
 mod tests {
     use super::*;
     use ferro_circuit_breaker::CircuitState;
-    use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
     use std::time::Duration;
 
     // ---- Circuit Breaker State Transitions ----

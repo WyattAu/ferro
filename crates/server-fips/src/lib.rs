@@ -1100,7 +1100,9 @@ mod tests {
         assert_eq!(dk2.version, 3);
         assert_eq!(km.hierarchy().data_key_count(), 2);
 
-        let (old, new) = km.rotate_data_key(&kek.key_id, &dk1.key_id, "data-key-v1-rotated").unwrap();
+        let (old, new) = km
+            .rotate_data_key(&kek.key_id, &dk1.key_id, "data-key-v1-rotated")
+            .unwrap();
         assert_eq!(old.key_id, dk1.key_id);
         assert_eq!(new.version, 4);
         assert_eq!(km.hierarchy().data_key_count(), 2);
