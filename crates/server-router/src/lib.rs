@@ -5,11 +5,11 @@
 //! over `S: RouterState`, proving that the extract-and-delegate pattern works
 //! at the router level.
 
+use axum::Router;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use axum::Router;
 use ferro_server_state::ServerState;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
@@ -44,11 +44,7 @@ async fn health_handler<S: RouterState>(State(state): State<S>) -> Response {
     let uptime = started.elapsed();
     let maintenance = state.maintenance_mode().load(std::sync::atomic::Ordering::Relaxed);
 
-    let status = if maintenance {
-        "maintenance"
-    } else {
-        "healthy"
-    };
+    let status = if maintenance { "maintenance" } else { "healthy" };
 
     let body = serde_json::json!({
         "status": status,
@@ -64,22 +60,33 @@ async fn ready_handler<S: RouterState>(State(state): State<S>) -> Response {
     let maintenance = state.maintenance_mode().load(std::sync::atomic::Ordering::Relaxed);
 
     if maintenance {
-        return (StatusCode::SERVICE_UNAVAILABLE, axum::Json(serde_json::json!({
-            "status": "not_ready",
-            "reason": "maintenance_mode",
-        }))).into_response();
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            axum::Json(serde_json::json!({
+                "status": "not_ready",
+                "reason": "maintenance_mode",
+            })),
+        )
+            .into_response();
     }
 
-    (StatusCode::OK, axum::Json(serde_json::json!({
-        "status": "ready",
-    }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "status": "ready",
+        })),
+    )
+        .into_response()
 }
 
 /// Version handler (no state needed).
 async fn version_handler() -> Response {
-    (StatusCode::OK, axum::Json(serde_json::json!({
-        "version": env!("CARGO_PKG_VERSION"),
-        "edition": "2024",
-    }))).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "version": env!("CARGO_PKG_VERSION"),
+            "edition": "2024",
+        })),
+    )
+        .into_response()
 }
-

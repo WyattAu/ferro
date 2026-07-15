@@ -657,7 +657,7 @@ impl Default for KeyRotationConfig {
         Self {
             enabled: true,
             rotation_interval: std::time::Duration::from_secs(3600), // 1 hour
-            max_key_age: std::time::Duration::from_secs(86400),     // 24 hours
+            max_key_age: std::time::Duration::from_secs(86400),      // 24 hours
         }
     }
 }
@@ -724,10 +724,7 @@ impl KeyManager {
 ///
 /// The task checks all data keys on each iteration and rotates any that exceed
 /// `max_key_age`. The rotation loop sleeps for `rotation_interval` between checks.
-pub fn spawn_key_rotation(
-    config: KeyRotationConfig,
-    mut key_manager: KeyManager,
-) -> tokio::task::JoinHandle<()> {
+pub fn spawn_key_rotation(config: KeyRotationConfig, mut key_manager: KeyManager) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         if !config.enabled {
             tracing::info!("key rotation is disabled");
@@ -746,10 +743,7 @@ pub fn spawn_key_rotation(
             match key_manager.rotate_all_data_keys() {
                 Ok(rotated) => {
                     if !rotated.is_empty() {
-                        tracing::info!(
-                            "automatic key rotation completed: {} keys rotated",
-                            rotated.len()
-                        );
+                        tracing::info!("automatic key rotation completed: {} keys rotated", rotated.len());
                     }
                 }
                 Err(e) => {
