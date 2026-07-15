@@ -94,6 +94,7 @@ ferro-server-integrations = { path = "../server-integrations" }
 ferro-server-plugins = { path = "../server-plugins" }
 ferro-server-admin-api = { path = "../server-admin-api" }
 ferro-circuit-breaker = { path = "../circuit-breaker" }
+ferro-server-resilience = { path = "../server-resilience" }
 ferro-server-api-core = { path = "../server-api-core" }
 ferro-selective-sync = { path = "../selective-sync" }
 ferro-server-sharing = { path = "../server-sharing" }
@@ -110,6 +111,7 @@ ferro-server-health = { path = "../server-health" }
 ferro-server-sync-handlers = { path = "../server-sync-handlers" }
 ferro-server-federation = { path = "../server-federation" }
 ferro-server-routes = { path = "../server-routes" }
+ferro-server-slo = { path = "../server-slo" }
 zeroize = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]

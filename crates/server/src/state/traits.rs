@@ -1081,4 +1081,32 @@ impl ferro_server_state::ServerState for AppState {
     fn push_notification_config(&self) -> &ferro_server_integrations::push_notifications::PushNotificationConfig {
         &self.push_notification_config
     }
+
+    fn storage_circuit_breaker(&self) -> &ferro_server_resilience::NamedCircuitBreaker {
+        &self.storage_circuit_breaker
+    }
+
+    fn auth_circuit_breaker(&self) -> &ferro_server_resilience::NamedCircuitBreaker {
+        &self.auth_circuit_breaker
+    }
+
+    fn ldap_circuit_breaker(&self) -> &ferro_server_resilience::NamedCircuitBreaker {
+        &self.ldap_circuit_breaker
+    }
+
+    fn bulkhead_pools(&self) -> &ferro_server_resilience::BulkheadPools {
+        &self.bulkhead_pools
+    }
+
+    fn retry_policy(&self) -> &ferro_server_resilience::RetryPolicy {
+        &self.retry_policy
+    }
+
+    fn slo_collector(&self) -> &std::sync::Arc<ferro_server_slo::SliCollector> {
+        &self.slo_collector
+    }
+
+    fn slo_definitions(&self) -> &Vec<ferro_server_slo::SloDefinition> {
+        &self.slo_definitions
+    }
 }

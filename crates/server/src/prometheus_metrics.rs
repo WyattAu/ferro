@@ -142,12 +142,13 @@ ferro_wasm_errors_total {wasm_errors}
 # HELP ferro_wasm_fuel_consumed_total Total fuel consumed by WASM workers
 # TYPE ferro_wasm_fuel_consumed_total counter
 ferro_wasm_fuel_consumed_total {wasm_fuel}
-"#,
+{slo_metrics}"#,
         uptime = uptime,
         file_count = file_count,
         total_bytes = total_bytes,
         request_count = request_count,
         request_duration_sum = request_duration_sum,
+        slo_metrics = state.slo_collector().prometheus_metrics(state.slo_definitions()),
     );
 
     (StatusCode::OK, headers, output).into_response()

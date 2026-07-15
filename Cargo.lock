@@ -3537,10 +3537,12 @@ dependencies = [
  "ferro-server-integrations",
  "ferro-server-plugins",
  "ferro-server-productivity",
+ "ferro-server-resilience",
  "ferro-server-routes",
  "ferro-server-security",
  "ferro-server-security-middleware",
  "ferro-server-sharing",
+ "ferro-server-slo",
  "ferro-server-state",
  "ferro-server-storage-ops",
  "ferro-server-sync-handlers",
@@ -3930,6 +3932,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-resilience"
+version = "3.0.0"
+dependencies = [
+ "ferro-circuit-breaker",
+ "parking_lot 0.12.5",
+ "rand 0.9.4",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ferro-server-routes"
 version = "3.0.0"
 dependencies = [
@@ -4044,6 +4057,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-server-slo"
+version = "3.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ferro-server-state"
 version = "3.0.0"
 dependencies = [
@@ -4065,7 +4086,9 @@ dependencies = [
  "ferro-server-integrations",
  "ferro-server-plugins",
  "ferro-server-productivity",
+ "ferro-server-resilience",
  "ferro-server-sharing",
+ "ferro-server-slo",
  "ferro-server-storage-ops",
  "serde",
  "serde_json",

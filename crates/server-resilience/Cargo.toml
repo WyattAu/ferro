@@ -1,0 +1,19 @@
+[package]
+name = "ferro-server-resilience"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Resilience patterns (circuit breaker, retry, bulkhead) for the Ferro server"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[dependencies]
+ferro-circuit-breaker = { path = "../circuit-breaker" }
+tokio = { workspace = true }
+tracing = "0.1"
+parking_lot = "0.12"
+rand = "0.9"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

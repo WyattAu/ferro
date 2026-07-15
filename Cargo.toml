@@ -67,6 +67,8 @@ members = [
     "crates/server-health",
     "crates/server-sync-handlers",
     "crates/server-federation",
+    "crates/server-resilience",
+    "crates/server-slo",
 ]
 resolver = "2"
 

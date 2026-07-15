@@ -194,6 +194,22 @@ pub struct AppState {
     pub user_mgmt_audit_adapter: Arc<dyn ferro_server_user_mgmt::AuditLog>,
     /// Adapter for ferro-server-state's AuditLogTrait.
     pub state_audit_adapter: Arc<dyn ferro_server_state::AuditLogTrait>,
+
+    // --- Resilience ---
+    /// Circuit breaker for storage backend calls.
+    pub storage_circuit_breaker: ferro_server_resilience::NamedCircuitBreaker,
+    /// Circuit breaker for OIDC/auth validation calls.
+    pub auth_circuit_breaker: ferro_server_resilience::NamedCircuitBreaker,
+    /// Circuit breaker for LDAP calls.
+    pub ldap_circuit_breaker: ferro_server_resilience::NamedCircuitBreaker,
+    /// Bulkhead pools for subsystem isolation.
+    pub bulkhead_pools: ferro_server_resilience::BulkheadPools,
+    /// Default retry policy for transient operations.
+    pub retry_policy: ferro_server_resilience::RetryPolicy,
+    /// SLO/SLI error budget collector.
+    pub slo_collector: Arc<ferro_server_slo::SliCollector>,
+    /// SLO definitions for the server.
+    pub slo_definitions: Vec<ferro_server_slo::SloDefinition>,
 }
 
 impl AppState {
@@ -325,6 +341,26 @@ impl AppState {
             ))),
             user_mgmt_audit_adapter: Arc::new(adapters::UserMgmtAuditLogAdapter(Arc::new(AuditLog::new()))),
             state_audit_adapter: Arc::new(traits::AuditLogAdapter(Arc::new(AuditLog::new()))),
+
+            // Resilience defaults
+            storage_circuit_breaker: ferro_server_resilience::NamedCircuitBreaker::new(
+                "storage",
+                ferro_server_resilience::CircuitBreakerConfig::default(),
+            ),
+            auth_circuit_breaker: ferro_server_resilience::NamedCircuitBreaker::new(
+                "auth",
+                ferro_server_resilience::CircuitBreakerConfig::default(),
+            ),
+            ldap_circuit_breaker: ferro_server_resilience::NamedCircuitBreaker::new(
+                "ldap",
+                ferro_server_resilience::CircuitBreakerConfig::default(),
+            ),
+            bulkhead_pools: ferro_server_resilience::BulkheadPools::new(
+                ferro_server_resilience::BulkheadConfig::default(),
+            ),
+            retry_policy: ferro_server_resilience::RetryPolicy::default(),
+            slo_collector: Arc::new(ferro_server_slo::SliCollector::new()),
+            slo_definitions: ferro_server_slo::default_slos(),
         }
     }
 

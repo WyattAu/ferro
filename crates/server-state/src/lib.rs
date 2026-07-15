@@ -140,4 +140,15 @@ pub trait ServerState: Send + Sync + Clone + 'static {
         &self,
     ) -> &Option<Arc<tokio::sync::RwLock<ferro_server_integrations::push_notifications::PushNotificationStore>>>;
     fn push_notification_config(&self) -> &ferro_server_integrations::push_notifications::PushNotificationConfig;
+
+    // Resilience
+    fn storage_circuit_breaker(&self) -> &ferro_server_resilience::NamedCircuitBreaker;
+    fn auth_circuit_breaker(&self) -> &ferro_server_resilience::NamedCircuitBreaker;
+    fn ldap_circuit_breaker(&self) -> &ferro_server_resilience::NamedCircuitBreaker;
+    fn bulkhead_pools(&self) -> &ferro_server_resilience::BulkheadPools;
+    fn retry_policy(&self) -> &ferro_server_resilience::RetryPolicy;
+
+    // SLO/SLI
+    fn slo_collector(&self) -> &Arc<ferro_server_slo::SliCollector>;
+    fn slo_definitions(&self) -> &Vec<ferro_server_slo::SloDefinition>;
 }
