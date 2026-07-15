@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Ferro - Offline</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "IBM Plex Mono", monospace;
+            background: #F5F0EB;
+            color: #2B2B2B;
+        }
+        .container {
+            text-align: center;
+            padding: 3rem;
+        }
+        h1 {
+            font-size: 4rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            margin-bottom: 1rem;
+            color: #E85D04;
+        }
+        p {
+            font-family: "Inter", sans-serif;
+            color: #8B8178;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        .retry {
+            display: inline-block;
+            padding: 0.75rem 2rem;
+            background: #E85D04;
+            color: #F5F0EB;
+            font-family: "IBM Plex Mono", monospace;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border: 2px solid #2B2B2B;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .retry:hover { background: #D4520A; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FERRO</h1>
+        <p>You are currently offline</p>
+        <a href="/ui/" class="retry">Try Again</a>
+    </div>
+</body>
+</html>

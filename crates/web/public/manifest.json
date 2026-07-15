@@ -1,0 +1,15 @@
+{
+  "name": "Ferro - Self-Hosted Storage",
+  "short_name": "Ferro",
+  "description": "Self-hosted file storage platform",
+  "start_url": "/ui/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F5F0EB",
+  "theme_color": "#E85D04",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "/ui/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/ui/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

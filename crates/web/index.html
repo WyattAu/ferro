@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <meta name="description" content="Ferro - Self-hosted file storage platform with WebDAV, content-addressable storage, and WASM workers"/>
     <title>FERRO</title>
+    <link rel="manifest" href="/ui/manifest.json">
+    <meta name="theme-color" content="#E85D04">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
@@ -20,5 +24,12 @@
             <p style="font-family: 'Inter', sans-serif; color: #8B8178; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem;">WebAssembly is required to run this application.</p>
         </div>
     </noscript>
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/ui/sw.js").catch(() => {});
+            });
+        }
+    </script>
 </body>
 </html>

@@ -3,6 +3,10 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use uuid::Uuid;
+use chrono::Utc;
 
 use crate::ApiCoreState;
 use crate::ApiError;
@@ -256,7 +260,7 @@ pub async fn handle_reindex<S: ApiCoreState>(State(state): State<S>) -> Response
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchParams {
     pub q: String,
     pub limit: Option<usize>,
@@ -364,6 +368,93 @@ impl Default for InMemoryPreferenceStore {
     }
 }
 
+// --- Saved Searches ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SavedSearch {
+    pub id: String,
+    pub name: String,
+    pub query: SearchParams,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateSavedSearchRequest {
+    pub name: String,
+    pub query: SearchParams,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateSavedSearchRequest {
+    pub name: Option<String>,
+    pub query: Option<SearchParams>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SavedSearchStore {
+    searches: Arc<RwLock<Vec<SavedSearch>>>,
+}
+
+impl SavedSearchStore {
+    pub fn new() -> Self {
+        Self {
+            searches: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+
+    pub async fn list(&self) -> Vec<SavedSearch> {
+        self.searches.read().await.clone()
+    }
+
+    pub async fn get(&self, id: &str) -> Option<SavedSearch> {
+        self.searches.read().await.iter().find(|s| s.id == id).cloned()
+    }
+
+    pub async fn create(&self, name: String, query: SearchParams) -> SavedSearch {
+        let id = Uuid::new_v4().to_string();
+        let now = Utc::now().to_rfc3339();
+        let search = SavedSearch {
+            id,
+            name,
+            query,
+            created_at: now.clone(),
+            updated_at: now,
+        };
+        self.searches.write().await.push(search.clone());
+        search
+    }
+
+    pub async fn update(&self, id: &str, update: UpdateSavedSearchRequest) -> Option<SavedSearch> {
+        let mut searches = self.searches.write().await;
+        if let Some(search) = searches.iter_mut().find(|s| s.id == id) {
+            if let Some(name) = update.name {
+                search.name = name;
+            }
+            if let Some(query) = update.query {
+                search.query = query;
+            }
+            search.updated_at = Utc::now().to_rfc3339();
+            Some(search.clone())
+        } else {
+            None
+        }
+    }
+
+    pub async fn delete(&self, id: &str) -> bool {
+        let mut searches = self.searches.write().await;
+        let len_before = searches.len();
+        searches.retain(|s| s.id != id);
+        searches.len() < len_before
+    }
+}
+
+impl Default for SavedSearchStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub async fn handle_list_locks<S: ApiCoreState>(State(state): State<S>) -> Response {
     let locks = state.lock_manager().all_locks().await;
     let mut lock_responses = Vec::new();
@@ -440,6 +531,82 @@ pub async fn handle_update_preferences<S: ApiCoreState>(
         axum::Json(serde_json::to_value(prefs).unwrap_or_default()),
     )
         .into_response()
+}
+
+// --- Saved Searches Handlers ---
+
+pub async fn list_saved_searches<S: ApiCoreState>(
+    State(state): State<S>,
+) -> Response {
+    let store = state.saved_search_store();
+    let searches = store.list().await;
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({ "saved_searches": searches })),
+    )
+        .into_response()
+}
+
+pub async fn get_saved_search<S: ApiCoreState>(
+    State(state): State<S>,
+    Path(id): Path<String>,
+) -> Response {
+    let store = state.saved_search_store();
+    match store.get(&id).await {
+        Some(search) => (StatusCode::OK, axum::Json(search)).into_response(),
+        None => ApiError::not_found(ApiError::NOT_FOUND, "Saved search not found"),
+    }
+}
+
+pub async fn create_saved_search<S: ApiCoreState>(
+    State(state): State<S>,
+    axum::Json(body): axum::Json<CreateSavedSearchRequest>,
+) -> Response {
+    let store = state.saved_search_store();
+    let search = store.create(body.name, body.query).await;
+    (
+        StatusCode::CREATED,
+        axum::Json(search),
+    )
+        .into_response()
+}
+
+pub async fn update_saved_search<S: ApiCoreState>(
+    State(state): State<S>,
+    Path(id): Path<String>,
+    axum::Json(body): axum::Json<UpdateSavedSearchRequest>,
+) -> Response {
+    let store = state.saved_search_store();
+    match store.update(&id, body).await {
+        Some(search) => (StatusCode::OK, axum::Json(search)).into_response(),
+        None => ApiError::not_found(ApiError::NOT_FOUND, "Saved search not found"),
+    }
+}
+
+pub async fn delete_saved_search<S: ApiCoreState>(
+    State(state): State<S>,
+    Path(id): Path<String>,
+) -> Response {
+    let store = state.saved_search_store();
+    if store.delete(&id).await {
+        (StatusCode::OK, axum::Json(serde_json::json!({ "deleted": true }))).into_response()
+    } else {
+        ApiError::not_found(ApiError::NOT_FOUND, "Saved search not found")
+    }
+}
+
+pub async fn run_saved_search<S: ApiCoreState>(
+    State(state): State<S>,
+    Path(id): Path<String>,
+) -> Response {
+    let store = state.saved_search_store();
+    match store.get(&id).await {
+        Some(search) => {
+            // Re-run the saved search using the existing search handler
+            handle_search(State(state), Query(search.query)).await
+        }
+        None => ApiError::not_found(ApiError::NOT_FOUND, "Saved search not found"),
+    }
 }
 
 #[cfg(test)]

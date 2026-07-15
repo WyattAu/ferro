@@ -96,6 +96,7 @@ ferro-server-admin-api = { path = "../server-admin-api" }
 ferro-circuit-breaker = { path = "../circuit-breaker" }
 ferro-server-resilience = { path = "../server-resilience" }
 ferro-server-api-core = { path = "../server-api-core" }
+zip = "2"
 ferro-selective-sync = { path = "../selective-sync" }
 ferro-server-sharing = { path = "../server-sharing" }
 ferro-server-user-mgmt = { path = "../server-user-mgmt" }

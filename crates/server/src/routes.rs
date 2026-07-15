@@ -79,6 +79,8 @@ use crate::whiteboard_api;
 use crate::workers;
 use crate::worm;
 use crate::ws;
+use crate::zip_download;
+use crate::duplicate;
 
 use crate::{audit_handler, health_check, health_endpoint, liveness, readiness, startup, storage_stats};
 
@@ -155,6 +157,21 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         })
         .route("/search", axum::routing::get(search::handle_search::<AppState>))
         .route(
+            "/saved-searches",
+            axum::routing::get(search::list_saved_searches::<AppState>)
+                .post(search::create_saved_search::<AppState>),
+        )
+        .route(
+            "/saved-searches/:id",
+            axum::routing::get(search::get_saved_search::<AppState>)
+                .put(search::update_saved_search::<AppState>)
+                .delete(search::delete_saved_search::<AppState>),
+        )
+        .route(
+            "/saved-searches/:id/run",
+            axum::routing::post(search::run_saved_search::<AppState>),
+        )
+        .route(
             "/workers",
             axum::routing::get(workers::list_workers::<AppState>).post(workers::register_worker::<AppState>),
         )
@@ -209,6 +226,8 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         .route("/files/mkdir", axum::routing::post(api::mkdir))
         .route("/files/move", axum::routing::post(move_copy::move_file::<AppState>))
         .route("/files/copy", axum::routing::post(move_copy::copy_file::<AppState>))
+        .route("/zip-download", axum::routing::post(zip_download::zip_download))
+        .route("/duplicate", axum::routing::post(duplicate::duplicate_file))
         .route("/upload-url", axum::routing::get(presigned::get_upload_url))
         .route("/download-url", axum::routing::get(presigned::get_download_url))
         .route(

@@ -66,6 +66,8 @@ pub use ferro_server_webdav_core::webdav;
 pub mod ai_search;
 pub mod api;
 pub mod api_error;
+pub mod duplicate;
+pub mod zip_download;
 pub mod api_keys_routes;
 pub mod audit;
 pub mod batch;

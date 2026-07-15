@@ -69,6 +69,7 @@ pub trait ApiCoreState: Clone + Send + Sync + 'static {
     fn ai_search(&self) -> &Option<Arc<dyn AiSearchBridgeTrait>>;
     fn lock_manager(&self) -> &Arc<dyn common::storage::LockManagerTrait>;
     fn preferences(&self) -> &Arc<dyn search::PreferenceStore>;
+    fn saved_search_store(&self) -> &search::SavedSearchStore;
 }
 
 // ---------------------------------------------------------------------------

@@ -676,6 +676,9 @@ impl ferro_server_api_core::ApiCoreState for AppState {
     fn preferences(&self) -> &Arc<dyn crate::search::PreferenceStore> {
         &self.preferences
     }
+    fn saved_search_store(&self) -> &ferro_server_api_core::search::SavedSearchStore {
+        &self.saved_search_store
+    }
 }
 
 // ---------------------------------------------------------------------------
