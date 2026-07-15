@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 9.1 | **Date:** 2026-07-14 | **Status:** v9.1 COMPLETE -- All handler conversion done
+**Version:** 9.2 | **Date:** 2026-07-14 | **Status:** v9.2 COMPLETE -- 100% handler conversion, all work streams done
 
 ---
 
@@ -21,8 +21,8 @@
 | Unified types | DbHandle (19->1), ApiError (9->2), AuditEntry (9->1) |
 | Dead code removed | ~12,000 lines |
 | Frontend | 929 color replacements, 0 hardcoded colors, 0 static inline styles |
-| ServerState trait | 30 methods across 10 categories, implemented for AppState |
-| Handler genericization | 180/219 handlers converted (82%), 59 _impl calls |
+| ServerState trait | 51 methods across 15 categories, implemented for AppState |
+| Handler genericization | 219/219 handlers converted (100%), 78 _impl calls |
 | API docs | Automated cargo doc + GitHub Pages deployment |
 | Extracted crates | server-api, server-health, server-federation, server-sync-handlers |
 | Architecture graph | 59 crates mapped across 5 layers in Mermaid |
