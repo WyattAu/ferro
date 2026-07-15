@@ -100,8 +100,18 @@ pub(crate) fn register_commands(
                     let next = match current {
                         Theme::Light => Theme::Dark,
                         Theme::Dark => Theme::Midnight,
-                        Theme::Midnight => Theme::System,
+                        Theme::Midnight => Theme::SolarizedLight,
+                        Theme::SolarizedLight => Theme::SolarizedDark,
+                        Theme::SolarizedDark => Theme::Nord,
+                        Theme::Nord => Theme::TokyoNight,
+                        Theme::TokyoNight => Theme::Dracula,
+                        Theme::Dracula => Theme::HighContrast,
+                        Theme::HighContrast => Theme::Sepia,
+                        Theme::Sepia => Theme::Forest,
+                        Theme::Forest => Theme::Ocean,
+                        Theme::Ocean => Theme::System,
                         Theme::System => Theme::Light,
+                        Theme::Custom => Theme::Light,
                     };
                     ts.set_theme(next);
                 }),
