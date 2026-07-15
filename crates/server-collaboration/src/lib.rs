@@ -76,21 +76,19 @@ pub(crate) mod tests {
     use common::path::normalize_path;
     use common::storage::StorageEngine;
     use dashmap::DashMap;
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
 
     /// Test-only in-memory storage engine for unit tests.
     #[derive(Clone)]
     pub struct InMemoryStorageEngine {
-        data: Arc<RwLock<DashMap<String, Bytes>>>,
-        metadata: Arc<RwLock<DashMap<String, FileMetadata>>>,
+        data: DashMap<String, Bytes>,
+        metadata: DashMap<String, FileMetadata>,
     }
 
     impl InMemoryStorageEngine {
         pub fn new() -> Self {
             Self {
-                data: Arc::new(RwLock::new(DashMap::new())),
-                metadata: Arc::new(RwLock::new(DashMap::new())),
+                data: DashMap::new(),
+                metadata: DashMap::new(),
             }
         }
     }
@@ -106,8 +104,6 @@ pub(crate) mod tests {
         async fn head(&self, path: &str) -> Result<FileMetadata> {
             let path = normalize_path(path).into_owned();
             self.metadata
-                .read()
-                .await
                 .get(&path)
                 .map(|m| m.value().clone())
                 .ok_or(FerroError::NotFound(path))
@@ -116,8 +112,6 @@ pub(crate) mod tests {
         async fn get(&self, path: &str) -> Result<Bytes> {
             let path = normalize_path(path).into_owned();
             self.data
-                .read()
-                .await
                 .get(&path)
                 .map(|d| d.value().clone())
                 .ok_or(FerroError::NotFound(path))
@@ -138,22 +132,21 @@ pub(crate) mod tests {
                 owner: owner.to_string(),
                 etag: format!("\"{}\"", hash.as_str()),
             };
-            self.data.write().await.insert(path.clone(), data);
-            self.metadata.write().await.insert(path.clone(), meta.clone());
+            self.data.insert(path.clone(), data);
+            self.metadata.insert(path.clone(), meta.clone());
             Ok(meta)
         }
 
         async fn delete(&self, path: &str) -> Result<()> {
             let path = normalize_path(path).into_owned();
-            self.data.write().await.remove(&path);
-            self.metadata.write().await.remove(&path);
+            self.data.remove(&path);
+            self.metadata.remove(&path);
             Ok(())
         }
 
         async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>> {
             let prefix = normalize_path(prefix).into_owned();
-            let metadata = self.metadata.read().await;
-            Ok(metadata
+            Ok(self.metadata
                 .iter()
                 .filter(|entry| entry.key().starts_with(&prefix))
                 .map(|entry| entry.value().clone())
@@ -170,7 +163,7 @@ pub(crate) mod tests {
 
         async fn exists(&self, path: &str) -> Result<bool> {
             let path = normalize_path(path).into_owned();
-            Ok(self.data.read().await.contains_key(&path))
+            Ok(self.data.contains_key(&path))
         }
 
         async fn create_collection(&self, _path: &str, _owner: &str) -> Result<FileMetadata> {

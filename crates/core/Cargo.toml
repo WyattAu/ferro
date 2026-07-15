@@ -34,6 +34,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 async-trait = "0.1"
 bytes = "1"
+dashmap = "6"
 chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 url = "2"
