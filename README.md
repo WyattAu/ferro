@@ -36,6 +36,28 @@ support for online document editing.
 - **GDPR Compliance** — Data export (ZIP) and verified data erasure endpoints
 - **Docker Support** — Multi-stage Dockerfile with docker-compose
 - **Nix Flakes** — Reproducible development environments
+- **14 Themes** — Light, Dark, Midnight, System, Solarized Light, Solarized Dark, Nord, Tokyo Night, Dracula, High Contrast, Sepia, Forest, Ocean, Custom
+- **ZIP Download** — Download multiple files as a single ZIP archive
+- **Duplicate Files** — Server-side file duplication with a single command
+- **Saved Searches** — Persistent search queries with custom view presets (Default, Compact, Detailed, Media)
+- **PWA Support** — Progressive Web App with offline capabilities
+- **File Requests** — Upload-only share links with message and expiration metadata
+- **QR Code Sharing** — Generate QR codes for instant share link access
+- **Group Management** — Create and manage user groups with member lists
+- **EPUB Preview** — In-browser EPUB reader with navigation and metadata display
+- **Background Audio Player** — Persistent audio player with play/pause, volume, seek, and playlist support
+- **Slideshow Mode** — Configurable image slideshow with interval presets (3s, 5s, 10s, 30s)
+- **Photo Map View** — Geographic map display for geotagged photos
+- **Photo Editing** — In-browser image adjustments (brightness, contrast, saturation, crop)
+- **Video Transcoding** — Server-side video format conversion via WASM workers
+- **Block-Based Editor** — Notion-style block editor with drag-and-drop reordering
+- **Graph View** — Force-directed graph visualization of file relationships
+- **Dual-Pane Mode** — Side-by-side file browsing for efficient file management
+- **Workflow Automation** — Event-triggered workflows with conditions and actions
+- **Smart Collections** — Rule-based dynamic file groupings with auto-update support
+- **Custom Folder Views** — Saved view configurations with filters, sorting, and grouping
+- **Admin Compliance Tools** — WORM, retention policies, antivirus scanning, DLP enforcement
+- **Remote Wipe** — Device-level data erasure for lost or compromised devices
 
 ## Quick Start
 

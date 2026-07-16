@@ -35,15 +35,75 @@ The workspace is organized into domain-specific crates:
 | Crate | Purpose |
 |-------|---------|
 | `common` | Shared types (DbHandle, AuditEntry, AuditLogTrait, error types) |
-| `core` | Storage engine trait + InMemoryStorageEngine |
+| `core` | Storage engine trait, CAS dedup, search engine, WASM runtime |
+| `auth` | OIDC, simple auth, LDAP, WebAuthn, API keys, Cedar authorization |
+| `crypto` | Cryptographic primitives (SHA, HMAC, password hashing) |
+| `dav` | WebDAV/CalDAV/CardDAV protocol implementation (RFC 4918/4791/6352) |
+| `scim` | SCIM 2.0 user/group provisioning |
 | `server` | Main binary, handlers, middleware, startup |
 | `server-config` | Configuration parsing, CLI, validation |
-| `server-storage-ops` | Storage operations (upload, download, thumbnails, snapshots) |
+| `server-storage-ops` | Storage operations (upload, download, thumbnails, snapshots, dedup) |
 | `server-security-middleware` | Auth middleware, CORS, rate limiting, canonical ApiError |
 | `server-webdav-core` | WebDAV/CalDAV/CardDAV protocol handlers |
 | `server-collaboration` | Real-time collaboration, comments, tags |
 | `server-compliance` | WORM, retention, antivirus, DLP |
-| `server-sharing` | Share links, favorites, federation |
+| `server-sharing` | Share links, favorites, federation, QR codes |
+| `server-admin-api` | Server-side admin API handlers |
+| `server-automation` | Workflow engine, smart collections, event triggers, OCR |
+| `server-api` | REST API routes and handlers |
+| `server-api-core` | File requests, API types |
+| `server-content` | Content processing and transformation |
+| `server-federation` | ActivityPub federation |
+| `server-health` | Health check and readiness probes |
+| `server-infra` | Infrastructure and deployment utilities |
+| `server-integrations` | Third-party integrations |
+| `server-plugins` | Plugin marketplace and management |
+| `server-productivity` | Productivity features (calendars, contacts) |
+| `server-resilience` | Circuit breaker, chaos engineering |
+| `server-router` | Storage backend routing |
+| `server-routes` | Route definitions |
+| `server-security` | Security policies and enforcement |
+| `server-slo` | Service level objectives |
+| `server-state` | Application state management |
+| `server-sync-handlers` | Cross-node sync handlers |
+| `server-user-mgmt` | User management, remote wipe |
+| `server-versioning` | File versioning and auto-versioning |
+| `server-wopi` | WOPI protocol (Office Online) |
+| `server-webrtc` | WebRTC signaling |
+| `server-activitypub` | ActivityPub federation |
+| `web` | Leptos WASM web frontend (14 themes, photo map, slideshow, EPUB, graph view, dual pane, block editor, audio player) |
+| `admin` | Admin dashboard (Leptos), plugin marketplace |
+| `desktop` | Tauri desktop application |
+| `mobile` | Tauri v2 mobile bindings (iOS/Android) |
+| `client` | Rust client SDK with C-FFI, remote wipe |
+| `fuse` | FUSE filesystem mount |
+| `mount-nfs` | NFS mount support |
+| `crdt` | CRDT-based collaborative data structures |
+| `sync-protocol` | Sync protocol for multi-node replication |
+| `offline` | Offline-first sync and local queue |
+| `selective-sync` | Selective file sync policies |
+| `observability` | Metrics, health checks, Prometheus export |
+| `event-bus` | Internal event bus for decoupled messaging |
+| `rate-limiter` | Per-IP token-bucket rate limiting |
+| `cache` | Caching layer for metadata and content |
+| `health` | Health check and readiness probes |
+| `audit-log` | Audit logging for file operations |
+| `webhook` | Outgoing webhook delivery |
+| `backend-router` | Storage backend routing and selection |
+| `consistent-hash` | Consistent hashing for distributed nodes |
+| `wasm-host` | WASM runtime host for file processing |
+| `ai` | AI integration and smart features |
+| `graphql` | GraphQL API layer |
+| `distributed` | Distributed storage and consensus |
+| `multi-tenant` | Multi-tenant isolation and management |
+| `cli` | Admin CLI tool |
+| `benchmarks` | Criterion benchmark suite |
+| `migrate` | Data migration utilities |
+| `webdav-handler` | WebDAV XML request/response parsing |
+| `plugin` | Plugin system and runtime |
+| `chaos` | Chaos engineering for testing |
+| `circuit-breaker` | Circuit breaker pattern |
+| `feature-flags` | Feature flag management |
 
 **Key design principles:**
 - Types are defined once in their canonical crate and re-exported everywhere

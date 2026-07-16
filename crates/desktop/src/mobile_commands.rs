@@ -11,6 +11,7 @@ use crate::mobile::{MobileConflictStrategy, MobilePlatform, MobileSyncConfig};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
+use std::io::Write;
 use tauri::Emitter;
 
 // -- Types --
@@ -841,6 +842,530 @@ pub async fn mobile_register_push_notifications(token: String) -> Result<(), Str
     Ok(())
 }
 
+// -- New feature commands: ZIP download, duplicate, file requests, groups, smart collections, workflows --
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileRequest {
+    pub id: String,
+    pub path: String,
+    pub message: Option<String>,
+    pub created_at: String,
+    pub created_by: String,
+    pub expires_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateFileRequestPayload {
+    pub path: String,
+    pub message: Option<String>,
+    pub expires_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupInfo {
+    pub id: String,
+    pub name: String,
+    pub members: Vec<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SmartCollectionInfo {
+    pub id: String,
+    pub name: String,
+    pub rules_data: String,
+    pub auto_update: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowInfo {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ZipDownloadResult {
+    pub zip_path: String,
+    pub file_count: u32,
+    pub total_size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateResult {
+    pub source_path: String,
+    pub destination_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowExecutionInfo {
+    pub id: String,
+    pub workflow_id: String,
+    pub status: String,
+    pub triggered_at: String,
+    pub completed_at: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mobile_download_zip(paths: Vec<String>, output_path: String) -> Result<ZipDownloadResult, String> {
+    if paths.is_empty() {
+        return Err("paths cannot be empty".to_string());
+    }
+    if output_path.is_empty() {
+        return Err("output_path cannot be empty".to_string());
+    }
+
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let mut file_count = 0u32;
+    let mut total_size = 0u64;
+
+    let output_dir = std::path::PathBuf::from(&output_path);
+    if let Some(parent) = output_dir.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create output dir: {}", e))?;
+    }
+
+    let zip_file = std::fs::File::create(&output_path)
+        .map_err(|e| format!("Failed to create zip file: {}", e))?;
+    let mut zip = zip::ZipWriter::new(zip_file);
+    let options = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    for remote_path in &paths {
+        let url = format!("{}{}", config.server_url.trim_end_matches('/'), remote_path);
+        let response = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to download {}: {}", remote_path, e))?;
+
+        if !response.status().is_success() {
+            tracing::warn!("ZIP download GET {} returned {}", remote_path, response.status());
+            continue;
+        }
+
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|e| format!("Failed to read response for {}: {}", remote_path, e))?;
+
+        let entry_name = remote_path.trim_start_matches('/');
+        zip.start_file(entry_name, options)
+            .map_err(|e| format!("Failed to add zip entry {}: {}", entry_name, e))?;
+        zip.write_all(&bytes)
+            .map_err(|e| format!("Failed to write zip entry {}: {}", entry_name, e))?;
+
+        total_size += bytes.len() as u64;
+        file_count += 1;
+    }
+
+    zip.finish()
+        .map_err(|e| format!("Failed to finalize zip: {}", e))?;
+
+    Ok(ZipDownloadResult {
+        zip_path: output_path,
+        file_count,
+        total_size,
+    })
+}
+
+#[tauri::command]
+pub async fn mobile_duplicate_file(source_path: String, destination_path: String) -> Result<DuplicateResult, String> {
+    if source_path.is_empty() {
+        return Err("source_path cannot be empty".to_string());
+    }
+    if destination_path.is_empty() {
+        return Err("destination_path cannot be empty".to_string());
+    }
+
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let source_url = format!("{}{}", config.server_url.trim_end_matches('/'), &source_path);
+    let response = client
+        .get(&source_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to read source file: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("GET source failed: {}", response.status()));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read source response: {}", e))?;
+
+    let dest_url = format!("{}{}", config.server_url.trim_end_matches('/'), &destination_path);
+    let put_response = client
+        .put(&dest_url)
+        .body(bytes.to_vec())
+        .send()
+        .await
+        .map_err(|e| format!("Failed to write destination: {}", e))?;
+
+    if !put_response.status().is_success() {
+        return Err(format!("PUT destination failed: {}", put_response.status()));
+    }
+
+    Ok(DuplicateResult {
+        source_path,
+        destination_path,
+    })
+}
+
+#[tauri::command]
+pub async fn mobile_create_file_request(
+    path: String,
+    message: Option<String>,
+    expires_at: Option<String>,
+) -> Result<FileRequest, String> {
+    if path.is_empty() {
+        return Err("path cannot be empty".to_string());
+    }
+
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!("{}/api/file-requests", config.server_url.trim_end_matches('/'));
+
+    let body = CreateFileRequestPayload {
+        path,
+        message,
+        expires_at,
+    };
+
+    let response = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("File request creation failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Create file request failed: {}", response.status()));
+    }
+
+    response
+        .json::<FileRequest>()
+        .await
+        .map_err(|e| format!("Failed to parse file request response: {}", e))
+}
+
+#[tauri::command]
+pub async fn mobile_list_file_requests() -> Result<Vec<FileRequest>, String> {
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!("{}/api/file-requests", config.server_url.trim_end_matches('/'));
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("List file requests failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("List file requests failed: {}", response.status()));
+    }
+
+    response
+        .json::<Vec<FileRequest>>()
+        .await
+        .map_err(|e| format!("Failed to parse file requests response: {}", e))
+}
+
+#[tauri::command]
+pub async fn mobile_delete_file_request(request_id: String) -> Result<(), String> {
+    if request_id.is_empty() {
+        return Err("request_id cannot be empty".to_string());
+    }
+
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!(
+        "{}/api/file-requests/{}",
+        config.server_url.trim_end_matches('/'),
+        request_id
+    );
+
+    let response = client
+        .delete(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Delete file request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Delete file request failed: {}", response.status()));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn mobile_list_groups() -> Result<Vec<GroupInfo>, String> {
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!("{}/api/groups", config.server_url.trim_end_matches('/'));
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("List groups failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("List groups failed: {}", response.status()));
+    }
+
+    response
+        .json::<Vec<GroupInfo>>()
+        .await
+        .map_err(|e| format!("Failed to parse groups response: {}", e))
+}
+
+#[tauri::command]
+pub async fn mobile_create_group(name: String, members: Vec<String>) -> Result<GroupInfo, String> {
+    if name.is_empty() {
+        return Err("group name cannot be empty".to_string());
+    }
+
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!("{}/api/groups", config.server_url.trim_end_matches('/'));
+
+    #[derive(Serialize)]
+    struct CreateGroupRequest {
+        name: String,
+        members: Vec<String>,
+    }
+
+    let response = client
+        .post(&url)
+        .json(&CreateGroupRequest { name, members })
+        .send()
+        .await
+        .map_err(|e| format!("Create group failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Create group failed: {}", response.status()));
+    }
+
+    response
+        .json::<GroupInfo>()
+        .await
+        .map_err(|e| format!("Failed to parse group response: {}", e))
+}
+
+#[tauri::command]
+pub async fn mobile_delete_group(group_id: String) -> Result<(), String> {
+    if group_id.is_empty() {
+        return Err("group_id cannot be empty".to_string());
+    }
+
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!(
+        "{}/api/groups/{}",
+        config.server_url.trim_end_matches('/'),
+        group_id
+    );
+
+    let response = client
+        .delete(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Delete group failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Delete group failed: {}", response.status()));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn mobile_list_smart_collections() -> Result<Vec<SmartCollectionInfo>, String> {
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!(
+        "{}/api/smart-collections",
+        config.server_url.trim_end_matches('/')
+    );
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("List smart collections failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "List smart collections failed: {}",
+            response.status()
+        ));
+    }
+
+    response
+        .json::<Vec<SmartCollectionInfo>>()
+        .await
+        .map_err(|e| format!("Failed to parse smart collections response: {}", e))
+}
+
+#[tauri::command]
+pub async fn mobile_create_smart_collection(
+    name: String,
+    rules_data: String,
+    auto_update: bool,
+) -> Result<SmartCollectionInfo, String> {
+    if name.is_empty() {
+        return Err("smart collection name cannot be empty".to_string());
+    }
+
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!(
+        "{}/api/smart-collections",
+        config.server_url.trim_end_matches('/')
+    );
+
+    #[derive(Serialize)]
+    struct CreateSmartCollectionRequest {
+        name: String,
+        rules_data: String,
+        auto_update: bool,
+    }
+
+    let response = client
+        .post(&url)
+        .json(&CreateSmartCollectionRequest {
+            name,
+            rules_data,
+            auto_update,
+        })
+        .send()
+        .await
+        .map_err(|e| format!("Create smart collection failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Create smart collection failed: {}",
+            response.status()
+        ));
+    }
+
+    response
+        .json::<SmartCollectionInfo>()
+        .await
+        .map_err(|e| format!("Failed to parse smart collection response: {}", e))
+}
+
+#[tauri::command]
+pub async fn mobile_delete_smart_collection(collection_id: String) -> Result<(), String> {
+    if collection_id.is_empty() {
+        return Err("collection_id cannot be empty".to_string());
+    }
+
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!(
+        "{}/api/smart-collections/{}",
+        config.server_url.trim_end_matches('/'),
+        collection_id
+    );
+
+    let response = client
+        .delete(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Delete smart collection failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Delete smart collection failed: {}",
+            response.status()
+        ));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn mobile_list_workflows() -> Result<Vec<WorkflowInfo>, String> {
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!("{}/api/workflows", config.server_url.trim_end_matches('/'));
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("List workflows failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("List workflows failed: {}", response.status()));
+    }
+
+    response
+        .json::<Vec<WorkflowInfo>>()
+        .await
+        .map_err(|e| format!("Failed to parse workflows response: {}", e))
+}
+
+#[tauri::command]
+pub async fn mobile_trigger_workflow(workflow_id: String) -> Result<WorkflowExecutionInfo, String> {
+    if workflow_id.is_empty() {
+        return Err("workflow_id cannot be empty".to_string());
+    }
+
+    let config = get_sync_config()?;
+    let client = build_mobile_client(&config.auth_token)?;
+
+    let url = format!(
+        "{}/api/workflows/{}/trigger",
+        config.server_url.trim_end_matches('/'),
+        workflow_id
+    );
+
+    let response = client
+        .post(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Trigger workflow failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Trigger workflow failed: {}", response.status()));
+    }
+
+    response
+        .json::<WorkflowExecutionInfo>()
+        .await
+        .map_err(|e| format!("Failed to parse workflow execution response: {}", e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1146,5 +1671,286 @@ mod tests {
         assert_eq!(entry.etag.as_deref(), Some("\"abc123\""));
 
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // -- New command tests --
+
+    #[tokio::test]
+    async fn test_mobile_download_zip_empty_paths() {
+        let result = mobile_download_zip(Vec::new(), "/tmp/test.zip".to_string()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_download_zip_empty_output() {
+        let result = mobile_download_zip(
+            vec!["/file.txt".to_string()],
+            String::new(),
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_download_zip_no_sync() {
+        teardown_test_state();
+        let result = mobile_download_zip(
+            vec!["/file.txt".to_string()],
+            "/tmp/out.zip".to_string(),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_duplicate_file_empty_source() {
+        let result = mobile_duplicate_file(String::new(), "/dest.txt".to_string()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_duplicate_file_empty_dest() {
+        let result = mobile_duplicate_file("/src.txt".to_string(), String::new()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_duplicate_file_no_sync() {
+        teardown_test_state();
+        let result = mobile_duplicate_file("/src.txt".to_string(), "/dest.txt".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_create_file_request_empty_path() {
+        let result = mobile_create_file_request(String::new(), None, None).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_create_file_request_no_sync() {
+        teardown_test_state();
+        let result = mobile_create_file_request(
+            "/uploads".to_string(),
+            Some("Please upload".to_string()),
+            None,
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_list_file_requests_no_sync() {
+        teardown_test_state();
+        let result = mobile_list_file_requests().await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_delete_file_request_empty_id() {
+        let result = mobile_delete_file_request(String::new()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_delete_file_request_no_sync() {
+        teardown_test_state();
+        let result = mobile_delete_file_request("req-123".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_list_groups_no_sync() {
+        teardown_test_state();
+        let result = mobile_list_groups().await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_create_group_empty_name() {
+        let result = mobile_create_group(String::new(), Vec::new()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_create_group_no_sync() {
+        teardown_test_state();
+        let result = mobile_create_group("test-group".to_string(), vec!["user1".to_string()]).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_delete_group_empty_id() {
+        let result = mobile_delete_group(String::new()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_delete_group_no_sync() {
+        teardown_test_state();
+        let result = mobile_delete_group("group-123".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_list_smart_collections_no_sync() {
+        teardown_test_state();
+        let result = mobile_list_smart_collections().await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_create_smart_collection_empty_name() {
+        let result = mobile_create_smart_collection(String::new(), "{}".to_string(), false).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_create_smart_collection_no_sync() {
+        teardown_test_state();
+        let result =
+            mobile_create_smart_collection("Media".to_string(), "{}".to_string(), true).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_delete_smart_collection_empty_id() {
+        let result = mobile_delete_smart_collection(String::new()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_delete_smart_collection_no_sync() {
+        teardown_test_state();
+        let result = mobile_delete_smart_collection("sc-123".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_list_workflows_no_sync() {
+        teardown_test_state();
+        let result = mobile_list_workflows().await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_mobile_trigger_workflow_empty_id() {
+        let result = mobile_trigger_workflow(String::new()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mobile_trigger_workflow_no_sync() {
+        teardown_test_state();
+        let result = mobile_trigger_workflow("wf-123".to_string()).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not configured"));
+    }
+
+    #[test]
+    fn test_file_request_serialization() {
+        let req = FileRequest {
+            id: "fr-1".to_string(),
+            path: "/uploads".to_string(),
+            message: Some("Upload here".to_string()),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            created_by: "admin".to_string(),
+            expires_at: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("fr-1"));
+        assert!(json.contains("Upload here"));
+    }
+
+    #[test]
+    fn test_group_info_serialization() {
+        let group = GroupInfo {
+            id: "g-1".to_string(),
+            name: "Editors".to_string(),
+            members: vec!["user1".to_string(), "user2".to_string()],
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string(&group).unwrap();
+        assert!(json.contains("Editors"));
+        assert!(json.contains("user1"));
+    }
+
+    #[test]
+    fn test_smart_collection_info_serialization() {
+        let sc = SmartCollectionInfo {
+            id: "sc-1".to_string(),
+            name: "Images".to_string(),
+            rules_data: "{}".to_string(),
+            auto_update: true,
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            updated_at: "2024-01-01T00:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string(&sc).unwrap();
+        assert!(json.contains("Images"));
+        assert!(json.contains("autoUpdate"));
+    }
+
+    #[test]
+    fn test_workflow_info_serialization() {
+        let wf = WorkflowInfo {
+            id: "wf-1".to_string(),
+            name: "Auto-tag".to_string(),
+            description: Some("Auto tag files".to_string()),
+            enabled: true,
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            updated_at: "2024-01-01T00:00:00Z".to_string(),
+        };
+        let json = serde_json::to_string(&wf).unwrap();
+        assert!(json.contains("Auto-tag"));
+        assert!(json.contains("enabled"));
+    }
+
+    #[test]
+    fn test_zip_download_result_serialization() {
+        let result = ZipDownloadResult {
+            zip_path: "/tmp/out.zip".to_string(),
+            file_count: 5,
+            total_size: 10240,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("fileCount"));
+        assert!(json.contains("totalSize"));
+    }
+
+    #[test]
+    fn test_duplicate_result_serialization() {
+        let result = DuplicateResult {
+            source_path: "/docs/file.txt".to_string(),
+            destination_path: "/docs/file (copy).txt".to_string(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("sourcePath"));
+        assert!(json.contains("destinationPath"));
+    }
+
+    #[test]
+    fn test_workflow_execution_info_serialization() {
+        let info = WorkflowExecutionInfo {
+            id: "exec-1".to_string(),
+            workflow_id: "wf-1".to_string(),
+            status: "completed".to_string(),
+            triggered_at: "2024-01-01T00:00:00Z".to_string(),
+            completed_at: Some("2024-01-01T00:01:00Z".to_string()),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("exec-1"));
+        assert!(json.contains("completed"));
     }
 }

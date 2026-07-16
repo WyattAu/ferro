@@ -103,6 +103,19 @@ mod mobile_app {
                 crate::mobile_commands::mobile_share_file,
                 crate::mobile_commands::mobile_monitor_connectivity,
                 crate::mobile_commands::mobile_register_push_notifications,
+                crate::mobile_commands::mobile_download_zip,
+                crate::mobile_commands::mobile_duplicate_file,
+                crate::mobile_commands::mobile_create_file_request,
+                crate::mobile_commands::mobile_list_file_requests,
+                crate::mobile_commands::mobile_delete_file_request,
+                crate::mobile_commands::mobile_list_groups,
+                crate::mobile_commands::mobile_create_group,
+                crate::mobile_commands::mobile_delete_group,
+                crate::mobile_commands::mobile_list_smart_collections,
+                crate::mobile_commands::mobile_create_smart_collection,
+                crate::mobile_commands::mobile_delete_smart_collection,
+                crate::mobile_commands::mobile_list_workflows,
+                crate::mobile_commands::mobile_trigger_workflow,
             ])
             .setup(|app| {
                 #[cfg(target_os = "android")]
