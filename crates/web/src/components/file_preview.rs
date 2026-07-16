@@ -3,42 +3,18 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 
 use crate::api::FileEntry;
-use crate::components::epub_preview::EpubPreview;
 use crate::components::focus_trap::FocusTrap;
-use crate::components::video_player::VideoPlayer;
 
 use crate::t;
 
 const TEXT_EXTENSIONS: &[&str] = &[
-    "txt",
-    "md",
-    "json",
-    "xml",
-    "toml",
-    "yaml",
-    "yml",
-    "csv",
-    "rs",
-    "py",
-    "js",
-    "ts",
-    "html",
-    "css",
-    "sh",
-    "log",
-    "cfg",
-    "ini",
-    "env",
-    "gitignore",
-    "editorconfig",
+    "txt", "md", "json", "xml", "toml", "yaml", "yml", "csv", "rs", "py", "js", "ts", "html",
+    "css", "sh", "log", "cfg", "ini", "env", "gitignore", "editorconfig",
 ];
 
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"];
-
 const VIDEO_EXTENSIONS: &[&str] = &["mp4", "webm", "ogg", "mov", "avi"];
-
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "wav", "ogg", "flac", "aac"];
-
 const EPUB_EXTENSIONS: &[&str] = &["epub"];
 
 fn get_extension(name: &str) -> &str {
@@ -69,6 +45,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
     let (content, set_content) = signal(None::<String>);
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal(None::<String>);
+    let (_edit_mode, _set_edit_mode) = signal(false);
 
     let category = file_category(&file.name);
     let name = file.name.clone();
@@ -128,7 +105,6 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                 aria-labelledby="preview-title"
                 tabindex="-1"
             >
-                // Header
                 <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
                     <div class="min-w-0 flex-1">
                         <h2 id="preview-title" class="text-section font-mono text-[var(--text-primary)] truncate">{name}</h2>
@@ -148,7 +124,6 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                     </button>
                 </div>
 
-                // Content
                 <div class="flex-1 overflow-auto p-6">
                     {move || loading.get().then(|| view! {
                         <div class="flex items-center justify-center py-12">
@@ -167,68 +142,92 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                         <pre class="bg-[var(--bg-base)] border rounded p-4 text-sm text-[var(--text-primary)] overflow-auto whitespace-pre-wrap font-mono">{text}</pre>
                     })}
 
-                    {move || (!loading.get() && content.get().is_none() && error.get().is_none()).then(|| view! {
-                        {
-                            let cat = file_category(&file.name);
+                    {move || {
+                        if !loading.get() && content.get().is_none() && error.get().is_none() {
+                            let cat = file_category(&file.name).to_string();
                             let p = file.path.clone();
                             let n = file.name.clone();
-                            match cat {
-                                "image" => view! {
-                                    <div class="flex items-center justify-center">
+                            let img_path = file.path.clone();
+                            Some((cat, p, n, img_path))
+                        } else {
+                            None
+                        }
+                    }}
+                    .map(|(cat, p, n, img_path)| {
+                        match cat.as_str() {
+                            "image" => view! {
+                                <div>
+                                    {move || edit_mode.get().then(|| {
+                                        let close_cb = Callback::new(move |_| set_edit_mode.set(false));
+                                        let src_path = img_path.clone();
+                                        let fp_path = img_path.clone();
+                                        view! {
+                                            <PhotoEditor src=src_path file_path=fp_path on_close=close_cb />
+                                        }
+                                    })}
+                                    <div class="flex items-center justify-center relative group">
                                         <img
                                             src={p}
                                             alt={n}
                                             class="max-w-full max-h-[60vh] object-contain rounded-lg"
                                         />
+                                        {move || (!edit_mode.get()).then(|| view! {
+                                            <button
+                                                class="absolute top-2 right-2 px-3 py-1.5 text-xs bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded font-bold uppercase opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--accent-hover)]"
+                                                on:click=move |_| set_edit_mode.set(true)
+                                            >
+                                                "Edit"
+                                            </button>
+                                        })}
                                     </div>
-                                }.into_any(),
-                                "video" => view! {
-                                    <div class="flex items-center justify-center">
-                                        <VideoPlayer src=p title=n />
-                                    </div>
-                                }.into_any(),
-                                "audio" => view! {
-                                    <div class="flex items-center justify-center py-8">
-                                        <audio controls aria-label={format!("Audio: {}", n)}>
-                                            <source src={p} type="audio/mpeg" />
-                                            {t!("preview.no_audio")}
-                                        </audio>
-                                    </div>
-                                }.into_any(),
-                                "epub" => view! {
-                                    <div class="h-[60vh]">
-                                        <EpubPreview src=p title=n />
-                                    </div>
-                                }.into_any(),
-                                "pdf" => view! {
-                                    <iframe
-                                        src={p}
-                                        class="w-full h-[60vh] rounded-lg border"
-                                        title={n}
-                                    ></iframe>
-                                }.into_any(),
-                                _ => view! {
-                                    <div class="flex flex-col items-center justify-center py-12 text-center">
-                                        <svg class="w-16 h-16 text-[var(--text-tertiary)] mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                        <p class="text-[var(--text-tertiary)] mb-4">{t!("preview.not_available")}</p>
-                                        <button
-                                            class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
-                                            on:click=move |_| {
-                                                let path = p.clone();
-                                                spawn_local(async move {
-                                                    drop(crate::api::download_file(&path).await);
-                                                });
-                                            }
-                                        >
-                                            {t!("common.download")}
-                                        </button>
-                                    </div>
-                                }.into_any(),
-                            }
+                                </div>
+                            }.into_any(),
+                            "video" => view! {
+                                <div class="flex items-center justify-center">
+                                    <VideoPlayer src=p title=n />
+                                </div>
+                            }.into_any(),
+                            "audio" => view! {
+                                <div class="flex items-center justify-center py-8">
+                                    <audio controls aria-label={format!("Audio: {}", n)}>
+                                        <source src={p} type="audio/mpeg" />
+                                        {t!("preview.no_audio")}
+                                    </audio>
+                                </div>
+                            }.into_any(),
+                            "epub" => view! {
+                                <div class="h-[60vh]">
+                                    <EpubPreview src=p title=n />
+                                </div>
+                            }.into_any(),
+                            "pdf" => view! {
+                                <iframe
+                                    src={p}
+                                    class="w-full h-[60vh] rounded-lg border"
+                                    title={n}
+                                ></iframe>
+                            }.into_any(),
+                            _ => view! {
+                                <div class="flex flex-col items-center justify-center py-12 text-center">
+                                    <svg class="w-16 h-16 text-[var(--text-tertiary)] mb-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <p class="text-[var(--text-tertiary)] mb-4">{t!("preview.not_available")}</p>
+                                    <button
+                                        class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
+                                        on:click=move |_| {
+                                            let path = p.clone();
+                                            spawn_local(async move {
+                                                drop(crate::api::download_file(&path).await);
+                                            });
+                                        }
+                                    >
+                                        {t!("common.download")}
+                                    </button>
+                                </div>
+                            }.into_any(),
                         }
-                    })}
+                    })
                 </div>
             </div>
             </FocusTrap>

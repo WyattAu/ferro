@@ -9,6 +9,8 @@ pub(crate) enum BrowserTab {
 pub(crate) enum ViewMode {
     List,
     Grid,
+    Graph,
+    DualPane,
 }
 
 impl ViewMode {
@@ -16,12 +18,16 @@ impl ViewMode {
         match self {
             ViewMode::List => "list",
             ViewMode::Grid => "grid",
+            ViewMode::Graph => "graph",
+            ViewMode::DualPane => "dual_pane",
         }
     }
 
     pub(crate) fn from_str(s: &str) -> Self {
         match s {
             "grid" => ViewMode::Grid,
+            "graph" => ViewMode::Graph,
+            "dual_pane" => ViewMode::DualPane,
             _ => ViewMode::List,
         }
     }

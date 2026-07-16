@@ -5,6 +5,7 @@ pub mod policies;
 pub mod push_api;
 pub mod triggers;
 pub mod webhooks;
+pub mod workflows;
 
 pub use ferro_server_integrations::push_notifications;
 

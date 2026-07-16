@@ -130,11 +130,11 @@ pub fn Slideshow(images: Vec<SlideshowImage>, initial_index: usize, on_close: Ca
             let document = window.document().expect("no document");
             if is_fullscreen.get() {
                 let _ = document.exit_fullscreen();
-                set_is_fullscreen.set(false);
+                _set_is_fullscreen.set(false);
             } else {
                 if let Some(body) = document.body() {
                     let _ = body.request_fullscreen();
-                    set_is_fullscreen.set(true);
+                    _set_is_fullscreen.set(true);
                 }
             }
         }

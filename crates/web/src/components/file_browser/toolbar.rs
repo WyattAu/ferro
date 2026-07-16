@@ -17,7 +17,7 @@ pub fn Toolbar(
     set_show_upload: WriteSignal<bool>,
     set_show_new_folder: WriteSignal<bool>,
     view_mode: ReadSignal<ViewMode>,
-    toggle_view_mode: impl FnMut(ev::MouseEvent) + 'static,
+    set_view_mode: WriteSignal<ViewMode>,
     select_mode: ReadSignal<bool>,
     toggle_select_mode: impl FnMut(ev::MouseEvent) + 'static,
     show_activity: ReadSignal<bool>,
@@ -134,25 +134,64 @@ pub fn Toolbar(
                      </A>
 
                      // View mode toggle
-                     <button
-                         class="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
-                          aria-label=move || if view_mode.get() == ViewMode::Grid { t!("toolbar.aria_toggle_view") } else { t!("toolbar.aria_toggle_grid") }
-                          title=move || if view_mode.get() == ViewMode::Grid { t!("toolbar.list_view") } else { t!("toolbar.grid_view") }
-                         on:click=toggle_view_mode
-                     >
-                         {move || match view_mode.get() {
-                             ViewMode::List => view! {
-                                 <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                                 </svg>
-                             }.into_any(),
-                             ViewMode::Grid => view! {
-                                 <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                                 </svg>
-                             }.into_any(),
-                         }}
-                     </button>
+                     <div class="flex items-center bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] rounded p-0.5">
+                         <button
+                             class=move || {
+                                 let base = "p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
+                                 let active = if view_mode.get() == ViewMode::List { "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm" } else { "" };
+                                 format!("{} {}", base, active)
+                             }
+                             aria-label=move || if view_mode.get() == ViewMode::List { "List view active" } else { "Switch to list view" }
+                             title="List View"
+                             on:click=move |_| set_view_mode.set(ViewMode::List)
+                         >
+                             <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                             </svg>
+                         </button>
+                         <button
+                             class=move || {
+                                 let base = "p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
+                                 let active = if view_mode.get() == ViewMode::Grid { "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm" } else { "" };
+                                 format!("{} {}", base, active)
+                             }
+                             aria-label=move || if view_mode.get() == ViewMode::Grid { "Grid view active" } else { "Switch to grid view" }
+                             title="Grid View"
+                             on:click=move |_| set_view_mode.set(ViewMode::Grid)
+                         >
+                             <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                             </svg>
+                         </button>
+                         <button
+                             class=move || {
+                                 let base = "p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
+                                 let active = if view_mode.get() == ViewMode::Graph { "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm" } else { "" };
+                                 format!("{} {}", base, active)
+                             }
+                             aria-label=move || if view_mode.get() == ViewMode::Graph { "Graph view active" } else { "Switch to graph view" }
+                             title="Graph View"
+                             on:click=move |_| set_view_mode.set(ViewMode::Graph)
+                         >
+                             <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                             </svg>
+                         </button>
+                         <button
+                             class=move || {
+                                 let base = "p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
+                                 let active = if view_mode.get() == ViewMode::DualPane { "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm" } else { "" };
+                                 format!("{} {}", base, active)
+                             }
+                             aria-label=move || if view_mode.get() == ViewMode::DualPane { "Dual pane active" } else { "Switch to dual pane" }
+                             title="Dual Pane Mode"
+                             on:click=move |_| set_view_mode.set(ViewMode::DualPane)
+                         >
+                             <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                             </svg>
+                         </button>
+                     </div>
 
                      <button
                          class=move || format!(

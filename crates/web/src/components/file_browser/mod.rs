@@ -24,9 +24,11 @@ use crate::components::clipboard::use_clipboard_state;
 use crate::components::command_palette::use_command_palette_state;
 use crate::components::delete_confirm::DeleteConfirmDialog;
 use crate::components::drag_hint::DragHint;
+use crate::components::dual_pane::DualPane;
 use crate::components::empty_state::EmptyState;
 use crate::components::file_preview::FilePreview;
 use crate::components::file_row::FileRow;
+use crate::components::graph_view::GraphView;
 use crate::components::grid_view::GridView;
 use crate::components::header::use_header_state;
 use crate::components::keyboard_shortcuts_help::KeyboardShortcutsHelp;
@@ -99,11 +101,13 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     });
 
-    let toggle_view_mode = move |_: ev::MouseEvent| {
+    let _toggle_view_mode = move |_: ev::MouseEvent| {
         let current = view_mode.get();
         let next = match current {
             ViewMode::List => ViewMode::Grid,
-            ViewMode::Grid => ViewMode::List,
+            ViewMode::Grid => ViewMode::Graph,
+            ViewMode::Graph => ViewMode::DualPane,
+            ViewMode::DualPane => ViewMode::List,
         };
         set_view_mode.set(next);
         let mode_str = next.as_str().to_string();
@@ -761,7 +765,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                  set_show_upload
                  set_show_new_folder
                  view_mode
-                 toggle_view_mode
+                 set_view_mode
                  select_mode
                  toggle_select_mode
                  show_activity
@@ -1013,6 +1017,22 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                                 on_drop_on_folder=grid_cb_drop
                                 locks=locks_state
                             />
+                       </div>
+                   }.into_any(),
+                   ViewMode::Graph => view! {
+                       <div class="transition-opacity duration-200">
+                           <GraphView
+                               entries=all_entries.get()
+                               on_open_file=Callback::new(navigate)
+                           />
+                       </div>
+                   }.into_any(),
+                   ViewMode::DualPane => view! {
+                       <div class="transition-opacity duration-200">
+                           <DualPane
+                               initial_left=Some(current_path.get())
+                               initial_right=Some(current_path.get())
+                           />
                        </div>
                    }.into_any(),
                    ViewMode::List => view! {

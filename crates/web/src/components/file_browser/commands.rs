@@ -190,7 +190,9 @@ pub(crate) fn register_commands(
                     let current = view_mode.get();
                     let next = match current {
                         ViewMode::List => ViewMode::Grid,
-                        ViewMode::Grid => ViewMode::List,
+                        ViewMode::Grid => ViewMode::Graph,
+                        ViewMode::Graph => ViewMode::DualPane,
+                        ViewMode::DualPane => ViewMode::List,
                     };
                     set_view_mode.set(next);
                 }),
