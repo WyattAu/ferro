@@ -1,6 +1,6 @@
 # Ferro Roadmap: v3.0.0 to Production and Beyond
 
-**Version:** 14.0 | **Date:** 2026-07-14 | **Status:** v14.0 COMPLETE -- All roadmap items executed, zero remaining
+**Version:** 14.1 | **Date:** 2026-07-14 | **Status:** v14.1 COMPLETE -- All items executed, 69 tests added
 
 ---
 
