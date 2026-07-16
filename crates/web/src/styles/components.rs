@@ -43,7 +43,7 @@ pub mod input {
 /// Dialog/Modal component styles.
 pub mod dialog {
     pub const BACKDROP: &str = "fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 \
-         bg-[var(--overlay-heavy)] backdrop-blur-sm";
+         bg-[var(--overlay)] backdrop-blur-sm";
 
     pub const PANEL: &str = "bg-[var(--bg-surface)] rounded-xl shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto \
          transition-all duration-200 border border-[var(--border-default)]";

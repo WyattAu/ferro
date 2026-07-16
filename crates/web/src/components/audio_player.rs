@@ -402,7 +402,7 @@ pub fn AudioPlayer() -> impl IntoView {
                         <h3 class="text-sm font-medium text-[var(--text-primary)]">"Queue"</h3>
                         <div class="flex items-center gap-2">
                             <button
-                                class="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                                class="min-h-[44px] text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                                 on:click=clear_queue
                             >
                                 "Clear"

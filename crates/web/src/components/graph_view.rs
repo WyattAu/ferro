@@ -404,7 +404,7 @@ pub fn GraphView(entries: Vec<api::FileEntry>, on_open_file: Callback<String>) -
                                 class=move || {
                                     let nt_clone = nt.clone();
                                     format!(
-                                        "px-2 py-1 text-xs rounded border transition-colors {}",
+                                        "px-3 py-2 text-xs rounded border transition-colors min-h-[44px] {}",
                                         if type_filter.get() == Some(nt_clone) {
                                             "bg-[var(--accent)] text-white border-[var(--accent)]"
                                         } else {
@@ -421,7 +421,7 @@ pub fn GraphView(entries: Vec<api::FileEntry>, on_open_file: Callback<String>) -
                 </div>
                 <button
                     on:click=reset_view
-                    class="px-2 py-1 text-xs rounded border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)]"
+                    class="px-3 py-2 text-xs rounded border border-[var(--border-default)] bg-[var(--bg-base)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] min-h-[44px]"
                 >
                     "Reset View"
                 </button>
@@ -434,7 +434,7 @@ pub fn GraphView(entries: Vec<api::FileEntry>, on_open_file: Callback<String>) -
                             </span>
                             <button
                                 on:click=move |_| set_show_all.set(true)
-                                class="px-2 py-1 text-xs rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10"
+                                class="px-3 py-2 text-xs rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10 min-h-[44px]"
                             >
                                 "Show all (may be slow)"
                             </button>

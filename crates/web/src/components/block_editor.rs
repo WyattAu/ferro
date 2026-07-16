@@ -378,7 +378,7 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
             // Mobile formatting toolbar (visible when editor focused on mobile)
             <div class="sm:hidden flex items-center gap-1 px-2 py-1.5 bg-[var(--bg-inset)] border-t border-[var(--border-default)] overflow-x-auto">
                 <button
-                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    class="hidden px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[44px]"
                     on:click=move |_| {
                         // Undo - restore previous block state if available
                         // For now, just cycle heading levels
@@ -387,7 +387,7 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
                     "Undo"
                 </button>
                 <button
-                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    class="hidden px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[44px]"
                     on:click=move |_| {
                         // Redo - for now, no-op
                     }
@@ -396,7 +396,7 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
                 </button>
                 <div class="w-px h-5 bg-[var(--border-subtle)] shrink-0"></div>
                 <button
-                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[44px]"
                     on:click=move |_| {
                         let bid = active_block_id.get();
                         let mut current = blocks.get();
@@ -414,7 +414,7 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
                     "H"
                 </button>
                 <button
-                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[44px]"
                     on:click=move |_| {
                         let bid = active_block_id.get();
                         let mut current = blocks.get();
@@ -427,7 +427,7 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
                     { "• List" }
                 </button>
                 <button
-                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[44px]"
                     on:click=move |_| {
                         let bid = active_block_id.get();
                         let mut current = blocks.get();
@@ -440,7 +440,7 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
                     { "☐ Todo" }
                 </button>
                 <button
-                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[44px]"
                     on:click=move |_| {
                         let bid = active_block_id.get();
                         let mut current = blocks.get();

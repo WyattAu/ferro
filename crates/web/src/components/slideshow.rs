@@ -330,7 +330,7 @@ pub fn Slideshow(images: Vec<SlideshowImage>, initial_index: usize, on_close: Ca
 
                             // Interval selector
                             <select
-                                class="bg-black/50 text-white text-sm rounded px-2 py-1 border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+                                class="bg-black/50 text-white text-sm rounded px-3 py-2 border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 min-h-[44px]"
                                 on:change=handle_interval_change
                             >
                                 <option value="0">"Manual"</option>
@@ -342,7 +342,7 @@ pub fn Slideshow(images: Vec<SlideshowImage>, initial_index: usize, on_close: Ca
 
                             // Transition selector
                             <select
-                                class="bg-black/50 text-white text-sm rounded px-2 py-1 border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+                                class="bg-black/50 text-white text-sm rounded px-3 py-2 border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 min-h-[44px]"
                                 on:change=handle_transition_change
                             >
                                 <option value="0">"Fade"</option>

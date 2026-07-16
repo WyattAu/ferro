@@ -336,7 +336,7 @@ pub fn PhotoEditor(src: String, file_path: String, on_close: Callback<()>) -> im
                     <h2 class="text-section font-mono text-[var(--text-primary)]">"Photo Editor"</h2>
                     <div class="flex items-center gap-2">
                         <button
-                            class="px-3 py-1.5 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded font-bold uppercase hover:bg-[var(--accent-hover)] transition-colors min-h-[36px]"
+                            class="px-3 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded font-bold uppercase hover:bg-[var(--accent-hover)] transition-colors min-h-[44px]"
                             on:click=save_edited
                             disabled=move || saving.get()
                         >
@@ -356,21 +356,21 @@ pub fn PhotoEditor(src: String, file_path: String, on_close: Callback<()>) -> im
 
                 <div class="flex items-center gap-1 px-3 py-2 bg-[var(--bg-inset)] border-b border-[var(--border-default)] flex-wrap">
                     <button
-                        class="px-2 py-1 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors"
+                        class="px-3 py-2 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors min-h-[44px]"
                         title="Rotate 90 CW"
                         on:click=move |_| do_edit(EditAction::Rotate(90))
                     >
                         "↻ 90°"
                     </button>
                     <button
-                        class="px-2 py-1 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors"
+                        class="px-3 py-2 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors min-h-[44px]"
                         title="Rotate 90 CCW"
                         on:click=move |_| do_edit(EditAction::Rotate(-90))
                     >
                         "↺ 90°"
                     </button>
                     <button
-                        class="px-2 py-1 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors"
+                        class="px-3 py-2 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors min-h-[44px]"
                         title="Rotate 180"
                         on:click=move |_| do_edit(EditAction::Rotate(180))
                     >
@@ -380,14 +380,14 @@ pub fn PhotoEditor(src: String, file_path: String, on_close: Callback<()>) -> im
                     <div class="w-px h-5 bg-[var(--border-subtle)] mx-1"></div>
 
                     <button
-                        class="px-2 py-1 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors"
+                        class="px-3 py-2 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors min-h-[44px]"
                         title="Flip Horizontal"
                         on:click=move |_| do_edit(EditAction::FlipH)
                     >
                         "Flip H"
                     </button>
                     <button
-                        class="px-2 py-1 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors"
+                        class="px-3 py-2 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors min-h-[44px]"
                         title="Flip Vertical"
                         on:click=move |_| do_edit(EditAction::FlipV)
                     >
@@ -397,7 +397,7 @@ pub fn PhotoEditor(src: String, file_path: String, on_close: Callback<()>) -> im
                     <div class="w-px h-5 bg-[var(--border-subtle)] mx-1"></div>
 
                     <button
-                        class=move || format!("px-2 py-1 text-xs font-mono rounded transition-colors {}",
+                        class=move || format!("px-3 py-2 text-xs font-mono rounded transition-colors min-h-[44px] {}",
                             if show_crop.get() { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "hover:bg-[var(--interactive-hover)]" }
                         )
                         title="Crop"
@@ -409,14 +409,14 @@ pub fn PhotoEditor(src: String, file_path: String, on_close: Callback<()>) -> im
                     <div class="w-px h-5 bg-[var(--border-subtle)] mx-1"></div>
 
                     <button
-                        class="px-2 py-1 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors"
+                        class="px-3 py-2 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors min-h-[44px]"
                         title="Undo"
                         on:click=move |_| do_edit(EditAction::Undo)
                     >
                         "Undo"
                     </button>
                     <button
-                        class="px-2 py-1 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors"
+                        class="px-3 py-2 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors min-h-[44px]"
                         title="Redo"
                         on:click=move |_| do_edit(EditAction::Redo)
                     >
@@ -426,7 +426,7 @@ pub fn PhotoEditor(src: String, file_path: String, on_close: Callback<()>) -> im
                     <div class="flex-1"></div>
 
                     <button
-                        class="px-2 py-1 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors"
+                        class="px-3 py-2 text-xs font-mono rounded hover:bg-[var(--interactive-hover)] transition-colors min-h-[44px]"
                         title="Adjustments"
                         on:click=toggle_toolbar
                     >
@@ -500,7 +500,7 @@ pub fn PhotoEditor(src: String, file_path: String, on_close: Callback<()>) -> im
                             let is_active = move || edit_state.get().filter == filter;
                             view! {
                                 <button
-                                    class=move || format!("px-2 py-1 text-xs font-mono rounded transition-colors {}",
+                                    class=move || format!("px-3 py-2 text-xs font-mono rounded transition-colors min-h-[44px] {}",
                                         if is_active() { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "hover:bg-[var(--interactive-hover)]" }
                                     )
                                     on:click=move |_| do_edit(EditAction::ApplyFilter(filter))
