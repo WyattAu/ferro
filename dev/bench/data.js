@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784218353898,
+  "lastUpdate": 1784222275062,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -56597,6 +56597,696 @@ window.BENCHMARK_DATA = {
             "name": "metadata_deserialize",
             "value": 1375,
             "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "822299033cb533e7d11c61481a034a64110a6ea9",
+          "message": "feat: touch gestures, MediaSession, reactive detection, CSS tokens\n\nTouch Gesture Support:\n- SwipeGesture: detect swipe left/right/up/down (50px threshold)\n- PinchGesture: detect pinch-to-zoom with scale factor\n- LongPressGesture: detect 500ms hold\n- TapGesture: detect single/double tap\n- All use pointer events (works on mouse + touch)\n- Applied to: slideshow, photo editor, graph view, epub preview\n\nMediaSession API:\n- Audio player now integrates with browser MediaSession\n- Lock-screen controls: play/pause/prev/next\n- Metadata display: title, artist, artwork\n- Reactive updates on track/play state changes\n\nReactive Mobile Detection:\n- use_is_mobile() signal updates on window resize\n- use_is_tablet() signal\n- use_viewport_size() signal\n- Replaced hardcoded width < 768.0 checks\n\nCSS Tokens as CSS Variables:\n- Added spacing tokens (space-0 through space-16) to all 13 themes\n- Added typography tokens (font-size-xs through font-size-3xl)\n- Added touch-target-min, border-radius, transition tokens\n- Added responsive media query for mobile (max-width: 640px)",
+          "timestamp": "2026-07-16T17:54:03+01:00",
+          "tree_id": "48925c3388396f99afa9ba3dfd3483aa18b14d31",
+          "url": "https://github.com/WyattAu/ferro/commit/822299033cb533e7d11c61481a034a64110a6ea9"
+        },
+        "date": 1784222273356,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "totp_generate_sha1",
+            "value": 342,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_generate_sha256",
+            "value": 995,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_verify",
+            "value": 346,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_verify_skew_2",
+            "value": 342,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_generate",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_base32_encode",
+            "value": 176,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_base32_decode",
+            "value": 367,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_otpauth_uri",
+            "value": 543,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_sizes/16",
+            "value": 195,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_sizes/20",
+            "value": 224,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_sizes/32",
+            "value": 344,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_sizes/64",
+            "value": 632,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hash/content_hash_1kb",
+            "value": 946,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hash/content_hash_1mb",
+            "value": 578010,
+            "range": "± 8587",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/escape_plain",
+            "value": 218,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/escape_special",
+            "value": 295,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/escape_mixed",
+            "value": 579,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_hash",
+            "value": 236114974,
+            "range": "± 798718",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 236118541,
+            "range": "± 810888",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 19932,
+            "range": "± 1070",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 19843,
+            "range": "± 1181",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/parse_small",
+            "value": 3093,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/parse_medium",
+            "value": 215188,
+            "range": "± 1313",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_serialize/serialize_small",
+            "value": 2183,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/parse_small",
+            "value": 1180,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/parse_complex",
+            "value": 6145,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_serialize/serialize_small",
+            "value": 977,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 11804,
+            "range": "± 161",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 7583,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 1516,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 1196,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 2926,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/small",
+            "value": 3931,
+            "range": "± 84",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/medium",
+            "value": 17922,
+            "range": "± 307",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/large",
+            "value": 26931,
+            "range": "± 281",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_serialize/small",
+            "value": 2475,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_serialize/medium",
+            "value": 9806,
+            "range": "± 57",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_serialize/large",
+            "value": 14683,
+            "range": "± 551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_roundtrip/small",
+            "value": 6798,
+            "range": "± 104",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_roundtrip/medium",
+            "value": 28656,
+            "range": "± 172",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/small",
+            "value": 2303,
+            "range": "± 66",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/medium",
+            "value": 7072,
+            "range": "± 221",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/large",
+            "value": 12294,
+            "range": "± 195",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_serialize/small",
+            "value": 1343,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_serialize/medium",
+            "value": 4134,
+            "range": "± 45",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_serialize/large",
+            "value": 6515,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_roundtrip/small",
+            "value": 3761,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_roundtrip/medium",
+            "value": 11517,
+            "range": "± 89",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/plain_1kb",
+            "value": 114,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/special_chars",
+            "value": 19737,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dav_multistatus_3_responses",
+            "value": 1538,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1KB",
+            "value": 2718,
+            "range": "± 1505",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1KB",
+            "value": 2856,
+            "range": "± 1022",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10KB",
+            "value": 7817,
+            "range": "± 1549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10KB",
+            "value": 7929,
+            "range": "± 1884",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/100KB",
+            "value": 58621,
+            "range": "± 646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/100KB",
+            "value": 58777,
+            "range": "± 291",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1MB",
+            "value": 581900,
+            "range": "± 6909",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1MB",
+            "value": 581862,
+            "range": "± 3589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10MB",
+            "value": 5782739,
+            "range": "± 4404",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10MB",
+            "value": 5786845,
+            "range": "± 13450",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1KB",
+            "value": 133,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1KB",
+            "value": 257,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10KB",
+            "value": 133,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10KB",
+            "value": 259,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/100KB",
+            "value": 133,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/100KB",
+            "value": 253,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1MB",
+            "value": 133,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1MB",
+            "value": 258,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10MB",
+            "value": 133,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10MB",
+            "value": 257,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/10",
+            "value": 68644,
+            "range": "± 676",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/10",
+            "value": 24700,
+            "range": "± 385",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/10",
+            "value": 70046,
+            "range": "± 1557",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/50",
+            "value": 184722,
+            "range": "± 5856",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/50",
+            "value": 43797,
+            "range": "± 1023",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/50",
+            "value": 191536,
+            "range": "± 8916",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/100",
+            "value": 339406,
+            "range": "± 18850",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/100",
+            "value": 59687,
+            "range": "± 1694",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/100",
+            "value": 344721,
+            "range": "± 21489",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/100_entries",
+            "value": 109591,
+            "range": "± 294",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/100_entries",
+            "value": 37303,
+            "range": "± 117",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/100_entries",
+            "value": 37463,
+            "range": "± 381",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/100_entries",
+            "value": 664,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/1000_entries",
+            "value": 1065070,
+            "range": "± 2114",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/1000_entries",
+            "value": 459431,
+            "range": "± 4267",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/1000_entries",
+            "value": 236478,
+            "range": "± 1877",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/1000_entries",
+            "value": 667,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/10000_entries",
+            "value": 10675665,
+            "range": "± 44064",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/10000_entries",
+            "value": 7970498,
+            "range": "± 409919",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/10000_entries",
+            "value": 2470558,
+            "range": "± 486765",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/10000_entries",
+            "value": 662,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/single_file_sync_cycle",
+            "value": 8697,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/batch_sync_50_files",
+            "value": 239800,
+            "range": "± 724",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/rename_and_move",
+            "value": 2023,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/concurrent_sync_10_clients",
+            "value": 201259,
+            "range": "± 2607",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/delete_cascade",
+            "value": 242605,
+            "range": "± 3259",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 1626,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 6803,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 58457,
+            "range": "± 975",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 208,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 34471,
+            "range": "± 154",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 2155,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 194,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 98,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 312,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 151,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 1580,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 1109,
+            "range": "± 4",
             "unit": "ns/iter"
           },
           {
