@@ -90,6 +90,7 @@ ferro-server-security = { path = "../server-security" }
 ferro-server-security-middleware = { path = "../server-security-middleware" }
 ferro-server-content = { path = "../server-content" }
 ferro-server-compliance = { path = "../server-compliance" }
+ferro-server-automation = { path = "../server-automation" }
 ferro-server-integrations = { path = "../server-integrations" }
 ferro-server-plugins = { path = "../server-plugins" }
 ferro-server-admin-api = { path = "../server-admin-api" }

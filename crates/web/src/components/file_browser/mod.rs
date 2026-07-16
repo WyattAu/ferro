@@ -37,6 +37,7 @@ use crate::components::path_dialog::PathDialog;
 use crate::components::scroll_sentinel::ScrollSentinel;
 use crate::components::share_dialog::ShareDialog;
 use crate::components::skeleton::{SkeletonFavorites, SkeletonGrid, SkeletonList, SkeletonRecent};
+use crate::components::smart_collections_sidebar::SmartCollectionsSidebar;
 use crate::components::theme_toggle::use_theme_state;
 use crate::components::toast::ToastContext;
 use crate::components::upload_dialog::UploadDialog;
@@ -68,6 +69,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let (last_clicked_index, set_last_clicked_index) = signal(None::<usize>);
 
     let (show_activity, set_show_activity) = signal(false);
+    let (show_smart_collections, set_show_smart_collections) = signal(false);
     let (show_version_history, set_show_version_history) = signal(false);
     let (version_history_path, set_version_history_path) = signal(String::new());
     let (show_delete_confirm, set_show_delete_confirm) = signal(false);
@@ -570,6 +572,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         set_show_activity.update(|v| *v = !*v);
     };
 
+    let toggle_smart_collections = move |_: ev::MouseEvent| {
+        set_show_smart_collections.update(|v| *v = !*v);
+    };
+
     commands::register_commands(
         palette_state,
         theme_state.clone(),
@@ -754,23 +760,25 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
            on:dragleave=handle_drag_leave
            on:drop=handle_drop
        >
-             // Toolbar - compact on mobile
-             <Toolbar
-                 current_path
-                 go_up
-                 active_tab
-                 switch_tab=Callback::new(switch_tab)
-                 clipboard_state
-                 clipboard_paste=Callback::new(move |_: ()| clipboard_paste())
-                 set_show_upload
-                 set_show_new_folder
-                 view_mode
-                 set_view_mode
-                 select_mode
-                 toggle_select_mode
-                 show_activity
-                 toggle_activity
-             >
+              // Toolbar - compact on mobile
+              <Toolbar
+                  current_path
+                  go_up
+                  active_tab
+                  switch_tab=Callback::new(switch_tab)
+                  clipboard_state
+                  clipboard_paste=Callback::new(move |_: ()| clipboard_paste())
+                  set_show_upload
+                  set_show_new_folder
+                  view_mode
+                  set_view_mode
+                  select_mode
+                  toggle_select_mode
+                  show_activity
+                  toggle_activity
+                  show_smart_collections
+                  toggle_smart_collections
+              >
                  <Breadcrumb current_path=Signal::from(current_path) navigate=Callback::new(navigate) />
              </Toolbar>
 
@@ -1201,6 +1209,12 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         <ActivitySidebar
             open=show_activity
             set_open=set_show_activity
+        />
+
+        // Smart Collections sidebar (extracted component)
+        <SmartCollectionsSidebar
+            open=show_smart_collections
+            set_open=set_show_smart_collections
         />
 
         // Version history panel (extracted component)

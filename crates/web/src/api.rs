@@ -321,6 +321,48 @@ async fn fetch_text(url: &str, opts: &web_sys::RequestInit) -> Result<String, St
 }
 
 #[cfg(target_arch = "wasm32")]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+async fn post_json_text(url: &str, body: &str, opts: &web_sys::RequestInit) -> Result<String, String> {
+    let window = web_sys::window().ok_or("No window")?;
+
+    let full_url = if url.starts_with('/') {
+        let base = get_server_base();
+        if base.is_empty() {
+            url.to_string()
+        } else {
+            format!("{}{}", base, url)
+        }
+    } else {
+        url.to_string()
+    };
+
+    opts.set_method("POST");
+    let headers = web_sys::Headers::new().map_err(|e| js_err("Headers creation failed", &e))?;
+    with_auth_headers(&headers);
+    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set Content-Type", &e))?;
+    opts.set_headers(&headers);
+    opts.set_body(&wasm_bindgen::JsValue::from_str(body));
+
+    let request =
+        web_sys::Request::new_with_str_and_init(&full_url, opts).map_err(|e| js_err("Request creation failed", &e))?;
+
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
+
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+
+    wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text() failed", &e))?)
+        .await
+        .map_err(|e| js_err("Response read failed", &e))?
+        .as_string()
+        .ok_or_else(|| "Response text conversion failed".to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
 pub async fn list_files(path: &str) -> Result<ListingResponse, String> {
     let headers = web_sys::Headers::new().map_err(|e| js_err("Headers creation failed", &e))?;
     headers
@@ -1395,6 +1437,200 @@ pub async fn diff_versions(_path: &str, _from: u64, _to: u64) -> Result<DiffResp
             unchanged: 0,
         },
     })
+}
+
+// ---------------------------------------------------------------------------
+// Transcode API
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscodeRequest {
+    pub source_path: String,
+    pub target_format: String,
+    pub quality: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscodeResponse {
+    pub id: String,
+    pub status: String,
+    pub output_path: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscodeJob {
+    pub id: String,
+    pub source_path: String,
+    pub target_format: String,
+    pub quality: String,
+    pub output_path: String,
+    pub status: String,
+    pub progress: f64,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscodeJobsResponse {
+    pub jobs: Vec<TranscodeJob>,
+    pub total: usize,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn start_transcode(req: &TranscodeRequest) -> Result<TranscodeResponse, String> {
+    let body = serde_json::to_string(req).map_err(|e| format!("Serialize failed: {}", e))?;
+    let opts = make_opts_with_auth("POST");
+    let text = post_json_text("/api/transcode", &body, &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn start_transcode(_req: &TranscodeRequest) -> Result<TranscodeResponse, String> {
+    Ok(TranscodeResponse {
+        id: String::new(),
+        status: "pending".to_string(),
+        output_path: String::new(),
+        message: "Not available in native mode".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn get_transcode_status(id: &str) -> Result<TranscodeJob, String> {
+    let url = format!("/api/transcode/{}/status", id);
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text(&url, &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn get_transcode_status(_id: &str) -> Result<TranscodeJob, String> {
+    Ok(TranscodeJob {
+        id: String::new(),
+        source_path: String::new(),
+        target_format: String::new(),
+        quality: String::new(),
+        output_path: String::new(),
+        status: "unknown".to_string(),
+        progress: 0.0,
+        created_at: String::new(),
+        completed_at: None,
+        error: Some("Not available in native mode".to_string()),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn list_transcode_jobs() -> Result<TranscodeJobsResponse, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/transcode", &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn list_transcode_jobs() -> Result<TranscodeJobsResponse, String> {
+    Ok(TranscodeJobsResponse {
+        jobs: vec![],
+        total: 0,
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Smart Collections API
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SmartCollection {
+    pub id: String,
+    pub name: String,
+    pub rules: Vec<serde_json::Value>,
+    pub auto_update: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SmartCollectionsResponse {
+    pub collections: Vec<SmartCollection>,
+    pub total: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateSmartCollectionRequest {
+    pub name: String,
+    pub rules: Vec<serde_json::Value>,
+    pub auto_update: bool,
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn list_smart_collections() -> Result<SmartCollectionsResponse, String> {
+    let opts = make_opts_with_auth("GET");
+    let text = fetch_text("/api/smart-collections", &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn list_smart_collections() -> Result<SmartCollectionsResponse, String> {
+    Ok(SmartCollectionsResponse {
+        collections: vec![],
+        total: 0,
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_smart_collection(req: &CreateSmartCollectionRequest) -> Result<SmartCollection, String> {
+    let body = serde_json::to_string(req).map_err(|e| format!("Serialize failed: {}", e))?;
+    let opts = make_opts_with_auth("POST");
+    let text = post_json_text("/api/smart-collections", &body, &opts).await?;
+    let resp: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    serde_json::from_value(resp["collection"].clone())
+        .map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_smart_collection(_req: &CreateSmartCollectionRequest) -> Result<SmartCollection, String> {
+    Ok(SmartCollection {
+        id: String::new(),
+        name: String::new(),
+        rules: vec![],
+        auto_update: false,
+        created_at: String::new(),
+        updated_at: String::new(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn delete_smart_collection(id: &str) -> Result<(), String> {
+    let url = format!("/api/smart-collections/{}", id);
+    let opts = make_opts_with_auth("DELETE");
+    let window = web_sys::window().ok_or("No window")?;
+    let full_url = if url.starts_with('/') {
+        let base = get_server_base();
+        if base.is_empty() {
+            url.clone()
+        } else {
+            format!("{}{}", base, url)
+        }
+    } else {
+        url.clone()
+    };
+    let req = web_sys::Request::new_with_str_and_init(&full_url, &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&req))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
+    if resp.ok() {
+        Ok(())
+    } else {
+        Err(format!("HTTP error: {}", resp.status()))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn delete_smart_collection(_id: &str) -> Result<(), String> {
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

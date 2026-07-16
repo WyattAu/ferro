@@ -1,6 +1,10 @@
 use leptos::ev;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use wasm_bindgen::JsCast;
+
+use crate::api;
+use crate::components::toast::ToastContext;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VideoQuality {
@@ -17,6 +21,53 @@ impl VideoQuality {
             VideoQuality::Low => "360p",
             VideoQuality::Medium => "720p",
             VideoQuality::High => "1080p",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TranscodeFormat {
+    Mp4,
+    Webm,
+}
+
+impl TranscodeFormat {
+    pub fn label(&self) -> &'static str {
+        match self {
+            TranscodeFormat::Mp4 => "MP4 (H.264)",
+            TranscodeFormat::Webm => "WebM (VP9)",
+        }
+    }
+
+    pub fn api_value(&self) -> &'static str {
+        match self {
+            TranscodeFormat::Mp4 => "mp4",
+            TranscodeFormat::Webm => "webm",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TranscodeQualityPreset {
+    Low,
+    Medium,
+    High,
+}
+
+impl TranscodeQualityPreset {
+    pub fn label(&self) -> &'static str {
+        match self {
+            TranscodeQualityPreset::Low => "480p",
+            TranscodeQualityPreset::Medium => "720p",
+            TranscodeQualityPreset::High => "1080p",
+        }
+    }
+
+    pub fn api_value(&self) -> &'static str {
+        match self {
+            TranscodeQualityPreset::Low => "low",
+            TranscodeQualityPreset::Medium => "medium",
+            TranscodeQualityPreset::High => "high",
         }
     }
 }
@@ -74,6 +125,8 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
     let (show_volume_slider, set_show_volume_slider) = signal(false);
     let (show_quality_menu, set_show_quality_menu) = signal(false);
     let (show_speed_menu, set_show_speed_menu) = signal(false);
+    let (show_transcode_menu, set_show_transcode_menu) = signal(false);
+    let (transcode_status, set_transcode_status) = signal(None::<String>);
     let (current_time, set_current_time) = signal(0.0_f64);
     let (duration, set_duration) = signal(0.0_f64);
     let (volume, set_volume) = signal(1.0_f64);
@@ -219,7 +272,7 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
             <video
                 node_ref=video_ref
                 class="w-full max-h-[70vh] object-contain"
-                src=src
+                src=src.clone()
                 on:loadedmetadata=handle_loaded_metadata
                 on:timeupdate=handle_time_update
                 on:waiting=handle_waiting
@@ -420,6 +473,84 @@ pub fn VideoPlayer(src: String, #[prop(optional)] title: String) -> impl IntoVie
                                     }
                                 }).collect::<Vec<_>>()}
                             </div>
+                        })}
+                    </div>
+
+                    // Transcode button
+                    <div class="relative">
+                        <button
+                            class="text-[var(--text-on-accent)] text-xs font-mono hover:text-[var(--danger)] transition-colors px-1.5 py-0.5 rounded bg-[var(--bg-surface-raised)]/50 focus:outline-none"
+                            on:click=move |_| set_show_transcode_menu.update(|v| *v = !*v)
+                            aria-label="Transcode video"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </button>
+                        {move || show_transcode_menu.get().then(|| {
+                            let menu_items: Vec<_> = vec![
+                                (TranscodeFormat::Mp4, TranscodeQualityPreset::Low),
+                                (TranscodeFormat::Mp4, TranscodeQualityPreset::Medium),
+                                (TranscodeFormat::Mp4, TranscodeQualityPreset::High),
+                                (TranscodeFormat::Webm, TranscodeQualityPreset::Low),
+                                (TranscodeFormat::Webm, TranscodeQualityPreset::Medium),
+                                (TranscodeFormat::Webm, TranscodeQualityPreset::High),
+                            ];
+                            let src_for_menu = src.clone();
+                            let menu_view = view! {
+                                <div class="absolute bottom-full right-0 mb-2 bg-[var(--bg-surface)] rounded-lg shadow-lg overflow-hidden min-w-[180px]">
+                                    <div class="px-3 py-1.5 text-xs font-bold uppercase text-[var(--text-tertiary)] border-b border-[var(--border)]">
+                                        Transcode to
+                                    </div>
+                                    {move || menu_items.iter().map(|(fmt, qual)| {
+                                        let fmt_clone = fmt.clone();
+                                        let qual_clone = qual.clone();
+                                        let label = format!("{} - {}", fmt.label(), qual.label());
+                                        let src_clone = src_for_menu.clone();
+                                        let set_status = set_transcode_status;
+                                        let set_menu = set_show_transcode_menu;
+                                        view! {
+                                            <button
+                                                class="block w-full text-left px-3 py-1.5 text-xs font-mono text-[var(--text-on-accent)] hover:bg-[var(--interactive-hover)]"
+                                                on:click=move |_| {
+                                                    set_menu.set(false);
+                                                    let source = src_clone.clone();
+                                                    let fmt_val = fmt_clone.api_value().to_string();
+                                                    let qual_val = qual_clone.api_value().to_string();
+                                                    let fmt_label = fmt_clone.label().to_string();
+                                                    let qual_label = qual_clone.label().to_string();
+                                                    set_status.set(Some(format!("Starting {} {} transcoding...", fmt_label, qual_label)));
+                                                    spawn_local(async move {
+                                                        let request = api::TranscodeRequest {
+                                                            source_path: source,
+                                                            target_format: fmt_val,
+                                                            quality: qual_val,
+                                                        };
+                                                        match api::start_transcode(&request).await {
+                                                            Ok(response) => {
+                                                                set_status.set(Some(format!("Job {} started - {}", response.id, response.output_path)));
+                                                                ToastContext::info(format!("Transcoding to {} started", response.output_path));
+                                                            }
+                                                            Err(e) => {
+                                                                set_status.set(Some(format!("Failed: {}", e)));
+                                                                ToastContext::error(format!("Transcoding failed: {}", e));
+                                                            }
+                                                        }
+                                                    });
+                                                }
+                                            >
+                                                {label}
+                                            </button>
+                                        }
+                                    }).collect::<Vec<_>>()}
+                                    {move || transcode_status.get().map(|status| view! {
+                                        <div class="px-3 py-1.5 text-xs text-[var(--text-tertiary)] border-t border-[var(--border)]">
+                                            {status}
+                                        </div>
+                                    })}
+                                </div>
+                            };
+                            menu_view
                         })}
                     </div>
 

@@ -3559,6 +3559,7 @@ dependencies = [
  "ferro-server-admin-api",
  "ferro-server-api",
  "ferro-server-api-core",
+ "ferro-server-automation",
  "ferro-server-collaboration",
  "ferro-server-compliance",
  "ferro-server-config",

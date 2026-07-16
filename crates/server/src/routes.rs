@@ -68,6 +68,9 @@ use crate::sync;
 use crate::tags;
 use crate::tasks_api;
 use crate::tenant_rate_limit_api;
+use crate::transcode;
+use crate::compliance_api;
+use ferro_server_automation::smart_collections;
 use crate::thumbnails;
 use crate::totp_api;
 use crate::trash;
@@ -731,6 +734,15 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         )
         // Video streaming endpoints
         .route("/stream", axum::routing::get(streaming::stream_video))
+        // Video transcoding endpoints
+        .route(
+            "/transcode",
+            axum::routing::post(transcode::start_transcode).get(transcode::list_transcode_jobs),
+        )
+        .route(
+            "/transcode/:id/status",
+            axum::routing::get(transcode::transcode_status),
+        )
         // Whiteboard endpoints
         .route(
             "/whiteboard",
@@ -789,6 +801,47 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             axum::routing::post(dlp_api::scan_file_dlp::<AppState>),
         )
         .route("/dlp/alerts", axum::routing::get(dlp_api::list_alerts::<AppState>))
+        // Smart Collections
+        .route(
+            "/smart-collections",
+            axum::routing::get(smart_collections::list_smart_collections)
+                .post(smart_collections::create_smart_collection),
+        )
+        .route(
+            "/smart-collections/:id",
+            axum::routing::get(smart_collections::get_smart_collection)
+                .put(smart_collections::update_smart_collection)
+                .delete(smart_collections::delete_smart_collection),
+        )
+        .route(
+            "/smart-collections/:id/files",
+            axum::routing::get(smart_collections::get_smart_collection_files),
+        )
+        // Compliance API
+        .route(
+            "/admin/compliance/summary",
+            axum::routing::get(compliance_api::compliance_summary),
+        )
+        .route(
+            "/admin/compliance/data-retention",
+            axum::routing::get(compliance_api::data_retention_status),
+        )
+        .route(
+            "/admin/compliance/worm",
+            axum::routing::get(compliance_api::worm_status),
+        )
+        .route(
+            "/admin/compliance/dlp",
+            axum::routing::get(compliance_api::dlp_summary),
+        )
+        .route(
+            "/admin/compliance/audit-summary",
+            axum::routing::get(compliance_api::audit_summary),
+        )
+        .route(
+            "/admin/compliance/export",
+            axum::routing::post(compliance_api::export_compliance_report),
+        )
         .route(
             "/whiteboard/:id",
             axum::routing::get(whiteboard_api::get_whiteboard::<AppState>)

@@ -3,6 +3,7 @@ pub mod event_triggers;
 pub mod ocr;
 pub mod policies;
 pub mod push_api;
+pub mod smart_collections;
 pub mod triggers;
 pub mod webhooks;
 pub mod workflows;
