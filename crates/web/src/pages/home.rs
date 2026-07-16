@@ -15,6 +15,7 @@ pub fn HomePage(initial_path: String) -> impl IntoView {
     provide_header_state();
     view! {
         <div class="h-screen flex flex-col bg-[var(--bg-base)]">
+            <div style="position:fixed;top:0;left:0;z-index:9999;background:red;color:white;padding:8px;font-size:16px;">DEBUG: HomePage rendered</div>
             <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:rounded">{t!("nav.skip_to_content")}</a>
             <Header />
             <div class="flex-1 overflow-auto px-2 sm:px-4 pt-16">
