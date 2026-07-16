@@ -132,6 +132,16 @@ pub(crate) fn setup_keyboard_shortcuts(
                             Theme::Dark => Theme::Midnight,
                             Theme::Midnight => Theme::System,
                             Theme::System => Theme::Light,
+                            Theme::SolarizedLight => Theme::Light,
+                            Theme::SolarizedDark => Theme::Light,
+                            Theme::Nord => Theme::Light,
+                            Theme::TokyoNight => Theme::Light,
+                            Theme::Dracula => Theme::Light,
+                            Theme::HighContrast => Theme::Light,
+                            Theme::Sepia => Theme::Light,
+                            Theme::Forest => Theme::Light,
+                            Theme::Ocean => Theme::Light,
+                            Theme::Custom => Theme::Light,
                         };
                         ts.set_theme(next);
                         return;

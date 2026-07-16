@@ -1,6 +1,7 @@
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AudioTrack {
@@ -30,27 +31,26 @@ fn setup_media_session(
     on_prev: impl Fn() + Clone + 'static,
     on_next: impl Fn() + Clone + 'static,
 ) {
+    use wasm_bindgen::JsCast;
     use web_sys::MediaSessionAction;
 
     let window = match web_sys::window() {
         Some(w) => w,
         None => return,
     };
-    let nav = match window.navigator().media_session() {
-        Ok(ms) => ms,
-        Err(_) => return,
-    };
+    let nav = window.navigator().media_session();
 
     if let Some(track) = track {
-        let metadata = web_sys::MediaMetadata::new().unwrap_or_default();
-        let _ = metadata.set_title(&track.name);
-        if let Some(ref artist) = track.artist {
-            let _ = metadata.set_artist(artist);
+        if let Ok(metadata) = web_sys::MediaMetadata::new() {
+            let _ = metadata.set_title(&track.name);
+            if let Some(ref artist) = track.artist {
+                let _ = metadata.set_artist(artist);
+            }
+            if let Some(ref album) = track.album {
+                let _ = metadata.set_album(album);
+            }
+            nav.set_metadata(Some(&metadata));
         }
-        if let Some(ref album) = track.album {
-            let _ = metadata.set_album(album);
-        }
-        nav.set_metadata(Some(&metadata)).ok();
     }
 
     let state = if is_playing {
@@ -58,49 +58,43 @@ fn setup_media_session(
     } else {
         web_sys::MediaSessionPlaybackState::Paused
     };
-    nav.set_playback_state(state).ok();
+    nav.set_playback_state(state);
 
-    if let Some(audio) = audio_ref.get() {
-        let mut pos_state = web_sys::MediaPositionState::new().unwrap_or_default();
+    if audio_ref.get().is_some() {
+        let pos_state = web_sys::MediaPositionState::new();
         pos_state.set_position(current_time);
         pos_state.set_playback_rate(1.0);
         pos_state.set_duration(duration);
-        let _ = nav.set_position_state(&pos_state);
+        nav.set_position_state_with_state(&pos_state);
     }
 
     let on_play_cb = on_play.clone();
-    let play_handler = Closure::<dyn FnMut()>::new(move || {
+    let play_handler = Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
         on_play_cb();
     });
-    let _ = nav.set_action_handler(MediaSessionAction::Play, Some(play_handler.as_ref().unchecked_ref()));
-    play_handler.forget();
+    let play_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> = play_handler.into_js_value().unchecked_into();
+    nav.set_action_handler(MediaSessionAction::Play, Some(&play_func));
 
     let on_pause_cb = on_pause.clone();
-    let pause_handler = Closure::<dyn FnMut()>::new(move || {
+    let pause_handler = Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
         on_pause_cb();
     });
-    let _ = nav.set_action_handler(MediaSessionAction::Pause, Some(pause_handler.as_ref().unchecked_ref()));
-    pause_handler.forget();
+    let pause_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> = pause_handler.into_js_value().unchecked_into();
+    nav.set_action_handler(MediaSessionAction::Pause, Some(&pause_func));
 
     let on_prev_cb = on_prev.clone();
-    let prev_handler = Closure::<dyn FnMut()>::new(move || {
+    let prev_handler = Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
         on_prev_cb();
     });
-    let _ = nav.set_action_handler(
-        MediaSessionAction::Prevtrack,
-        Some(prev_handler.as_ref().unchecked_ref()),
-    );
-    prev_handler.forget();
+    let prev_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> = prev_handler.into_js_value().unchecked_into();
+    nav.set_action_handler(MediaSessionAction::Previoustrack, Some(&prev_func));
 
     let on_next_cb = on_next.clone();
-    let next_handler = Closure::<dyn FnMut()>::new(move || {
+    let next_handler = Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
         on_next_cb();
     });
-    let _ = nav.set_action_handler(
-        MediaSessionAction::Nexttrack,
-        Some(next_handler.as_ref().unchecked_ref()),
-    );
-    next_handler.forget();
+    let next_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> = next_handler.into_js_value().unchecked_into();
+    nav.set_action_handler(MediaSessionAction::Nexttrack, Some(&next_func));
 }
 
 #[component]
@@ -117,6 +111,12 @@ pub fn AudioPlayer() -> impl IntoView {
     let (is_shuffled, set_is_shuffled) = signal(false);
 
     let audio_ref: NodeRef<leptos::html::Audio> = NodeRef::new();
+
+    let current_track = move || {
+        let q = queue.get();
+        let idx = current_index.get();
+        q.get(idx).cloned()
+    };
 
     let toggle_play = move |_: ev::MouseEvent| {
         if let Some(audio) = audio_ref.get() {
@@ -331,12 +331,6 @@ pub fn AudioPlayer() -> impl IntoView {
             let _ = audio.pause();
             audio.set_current_time(0.0);
         }
-    };
-
-    let current_track = move || {
-        let q = queue.get();
-        let idx = current_index.get();
-        q.get(idx).cloned()
     };
 
     let format_time = |seconds: f64| -> String {
