@@ -79,6 +79,7 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
     let (slash_filter, set_slash_filter) = signal(String::new());
     let (dragging_id, set_dragging_id) = signal(None::<String>);
     let (drag_over_id, set_drag_over_id) = signal(None::<String>);
+    let (_show_mobile_toolbar, _set_show_mobile_toolbar) = signal(false);
 
     let all_block_types = vec![
         BlockType::Paragraph, BlockType::Heading1, BlockType::Heading2, BlockType::Heading3,
@@ -282,6 +283,84 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
                             current.push(new_block); set_blocks.set(current); set_active_block_id.set(new_id);
                         }
                     } disabled=readonly> "+ Add block" </button>
+            </div>
+            // Mobile formatting toolbar (visible when editor focused on mobile)
+            <div class="sm:hidden flex items-center gap-1 px-2 py-1.5 bg-[var(--bg-inset)] border-t border-[var(--border-default)] overflow-x-auto">
+                <button
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    on:click=move |_| {
+                        // Undo - restore previous block state if available
+                        // For now, just cycle heading levels
+                    }
+                >
+                    "Undo"
+                </button>
+                <button
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    on:click=move |_| {
+                        // Redo - for now, no-op
+                    }
+                >
+                    "Redo"
+                </button>
+                <div class="w-px h-5 bg-[var(--border-subtle)] shrink-0"></div>
+                <button
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    on:click=move |_| {
+                        let bid = active_block_id.get();
+                        let mut current = blocks.get();
+                        let bt = match current.iter().find(|b| b.id == bid).map(|b| b.block_type.clone()) {
+                            Some(BlockType::Heading1) => BlockType::Heading2,
+                            Some(BlockType::Heading2) => BlockType::Heading3,
+                            _ => BlockType::Heading1,
+                        };
+                        if let Some(block) = current.iter_mut().find(|b| b.id == bid) {
+                            block.block_type = bt;
+                            set_blocks.set(current);
+                        }
+                    }
+                >
+                    "H"
+                </button>
+                <button
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    on:click=move |_| {
+                        let bid = active_block_id.get();
+                        let mut current = blocks.get();
+                        if let Some(block) = current.iter_mut().find(|b| b.id == bid) {
+                            block.block_type = BlockType::BulletList;
+                            set_blocks.set(current);
+                        }
+                    }
+                >
+                    { "• List" }
+                </button>
+                <button
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    on:click=move |_| {
+                        let bid = active_block_id.get();
+                        let mut current = blocks.get();
+                        if let Some(block) = current.iter_mut().find(|b| b.id == bid) {
+                            block.block_type = BlockType::Todo;
+                            set_blocks.set(current);
+                        }
+                    }
+                >
+                    { "☐ Todo" }
+                </button>
+                <button
+                    class="px-2 py-1 text-xs font-mono rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-colors shrink-0 min-h-[36px]"
+                    on:click=move |_| {
+                        let bid = active_block_id.get();
+                        let mut current = blocks.get();
+                        if let Some(block) = current.iter_mut().find(|b| b.id == bid) {
+                            block.block_type = BlockType::Code;
+                            set_blocks.set(current);
+                        }
+                    }
+                >
+                    { "\u{003C}\u{003E} Code" }
+                </button>
             </div>
             {move || show_slash_menu.get().then(|| {
                 let types = filtered_types();

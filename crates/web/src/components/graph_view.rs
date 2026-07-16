@@ -6,6 +6,8 @@ use wasm_bindgen::JsCast;
 
 use crate::api;
 
+const MAX_NODES: usize = 1000;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeType {
     File,
@@ -200,14 +202,26 @@ pub fn GraphView(
     let (tooltip_node, set_tooltip_node) = signal(Option::<GraphNode>::None);
     let (tooltip_x, set_tooltip_x) = signal(0.0);
     let (tooltip_y, set_tooltip_y) = signal(0.0);
+    let (show_all, set_show_all) = signal(false);
+    let (total_entries, set_total_entries) = signal(0usize);
 
     // Build graph from entries
     Effect::new(move |_| {
+        let show_all_nodes = show_all.get();
         let mut g = ForceGraph::new(800.0, 600.0);
         let mut node_map: HashMap<String, usize> = HashMap::new();
 
+        // Cap nodes at MAX_NODES unless show_all is enabled
+        let total = entries.len();
+        set_total_entries.set(total);
+        let cap = if show_all_nodes || total <= MAX_NODES {
+            total
+        } else {
+            MAX_NODES
+        };
+
         // Create nodes for each entry
-        for (i, entry) in entries.iter().enumerate() {
+        for (i, entry) in entries.iter().take(cap).enumerate() {
             let node_type = if entry.is_collection {
                 NodeType::Folder
             } else if entry.mime_type.starts_with("text/markdown") {
@@ -233,8 +247,8 @@ pub fn GraphView(
             g.nodes.push(node);
         }
 
-        // Create folder relationship edges
-        for entry in &entries {
+        // Create folder relationship edges (only for rendered nodes)
+        for entry in entries.iter().take(cap) {
             if let Some(parent_pos) = entry.path.rfind('/') {
                 let parent = if parent_pos == 0 {
                     "/".to_string()
@@ -414,13 +428,31 @@ pub fn GraphView(
                 >
                     "Reset View"
                 </button>
+                {move || {
+                    let total = total_entries.get();
+                    if total > MAX_NODES && !show_all.get() {
+                        view! {
+                            <span class="text-xs text-[var(--text-warning)]">
+                                {format!("Showing {} of {} nodes", MAX_NODES, total)}
+                            </span>
+                            <button
+                                on:click=move |_| set_show_all.set(true)
+                                class="px-2 py-1 text-xs rounded border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10"
+                            >
+                                "Show all (may be slow)"
+                            </button>
+                        }.into_any()
+                    } else {
+                        ().into_any()
+                    }
+                }}
                 <div class="text-xs text-[var(--text-tertiary)]">
                     {move || format!("Nodes: {} | Edges: {}", graph.get().nodes.len(), graph.get().edges.len())}
                 </div>
             </div>
 
             <div
-                class="flex-1 relative overflow-hidden bg-[var(--bg-base)] cursor-crosshair"
+                class="flex-1 relative overflow-hidden bg-[var(--bg-base)] cursor-crosshair touch-none"
                 on:mousedown=handle_mouse_down
                 on:mousemove=handle_mouse_move
                 on:mouseup=handle_mouse_up

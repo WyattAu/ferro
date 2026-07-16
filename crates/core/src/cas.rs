@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use bytes::Bytes;
+use dashmap::DashMap;
 use ferro_common::error::{FerroError, Result};
 use ferro_common::metadata::ContentHash;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::debug;
 
 /// Content-addressable storage trait for deduplicated blob storage.
@@ -17,10 +15,10 @@ pub trait CasStore: Send + Sync {
     async fn content_count(&self) -> usize;
 }
 
-/// In-memory CAS store backed by a hash map.
+/// In-memory CAS store backed by a DashMap for lock-free concurrent access.
 #[derive(Debug)]
 pub struct InMemoryCasStore {
-    content: Arc<RwLock<HashMap<String, Bytes>>>,
+    content: DashMap<String, Bytes>,
 }
 
 impl InMemoryCasStore {
@@ -28,7 +26,7 @@ impl InMemoryCasStore {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            content: Arc::new(RwLock::new(HashMap::new())),
+            content: DashMap::new(),
         }
     }
 }
@@ -45,11 +43,10 @@ impl CasStore for InMemoryCasStore {
         let hash = ContentHash::compute(&content);
         let hash_key = hash.as_str().to_string();
 
-        let mut store = self.content.write().await;
-        if store.contains_key(&hash_key) {
+        if self.content.contains_key(&hash_key) {
             debug!("DEDUP: content {} already exists", &hash_key[..16]);
         } else {
-            store.insert(hash_key.clone(), content);
+            self.content.insert(hash_key.clone(), content);
             debug!("CAS PUT: stored content {}", &hash_key[..16]);
         }
 
@@ -57,17 +54,15 @@ impl CasStore for InMemoryCasStore {
     }
 
     async fn get_content(&self, hash: &ContentHash) -> Result<Bytes> {
-        let store = self.content.read().await;
-        store
+        self.content
             .get(hash.as_str())
-            .cloned()
+            .map(|entry| entry.value().clone())
             .ok_or_else(|| FerroError::NotFound(format!("content hash {}", hash.as_str())))
     }
 
     #[inline]
     async fn exists(&self, hash: &ContentHash) -> Result<bool> {
-        let store = self.content.read().await;
-        Ok(store.contains_key(hash.as_str()))
+        Ok(self.content.contains_key(hash.as_str()))
     }
 
     #[inline]
@@ -77,8 +72,7 @@ impl CasStore for InMemoryCasStore {
 
     #[inline]
     async fn content_count(&self) -> usize {
-        let store = self.content.read().await;
-        store.len()
+        self.content.len()
     }
 }
 

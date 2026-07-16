@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-07-16
+
+### Added
+- **ZIP download** (`POST /api/v1/zip-download`): Download multiple files as a single ZIP archive in one request.
+- **File duplication** (`POST /api/v1/duplicate`): Server-side file duplication without re-uploading content.
+- **File requests** (`POST/GET/DELETE /api/v1/file-requests`): Upload-only share links with message and expiration metadata. Users can request specific files and uploaders can fulfill without sign-up.
+- **QR code sharing** (`GET /api/v1/shares/:token/qr`): Generate QR codes for instant share link access from mobile devices.
+- **Group management** (`POST/GET/PUT/DELETE /api/v1/groups`, `POST/DELETE /api/v1/groups/:id/members/:username`): Create and manage user groups with member add/remove operations.
+- **Smart collections** (`POST/GET/PUT/DELETE /api/v1/smart-collections`, `GET /api/v1/smart-collections/:id/files`): Rule-based dynamic file groupings with auto-update support based on configurable criteria.
+- **Workflow automation** (`POST/GET/PUT/DELETE /api/v1/workflows`, `POST /api/v1/workflows/:id/trigger`): Event-triggered workflows with conditions and actions. Supports manual triggering via API.
+- **Video transcoding** (`POST /api/v1/transcode`, `GET /api/v1/transcode/:id/status`, `GET /api/v1/transcode`): Server-side video format conversion via WASM workers with job status polling.
+- **Saved searches** (`GET/POST /api/v1/saved-searches`, `GET/PUT/DELETE /api/v1/saved-searches/:id`): Persistent search queries with custom view presets (Default, Compact, Detailed, Media).
+- **Admin compliance tools** (`GET /api/v1/admin/compliance/summary`, `GET /api/v1/admin/compliance/data-retention`): WORM, retention policies, antivirus scanning, and DLP enforcement status and management.
+- **Remote wipe** (`GET /api/v1/wipe-status`, `POST /api/v1/wipe-confirm`): Device-level data erasure for lost or compromised devices with confirmation flow.
+
 ## [3.1.0] - 2026-07-07
 
 ### Added
@@ -354,9 +369,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Webhooks
 - Multi-user with roles (admin/editor/viewer)
 
-[Unreleased]: https://github.com/WyattAu/ferro/compare/v3.0.1...HEAD
-[3.0.1]: https://github.com/WyattAu/ferro/compare/v3.0.0...v3.0.1
-[3.0.0]: https://github.com/WyattAu/ferro/releases/tag/v3.0.0
+[Unreleased]: https://github.com/WyattAu/ferro/compare/v3.2.0...HEAD
+[3.2.0]: https://github.com/WyattAu/ferro/compare/v3.1.0...v3.2.0
+[3.1.0]: https://github.com/WyattAu/ferro/compare/v3.0.0...v3.1.0
 [2.5.1]: https://github.com/WyattAu/ferro/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/WyattAu/ferro/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/WyattAu/ferro/compare/v2.3.0...v2.4.0

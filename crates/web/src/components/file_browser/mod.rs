@@ -108,7 +108,22 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         let next = match current {
             ViewMode::List => ViewMode::Grid,
             ViewMode::Grid => ViewMode::Graph,
-            ViewMode::Graph => ViewMode::DualPane,
+            ViewMode::Graph => {
+                // On mobile, skip DualPane - go back to List
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let width = web_sys::window()
+                        .map(|w| w.inner_width().unwrap_or_default().as_f64().unwrap_or(1024.0))
+                        .unwrap_or(1024.0);
+                    if width < 768.0 {
+                        ViewMode::List
+                    } else {
+                        ViewMode::DualPane
+                    }
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                ViewMode::DualPane
+            }
             ViewMode::DualPane => ViewMode::List,
         };
         set_view_mode.set(next);

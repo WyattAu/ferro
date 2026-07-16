@@ -90,6 +90,8 @@ pub fn PhotoEditor(
     let (image_loaded, set_image_loaded) = signal(false);
     let (img_width, set_img_width) = signal(0.0_f64);
     let (img_height, set_img_height) = signal(0.0_f64);
+    // Pinch-to-zoom state
+    let (zoom_level, _set_zoom_level) = signal(1.0_f64);
 
     let canvas_ref: NodeRef<leptos::html::Canvas> = NodeRef::new();
 
@@ -526,8 +528,8 @@ pub fn PhotoEditor(
                         />
                         <canvas
                             node_ref=canvas_ref
-                            style=canvas_style
-                            class="border border-[var(--border-default)] rounded"
+                            style=move || format!("{} transform: scale({});", canvas_style(), zoom_level.get())
+                            class="border border-[var(--border-default)] rounded touch-none"
                             on:mousedown=handle_canvas_mousedown
                             on:mousemove=handle_canvas_mousemove
                             on:mouseup=handle_canvas_mouseup

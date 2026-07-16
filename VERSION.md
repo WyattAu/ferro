@@ -1,8 +1,8 @@
 # Ferro Version Tracking
 
 ## Current Status
-- **Phase:** v3.1.0 Release Candidate
-- **Version:** 3.1.0-rc.2
+- **Phase:** v3.2.0 Release Candidate
+- **Version:** 3.2.0-rc.1
 - **Crates:** 46
 - **Tests:** 2500+ test functions passed, 0 failed, 0 clippy warnings
 - **E2E:** 14 Playwright spec files + DOM snapshot + screenshot infrastructure
@@ -12,8 +12,8 @@
 - **Mobile:** Tauri v2 iOS/Android: 12 mobile commands fully implemented (WebDAV sync, offline pinning, thumbnails, push notifications, connectivity monitoring, conflict resolution). Responsive frontend with touch gestures. Config persisted to disk.
 - **Web Frontend:** Leptos WASM frontend fully functional at /ui/ -- 165 DOM elements, 17 buttons, 3 inputs, 0 console errors. Verified across Desktop (1280x720), Mobile (390x844), Tablet (768x1024) viewports via Playwright.
 - **Static Serving:** Fixed --static-dir priority so WebDAV handler no longer intercepts root path. Server serves index.html at /, WASM/JS/CSS at /ui/*.
-- **Status:** v5.2 complete (Audit Cycle 14). ALL roadmap items DONE. 46 crates, 2500+ tests.
-- **Last Updated:** 2026-06-29 (Cycle 14+15: oCIS OIDC migration, security audit, server decomposition Phase 0)
+- **Status:** v3.2 complete (Feature Expansion). All roadmap items DONE. 46 crates, 2500+ tests.
+- **Last Updated:** 2026-07-16 (ZIP download, duplicate, file requests, QR sharing, groups, smart collections, workflows, transcoding, saved searches, admin compliance, remote wipe)
 
 ## Phase Progress
 | Phase | Status | Completion |
@@ -37,6 +37,21 @@
 | Sprint P: Ship It | Completed | 100% |
 
 ## Recently Completed
+
+### 2026-07-16: Feature Expansion — Batch 1
+
+**New Features:**
+- ZIP download (`POST /api/v1/zip-download`): Download multiple files as a single ZIP archive in one request
+- File duplication (`POST /api/v1/duplicate`): Server-side file duplication without re-uploading content
+- File requests (`POST/GET/DELETE /api/v1/file-requests`): Upload-only share links with message and expiration metadata
+- QR code sharing (`GET /api/v1/shares/:token/qr`): Generate QR codes for instant share link access from mobile devices
+- Group management (`POST/GET/PUT/DELETE /api/v1/groups`, `POST/DELETE /api/v1/groups/:id/members/:username`): Create and manage user groups with member add/remove operations
+- Smart collections (`POST/GET/PUT/DELETE /api/v1/smart-collections`, `GET /api/v1/smart-collections/:id/files`): Rule-based dynamic file groupings with auto-update support
+- Workflow automation (`POST/GET/PUT/DELETE /api/v1/workflows`, `POST /api/v1/workflows/:id/trigger`): Event-triggered workflows with conditions and actions
+- Video transcoding (`POST /api/v1/transcode`, `GET /api/v1/transcode/:id/status`, `GET /api/v1/transcode`): Server-side video format conversion via WASM workers with job status polling
+- Saved searches (`GET/POST /api/v1/saved-searches`, `GET/PUT/DELETE /api/v1/saved-searches/:id`): Persistent search queries with custom view presets (Default, Compact, Detailed, Media)
+- Admin compliance tools (`GET /api/v1/admin/compliance/summary`, `GET /api/v1/admin/compliance/data-retention`): WORM, retention policies, antivirus scanning, and DLP enforcement status and management
+- Remote wipe (`GET /api/v1/wipe-status`, `POST /api/v1/wipe-confirm`): Device-level data erasure for lost or compromised devices with confirmation flow
 
 ### 2026-05-31: Audit Cycle 4
 
@@ -247,6 +262,17 @@
 | **Web UI theming** | **Working (logo/color/title/favicon/custom CSS)** |
 | **SMTP email delivery** | **Working (lettre, STARTTLS, rustls, AUTH)** |
 | **ClamAV antivirus scanning** | **Working (clamd TCP INSTREAM, chunked streaming)** |
+| **ZIP download** | **Working (multi-file ZIP archive generation)** |
+| **File duplication** | **Working (server-side copy without re-upload)** |
+| **File requests** | **Working (upload-only share links with metadata)** |
+| **QR code sharing** | **Working (share link QR code generation)** |
+| **Group management** | **Working (CRUD with member add/remove)** |
+| **Smart collections** | **Working (rule-based dynamic groupings)** |
+| **Workflow automation** | **Working (event triggers, conditions, actions)** |
+| **Video transcoding** | **Working (WASM workers, job status polling)** |
+| **Saved searches** | **Working (persistent queries with view presets)** |
+| **Admin compliance tools** | **Working (WORM, retention, antivirus, DLP status)** |
+| **Remote wipe** | **Working (device-level data erasure)** |
 
 ## Crates Status
 | Crate | Tests | Status |
@@ -272,7 +298,7 @@
 | ferro-webdav-handler | 10 passing | Implemented |
 | ferro-benchmarks | 18 benchmark functions | Implemented |
 
-## Total Tests: 2184+ passed, 0 failed
+## Total Tests: 2200+ passed, 0 failed
 ## E2E Tests: 23 Playwright (11 spec files, 3 browsers)
 ## Property Tests: 4 (proptest)
 ## Fuzzing: 4 harnesses, 2.6M+ iterations, 0 crashes

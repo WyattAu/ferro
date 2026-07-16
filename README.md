@@ -331,9 +331,30 @@ See [docs/webdav.md](docs/webdav.md) for detailed client setup instructions.
 | `/api/download-url` | GET | Generate pre-signed download URL |
 | `/api/shares` | GET/POST | Share link management |
 | `/api/shares/:token` | DELETE | Delete share link |
+| `/api/shares/:token/qr` | GET | Generate QR code for share link |
 | `/s/:token` | GET | Public share download |
+| `/api/zip-download` | POST | Download multiple files as ZIP archive |
+| `/api/duplicate` | POST | Duplicate a file server-side |
+| `/api/file-requests` | POST | Create file request (upload-only share link) |
+| `/api/file-requests` | GET | List file requests |
+| `/api/file-requests/:id` | DELETE | Delete file request |
+| `/api/groups` | POST/GET/PUT/DELETE | User group management |
+| `/api/groups/:id/members/:username` | POST/DELETE | Add/remove group member |
+| `/api/smart-collections` | POST/GET/PUT/DELETE | Rule-based dynamic file collections |
+| `/api/smart-collections/:id/files` | GET | List files in smart collection |
+| `/api/workflows` | POST/GET/PUT/DELETE | Event-triggered workflow automation |
+| `/api/workflows/:id/trigger` | POST | Trigger a workflow manually |
+| `/api/transcode` | POST | Submit video for transcoding |
+| `/api/transcode/:id/status` | GET | Check transcode job status |
+| `/api/transcode` | GET | List transcode jobs |
+| `/api/saved-searches` | GET/POST | Saved search queries |
+| `/api/saved-searches/:id` | GET/PUT/DELETE | Manage a saved search |
 | `/api/audit` | GET | Audit log |
 | `/api/storage/stats` | GET | Storage statistics |
+| `/api/admin/compliance/summary` | GET | Compliance status summary (WORM, retention, antivirus, DLP) |
+| `/api/admin/compliance/data-retention` | GET | Data retention policy status and enforcement |
+| `/api/wipe-status` | GET | Remote wipe status for device |
+| `/api/wipe-confirm` | POST | Confirm and execute remote wipe |
 | `/api/snapshots` | GET/POST | Snapshot management |
 | `/api/snapshots/:id` | DELETE | Delete snapshot |
 | `/api/snapshots/:id/restore` | POST | Restore snapshot |

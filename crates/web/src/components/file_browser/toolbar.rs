@@ -30,6 +30,19 @@ pub fn Toolbar(
     let (show_preset_menu, set_show_preset_menu) = signal(false);
     let (active_preset, set_active_preset) = signal("Default".to_string());
     let (saved_views, set_saved_views) = signal(custom_view::load_custom_views());
+    let (show_mobile_tabs, set_show_mobile_tabs) = signal(false);
+
+    // Close mobile tabs menu when clicking outside
+    {
+        Effect::new(move |_| {
+            if show_mobile_tabs.get() {
+                let handle = window_event_listener(ev::click, move |_: ev::MouseEvent| {
+                    set_show_mobile_tabs.set(false);
+                });
+                on_cleanup(move || handle.remove());
+            }
+        });
+    }
 
     let apply_preset = move |preset: ViewPreset, ev: ev::MouseEvent| {
         ev.stop_propagation();
@@ -62,44 +75,79 @@ pub fn Toolbar(
 
                     {children()}
 
-                   <div class="flex items-center gap-1 sm:gap-2 flex-wrap justify-end shrink-0">
-                       <div class="flex items-center bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] rounded p-0.5">
+                    <div class="flex items-center gap-1 sm:gap-2 flex-wrap justify-end shrink-0 relative">
+                        // Mobile hamburger menu for tabs (hidden on sm+)
+                        <div class="sm:hidden relative">
+                            <button
+                                class="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                aria-label="Tab navigation"
+                                on:click=move |ev| { ev.stop_propagation(); set_show_mobile_tabs.update(|v| *v = !*v); }
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                            </button>
+                            {move || show_mobile_tabs.get().then(|| view! {
+                                <div class="absolute top-full left-0 mt-1 bg-[var(--bg-surface)] rounded-lg shadow-lg border border-[var(--border-default)] min-w-[160px] z-50">
+                                    {[
+                                        (BrowserTab::Files, t!("nav.files")),
+                                        (BrowserTab::Favorites, t!("nav.favorites")),
+                                        (BrowserTab::Recent, t!("nav.recent")),
+                                    ].into_iter().map(|(tab, label)| {
+                                        let tab_clone = tab;
+                                        let is_active = move || active_tab.get() == tab_clone;
+                                        view! {
+                                            <button
+                                                class=move || format!(
+                                                    "block w-full text-left px-3 py-2 text-sm font-mono transition-colors {}",
+                                                    if is_active() { "bg-[var(--accent-subtle)] text-[var(--accent)]" } else { "text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]" }
+                                                )
+                                                on:click=move |ev| { ev.stop_propagation(); switch_tab.run(tab); set_show_mobile_tabs.set(false); }
+                                            >
+                                                {label}
+                                            </button>
+                                        }
+                                    }).collect::<Vec<_>>()}
+                                </div>
+                            })}
+                        </div>
+
+                        // Desktop tab bar (hidden on mobile)
+                        <div class="hidden sm:flex items-center bg-[var(--bg-inset)] bg-[var(--bg-surface-raised)] rounded p-0.5">
+                            <button
+                                class=move || {
+                                    let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
+                                    let active = if active_tab.get() == BrowserTab::Files { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] dark:text-gray-100 shadow-sm border-b-2 border-b-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]" };
+                                    format!("{} {}", base, active)
+                                }
+                                 on:click=move |_| switch_tab.run(BrowserTab::Files)
+                                 aria-label=move || t!("nav.files")
+                            >
+                                {t!("nav.files")}
+                           </button>
                            <button
                                class=move || {
                                    let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
-                                   let active = if active_tab.get() == BrowserTab::Files { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] dark:text-gray-100 shadow-sm border-b-2 border-b-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]" };
+                                   let active = if active_tab.get() == BrowserTab::Favorites { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] dark:text-gray-100 shadow-sm border-b-2 border-b-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]" };
                                    format!("{} {}", base, active)
                                }
-                                on:click=move |_| switch_tab.run(BrowserTab::Files)
-                                aria-label=move || t!("nav.files")
-                           >
-                               {t!("nav.files")}
+                               on:click=move |_| switch_tab.run(BrowserTab::Favorites)
+                               aria-label=move || t!("nav.favorites")
+                          >
+                              {t!("nav.favorites")}
                           </button>
                           <button
                               class=move || {
-                                  let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
-                                  let active = if active_tab.get() == BrowserTab::Favorites { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] dark:text-gray-100 shadow-sm border-b-2 border-b-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]" };
-                                  format!("{} {}", base, active)
+                                   let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
+                                   let active = if active_tab.get() == BrowserTab::Recent { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] dark:text-gray-100 shadow-sm border-b-2 border-b-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]" };
+                                   format!("{} {}", base, active)
                               }
-                              on:click=move |_| switch_tab.run(BrowserTab::Favorites)
-                              aria-label=move || t!("nav.favorites")
+                              on:click=move |_| switch_tab.run(BrowserTab::Recent)
+                              aria-label=move || t!("nav.recent")
                          >
-                             <span class="hidden sm:inline">{t!("nav.favorites")}</span>
-                               <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-                         </button>
-                         <button
-                             class=move || {
-                                 let base = "px-2 sm:px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
-                                 let active = if active_tab.get() == BrowserTab::Recent { "bg-[var(--bg-surface)] dark:bg-[var(--text-tertiary)] text-[var(--text-primary)] dark:text-gray-100 shadow-sm border-b-2 border-b-[var(--accent)]" } else { "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]" };
-                                 format!("{} {}", base, active)
-                             }
-                             on:click=move |_| switch_tab.run(BrowserTab::Recent)
-                             aria-label=move || t!("nav.recent")
-                        >
-                             <span class="hidden sm:inline">{t!("nav.recent")}</span>
-                               <svg class="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                         </button>
-                     </div>
+                              {t!("nav.recent")}
+                          </button>
+                      </div>
 
                      {move || clipboard_state.has_files().then(|| {
                          let count = clipboard_state.file_count();
@@ -198,20 +246,23 @@ pub fn Toolbar(
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                               </svg>
                           </button>
-                          <button
-                              class=move || {
-                                  let base = "p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
-                                  let active = if view_mode.get() == ViewMode::DualPane { "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm" } else { "" };
-                                  format!("{} {}", base, active)
-                              }
-                              aria-label=move || if view_mode.get() == ViewMode::DualPane { "Dual pane active" } else { "Switch to dual pane" }
-                              title="Dual Pane Mode"
-                              on:click=move |_| set_view_mode.set(ViewMode::DualPane)
-                          >
-                              <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                              </svg>
-                          </button>
+                          // DualPane button - hidden on mobile
+                          <div class="hidden sm:block">
+                              <button
+                                  class=move || {
+                                       let base = "p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center";
+                                       let active = if view_mode.get() == ViewMode::DualPane { "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm" } else { "" };
+                                       format!("{} {}", base, active)
+                                  }
+                                  aria-label=move || if view_mode.get() == ViewMode::DualPane { "Dual pane active" } else { "Switch to dual pane" }
+                                  title="Dual Pane Mode"
+                                  on:click=move |_| set_view_mode.set(ViewMode::DualPane)
+                              >
+                                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                                  </svg>
+                              </button>
+                          </div>
                       </div>
 
                       // View preset selector
