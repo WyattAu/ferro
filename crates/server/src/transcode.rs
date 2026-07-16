@@ -199,10 +199,7 @@ fn transcode_store() -> &'static TranscodeStore {
 // ---------------------------------------------------------------------------
 
 /// POST /api/v1/transcode — Initiate a transcoding job.
-pub async fn start_transcode(
-    State(_state): State<AppState>,
-    Json(req): Json<TranscodeRequest>,
-) -> Response {
+pub async fn start_transcode(State(_state): State<AppState>, Json(req): Json<TranscodeRequest>) -> Response {
     let source = req.source_path.trim_start_matches('/').to_string();
     let source_path = std::path::PathBuf::from(&source);
 
@@ -236,10 +233,7 @@ pub async fn start_transcode(
     }
 
     let job_id = uuid::Uuid::new_v4().to_string();
-    let output_name = source_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("output");
+    let output_name = source_path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
     let output_dir = source_path.parent().unwrap_or(std::path::Path::new("/"));
     let output_path = output_dir
         .join(format!("{}.{}", output_name, req.target_format.extension()))
@@ -345,9 +339,7 @@ async fn execute_transcode(
     format: &TranscodeFormat,
     quality: &TranscodeQuality,
 ) {
-    store
-        .update_job(job_id, TranscodeStatus::Processing, 0.0, None)
-        .await;
+    store.update_job(job_id, TranscodeStatus::Processing, 0.0, None).await;
 
     let ffmpeg_path = which_ffmpeg().await;
     let ffmpeg = match ffmpeg_path {
@@ -389,16 +381,12 @@ async fn execute_transcode(
         cmd.arg("-c:a").arg("aac").arg("-b:a").arg("128k");
     }
 
-    store
-        .update_job(job_id, TranscodeStatus::Processing, 10.0, None)
-        .await;
+    store.update_job(job_id, TranscodeStatus::Processing, 10.0, None).await;
 
     match cmd.output().await {
         Ok(output) => {
             if output.status.success() {
-                store
-                    .update_job(job_id, TranscodeStatus::Completed, 100.0, None)
-                    .await;
+                store.update_job(job_id, TranscodeStatus::Completed, 100.0, None).await;
             } else {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let error_msg = if stderr.len() > 500 {
@@ -407,12 +395,7 @@ async fn execute_transcode(
                     stderr.to_string()
                 };
                 store
-                    .update_job(
-                        job_id,
-                        TranscodeStatus::Failed,
-                        0.0,
-                        Some(error_msg),
-                    )
+                    .update_job(job_id, TranscodeStatus::Failed, 0.0, Some(error_msg))
                     .await;
             }
         }
@@ -430,18 +413,10 @@ async fn execute_transcode(
 }
 
 async fn which_ffmpeg() -> Option<String> {
-    match tokio::process::Command::new("which")
-        .arg("ffmpeg")
-        .output()
-        .await
-    {
+    match tokio::process::Command::new("which").arg("ffmpeg").output().await {
         Ok(output) if output.status.success() => {
             let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if path.is_empty() {
-                None
-            } else {
-                Some(path)
-            }
+            if path.is_empty() { None } else { Some(path) }
         }
         _ => None,
     }

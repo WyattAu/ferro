@@ -217,10 +217,7 @@ pub async fn audit_summary(State(_state): State<AppState>) -> Response {
 }
 
 /// POST /api/v1/admin/compliance/export — Export compliance report.
-pub async fn export_compliance_report(
-    State(_state): State<AppState>,
-    Json(req): Json<ExportRequest>,
-) -> Response {
+pub async fn export_compliance_report(State(_state): State<AppState>, Json(req): Json<ExportRequest>) -> Response {
     let format = req.format.clone();
     let mut data = serde_json::json!({});
 

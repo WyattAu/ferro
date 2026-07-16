@@ -46,12 +46,27 @@ pub enum Condition {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Action {
-    Move { destination: String },
-    Copy { destination: String },
-    Rename { pattern: String },
-    Notify { message: String, channel: String },
-    Tag { tags: Vec<String> },
-    Webhook { url: String, method: String, headers: Option<serde_json::Value> },
+    Move {
+        destination: String,
+    },
+    Copy {
+        destination: String,
+    },
+    Rename {
+        pattern: String,
+    },
+    Notify {
+        message: String,
+        channel: String,
+    },
+    Tag {
+        tags: Vec<String>,
+    },
+    Webhook {
+        url: String,
+        method: String,
+        headers: Option<serde_json::Value>,
+    },
     Delete,
 }
 
@@ -192,11 +207,7 @@ impl WorkflowStore {
     pub async fn list_executions(&self, workflow_id: Option<&str>) -> Vec<WorkflowExecution> {
         let executions = self.executions.read().await;
         match workflow_id {
-            Some(id) => executions
-                .iter()
-                .filter(|e| e.workflow_id == id)
-                .cloned()
-                .collect(),
+            Some(id) => executions.iter().filter(|e| e.workflow_id == id).cloned().collect(),
             None => executions.iter().cloned().collect(),
         }
     }
@@ -283,9 +294,7 @@ pub async fn create_workflow(
     }
 }
 
-pub async fn get_workflow(
-    Path(id): Path<String>,
-) -> Response {
+pub async fn get_workflow(Path(id): Path<String>) -> Response {
     match workflow_store().get(&id).await {
         Some(workflow) => axum::Json(workflow).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
@@ -302,9 +311,7 @@ pub async fn update_workflow(
     }
 }
 
-pub async fn delete_workflow(
-    Path(id): Path<String>,
-) -> Response {
+pub async fn delete_workflow(Path(id): Path<String>) -> Response {
     if workflow_store().delete(&id).await {
         StatusCode::NO_CONTENT.into_response()
     } else {
@@ -317,9 +324,7 @@ pub async fn list_workflows() -> Response {
     axum::Json(workflows).into_response()
 }
 
-pub async fn trigger_workflow(
-    Path(id): Path<String>,
-) -> Response {
+pub async fn trigger_workflow(Path(id): Path<String>) -> Response {
     match workflow_store().get(&id).await {
         Some(workflow) => {
             let execution = WorkflowExecution {

@@ -9,9 +9,9 @@
 
 use crate::mobile::{MobileConflictStrategy, MobilePlatform, MobileSyncConfig};
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
-use std::io::Write;
 use tauri::Emitter;
 
 // -- Types --
@@ -939,11 +939,9 @@ pub async fn mobile_download_zip(paths: Vec<String>, output_path: String) -> Res
         std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create output dir: {}", e))?;
     }
 
-    let zip_file = std::fs::File::create(&output_path)
-        .map_err(|e| format!("Failed to create zip file: {}", e))?;
+    let zip_file = std::fs::File::create(&output_path).map_err(|e| format!("Failed to create zip file: {}", e))?;
     let mut zip = zip::ZipWriter::new(zip_file);
-    let options = zip::write::FileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+    let options = zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     for remote_path in &paths {
         let url = format!("{}{}", config.server_url.trim_end_matches('/'), remote_path);
@@ -973,8 +971,7 @@ pub async fn mobile_download_zip(paths: Vec<String>, output_path: String) -> Res
         file_count += 1;
     }
 
-    zip.finish()
-        .map_err(|e| format!("Failed to finalize zip: {}", e))?;
+    zip.finish().map_err(|e| format!("Failed to finalize zip: {}", e))?;
 
     Ok(ZipDownloadResult {
         zip_path: output_path,
@@ -1184,11 +1181,7 @@ pub async fn mobile_delete_group(group_id: String) -> Result<(), String> {
     let config = get_sync_config()?;
     let client = build_mobile_client(&config.auth_token)?;
 
-    let url = format!(
-        "{}/api/groups/{}",
-        config.server_url.trim_end_matches('/'),
-        group_id
-    );
+    let url = format!("{}/api/groups/{}", config.server_url.trim_end_matches('/'), group_id);
 
     let response = client
         .delete(&url)
@@ -1208,10 +1201,7 @@ pub async fn mobile_list_smart_collections() -> Result<Vec<SmartCollectionInfo>,
     let config = get_sync_config()?;
     let client = build_mobile_client(&config.auth_token)?;
 
-    let url = format!(
-        "{}/api/smart-collections",
-        config.server_url.trim_end_matches('/')
-    );
+    let url = format!("{}/api/smart-collections", config.server_url.trim_end_matches('/'));
 
     let response = client
         .get(&url)
@@ -1220,10 +1210,7 @@ pub async fn mobile_list_smart_collections() -> Result<Vec<SmartCollectionInfo>,
         .map_err(|e| format!("List smart collections failed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!(
-            "List smart collections failed: {}",
-            response.status()
-        ));
+        return Err(format!("List smart collections failed: {}", response.status()));
     }
 
     response
@@ -1245,10 +1232,7 @@ pub async fn mobile_create_smart_collection(
     let config = get_sync_config()?;
     let client = build_mobile_client(&config.auth_token)?;
 
-    let url = format!(
-        "{}/api/smart-collections",
-        config.server_url.trim_end_matches('/')
-    );
+    let url = format!("{}/api/smart-collections", config.server_url.trim_end_matches('/'));
 
     #[derive(Serialize)]
     struct CreateSmartCollectionRequest {
@@ -1269,10 +1253,7 @@ pub async fn mobile_create_smart_collection(
         .map_err(|e| format!("Create smart collection failed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!(
-            "Create smart collection failed: {}",
-            response.status()
-        ));
+        return Err(format!("Create smart collection failed: {}", response.status()));
     }
 
     response
@@ -1303,10 +1284,7 @@ pub async fn mobile_delete_smart_collection(collection_id: String) -> Result<(),
         .map_err(|e| format!("Delete smart collection failed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!(
-            "Delete smart collection failed: {}",
-            response.status()
-        ));
+        return Err(format!("Delete smart collection failed: {}", response.status()));
     }
 
     Ok(())
@@ -1683,22 +1661,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_mobile_download_zip_empty_output() {
-        let result = mobile_download_zip(
-            vec!["/file.txt".to_string()],
-            String::new(),
-        )
-        .await;
+        let result = mobile_download_zip(vec!["/file.txt".to_string()], String::new()).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_mobile_download_zip_no_sync() {
         teardown_test_state();
-        let result = mobile_download_zip(
-            vec!["/file.txt".to_string()],
-            "/tmp/out.zip".to_string(),
-        )
-        .await;
+        let result = mobile_download_zip(vec!["/file.txt".to_string()], "/tmp/out.zip".to_string()).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not configured"));
     }
@@ -1732,12 +1702,7 @@ mod tests {
     #[tokio::test]
     async fn test_mobile_create_file_request_no_sync() {
         teardown_test_state();
-        let result = mobile_create_file_request(
-            "/uploads".to_string(),
-            Some("Please upload".to_string()),
-            None,
-        )
-        .await;
+        let result = mobile_create_file_request("/uploads".to_string(), Some("Please upload".to_string()), None).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not configured"));
     }
@@ -1817,8 +1782,7 @@ mod tests {
     #[tokio::test]
     async fn test_mobile_create_smart_collection_no_sync() {
         teardown_test_state();
-        let result =
-            mobile_create_smart_collection("Media".to_string(), "{}".to_string(), true).await;
+        let result = mobile_create_smart_collection("Media".to_string(), "{}".to_string(), true).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not configured"));
     }

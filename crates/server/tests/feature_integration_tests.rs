@@ -3,11 +3,7 @@ use std::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
 fn random_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port()
+    TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
 }
 
 async fn start_server() -> (String, CancellationToken) {
@@ -34,12 +30,7 @@ async fn start_server() -> (String, CancellationToken) {
 async fn wait_for_server(base_url: &str) {
     let client = reqwest::Client::new();
     for _ in 0..50 {
-        if client
-            .get(format!("{}/healthz", base_url))
-            .send()
-            .await
-            .is_ok()
-        {
+        if client.get(format!("{}/healthz", base_url)).send().await.is_ok() {
             return;
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -81,9 +72,7 @@ async fn test_zip_download_single_file() {
 
     assert_eq!(resp.status(), 200);
     assert_eq!(
-        resp.headers()
-            .get("content-type")
-            .and_then(|v| v.to_str().ok()),
+        resp.headers().get("content-type").and_then(|v| v.to_str().ok()),
         Some("application/zip")
     );
     assert!(
@@ -119,9 +108,7 @@ async fn test_zip_download_multiple_files() {
 
     assert_eq!(resp.status(), 200);
     assert_eq!(
-        resp.headers()
-            .get("content-disposition")
-            .and_then(|v| v.to_str().ok()),
+        resp.headers().get("content-disposition").and_then(|v| v.to_str().ok()),
         Some("attachment; filename=\"download.zip\"")
     );
 
@@ -448,10 +435,7 @@ async fn test_delete_nonexistent_file_request_returns_404() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .delete(format!(
-            "{}/api/v1/file-requests/nonexistent-id",
-            base_url
-        ))
+        .delete(format!("{}/api/v1/file-requests/nonexistent-id", base_url))
         .send()
         .await
         .unwrap();
@@ -538,9 +522,7 @@ async fn test_qr_code_for_valid_share() {
 
     assert_eq!(resp.status(), 200);
     assert_eq!(
-        resp.headers()
-            .get("content-type")
-            .and_then(|v| v.to_str().ok()),
+        resp.headers().get("content-type").and_then(|v| v.to_str().ok()),
         Some("image/svg+xml")
     );
 
@@ -556,10 +538,7 @@ async fn test_qr_code_nonexistent_share_returns_404() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .get(format!(
-            "{}/api/v1/shares/fake-token/qr",
-            base_url
-        ))
+        .get(format!("{}/api/v1/shares/fake-token/qr", base_url))
         .send()
         .await
         .unwrap();
@@ -641,11 +620,7 @@ async fn test_list_groups() {
         .await
         .unwrap();
 
-    let resp = client
-        .get(format!("{}/api/v1/groups", base_url))
-        .send()
-        .await
-        .unwrap();
+    let resp = client.get(format!("{}/api/v1/groups", base_url)).send().await.unwrap();
 
     assert_eq!(resp.status(), 200);
     let body: serde_json::Value = resp.json().await.unwrap();
@@ -697,10 +672,7 @@ async fn test_add_remove_group_member() {
     let id = body["id"].as_str().unwrap().to_string();
 
     let resp = client
-        .post(format!(
-            "{}/api/v1/groups/{}/members/alice",
-            base_url, id
-        ))
+        .post(format!("{}/api/v1/groups/{}/members/alice", base_url, id))
         .send()
         .await
         .unwrap();
@@ -710,10 +682,7 @@ async fn test_add_remove_group_member() {
     assert!(members.contains(&serde_json::json!("alice")));
 
     let resp = client
-        .post(format!(
-            "{}/api/v1/groups/{}/members/bob",
-            base_url, id
-        ))
+        .post(format!("{}/api/v1/groups/{}/members/bob", base_url, id))
         .send()
         .await
         .unwrap();
@@ -723,10 +692,7 @@ async fn test_add_remove_group_member() {
     assert!(members.len() >= 2);
 
     let resp = client
-        .delete(format!(
-            "{}/api/v1/groups/{}/members/alice",
-            base_url, id
-        ))
+        .delete(format!("{}/api/v1/groups/{}/members/alice", base_url, id))
         .send()
         .await
         .unwrap();
@@ -837,8 +803,7 @@ async fn test_group_permissions_initial_members() {
 
 fn init_smart_collection_db() -> std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> {
     let conn = rusqlite::Connection::open_in_memory().unwrap();
-    let db: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> =
-        std::sync::Arc::new(std::sync::Mutex::new(conn));
+    let db: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> = std::sync::Arc::new(std::sync::Mutex::new(conn));
     let conn = db.lock().unwrap();
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS smart_collections (
@@ -858,8 +823,7 @@ fn init_smart_collection_db() -> std::sync::Arc<std::sync::Mutex<rusqlite::Conne
 #[test]
 fn test_smart_collection_store_create_and_list() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "All Images".to_string(),
         rules: vec![ferro_server_automation::smart_collections::CollectionRule::FileType {
@@ -879,8 +843,7 @@ fn test_smart_collection_store_create_and_list() {
 #[test]
 fn test_smart_collection_file_type_rule() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "Videos".to_string(),
         rules: vec![ferro_server_automation::smart_collections::CollectionRule::FileType {
@@ -897,8 +860,7 @@ fn test_smart_collection_file_type_rule() {
 #[test]
 fn test_smart_collection_tag_rule() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "Important Docs".to_string(),
         rules: vec![ferro_server_automation::smart_collections::CollectionRule::Tag {
@@ -913,8 +875,7 @@ fn test_smart_collection_tag_rule() {
 #[test]
 fn test_smart_collection_date_range_rule() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "2024 Files".to_string(),
         rules: vec![ferro_server_automation::smart_collections::CollectionRule::DateRange {
@@ -930,8 +891,7 @@ fn test_smart_collection_date_range_rule() {
 #[test]
 fn test_smart_collection_get_files_empty() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "All Files".to_string(),
         rules: vec![ferro_server_automation::smart_collections::CollectionRule::FileType {
@@ -947,8 +907,7 @@ fn test_smart_collection_get_files_empty() {
 #[test]
 fn test_smart_collection_empty_name_returns_error() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "".to_string(),
         rules: vec![ferro_server_automation::smart_collections::CollectionRule::FileType {
@@ -962,8 +921,7 @@ fn test_smart_collection_empty_name_returns_error() {
 #[test]
 fn test_smart_collection_no_rules_returns_error() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "Empty Rules".to_string(),
         rules: vec![],
@@ -975,8 +933,7 @@ fn test_smart_collection_no_rules_returns_error() {
 #[test]
 fn test_smart_collection_update() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "Original".to_string(),
         rules: vec![ferro_server_automation::smart_collections::CollectionRule::FileType {
@@ -996,8 +953,7 @@ fn test_smart_collection_update() {
 #[test]
 fn test_smart_collection_delete() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "Delete Me".to_string(),
         rules: vec![ferro_server_automation::smart_collections::CollectionRule::FileType {
@@ -1013,8 +969,7 @@ fn test_smart_collection_delete() {
 #[test]
 fn test_smart_collection_not_found() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     assert!(store.get("nonexistent").unwrap().is_none());
     assert!(!store.delete("nonexistent").unwrap());
 }
@@ -1022,8 +977,7 @@ fn test_smart_collection_not_found() {
 #[test]
 fn test_smart_collection_multiple_rules() {
     let db = init_smart_collection_db();
-    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new()
-        .with_db(db);
+    let store = ferro_server_automation::smart_collections::SmartCollectionStore::new().with_db(db);
     let req = ferro_server_automation::smart_collections::CreateSmartCollectionRequest {
         name: "Complex".to_string(),
         rules: vec![
@@ -1063,8 +1017,7 @@ fn test_smart_collection_rule_serde_roundtrip() {
         },
     ];
     let json = serde_json::to_string(&rules).unwrap();
-    let parsed: Vec<ferro_server_automation::smart_collections::CollectionRule> =
-        serde_json::from_str(&json).unwrap();
+    let parsed: Vec<ferro_server_automation::smart_collections::CollectionRule> = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.len(), 3);
 }
 
@@ -1203,10 +1156,7 @@ async fn test_delete_nonexistent_trigger_returns_404() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .delete(format!(
-            "{}/api/admin/triggers/nonexistent",
-            base_url
-        ))
+        .delete(format!("{}/api/admin/triggers/nonexistent", base_url))
         .send()
         .await
         .unwrap();
@@ -1310,10 +1260,7 @@ async fn test_compliance_data_retention_status() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .get(format!(
-            "{}/api/v1/admin/compliance/data-retention",
-            base_url
-        ))
+        .get(format!("{}/api/v1/admin/compliance/data-retention", base_url))
         .send()
         .await
         .unwrap();
@@ -1369,10 +1316,7 @@ async fn test_compliance_audit_summary() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .get(format!(
-            "{}/api/v1/admin/compliance/audit-summary",
-            base_url
-        ))
+        .get(format!("{}/api/v1/admin/compliance/audit-summary", base_url))
         .send()
         .await
         .unwrap();
@@ -1516,7 +1460,12 @@ async fn test_transcode_store_update_status() {
     store.create_job(job).await;
 
     store
-        .update_job("job-2", ferro_server::transcode::TranscodeStatus::Processing, 50.0, None)
+        .update_job(
+            "job-2",
+            ferro_server::transcode::TranscodeStatus::Processing,
+            50.0,
+            None,
+        )
         .await;
     let updated = store.get_job("job-2").await.unwrap();
     assert_eq!(updated.status, ferro_server::transcode::TranscodeStatus::Processing);
@@ -1524,7 +1473,12 @@ async fn test_transcode_store_update_status() {
     assert!(updated.completed_at.is_none());
 
     store
-        .update_job("job-2", ferro_server::transcode::TranscodeStatus::Completed, 100.0, None)
+        .update_job(
+            "job-2",
+            ferro_server::transcode::TranscodeStatus::Completed,
+            100.0,
+            None,
+        )
         .await;
     let completed = store.get_job("job-2").await.unwrap();
     assert_eq!(completed.status, ferro_server::transcode::TranscodeStatus::Completed);
@@ -1626,16 +1580,28 @@ async fn test_transcode_format_extensions() {
 #[tokio::test]
 async fn test_transcode_format_codecs() {
     assert_eq!(ferro_server::transcode::TranscodeFormat::Mp4.ffmpeg_codec(), "libx264");
-    assert_eq!(ferro_server::transcode::TranscodeFormat::Webm.ffmpeg_codec(), "libvpx-vp9");
+    assert_eq!(
+        ferro_server::transcode::TranscodeFormat::Webm.ffmpeg_codec(),
+        "libvpx-vp9"
+    );
     assert_eq!(ferro_server::transcode::TranscodeFormat::Mov.ffmpeg_codec(), "libx264");
     assert_eq!(ferro_server::transcode::TranscodeFormat::Avi.ffmpeg_codec(), "libx264");
 }
 
 #[tokio::test]
 async fn test_transcode_quality_params() {
-    assert_eq!(ferro_server::transcode::TranscodeQuality::Low.scale_filter(), "scale=-2:480");
-    assert_eq!(ferro_server::transcode::TranscodeQuality::Medium.scale_filter(), "scale=-2:720");
-    assert_eq!(ferro_server::transcode::TranscodeQuality::High.scale_filter(), "scale=-2:1080");
+    assert_eq!(
+        ferro_server::transcode::TranscodeQuality::Low.scale_filter(),
+        "scale=-2:480"
+    );
+    assert_eq!(
+        ferro_server::transcode::TranscodeQuality::Medium.scale_filter(),
+        "scale=-2:720"
+    );
+    assert_eq!(
+        ferro_server::transcode::TranscodeQuality::High.scale_filter(),
+        "scale=-2:1080"
+    );
 
     assert_eq!(ferro_server::transcode::TranscodeQuality::Low.crf_value(), "28");
     assert_eq!(ferro_server::transcode::TranscodeQuality::Medium.crf_value(), "23");
@@ -1711,9 +1677,7 @@ async fn test_zip_download_with_share_and_qr() {
         .unwrap();
     assert_eq!(resp.status(), 200);
     assert_eq!(
-        resp.headers()
-            .get("content-type")
-            .and_then(|v| v.to_str().ok()),
+        resp.headers().get("content-type").and_then(|v| v.to_str().ok()),
         Some("image/svg+xml")
     );
 

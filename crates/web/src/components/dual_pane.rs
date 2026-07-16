@@ -41,10 +41,7 @@ impl DualPaneState {
 }
 
 #[component]
-pub fn DualPane(
-    initial_left: Option<String>,
-    initial_right: Option<String>,
-) -> impl IntoView {
+pub fn DualPane(initial_left: Option<String>, initial_right: Option<String>) -> impl IntoView {
     let (state, set_state) = signal(DualPaneState {
         left_path: initial_left.unwrap_or_else(|| "/".to_string()),
         right_path: initial_right.unwrap_or_else(|| "/".to_string()),

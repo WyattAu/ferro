@@ -192,10 +192,7 @@ impl ForceGraph {
 }
 
 #[component]
-pub fn GraphView(
-    entries: Vec<api::FileEntry>,
-    on_open_file: Callback<String>,
-) -> impl IntoView {
+pub fn GraphView(entries: Vec<api::FileEntry>, on_open_file: Callback<String>) -> impl IntoView {
     let (graph, set_graph) = signal(ForceGraph::new(800.0, 600.0));
     let (search_filter, set_search_filter) = signal(String::new());
     let (type_filter, set_type_filter) = signal(Option::<NodeType>::None);

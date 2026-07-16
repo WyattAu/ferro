@@ -1,8 +1,8 @@
 use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 use crate::api;
 
@@ -75,11 +75,7 @@ fn apply_edit(state: &mut EditState, action: &EditAction) {
 }
 
 #[component]
-pub fn PhotoEditor(
-    src: String,
-    file_path: String,
-    on_close: Callback<()>,
-) -> impl IntoView {
+pub fn PhotoEditor(src: String, file_path: String, on_close: Callback<()>) -> impl IntoView {
     let (edit_state, set_edit_state) = signal(EditState::default());
     let (_undo_stack, set_undo_stack) = signal(Vec::<EditState>::new());
     let (_redo_stack, set_redo_stack) = signal(Vec::<EditState>::new());
@@ -167,11 +163,7 @@ pub fn PhotoEditor(
                 }
                 if !filter_parts.is_empty() {
                     let filter_str = filter_parts.join(" ");
-                    let _ = js_sys::Reflect::set(
-                        ctx.as_ref(),
-                        &"filter".into(),
-                        &filter_str.into(),
-                    );
+                    let _ = js_sys::Reflect::set(ctx.as_ref(), &"filter".into(), &filter_str.into());
                 }
 
                 if let Some(ref crop) = state.crop {
@@ -190,11 +182,10 @@ pub fn PhotoEditor(
                         if let Ok(Some(off_ctx_obj)) = off.get_context("2d")
                             && let Ok(off_ctx) = off_ctx_obj.dyn_into::<web_sys::CanvasRenderingContext2d>()
                         {
-                            let _ = off_ctx.draw_image_with_html_canvas_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
-                                &canvas,
-                                src_x, src_y, src_w, src_h,
-                                0.0, 0.0, w, h,
-                            );
+                            let _ = off_ctx
+                                .draw_image_with_html_canvas_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
+                                    &canvas, src_x, src_y, src_w, src_h, 0.0, 0.0, w, h,
+                                );
                             let _ = ctx.draw_image_with_html_canvas_element(&off, 0.0, 0.0);
                         }
                     }
@@ -231,23 +222,24 @@ pub fn PhotoEditor(
         if show_crop.get()
             && let Some(canvas) = canvas_ref.get()
         {
-                let rect = canvas.get_bounding_client_rect();
-                let x = ev.client_x() as f64 - rect.left();
-                let y = ev.client_y() as f64 - rect.top();
-                set_crop_start.set(Some((x, y)));
-                set_crop_end.set(Some((x, y)));
-            }
+            let rect = canvas.get_bounding_client_rect();
+            let x = ev.client_x() as f64 - rect.left();
+            let y = ev.client_y() as f64 - rect.top();
+            set_crop_start.set(Some((x, y)));
+            set_crop_end.set(Some((x, y)));
+        }
     };
 
     let handle_canvas_mousemove = move |ev: ev::MouseEvent| {
-        if show_crop.get() && crop_start.get().is_some()
+        if show_crop.get()
+            && crop_start.get().is_some()
             && let Some(canvas) = canvas_ref.get()
         {
-                let rect = canvas.get_bounding_client_rect();
-                let x = ev.client_x() as f64 - rect.left();
-                let y = ev.client_y() as f64 - rect.top();
-                set_crop_end.set(Some((x, y)));
-            }
+            let rect = canvas.get_bounding_client_rect();
+            let x = ev.client_x() as f64 - rect.left();
+            let y = ev.client_y() as f64 - rect.top();
+            set_crop_end.set(Some((x, y)));
+        }
     };
 
     let handle_canvas_mouseup = move |_: ev::MouseEvent| {
@@ -259,7 +251,10 @@ pub fn PhotoEditor(
                 let h = (end.1 - start.1).abs();
                 if w > 5.0 && h > 5.0 {
                     do_edit(EditAction::ApplyCrop(CropRect {
-                        x, y, width: w, height: h,
+                        x,
+                        y,
+                        width: w,
+                        height: h,
                     }));
                 }
             }
@@ -322,15 +317,15 @@ pub fn PhotoEditor(
         if let (Some(start), Some(end)) = (crop_start.get(), crop_end.get())
             && show_crop.get()
         {
-                let x = start.0.min(end.0);
-                let y = start.1.min(end.1);
-                let w = (end.0 - start.0).abs();
-                let h = (end.1 - start.1).abs();
-                return format!(
-                    "position:absolute; left:{}px; top:{}px; width:{}px; height:{}px; border:2px dashed #3b82f6; background:rgba(59,130,246,0.1); pointer-events:none;",
-                    x, y, w, h
-                );
-            }
+            let x = start.0.min(end.0);
+            let y = start.1.min(end.1);
+            let w = (end.0 - start.0).abs();
+            let h = (end.1 - start.1).abs();
+            return format!(
+                "position:absolute; left:{}px; top:{}px; width:{}px; height:{}px; border:2px dashed #3b82f6; background:rgba(59,130,246,0.1); pointer-events:none;",
+                x, y, w, h
+            );
+        }
         "display:none;".to_string()
     };
 

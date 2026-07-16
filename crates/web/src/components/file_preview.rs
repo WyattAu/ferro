@@ -8,8 +8,27 @@ use crate::components::focus_trap::FocusTrap;
 use crate::t;
 
 const TEXT_EXTENSIONS: &[&str] = &[
-    "txt", "md", "json", "xml", "toml", "yaml", "yml", "csv", "rs", "py", "js", "ts", "html",
-    "css", "sh", "log", "cfg", "ini", "env", "gitignore", "editorconfig",
+    "txt",
+    "md",
+    "json",
+    "xml",
+    "toml",
+    "yaml",
+    "yml",
+    "csv",
+    "rs",
+    "py",
+    "js",
+    "ts",
+    "html",
+    "css",
+    "sh",
+    "log",
+    "cfg",
+    "ini",
+    "env",
+    "gitignore",
+    "editorconfig",
 ];
 
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"];

@@ -339,7 +339,9 @@ async fn post_json_text(url: &str, body: &str, opts: &web_sys::RequestInit) -> R
     opts.set_method("POST");
     let headers = web_sys::Headers::new().map_err(|e| js_err("Headers creation failed", &e))?;
     with_auth_headers(&headers);
-    headers.set("Content-Type", "application/json").map_err(|e| js_err("Headers set Content-Type", &e))?;
+    headers
+        .set("Content-Type", "application/json")
+        .map_err(|e| js_err("Headers set Content-Type", &e))?;
     opts.set_headers(&headers);
     opts.set_body(&wasm_bindgen::JsValue::from_str(body));
 
@@ -1529,10 +1531,7 @@ pub async fn list_transcode_jobs() -> Result<TranscodeJobsResponse, String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn list_transcode_jobs() -> Result<TranscodeJobsResponse, String> {
-    Ok(TranscodeJobsResponse {
-        jobs: vec![],
-        total: 0,
-    })
+    Ok(TranscodeJobsResponse { jobs: vec![], total: 0 })
 }
 
 // ---------------------------------------------------------------------------
@@ -1582,10 +1581,8 @@ pub async fn create_smart_collection(req: &CreateSmartCollectionRequest) -> Resu
     let body = serde_json::to_string(req).map_err(|e| format!("Serialize failed: {}", e))?;
     let opts = make_opts_with_auth("POST");
     let text = post_json_text("/api/smart-collections", &body, &opts).await?;
-    let resp: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
-    serde_json::from_value(resp["collection"].clone())
-        .map_err(|e| format!("JSON parse failed: {}", e))
+    let resp: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))?;
+    serde_json::from_value(resp["collection"].clone()).map_err(|e| format!("JSON parse failed: {}", e))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1615,8 +1612,8 @@ pub async fn delete_smart_collection(id: &str) -> Result<(), String> {
     } else {
         url.clone()
     };
-    let req = web_sys::Request::new_with_str_and_init(&full_url, &opts)
-        .map_err(|e| js_err("Request creation failed", &e))?;
+    let req =
+        web_sys::Request::new_with_str_and_init(&full_url, &opts).map_err(|e| js_err("Request creation failed", &e))?;
     let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&req))
         .await
         .map_err(|e| js_err("Fetch failed", &e))?

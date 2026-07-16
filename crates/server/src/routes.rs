@@ -18,6 +18,7 @@ use crate::calendar_api;
 use crate::chat_api;
 use crate::collab_ws;
 use crate::comments;
+use crate::compliance_api;
 use crate::config;
 use crate::contacts_api;
 use crate::dashboard;
@@ -68,11 +69,9 @@ use crate::sync;
 use crate::tags;
 use crate::tasks_api;
 use crate::tenant_rate_limit_api;
-use crate::transcode;
-use crate::compliance_api;
-use ferro_server_automation::smart_collections;
 use crate::thumbnails;
 use crate::totp_api;
+use crate::transcode;
 use crate::trash;
 use crate::upload;
 use crate::user_api;
@@ -88,6 +87,7 @@ use crate::workers;
 use crate::worm;
 use crate::ws;
 use crate::zip_download;
+use ferro_server_automation::smart_collections;
 
 use crate::{audit_handler, health_check, health_endpoint, liveness, readiness, startup, storage_stats};
 
@@ -739,10 +739,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             "/transcode",
             axum::routing::post(transcode::start_transcode).get(transcode::list_transcode_jobs),
         )
-        .route(
-            "/transcode/:id/status",
-            axum::routing::get(transcode::transcode_status),
-        )
+        .route("/transcode/:id/status", axum::routing::get(transcode::transcode_status))
         // Whiteboard endpoints
         .route(
             "/whiteboard",
@@ -830,10 +827,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             "/admin/compliance/worm",
             axum::routing::get(compliance_api::worm_status),
         )
-        .route(
-            "/admin/compliance/dlp",
-            axum::routing::get(compliance_api::dlp_summary),
-        )
+        .route("/admin/compliance/dlp", axum::routing::get(compliance_api::dlp_summary))
         .route(
             "/admin/compliance/audit-summary",
             axum::routing::get(compliance_api::audit_summary),

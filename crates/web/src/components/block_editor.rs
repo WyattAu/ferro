@@ -4,51 +4,92 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum BlockType {
-    Paragraph, Heading1, Heading2, Heading3, Heading4, Heading5, Heading6,
-    BulletList, NumberedList, Todo, Code, Quote, Divider, Image, Table,
+    Paragraph,
+    Heading1,
+    Heading2,
+    Heading3,
+    Heading4,
+    Heading5,
+    Heading6,
+    BulletList,
+    NumberedList,
+    Todo,
+    Code,
+    Quote,
+    Divider,
+    Image,
+    Table,
 }
 
 impl BlockType {
     fn from_shortcut(s: &str) -> Option<Self> {
         match s {
-            "# " => Some(Self::Heading1), "## " => Some(Self::Heading2),
-            "### " => Some(Self::Heading3), "#### " => Some(Self::Heading4),
-            "##### " => Some(Self::Heading5), "###### " => Some(Self::Heading6),
-            "- " | "* " => Some(Self::BulletList), "1. " => Some(Self::NumberedList),
-            "[] " => Some(Self::Todo), "> " => Some(Self::Quote),
-            "---" => Some(Self::Divider), "```" => Some(Self::Code),
+            "# " => Some(Self::Heading1),
+            "## " => Some(Self::Heading2),
+            "### " => Some(Self::Heading3),
+            "#### " => Some(Self::Heading4),
+            "##### " => Some(Self::Heading5),
+            "###### " => Some(Self::Heading6),
+            "- " | "* " => Some(Self::BulletList),
+            "1. " => Some(Self::NumberedList),
+            "[] " => Some(Self::Todo),
+            "> " => Some(Self::Quote),
+            "---" => Some(Self::Divider),
+            "```" => Some(Self::Code),
             _ => None,
         }
     }
     fn label(&self) -> &str {
         match self {
-            Self::Paragraph => "Paragraph", Self::Heading1 => "Heading 1",
-            Self::Heading2 => "Heading 2", Self::Heading3 => "Heading 3",
-            Self::Heading4 => "Heading 4", Self::Heading5 => "Heading 5",
-            Self::Heading6 => "Heading 6", Self::BulletList => "Bullet List",
-            Self::NumberedList => "Numbered List", Self::Todo => "Todo / Checkbox",
-            Self::Code => "Code Block", Self::Quote => "Quote",
-            Self::Divider => "Divider", Self::Image => "Image", Self::Table => "Table",
+            Self::Paragraph => "Paragraph",
+            Self::Heading1 => "Heading 1",
+            Self::Heading2 => "Heading 2",
+            Self::Heading3 => "Heading 3",
+            Self::Heading4 => "Heading 4",
+            Self::Heading5 => "Heading 5",
+            Self::Heading6 => "Heading 6",
+            Self::BulletList => "Bullet List",
+            Self::NumberedList => "Numbered List",
+            Self::Todo => "Todo / Checkbox",
+            Self::Code => "Code Block",
+            Self::Quote => "Quote",
+            Self::Divider => "Divider",
+            Self::Image => "Image",
+            Self::Table => "Table",
         }
     }
     fn placeholder(&self) -> &str {
         match self {
             Self::Paragraph => "Type '/' for commands...",
-            Self::Heading1 | Self::Heading2 | Self::Heading3
-            | Self::Heading4 | Self::Heading5 | Self::Heading6 => "Heading",
+            Self::Heading1 | Self::Heading2 | Self::Heading3 | Self::Heading4 | Self::Heading5 | Self::Heading6 => {
+                "Heading"
+            }
             Self::BulletList | Self::NumberedList => "List item",
-            Self::Todo => "To-do", Self::Code => "Code",
-            Self::Quote => "Quote", Self::Divider => "",
-            Self::Image => "Paste image URL or drag & drop", Self::Table => "Table",
+            Self::Todo => "To-do",
+            Self::Code => "Code",
+            Self::Quote => "Quote",
+            Self::Divider => "",
+            Self::Image => "Paste image URL or drag & drop",
+            Self::Table => "Table",
         }
     }
     fn icon(&self) -> &str {
         match self {
-            Self::Paragraph => "¶", Self::Heading1 => "H1", Self::Heading2 => "H2",
-            Self::Heading3 => "H3", Self::Heading4 => "H4", Self::Heading5 => "H5",
-            Self::Heading6 => "H6", Self::BulletList => "•", Self::NumberedList => "1.",
-            Self::Todo => "☐", Self::Code => "<>", Self::Quote => "❝",
-            Self::Divider => "—", Self::Image => "🖼", Self::Table => "⊞",
+            Self::Paragraph => "¶",
+            Self::Heading1 => "H1",
+            Self::Heading2 => "H2",
+            Self::Heading3 => "H3",
+            Self::Heading4 => "H4",
+            Self::Heading5 => "H5",
+            Self::Heading6 => "H6",
+            Self::BulletList => "•",
+            Self::NumberedList => "1.",
+            Self::Todo => "☐",
+            Self::Code => "<>",
+            Self::Quote => "❝",
+            Self::Divider => "—",
+            Self::Image => "🖼",
+            Self::Table => "⊞",
         }
     }
 }
@@ -64,16 +105,30 @@ pub struct Block {
 
 impl Block {
     fn new(block_type: BlockType) -> Self {
-        Self { id: uuid::Uuid::new_v4().to_string(), block_type, content: String::new(), checked: false, meta: serde_json::Value::Null }
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            block_type,
+            content: String::new(),
+            checked: false,
+            meta: serde_json::Value::Null,
+        }
     }
 }
 
-fn blocks_to_json(blocks: &[Block]) -> String { serde_json::to_string_pretty(blocks).unwrap_or_default() }
-fn json_to_blocks(json: &str) -> Vec<Block> { serde_json::from_str(json).unwrap_or_default() }
+fn blocks_to_json(blocks: &[Block]) -> String {
+    serde_json::to_string_pretty(blocks).unwrap_or_default()
+}
+fn json_to_blocks(json: &str) -> Vec<Block> {
+    serde_json::from_str(json).unwrap_or_default()
+}
 
 #[component]
 pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] readonly: bool) -> impl IntoView {
-    let (blocks, set_blocks) = signal(if initial_content.is_empty() { vec![Block::new(BlockType::Paragraph)] } else { json_to_blocks(&initial_content) });
+    let (blocks, set_blocks) = signal(if initial_content.is_empty() {
+        vec![Block::new(BlockType::Paragraph)]
+    } else {
+        json_to_blocks(&initial_content)
+    });
     let (active_block_id, set_active_block_id) = signal(blocks.get().first().map(|b| b.id.clone()).unwrap_or_default());
     let (show_slash_menu, set_show_slash_menu) = signal(false);
     let (slash_filter, set_slash_filter) = signal(String::new());
@@ -82,15 +137,30 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
     let (_show_mobile_toolbar, _set_show_mobile_toolbar) = signal(false);
 
     let all_block_types = vec![
-        BlockType::Paragraph, BlockType::Heading1, BlockType::Heading2, BlockType::Heading3,
-        BlockType::Heading4, BlockType::Heading5, BlockType::Heading6, BlockType::BulletList,
-        BlockType::NumberedList, BlockType::Todo, BlockType::Code, BlockType::Quote,
-        BlockType::Divider, BlockType::Image, BlockType::Table,
+        BlockType::Paragraph,
+        BlockType::Heading1,
+        BlockType::Heading2,
+        BlockType::Heading3,
+        BlockType::Heading4,
+        BlockType::Heading5,
+        BlockType::Heading6,
+        BlockType::BulletList,
+        BlockType::NumberedList,
+        BlockType::Todo,
+        BlockType::Code,
+        BlockType::Quote,
+        BlockType::Divider,
+        BlockType::Image,
+        BlockType::Table,
     ];
 
     let filtered_types = move || {
         let filter = slash_filter.get().to_lowercase();
-        all_block_types.iter().filter(|bt| bt.label().to_lowercase().contains(&filter)).cloned().collect::<Vec<_>>()
+        all_block_types
+            .iter()
+            .filter(|bt| bt.label().to_lowercase().contains(&filter))
+            .cloned()
+            .collect::<Vec<_>>()
     };
 
     let render_block = move |block: Block| {
@@ -103,11 +173,32 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
         let bid3 = block_id.clone();
         let is_drag_over = Memo::new(move |_| drag_over_id.get() == Some(bid3.clone()));
         let bid4 = block_id.clone();
-        let content_signal = Memo::new(move |_| blocks.get().iter().find(|b| b.id == bid4).map(|b| b.content.clone()).unwrap_or_default());
+        let content_signal = Memo::new(move |_| {
+            blocks
+                .get()
+                .iter()
+                .find(|b| b.id == bid4)
+                .map(|b| b.content.clone())
+                .unwrap_or_default()
+        });
         let bid5 = block_id.clone();
-        let checked_signal = Memo::new(move |_| blocks.get().iter().find(|b| b.id == bid5).map(|b| b.checked).unwrap_or(false));
+        let checked_signal = Memo::new(move |_| {
+            blocks
+                .get()
+                .iter()
+                .find(|b| b.id == bid5)
+                .map(|b| b.checked)
+                .unwrap_or(false)
+        });
         let bid6 = block_id.clone();
-        let block_type_signal = Memo::new(move |_| blocks.get().iter().find(|b| b.id == bid6).map(|b| b.block_type.clone()).unwrap_or(BlockType::Paragraph));
+        let block_type_signal = Memo::new(move |_| {
+            blocks
+                .get()
+                .iter()
+                .find(|b| b.id == bid6)
+                .map(|b| b.block_type.clone())
+                .unwrap_or(BlockType::Paragraph)
+        });
         let bid7 = block_id.clone();
         let bid_signal = Memo::new(move |_| bid7.clone());
 
@@ -393,16 +484,32 @@ pub fn BlockEditor(#[prop(optional)] initial_content: String, #[prop(optional)] 
 }
 
 fn detect_shortcut(content: &str) -> Option<BlockType> {
-    let shortcuts = ["###### ", "##### ", "#### ", "### ", "## ", "# ", "- ", "* ", "1. ", "[] ", "> ", "```", "---"];
-    for s in shortcuts { if content == s || content.starts_with(s) { return BlockType::from_shortcut(s); } }
+    let shortcuts = [
+        "###### ", "##### ", "#### ", "### ", "## ", "# ", "- ", "* ", "1. ", "[] ", "> ", "```", "---",
+    ];
+    for s in shortcuts {
+        if content == s || content.starts_with(s) {
+            return BlockType::from_shortcut(s);
+        }
+    }
     None
 }
 
 fn strip_shortcut_prefix(content: &str) -> String {
-    let prefixes = ["###### ", "##### ", "#### ", "### ", "## ", "# ", "- ", "* ", "1. ", "[] ", "> ", "```", "---"];
-    for p in prefixes { if let Some(stripped) = content.strip_prefix(p) { return stripped.to_string(); } }
+    let prefixes = [
+        "###### ", "##### ", "#### ", "### ", "## ", "# ", "- ", "* ", "1. ", "[] ", "> ", "```", "---",
+    ];
+    for p in prefixes {
+        if let Some(stripped) = content.strip_prefix(p) {
+            return stripped.to_string();
+        }
+    }
     content.to_string()
 }
 
-pub fn serialize_blocks(blocks: &[Block]) -> String { blocks_to_json(blocks) }
-pub fn deserialize_blocks(json: &str) -> Vec<Block> { json_to_blocks(json) }
+pub fn serialize_blocks(blocks: &[Block]) -> String {
+    blocks_to_json(blocks)
+}
+pub fn deserialize_blocks(json: &str) -> Vec<Block> {
+    json_to_blocks(json)
+}

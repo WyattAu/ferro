@@ -1,7 +1,7 @@
+use axum::Json;
 use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -132,8 +132,7 @@ impl SmartCollectionStore {
         let rows = stmt
             .query_map([], |row| {
                 let rules_str: String = row.get(2)?;
-                let rules: Vec<CollectionRule> =
-                    serde_json::from_str(&rules_str).unwrap_or_default();
+                let rules: Vec<CollectionRule> = serde_json::from_str(&rules_str).unwrap_or_default();
                 let auto_update: i32 = row.get(3)?;
                 Ok(SmartCollection {
                     id: row.get(0)?,
@@ -161,8 +160,7 @@ impl SmartCollectionStore {
         let mut rows = stmt
             .query_map(params![id], |row| {
                 let rules_str: String = row.get(2)?;
-                let rules: Vec<CollectionRule> =
-                    serde_json::from_str(&rules_str).unwrap_or_default();
+                let rules: Vec<CollectionRule> = serde_json::from_str(&rules_str).unwrap_or_default();
                 let auto_update: i32 = row.get(3)?;
                 Ok(SmartCollection {
                     id: row.get(0)?,
@@ -192,8 +190,7 @@ impl SmartCollectionStore {
 
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
-        let rules_str =
-            serde_json::to_string(&req.rules).map_err(|e| format!("Invalid rules: {}", e))?;
+        let rules_str = serde_json::to_string(&req.rules).map_err(|e| format!("Invalid rules: {}", e))?;
 
         let conn = db.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
@@ -219,11 +216,7 @@ impl SmartCollectionStore {
         })
     }
 
-    pub fn update(
-        &self,
-        id: &str,
-        req: &UpdateSmartCollectionRequest,
-    ) -> Result<Option<SmartCollection>, String> {
+    pub fn update(&self, id: &str, req: &UpdateSmartCollectionRequest) -> Result<Option<SmartCollection>, String> {
         let Some(db) = &self.db else {
             return Err("Database not available".to_string());
         };
@@ -285,9 +278,7 @@ impl SmartCollectionStore {
 // ---------------------------------------------------------------------------
 
 /// POST /api/v1/smart-collections — Create a smart collection.
-pub async fn create_smart_collection(
-    Json(req): Json<CreateSmartCollectionRequest>,
-) -> Response {
+pub async fn create_smart_collection(Json(req): Json<CreateSmartCollectionRequest>) -> Response {
     let store = smart_collection_store();
     match store.create(&req) {
         Ok(collection) => (
@@ -483,7 +474,12 @@ mod tests {
     fn test_smart_collection_store_create_empty_name() {
         let db = init_db();
         let store = SmartCollectionStore::new().with_db(db);
-        let req = make_request("", vec![CollectionRule::FileType { mime_pattern: "*".to_string() }]);
+        let req = make_request(
+            "",
+            vec![CollectionRule::FileType {
+                mime_pattern: "*".to_string(),
+            }],
+        );
         assert!(store.create(&req).is_err());
     }
 
