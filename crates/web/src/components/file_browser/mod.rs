@@ -42,6 +42,7 @@ use crate::components::theme_toggle::use_theme_state;
 use crate::components::toast::ToastContext;
 use crate::components::upload_dialog::UploadDialog;
 use crate::components::version_history::VersionHistory;
+use crate::utils::device::use_is_mobile;
 
 #[component]
 pub fn FileBrowser(initial_path: String) -> impl IntoView {
@@ -103,6 +104,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     });
 
+    let is_mobile = use_is_mobile();
+
     let _toggle_view_mode = move |_: ev::MouseEvent| {
         let current = view_mode.get();
         let next = match current {
@@ -110,19 +113,11 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             ViewMode::Grid => ViewMode::Graph,
             ViewMode::Graph => {
                 // On mobile, skip DualPane - go back to List
-                #[cfg(target_arch = "wasm32")]
-                {
-                    let width = web_sys::window()
-                        .map(|w| w.inner_width().unwrap_or_default().as_f64().unwrap_or(1024.0))
-                        .unwrap_or(1024.0);
-                    if width < 768.0 {
-                        ViewMode::List
-                    } else {
-                        ViewMode::DualPane
-                    }
+                if is_mobile.get() {
+                    ViewMode::List
+                } else {
+                    ViewMode::DualPane
                 }
-                #[cfg(not(target_arch = "wasm32"))]
-                ViewMode::DualPane
             }
             ViewMode::DualPane => ViewMode::List,
         };

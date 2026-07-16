@@ -1,6 +1,9 @@
 use leptos::ev;
 use leptos::prelude::*;
+use std::cell::RefCell;
+use std::rc::Rc;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SlideshowInterval {
@@ -196,6 +199,74 @@ pub fn Slideshow(images: Vec<SlideshowImage>, initial_index: usize, on_close: Ca
         }
     });
 
+    // Swipe gesture on the main image area
+    let main_area_ref: NodeRef<leptos::html::Div> = NodeRef::new();
+    {
+        let swipe_state = Rc::new(RefCell::new((0.0_f64, 0.0_f64, false)));
+
+        let state_clone = swipe_state.clone();
+        let on_pointerdown = Rc::new(Closure::<dyn FnMut(web_sys::PointerEvent)>::new(
+            move |ev: web_sys::PointerEvent| {
+                let mut state = state_clone.borrow_mut();
+                state.0 = ev.client_x() as f64;
+                state.1 = ev.client_y() as f64;
+                state.2 = true;
+            },
+        ));
+
+        let state_clone = swipe_state.clone();
+        let set_idx = set_current_index;
+        let read_idx = current_index;
+        let total = total_images;
+        let on_pointerup = Rc::new(Closure::<dyn FnMut(web_sys::PointerEvent)>::new(
+            move |ev: web_sys::PointerEvent| {
+                let mut state = state_clone.borrow_mut();
+                if state.2 {
+                    state.2 = false;
+                    let start_x = state.0;
+                    let start_y = state.1;
+                    drop(state);
+                    let x = ev.client_x() as f64;
+                    let y = ev.client_y() as f64;
+                    let dx = x - start_x;
+                    let dy = y - start_y;
+                    if dx.abs() > 50.0 || dy.abs() > 50.0 {
+                        let is_left = dx.abs() > dy.abs() && dx < -50.0;
+                        let is_right = dx.abs() > dy.abs() && dx > 50.0;
+                        let idx = read_idx.get();
+                        if is_left {
+                            if idx + 1 < total {
+                                set_idx.set(idx + 1);
+                            } else {
+                                set_idx.set(0);
+                            }
+                        } else if is_right {
+                            if idx > 0 {
+                                set_idx.set(idx - 1);
+                            } else {
+                                set_idx.set(total - 1);
+                            }
+                        }
+                    }
+                }
+            },
+        ));
+
+        let element_for_cleanup = main_area_ref;
+        let pd_clone = on_pointerdown.clone();
+        let pu_clone = on_pointerup.clone();
+
+        Effect::new(move |_| {
+            let element = match element_for_cleanup.get() {
+                Some(e) => e,
+                None => return None,
+            };
+            let _ = element.add_event_listener_with_callback("pointerdown", (*pd_clone).as_ref().unchecked_ref());
+            let _ = element.add_event_listener_with_callback("pointerup", (*pu_clone).as_ref().unchecked_ref());
+            None::<()>
+        });
+    }
+
     // Keyboard event listener
     Effect::new(move |_| {
         let handle = window_event_listener(ev::keydown, handle_keydown);
@@ -209,7 +280,10 @@ pub fn Slideshow(images: Vec<SlideshowImage>, initial_index: usize, on_close: Ca
             on:mouseleave=move |_| set_show_controls.set(false)
         >
             // Main image area
-            <div class="flex-1 relative flex items-center justify-center overflow-hidden">
+            <div
+                node_ref=main_area_ref
+                class="flex-1 relative flex items-center justify-center overflow-hidden touch-none"
+            >
                 {move || {
                     let image = get_current_image();
                     image.map(|img| {

@@ -1,3 +1,6 @@
+pub mod device;
+pub mod touch_gestures;
+
 pub fn percent_encode(s: &str) -> String {
     s.chars()
         .flat_map(|c| match c {

@@ -6,6 +6,7 @@ use leptos::task::spawn_local;
 use crate::api;
 use crate::components::file_browser::FileBrowser;
 use crate::components::toast::ToastContext;
+use crate::utils::device::use_is_mobile;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Pane {
@@ -87,20 +88,7 @@ pub fn DualPane(initial_left: Option<String>, initial_right: Option<String>) -> 
         });
     };
 
-    // On mobile, detect screen width and show stacked layout
-    let _is_mobile = {
-        #[cfg(target_arch = "wasm32")]
-        {
-            let width = web_sys::window()
-                .map(|w| w.inner_width().unwrap_or_default().as_f64().unwrap_or(1024.0))
-                .unwrap_or(1024.0);
-            width < 768.0
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            false
-        }
-    };
+    let _is_mobile = use_is_mobile();
 
     let copy_path_to_other = move |from: Pane| {
         let path = match from {

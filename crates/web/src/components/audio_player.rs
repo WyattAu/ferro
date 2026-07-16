@@ -18,6 +18,91 @@ pub enum RepeatMode {
     One,
 }
 
+#[cfg(target_arch = "wasm32")]
+fn setup_media_session(
+    audio_ref: &NodeRef<leptos::html::Audio>,
+    track: Option<&AudioTrack>,
+    is_playing: bool,
+    current_time: f64,
+    duration: f64,
+    on_play: impl Fn() + Clone + 'static,
+    on_pause: impl Fn() + Clone + 'static,
+    on_prev: impl Fn() + Clone + 'static,
+    on_next: impl Fn() + Clone + 'static,
+) {
+    use web_sys::MediaSessionAction;
+
+    let window = match web_sys::window() {
+        Some(w) => w,
+        None => return,
+    };
+    let nav = match window.navigator().media_session() {
+        Ok(ms) => ms,
+        Err(_) => return,
+    };
+
+    if let Some(track) = track {
+        let metadata = web_sys::MediaMetadata::new().unwrap_or_default();
+        let _ = metadata.set_title(&track.name);
+        if let Some(ref artist) = track.artist {
+            let _ = metadata.set_artist(artist);
+        }
+        if let Some(ref album) = track.album {
+            let _ = metadata.set_album(album);
+        }
+        nav.set_metadata(Some(&metadata)).ok();
+    }
+
+    let state = if is_playing {
+        web_sys::MediaSessionPlaybackState::Playing
+    } else {
+        web_sys::MediaSessionPlaybackState::Paused
+    };
+    nav.set_playback_state(state).ok();
+
+    if let Some(audio) = audio_ref.get() {
+        let mut pos_state = web_sys::MediaPositionState::new().unwrap_or_default();
+        pos_state.set_position(current_time);
+        pos_state.set_playback_rate(1.0);
+        pos_state.set_duration(duration);
+        let _ = nav.set_position_state(&pos_state);
+    }
+
+    let on_play_cb = on_play.clone();
+    let play_handler = Closure::<dyn FnMut()>::new(move || {
+        on_play_cb();
+    });
+    let _ = nav.set_action_handler(MediaSessionAction::Play, Some(play_handler.as_ref().unchecked_ref()));
+    play_handler.forget();
+
+    let on_pause_cb = on_pause.clone();
+    let pause_handler = Closure::<dyn FnMut()>::new(move || {
+        on_pause_cb();
+    });
+    let _ = nav.set_action_handler(MediaSessionAction::Pause, Some(pause_handler.as_ref().unchecked_ref()));
+    pause_handler.forget();
+
+    let on_prev_cb = on_prev.clone();
+    let prev_handler = Closure::<dyn FnMut()>::new(move || {
+        on_prev_cb();
+    });
+    let _ = nav.set_action_handler(
+        MediaSessionAction::Prevtrack,
+        Some(prev_handler.as_ref().unchecked_ref()),
+    );
+    prev_handler.forget();
+
+    let on_next_cb = on_next.clone();
+    let next_handler = Closure::<dyn FnMut()>::new(move || {
+        on_next_cb();
+    });
+    let _ = nav.set_action_handler(
+        MediaSessionAction::Nexttrack,
+        Some(next_handler.as_ref().unchecked_ref()),
+    );
+    next_handler.forget();
+}
+
 #[component]
 pub fn AudioPlayer() -> impl IntoView {
     let (is_playing, set_is_playing) = signal(false);
@@ -117,6 +202,63 @@ pub fn AudioPlayer() -> impl IntoView {
     let handle_pause = move |_: ev::Event| {
         set_is_playing.set(false);
     };
+
+    #[cfg(target_arch = "wasm32")]
+    Effect::new(move |_| {
+        let track = current_track();
+        let playing = is_playing.get();
+        let time = current_time.get();
+        let dur = duration.get();
+        let audio_ref_clone = audio_ref.clone();
+
+        let toggle_play_clone = move || {
+            if let Some(audio) = audio_ref_clone.get() {
+                if audio.paused() {
+                    let _ = audio.play();
+                } else {
+                    let _ = audio.pause();
+                }
+            }
+        };
+
+        let play_prev_clone = {
+            let q = queue.get();
+            let idx = current_index.get();
+            let mode = repeat_mode.get();
+            move || {
+                if idx > 0 {
+                    set_current_index.set(idx - 1);
+                } else if mode == RepeatMode::All && !q.is_empty() {
+                    set_current_index.set(q.len() - 1);
+                }
+            }
+        };
+
+        let play_next_clone = {
+            let q = queue.get();
+            let idx = current_index.get();
+            let mode = repeat_mode.get();
+            move || {
+                if idx + 1 < q.len() {
+                    set_current_index.set(idx + 1);
+                } else if mode == RepeatMode::All && !q.is_empty() {
+                    set_current_index.set(0);
+                }
+            }
+        };
+
+        setup_media_session(
+            &audio_ref,
+            track.as_ref(),
+            playing,
+            time,
+            dur,
+            toggle_play_clone,
+            move || {},
+            play_prev_clone,
+            play_next_clone,
+        );
+    });
 
     let play_track = move |index: usize, _: ev::MouseEvent| {
         set_current_index.set(index);
