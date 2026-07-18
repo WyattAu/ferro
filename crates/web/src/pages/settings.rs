@@ -232,11 +232,11 @@ pub fn SettingsPage() -> impl IntoView {
                                         <legend class="block text-label font-mono text-[var(--text-secondary)] mb-2">{t!("settings.default_view_label")}</legend>
                                         <div class="flex items-center gap-4">
                                             <label class="flex items-center gap-2 cursor-pointer">
-                                                <input type="radio" name="view_mode" value="list" prop:checked=move || prefs.with(|p| p.view_mode == "list") on:change=on_view_mode_change class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
+                                                <input type="radio" name="view_mode" value="list" prop:checked=move || prefs.with(|p| p.view_mode == "list") on:change=on_view_mode_change aria-label="List view" class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
                                                 <span class="text-sm text-[var(--text-secondary)]">{t!("settings.view_list")}</span>
                                             </label>
                                             <label class="flex items-center gap-2 cursor-pointer">
-                                                <input type="radio" name="view_mode" value="grid" prop:checked=move || prefs.with(|p| p.view_mode == "grid") on:change=on_view_mode_change class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
+                                                <input type="radio" name="view_mode" value="grid" prop:checked=move || prefs.with(|p| p.view_mode == "grid") on:change=on_view_mode_change aria-label="Grid view" class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
                                                 <span class="text-sm text-[var(--text-secondary)]">{t!("settings.view_grid")}</span>
                                             </label>
                                         </div>
@@ -313,6 +313,7 @@ pub fn SettingsPage() -> impl IntoView {
                                                     <button
                                                         role="switch"
                                                         aria-checked=move || email_val.get()
+                                                        aria-label=move || format!("{} email notifications", label_text)
                                                         class=move || format!("relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] {}", if email_val.get() { "bg-[var(--accent)]" } else { "bg-[var(--border-subtle)] dark:bg-[var(--text-tertiary)]" })
                                                         on:click=move |_| set_email.set(!email_val.get())
                                                     >
@@ -323,6 +324,7 @@ pub fn SettingsPage() -> impl IntoView {
                                                     <button
                                                         role="switch"
                                                         aria-checked=move || push_val.get()
+                                                        aria-label=move || format!("{} push notifications", label_text)
                                                         class=move || format!("relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] {}", if push_val.get() { "bg-[var(--accent)]" } else { "bg-[var(--border-subtle)] dark:bg-[var(--text-tertiary)]" })
                                                         on:click=move |_| set_push.set(!push_val.get())
                                                     >
@@ -348,15 +350,15 @@ pub fn SettingsPage() -> impl IntoView {
                                         <legend class="block text-label font-mono text-[var(--text-secondary)] mb-2">{t!("settings.theme_label")}</legend>
                                         <div class="flex items-center gap-4">
                                             <label class="flex items-center gap-2 cursor-pointer">
-                                                <input type="radio" name="theme" value="light" prop:checked=move || !dark_mode.get() on:change=move |ev| { on_theme_change(ev); } class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
+                                                <input type="radio" name="theme" value="light" prop:checked=move || !dark_mode.get() on:change=move |ev| { on_theme_change(ev); } aria-label="Light theme" class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
                                                 <span class="text-sm text-[var(--text-secondary)]">{t!("settings.theme_light")}</span>
                                             </label>
                                             <label class="flex items-center gap-2 cursor-pointer">
-                                                <input type="radio" name="theme" value="dark" prop:checked=move || dark_mode.get() on:change=move |ev| { on_theme_change(ev); } class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
+                                                <input type="radio" name="theme" value="dark" prop:checked=move || dark_mode.get() on:change=move |ev| { on_theme_change(ev); } aria-label="Dark theme" class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
                                                 <span class="text-sm text-[var(--text-secondary)]">{t!("settings.theme_dark")}</span>
                                             </label>
                                             <label class="flex items-center gap-2 cursor-pointer">
-                                                <input type="radio" name="theme" value="system" prop:checked=move || prefs.with(|p| p.theme == "system") on:change=move |ev| { on_theme_change(ev); } class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
+                                                <input type="radio" name="theme" value="system" prop:checked=move || prefs.with(|p| p.theme == "system") on:change=move |ev| { on_theme_change(ev); } aria-label="System theme" class="text-[var(--accent)] focus:ring-[var(--border-focus)]" />
                                                 <span class="text-sm text-[var(--text-secondary)]">{t!("settings.theme_system")}</span>
                                             </label>
                                         </div>
