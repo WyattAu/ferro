@@ -393,6 +393,7 @@ pub fn SettingsPage() -> impl IntoView {
                                         <button
                                             role="switch"
                                             aria-checked=move || offline_enabled.get()
+                                            aria-label="Offline mode"
                                             class=move || format!("relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] {}", if offline_enabled.get() { "bg-[var(--accent)]" } else { "bg-[var(--border-subtle)] dark:bg-[var(--text-tertiary)]" })
                                             on:click=move |_| set_offline_enabled.set(!offline_enabled.get())
                                         >
