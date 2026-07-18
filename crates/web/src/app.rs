@@ -112,28 +112,29 @@ pub fn App() -> impl IntoView {
     view! {
         <ErrorBoundary>
             <ProvideToastContext>
-                <Router base="/ui/".to_string()>
+                <Router>
                     <Routes fallback=|| t!("common.not_found")>
                         <Route path=path!("/") view=RootView />
-                        <Route path=path!("/dashboard") view=DashboardPage />
-                        <Route path=path!("/files/") view=RootView />
-                        <Route path=path!("/files/*path") view=FileViewRoute />
-                        <Route path=path!("/trash") view=TrashPage />
-                        <Route path=path!("/settings") view=SettingsPage />
-                        <Route path=path!("/admin") view=AdminPage />
-                        <Route path=path!("/calendar") view=CalendarPage />
-                        <Route path=path!("/contacts") view=ContactsPage />
-                        <Route path=path!("/notes") view=NotesPage />
-                        <Route path=path!("/tasks") view=TasksPage />
-                        <Route path=path!("/chat") view=ChatPage />
-                        <Route path=path!("/chat/*room_id") view=ChatPage />
-                        <Route path=path!("/photos") view=PhotosPage />
-                        <Route path=path!("/mail") view=MailPage />
-                        <Route path=path!("/whiteboard") view=WhiteboardPage />
-                        <Route path=path!("/whiteboard/:id") view=WhiteboardPage />
-                        <Route path=path!("/analytics") view=AnalyticsPage />
-                        <Route path=path!("/auth/callback") view=AuthCallbackPage />
-                        <Route path=path!("/auth/login") view=LoginPage />
+                        <Route path=path!("/ui/") view=RootView />
+                        <Route path=path!("/ui/dashboard") view=DashboardPage />
+                        <Route path=path!("/ui/files/") view=RootView />
+                        <Route path=path!("/ui/files/*path") view=FileViewRoute />
+                        <Route path=path!("/ui/trash") view=TrashPage />
+                        <Route path=path!("/ui/settings") view=SettingsPage />
+                        <Route path=path!("/ui/admin") view=AdminPage />
+                        <Route path=path!("/ui/calendar") view=CalendarPage />
+                        <Route path=path!("/ui/contacts") view=ContactsPage />
+                        <Route path=path!("/ui/notes") view=NotesPage />
+                        <Route path=path!("/ui/tasks") view=TasksPage />
+                        <Route path=path!("/ui/chat") view=ChatPage />
+                        <Route path=path!("/ui/chat/*room_id") view=ChatPage />
+                        <Route path=path!("/ui/photos") view=PhotosPage />
+                        <Route path=path!("/ui/mail") view=MailPage />
+                        <Route path=path!("/ui/whiteboard") view=WhiteboardPage />
+                        <Route path=path!("/ui/whiteboard/:id") view=WhiteboardPage />
+                        <Route path=path!("/ui/analytics") view=AnalyticsPage />
+                        <Route path=path!("/ui/auth/callback") view=AuthCallbackPage />
+                        <Route path=path!("/ui/auth/login") view=LoginPage />
                     </Routes>
                 </Router>
             </ProvideToastContext>
