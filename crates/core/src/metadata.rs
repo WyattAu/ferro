@@ -1,9 +1,7 @@
 use async_trait::async_trait;
+use dashmap::DashMap;
 use ferro_common::error::{FerroError, Result};
 use ferro_common::metadata::FileMetadata;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::debug;
 
 /// Trait for storing and retrieving file metadata.
@@ -16,10 +14,10 @@ pub trait MetadataStore: Send + Sync {
     async fn exists(&self, path: &str) -> Result<bool>;
 }
 
-/// In-memory metadata store backed by a hash map.
-#[derive(Debug)]
+/// In-memory metadata store backed by a DashMap for lock-free concurrent access.
+#[derive(Debug, Default)]
 pub struct InMemoryMetadataStore {
-    data: Arc<RwLock<HashMap<String, FileMetadata>>>,
+    data: DashMap<String, FileMetadata>,
 }
 
 impl InMemoryMetadataStore {
@@ -27,49 +25,44 @@ impl InMemoryMetadataStore {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            data: Arc::new(RwLock::new(HashMap::new())),
+            data: DashMap::new(),
         }
-    }
-}
-
-impl Default for InMemoryMetadataStore {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
 #[async_trait]
 impl MetadataStore for InMemoryMetadataStore {
     async fn get(&self, path: &str) -> Result<FileMetadata> {
-        let data = self.data.read().await;
-        data.get(path)
-            .cloned()
+        self.data
+            .get(path)
+            .map(|entry| entry.value().clone())
             .ok_or_else(|| FerroError::NotFound(path.to_string()))
     }
 
     async fn put(&self, metadata: FileMetadata) -> Result<()> {
-        let mut data = self.data.write().await;
         debug!("META PUT: {}", metadata.path);
-        data.insert(metadata.path.clone(), metadata);
+        self.data.insert(metadata.path.clone(), metadata);
         Ok(())
     }
 
     async fn delete(&self, path: &str) -> Result<()> {
-        let mut data = self.data.write().await;
-        data.remove(path)
+        self.data
+            .remove(path)
             .ok_or_else(|| FerroError::NotFound(path.to_string()))?;
         debug!("META DELETE: {}", path);
         Ok(())
     }
 
     async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>> {
-        let data = self.data.read().await;
-        Ok(data.values().filter(|m| m.path.starts_with(prefix)).cloned().collect())
+        Ok(self.data
+            .iter()
+            .filter(|m| m.value().path.starts_with(prefix))
+            .map(|m| m.value().clone())
+            .collect())
     }
 
     async fn exists(&self, path: &str) -> Result<bool> {
-        let data = self.data.read().await;
-        Ok(data.contains_key(path))
+        Ok(self.data.contains_key(path))
     }
 }
 
