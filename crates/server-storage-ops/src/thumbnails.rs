@@ -266,4 +266,108 @@ mod tests {
         assert_eq!(key1, key2);
         assert_ne!(key1, key3);
     }
+
+    #[tokio::test]
+    async fn test_generate_jpeg_thumbnail() {
+        let service = ThumbnailService::new("/tmp/ferro-thumb-test", 128);
+        let img = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            10,
+            10,
+            image::Rgb([255, 0, 0]),
+        ));
+        let mut buf = Vec::new();
+        let mut cursor = std::io::Cursor::new(&mut buf);
+        img.write_to(&mut cursor, image::ImageFormat::Jpeg).unwrap();
+        let content = Bytes::from(buf);
+
+        let (mime, thumb) = service
+            .get_or_generate("/test.jpg", "image/jpeg", content)
+            .await;
+        assert_eq!(mime, "image/jpeg");
+        assert!(!thumb.is_empty());
+
+        let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test").await;
+    }
+
+    #[tokio::test]
+    async fn test_non_image_returns_icon() {
+        let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test2").await;
+        let service = ThumbnailService::new("/tmp/ferro-thumb-test2", 128);
+        let content = Bytes::from("not an image");
+
+        let (mime, thumb) = service
+            .get_or_generate("/test.txt", "text/plain", content)
+            .await;
+        assert_eq!(mime, "image/svg+xml");
+        assert!(!thumb.is_empty());
+
+        let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test2").await;
+    }
+
+    #[tokio::test]
+    async fn test_cache_hit() {
+        let service = ThumbnailService::new("/tmp/ferro-thumb-test3", 64);
+        let img = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            5,
+            5,
+            image::Rgb([0, 0, 255]),
+        ));
+        let mut buf = Vec::new();
+        let mut cursor = std::io::Cursor::new(&mut buf);
+        img.write_to(&mut cursor, image::ImageFormat::Png).unwrap();
+        let content = Bytes::from(buf);
+
+        let (_, t1) = service
+            .get_or_generate("/cached.png", "image/png", content.clone())
+            .await;
+        let (_, t2) = service
+            .get_or_generate("/cached.png", "image/png", content)
+            .await;
+        assert_eq!(t1, t2);
+
+        let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test3").await;
+    }
+
+    #[tokio::test]
+    async fn test_generate_pdf_thumbnail() {
+        let service = ThumbnailService::new("/tmp/ferro-thumb-test4", 128);
+        let minimal_pdf = Bytes::from_static(
+            br#"%PDF-1.0
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>
+endobj
+xref
+0 4
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+trailer
+<< /Size 4 /Root 1 0 R >>
+startxref
+186
+%%EOF"#,
+        );
+
+        let (mime, thumb) = service
+            .get_or_generate("/test.pdf", "application/pdf", minimal_pdf)
+            .await;
+        assert_eq!(mime, "image/svg+xml");
+        let svg = String::from_utf8(thumb.to_vec()).unwrap();
+        assert!(svg.contains("PDF"), "SVG should contain 'PDF': {}", svg);
+        assert!(
+            svg.contains("1 pages"),
+            "SVG should contain '1 pages': {}",
+            svg
+        );
+        assert!(svg.contains("KB"), "SVG should contain file size: {}", svg);
+
+        let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test4").await;
+    }
 }
