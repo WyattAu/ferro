@@ -999,7 +999,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     "open_folder" => {
                         let state = app.state::<DesktopState>();
                         let config = state.config.clone();
-                        tokio::spawn(async move {
+                        tauri::async_runtime::spawn(async move {
                             let config = config.read().await;
                             let mount_point = config.mount_point.display().to_string();
                             drop(config);
@@ -1017,7 +1017,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                         use tauri_plugin_notification::NotificationExt;
                         use tauri_plugin_updater::UpdaterExt;
                         let handle = app.clone();
-                        tokio::spawn(async move {
+                        tauri::async_runtime::spawn(async move {
                             let current_version = handle.package_info().version.to_string();
                             let updater = match handle.updater() {
                                 Ok(u) => u,
@@ -1070,7 +1070,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     "sync_now" => {
                         use tauri::Manager;
                         let handle = app.clone();
-                        tokio::spawn(async move {
+                        tauri::async_runtime::spawn(async move {
                             let state = handle.state::<DesktopState>();
                             if let Err(e) = state.sync_now().await {
                                 tracing::error!("manual sync failed: {}", e);
@@ -1084,7 +1084,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                         let state = app.state::<DesktopState>();
                         state.pause_sync();
                         let handle = app.clone();
-                        tokio::spawn(async move {
+                        tauri::async_runtime::spawn(async move {
                             let _ = cmd_update_tray_tooltip(handle.clone(), handle.state()).await;
                         });
                     }
@@ -1093,7 +1093,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                         let state = app.state::<DesktopState>();
                         state.resume_sync();
                         let handle = app.clone();
-                        tokio::spawn(async move {
+                        tauri::async_runtime::spawn(async move {
                             let _ = cmd_update_tray_tooltip(handle.clone(), handle.state()).await;
                         });
                     }
@@ -1127,7 +1127,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             {
                 use tauri::Manager;
                 let handle = app.handle().clone();
-                tokio::spawn(async move {
+                tauri::async_runtime::spawn(async move {
                     let state = handle.state::<DesktopState>();
                     let config = state.config.read().await;
                     let should_start =
@@ -1146,30 +1146,22 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             // Auto-check for updates on startup (5s delay)
             {
                 use tauri::Manager;
+                use tauri_plugin_updater::UpdaterExt;
                 let handle = app.handle().clone();
-                tokio::spawn(async move {
+                tauri::async_runtime::spawn(async move {
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                    use tauri_plugin_updater::UpdaterExt;
-                    if let Ok(updater) = handle.updater() {
-                        match updater.check().await {
-                            Ok(Some(update)) => {
+                    // Wrap entire updater check in catch to prevent crashes
+                    let _ = async {
+                        if let Ok(updater) = handle.updater() {
+                            if let Ok(Some(update)) = updater.check().await {
                                 let version = update.version.clone();
                                 tracing::info!("Startup update check: {} available", version);
                                 if let Some(window) = handle.get_webview_window("main") {
                                     let _ = window.emit("update-available", &version);
                                 }
-                                if let Some(tray) = handle.tray_by_id("main") {
-                                    let _ = tray.set_tooltip(Some(&format!("Ferro - Update Available: v{}", version)));
-                                }
-                            }
-                            Ok(None) => {
-                                tracing::info!("Startup update check: up to date");
-                            }
-                            Err(e) => {
-                                tracing::debug!("Startup update check failed: {}", e);
                             }
                         }
-                    }
+                    }.await;
                 });
             }
 
