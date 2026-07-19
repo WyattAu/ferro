@@ -24,9 +24,7 @@ impl InMemoryMetadataStore {
     /// Create a new empty in-memory metadata store.
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            data: DashMap::new(),
-        }
+        Self { data: DashMap::new() }
     }
 }
 
@@ -54,7 +52,8 @@ impl MetadataStore for InMemoryMetadataStore {
     }
 
     async fn list(&self, prefix: &str) -> Result<Vec<FileMetadata>> {
-        Ok(self.data
+        Ok(self
+            .data
             .iter()
             .filter(|m| m.value().path.starts_with(prefix))
             .map(|m| m.value().clone())

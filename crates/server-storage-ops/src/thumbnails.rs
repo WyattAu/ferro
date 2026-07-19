@@ -270,19 +270,13 @@ mod tests {
     #[tokio::test]
     async fn test_generate_jpeg_thumbnail() {
         let service = ThumbnailService::new("/tmp/ferro-thumb-test", 128);
-        let img = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
-            10,
-            10,
-            image::Rgb([255, 0, 0]),
-        ));
+        let img = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(10, 10, image::Rgb([255, 0, 0])));
         let mut buf = Vec::new();
         let mut cursor = std::io::Cursor::new(&mut buf);
         img.write_to(&mut cursor, image::ImageFormat::Jpeg).unwrap();
         let content = Bytes::from(buf);
 
-        let (mime, thumb) = service
-            .get_or_generate("/test.jpg", "image/jpeg", content)
-            .await;
+        let (mime, thumb) = service.get_or_generate("/test.jpg", "image/jpeg", content).await;
         assert_eq!(mime, "image/jpeg");
         assert!(!thumb.is_empty());
 
@@ -295,9 +289,7 @@ mod tests {
         let service = ThumbnailService::new("/tmp/ferro-thumb-test2", 128);
         let content = Bytes::from("not an image");
 
-        let (mime, thumb) = service
-            .get_or_generate("/test.txt", "text/plain", content)
-            .await;
+        let (mime, thumb) = service.get_or_generate("/test.txt", "text/plain", content).await;
         assert_eq!(mime, "image/svg+xml");
         assert!(!thumb.is_empty());
 
@@ -307,11 +299,7 @@ mod tests {
     #[tokio::test]
     async fn test_cache_hit() {
         let service = ThumbnailService::new("/tmp/ferro-thumb-test3", 64);
-        let img = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
-            5,
-            5,
-            image::Rgb([0, 0, 255]),
-        ));
+        let img = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(5, 5, image::Rgb([0, 0, 255])));
         let mut buf = Vec::new();
         let mut cursor = std::io::Cursor::new(&mut buf);
         img.write_to(&mut cursor, image::ImageFormat::Png).unwrap();
@@ -320,9 +308,7 @@ mod tests {
         let (_, t1) = service
             .get_or_generate("/cached.png", "image/png", content.clone())
             .await;
-        let (_, t2) = service
-            .get_or_generate("/cached.png", "image/png", content)
-            .await;
+        let (_, t2) = service.get_or_generate("/cached.png", "image/png", content).await;
         assert_eq!(t1, t2);
 
         let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test3").await;
@@ -361,11 +347,7 @@ startxref
         assert_eq!(mime, "image/svg+xml");
         let svg = String::from_utf8(thumb.to_vec()).unwrap();
         assert!(svg.contains("PDF"), "SVG should contain 'PDF': {}", svg);
-        assert!(
-            svg.contains("1 pages"),
-            "SVG should contain '1 pages': {}",
-            svg
-        );
+        assert!(svg.contains("1 pages"), "SVG should contain '1 pages': {}", svg);
         assert!(svg.contains("KB"), "SVG should contain file size: {}", svg);
 
         let _ = tokio::fs::remove_dir_all("/tmp/ferro-thumb-test4").await;

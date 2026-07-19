@@ -1,7 +1,6 @@
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
-use wasm_bindgen::closure::Closure;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AudioTrack {
@@ -69,31 +68,39 @@ fn setup_media_session(
     }
 
     let on_play_cb = on_play.clone();
-    let play_handler = Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
-        on_play_cb();
-    });
-    let play_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> = play_handler.into_js_value().unchecked_into();
+    let play_handler =
+        Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
+            on_play_cb();
+        });
+    let play_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> =
+        play_handler.into_js_value().unchecked_into();
     nav.set_action_handler(MediaSessionAction::Play, Some(&play_func));
 
     let on_pause_cb = on_pause.clone();
-    let pause_handler = Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
-        on_pause_cb();
-    });
-    let pause_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> = pause_handler.into_js_value().unchecked_into();
+    let pause_handler =
+        Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
+            on_pause_cb();
+        });
+    let pause_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> =
+        pause_handler.into_js_value().unchecked_into();
     nav.set_action_handler(MediaSessionAction::Pause, Some(&pause_func));
 
     let on_prev_cb = on_prev.clone();
-    let prev_handler = Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
-        on_prev_cb();
-    });
-    let prev_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> = prev_handler.into_js_value().unchecked_into();
+    let prev_handler =
+        Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
+            on_prev_cb();
+        });
+    let prev_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> =
+        prev_handler.into_js_value().unchecked_into();
     nav.set_action_handler(MediaSessionAction::Previoustrack, Some(&prev_func));
 
     let on_next_cb = on_next.clone();
-    let next_handler = Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
-        on_next_cb();
-    });
-    let next_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> = next_handler.into_js_value().unchecked_into();
+    let next_handler =
+        Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
+            on_next_cb();
+        });
+    let next_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> =
+        next_handler.into_js_value().unchecked_into();
     nav.set_action_handler(MediaSessionAction::Nexttrack, Some(&next_func));
 }
 
