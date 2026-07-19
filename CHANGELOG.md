@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Multi-theme system** (14 themes): Solarized Light/Dark, Nord, Tokyo Night, Dracula, High Contrast, Sepia, Forest, Ocean, Custom. All themes use 60+ CSS custom properties.
+- **Lock-free storage**: InMemoryStorageEngine, InMemoryCasStore, InMemoryMetadataStore now use DashMap instead of async RwLock. Sub-microsecond latency (get: 270ns, exists: 121ns).
+- **ServerState trait** (88 methods): Consolidated state interface for all handlers. Implemented for AppState.
+- **FIPS validation**: Runtime self-test for SHA-256, HMAC-SHA-256, HKDF-SHA-256, RNG health.
+- **Key hierarchy**: 3-level key management (Master -> KEK -> Data Keys) with wrapping, rotation, and destruction.
+- **Circuit breakers, retry, bulkheads**: Architectural resilience patterns in `server-resilience` crate.
+- **NIST SP 800-53 mapping**: 27 controls documented across 7 families (AC, AU, CM, IA, MP, SC, SI).
+- **CC EAL 3 preparation**: 11 evidence packages covering all assurance families.
+- **PWA support**: Service worker, manifest, offline fallback.
+- **10 new crates**: server-config, server-state, server-routes, server-api, server-health, server-federation, server-sync-handlers, server-resilience, server-slo, server-fips.
+- **Integration tests**: 69 new tests for all new features.
+- **Property tests**: 3 new tests for normalize_path and ContentHash.
+- **Fuzz targets**: 3 new targets for crypto, FIPS, circuit breaker.
+- **CI matrix**: 24 test configurations (12 individual + 12 combinations).
+
+### Changed
+- **Type unification**: DbHandle (19->1), ApiError (9->2), AuditEntry (9->1).
+- **Router routes**: All prefixed with `/ui/` to match browser URL path.
+- **Metadata store**: Converted from async RwLock to DashMap.
+- **ThumbnailService**: Consolidated (dead code removed).
+- **Frontend**: 929 color replacements, 0 hardcoded colors, 0 static inline styles.
+- **A11y**: Toggle buttons labeled, radio inputs labeled, skip-link added.
+
+### Fixed
+- **Blank screen bug**: Router routes not matching `/ui/` URL path.
+- **MIME type errors**: Service worker not copied to dist/ directory.
+- **Memory leak**: `mem::forget(dir)` on TempDir in ferro-core tests.
+- **WASM build errors**: MediaSession API, Theme variants, Closure imports.
+- **Clippy warnings**: All resolved across entire workspace.
+
+### Removed
+- **server-admin** crate (dead code)
+- **webhook** crate (unused)
+- **server-storage-utils** crate (merged into server-storage-ops)
+- **server-webdav** crate (dead code, 3800+ lines)
+- **server/src/thumbnails.rs** (dead code)
+
 ## [3.2.0] - 2026-07-16
 
 ### Added
