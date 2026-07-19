@@ -16,13 +16,10 @@ use tower_http::cors::CorsLayer;
 
 /// Supertrait that combines ServerState with methods needed by middleware.
 ///
-/// This trait extends ServerState with additional methods that the Axum
-/// middleware stack needs. Note: maintenance_mode() and started_at()
-/// are already on ServerState, so RouterState only adds auth_enabled().
-pub trait RouterState: ServerState {
-    /// Whether authentication is enabled.
-    fn auth_enabled(&self) -> bool;
-}
+/// This trait extends ServerState. RouterState is a marker trait that
+/// indicates the state type is suitable for use with the generic router.
+/// ServerState already provides all necessary methods.
+pub trait RouterState: ServerState {}
 
 /// Build a generic Axum router over any `S: RouterState`.
 ///
@@ -33,6 +30,8 @@ pub fn build_router<S: RouterState>(state: S) -> Router<S> {
         .route("/healthz", get(health_handler::<S>))
         .route("/readyz", get(ready_handler::<S>))
         .route("/version", get(version_handler))
+        .route("/api/v1/quota", get(quota_handler::<S>))
+        .route("/api/v1/config", get(config_handler::<S>))
         .layer(CorsLayer::permissive())
         .layer(CompressionLayer::new())
         .with_state(state)
@@ -89,4 +88,29 @@ async fn version_handler() -> Response {
         })),
     )
         .into_response()
+}
+
+/// Generic quota handler showing storage usage.
+async fn quota_handler<S: RouterState>(State(state): State<S>) -> Response {
+    let used = state.used_bytes();
+    let quota = state.quota_bytes();
+
+    let body = serde_json::json!({
+        "used_bytes": used,
+        "quota_bytes": quota,
+    });
+
+    (StatusCode::OK, axum::Json(body)).into_response()
+}
+
+/// Generic config handler showing server configuration.
+async fn config_handler<S: RouterState>(State(state): State<S>) -> Response {
+    let body = serde_json::json!({
+        "external_url": state.external_url(),
+        "max_body_size": state.max_body_size(),
+        "thumbnail_size": state.thumbnail_size(),
+        "auth_enabled": ServerState::auth_enabled(&state),
+    });
+
+    (StatusCode::OK, axum::Json(body)).into_response()
 }
