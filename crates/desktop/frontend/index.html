@@ -8,10 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="/ui/style.css"/>
-    
+    <link rel="stylesheet" href="style.css"/>
     <link data-trunk-rel="rust" data-wasm-opt="O" data-bincode/>
-<link rel="modulepreload" href="/ui/web-1ed63343b2732737.js" crossorigin="anonymous" integrity="sha384-1cNuLlR8YBniMlKGEbRy9EHcc34nw1M4f0fUBh7e4Fc/pq8z/tT88eue0zlmAku4"><link rel="preload" href="/ui/web-1ed63343b2732737_bg.wasm" crossorigin="anonymous" integrity="sha384-Pw9ngFfN0OM2N2jFa2KP+b1GLGFGxIYBrcKbWpyzt6vSw1gn6YPQnUEOHVfvDzIs" as="fetch" type="application/wasm"></head>
+    <link rel="modulepreload" href="web-ad44675cbc5b2557.js" crossorigin="anonymous" integrity="sha384-3us2K+05CIvAguwEjUaspEuwnsC8Nu8EGg4CZTLmNlGZbHW8j+ZtohoGrjCsFwx4"/>
+    <link rel="preload" href="web-ad44675cbc5b2557_bg.wasm" crossorigin="anonymous" integrity="sha384-bcbNMPjwx58DAaCTWfr3+hL5XXokEZ05yVLsvqjtc5vLvH7x9Cn/y6FLBk7KVGGG" as="fetch" type="application/wasm"/>
+</head>
 <body>
     <div id="app"></div>
     <noscript>
@@ -22,12 +23,10 @@
     </noscript>
 
 <script type="module">
-import init, * as bindings from '/ui/web-1ed63343b2732737.js';
-const wasm = await init({ module_or_path: '/ui/web-1ed63343b2732737_bg.wasm' });
-
+import init, * as bindings from './web-ad44675cbc5b2557.js';
+const wasm = await init({ module_or_path: './web-ad44675cbc5b2557_bg.wasm' });
 
 window.wasmBindings = bindings;
-
 
 dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 

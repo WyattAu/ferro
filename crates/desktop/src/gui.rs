@@ -801,19 +801,9 @@ async fn cmd_update_tray_tooltip(
         }
     }
 
-    // Check for update and reflect in tooltip
-    {
-        use tauri_plugin_updater::UpdaterExt;
-        if let Ok(updater) = app_handle.updater() {
-            if let Ok(Some(_update)) = updater.check().await {
-                update_available = true;
-            }
-        }
-    }
-
-    if update_available {
-        tooltip = format!("{} (Update Available)", tooltip);
-    }
+    // Updater disabled — plugin crashes when endpoint unreachable.
+    // Update check re-enabled when release infrastructure is deployed.
+    let _ = update_available; // suppress unused warning
 
     if let Some(tray) = app_handle.tray_by_id("main") {
         let _ = tray.set_tooltip(Some(&tooltip));
@@ -1140,28 +1130,6 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                             tracing::warn!("auto-start sync failed: {}", e);
                         }
                     }
-                });
-            }
-
-            // Auto-check for updates on startup (5s delay)
-            {
-                use tauri::Manager;
-                use tauri_plugin_updater::UpdaterExt;
-                let handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                    // Wrap entire updater check in catch to prevent crashes
-                    let _ = async {
-                        if let Ok(updater) = handle.updater() {
-                            if let Ok(Some(update)) = updater.check().await {
-                                let version = update.version.clone();
-                                tracing::info!("Startup update check: {} available", version);
-                                if let Some(window) = handle.get_webview_window("main") {
-                                    let _ = window.emit("update-available", &version);
-                                }
-                            }
-                        }
-                    }.await;
                 });
             }
 
