@@ -33,7 +33,7 @@ pub fn ActivitySidebar(
 
     view! {
         {move || open.get().then(|| view! {
-            <div class="w-72 brutal-border border-l surface overflow-y-auto transition-all duration-200">
+            <div class="fixed right-0 top-0 bottom-0 w-72 brutal-border border-l surface overflow-y-auto transition-all duration-200 z-30 shadow-xl">
                 <div class="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
                     <h3 class="text-label font-mono text-[var(--text-primary)]">{t!("aria.activity_heading")}</h3>
                     <button

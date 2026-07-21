@@ -18,13 +18,15 @@ fi
 
 # Copy WASM, JS, CSS assets
 mkdir -p "$DESKTOP_FE"
+# Remove old WASM/JS files to prevent stale references
+rm -f "$DESKTOP_FE"/web-*.wasm "$DESKTOP_FE"/web-*.js
 cp "$WEB_DIST"/*.wasm "$DESKTOP_FE/" 2>/dev/null || true
 cp "$WEB_DIST"/*.js "$DESKTOP_FE/" 2>/dev/null || true
 cp "$WEB_DIST"/*.css "$DESKTOP_FE/" 2>/dev/null || true
 
-# Find the WASM background JS file (the main entry)
-WASM_JS=$(ls "$DESKTOP_FE"/web-*.js 2>/dev/null | head -1 | xargs -r basename)
-WASM_BG=$(ls "$DESKTOP_FE"/web-*_bg.wasm 2>/dev/null | head -1 | xargs -r basename)
+# Find the WASM background JS file (the main entry) from DIST, not frontend
+WASM_JS=$(ls "$WEB_DIST"/web-*.js 2>/dev/null | head -1 | xargs -r basename)
+WASM_BG=$(ls "$WEB_DIST"/web-*_bg.wasm 2>/dev/null | head -1 | xargs -r basename)
 STYLE_CSS=$(ls "$DESKTOP_FE"/style.css 2>/dev/null | head -1 | xargs -r basename)
 
 if [ -z "$WASM_JS" ] || [ -z "$WASM_BG" ]; then
@@ -66,6 +68,7 @@ cat >> "$DESKTOP_FE/index.html" << 'HTMLEOF'
             <p style="font-family: 'Inter', sans-serif; color: #8B8178; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem;">WebAssembly is required to run this application.</p>
         </div>
     </noscript>
+<script>window.FERRO_SERVER_URL = window.__FERRO_SERVER_URL__ || 'http://127.0.0.1:3000'; console.log('FERRO_SERVER_URL set to', window.FERRO_SERVER_URL);</script>
 
 <script type="module">
 HTMLEOF

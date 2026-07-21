@@ -25,6 +25,13 @@ tauri = [
     "dep:roxmltree",
     "dep:reqwest",
 ]
+screenshot = [
+    "dep:tauri",
+    "dep:webkit2gtk",
+    "dep:gtk",
+    "dep:glib",
+    "dep:cairo-rs",
+]
 mobile = [
     "dep:tauri",
     "dep:tauri-build",
@@ -65,6 +72,10 @@ tauri-plugin-http = { version = "2", optional = true }
 tauri-plugin-updater = { version = "2", optional = true }
 roxmltree = { version = "0.20", optional = true }
 reqwest = { version = "0.12", features = ["json"], optional = true }
+webkit2gtk = { version = "2", optional = true }
+gtk = { version = "0.18", optional = true }
+glib = { version = "0.18", optional = true }
+cairo-rs = { version = "0.18", features = ["png"], optional = true }
 serde = { workspace = true }
 serde_json = "1"
 tokio = { workspace = true }

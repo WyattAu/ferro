@@ -54,12 +54,16 @@ if [ "${SKIP_CLIPPY:-0}" != "1" ]; then
   if [ -n "$CLIPPY_CHANGED" ]; then
     echo "[pre-commit] Clippy on changed crates: $(echo $CLIPPY_CHANGED | tr '\n' ' ')"
     for CRATE in $CLIPPY_CHANGED; do
-      # Try ferro-$CRATE first, fall back to bare $CRATE
+      # Try ferro-$CRATE with features, bare $CRATE with features, then without features
       if ! (cargo clippy -p "ferro-${CRATE}" --all-targets \
         --features "s3,gcs,azure,pg,redis,ldap" \
         --locked -- -D warnings 2>/dev/null || \
         cargo clippy -p "${CRATE}" --all-targets \
         --features "s3,gcs,azure,pg,redis,ldap" \
+        --locked -- -D warnings 2>/dev/null || \
+        cargo clippy -p "ferro-${CRATE}" --all-targets \
+        --locked -- -D warnings 2>/dev/null || \
+        cargo clippy -p "${CRATE}" --all-targets \
         --locked -- -D warnings 2>/dev/null); then
         CLIPPY_FAILED=1
       fi

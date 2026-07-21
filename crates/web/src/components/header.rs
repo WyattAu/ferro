@@ -338,9 +338,7 @@ pub fn Header() -> impl IntoView {
                                 .into_any()
                             } else {
                                 view! {
-                                    <div class="w-10 h-10 brutal-border flex items-center justify-center bg-[var(--bg-surface)] font-display">
-                                        <span class="font-bold text-xl text-[var(--accent)] tracking-tighter">{t!("brand.name")}</span>
-                                    </div>
+                                    <img src="/logo_notext.png" alt=t!("brand.name") class="h-10 w-auto object-contain" />
                                 }
                                 .into_any()
                             }

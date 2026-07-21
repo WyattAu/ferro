@@ -3268,12 +3268,15 @@ name = "ferro-desktop"
 version = "3.0.0"
 dependencies = [
  "anyhow",
+ "cairo-rs",
  "chrono",
  "clap",
  "cocoa",
  "core-foundation 0.9.4",
  "core-foundation-sys",
  "dirs 5.0.1",
+ "glib",
+ "gtk",
  "hex",
  "objc",
  "reqwest 0.12.28",
@@ -3294,6 +3297,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+ "webkit2gtk",
  "zip 0.6.6",
 ]
 

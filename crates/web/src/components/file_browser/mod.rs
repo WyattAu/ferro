@@ -765,32 +765,44 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
        <div
            node_ref=scroll_container_ref
            role="region"
-            aria-label=t!("file_list.aria")
+           aria-label=t!("file_list.aria")
            on:dragover=handle_drag_over
            on:dragleave=handle_drag_leave
            on:drop=handle_drop
+           class="flex flex-col"
+           style="height: calc(100vh - 140px);"
        >
-              // Toolbar - compact on mobile
               <Toolbar
-                  current_path
-                  go_up
-                  active_tab
-                  switch_tab=Callback::new(switch_tab)
-                  clipboard_state
-                  clipboard_paste=Callback::new(move |_: ()| clipboard_paste())
-                  set_show_upload
-                  set_show_new_folder
-                  view_mode
-                  set_view_mode
-                  select_mode
-                  toggle_select_mode
-                  show_activity
-                  toggle_activity
-                  show_smart_collections
-                  toggle_smart_collections
-              >
-                 <Breadcrumb current_path=Signal::from(current_path) navigate=Callback::new(navigate) />
-             </Toolbar>
+           current_path
+           go_up
+           active_tab
+           switch_tab=Callback::new(switch_tab)
+           clipboard_state
+           clipboard_paste=Callback::new(move |_: ()| clipboard_paste())
+           set_show_upload
+           set_show_new_folder
+           view_mode
+           set_view_mode
+           select_mode
+           toggle_select_mode
+           show_activity
+           toggle_activity
+           show_smart_collections
+           toggle_smart_collections
+       >
+          <Breadcrumb current_path=Signal::from(current_path) navigate=Callback::new(navigate) />
+      </Toolbar>
+
+       // Scrollable content area
+       <div
+           node_ref=scroll_container_ref
+           role="region"
+           aria-label=t!("file_list.aria")
+           on:dragover=handle_drag_over
+           on:dragleave=handle_drag_leave
+           on:drop=handle_drop
+           class="flex-1 overflow-y-auto min-h-0"
+       >
 
            // Drag overlay
            {move || upload_drag.get().then(|| view! {
@@ -844,6 +856,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                    </div>
                </div>
            })}
+
+           // Scrollable content area
+           <div class="flex-1 overflow-y-auto min-h-0">
 
            // Loading skeleton (grid)
            {move || (loading.get() && view_mode.get() == ViewMode::Grid).then(|| view! {
@@ -1162,6 +1177,8 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                 is_dragging=upload_drag.into()
             />
 
+            </div> // end scrollable content area
+
             // Move dialog (extracted PathDialog component)
             <PathDialog
                  title=t!("dialog.path.source_label")
@@ -1215,26 +1232,25 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             />
         </div>
 
-        // Activity sidebar (extracted component)
-        <ActivitySidebar
-            open=show_activity
-            set_open=set_show_activity
-        />
+            // Sidebars (inside outer wrapper to avoid fragment flattening)
+            <ActivitySidebar
+                open=show_activity
+                set_open=set_show_activity
+            />
 
-        // Smart Collections sidebar (extracted component)
-        <SmartCollectionsSidebar
-            open=show_smart_collections
-            set_open=set_show_smart_collections
-        />
+            <SmartCollectionsSidebar
+                open=show_smart_collections
+                set_open=set_show_smart_collections
+            />
 
-        // Version history panel (extracted component)
-        <VersionHistory
-            open=show_version_history
-            set_open=set_show_version_history
-            file_path=version_history_path
-        />
+            <VersionHistory
+                open=show_version_history
+                set_open=set_show_version_history
+                file_path=version_history_path
+            />
 
-        // Keyboard shortcuts help overlay
-        <KeyboardShortcutsHelp />
+            // Keyboard shortcuts help overlay
+            <KeyboardShortcutsHelp />
+       </div>
     }
 }

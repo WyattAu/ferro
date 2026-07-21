@@ -4,6 +4,9 @@ use tauri::{
     tray::TrayIconBuilder,
 };
 
+#[cfg(target_os = "linux")]
+use std::sync::mpsc;
+
 #[cfg(all(feature = "tauri", feature = "android"))]
 #[path = "android.rs"]
 mod android;
@@ -106,6 +109,64 @@ pub struct CliConnection {
     pub server_url: Option<String>,
     /// Auth token, if provided via CLI.
     pub auth_token: Option<String>,
+}
+
+/// Capture a screenshot of the webview using webkit2gtk's native snapshot API.
+#[tauri::command]
+#[cfg(feature = "screenshot")]
+async fn capture_screenshot(app_handle: tauri::AppHandle, path: String) -> Result<String, String> {
+    use tauri::Manager;
+    let w = app_handle.get_webview_window("main").ok_or("no main window")?;
+
+    #[cfg(target_os = "linux")]
+    {
+        use webkit2gtk::WebViewExt;
+        use webkit2gtk::{SnapshotOptions, SnapshotRegion};
+        let (tx, rx) = std::sync::mpsc::channel();
+        w.with_webview(move |webview| {
+            let wv = webview.inner();
+            wv.snapshot(
+                SnapshotRegion::Visible,
+                SnapshotOptions::NONE,
+                None::<&gtk::gio::Cancellable>,
+                move |result| {
+                    match result {
+                        Ok(surface) => {
+                            // Snapshot returns a cairo::Surface which is actually an ImageSurface
+                            // Use unsafe transmute since webkit2gtk always returns ImageSurface for snapshots
+                            let img: cairo::ImageSurface = unsafe { std::mem::transmute(surface) };
+                            let mut f = std::fs::File::create(&path).unwrap();
+                            let _ = img.write_to_png(&mut f);
+                            let _ = tx.send(format!("saved to {}", path));
+                        }
+                        Err(e) => {
+                            let _ = tx.send(format!("snapshot error: {}", e));
+                        }
+                    }
+                },
+            );
+        })
+        .map_err(|e| format!("with_webview failed: {}", e))?;
+
+        rx.recv_timeout(std::time::Duration::from_secs(5))
+            .map_err(|e| format!("timeout: {}", e))
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = w;
+        let _ = path;
+        Err("screenshot only supported on Linux/webkit2gtk".to_string())
+    }
+}
+
+/// Returns pre-configured connection info from CLI args.
+/// The frontend calls this on init to auto-connect without showing the form.
+#[tauri::command]
+fn dump_layout(data: String) -> Result<String, String> {
+    let path = std::env::temp_dir().join("ferro-layout.txt");
+    std::fs::write(&path, &data).map_err(|e| e.to_string())?;
+    Ok(data)
 }
 
 /// Returns pre-configured connection info from CLI args.
@@ -833,6 +894,9 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
         .manage(state)
         .manage(cli_conn)
         .invoke_handler(tauri::generate_handler![
+            dump_layout,
+            #[cfg(feature = "screenshot")]
+            capture_screenshot,
             get_cli_connection,
             get_server_url,
             cmd_mount,
@@ -1112,6 +1176,20 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                 window.set_title("Ferro")?;
             }
 
+            // Auto-capture screenshot after page loads for debugging
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(8)).await;
+                    let path = std::env::temp_dir().join("ferro-screenshot.png");
+                    match capture_screenshot(handle.clone(), path.to_str().unwrap().to_string()).await {
+                        Ok(msg) => tracing::info!("Screenshot: {}", msg),
+                        Err(e) => tracing::warn!("Screenshot failed: {}", e),
+                    }
+                });
+            }
+
+            // Layout diagnostic via Tauri IPC
             // Auto-start sync if configured
             #[cfg(all(feature = "sync", feature = "tauri"))]
             {

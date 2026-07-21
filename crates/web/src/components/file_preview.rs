@@ -20,7 +20,6 @@ const TEXT_EXTENSIONS: &[&str] = &[
     "py",
     "js",
     "ts",
-    "html",
     "css",
     "sh",
     "log",
@@ -29,12 +28,30 @@ const TEXT_EXTENSIONS: &[&str] = &[
     "env",
     "gitignore",
     "editorconfig",
+    "go",
+    "c",
+    "cpp",
+    "h",
+    "hpp",
+    "java",
+    "rb",
+    "php",
+    "swift",
+    "kt",
+    "scala",
+    "lua",
+    "r",
+    "sql",
+    "proto",
+    "graphql",
+    "dockerfile",
+    "makefile",
+    "cmake",
+    "nix",
+    "lock",
 ];
 
-const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"];
-const VIDEO_EXTENSIONS: &[&str] = &["mp4", "webm", "ogg", "mov", "avi"];
-const AUDIO_EXTENSIONS: &[&str] = &["mp3", "wav", "ogg", "flac", "aac"];
-const EPUB_EXTENSIONS: &[&str] = &["epub"];
+const HTML_EXTENSIONS: &[&str] = &["html", "htm", "svg"];
 
 fn get_extension(name: &str) -> &str {
     name.rsplit('.').next().unwrap_or("")
@@ -42,21 +59,156 @@ fn get_extension(name: &str) -> &str {
 
 fn file_category(name: &str) -> &'static str {
     let ext = get_extension(name);
-    if IMAGE_EXTENSIONS.contains(&ext) {
+    let lower = name.to_lowercase();
+    if ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"].contains(&ext) {
         "image"
-    } else if TEXT_EXTENSIONS.contains(&ext) {
-        "text"
+    } else if ["mp4", "webm", "ogg", "mov", "avi", "mkv"].contains(&ext) {
+        "video"
+    } else if ["mp3", "wav", "ogg", "flac", "aac"].contains(&ext) {
+        "audio"
     } else if ext == "pdf" {
         "pdf"
-    } else if VIDEO_EXTENSIONS.contains(&ext) {
-        "video"
-    } else if AUDIO_EXTENSIONS.contains(&ext) {
-        "audio"
-    } else if EPUB_EXTENSIONS.contains(&ext) {
+    } else if ["epub"].contains(&ext) {
         "epub"
+    } else if HTML_EXTENSIONS.contains(&ext) {
+        "html"
+    } else if ext == "md" || ext == "markdown" {
+        "markdown"
+    } else if ext == "csv" {
+        "csv"
+    } else if TEXT_EXTENSIONS.contains(&ext) {
+        "text"
+    } else if lower == "dockerfile" || lower == "makefile" || lower == "cmakelists.txt" {
+        "text"
     } else {
         "other"
     }
+}
+
+/// Escape HTML entities to prevent XSS in code preview.
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
+}
+
+/// Render a CSV string as an HTML table.
+fn csv_to_html_table(csv: &str) -> String {
+    let mut out =
+        String::from(r#"<div class="overflow-auto"><table class="w-full text-sm font-mono border-collapse">#"#);
+    for (i, line) in csv.lines().enumerate() {
+        let tag = if i == 0 { "th" } else { "td" };
+        let row_class = if i == 0 {
+            "bg-[var(--accent)] text-[var(--text-on-accent)] font-bold"
+        } else if i % 2 == 0 {
+            "bg-[var(--bg-subtle)]"
+        } else {
+            ""
+        };
+        out.push_str(&format!("<tr class=\"{}\">", row_class));
+        for cell in line.split(',') {
+            out.push_str(&format!(
+                "<{} class=\"px-3 py-1.5 border border-[var(--border-default)] whitespace-nowrap\">{}</{}>",
+                tag,
+                escape_html(cell.trim()),
+                tag
+            ));
+        }
+        out.push_str("</tr>");
+    }
+    out.push_str("</table></div>");
+    out
+}
+
+/// Render markdown to simple HTML (bold, italic, headings, code blocks, lists).
+fn render_markdown(md: &str) -> String {
+    let mut out = String::new();
+    let mut in_code_block = false;
+    for line in md.lines() {
+        if line.starts_with("```") {
+            if in_code_block {
+                out.push_str("</code></pre>");
+                in_code_block = false;
+            } else {
+                out.push_str(r#"<pre class="bg-[var(--bg-base)] border rounded p-3 my-2 text-sm font-mono"><code>"#);
+                in_code_block = true;
+            }
+            continue;
+        }
+        if in_code_block {
+            out.push_str(&escape_html(line));
+            out.push('\n');
+            continue;
+        }
+        let mut line = escape_html(line);
+        // Headings
+        if line.starts_with("### ") {
+            line = format!(
+                r#"<h3 class="text-lg font-bold mt-4 mb-2 font-mono">{}</h3>"#,
+                &line[4..]
+            );
+        } else if line.starts_with("## ") {
+            line = format!(
+                r#"<h2 class="text-xl font-bold mt-4 mb-2 font-mono">{}</h2>"#,
+                &line[3..]
+            );
+        } else if line.starts_with("# ") {
+            line = format!(
+                r#"<h1 class="text-2xl font-bold mt-4 mb-2 font-mono">{}</h1>"#,
+                &line[2..]
+            );
+        } else if line.starts_with("- ") || line.starts_with("* ") {
+            line = format!(r#"<li class="ml-4">{}</li>"#, &line[2..]);
+        } else if line.trim().is_empty() {
+            line = "<br/>".to_string();
+        } else {
+            // Inline code
+            let mut result = String::new();
+            let mut rest = line.as_str();
+            while let Some(start) = rest.find('`') {
+                if let Some(end) = rest[start + 1..].find('`') {
+                    result.push_str(&rest[..start]);
+                    result.push_str(&format!(
+                        r#"<code class="bg-[var(--bg-base)] px-1 rounded text-sm">{}</code>"#,
+                        &rest[start + 1..start + 1 + end]
+                    ));
+                    rest = &rest[start + 1 + end + 1..];
+                } else {
+                    result.push_str(rest);
+                    rest = "";
+                }
+            }
+            result.push_str(rest);
+            line = result;
+            // Bold and italic
+            while let Some(start) = line.find("**") {
+                if let Some(end) = line[start + 2..].find("**") {
+                    let bold = &line[start + 2..start + 2 + end];
+                    let replacement = format!(r#"<strong>{}</strong>"#, bold);
+                    line = format!("{}{}{}", &line[..start], replacement, &line[start + 2 + end + 2..]);
+                } else {
+                    break;
+                }
+            }
+            while let Some(start) = line.find('*') {
+                if let Some(end) = line[start + 1..].find('*') {
+                    if !line[start..start + 2].contains('*') {
+                        break;
+                    }
+                    let italic = &line[start + 1..start + 1 + end];
+                    let replacement = format!(r#"<em>{}</em>"#, italic);
+                    line = format!("{}{}{}", &line[..start], replacement, &line[start + 1 + end + 1..]);
+                } else {
+                    break;
+                }
+            }
+        }
+        out.push_str(&line);
+        out.push('\n');
+    }
+    out
 }
 
 #[component]
@@ -64,14 +216,15 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
     let (content, set_content) = signal(None::<String>);
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal(None::<String>);
-    let (_edit_mode, _set_edit_mode) = signal(false);
+    #[allow(unused)] // Used inside view! macro closures
+    let (edit_mode, set_edit_mode) = signal(false);
 
     let category = file_category(&file.name);
     let name = file.name.clone();
     let path = file.path.clone();
     let size = file.size;
     let modified = file.modified_at.clone();
-    let is_text = category == "text";
+    let is_text = category == "text" || category == "markdown" || category == "csv";
 
     if is_text {
         set_loading.set(true);
@@ -111,29 +264,33 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
         on_close.run(());
     };
 
+    let cat_for_view = category.to_string();
+    let file_path_for_view = file.path.clone();
+    let file_name_for_view = file.name.clone();
+
     view! {
         <div
-            class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+            class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
             on:keydown=handle_keydown
         >
             <FocusTrap>
             <div
-                class="brutal-block rounded shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+                class="bg-[var(--bg-base)] border border-[var(--border-default)] rounded-lg shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="preview-title"
                 tabindex="-1"
             >
-                <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)] bg-[var(--bg-subtle)]">
                     <div class="min-w-0 flex-1">
-                        <h2 id="preview-title" class="text-section font-mono text-[var(--text-primary)] truncate">{name}</h2>
+                        <h2 id="preview-title" class="text-lg font-mono font-bold text-[var(--text-primary)] truncate">{name.clone()}</h2>
                         <div class="flex items-center gap-4 mt-1 text-sm text-[var(--text-tertiary)] font-mono">
                             <span>{size_str}</span>
                             <span>{modified}</span>
                         </div>
                     </div>
                     <button
-                        class="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded surface shadow-concrete transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] ml-4 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        class="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] ml-4 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         aria-label=t!("preview.aria_close")
                         on:click=close
                     >
@@ -157,16 +314,35 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                         </div>
                     })}
 
-                    {move || content.get().map(|text| view! {
-                        <pre class="bg-[var(--bg-base)] border rounded p-4 text-sm text-[var(--text-primary)] overflow-auto whitespace-pre-wrap font-mono">{text}</pre>
+                    // Text content (plain text, markdown, csv)
+                    {move || content.get().map(|text| {
+                        let cat = file_category(&file.name);
+                        match cat {
+                            "markdown" => {
+                                let html = render_markdown(&text);
+                                view! {
+                                    <div class="prose prose-invert max-w-none text-[var(--text-primary)] leading-relaxed" inner_html=html></div>
+                                }.into_any()
+                            }
+                            "csv" => {
+                                let html = csv_to_html_table(&text);
+                                view! {
+                                    <div class="text-[var(--text-primary)]" inner_html=html></div>
+                                }.into_any()
+                            }
+                            _ => view! {
+                                <pre class="bg-[var(--bg-base)] border border-[var(--border-default)] rounded p-4 text-sm text-[var(--text-primary)] overflow-auto whitespace-pre-wrap font-mono leading-relaxed">{text}</pre>
+                            }.into_any(),
+                        }
                     })}
 
+                    // Media / other file previews (only shown when content is None = non-text files)
                     {move || {
                         if !loading.get() && content.get().is_none() && error.get().is_none() {
-                            let cat = file_category(&file.name).to_string();
-                            let p = file.path.clone();
-                            let n = file.name.clone();
-                            let img_path = file.path.clone();
+                            let cat = cat_for_view.clone();
+                            let p = file_path_for_view.clone();
+                            let n = file_name_for_view.clone();
+                            let img_path = file_path_for_view.clone();
                             Some((cat, p, n, img_path))
                         } else {
                             None
@@ -188,11 +364,11 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                         <img
                                             src={p}
                                             alt={n}
-                                            class="max-w-full max-h-[60vh] object-contain rounded-lg"
+                                            class="max-w-full max-h-[70vh] object-contain rounded-lg"
                                         />
                                         {move || (!edit_mode.get()).then(|| view! {
                                             <button
-                                                class="absolute top-2 right-2 px-3 py-1.5 text-xs bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded font-bold uppercase opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--accent-hover)]"
+                                                class="absolute top-2 right-2 px-3 py-1.5 text-xs bg-[var(--accent)] text-[var(--text-on-accent)] border border-[var(--border-default)] rounded font-bold uppercase opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--accent-hover)]"
                                                 on:click=move |_| set_edit_mode.set(true)
                                             >
                                                 "Edit"
@@ -201,30 +377,57 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                     </div>
                                 </div>
                             }.into_any(),
+                            "html" => view! {
+                                <div class="w-full border border-[var(--border-default)] rounded-lg overflow-hidden">
+                                    <div class="bg-[var(--bg-subtle)] px-4 py-2 text-xs font-mono text-[var(--text-tertiary)] border-b border-[var(--border-default)]">
+                                        "HTML Preview"
+                                    </div>
+                                    <iframe
+                                        src={p}
+                                        class="w-full h-[70vh] bg-white"
+                                        title={n}
+                                        sandbox="allow-same-origin"
+                                    ></iframe>
+                                </div>
+                            }.into_any(),
                             "video" => view! {
                                 <div class="flex items-center justify-center">
-                                    <VideoPlayer src=p title=n />
+                                    <video
+                                        controls
+                                        class="max-w-full max-h-[70vh] rounded-lg"
+                                        preload="metadata"
+                                        aria-label={format!("Video: {}", n)}
+                                    >
+                                        <source src={p} />
+                                        {t!("preview.no_video")}
+                                    </video>
                                 </div>
                             }.into_any(),
                             "audio" => view! {
-                                <div class="flex items-center justify-center py-8">
-                                    <audio controls aria-label={format!("Audio: {}", n)}>
+                                <div class="flex flex-col items-center justify-center py-12 gap-6">
+                                    <svg class="w-24 h-24 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                                    </svg>
+                                    <audio controls class="w-full max-w-md" aria-label={format!("Audio: {}", n)}>
                                         <source src={p} type="audio/mpeg" />
                                         {t!("preview.no_audio")}
                                     </audio>
+                                    <p class="text-sm text-[var(--text-tertiary)] font-mono">{n}</p>
                                 </div>
                             }.into_any(),
                             "epub" => view! {
-                                <div class="h-[60vh]">
+                                <div class="h-[70vh]">
                                     <EpubPreview src=p title=n />
                                 </div>
                             }.into_any(),
                             "pdf" => view! {
-                                <iframe
-                                    src={p}
-                                    class="w-full h-[60vh] rounded-lg border"
-                                    title={n}
-                                ></iframe>
+                                <div class="w-full border border-[var(--border-default)] rounded-lg overflow-hidden">
+                                    <iframe
+                                        src={p}
+                                        class="w-full h-[70vh]"
+                                        title={n}
+                                    ></iframe>
+                                </div>
                             }.into_any(),
                             _ => view! {
                                 <div class="flex flex-col items-center justify-center py-12 text-center">
@@ -233,7 +436,7 @@ pub fn FilePreview(file: FileEntry, on_close: Callback<()>) -> impl IntoView {
                                     </svg>
                                     <p class="text-[var(--text-tertiary)] mb-4">{t!("preview.not_available")}</p>
                                     <button
-                                        class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)] min-h-[44px]"
+                                        class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] border border-[var(--border-default)] rounded font-bold uppercase hover:bg-[var(--accent-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[44px]"
                                         on:click=move |_| {
                                             let path = p.clone();
                                             spawn_local(async move {

@@ -20,7 +20,7 @@ impl Default for ViewportSize {
 }
 
 pub fn use_viewport_size() -> Signal<ViewportSize> {
-    let (size, _set_size) = signal(ViewportSize::default());
+    let (size, set_size) = signal(ViewportSize::default());
 
     #[cfg(target_arch = "wasm32")]
     {

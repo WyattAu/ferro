@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: asset: https://asset.localhost; font-src 'self' data: https://fonts.gstatic.com; connect-src ipc: http://ipc.localhost 'self' https://* http://*"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: asset: https://asset.localhost; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' http: https: ipc: http://ipc.localhost"
     }
   },
   "bundle": {
