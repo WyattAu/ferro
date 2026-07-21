@@ -104,6 +104,16 @@ fn main() {
         unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
     }
 
+    // Force X11 backend on Linux/Wayland when user hasn't overridden.
+    // Tauri v2 + native Wayland causes KWin to not map the window surface —
+    // the webview renders internally (screenshots work) but never appears on
+    // screen. Forcing GDK_BACKEND=x11 makes the window visible under KWin.
+    #[cfg(target_os = "linux")]
+    if std::env::var("GDK_BACKEND").is_err() {
+        // SAFETY: Called at startup before any threads are spawned.
+        unsafe { std::env::set_var("GDK_BACKEND", "x11") };
+    }
+
     let args = gui::CliArgs::parse();
 
     // Initialize tracing before GUI setup.

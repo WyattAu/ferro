@@ -1174,6 +1174,8 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
 
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title("Ferro")?;
+                let _ = window.show();
+                let _ = window.set_focus();
             }
 
             // Auto-capture screenshot after page loads for debugging
