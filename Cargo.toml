@@ -8,6 +8,7 @@ members = [
     "crates/server",
     "crates/server-config",
     "crates/web",
+    "crates/ferro-ui",
     "crates/desktop",
     "crates/cli",
     "crates/crypto",

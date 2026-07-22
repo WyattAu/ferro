@@ -1,0 +1,8 @@
+[build]
+# Output to web/dist for server deployment
+dist = "../web/dist"
+public_url = "/ui/"
+
+[tools]
+# Use system-installed wasm-bindgen (skip download)
+wasm_bindgen = "0.2.126"
