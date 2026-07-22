@@ -23,10 +23,6 @@ pub fn main() {
     // Set panic hook for better error messages in console
     console_error_panic_hook::set_once();
 
-    // Initialize logging
-    #[cfg(feature = "logging")]
-    console_log::init_with_level(log::Level::Debug).expect("failed to init logger");
-
     // Mount the app
     leptos::mount::mount_to_body(|| leptos::view! { <crate::routes::App/> });
 }
