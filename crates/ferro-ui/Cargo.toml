@@ -18,15 +18,13 @@ web-sys = { version = "0.3", features = [
     "console", "Location", "Navigator", "MediaQueryList",
     "MediaQueryListEvent", "IntersectionObserver", "IntersectionObserverEntry",
     "IntersectionObserverInit", "HtmlLinkElement", "HtmlStyleElement",
-    "Node", "NodeList", "WebSocket", "MessageEvent", "CloseEvent",
-    "ResizeObserver", "ResizeObserverEntry", "DomRect",
-    "Performance", "PerformanceNavigationTiming",
+    "HtmlSelectElement", "Node", "NodeList",
+    "WebSocket", "MessageEvent", "CloseEvent",
 ] }
 js-sys = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
-console_log = "1"
 console_error_panic_hook = "0.1"
 
 [lib]
