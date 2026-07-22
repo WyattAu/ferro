@@ -28,6 +28,8 @@ Week 21──24  Phase 7: Polish & Hardening
 | 6     | 18-20 | 0 (desktop)       | 90%                 |
 | 7     | 21-24 | ~15 (polish)      | 100%                |
 
+**Note:** All API paths use the `/api/v1/` prefix as specified in GUI_ARCHITECTURE.md Section 5.2.
+
 ---
 
 ## Phase 0: Foundation (Week 1-2)
@@ -106,27 +108,27 @@ Week 21──24  Phase 7: Polish & Hardening
 
 | Deliverable               | Endpoints | Details                                         |
 |--------------------------|-----------|--------------------------------------------------|
-| File browser (list view) | GET /files | Breadcrumb nav, sorting, pagination              |
-| File browser (grid view) | GET /files | Thumbnail previews, selection                    |
-| File upload              | POST /files/upload | Drag-drop zone, progress bar, multi-file   |
-| File download            | GET /files/:id/download | Progress tracking, resume support          |
-| Create folder            | POST /files/mkdir | Inline naming, validation                       |
-| Delete files             | DELETE /files/:id | Confirmation dialog, soft delete to trash     |
-| Move files               | POST /files/move | Drag-drop or dialog destination picker          |
-| Copy files               | POST /files/copy | Duplicate with naming conflict resolution        |
-| Rename files             | POST /files/rename | Inline edit, validation                        |
-| Search files             | GET /files/search | Full-text, filters (type, date, size, owner)  |
-| Favorites                | POST /files/favorite | Toggle, filter by favorites                    |
-| Recent files             | GET /files/recent | Last 20 accessed files                          |
-| Smart collections        | GET /collections | Rule-based dynamic folders                      |
-| Version history          | GET /files/:id/versions | List versions, download any                  |
-| Version diff             | GET /files/:id/versions/:v/diff | Side-by-side diff                   |
-| Share links              | POST /files/:id/share | Generate link, expiry, password protection   |
-| Lock management          | POST /files/:id/lock | Lock/unlock, show lock status                  |
-| Trash (list)             | GET /trash | View deleted items                               |
-| Trash (restore)          | POST /trash/:id/restore | Restore to original path                    |
-| Trash (purge)            | DELETE /trash/:id | Permanent delete, confirmation                 |
-| Trash (empty)            | DELETE /trash | Empty all, confirmation                         |
+| File browser (list view) | GET /api/v1/files | Breadcrumb nav, sorting, pagination              |
+| File browser (grid view) | GET /api/v1/files | Thumbnail previews, selection                    |
+| File upload              | POST /api/v1/files/upload | Drag-drop zone, progress bar, multi-file   |
+| File download            | GET /api/v1/files/:id/download | Progress tracking, resume support          |
+| Create folder            | POST /api/v1/files/mkdir | Inline naming, validation                       |
+| Delete files             | DELETE /api/v1/files/:id | Confirmation dialog, soft delete to trash     |
+| Move files               | POST /api/v1/files/move | Drag-drop or dialog destination picker          |
+| Copy files               | POST /api/v1/files/copy | Duplicate with naming conflict resolution        |
+| Rename files             | POST /api/v1/files/rename | Inline edit, validation                        |
+| Search files             | GET /api/v1/files/search | Full-text, filters (type, date, size, owner)  |
+| Favorites                | POST /api/v1/files/favorite | Toggle, filter by favorites                    |
+| Recent files             | GET /api/v1/files/recent | Last 20 accessed files                          |
+| Smart collections        | GET /api/v1/collections | Rule-based dynamic folders                      |
+| Version history          | GET /api/v1/files/:id/versions | List versions, download any                  |
+| Version diff             | GET /api/v1/files/:id/versions/:v/diff | Side-by-side diff                   |
+| Share links              | POST /api/v1/files/:id/share | Generate link, expiry, password protection   |
+| Lock management          | POST /api/v1/files/:id/lock | Lock/unlock, show lock status                  |
+| Trash (list)             | GET /api/v1/trash | View deleted items                               |
+| Trash (restore)          | POST /api/v1/trash/:id/restore | Restore to original path                    |
+| Trash (purge)            | DELETE /api/v1/trash/:id | Permanent delete, confirmation                 |
+| Trash (empty)            | DELETE /api/v1/trash | Empty all, confirmation                         |
 
 ### Week 3
 
@@ -187,26 +189,26 @@ Week 21──24  Phase 7: Polish & Hardening
 
 | Deliverable               | Endpoints | Details                                         |
 |--------------------------|-----------|--------------------------------------------------|
-| Notes (list)             | GET /notes | Folder tree, search, tags                        |
-| Notes (editor)           | POST /notes | Markdown editor, live preview, split view       |
-| Notes (folders)          | CRUD /notes/folders | Folder CRUD, drag to organize               |
-| Notes (tags)             | CRUD /notes/:id/tags | Tag assignment, filter by tag               |
-| Tasks (list)             | GET /tasks | Filter by status, assignee, priority, due date  |
-| Tasks (Kanban)           | PUT /tasks/:id | Drag-drop between columns                   |
-| Tasks (calendar view)    | GET /tasks | Tasks on calendar grid                          |
-| Tasks (CRUD)             | CRUD /tasks | Create, edit, delete, complete                 |
-| Calendar (month)         | GET /events | Month grid with event dots                      |
-| Calendar (week)          | GET /events | Week view with time slots                       |
-| Calendar (day)           | GET /events | Day view with detailed timeline                 |
-| Calendar (CRUD)          | CRUD /events | Create, edit, delete events                    |
-| Contacts (list)          | GET /contacts | Search, groups, sort                            |
-| Contacts (detail)        | GET /contacts/:id | Full vCard view, edit                          |
-| Contacts (import/export) | POST /contacts/import, GET /contacts/export | vCard/CSV support         |
-| Chat (rooms)             | WS /chat | Room list, create, join                         |
-| Chat (messages)          | WS /chat | Real-time messages, @mentions, reactions        |
-| Chat (history)           | GET /chat/history | Load older messages, scroll back           |
-| File comments            | CRUD /files/:id/comments | Threaded comments, resolve               |
-| Tags (system)            | CRUD /tags | Create, rename, delete, assign to any entity    |
+| Notes (list)             | GET /api/v1/notes | Folder tree, search, tags                        |
+| Notes (editor)           | POST /api/v1/notes | Markdown editor, live preview, split view       |
+| Notes (folders)          | CRUD /api/v1/notes/folders | Folder CRUD, drag to organize               |
+| Notes (tags)             | CRUD /api/v1/notes/:id/tags | Tag assignment, filter by tag               |
+| Tasks (list)             | GET /api/v1/tasks | Filter by status, assignee, priority, due date  |
+| Tasks (Kanban)           | PUT /api/v1/tasks/:id | Drag-drop between columns                   |
+| Tasks (calendar view)    | GET /api/v1/tasks | Tasks on calendar grid                          |
+| Tasks (CRUD)             | CRUD /api/v1/tasks | Create, edit, delete, complete                 |
+| Calendar (month)         | GET /api/v1/events | Month grid with event dots                      |
+| Calendar (week)          | GET /api/v1/events | Week view with time slots                       |
+| Calendar (day)           | GET /api/v1/events | Day view with detailed timeline                 |
+| Calendar (CRUD)          | CRUD /api/v1/events | Create, edit, delete events                    |
+| Contacts (list)          | GET /api/v1/contacts | Search, groups, sort                            |
+| Contacts (detail)        | GET /api/v1/contacts/:id | Full vCard view, edit                          |
+| Contacts (import/export) | POST /api/v1/contacts/import, GET /api/v1/contacts/export | vCard/CSV support         |
+| Chat (rooms)             | WS /api/v1/chat | Room list, create, join                         |
+| Chat (messages)          | WS /api/v1/chat | Real-time messages, @mentions, reactions        |
+| Chat (history)           | GET /api/v1/chat/history | Load older messages, scroll back           |
+| File comments            | CRUD /api/v1/files/:id/comments | Threaded comments, resolve               |
+| Tags (system)            | CRUD /api/v1/tags | Create, rename, delete, assign to any entity    |
 
 ### Week 6
 
@@ -266,19 +268,19 @@ Week 21──24  Phase 7: Polish & Hardening
 
 | Deliverable               | Endpoints | Details                                         |
 |--------------------------|-----------|--------------------------------------------------|
-| Photos (grid)            | GET /photos | Masonry layout, lazy loading                     |
-| Photos (timeline)        | GET /photos | Chronological view with date headers            |
-| Photos (albums)          | CRUD /albums | Album CRUD, add/remove photos                 |
+| Photos (grid)            | GET /api/v1/photos | Masonry layout, lazy loading                     |
+| Photos (timeline)        | GET /api/v1/photos | Chronological view with date headers            |
+| Photos (albums)          | CRUD /api/v1/albums | Album CRUD, add/remove photos                 |
 | Photos (lightbox)        | — | Full-screen view, swipe, keyboard nav            |
-| Photos (EXIF)            | GET /photos/:id/exif | Camera, date, GPS, settings display        |
-| Photos (map)             | GET /photos/map | Photos plotted by GPS coordinates             |
-| Video player             | GET /video/:id/stream | Range request streaming, custom controls  |
+| Photos (EXIF)            | GET /api/v1/photos/:id/exif | Camera, date, GPS, settings display        |
+| Photos (map)             | GET /api/v1/photos/map | Photos plotted by GPS coordinates             |
+| Video player             | GET /api/v1/video/:id/stream | Range request streaming, custom controls  |
 | Video playlist           | — | Queue, shuffle, repeat                           |
-| Audio player             | GET /audio/:id/stream | Persistent player, playlist, shuffle      |
+| Audio player             | GET /api/v1/audio/:id/stream | Persistent player, playlist, shuffle      |
 | Audio waveform           | — | Waveform visualization for navigation            |
-| Whiteboard (canvas)      | CRUD /whiteboard | Drawing tools: pen, shapes, text, eraser    |
-| Whiteboard (collab)      | WS /whiteboard | Real-time cursor tracking, sync              |
-| Whiteboard (export)      | GET /whiteboard/:id/export | PNG, SVG, PDF export                 |
+| Whiteboard (canvas)      | CRUD /api/v1/whiteboard | Drawing tools: pen, shapes, text, eraser    |
+| Whiteboard (collab)      | WS /api/v1/whiteboard | Real-time cursor tracking, sync              |
+| Whiteboard (export)      | GET /api/v1/whiteboard/:id/export | PNG, SVG, PDF export                 |
 | Preview (markdown)       | — | Rendered markdown with syntax highlighting      |
 | Preview (CSV)            | — | Scrollable table with sort                      |
 | Preview (HTML)           | — | Sandboxed iframe rendering                      |
@@ -350,23 +352,23 @@ Week 21──24  Phase 7: Polish & Hardening
 
 | Deliverable               | Endpoints | Details                                         |
 |--------------------------|-----------|--------------------------------------------------|
-| User management          | CRUD /users | List, create, edit, deactivate, password reset |
-| Roles & permissions      | CRUD /roles | Role hierarchy, permission matrix              |
-| DLP policies             | CRUD /dlp | Create policies, view violations               |
-| DLP alerts               | GET /dlp/alerts | Real-time violation notifications             |
-| Antivirus UI             | GET /files/:id/scan | Scan status, results, re-scan                |
-| Watermark policies       | CRUD /watermarks | Text/image watermarks, preview              |
-| Audit log viewer         | GET /audit | Filterable, exportable, real-time streaming    |
-| Compliance reports       | GET /compliance | Generate PDF reports, schedule               |
-| Backup/restore           | POST /backup, POST /restore | Full/incremental, progress UI         |
-| Branding                 | PUT /branding | Logo, colors, custom domain                    |
-| Plugin marketplace       | GET /plugins | Browse, install, configure, enable/disable     |
-| WASM workers             | CRUD /workers | Upload, start, stop, monitor, logs            |
-| Event triggers           | CRUD /triggers | Automation rules, conditions, actions        |
-| Tenant management        | CRUD /tenants | Multi-tenant admin, resource limits           |
-| Device management        | GET /devices | Connected devices, revoke, trust               |
-| GDPR export              | POST /gdpr/export | User data export, download                  |
-| GDPR erasure             | POST /gdpr/erasure | Account deletion, confirmation             |
+| User management          | CRUD /api/v1/users | List, create, edit, deactivate, password reset |
+| Roles & permissions      | CRUD /api/v1/roles | Role hierarchy, permission matrix              |
+| DLP policies             | CRUD /api/v1/dlp | Create policies, view violations               |
+| DLP alerts               | GET /api/v1/dlp/alerts | Real-time violation notifications             |
+| Antivirus UI             | GET /api/v1/files/:id/scan | Scan status, results, re-scan                |
+| Watermark policies       | CRUD /api/v1/watermarks | Text/image watermarks, preview              |
+| Audit log viewer         | GET /api/v1/audit | Filterable, exportable, real-time streaming    |
+| Compliance reports       | GET /api/v1/compliance | Generate PDF reports, schedule               |
+| Backup/restore           | POST /api/v1/backup, POST /api/v1/restore | Full/incremental, progress UI         |
+| Branding                 | PUT /api/v1/branding | Logo, colors, custom domain                    |
+| Plugin marketplace       | GET /api/v1/plugins | Browse, install, configure, enable/disable     |
+| WASM workers             | CRUD /api/v1/workers | Upload, start, stop, monitor, logs            |
+| Event triggers           | CRUD /api/v1/triggers | Automation rules, conditions, actions        |
+| Tenant management        | CRUD /api/v1/tenants | Multi-tenant admin, resource limits           |
+| Device management        | GET /api/v1/devices | Connected devices, revoke, trust               |
+| GDPR export              | POST /api/v1/gdpr/export | User data export, download                  |
+| GDPR erasure             | POST /api/v1/gdpr/erasure | Account deletion, confirmation             |
 
 ### Week 12
 
@@ -668,6 +670,56 @@ Week 21──24  Phase 7: Polish & Hardening
 
 ---
 
+## Feature Flags
+
+Feature flags enable gradual rollout and instant kill switches:
+
+```toml
+# feature-flags.toml
+[flags.file_browser_v2]
+phase = 1
+default = false
+description = "New file browser with list/grid views"
+
+[flags.chat_websocket]
+phase = 2
+default = false
+description = "WebSocket-based real-time chat"
+
+[flags.offline_mode]
+phase = 5
+default = false
+description = "IndexedDB offline cache"
+
+[flags.admin_plugins]
+phase = 4
+default = false
+description = "Plugin marketplace"
+```
+
+Flag evaluation happens client-side via `FeatureFlagProvider`. Flags are fetched from `/api/v1/feature-flags` on app load and cached locally.
+
+---
+
+## Rollback Strategy
+
+Each phase has a defined rollback procedure:
+
+| Phase | Rollback Trigger | Rollback Action |
+|-------|-----------------|-----------------|
+| 0 | Build fails, primitives broken | Revert to old frontend entirely |
+| 1 | File operations broken | Disable v2 routes, serve old file browser |
+| 2 | Collaboration features broken | Disable collaboration routes, keep file browser |
+| 3 | Media features broken | Disable media routes, keep core + collab |
+| 4 | Admin features broken | Disable admin routes, keep core + collab + media |
+| 5 | Offline mode causes data loss | Disable offline flag, revert to online-only |
+| 6 | Desktop integration broken | Ship web-only, defer desktop |
+| 7 | Any critical issue found | Disable affected feature flag, ship without |
+
+Rollback is implemented via feature flags + route-level code splitting. Old frontend remains deployable until Phase 7 completion.
+
+---
+
 ## Dependencies
 
 | Dependency                          | Phase | Required For                        |
@@ -680,6 +732,23 @@ Week 21──24  Phase 7: Polish & Hardening
 | OWASP ZAP                           | 7     | Security testing                    |
 | Translation contributors           | 7     | i18n                                |
 | Backend API stability              | 1-5   | API client generation               |
+
+---
+
+## Out-of-Scope Features (Migration Required)
+
+The following features exist in the current frontend (per GUI_AUDIT.md) but are NOT included in this rewrite. These require a separate migration plan:
+
+| Feature | Current State | Migration Plan |
+|---------|--------------|----------------|
+| **Mail (IMAP)** | AUDIT Section 2.12 — 6 endpoints, account management, folder nav, compose | Defer to Phase 8 or separate project. Requires IMAP client architecture decision. |
+| **Analytics** | AUDIT Section 2.14 — Share link analytics, storage charts, activity timeline | Defer to Phase 8. Low priority compared to core features. |
+| **Graph view** | AUDIT Section 3 — Dependency graph visualization | Include in Phase 3 if time permits. Low priority. |
+| **Custom views** | AUDIT Section 3 — Configurable data table views | Include in Phase 4 if time permits. Low priority. |
+| **Photo editor** | AUDIT Appendix A — Crop, rotate, filters | Include in Phase 3 if time permits. Medium priority. |
+| **Slideshow** | AUDIT Appendix A — Auto-advance, transitions | Include in Phase 3 if time permits. Low priority. |
+
+**Decision required:** Product owner must explicitly approve deferral or assign these to a subsequent project.
 
 ---
 

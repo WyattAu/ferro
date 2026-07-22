@@ -15,6 +15,9 @@
 | 5  | **Observability**              | FAANG       | Structured logging, performance metrics, error tracking. You cannot improve what you cannot measure. |
 | 6  | **Accessibility**              | ECN/ADA     | WCAG 2.1 AA minimum, keyboard-first navigation, screen reader support. Accessible by default, not as an afterthought. |
 | 7  | **Type Safety**                | FAANG       | End-to-end type safety from API schema to UI components. Compile-time guarantees over runtime checks. |
+| 8  | **SOLID Compliance**           | Design Patterns | Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion. |
+| 9  | **Composition over Inheritance** | Design Patterns | Build complex components from simple primitives via composition, not class hierarchies. |
+| 10 | **Strategy Pattern**           | Design Patterns | Algorithms (sort, search, conflict resolution) are interchangeable via trait objects. |
 
 ---
 
@@ -118,18 +121,27 @@ Feature-specific components built from primitives.
 |----------------------|---------------------------------------------------|-------|
 | `FileBrowser`        | List/grid view, breadcrumb nav, drag-drop, context menu | 1     |
 | `UploadZone`         | Drag-drop area, progress bar, file validation      | 1     |
+| `CommandPalette`     | Ctrl+K global command palette, fuzzy search        | 0     |
+| `GraphView`          | Dependency graph visualization for file relationships | 3   |
+| `CustomView`         | Configurable data table views                      | 4     |
 | `NotesEditor`        | Markdown editing, live preview, folder tree        | 2     |
 | `TaskBoard`          | Kanban columns, drag-drop cards, filters           | 2     |
 | `CalendarGrid`       | Month/week/day views, event CRUD, drag-resize     | 2     |
 | `ContactList`        | vCard rendering, search, import/export             | 2     |
 | `ChatPanel`          | WebSocket real-time, rooms, @mentions, reactions   | 2     |
 | `PhotoGrid`          | Masonry layout, lightbox, album management         | 3     |
+| `PhotoEditor`        | Crop, rotate, filters, EXIF editing                | 3     |
+| `Slideshow`          | Auto-advance, transitions, keyboard nav            | 3     |
 | `VideoPlayer`        | Range request streaming, custom controls           | 3     |
 | `AudioPlayer`        | Playlist, waveform visualization                   | 3     |
+| `EpubPreview`        | EPUB reader with page navigation                   | 3     |
+| `MarkdownPreview`    | Rendered markdown with syntax highlighting         | 3     |
 | `WhiteboardCanvas`   | Drawing tools, real-time cursors, export            | 3     |
 | `AdminDashboard`     | User management, DLP, audit logs                   | 4     |
 | `AuditLogViewer`     | Filterable, exportable, real-time streaming         | 4     |
 | `SettingsPanel`      | Tabbed settings, validation, save states            | 4     |
+| `OnboardingOverlay`  | First-run experience, feature highlights           | 0     |
+| `SetupWizard`        | Initial configuration wizard                       | 0     |
 
 ### 3.4 Infrastructure Components
 
@@ -145,6 +157,9 @@ Cross-cutting concerns applied at the app level.
 | `ThemeProvider`        | Manages dark/light theme, applies CSS custom props  |
 | `I18nProvider`        | Loads translations, provides t() function           |
 | `AnalyticsProvider`   | Structured logging, performance metrics             |
+| `FeatureFlagProvider` | Feature flag evaluation, gradual rollout            |
+| `AuditLogger`         | Client-side action logging for audit trail          |
+| `CircuitBreaker`      | API call failure detection, fallback triggering     |
 
 ---
 
@@ -270,6 +285,8 @@ Cache rules:
 
 ### 5.2 Schema Definition
 
+All API paths use the `/api/v1/` prefix for versioning. This is the canonical convention — all documents must reference these paths consistently.
+
 ```toml
 # api/schema/files.toml
 [endpoint.get_files]
@@ -353,7 +370,7 @@ pub enum ApiError {
 ### 5.5 Error Handling
 
 ```
-API Error → ApiError enum → ErrorBoundary catch → User-friendly toast + retry action
+API Error → ApiError enum → CircuitBreaker check → ErrorBoundary catch → User-friendly toast + retry action
 ```
 
 | Error Type     | UI Response                                    | Retry? |
@@ -363,6 +380,67 @@ API Error → ApiError enum → ErrorBoundary catch → User-friendly toast + re
 | Validation     | Inline field error                             | No     |
 | Server (5xx)   | "Something went wrong" toast with retry button | Yes    |
 | Network        | "Connection lost" banner, queue mutation       | Auto   |
+
+### 5.6 Circuit Breaker
+
+Protect against cascading failures when backend is degraded:
+
+```rust
+pub struct CircuitBreaker {
+    state: Signal<CircuitState>,        // Closed | Open | HalfOpen
+    failure_count: Signal<u32>,
+    last_failure: Signal<Option<Instant>>,
+    success_count: Signal<u32>,
+    threshold: u32,                     // 5 failures → open
+    timeout: Duration,                  // 30s → half-open
+    half_open_max: u32,                 // 3 successes → close
+}
+
+pub enum CircuitState {
+    Closed,        // Normal operation, count failures
+    Open,          // Failing, reject calls immediately
+    HalfOpen,      // Testing recovery, allow limited calls
+}
+```
+
+When circuit is OPEN:
+- API calls return `ApiError::CircuitOpen` immediately
+- UI shows "Service temporarily unavailable" banner
+- After timeout, transition to HALF_OPEN and allow 3 test calls
+- If all succeed → CLOSED. If any fail → OPEN again.
+
+### 5.7 Repository Pattern
+
+Data access is abstracted behind repository traits:
+
+```rust
+#[async_trait]
+pub trait FileRepository {
+    async fn list(&self, path: &str, params: ListParams) -> Result<PaginatedList<FileItem>>;
+    async fn get(&self, id: &str) -> Result<FileItem>;
+    async fn create(&self, params: CreateFileParams) -> Result<FileItem>;
+    async fn update(&self, id: &str, params: UpdateFileParams) -> Result<FileItem>;
+    async fn delete(&self, id: &str) -> Result<()>;
+    async fn move_file(&self, id: &str, dest: &str) -> Result<FileItem>;
+    async fn copy(&self, id: &str, dest: &str) -> Result<FileItem>;
+}
+
+#[async_trait]
+pub trait NoteRepository {
+    async fn list(&self, params: ListParams) -> Result<PaginatedList<Note>>;
+    async fn get(&self, id: &str) -> Result<Note>;
+    async fn create(&self, params: CreateNoteParams) -> Result<Note>;
+    async fn update(&self, id: &str, params: UpdateNoteParams) -> Result<Note>;
+    async fn delete(&self, id: &str) -> Result<()>;
+}
+```
+
+Implementations:
+- `ApiRepository` — calls generated API client
+- `CacheRepository` — wraps ApiRepository with IndexedDB cache
+- `OfflineRepository` — queue mutations when offline, sync when online
+
+This enables testing with mock repositories and offline mode without changing business logic.
 
 ---
 
@@ -475,6 +553,41 @@ Content-Security-Policy:
 | File names          | Sanitize before display, no path traversal        |
 | SVG upload          | Strip `<script>` tags, validate SVG structure     |
 
+### 7.5 Rate Limiting
+
+| Scope               | Strategy                                          |
+|---------------------|---------------------------------------------------|
+| API calls           | Client-side debounce (150ms for search, 500ms for mutations) |
+| File uploads        | Max 5 concurrent, queue with progress              |
+| WebSocket messages  | Max 100 messages/minute per connection             |
+| Retry backoff       | Exponential: 1s → 2s → 4s → ... → 30s max        |
+
+### 7.6 Audit Trail
+
+Every user action that modifies state is logged client-side:
+
+```rust
+pub struct AuditEntry {
+    pub timestamp: DateTime<Utc>,
+    pub action: AuditAction,        // FileCreate, FileDelete, ShareCreate, etc.
+    pub resource_type: String,      // "file", "share", "note", etc.
+    pub resource_id: String,
+    pub details: HashMap<String, Value>,
+    pub session_id: String,
+}
+
+pub enum AuditAction {
+    FileCreate, FileDelete, FileMove, FileCopy, FileRename,
+    FileUpload, FileDownload, FileShare, FileLock,
+    NoteCreate, NoteUpdate, NoteDelete,
+    TaskCreate, TaskUpdate, TaskDelete,
+    UserLogin, UserLogout, SettingsChange,
+    AdminUserCreate, AdminUserDelete, AdminPolicyChange,
+}
+```
+
+Audit entries are batched (max 50 or 5s interval) and sent to `/api/audit` endpoint.
+
 ---
 
 ## 8. Performance Architecture
@@ -528,6 +641,45 @@ pub struct MemoryGuard {
 | CSS bundle size              | < 30KB     | gzip compressed                       |
 | Interaction latency (p99)    | < 100ms    | Custom performance measurement        |
 | Memory usage (steady state)  | < 100MB    | Chrome DevTools heap snapshot         |
+
+### 8.5 Per-Component Latency Budgets
+
+| Component | Render Budget | Interaction Budget | Measurement |
+|-----------|--------------|-------------------|-------------|
+| FileBrowser (1000 items) | < 50ms | < 16ms (60fps) | `performance.now()` in mount |
+| CommandPalette | < 30ms | < 16ms | Fuzzy search + render |
+| Dialog | < 20ms | < 16ms | Open/close animation |
+| Toast | < 10ms | N/A | Show/dismiss |
+| PhotoGrid (100 items) | < 100ms | < 16ms | Lazy load + render |
+| ChatPanel (100 messages) | < 80ms | < 16ms | Message render |
+| NotesEditor | < 50ms | < 16ms | keystroke → preview update |
+| WhiteboardCanvas | < 16ms | < 16ms | Drawing tool response |
+
+### 8.6 Memory Allocation Strategy
+
+```rust
+// Zero-allocation hot paths
+pub struct MemoryStrategy {
+    // Pre-allocate file list buffer (1000 items × ~200 bytes = 200KB)
+    pub file_list_buffer: Vec<FileItem>,
+    
+    // Reuse message buffer for WebSocket (max 64KB per message)
+    pub message_buffer: Vec<u8>,
+    
+    // Pre-allocate DOM node pool for virtual scrolling
+    pub dom_node_pool: Vec<web_sys::Element>,
+    
+    // Image blob cache with LRU eviction (50MB max)
+    pub image_cache: LruCache<String, Vec<u8>>,
+}
+
+// Allocation rules:
+// 1. Never allocate in render loops
+// 2. Never allocate in event handlers (reuse buffers)
+// 3. Pre-allocate all collections at component mount
+// 4. Use arena allocation for temporary strings
+// 5. Pool DOM nodes for virtual scrolling
+```
 
 ---
 
@@ -704,9 +856,198 @@ action = "View"
 
 ---
 
-## 13. Observability
+## 13. CQRS and Event Sourcing
 
-### 13.1 Structured Logging
+### 13.1 CQRS for Complex Domains
+
+For domains with complex read/write patterns, separate read and write models:
+
+| Domain | Read Model | Write Model | Sync Strategy |
+|--------|-----------|-------------|---------------|
+| File Browser | Cached file list (stale-while-revalidate) | Optimistic mutations → queue → server | WebSocket file events invalidate cache |
+| Notes | IndexedDB cache + server cache | Command queue → server | Conflict resolution on sync |
+| Tasks | Kanban view state (local) | Command queue → server | WebSocket task events |
+| Admin | Server state (no local cache) | Direct API calls (admin operations not offline-capable) | N/A |
+
+### 13.2 Atomic Operations
+
+File operations are atomic to prevent partial state:
+
+```rust
+pub struct AtomicOperation {
+    pub id: Uuid,
+    pub operations: Vec<Operation>,
+    pub status: Signal<OpStatus>,    // Pending | Applied | RolledBack
+    pub created_at: DateTime<Utc>,
+}
+
+pub enum OpStatus {
+    Pending,      // Queued, not yet sent to server
+    Applied,      // Server confirmed all operations
+    RolledBack,   // Server rejected, local state restored
+    PartialFail,  // Some operations succeeded, needs manual resolution
+}
+
+// Example: Move file + update references atomically
+let op = AtomicOperation {
+    id: Uuid::new_v4(),
+    operations: vec![
+        Operation::Move { from: "/docs/old.pdf", to: "/archive/old.pdf" },
+        Operation::UpdateReference { note_id: "note-123", old_path: "/docs/old.pdf", new_path: "/archive/old.pdf" },
+    ],
+    ..
+};
+```
+
+If any operation in the atomic set fails, all are rolled back locally and user is notified.
+
+### 13.3 State Machine Patterns
+
+Domain entities use explicit state machines:
+
+```rust
+// File state machine
+pub enum FileState {
+    Active,         // Normal state
+    Locked,         // Locked by user
+    Syncing,        // Being synced to/from server
+    Offline,        // Cached locally, pending sync
+    Deleted,        // Soft-deleted, in trash
+    Purged,         // Permanently deleted
+}
+
+impl FileState {
+    pub fn transition(&self, event: FileEvent) -> Result<Self> {
+        match (self, event) {
+            (Active, FileEvent::Lock) => Ok(Locked),
+            (Active, FileEvent::Delete) => Ok(Deleted),
+            (Active, FileEvent::SyncStart) => Ok(Syncing),
+            (Locked, FileEvent::Unlock) => Ok(Active),
+            (Syncing, FileEvent::SyncComplete) => Ok(Active),
+            (Syncing, FileEvent::SyncFail) => Ok(Offline),
+            (Offline, FileEvent::SyncStart) => Ok(Syncing),
+            (Deleted, FileEvent::Restore) => Ok(Active),
+            (Deleted, FileEvent::Purge) => Ok(Purged),
+            _ => Err(Error::InvalidTransition),
+        }
+    }
+}
+```
+
+State transitions are logged to audit trail. Invalid transitions are rejected with error message.
+
+### 13.4 Strategy Pattern for Algorithms
+
+Algorithms are interchangeable via trait objects:
+
+```rust
+// Sort strategy
+pub trait SortStrategy {
+    fn sort(&self, items: &mut Vec<FileItem>, order: SortOrder);
+}
+
+pub struct NameSort;
+pub struct DateSort;
+pub struct SizeSort;
+pub struct TypeSort;
+
+impl SortStrategy for NameSort {
+    fn sort(&self, items: &mut Vec<FileItem>, order: SortOrder) {
+        items.sort_by(|a, b| match order {
+            SortOrder::Asc => a.name.cmp(&b.name),
+            SortOrder::Desc => b.name.cmp(&a.name),
+        });
+    }
+}
+
+// Search strategy
+pub trait SearchStrategy {
+    fn search(&self, query: &str, items: &[FileItem]) -> Vec<FileItem>;
+}
+
+pub struct FuzzySearch;
+pub struct ExactSearch;
+pub struct RegexSearch;
+
+// Conflict resolution strategy
+pub trait ConflictResolution {
+    fn resolve(&self, local: &Mutation, remote: &Mutation) -> Resolution;
+}
+
+pub struct LastWriteWins;
+pub struct ManualResolution;
+pub struct MergeResolution;
+```
+
+Strategies are selected at runtime based on user preferences or system configuration.
+
+### 13.2 Event Sourcing for Collaboration
+
+Whiteboard and chat use event sourcing for conflict-free collaboration:
+
+```rust
+pub struct EventEnvelope {
+    pub event_id: Uuid,
+    pub aggregate_id: Uuid,       // Whiteboard or Chat room ID
+    pub sequence_number: u64,     // Monotonic per aggregate
+    pub event_type: String,       // "whiteboard.element.added"
+    pub payload: serde_json::Value,
+    pub timestamp: DateTime<Utc>,
+    pub user_id: String,
+}
+
+pub trait EventStore {
+    fn append(&self, events: &[EventEnvelope]) -> Result<()>;
+    fn get_events(&self, aggregate_id: Uuid, after_sequence: u64) -> Result<Vec<EventEnvelope>>;
+    fn get_snapshot(&self, aggregate_id: Uuid) -> Result<Option<Snapshot>>;
+}
+```
+
+Snapshot every 100 events for performance. Rebuild state from events on connection.
+
+**Whiteboard Events:**
+- `whiteboard.element.added` — New drawing element
+- `whiteboard.element.updated` — Element modified (position, style)
+- `whiteboard.element.removed` — Element deleted
+- `whiteboard.cursor.moved` — User cursor position update
+- `whiteboard.viewport.changed` — User zoom/pan change
+
+**Chat Events:**
+- `chat.message.sent` — New message
+- `chat.message.edited` — Message edited
+- `chat.message.deleted` — Message deleted
+- `chat.user.typing` — Typing indicator
+- `chat.user.joined` — User joined room
+- `chat.user.left` — User left room
+
+Conflict resolution: Last-write-wins for concurrent edits to same element. Operation transforms for chat messages (insert/delete at position).
+
+### 13.3 Plugin Architecture
+
+Frontend supports plugins via WebAssembly modules:
+
+```rust
+pub trait FrontendPlugin {
+    fn name(&self) -> &str;
+    fn version(&self) -> &str;
+    fn render_settings(&self) -> Option<Box<dyn Fn() -> Element>>;
+    fn on_file_action(&self, action: FileAction) -> Option<FileAction>;
+    fn on_route(&self, route: &str) -> Option<Element>;
+}
+
+pub struct PluginManager {
+    plugins: Vec<Box<dyn FrontendPlugin>>,
+    wasm_cache: HashMap<String, Vec<u8>>,
+}
+```
+
+Plugins are loaded from `/api/v1/plugins/{id}/wasm` and sandboxed via WASM isolation.
+
+---
+
+## 14. Observability
+
+### 14.1 Structured Logging
 
 ```rust
 pub struct LogEntry {
@@ -719,7 +1060,7 @@ pub struct LogEntry {
 }
 ```
 
-### 13.2 Performance Metrics
+### 14.2 Performance Metrics
 
 | Metric                          | Collection Method                              |
 |--------------------------------|------------------------------------------------|
@@ -730,7 +1071,7 @@ pub struct LogEntry {
 | Bundle load time               | Service worker timing                           |
 | Error rate                     | Error boundary catch count                     |
 
-### 13.3 Error Tracking
+### 14.3 Error Tracking
 
 ```
 Component Error
@@ -741,9 +1082,72 @@ Component Error
     └─ Offer retry action (if recoverable)
 ```
 
----
+### 14.4 Monitoring and Alerting
 
-## References
+| Metric | Threshold | Action |
+|--------|-----------|--------|
+| Error rate (5min window) | > 5% of requests | Alert, enable verbose logging |
+| API response time (p99) | > 500ms | Alert, investigate backend |
+| WebSocket disconnect rate | > 10/hour | Alert, check network/backend |
+| WASM load time | > 3s | Alert, investigate CDN/bundle |
+| Memory usage (steady state) | > 200MB | Alert, investigate memory leak |
+| Crash rate | > 0.1% of sessions | Alert, immediate investigation |
+
+Monitoring integrates with backend observability (`crates/observability/`) via structured log shipping.
+
+## 15. Accessibility Specification
+
+### 15.1 WCAG 2.1 AA Success Criteria
+
+| Criterion | Requirement | Implementation |
+|-----------|-------------|----------------|
+| 1.1.1 Non-text Content | All images have alt text | `alt` attribute on `<img>`, `aria-label` on icons |
+| 1.3.1 Info and Relationships | Semantic HTML | Use `<nav>`, `<main>`, `<aside>`, `<table>` correctly |
+| 1.4.3 Contrast (Minimum) | 4.5:1 for text, 3:1 for UI | Theme tokens verified against contrast checker |
+| 1.4.11 Non-text Contrast | 3:1 for UI components | Focus rings, borders, icons meet ratio |
+| 2.1.1 Keyboard | All functionality via keyboard | Tab order, Enter/Space activation, Arrow navigation |
+| 2.1.2 No Keyboard Trap | Focus can always escape | FocusTrap component releases on Escape |
+| 2.4.1 Bypass Blocks | Skip navigation link | First element in DOM is skip link |
+| 2.4.3 Focus Order | Logical tab order | DOM order matches visual order |
+| 2.4.7 Focus Visible | Clear focus indicator | 2px solid accent color, 2px offset |
+| 3.3.1 Error Identification | Errors described in text | `aria-describedby` links input to error message |
+| 4.1.2 Name, Role, Value | ARIA attributes on all interactive elements | `role`, `aria-label`, `aria-expanded`, etc. |
+
+### 15.2 Keyboard Navigation Patterns
+
+| Pattern | Keys | Behavior |
+|---------|------|----------|
+| List navigation | ↑/↓ | Move focus between items |
+| Grid navigation | ↑/↓/←/→ | Move focus in grid |
+| Activate | Enter/Space | Toggle selection, open item |
+| Multi-select | Ctrl+Click | Add/remove from selection |
+| Range select | Shift+Click | Select range |
+| Escape | Esc | Close dialog, deselect, cancel |
+| Command palette | Ctrl+K | Open/close command palette |
+| Search | / | Focus search input |
+
+### 15.3 Screen Reader Support
+
+- All interactive elements have `aria-label` or visible text
+- Dynamic content uses `aria-live="polite"` for non-urgent updates
+- Dynamic content uses `aria-live="assertive"` for urgent alerts
+- Loading states announced via `aria-busy` and `role="status"`
+- Modal dialogs use `aria-modal="true"` and trap focus
+- File operations announce result: "File uploaded successfully" or "Delete failed"
+
+### 15.4 Reduced Motion
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+All animations respect `prefers-reduced-motion`. Users can also toggle animation off in Settings > Appearance.
 
 - [ADR-001: Complete GUI Rewrite](./ADR-001-GUI-REWRITE.md)
 - [GUI Rewrite Roadmap](../08_roadmap/GUI_REWRITE_ROADMAP.md)
