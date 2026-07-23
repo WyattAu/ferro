@@ -201,7 +201,10 @@ fn build_client(token: &str) -> Result<reqwest::Client, String> {
     // - If token contains ":" it's user:pass (Basic auth) -- base64 encode it
     // - If token decodes from base64 to user:pass, use Basic as-is
     // - Otherwise treat as Bearer token
-    let auth_header = if token.contains(':') {
+    let auth_header = if token.is_empty() {
+        // No auth -- skip header
+        String::new()
+    } else if token.contains(':') {
         // Raw user:pass -- base64 encode as Basic
         const BASE64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         let input = token.as_bytes();
@@ -236,9 +239,13 @@ fn build_client(token: &str) -> Result<reqwest::Client, String> {
         format!("Bearer {token}")
     };
 
-    let value = reqwest::header::HeaderValue::from_str(&auth_header).map_err(|e| format!("Invalid token: {}", e))?;
-    headers.insert(reqwest::header::AUTHORIZATION, value);
+    if !auth_header.is_empty() {
+        let value =
+            reqwest::header::HeaderValue::from_str(&auth_header).map_err(|e| format!("Invalid token: {}", e))?;
+        headers.insert(reqwest::header::AUTHORIZATION, value);
+    }
     reqwest::Client::builder()
+        .no_proxy()
         .default_headers(headers)
         .timeout(std::time::Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(10))
@@ -452,6 +459,134 @@ pub async fn list_directory(url: String, token: String, path: String, depth: Opt
     let xml = do_propfind(&client, &url, &path, depth_val).await?;
     let entries = parse_propfind_response(&xml, &path);
     serde_json::to_string(&entries).map_err(|e| format!("Serialization failed: {}", e))
+}
+
+/// REST-based file listing using GET /api/v1/files?path=.
+/// Returns JSON matching the frontend's expected format (ListFilesResponse).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RestFileEntry {
+    pub name: String,
+    pub path: String,
+    pub size: u64,
+    pub is_collection: bool,
+    pub mime_type: Option<String>,
+    pub etag: Option<String>,
+    pub content_hash: Option<String>,
+    pub modified_at: Option<String>,
+    pub created_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RestListFilesResponse {
+    pub entries: Vec<RestFileEntry>,
+}
+
+#[tauri::command]
+pub async fn list_files_rest(url: String, token: String, path: String) -> Result<String, String> {
+    let client = build_client(&token)?;
+    let base = url.trim_end_matches('/');
+    let query_path = path.trim_start_matches('/');
+    let api_url = format!("{}/api/v1/files?path=/{}", base, query_path);
+
+    tracing::info!("[list_files_rest] GET {}", api_url);
+
+    let response = client
+        .get(&api_url)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("[list_files_rest] request failed: {}", e);
+            format!("GET /api/v1/files failed: {}", e)
+        })?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        tracing::error!("[list_files_rest] HTTP {}: {}", status, body);
+        return Err(format!("GET /api/v1/files returned {}: {}", status, body));
+    }
+
+    let body = response.text().await.map_err(|e| {
+        tracing::error!("[list_files_rest] read body failed: {}", e);
+        format!("Failed to read response: {}", e)
+    })?;
+
+    tracing::debug!("[list_files_rest] response ({} bytes)", body.len());
+
+    // Parse the server response and normalize to frontend format
+    let raw: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+        tracing::error!(
+            "[list_files_rest] parse failed: {} — body: {}",
+            e,
+            &body[..body.len().min(200)]
+        );
+        format!("JSON parse: {}", e)
+    })?;
+
+    // Extract entries from the response — server may return { entries: [...] } or just [...]
+    let entries = if let Some(arr) = raw.get("entries").and_then(|v| v.as_array()) {
+        arr.clone()
+    } else if let Some(arr) = raw.as_array() {
+        arr.clone()
+    } else {
+        tracing::warn!(
+            "[list_files_rest] unexpected response shape: {}",
+            &body[..body.len().min(200)]
+        );
+        vec![]
+    };
+
+    // Normalize each entry to frontend-compatible format
+    let normalized_path = path.trim_end_matches('/');
+    let mut normalized = Vec::with_capacity(entries.len());
+    for entry in &entries {
+        let name = entry.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let entry_path = entry.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let size = entry.get("size").and_then(|v| v.as_u64()).unwrap_or(0);
+        let is_collection = entry
+            .get("isCollection")
+            .and_then(|v| v.as_bool())
+            .or_else(|| entry.get("is_collection").and_then(|v| v.as_bool()))
+            .unwrap_or(false);
+        let mime_type = entry
+            .get("mimeType")
+            .and_then(|v| v.as_str())
+            .or_else(|| entry.get("mime_type").and_then(|v| v.as_str()))
+            .map(String::from);
+        let etag = entry.get("etag").and_then(|v| v.as_str()).map(String::from);
+        let modified_at = entry
+            .get("modifiedAt")
+            .and_then(|v| v.as_str())
+            .or_else(|| entry.get("modified_at").and_then(|v| v.as_str()))
+            .map(String::from);
+
+        // Filter out the self-referential directory entry
+        if entry_path.trim_end_matches('/') == normalized_path {
+            continue;
+        }
+
+        normalized.push(RestFileEntry {
+            name,
+            path: entry_path,
+            size,
+            is_collection,
+            mime_type,
+            etag,
+            content_hash: entry.get("contentHash").and_then(|v| v.as_str()).map(String::from),
+            modified_at,
+            created_at: entry
+                .get("createdAt")
+                .and_then(|v| v.as_str())
+                .or_else(|| entry.get("created_at").and_then(|v| v.as_str()))
+                .map(String::from),
+        });
+    }
+
+    let result = RestListFilesResponse { entries: normalized };
+    serde_json::to_string(&result).map_err(|e| format!("Serialization failed: {}", e))
 }
 
 #[tauri::command]
@@ -917,6 +1052,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             cmd_check_update,
             cmd_install_update,
             list_directory,
+            list_files_rest,
             get_file,
             put_file,
             create_directory,
@@ -1176,9 +1312,19 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                 window.set_title("Ferro")?;
                 let _ = window.show();
                 let _ = window.set_focus();
+
+                // Inject FERRO_SERVER_URL from CLI args into the webview
+                if let Some(conn) = app.try_state::<CliConnection>() {
+                    if let Some(ref url) = conn.server_url {
+                        let js = format!("window.FERRO_SERVER_URL = '{}';", url);
+                        let _ = window.eval(&js);
+                        tracing::info!("Injected FERRO_SERVER_URL = {}", url);
+                    }
+                }
             }
 
             // Auto-capture screenshot after page loads for debugging
+            #[cfg(feature = "screenshot")]
             {
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {

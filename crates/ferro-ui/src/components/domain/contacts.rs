@@ -25,25 +25,37 @@ pub fn ContactsPage() -> impl IntoView {
             let set_c = set_contacts;
             let set_l = set_loading;
             wasm_bindgen_futures::spawn_local(async move {
-                let client = crate::api::ApiClient::new(crate::api::ApiClientConfig::default());
+                let client = crate::api::ApiClient::from_env();
                 match client.get::<serde_json::Value>("/api/v1/contacts").await {
                     Ok(val) => {
                         if let Some(arr) = val.as_array() {
-                            let items: Vec<Contact> = arr.iter().filter_map(|v| {
-                                Some(Contact {
-                                    uid: v["uid"].as_str()?.to_string(),
-                                    name: v["name"].as_str().unwrap_or("Unknown").to_string(),
-                                    emails: v["emails"].as_array().map(|a| a.iter().filter_map(|e| e.as_str().map(String::from)).collect()).unwrap_or_default(),
-                                    phones: v["phones"].as_array().map(|a| a.iter().filter_map(|p| p.as_str().map(String::from)).collect()).unwrap_or_default(),
-                                    organization: v["organization"].as_str().unwrap_or("").to_string(),
-                                    notes: v["notes"].as_str().unwrap_or("").to_string(),
+                            let items: Vec<Contact> = arr
+                                .iter()
+                                .filter_map(|v| {
+                                    Some(Contact {
+                                        uid: v["uid"].as_str()?.to_string(),
+                                        name: v["name"].as_str().unwrap_or("Unknown").to_string(),
+                                        emails: v["emails"]
+                                            .as_array()
+                                            .map(|a| a.iter().filter_map(|e| e.as_str().map(String::from)).collect())
+                                            .unwrap_or_default(),
+                                        phones: v["phones"]
+                                            .as_array()
+                                            .map(|a| a.iter().filter_map(|p| p.as_str().map(String::from)).collect())
+                                            .unwrap_or_default(),
+                                        organization: v["organization"].as_str().unwrap_or("").to_string(),
+                                        notes: v["notes"].as_str().unwrap_or("").to_string(),
+                                    })
                                 })
-                            }).collect();
+                                .collect();
                             set_c.set(items);
                         }
                         set_l.set(false);
                     }
-                    Err(e) => { log::error!("Contacts load failed: {}", e); set_l.set(false); }
+                    Err(e) => {
+                        log::error!("Contacts load failed: {}", e);
+                        set_l.set(false);
+                    }
                 }
             });
         }

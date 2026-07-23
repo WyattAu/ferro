@@ -25,26 +25,32 @@ pub fn PhotosPage() -> impl IntoView {
             let set_p = set_photos;
             let set_l = set_loading;
             wasm_bindgen_futures::spawn_local(async move {
-                let client = crate::api::ApiClient::new(crate::api::ApiClientConfig::default());
+                let client = crate::api::ApiClient::from_env();
                 match client.get::<serde_json::Value>("/api/v1/photos").await {
                     Ok(val) => {
                         if let Some(arr) = val.as_array() {
-                            let items: Vec<Photo> = arr.iter().filter_map(|v| {
-                                let path = v["path"].as_str()?.to_string();
-                                Some(Photo {
-                                    thumbnail: format!("/api/v1/photos/thumbnail/{}", path),
-                                    name: v["name"].as_str().unwrap_or("photo").to_string(),
-                                    date: v["date"].as_str().unwrap_or("").to_string(),
-                                    width: v["width"].as_u64().unwrap_or(0) as u32,
-                                    height: v["height"].as_u64().unwrap_or(0) as u32,
-                                    path,
+                            let items: Vec<Photo> = arr
+                                .iter()
+                                .filter_map(|v| {
+                                    let path = v["path"].as_str()?.to_string();
+                                    Some(Photo {
+                                        thumbnail: format!("/api/v1/photos/thumbnail/{}", path),
+                                        name: v["name"].as_str().unwrap_or("photo").to_string(),
+                                        date: v["date"].as_str().unwrap_or("").to_string(),
+                                        width: v["width"].as_u64().unwrap_or(0) as u32,
+                                        height: v["height"].as_u64().unwrap_or(0) as u32,
+                                        path,
+                                    })
                                 })
-                            }).collect();
+                                .collect();
                             set_p.set(items);
                         }
                         set_l.set(false);
                     }
-                    Err(e) => { log::error!("Photos load failed: {}", e); set_l.set(false); }
+                    Err(e) => {
+                        log::error!("Photos load failed: {}", e);
+                        set_l.set(false);
+                    }
                 }
             });
         }

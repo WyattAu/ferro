@@ -4352,6 +4352,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-ui"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "js-sys",
+ "leptos",
+ "leptos_meta",
+ "leptos_router",
+ "log",
+ "serde",
+ "serde_json",
+ "urlencoding",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "ferro-wasm-host"
 version = "3.0.0"
 dependencies = [
@@ -6449,6 +6467,21 @@ dependencies = [
  "server_fn_macro",
  "syn 2.0.117",
  "uuid",
+]
+
+[[package]]
+name = "leptos_meta"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c3efe657b4c55ed2e078922786ffe20acfb71767c3dd913767b09a35c75c890"
+dependencies = [
+ "futures",
+ "indexmap 2.14.0",
+ "leptos",
+ "or_poisoned",
+ "send_wrapper",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

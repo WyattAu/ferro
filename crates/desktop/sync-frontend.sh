@@ -65,7 +65,7 @@ cat >> "$DESKTOP_FE/index.html" << 'HTMLEOF'
             <p style="color: #94A3B8;">WebAssembly is required to run this application.</p>
         </div>
     </noscript>
-<script>window.FERRO_SERVER_URL = window.__FERRO_SERVER_URL__ || 'http://127.0.0.1:3000';</script>
+<script>window.FERRO_SERVER_URL = 'http://127.0.0.1:13000';</script>
 <script type="module">
 HTMLEOF
 

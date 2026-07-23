@@ -4,32 +4,27 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <meta name="description" content="Ferro - Self-hosted file storage platform"/>
-    <title>FERRO</title>
+    <title>Ferro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="style.css"/>
-    <link data-trunk-rel="rust" data-wasm-opt="O" data-bincode/>
-    <link rel="modulepreload" href="web-67dfc90724f7cfa6.js" crossorigin="anonymous"/>
-    <link rel="preload" href="web-67dfc90724f7cfa6_bg.wasm" crossorigin="anonymous" as="fetch" type="application/wasm"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="modulepreload" href="ferro-ui-472872029f34844f.js" crossorigin="anonymous"/>
+    <link rel="preload" href="ferro-ui-472872029f34844f_bg.wasm" crossorigin="anonymous" as="fetch" type="application/wasm"/>
 </head>
 <body>
     <div id="app"></div>
     <noscript>
-        <div style="padding: 3rem; text-align: center; font-family: 'IBM Plex Mono', monospace; background: #F5F0EB; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 3px solid #2B2B2B;">
-            <h1 style="font-size: 4rem; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 1rem;">FERRO</h1>
-            <p style="font-family: 'Inter', sans-serif; color: #8B8178; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem;">WebAssembly is required to run this application.</p>
+        <div style="padding: 3rem; text-align: center; font-family: 'Inter', sans-serif; background: #0F172A; color: #F1F5F9; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <h1 style="font-size: 3rem; font-weight: 700; margin-bottom: 1rem;">⚡ Ferro</h1>
+            <p style="color: #94A3B8;">WebAssembly is required to run this application.</p>
         </div>
     </noscript>
-<script>window.FERRO_SERVER_URL = window.__FERRO_SERVER_URL__ || 'http://127.0.0.1:3000'; console.log('FERRO_SERVER_URL set to', window.FERRO_SERVER_URL);</script>
-
+<script>window.FERRO_SERVER_URL = 'http://127.0.0.1:13000';</script>
 <script type="module">
-import init, * as bindings from './web-67dfc90724f7cfa6.js';
-const wasm = await init({ module_or_path: './web-67dfc90724f7cfa6_bg.wasm' });
-
+import init, * as bindings from './ferro-ui-472872029f34844f.js';
+const wasm = await init({ module_or_path: './ferro-ui-472872029f34844f_bg.wasm' });
 window.wasmBindings = bindings;
-
 dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
-
-</script></body>
+</script>
+</body>
 </html>

@@ -26,13 +26,15 @@ pub fn Avatar(
     if !src.is_empty() {
         view! {
             <img src=src alt=alt style=size_style.clone() class="avatar" />
-        }.into_any()
+        }
+        .into_any()
     } else {
         view! {
             <div class="avatar avatar-initials" style=size_style.clone() aria-label=alt>
                 {initials}
             </div>
-        }.into_any()
+        }
+        .into_any()
     }
 }
 

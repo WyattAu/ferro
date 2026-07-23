@@ -25,20 +25,26 @@ pub fn NotesPage() -> impl IntoView {
             let set_n = set_notes;
             let set_l = set_loading;
             wasm_bindgen_futures::spawn_local(async move {
-                let client = crate::api::ApiClient::new(crate::api::ApiClientConfig::default());
+                let client = crate::api::ApiClient::from_env();
                 match client.get::<serde_json::Value>("/api/v1/notes").await {
                     Ok(val) => {
                         if let Some(arr) = val.as_array() {
-                            let items: Vec<Note> = arr.iter().filter_map(|v| {
-                                Some(Note {
-                                    id: v["id"].as_str()?.to_string(),
-                                    title: v["title"].as_str().unwrap_or("Untitled").to_string(),
-                                    content: v["content"].as_str().unwrap_or("").to_string(),
-                                    folder: v["folder"].as_str().unwrap_or("").to_string(),
-                                    tags: v["tags"].as_array().map(|a| a.iter().filter_map(|t| t.as_str().map(String::from)).collect()).unwrap_or_default(),
-                                    updated_at: v["updated_at"].as_str().unwrap_or("").to_string(),
+                            let items: Vec<Note> = arr
+                                .iter()
+                                .filter_map(|v| {
+                                    Some(Note {
+                                        id: v["id"].as_str()?.to_string(),
+                                        title: v["title"].as_str().unwrap_or("Untitled").to_string(),
+                                        content: v["content"].as_str().unwrap_or("").to_string(),
+                                        folder: v["folder"].as_str().unwrap_or("").to_string(),
+                                        tags: v["tags"]
+                                            .as_array()
+                                            .map(|a| a.iter().filter_map(|t| t.as_str().map(String::from)).collect())
+                                            .unwrap_or_default(),
+                                        updated_at: v["updated_at"].as_str().unwrap_or("").to_string(),
+                                    })
                                 })
-                            }).collect();
+                                .collect();
                             set_n.set(items);
                         }
                         set_l.set(false);

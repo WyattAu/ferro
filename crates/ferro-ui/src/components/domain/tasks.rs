@@ -24,20 +24,23 @@ pub fn TasksPage() -> impl IntoView {
             let set_t = set_tasks;
             let set_l = set_loading;
             wasm_bindgen_futures::spawn_local(async move {
-                let client = crate::api::ApiClient::new(crate::api::ApiClientConfig::default());
+                let client = crate::api::ApiClient::from_env();
                 match client.get::<serde_json::Value>("/api/v1/tasks").await {
                     Ok(val) => {
                         if let Some(arr) = val.as_array() {
-                            let items: Vec<TaskItem> = arr.iter().filter_map(|v| {
-                                Some(TaskItem {
-                                    id: v["id"].as_str()?.to_string(),
-                                    title: v["title"].as_str().unwrap_or("Untitled").to_string(),
-                                    status: v["status"].as_str().unwrap_or("todo").to_string(),
-                                    priority: v["priority"].as_str().unwrap_or("medium").to_string(),
-                                    assignee: v["assignee"].as_str().map(String::from),
-                                    due_date: v["due_date"].as_str().map(String::from),
+                            let items: Vec<TaskItem> = arr
+                                .iter()
+                                .filter_map(|v| {
+                                    Some(TaskItem {
+                                        id: v["id"].as_str()?.to_string(),
+                                        title: v["title"].as_str().unwrap_or("Untitled").to_string(),
+                                        status: v["status"].as_str().unwrap_or("todo").to_string(),
+                                        priority: v["priority"].as_str().unwrap_or("medium").to_string(),
+                                        assignee: v["assignee"].as_str().map(String::from),
+                                        due_date: v["due_date"].as_str().map(String::from),
+                                    })
                                 })
-                            }).collect();
+                                .collect();
                             set_t.set(items);
                         }
                         set_l.set(false);
@@ -71,11 +74,7 @@ pub fn TasksPage() -> impl IntoView {
 
 #[component]
 fn TaskBoard(tasks: ReadSignal<Vec<TaskItem>>) -> impl IntoView {
-    let columns = vec![
-        ("todo", "To Do"),
-        ("in_progress", "In Progress"),
-        ("done", "Done"),
-    ];
+    let columns = vec![("todo", "To Do"), ("in_progress", "In Progress"), ("done", "Done")];
 
     view! {
         <div class="flex gap-4 h-full">

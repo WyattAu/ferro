@@ -12,10 +12,7 @@ pub fn Shell(children: Children) -> impl IntoView {
 
 /// Fixed header bar.
 #[component]
-pub fn Header(
-    #[prop(into, optional)] class: String,
-    children: Children,
-) -> impl IntoView {
+pub fn Header(#[prop(into, optional)] class: String, children: Children) -> impl IntoView {
     let class_str = format!("shell-header {}", class);
     view! {
         <header class=class_str>
@@ -45,10 +42,7 @@ pub fn Sidebar(
 
 /// Main content area.
 #[component]
-pub fn ContentArea(
-    #[prop(into, optional)] class: String,
-    children: Children,
-) -> impl IntoView {
+pub fn ContentArea(#[prop(into, optional)] class: String, children: Children) -> impl IntoView {
     let class_str = format!("shell-content {}", class);
     view! {
         <main class=class_str>

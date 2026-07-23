@@ -3,4 +3,4 @@ pub mod endpoints;
 pub mod websocket;
 
 pub use client::{ApiClient, ApiClientConfig, ApiError};
-pub use websocket::{WsManager, WsState, WsEvent};
+pub use websocket::{WsEvent, WsManager, WsState};

@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use crate::components::primitives::Spinner;
+use leptos::prelude::*;
 
 /// Search bar with filters and results.
 #[component]
@@ -25,10 +25,14 @@ pub fn SearchBar() -> impl IntoView {
             let set_r = set_results;
             let set_s = set_searching;
             wasm_bindgen_futures::spawn_local(async move {
-                let client = crate::api::ApiClient::new(crate::api::ApiClientConfig::default());
-                match client.get::<crate::api::endpoints::SearchResult>(
-                    &format!("/api/v1/search?q={}", urlencoding::encode(&q)),
-                ).await {
+                let client = crate::api::ApiClient::from_env();
+                match client
+                    .get::<crate::api::endpoints::SearchResult>(&format!(
+                        "/api/v1/search?q={}",
+                        urlencoding::encode(&q)
+                    ))
+                    .await
+                {
                     Ok(resp) => {
                         set_r.set(resp.entries);
                         set_s.set(false);

@@ -26,20 +26,26 @@ pub fn TrashPage() -> impl IntoView {
                 match client.get::<serde_json::Value>("/api/v1/trash").await {
                     Ok(val) => {
                         if let Some(arr) = val.as_array() {
-                            let items: Vec<TrashItem> = arr.iter().filter_map(|v| {
-                                Some(TrashItem {
-                                    name: v["name"].as_str()?.to_string(),
-                                    path: v["path"].as_str().unwrap_or("").to_string(),
-                                    original_path: v["original_path"].as_str().unwrap_or("").to_string(),
-                                    deleted_at: v["deleted_at"].as_str().unwrap_or("").to_string(),
-                                    size: v["size"].as_u64().unwrap_or(0),
+                            let items: Vec<TrashItem> = arr
+                                .iter()
+                                .filter_map(|v| {
+                                    Some(TrashItem {
+                                        name: v["name"].as_str()?.to_string(),
+                                        path: v["path"].as_str().unwrap_or("").to_string(),
+                                        original_path: v["original_path"].as_str().unwrap_or("").to_string(),
+                                        deleted_at: v["deleted_at"].as_str().unwrap_or("").to_string(),
+                                        size: v["size"].as_u64().unwrap_or(0),
+                                    })
                                 })
-                            }).collect();
+                                .collect();
                             set_i.set(items);
                         }
                         set_l.set(false);
                     }
-                    Err(e) => { log::error!("Trash load failed: {}", e); set_l.set(false); }
+                    Err(e) => {
+                        log::error!("Trash load failed: {}", e);
+                        set_l.set(false);
+                    }
                 }
             });
         }
@@ -90,7 +96,11 @@ pub fn TrashPage() -> impl IntoView {
 }
 
 fn format_size(bytes: u64) -> String {
-    if bytes < 1024 { format!("{} B", bytes) }
-    else if bytes < 1024 * 1024 { format!("{:.1} KB", bytes as f64 / 1024.0) }
-    else { format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0)) }
+    if bytes < 1024 {
+        format!("{} B", bytes)
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    }
 }

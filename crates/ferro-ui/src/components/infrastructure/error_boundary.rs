@@ -16,7 +16,8 @@ pub fn ErrorBoundary(children: Children) -> impl IntoView {
                     move |msg: String, _src: String, _l: u32, _c: u32, _e: JsValue| {
                         set_err.set(Some(msg));
                     },
-                ) as Box<dyn Fn(String, String, u32, u32, JsValue)>);
+                )
+                    as Box<dyn Fn(String, String, u32, u32, JsValue)>);
                 let _ = window.set_onerror(Some(cb.as_ref().unchecked_ref()));
                 cb.forget();
             }

@@ -26,21 +26,24 @@ pub fn CalendarPage() -> impl IntoView {
             let set_e = set_events;
             let set_l = set_loading;
             wasm_bindgen_futures::spawn_local(async move {
-                let client = crate::api::ApiClient::new(crate::api::ApiClientConfig::default());
+                let client = crate::api::ApiClient::from_env();
                 match client.get::<serde_json::Value>("/api/v1/calendar/events").await {
                     Ok(val) => {
                         if let Some(arr) = val.as_array() {
-                            let items: Vec<CalendarEvent> = arr.iter().filter_map(|v| {
-                                Some(CalendarEvent {
-                                    uid: v["uid"].as_str()?.to_string(),
-                                    title: v["title"].as_str().unwrap_or("Untitled").to_string(),
-                                    start: v["start"].as_str().unwrap_or("").to_string(),
-                                    end: v["end"].as_str().unwrap_or("").to_string(),
-                                    all_day: v["all_day"].as_bool().unwrap_or(false),
-                                    color: v["color"].as_str().unwrap_or("#3B82F6").to_string(),
-                                    description: v["description"].as_str().unwrap_or("").to_string(),
+                            let items: Vec<CalendarEvent> = arr
+                                .iter()
+                                .filter_map(|v| {
+                                    Some(CalendarEvent {
+                                        uid: v["uid"].as_str()?.to_string(),
+                                        title: v["title"].as_str().unwrap_or("Untitled").to_string(),
+                                        start: v["start"].as_str().unwrap_or("").to_string(),
+                                        end: v["end"].as_str().unwrap_or("").to_string(),
+                                        all_day: v["all_day"].as_bool().unwrap_or(false),
+                                        color: v["color"].as_str().unwrap_or("#3B82F6").to_string(),
+                                        description: v["description"].as_str().unwrap_or("").to_string(),
+                                    })
                                 })
-                            }).collect();
+                                .collect();
                             set_e.set(items);
                         }
                         set_l.set(false);
@@ -57,16 +60,24 @@ pub fn CalendarPage() -> impl IntoView {
     let prev_month = move |_| {
         set_current_date.update(|d| {
             let m = d.get_month();
-            if m == 0 { d.set_month(11); d.set_full_year(d.get_full_year() - 1); }
-            else { d.set_month(m - 1); }
+            if m == 0 {
+                d.set_month(11);
+                d.set_full_year(d.get_full_year() - 1);
+            } else {
+                d.set_month(m - 1);
+            }
         });
     };
 
     let next_month = move |_| {
         set_current_date.update(|d| {
             let m = d.get_month();
-            if m == 11 { d.set_month(0); d.set_full_year(d.get_full_year() + 1); }
-            else { d.set_month(m + 1); }
+            if m == 11 {
+                d.set_month(0);
+                d.set_full_year(d.get_full_year() + 1);
+            } else {
+                d.set_month(m + 1);
+            }
         });
     };
 
@@ -76,7 +87,20 @@ pub fn CalendarPage() -> impl IntoView {
 
     let month_name = move || {
         let d = current_date.get();
-        let months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        let months = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ];
         format!("{} {}", months[d.get_month() as usize], d.get_full_year())
     };
 

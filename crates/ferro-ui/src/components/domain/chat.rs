@@ -32,23 +32,29 @@ pub fn ChatPage() -> impl IntoView {
             let set_r = set_rooms;
             let set_l = set_loading;
             wasm_bindgen_futures::spawn_local(async move {
-                let client = crate::api::ApiClient::new(crate::api::ApiClientConfig::default());
+                let client = crate::api::ApiClient::from_env();
                 match client.get::<serde_json::Value>("/api/v1/chat/rooms").await {
                     Ok(val) => {
                         if let Some(arr) = val.as_array() {
-                            let items: Vec<ChatRoom> = arr.iter().filter_map(|v| {
-                                Some(ChatRoom {
-                                    id: v["id"].as_str()?.to_string(),
-                                    name: v["name"].as_str().unwrap_or("Room").to_string(),
-                                    last_message: v["last_message"].as_str().unwrap_or("").to_string(),
-                                    unread: v["unread"].as_u64().unwrap_or(0) as u32,
+                            let items: Vec<ChatRoom> = arr
+                                .iter()
+                                .filter_map(|v| {
+                                    Some(ChatRoom {
+                                        id: v["id"].as_str()?.to_string(),
+                                        name: v["name"].as_str().unwrap_or("Room").to_string(),
+                                        last_message: v["last_message"].as_str().unwrap_or("").to_string(),
+                                        unread: v["unread"].as_u64().unwrap_or(0) as u32,
+                                    })
                                 })
-                            }).collect();
+                                .collect();
                             set_r.set(items);
                         }
                         set_l.set(false);
                     }
-                    Err(e) => { log::error!("Chat rooms load failed: {}", e); set_l.set(false); }
+                    Err(e) => {
+                        log::error!("Chat rooms load failed: {}", e);
+                        set_l.set(false);
+                    }
                 }
             });
         }

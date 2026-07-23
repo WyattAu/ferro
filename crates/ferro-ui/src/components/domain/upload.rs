@@ -1,13 +1,10 @@
+use crate::components::primitives::Spinner;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
-use crate::components::primitives::Spinner;
 
 /// File upload zone with drag-drop and progress.
 #[component]
-pub fn UploadZone(
-    #[prop(into)] path: String,
-    #[prop(optional)] on_complete: Option<Callback<()>>,
-) -> impl IntoView {
+pub fn UploadZone(#[prop(into)] path: String, #[prop(optional)] on_complete: Option<Callback<()>>) -> impl IntoView {
     let (dragging, set_dragging) = signal(false);
     let (uploading, set_uploading) = signal(false);
     let (progress, set_progress) = signal(0u32);
@@ -41,13 +38,11 @@ pub fn UploadZone(
                                 format!("{}/{}", path, name)
                             };
 
-                            let array_buffer = wasm_bindgen_futures::JsFuture::from(
-                                file.array_buffer()
-                            ).await;
+                            let array_buffer = wasm_bindgen_futures::JsFuture::from(file.array_buffer()).await;
                             match array_buffer {
                                 Ok(ab) => {
                                     let bytes = js_sys::Uint8Array::new(&ab).to_vec();
-                                    let client = crate::api::ApiClient::new(crate::api::ApiClientConfig::default());
+                                    let client = crate::api::ApiClient::from_env();
                                     // TODO: implement actual upload via PUT /api/v1/files/{path}
                                     log::info!("Upload: {} ({} bytes)", file_path, bytes.len());
                                 }

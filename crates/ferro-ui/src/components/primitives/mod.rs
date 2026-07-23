@@ -1,11 +1,11 @@
 pub mod button;
-pub mod input;
-pub mod select;
 pub mod dialog;
+pub mod input;
 pub mod misc;
+pub mod select;
 
 pub use button::Button;
-pub use input::Input;
-pub use select::{Select, SelectOption};
 pub use dialog::Dialog;
-pub use misc::{Badge, Avatar, Spinner, Divider};
+pub use input::Input;
+pub use misc::{Avatar, Badge, Divider, Spinner};
+pub use select::{Select, SelectOption};
