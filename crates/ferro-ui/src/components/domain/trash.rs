@@ -87,8 +87,10 @@ pub fn TrashPage() -> impl IntoView {
                             </thead>
                             <tbody>
                                 {move || items.get().into_iter().map(|item| {
-                                    let _path = item.path.clone();
+                                    let path = item.path.clone();
                                     let original = item.original_path.clone();
+                                    let path_r = path.clone();
+                                    let path_d = path.clone();
                                     view! {
                                         <tr>
                                             <td class="font-medium">{item.name}</td>
@@ -96,8 +98,16 @@ pub fn TrashPage() -> impl IntoView {
                                             <td class="text-secondary text-sm">{item.deleted_at}</td>
                                             <td class="text-secondary text-sm">{format_size(item.size)}</td>
                                             <td>
-                                                <button class="btn btn-ghost btn-sm text-success">"Restore"</button>
-                                                <button class="btn btn-ghost btn-sm text-danger">"Delete"</button>
+                                                <button class="btn btn-ghost btn-sm text-success"
+                                                    on:click=move |_| {
+                                                        log::info!("[trash] restore: {}", path_r);
+                                                    }
+                                                >"Restore"</button>
+                                                <button class="btn btn-ghost btn-sm text-danger"
+                                                    on:click=move |_| {
+                                                        log::info!("[trash] delete: {}", path_d);
+                                                    }
+                                                >"Delete"</button>
                                             </td>
                                         </tr>
                                     }

@@ -9,6 +9,7 @@ pub fn Input(
     #[prop(optional)] error: bool,
     #[prop(optional)] class: String,
     #[prop(optional)] input_type: String,
+    #[prop(into, optional)] aria_label: String,
     #[prop(optional)] _on_input: Option<Callback<String>>,
 ) -> impl IntoView {
     let itype = if input_type.is_empty() {
@@ -30,6 +31,7 @@ pub fn Input(
             placeholder=placeholder
             disabled=disabled
             prop:value=val
+            aria-label=move || if aria_label.is_empty() { None } else { Some(aria_label.clone()) }
         />
     }
 }

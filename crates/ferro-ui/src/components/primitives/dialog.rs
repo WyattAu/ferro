@@ -8,6 +8,7 @@ pub fn Dialog(
     #[prop(into)] open: Signal<bool>,
     #[prop(into, optional)] title: String,
     #[prop(optional)] class: String,
+    #[prop(optional)] on_close: Option<Callback<()>>,
     children: Children,
 ) -> impl IntoView {
     let cls = format!("dialog {class}");
@@ -17,10 +18,10 @@ pub fn Dialog(
             if open.get() { "" } else { "none" }
         }
         on:keydown=move |ev: web_sys::KeyboardEvent| {
-            if ev.key() == "Escape" {
-                // TODO: Close dialog by toggling open signal.
-                // This requires the open signal to be writable, which it already is via Signal<bool>.
-            }
+            if ev.key() == "Escape"
+                && let Some(ref cb) = on_close {
+                    cb.run(());
+                }
         }
         >
             <div class=cls role="dialog" aria-modal="true">

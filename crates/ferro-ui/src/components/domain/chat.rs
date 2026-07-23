@@ -26,7 +26,7 @@ pub fn ChatPage() -> impl IntoView {
     let (rooms, set_rooms) = signal(Vec::<ChatRoom>::new());
     let (messages, set_messages) = signal(Vec::<ChatMessage>::new());
     let (selected_room, set_selected_room) = signal(None::<String>);
-    let (new_message, _set_new_message) = signal(String::new());
+    let (new_message, set_new_message) = signal(String::new());
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
 
@@ -134,7 +134,15 @@ pub fn ChatPage() -> impl IntoView {
                                 </div>
                                 <div class="border-t border-[var(--color-border)] p-3 flex gap-2">
                                     <input class="input flex-1" type="text" placeholder="Type a message..." prop:value=move || new_message.get() />
-                                    <button class="btn btn-primary">"Send"</button>
+                                    <button class="btn btn-primary"
+                                        on:click=move |_| {
+                                            let msg = new_message.get();
+                                            if !msg.is_empty() {
+                                                log::info!("[chat] send: {}", msg);
+                                                set_new_message.set(String::new());
+                                            }
+                                        }
+                                    >"Send"</button>
                                 </div>
                             }.into_any()
                         }

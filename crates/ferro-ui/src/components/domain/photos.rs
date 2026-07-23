@@ -104,10 +104,16 @@ pub fn PhotosPage() -> impl IntoView {
                 if let Some(idx) = selected.get() {
                     let photo = photos.get().get(idx).cloned();
                     if let Some(p) = photo {
+                        let close = set_selected;
+                        let on_keydown = move |ev: web_sys::KeyboardEvent| {
+                            if ev.key() == "Escape" { close.set(None); }
+                        };
                         view! {
-                            <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" on:click=move |_| set_selected.set(None)>
+                            <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Photo viewer" on:click=move |_| set_selected.set(None) on:keydown=on_keydown>
                                 <img src=format!("/api/v1/files/{}", p.path) alt=p.name class="max-h-[90vh] max-w-[90vw] object-contain rounded-lg" />
-                                <button class="absolute top-4 right-4 text-white text-2xl" on:click=move |_| set_selected.set(None)>"×"</button>
+                                <button class="absolute top-4 right-4 text-white text-2xl" on:click=move |_| set_selected.set(None)>
+                                    "\u{00D7}"
+                                </button>
                             </div>
                         }.into_any()
                     } else {

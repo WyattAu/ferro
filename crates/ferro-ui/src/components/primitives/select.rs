@@ -8,12 +8,13 @@ pub fn Select(
     #[prop(optional)] disabled: bool,
     #[prop(optional)] class: String,
     #[prop(optional)] options: Vec<SelectOption>,
+    #[prop(into, optional)] aria_label: String,
 ) -> impl IntoView {
     let cls = format!("input {class}");
     let val = value.clone();
 
     view! {
-        <select class=cls disabled=disabled prop:value=val>
+        <select class=cls disabled=disabled prop:value=val aria-label=move || if aria_label.is_empty() { None } else { Some(aria_label.clone()) }>
             {if !placeholder.is_empty() {
                 view! { <option value="" disabled>{placeholder}</option> }.into_any()
             } else {

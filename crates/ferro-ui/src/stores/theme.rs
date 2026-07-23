@@ -48,6 +48,22 @@ pub fn provide_theme() -> ThemeState {
     let state = ThemeState { theme, set_theme };
     provide_context(state.clone());
 
+    Effect::new(move |_| {
+        let _theme = theme.get();
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+                let el = doc.document_element().unwrap();
+                let class_list = el.class_list();
+                if _theme.is_dark() {
+                    let _ = class_list.add_1("dark");
+                } else {
+                    let _ = class_list.remove_1("dark");
+                }
+            }
+        }
+    });
+
     state
 }
 
