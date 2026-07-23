@@ -6,7 +6,8 @@ use leptos::prelude::*;
 pub fn NotesPage() -> impl IntoView {
     let (notes, set_notes) = signal(Vec::<Note>::new());
     let (selected_id, set_selected_id) = signal(None::<String>);
-    let (_loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(true);
+    let (error, set_error) = signal(None::<String>);
     let (search, _set_search) = signal(String::new());
 
     #[derive(Clone, Debug)]
@@ -53,6 +54,7 @@ pub fn NotesPage() -> impl IntoView {
                     }
                     Err(e) => {
                         log::error!("Notes load failed: {}", e);
+                        set_error.set(Some(e.to_string()));
                         set_l.set(false);
                     }
                 }
@@ -69,6 +71,12 @@ pub fn NotesPage() -> impl IntoView {
                 </div>
                 <nav class="px-2">
                     {move || {
+                        if loading.get() {
+                            return view! { <div class="p-4 text-center text-secondary">"Loading..."</div> }.into_any();
+                        }
+                        if error.get().is_some() {
+                            return view! { <div class="p-4 text-center text-danger">"Failed to load notes"</div> }.into_any();
+                        }
                         let q = search.get().to_lowercase();
                         notes.get().into_iter()
                             .filter(|n| q.is_empty() || n.title.to_lowercase().contains(&q))
@@ -86,7 +94,7 @@ pub fn NotesPage() -> impl IntoView {
                                         {title}
                                     </button>
                                 }
-                            }).collect_view()
+                            }).collect_view().into_any()
                     }}
                 </nav>
             </aside>
@@ -94,6 +102,15 @@ pub fn NotesPage() -> impl IntoView {
             // Editor
             <main class="flex-1 overflow-y-auto p-6">
                 {move || {
+                    if loading.get() {
+                        return view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"..."</div><p>"Loading notes..."</p></div> }.into_any();
+                    }
+                    if let Some(err) = error.get() {
+                        return view! { <div class="p-8 text-center text-danger"><div class="text-2xl mb-2">"!"</div><p>{format!("Error: {}", err)}</p></div> }.into_any();
+                    }
+                    if notes.get().is_empty() {
+                        return view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"--"</div><p>"No notes found"</p></div> }.into_any();
+                    }
                     match selected_id.get() {
                         Some(id) => {
                             let note = notes.get().iter().find(|n| n.id == id).cloned();

@@ -4129,6 +4129,7 @@ dependencies = [
  "ferro-common",
  "ferro-core",
  "ferro-server-activitypub",
+ "ferro-server-collaboration",
  "ferro-server-security-middleware",
  "futures",
  "hex",

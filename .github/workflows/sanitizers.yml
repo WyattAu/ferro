@@ -96,11 +96,11 @@ jobs:
           rustup default nightly
       - name: Run MIRI on unsafe crates
         run: |
-          cargo miri test -p ferro-client -- -Zmiri-disable-isolation
-          cargo miri test -p ferro-health -- -Zmiri-disable-isolation
-          cargo miri test -p ferro-mount-nfs -- -Zmiri-disable-isolation
-          cargo miri test -p ferro-fuse -- -Zmiri-disable-isolation
-          cargo miri test -p ferro-server -- -Zmiri-disable-isolation
-          cargo miri test -p ferro-desktop -- -Zmiri-disable-isolation
+          cargo +nightly miri test -p ferro-client -- -Zmiri-disable-isolation
+          cargo +nightly miri test -p ferro-health -- -Zmiri-disable-isolation
+          cargo +nightly miri test -p ferro-mount-nfs -- -Zmiri-disable-isolation
+          cargo +nightly miri test -p ferro-fuse -- -Zmiri-disable-isolation
+          cargo +nightly miri test -p ferro-server -- -Zmiri-disable-isolation
+          cargo +nightly miri test -p ferro-desktop -- -Zmiri-disable-isolation
         env:
           MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-mode"

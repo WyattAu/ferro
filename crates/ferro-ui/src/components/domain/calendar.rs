@@ -22,7 +22,8 @@ pub fn CalendarPage() -> impl IntoView {
     let (events, set_events) = signal(Vec::<CalendarEvent>::new());
     let (view_mode, set_view_mode) = signal("month".to_string());
     let (current_date, set_current_date) = signal(js_sys::Date::new_0());
-    let (_loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(true);
+    let (error, set_error) = signal(None::<String>);
 
     Effect::new(move |_| {
         set_loading.set(true);
@@ -55,6 +56,7 @@ pub fn CalendarPage() -> impl IntoView {
                     }
                     Err(e) => {
                         log::error!("Calendar load failed: {}", e);
+                        set_error.set(Some(e.to_string()));
                         set_l.set(false);
                     }
                 }
@@ -129,45 +131,55 @@ pub fn CalendarPage() -> impl IntoView {
                 </div>
             </div>
             <div class="flex-1 overflow-auto p-4">
-                <div class="grid grid-cols-7 gap-px bg-[var(--color-border)] rounded-lg overflow-hidden">
-                    {vec!["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].into_iter().map(|day| {
-                        view! { <div class="bg-raised p-2 text-center text-xs font-semibold text-secondary">{day}</div> }
-                    }).collect_view()}
-                    {move || {
-                        let d = current_date.get();
-                        let year = d.get_full_year();
-                        let month = d.get_month();
-                        let first_day = js_sys::Date::new_with_year_month_day(year, month as i32, 1);
-                        let start_dow = first_day.get_day();
-                        let days_in_month = js_sys::Date::new_with_year_month_day(year, (month + 1) as i32, 0).get_date();
+                {move || {
+                    if loading.get() {
+                        return view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"..."</div><p>"Loading calendar..."</p></div> }.into_any();
+                    }
+                    if let Some(err) = error.get() {
+                        return view! { <div class="p-8 text-center text-danger"><div class="text-2xl mb-2">"!"</div><p>{format!("Error: {}", err)}</p></div> }.into_any();
+                    }
+                    view! {
+                        <div class="grid grid-cols-7 gap-px bg-[var(--color-border)] rounded-lg overflow-hidden">
+                            {vec!["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].into_iter().map(|day| {
+                                view! { <div class="bg-raised p-2 text-center text-xs font-semibold text-secondary">{day}</div> }
+                            }).collect_view()}
+                            {move || {
+                                let d = current_date.get();
+                                let year = d.get_full_year();
+                                let month = d.get_month();
+                                let first_day = js_sys::Date::new_with_year_month_day(year, month as i32, 1);
+                                let start_dow = first_day.get_day();
+                                let days_in_month = js_sys::Date::new_with_year_month_day(year, (month + 1) as i32, 0).get_date();
 
-                        let mut cells = Vec::new();
-                        for _ in 0..start_dow {
-                            cells.push(view! { <div class="bg-raised min-h-20 p-1"></div> }.into_any());
-                        }
-                        for day in 1..=days_in_month {
-                            let day_num = day;
-                            let is_today = {
-                                let now = js_sys::Date::new_0();
-                                now.get_date() == day && now.get_month() == month && now.get_full_year() == year
-                            };
-                            let day_events: Vec<_> = events.get().into_iter().filter(|e| {
-                                e.start.contains(&format!("{:04}-{:02}-{:02}", year, month + 1, day))
-                            }).collect();
-                            cells.push(view! {
-                                <div class="bg-raised min-h-20 p-1">
-                                    <div class={if is_today { "w-6 h-6 rounded-full bg-accent text-white text-xs flex items-center justify-center font-bold" } else { "text-xs text-secondary p-1" }}>
-                                        {day_num}
-                                    </div>
-                                    {day_events.into_iter().take(3).map(|ev| {
-                                        view! { <div class="text-xs px-1 py-0.5 mt-0.5 rounded truncate" style:background=ev.color style:color="white">{ev.title}</div> }
-                                    }).collect_view()}
-                                </div>
-                            }.into_any());
-                        }
-                        cells.into_view()
-                    }}
-                </div>
+                                let mut cells = Vec::new();
+                                for _ in 0..start_dow {
+                                    cells.push(view! { <div class="bg-raised min-h-20 p-1"></div> }.into_any());
+                                }
+                                for day in 1..=days_in_month {
+                                    let day_num = day;
+                                    let is_today = {
+                                        let now = js_sys::Date::new_0();
+                                        now.get_date() == day && now.get_month() == month && now.get_full_year() == year
+                                    };
+                                    let day_events: Vec<_> = events.get().into_iter().filter(|e| {
+                                        e.start.contains(&format!("{:04}-{:02}-{:02}", year, month + 1, day))
+                                    }).collect();
+                                    cells.push(view! {
+                                        <div class="bg-raised min-h-20 p-1">
+                                            <div class={if is_today { "w-6 h-6 rounded-full bg-accent text-white text-xs flex items-center justify-center font-bold" } else { "text-xs text-secondary p-1" }}>
+                                                {day_num}
+                                            </div>
+                                            {day_events.into_iter().take(3).map(|ev| {
+                                                view! { <div class="text-xs px-1 py-0.5 mt-0.5 rounded truncate" style:background=ev.color style:color="white">{ev.title}</div> }
+                                            }).collect_view()}
+                                        </div>
+                                    }.into_any());
+                                }
+                                cells.into_view()
+                            }}
+                        </div>
+                    }.into_any()
+                }}
             </div>
         </div>
     }

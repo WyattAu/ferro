@@ -6,7 +6,8 @@ use leptos::prelude::*;
 pub fn PhotosPage() -> impl IntoView {
     let (photos, set_photos) = signal(Vec::<Photo>::new());
     let (selected, set_selected) = signal(None::<usize>);
-    let (_loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(true);
+    let (error, set_error) = signal(None::<String>);
     let (view_mode, set_view_mode) = signal("grid".to_string());
 
     #[derive(Clone, Debug)]
@@ -53,6 +54,7 @@ pub fn PhotosPage() -> impl IntoView {
                     }
                     Err(e) => {
                         log::error!("Photos load failed: {}", e);
+                        set_error.set(Some(e.to_string()));
                         set_l.set(false);
                     }
                 }
@@ -72,17 +74,29 @@ pub fn PhotosPage() -> impl IntoView {
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto p-4">
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {move || photos.get().into_iter().enumerate().map(|(i, photo)| {
-                        let idx = i;
+                {move || {
+                    if loading.get() {
+                        view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"..."</div><p>"Loading photos..."</p></div> }.into_any()
+                    } else if let Some(err) = error.get() {
+                        view! { <div class="p-8 text-center text-danger"><div class="text-2xl mb-2">"!"</div><p>{format!("Error: {}", err)}</p></div> }.into_any()
+                    } else if photos.get().is_empty() {
+                        view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"--"</div><p>"No photos found"</p></div> }.into_any()
+                    } else {
                         view! {
-                            <div class="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-sunken"
-                                on:click=move |_| set_selected.set(Some(idx))>
-                                <img src=photo.thumbnail alt=photo.name class="w-full h-full object-cover" loading="lazy" />
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                                {move || photos.get().into_iter().enumerate().map(|(i, photo)| {
+                                    let idx = i;
+                                    view! {
+                                        <div class="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity bg-sunken"
+                                            on:click=move |_| set_selected.set(Some(idx))>
+                                            <img src=photo.thumbnail alt=photo.name class="w-full h-full object-cover" loading="lazy" />
+                                        </div>
+                                    }
+                                }).collect_view()}
                             </div>
-                        }
-                    }).collect_view()}
-                </div>
+                        }.into_any()
+                    }
+                }}
             </div>
 
             // Lightbox

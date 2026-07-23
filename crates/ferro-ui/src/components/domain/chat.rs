@@ -27,7 +27,8 @@ pub fn ChatPage() -> impl IntoView {
     let (messages, set_messages) = signal(Vec::<ChatMessage>::new());
     let (selected_room, set_selected_room) = signal(None::<String>);
     let (new_message, _set_new_message) = signal(String::new());
-    let (_loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(true);
+    let (error, set_error) = signal(None::<String>);
 
     Effect::new(move |_| {
         set_loading.set(true);
@@ -57,6 +58,7 @@ pub fn ChatPage() -> impl IntoView {
                     }
                     Err(e) => {
                         log::error!("Chat rooms load failed: {}", e);
+                        set_error.set(Some(e.to_string()));
                         set_l.set(false);
                     }
                 }
@@ -71,26 +73,43 @@ pub fn ChatPage() -> impl IntoView {
                     <h2 class="font-semibold">"Chat Rooms"</h2>
                 </div>
                 <nav class="px-2 py-2">
-                    {move || rooms.get().into_iter().map(|room| {
-                        let id = room.id.clone();
-                        let name = room.name.clone();
-                        let last = room.last_message.clone();
-                        let unread = room.unread;
-                        let id2 = id.clone();
-                        let sel = move || selected_room.get() == Some(id.clone());
-                        view! {
-                            <button class=move || format!("w-full text-left px-3 py-2 rounded-md text-sm {}", if sel() { "bg-accent-subtle text-accent" } else { "hover:bg-sunken" })
-                                on:click=move |_| set_selected_room.set(Some(id2.clone()))>
-                                <div class="font-medium">{name}</div>
-                                <div class="text-xs text-secondary truncate">{last}</div>
-                                {if unread > 0 { view! { <span class="badge badge-accent ml-auto">{unread}</span> }.into_any() } else { ().into_any() }}
-                            </button>
+                    {move || {
+                        if loading.get() {
+                            return view! { <div class="p-4 text-center text-secondary">"Loading..."</div> }.into_any();
                         }
-                    }).collect_view()}
+                        if error.get().is_some() {
+                            return view! { <div class="p-4 text-center text-danger">"Failed to load rooms"</div> }.into_any();
+                        }
+                        rooms.get().into_iter().map(|room| {
+                            let id = room.id.clone();
+                            let name = room.name.clone();
+                            let last = room.last_message.clone();
+                            let unread = room.unread;
+                            let id2 = id.clone();
+                            let sel = move || selected_room.get() == Some(id.clone());
+                            view! {
+                                <button class=move || format!("w-full text-left px-3 py-2 rounded-md text-sm {}", if sel() { "bg-accent-subtle text-accent" } else { "hover:bg-sunken" })
+                                    on:click=move |_| set_selected_room.set(Some(id2.clone()))>
+                                    <div class="font-medium">{name}</div>
+                                    <div class="text-xs text-secondary truncate">{last}</div>
+                                    {if unread > 0 { view! { <span class="badge badge-accent ml-auto">{unread}</span> }.into_any() } else { ().into_any() }}
+                                </button>
+                            }
+                        }).collect_view().into_any()
+                    }}
                 </nav>
             </aside>
             <main class="flex-1 flex flex-col">
                 {move || {
+                    if loading.get() {
+                        return view! { <div class="flex-1 flex items-center justify-center text-secondary"><div class="text-2xl mb-2">"..."</div><p>"Loading chat..."</p></div> }.into_any();
+                    }
+                    if let Some(err) = error.get() {
+                        return view! { <div class="flex-1 flex items-center justify-center text-danger"><div class="text-2xl mb-2">"!"</div><p>{format!("Error: {}", err)}</p></div> }.into_any();
+                    }
+                    if rooms.get().is_empty() {
+                        return view! { <div class="flex-1 flex items-center justify-center text-secondary"><div class="text-2xl mb-2">"--"</div><p>"No chat rooms found"</p></div> }.into_any();
+                    }
                     match selected_room.get() {
                         Some(room_id) => {
                             let _rid = room_id.clone();

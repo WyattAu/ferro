@@ -24,7 +24,7 @@ pub struct Comment {
 }
 
 pub struct CommentStore {
-    db: Option<DbHandle>,
+    pub db: Option<DbHandle>,
 }
 
 impl CommentStore {

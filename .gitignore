@@ -77,3 +77,4 @@ load-test-results.json
 fuzz/corpus/
 fuzz/artifacts/
 __pycache__/
+formal/.lake/

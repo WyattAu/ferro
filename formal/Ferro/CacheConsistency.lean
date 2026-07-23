@@ -5,6 +5,10 @@ structure ConsistentCache where
   entries : Nat → Option Nat
   maxSize : Nat
 
+@[ext] theorem ConsistentCache.ext {a b : ConsistentCache}
+    (h₁ : a.entries = b.entries) (h₂ : a.maxSize = b.maxSize) : a = b := by
+  cases a; cases b; simp_all
+
 /-- Empty cache: all keys map to none -/
 def ConsistentCache.empty (maxSize : Nat) : ConsistentCache where
   entries := fun _ => none
@@ -41,18 +45,18 @@ theorem insert_preserves_others (cache : ConsistentCache) (key key2 val : Nat)
 /-- Insert overwrites existing value -/
 theorem insert_overwrites (cache : ConsistentCache) (key val1 val2 : Nat) :
   (cache.insert key val1).insert key val2 = cache.insert key val2 := by
-  simp [ConsistentCache.insert]
-  funext k
-  simp [Bool.decEq_eq_false_iff_ne]
-  split <;> rfl
+  ext k
+  · simp [ConsistentCache.insert]
+    split <;> simp_all
+  · rfl
 
 /-- Insert is idempotent for same value -/
 theorem insert_idempotent (cache : ConsistentCache) (key val : Nat) :
   (cache.insert key val).insert key val = cache.insert key val := by
-  simp [ConsistentCache.insert]
-  funext k
-  simp [Bool.decEq_eq_false_iff_ne]
-  split <;> rfl
+  ext k
+  · simp [ConsistentCache.insert]
+    split <;> simp_all
+  · rfl
 
 /-- Remove makes key absent -/
 theorem remove_absent (cache : ConsistentCache) (key : Nat) :
@@ -68,26 +72,26 @@ theorem remove_preserves_others (cache : ConsistentCache) (key key2 : Nat)
 /-- Remove is idempotent -/
 theorem remove_idempotent (cache : ConsistentCache) (key : Nat) :
   (cache.remove key).remove key = cache.remove key := by
-  simp [ConsistentCache.remove]
-  funext k
-  simp [Bool.decEq_eq_false_iff_ne]
-  split <;> rfl
+  ext k
+  · simp [ConsistentCache.remove]
+    split <;> simp_all
+  · rfl
 
 /-- Insert then remove at same key clears the value -/
 theorem insert_then_remove (cache : ConsistentCache) (key val : Nat) :
   (cache.insert key val).remove key = cache.remove key := by
-  simp [ConsistentCache.insert, ConsistentCache.remove]
-  funext k
-  simp [Bool.decEq_eq_false_iff_ne]
-  split <;> rfl
+  ext k
+  · simp [ConsistentCache.insert, ConsistentCache.remove]
+    split <;> simp_all
+  · rfl
 
 /-- Remove then insert sets the value -/
 theorem remove_then_insert (cache : ConsistentCache) (key val : Nat) :
   (cache.remove key).insert key val = cache.insert key val := by
-  simp [ConsistentCache.remove, ConsistentCache.insert]
-  funext k
-  simp [Bool.decEq_eq_false_iff_ne]
-  split <;> rfl
+  ext k
+  · simp [ConsistentCache.remove, ConsistentCache.insert]
+    split <;> simp_all
+  · rfl
 
 /-- Insert then lookup returns the inserted value -/
 theorem insert_then_lookup (cache : ConsistentCache) (key val : Nat) :
@@ -112,7 +116,7 @@ theorem empty_lookup (key : Nat) :
 
 /-- Remove then insert then lookup returns inserted value -/
 theorem remove_insert_lookup (cache : ConsistentCache) (key val : Nat) :
-  (cache.remove key).insert key val |>.lookup key = some val := by
+  ((cache.remove key).insert key val).lookup key = some val := by
   simp [ConsistentCache.remove, ConsistentCache.insert, ConsistentCache.lookup]
 
 /-- Lookup is deterministic for same cache and key -/

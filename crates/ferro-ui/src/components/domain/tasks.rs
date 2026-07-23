@@ -18,7 +18,8 @@ struct TaskItem {
 #[component]
 pub fn TasksPage() -> impl IntoView {
     let (tasks, set_tasks) = signal(Vec::<TaskItem>::new());
-    let (_loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(true);
+    let (error, set_error) = signal(None::<String>);
     let (view_mode, set_view_mode) = signal("board".to_string());
 
     Effect::new(move |_| {
@@ -51,6 +52,7 @@ pub fn TasksPage() -> impl IntoView {
                     }
                     Err(e) => {
                         log::error!("Tasks load failed: {}", e);
+                        set_error.set(Some(e.to_string()));
                         set_l.set(false);
                     }
                 }
@@ -70,7 +72,15 @@ pub fn TasksPage() -> impl IntoView {
                 </div>
             </div>
             <div class="flex-1 overflow-x-auto p-4">
-                <TaskBoard tasks=tasks />
+                {move || {
+                    if loading.get() {
+                        view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"..."</div><p>"Loading tasks..."</p></div> }.into_any()
+                    } else if let Some(err) = error.get() {
+                        view! { <div class="p-8 text-center text-danger"><div class="text-2xl mb-2">"!"</div><p>{format!("Error: {}", err)}</p></div> }.into_any()
+                    } else {
+                        view! { <TaskBoard tasks=tasks /> }.into_any()
+                    }
+                }}
             </div>
         </div>
     }

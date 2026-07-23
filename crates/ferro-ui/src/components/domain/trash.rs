@@ -14,7 +14,8 @@ struct TrashItem {
 #[component]
 pub fn TrashPage() -> impl IntoView {
     let (items, set_items) = signal(Vec::<TrashItem>::new());
-    let (_loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(true);
+    let (error, set_error) = signal(None::<String>);
 
     Effect::new(move |_| {
         set_loading.set(true);
@@ -45,6 +46,7 @@ pub fn TrashPage() -> impl IntoView {
                     }
                     Err(e) => {
                         log::error!("Trash load failed: {}", e);
+                        set_error.set(Some(e.to_string()));
                         set_l.set(false);
                     }
                 }
@@ -62,35 +64,48 @@ pub fn TrashPage() -> impl IntoView {
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto">
-                <table class="table w-full">
-                    <thead>
-                        <tr>
-                            <th>"Name"</th>
-                            <th>"Original Path"</th>
-                            <th>"Deleted"</th>
-                            <th>"Size"</th>
-                            <th>"Actions"</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {move || items.get().into_iter().map(|item| {
-                            let _path = item.path.clone();
-                            let original = item.original_path.clone();
-                            view! {
+                {move || {
+                    if loading.get() {
+                        return view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"..."</div><p>"Loading trash..."</p></div> }.into_any();
+                    }
+                    if let Some(err) = error.get() {
+                        return view! { <div class="p-8 text-center text-danger"><div class="text-2xl mb-2">"!"</div><p>{format!("Error: {}", err)}</p></div> }.into_any();
+                    }
+                    if items.get().is_empty() {
+                        return view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"--"</div><p>"Trash is empty"</p></div> }.into_any();
+                    }
+                    view! {
+                        <table class="table w-full">
+                            <thead>
                                 <tr>
-                                    <td class="font-medium">{item.name}</td>
-                                    <td class="text-secondary text-sm">{original}</td>
-                                    <td class="text-secondary text-sm">{item.deleted_at}</td>
-                                    <td class="text-secondary text-sm">{format_size(item.size)}</td>
-                                    <td>
-                                        <button class="btn btn-ghost btn-sm text-success">"Restore"</button>
-                                        <button class="btn btn-ghost btn-sm text-danger">"Delete"</button>
-                                    </td>
+                                    <th>"Name"</th>
+                                    <th>"Original Path"</th>
+                                    <th>"Deleted"</th>
+                                    <th>"Size"</th>
+                                    <th>"Actions"</th>
                                 </tr>
-                            }
-                        }).collect_view()}
-                    </tbody>
-                </table>
+                            </thead>
+                            <tbody>
+                                {move || items.get().into_iter().map(|item| {
+                                    let _path = item.path.clone();
+                                    let original = item.original_path.clone();
+                                    view! {
+                                        <tr>
+                                            <td class="font-medium">{item.name}</td>
+                                            <td class="text-secondary text-sm">{original}</td>
+                                            <td class="text-secondary text-sm">{item.deleted_at}</td>
+                                            <td class="text-secondary text-sm">{format_size(item.size)}</td>
+                                            <td>
+                                                <button class="btn btn-ghost btn-sm text-success">"Restore"</button>
+                                                <button class="btn btn-ghost btn-sm text-danger">"Delete"</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }).collect_view()}
+                            </tbody>
+                        </table>
+                    }.into_any()
+                }}
             </div>
         </div>
     }

@@ -18,7 +18,8 @@ pub fn ContactsPage() -> impl IntoView {
     let (contacts, set_contacts) = signal(Vec::<Contact>::new());
     let (selected, set_selected) = signal(None::<String>);
     let (search, _set_search) = signal(String::new());
-    let (_loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(true);
+    let (error, set_error) = signal(None::<String>);
 
     Effect::new(move |_| {
         set_loading.set(true);
@@ -56,6 +57,7 @@ pub fn ContactsPage() -> impl IntoView {
                     }
                     Err(e) => {
                         log::error!("Contacts load failed: {}", e);
+                        set_error.set(Some(e.to_string()));
                         set_l.set(false);
                     }
                 }
@@ -71,6 +73,12 @@ pub fn ContactsPage() -> impl IntoView {
                 </div>
                 <nav class="px-2">
                     {move || {
+                        if loading.get() {
+                            return view! { <div class="p-4 text-center text-secondary">"Loading..."</div> }.into_any();
+                        }
+                        if error.get().is_some() {
+                            return view! { <div class="p-4 text-center text-danger">"Failed to load contacts"</div> }.into_any();
+                        }
                         let q = search.get().to_lowercase();
                         contacts.get().into_iter()
                             .filter(|c| q.is_empty() || c.name.to_lowercase().contains(&q))
@@ -86,12 +94,21 @@ pub fn ContactsPage() -> impl IntoView {
                                         {name}
                                     </button>
                                 }
-                            }).collect_view()
+                            }).collect_view().into_any()
                     }}
                 </nav>
             </aside>
             <main class="flex-1 overflow-y-auto p-6">
                 {move || {
+                    if loading.get() {
+                        return view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"..."</div><p>"Loading contacts..."</p></div> }.into_any();
+                    }
+                    if let Some(err) = error.get() {
+                        return view! { <div class="p-8 text-center text-danger"><div class="text-2xl mb-2">"!"</div><p>{format!("Error: {}", err)}</p></div> }.into_any();
+                    }
+                    if contacts.get().is_empty() {
+                        return view! { <div class="p-8 text-center text-secondary"><div class="text-2xl mb-2">"--"</div><p>"No contacts found"</p></div> }.into_any();
+                    }
                     let selected_uid = selected.get();
                     let contact_list = contacts.get();
                     if let Some(uid) = selected_uid {

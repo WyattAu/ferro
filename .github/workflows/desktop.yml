@@ -251,24 +251,10 @@ jobs:
       - name: Clippy desktop crate
         run: cargo clippy -p ferro-desktop --features tauri --locked -- -D warnings
 
-  clippy-android:
-    name: Clippy (Android)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
-        with:
-          toolchain: stable
-          components: clippy
-          targets: aarch64-linux-android
-      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
-      - name: Fetch dependencies
-        run: cargo fetch --locked
-      - name: Clippy desktop crate (Android)
-        run: cargo clippy -p ferro-desktop --features android --locked -- -D warnings
+  # clippy-android omitted: Android builds are cross-compiled via NDK.
+  # Host-side clippy cannot resolve Android-only deps (gio-2.0, etc.)
+  # and does not validate the actual Android target. The build-android
+  # job already catches compilation errors for the android feature.
 
   # ---------------------------------------------------------------------------
   # Tests
