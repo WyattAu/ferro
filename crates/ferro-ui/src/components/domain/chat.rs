@@ -2,14 +2,17 @@ use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
 struct ChatRoom {
+    #[allow(dead_code)]
     id: String,
     name: String,
     last_message: String,
+    #[allow(dead_code)]
     unread: u32,
 }
 
 #[derive(Clone, Debug)]
 struct ChatMessage {
+    #[allow(dead_code)]
     id: String,
     sender: String,
     content: String,
@@ -17,13 +20,14 @@ struct ChatMessage {
 }
 
 /// Chat page with rooms and messages.
+#[allow(unused_variables)]
 #[component]
 pub fn ChatPage() -> impl IntoView {
     let (rooms, set_rooms) = signal(Vec::<ChatRoom>::new());
     let (messages, set_messages) = signal(Vec::<ChatMessage>::new());
     let (selected_room, set_selected_room) = signal(None::<String>);
-    let (new_message, set_new_message) = signal(String::new());
-    let (loading, set_loading) = signal(true);
+    let (new_message, _set_new_message) = signal(String::new());
+    let (_loading, set_loading) = signal(true);
 
     Effect::new(move |_| {
         set_loading.set(true);
@@ -79,7 +83,7 @@ pub fn ChatPage() -> impl IntoView {
                                 on:click=move |_| set_selected_room.set(Some(id2.clone()))>
                                 <div class="font-medium">{name}</div>
                                 <div class="text-xs text-secondary truncate">{last}</div>
-                                {if unread > 0 { view! { <span class="badge badge-accent ml-auto">{unread}</span> }.into_any() } else { view! { <></> }.into_any() }}
+                                {if unread > 0 { view! { <span class="badge badge-accent ml-auto">{unread}</span> }.into_any() } else { ().into_any() }}
                             </button>
                         }
                     }).collect_view()}
@@ -89,7 +93,7 @@ pub fn ChatPage() -> impl IntoView {
                 {move || {
                     match selected_room.get() {
                         Some(room_id) => {
-                            let rid = room_id.clone();
+                            let _rid = room_id.clone();
                             view! {
                                 <div class="flex-1 overflow-y-auto p-4 space-y-3">
                                     {move || messages.get().into_iter().filter(|m| m.sender != "system").map(|msg| {

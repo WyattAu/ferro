@@ -2,6 +2,7 @@ use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
 struct Contact {
+    #[allow(dead_code)]
     uid: String,
     name: String,
     emails: Vec<String>,
@@ -11,12 +12,13 @@ struct Contact {
 }
 
 /// Contacts page with list and detail view.
+#[allow(unused_variables)]
 #[component]
 pub fn ContactsPage() -> impl IntoView {
     let (contacts, set_contacts) = signal(Vec::<Contact>::new());
     let (selected, set_selected) = signal(None::<String>);
-    let (search, set_search) = signal(String::new());
-    let (loading, set_loading) = signal(true);
+    let (search, _set_search) = signal(String::new());
+    let (_loading, set_loading) = signal(true);
 
     Effect::new(move |_| {
         set_loading.set(true);
@@ -101,22 +103,22 @@ pub fn ContactsPage() -> impl IntoView {
                                         <div class="w-16 h-16 rounded-full bg-accent-subtle text-accent flex items-center justify-center text-2xl font-bold">{initials}</div>
                                         <div>
                                             <h1 class="text-2xl font-bold">{c.name}</h1>
-                                            {if !c.organization.is_empty() { view! { <p class="text-secondary">{c.organization}</p> }.into_any() } else { view! { <></> }.into_any() }}
+                                            {if !c.organization.is_empty() { view! { <p class="text-secondary">{c.organization}</p> }.into_any() } else { ().into_any() }}
                                         </div>
                                     </div>
                                     <div class="space-y-4">
                                         {if !c.emails.is_empty() { view! {
                                             <div><h3 class="text-sm font-semibold text-secondary uppercase mb-1">"Emails"</h3>
                                             {c.emails.into_iter().map(|e| view! { <p>{e}</p> }).collect_view()}</div>
-                                        }.into_any() } else { view! { <></> }.into_any() }}
+                                        }.into_any() } else { ().into_any() }}
                                         {if !c.phones.is_empty() { view! {
                                             <div><h3 class="text-sm font-semibold text-secondary uppercase mb-1">"Phones"</h3>
                                             {c.phones.into_iter().map(|p| view! { <p>{p}</p> }).collect_view()}</div>
-                                        }.into_any() } else { view! { <></> }.into_any() }}
+                                        }.into_any() } else { ().into_any() }}
                                         {if !c.notes.is_empty() { view! {
                                             <div><h3 class="text-sm font-semibold text-secondary uppercase mb-1">"Notes"</h3>
                                             <p>{c.notes}</p></div>
-                                        }.into_any() } else { view! { <></> }.into_any() }}
+                                        }.into_any() } else { ().into_any() }}
                                     </div>
                                 </div>
                             }.into_any()

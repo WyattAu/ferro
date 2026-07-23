@@ -10,10 +10,11 @@ struct TrashItem {
 }
 
 /// Trash page with restore/purge functionality.
+#[allow(unused_variables)]
 #[component]
 pub fn TrashPage() -> impl IntoView {
     let (items, set_items) = signal(Vec::<TrashItem>::new());
-    let (loading, set_loading) = signal(true);
+    let (_loading, set_loading) = signal(true);
 
     Effect::new(move |_| {
         set_loading.set(true);
@@ -73,7 +74,7 @@ pub fn TrashPage() -> impl IntoView {
                     </thead>
                     <tbody>
                         {move || items.get().into_iter().map(|item| {
-                            let path = item.path.clone();
+                            let _path = item.path.clone();
                             let original = item.original_path.clone();
                             view! {
                                 <tr>

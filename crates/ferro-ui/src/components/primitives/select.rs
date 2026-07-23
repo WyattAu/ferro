@@ -17,7 +17,7 @@ pub fn Select(
             {if !placeholder.is_empty() {
                 view! { <option value="" disabled>{placeholder}</option> }.into_any()
             } else {
-                view! { <></> }.into_any()
+                ().into_any()
             }}
             {options.into_iter().map(|opt| {
                 let sel = opt.value == value;

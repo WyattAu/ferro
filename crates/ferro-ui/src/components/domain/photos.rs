@@ -1,11 +1,12 @@
 use leptos::prelude::*;
 
 /// Photos page with grid view and lightbox.
+#[allow(unused_variables)]
 #[component]
 pub fn PhotosPage() -> impl IntoView {
     let (photos, set_photos) = signal(Vec::<Photo>::new());
     let (selected, set_selected) = signal(None::<usize>);
-    let (loading, set_loading) = signal(true);
+    let (_loading, set_loading) = signal(true);
     let (view_mode, set_view_mode) = signal("grid".to_string());
 
     #[derive(Clone, Debug)]
@@ -13,8 +14,11 @@ pub fn PhotosPage() -> impl IntoView {
         path: String,
         name: String,
         thumbnail: String,
+        #[allow(dead_code)]
         date: String,
+        #[allow(dead_code)]
         width: u32,
+        #[allow(dead_code)]
         height: u32,
     }
 
@@ -93,10 +97,10 @@ pub fn PhotosPage() -> impl IntoView {
                             </div>
                         }.into_any()
                     } else {
-                        view! { <></> }.into_any()
+                        ().into_any()
                     }
                 } else {
-                    view! { <></> }.into_any()
+                    ().into_any()
                 }
             }}
         </div>

@@ -2,6 +2,7 @@ use crate::api::endpoints::FileEntry;
 use leptos::prelude::*;
 
 /// File browser with list/grid views, breadcrumb, selection.
+#[allow(unused_variables)]
 #[component]
 pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
     let (entries, set_entries) = signal(Vec::<FileEntry>::new());
@@ -12,8 +13,8 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
     let (error, set_error) = signal(None::<String>);
 
     Effect::new(move |_| {
-        let path = current_path.get();
-        let url = server_url.clone();
+        let _path = current_path.get();
+        let _url = server_url.clone();
         set_loading.set(true);
         set_error.set(None);
 
@@ -22,10 +23,10 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
             let set_e = set_entries;
             let set_l = set_loading;
             let set_err = set_error;
-            let p = path.clone();
+            let p = _path.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let args = serde_json::json!({
-                    "url": url,
+                    "url": _url,
                     "token": "",
                     "path": p,
                 });
@@ -110,7 +111,7 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
         <div class="flex flex-col h-full">
             <div class="flex items-center gap-3 px-4 py-2 border-b border-[var(--color-border)]">
                 <button class="btn btn-ghost btn-sm" on:click=move |_| navigate("/".to_string())>"🏠 Home"</button>
-                <Breadcrumb path=current_path navigate=Callback::new(navigate.clone()) />
+                <Breadcrumb path=current_path navigate=Callback::new(navigate) />
                 <div class="ml-auto flex items-center gap-2">
                     <button class=move || format!("btn btn-ghost btn-sm {}", if view_mode.get() == "list" { "btn-primary" } else { "" }) on:click=move |_| set_view_mode.set("list".to_string())>"☰ List"</button>
                     <button class=move || format!("btn btn-ghost btn-sm {}", if view_mode.get() == "grid" { "btn-primary" } else { "" }) on:click=move |_| set_view_mode.set("grid".to_string())>"⊞ Grid"</button>
@@ -124,7 +125,7 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
                         <span class="text-sm font-medium">{format!("{} selected", count)}</span>
                         <button class="btn btn-ghost btn-sm" on:click=move |_| set_selected.set(std::collections::HashSet::new())>"Clear"</button>
                     </div> }.into_any()
-                } else { view! { <></> }.into_any() }
+                } else { ().into_any() }
             }}
             <div class="flex-1 overflow-y-auto">
                 {move || {
@@ -173,6 +174,7 @@ fn Breadcrumb(path: ReadSignal<String>, navigate: Callback<String>) -> impl Into
     </nav> }
 }
 
+#[allow(dead_code)]
 async fn tauri_invoke(cmd: &str, args: &serde_json::Value) -> Result<String, String> {
     #[cfg(target_arch = "wasm32")]
     {
@@ -194,7 +196,12 @@ async fn tauri_invoke(cmd: &str, args: &serde_json::Value) -> Result<String, Str
         let value = wasm_bindgen_futures::JsFuture::from(promise)
             .await
             .map_err(|e| format!("promise error: {:?}", e))?;
-        value.as_string().ok_or("result not a string".to_string())
+        // Try .as_string() first (works for JS strings from Result<String> returns),
+        // then stringify (works for JS objects from struct returns)
+        value
+            .as_string()
+            .or_else(|| js_sys::JSON::stringify(&value).ok().and_then(|s| s.as_string()))
+            .ok_or("result not a string".to_string())
     }
     #[cfg(not(target_arch = "wasm32"))]
     {

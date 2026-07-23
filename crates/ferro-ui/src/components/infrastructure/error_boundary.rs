@@ -3,13 +3,13 @@ use leptos::prelude::*;
 /// Top-level error boundary that catches render panics and shows recovery UI.
 #[component]
 pub fn ErrorBoundary(children: Children) -> impl IntoView {
-    let (error_msg, set_error_msg) = signal(None::<String>);
+    let (error_msg, _set_error_msg) = signal(None::<String>);
 
     // Catch JS errors
     #[cfg(target_arch = "wasm32")]
     {
         use wasm_bindgen::prelude::*;
-        let set_err = set_error_msg;
+        let set_err = _set_error_msg;
         wasm_bindgen_futures::spawn_local(async move {
             if let Some(window) = web_sys::window() {
                 let cb = wasm_bindgen::closure::Closure::wrap(Box::new(

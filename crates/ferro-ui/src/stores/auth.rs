@@ -8,6 +8,7 @@ pub struct AuthState {
     pub user: ReadSignal<Option<UserInfo>>,
     set_user: WriteSignal<Option<UserInfo>>,
     pub loading: ReadSignal<bool>,
+    #[allow(dead_code)]
     set_loading: WriteSignal<bool>,
 }
 

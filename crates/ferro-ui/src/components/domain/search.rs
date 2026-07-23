@@ -8,9 +8,9 @@ pub fn SearchBar() -> impl IntoView {
     let (results, set_results) = signal(Vec::<crate::api::endpoints::FileEntry>::new());
     let (searching, set_searching) = signal(false);
     let (show_results, set_show_results) = signal(false);
-    let set_q = set_query;
+    let _set_q = set_query;
 
-    let do_search = move |q: String| {
+    let _do_search = move |q: String| {
         if q.is_empty() {
             set_results.set(Vec::new());
             set_show_results.set(false);
@@ -58,7 +58,7 @@ pub fn SearchBar() -> impl IntoView {
                 {move || if searching.get() {
                     view! { <Spinner /> }.into_any()
                 } else {
-                    view! { <></> }.into_any()
+                    ().into_any()
                 }}
             </div>
 
@@ -82,7 +82,7 @@ pub fn SearchBar() -> impl IntoView {
                         </div>
                     }.into_any()
                 } else {
-                    view! { <></> }.into_any()
+                    ().into_any()
                 }
             }}
         </div>

@@ -2,16 +2,16 @@ use leptos::prelude::*;
 use leptos_router::components::*;
 use leptos_router::path;
 
-use crate::components::domain::admin::AdminPage;
-use crate::components::domain::calendar::CalendarPage;
-use crate::components::domain::chat::ChatPage;
-use crate::components::domain::contacts::ContactsPage;
+use crate::components::domain::admin::AdminPage as AdminPageInner;
+use crate::components::domain::calendar::CalendarPage as CalendarPageInner;
+use crate::components::domain::chat::ChatPage as ChatPageInner;
+use crate::components::domain::contacts::ContactsPage as ContactsPageInner;
 use crate::components::domain::file_browser::FileBrowser;
-use crate::components::domain::notes::NotesPage;
-use crate::components::domain::photos::PhotosPage;
-use crate::components::domain::settings::SettingsPage;
-use crate::components::domain::tasks::TasksPage;
-use crate::components::domain::trash::TrashPage;
+use crate::components::domain::notes::NotesPage as NotesPageInner;
+use crate::components::domain::photos::PhotosPage as PhotosPageInner;
+use crate::components::domain::settings::SettingsPage as SettingsPageInner;
+use crate::components::domain::tasks::TasksPage as TasksPageInner;
+use crate::components::domain::trash::TrashPage as TrashPageInner;
 use crate::components::infrastructure::error_boundary::ErrorBoundary;
 use crate::components::infrastructure::toast::ToastProvider;
 use crate::stores::auth::provide_auth;
@@ -40,7 +40,12 @@ async fn tauri_invoke(cmd: &str, args: &serde_json::Value) -> Result<String, Str
     let value = wasm_bindgen_futures::JsFuture::from(promise)
         .await
         .map_err(|e| format!("promise: {:?}", e))?;
-    value.as_string().ok_or("result not string".to_string())
+    // Try .as_string() first (works for JS strings from Result<String> returns),
+    // then stringify (works for JS objects from struct returns)
+    value
+        .as_string()
+        .or_else(|| js_sys::JSON::stringify(&value).ok().and_then(|s| s.as_string()))
+        .ok_or("result not a string".to_string())
 }
 
 /// Root application component.
@@ -74,43 +79,124 @@ pub fn App() -> impl IntoView {
     }
 }
 
+/// Shared layout with navigation header wrapping all pages.
+#[component]
+fn ShellLayout(children: Children) -> impl IntoView {
+    view! {
+        <div class="shell">
+            <AppHeader />
+            <main class="shell-content" style="padding:0;">
+                {children()}
+            </main>
+        </div>
+    }
+}
+
 /// Home / file browser page.
 #[component]
 fn HomePage() -> impl IntoView {
-    let (server_url, set_server_url) = signal(String::new());
+    let (server_url, _set_server_url) = signal(String::new());
 
     // Get server URL from window.FERRO_SERVER_URL (set by inline script in index.html)
     #[cfg(target_arch = "wasm32")]
     {
-        let set = set_server_url;
+        let set = _set_server_url;
         wasm_bindgen_futures::spawn_local(async move {
-            // Use window.__TAURI__ to get the URL from state
+            // Try Tauri IPC first, fallback to FERRO_SERVER_URL, then default
             let url = tauri_invoke("get_cli_connection", &serde_json::json!({}))
                 .await
                 .ok()
                 .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
                 .and_then(|conn| conn.get("serverUrl").and_then(|v| v.as_str()).map(String::from))
-                .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| "http://127.0.0.1:13000".to_string());
+                .filter(|s| !s.is_empty());
+            let url = match url {
+                Some(u) => {
+                    log::info!("[HomePage] server URL from Tauri IPC: {}", u);
+                    u
+                }
+                None => {
+                    // Fallback: read FERRO_SERVER_URL from window global
+                    let fallback = web_sys::window()
+                        .and_then(|w| {
+                            let v = js_sys::Reflect::get(&w, &"FERRO_SERVER_URL".into()).ok()?;
+                            v.as_string()
+                        })
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or_else(|| "http://127.0.0.1:13000".to_string());
+                    log::info!("[HomePage] server URL from fallback: {}", fallback);
+                    fallback
+                }
+            };
             set.set(url);
         });
     }
 
     view! {
-        <div class="shell">
-            <AppHeader />
-            <main class="shell-content" style="padding:0;">
-                {move || {
-                    let url = server_url.get();
-                    if url.is_empty() {
-                        view! { <div class="p-8 text-center text-secondary">"Connecting..."</div> }.into_any()
-                    } else {
-                        view! { <FileBrowser server_url=url /> }.into_any()
-                    }
-                }}
-            </main>
-        </div>
+        <ShellLayout>
+            {move || {
+                let url = server_url.get();
+                if url.is_empty() {
+                    view! { <div class="p-8 text-center text-secondary">"Connecting..."</div> }.into_any()
+                } else {
+                    view! { <FileBrowser server_url=url /> }.into_any()
+                }
+            }}
+        </ShellLayout>
     }
+}
+
+/// Notes page wrapper.
+#[component]
+fn NotesPage() -> impl IntoView {
+    view! { <ShellLayout><NotesPageInner /></ShellLayout> }
+}
+
+/// Tasks page wrapper.
+#[component]
+fn TasksPage() -> impl IntoView {
+    view! { <ShellLayout><TasksPageInner /></ShellLayout> }
+}
+
+/// Calendar page wrapper.
+#[component]
+fn CalendarPage() -> impl IntoView {
+    view! { <ShellLayout><CalendarPageInner /></ShellLayout> }
+}
+
+/// Contacts page wrapper.
+#[component]
+fn ContactsPage() -> impl IntoView {
+    view! { <ShellLayout><ContactsPageInner /></ShellLayout> }
+}
+
+/// Chat page wrapper.
+#[component]
+fn ChatPage() -> impl IntoView {
+    view! { <ShellLayout><ChatPageInner /></ShellLayout> }
+}
+
+/// Photos page wrapper.
+#[component]
+fn PhotosPage() -> impl IntoView {
+    view! { <ShellLayout><PhotosPageInner /></ShellLayout> }
+}
+
+/// Settings page wrapper.
+#[component]
+fn SettingsPage() -> impl IntoView {
+    view! { <ShellLayout><SettingsPageInner /></ShellLayout> }
+}
+
+/// Admin page wrapper.
+#[component]
+fn AdminPage() -> impl IntoView {
+    view! { <ShellLayout><AdminPageInner /></ShellLayout> }
+}
+
+/// Trash page wrapper.
+#[component]
+fn TrashPage() -> impl IntoView {
+    view! { <ShellLayout><TrashPageInner /></ShellLayout> }
 }
 
 /// Shared app header with navigation.

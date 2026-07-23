@@ -34,6 +34,9 @@ pub struct CliArgs {
 
     /// Debug verbosity level (0=off, 1=debug desktop, 2=debug all).
     pub debug: u8,
+
+    /// Auto-audit mode: navigate all pages, screenshot each, then exit.
+    pub audit: bool,
 }
 
 impl CliArgs {
@@ -43,6 +46,7 @@ impl CliArgs {
         let mut server_url = None;
         let mut auth_token = None;
         let mut debug = 0u8;
+        let mut audit = false;
 
         let mut i = 0;
         while i < raw.len() {
@@ -73,6 +77,10 @@ impl CliArgs {
                     debug = 2;
                     i += 1;
                 }
+                "--audit" => {
+                    audit = true;
+                    i += 1;
+                }
                 "--help" | "-h" => {
                     println!("Usage: ferro-desktop [OPTIONS]");
                     println!();
@@ -81,6 +89,7 @@ impl CliArgs {
                     println!("  -t, --auth-token <TOKEN>  Auth token (Bearer or user:pass)");
                     println!("  -d, --debug              Enable debug logging to /tmp/ferro-desktop.log");
                     println!("  -dd                      Verbose debug logging");
+                    println!("  --audit                  Auto-audit: screenshot all pages, then exit");
                     println!("  -h, --help               Show this help");
                     std::process::exit(0);
                 }
@@ -98,6 +107,7 @@ impl CliArgs {
             server_url,
             auth_token,
             debug,
+            audit,
         }
     }
 }
@@ -1020,6 +1030,26 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!(?cli_conn, "CLI args for frontend");
 
+    let audit_mode = cli_args.audit;
+
+    // Patch index.html with the server URL BEFORE Tauri serves it.
+    // This avoids the race condition where WASM loads before window.eval() runs.
+    if let Some(ref url) = cli_args.server_url {
+        let html_path = std::env::current_exe()?
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .join("frontend")
+            .join("index.html");
+        if let Ok(html) = std::fs::read_to_string(&html_path) {
+            let patched = html.replace(
+                "window.FERRO_SERVER_URL = window.FERRO_SERVER_URL || '';",
+                &format!("window.FERRO_SERVER_URL = '{}';", url),
+            );
+            let _ = std::fs::write(&html_path, &patched);
+            tracing::info!("Patched index.html with server URL: {}", url);
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -1097,7 +1127,8 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             #[cfg(feature = "mobile")]
             mobile_commands::mobile_register_push_notifications,
         ])
-        .setup(|app| {
+        .setup(move |app| {
+            let audit_mode = audit_mode;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
             let open_folder = MenuItem::with_id(app, "open_folder", "Open Folder", true, None::<&str>)?;
@@ -1313,9 +1344,29 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                 let _ = window.show();
                 let _ = window.set_focus();
 
-                // Inject FERRO_SERVER_URL from CLI args into the webview
+                // Inject FERRO_SERVER_URL from CLI args — patch the HTML file directly
+                // so the value is available before WASM module scripts execute.
                 if let Some(conn) = app.try_state::<CliConnection>() {
                     if let Some(ref url) = conn.server_url {
+                        // Patch the index.html file in-place
+                        let html_path = std::env::current_exe()
+                            .ok()
+                            .and_then(|p| p.parent().map(|d| d.join("frontend/index.html")))
+                            .or_else(|| {
+                                // Fallback: look relative to manifest dir
+                                Some(std::path::PathBuf::from("frontend/index.html"))
+                            });
+                        if let Some(path) = html_path {
+                            if let Ok(html) = std::fs::read_to_string(&path) {
+                                let patched = html.replace(
+                                    "window.FERRO_SERVER_URL = window.FERRO_SERVER_URL || '';",
+                                    &format!("window.FERRO_SERVER_URL = '{}';", url),
+                                );
+                                let _ = std::fs::write(&path, patched);
+                                tracing::info!("Patched index.html with FERRO_SERVER_URL = {}", url);
+                            }
+                        }
+                        // Also eval as fallback
                         let js = format!("window.FERRO_SERVER_URL = '{}';", url);
                         let _ = window.eval(&js);
                         tracing::info!("Injected FERRO_SERVER_URL = {}", url);
@@ -1335,6 +1386,102 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                         Err(e) => tracing::warn!("Screenshot failed: {}", e),
                     }
                 });
+            }
+
+            // Auto-audit mode: navigate all pages, screenshot each, then exit
+            #[cfg(feature = "screenshot")]
+            if audit_mode {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri::Manager;
+                    tokio::time::sleep(std::time::Duration::from_secs(6)).await;
+
+                    let pages = vec![
+                        ("/", "01_home"),
+                        ("/ui/notes", "02_notes"),
+                        ("/ui/tasks", "03_tasks"),
+                        ("/ui/calendar", "04_calendar"),
+                        ("/ui/contacts", "05_contacts"),
+                        ("/ui/chat", "06_chat"),
+                        ("/ui/photos", "07_photos"),
+                        ("/ui/trash", "08_trash"),
+                        ("/ui/admin", "09_admin"),
+                        ("/ui/settings", "10_settings"),
+                    ];
+
+                    let out_dir = std::env::temp_dir().join("ferro_audit");
+                    let _ = std::fs::create_dir_all(&out_dir);
+
+                    // Get window ID for X11 import
+                    let wid = {
+                        let output = std::process::Command::new("xdotool")
+                            .args(["search", "--name", "Ferro"])
+                            .output()
+                            .ok();
+                        output
+                            .and_then(|o| String::from_utf8(o.stdout).ok())
+                            .and_then(|s| s.lines().next().map(String::from))
+                    };
+                    tracing::info!("[audit] window ID: {:?}", wid);
+
+                    for (route, name) in &pages {
+                        tracing::info!("[audit] navigating to {} ({})", route, name);
+
+                        // Navigate via JS eval
+                        if let Some(window) = handle.get_webview_window("main") {
+                            let js = if *route == "/" {
+                                "window.location.href = '/ui/';".to_string()
+                            } else {
+                                format!("window.location.href = '{}';", route)
+                            };
+                            let _ = window.eval(&js);
+                        }
+
+                        // Wait for page to load and render
+                        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+                        // Capture screenshot using X11 import (works with WASM content)
+                        let path = out_dir.join(format!("{}.png", name));
+                        if let Some(ref wid) = wid {
+                            let _ = std::process::Command::new("import")
+                                .env("DISPLAY", ":0")
+                                .args(["-window", wid.as_str(), path.to_str().unwrap()])
+                                .output();
+                        } else {
+                            tracing::warn!("[audit] no window ID, using webkit snapshot fallback");
+                            let _ = capture_screenshot(handle.clone(), path.to_str().unwrap().to_string()).await;
+                        }
+
+                        let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+                        tracing::info!("[audit] {}: {} ({} bytes)", name, path.display(), size);
+                    }
+
+                    // Dark mode toggle
+                    if let Some(window) = handle.get_webview_window("main") {
+                        let _ = window.eval("document.querySelector('[aria-label=\"Toggle theme\"]')?.click();");
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                    let path = out_dir.join("11_dark_mode.png");
+                    if let Some(ref wid) = wid {
+                        let _ = std::process::Command::new("import")
+                            .env("DISPLAY", ":0")
+                            .args(["-window", wid.as_str(), path.to_str().unwrap()])
+                            .output();
+                    }
+                    let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+                    tracing::info!("[audit] dark_mode: {} ({} bytes)", path.display(), size);
+
+                    tracing::info!("[audit] COMPLETE — {} screenshots in {:?}", pages.len() + 1, out_dir);
+
+                    // Exit app after audit
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    std::process::exit(0);
+                });
+            }
+            #[cfg(not(feature = "screenshot"))]
+            if audit_mode {
+                eprintln!("--audit requires the 'screenshot' feature");
+                std::process::exit(1);
             }
 
             // Layout diagnostic via Tauri IPC

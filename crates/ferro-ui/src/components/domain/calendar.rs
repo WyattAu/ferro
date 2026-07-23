@@ -2,22 +2,27 @@ use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
 struct CalendarEvent {
+    #[allow(dead_code)]
     uid: String,
     title: String,
     start: String,
+    #[allow(dead_code)]
     end: String,
+    #[allow(dead_code)]
     all_day: bool,
     color: String,
+    #[allow(dead_code)]
     description: String,
 }
 
 /// Calendar page with month/week/day views.
+#[allow(unused_variables)]
 #[component]
 pub fn CalendarPage() -> impl IntoView {
     let (events, set_events) = signal(Vec::<CalendarEvent>::new());
     let (view_mode, set_view_mode) = signal("month".to_string());
     let (current_date, set_current_date) = signal(js_sys::Date::new_0());
-    let (loading, set_loading) = signal(true);
+    let (_loading, set_loading) = signal(true);
 
     Effect::new(move |_| {
         set_loading.set(true);

@@ -2,15 +2,19 @@ use leptos::prelude::*;
 
 #[derive(Clone, Debug)]
 struct TaskItem {
+    #[allow(dead_code)]
     id: String,
     title: String,
     status: String,
     priority: String,
+    #[allow(dead_code)]
     assignee: Option<String>,
+    #[allow(dead_code)]
     due_date: Option<String>,
 }
 
 /// Tasks page with Kanban board view.
+#[allow(unused_variables)]
 #[component]
 pub fn TasksPage() -> impl IntoView {
     let (tasks, set_tasks) = signal(Vec::<TaskItem>::new());

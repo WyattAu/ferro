@@ -1,14 +1,13 @@
 use crate::components::primitives::Spinner;
 use leptos::prelude::*;
-use wasm_bindgen::JsCast;
-
 /// File upload zone with drag-drop and progress.
+#[allow(unused_variables)]
 #[component]
-pub fn UploadZone(#[prop(into)] path: String, #[prop(optional)] on_complete: Option<Callback<()>>) -> impl IntoView {
+pub fn UploadZone(#[prop(into)] _path: String, #[prop(optional)] _on_complete: Option<Callback<()>>) -> impl IntoView {
     let (dragging, set_dragging) = signal(false);
-    let (uploading, set_uploading) = signal(false);
-    let (progress, set_progress) = signal(0u32);
-    let (error, set_error) = signal(None::<String>);
+    let (uploading, _set_uploading) = signal(false);
+    let (progress, _set_progress) = signal(0u32);
+    let (error, _set_error) = signal(None::<String>);
 
     let handle_drop = move |ev: web_sys::DragEvent| {
         ev.prevent_default();
@@ -17,47 +16,49 @@ pub fn UploadZone(#[prop(into)] path: String, #[prop(optional)] on_complete: Opt
         if let Some(dt) = ev.data_transfer() {
             let files = dt.files();
             if let Some(files) = files {
-                let len = files.length();
-                let path = path.clone();
-                let set_up = set_uploading;
-                let set_prog = set_progress;
-                let set_err = set_error;
-                let cb = on_complete.clone();
-
-                set_up.set(true);
-                set_prog.set(0);
-
                 #[cfg(target_arch = "wasm32")]
-                wasm_bindgen_futures::spawn_local(async move {
-                    for i in 0..len {
-                        if let Some(file) = files.get(i) {
-                            let name = file.name();
-                            let file_path = if path == "/" {
-                                format!("/{}", name)
-                            } else {
-                                format!("{}/{}", path, name)
-                            };
+                {
+                    let len = files.length();
+                    let file_path_base = _path.clone();
+                    let set_up = _set_uploading;
+                    let set_prog = _set_progress;
+                    let set_err = _set_error;
+                    let cb = _on_complete;
 
-                            let array_buffer = wasm_bindgen_futures::JsFuture::from(file.array_buffer()).await;
-                            match array_buffer {
-                                Ok(ab) => {
-                                    let bytes = js_sys::Uint8Array::new(&ab).to_vec();
-                                    let client = crate::api::ApiClient::from_env();
-                                    // TODO: implement actual upload via PUT /api/v1/files/{path}
-                                    log::info!("Upload: {} ({} bytes)", file_path, bytes.len());
+                    set_up.set(true);
+                    set_prog.set(0);
+
+                    wasm_bindgen_futures::spawn_local(async move {
+                        for i in 0..len {
+                            if let Some(file) = files.get(i) {
+                                let name = file.name();
+                                let file_path = if file_path_base == "/" {
+                                    format!("/{}", name)
+                                } else {
+                                    format!("{}/{}", file_path_base, name)
+                                };
+
+                                let array_buffer = wasm_bindgen_futures::JsFuture::from(file.array_buffer()).await;
+                                match array_buffer {
+                                    Ok(ab) => {
+                                        let bytes = js_sys::Uint8Array::new(&ab).to_vec();
+                                        let _client = crate::api::ApiClient::from_env();
+                                        // TODO: implement actual upload via PUT /api/v1/files/{path}
+                                        log::info!("Upload: {} ({} bytes)", file_path, bytes.len());
+                                    }
+                                    Err(e) => {
+                                        set_err.set(Some(format!("Read failed: {:?}", e)));
+                                    }
                                 }
-                                Err(e) => {
-                                    set_err.set(Some(format!("Read failed: {:?}", e)));
-                                }
+                                set_prog.set(((i + 1) as f32 / len as f32 * 100.0) as u32);
                             }
-                            set_prog.set(((i + 1) as f32 / len as f32 * 100.0) as u32);
                         }
-                    }
-                    set_up.set(false);
-                    if let Some(cb) = cb {
-                        cb.run(());
-                    }
-                });
+                        set_up.set(false);
+                        if let Some(cb) = cb {
+                            cb.run(());
+                        }
+                    });
+                }
             }
         }
     };
@@ -75,6 +76,7 @@ pub fn UploadZone(#[prop(into)] path: String, #[prop(optional)] on_complete: Opt
     let open_file_dialog = move |_| {
         #[cfg(target_arch = "wasm32")]
         {
+            use wasm_bindgen::JsCast;
             let doc = web_sys::window().unwrap().document().unwrap();
             let input = doc.create_element("input").unwrap();
             let input: web_sys::HtmlInputElement = input.dyn_into().unwrap();

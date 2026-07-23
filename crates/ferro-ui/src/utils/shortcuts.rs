@@ -15,6 +15,12 @@ pub struct ShortcutManager {
     shortcuts: Rc<RefCell<HashMap<String, ShortcutAction>>>,
 }
 
+impl Default for ShortcutManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ShortcutManager {
     pub fn new() -> Self {
         Self {

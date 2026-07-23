@@ -1,12 +1,13 @@
 use leptos::prelude::*;
 
 /// Notes page with sidebar, editor, and folder/tag organization.
+#[allow(unused_variables)]
 #[component]
 pub fn NotesPage() -> impl IntoView {
     let (notes, set_notes) = signal(Vec::<Note>::new());
     let (selected_id, set_selected_id) = signal(None::<String>);
-    let (loading, set_loading) = signal(true);
-    let (search, set_search) = signal(String::new());
+    let (_loading, set_loading) = signal(true);
+    let (search, _set_search) = signal(String::new());
 
     #[derive(Clone, Debug)]
     struct Note {
@@ -15,6 +16,7 @@ pub fn NotesPage() -> impl IntoView {
         content: String,
         folder: String,
         tags: Vec<String>,
+        #[allow(dead_code)]
         updated_at: String,
     }
 

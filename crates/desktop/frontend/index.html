@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-    <link rel="modulepreload" href="ferro-ui-472872029f34844f.js" crossorigin="anonymous"/>
-    <link rel="preload" href="ferro-ui-472872029f34844f_bg.wasm" crossorigin="anonymous" as="fetch" type="application/wasm"/>
+    <link rel="modulepreload" href="ferro-ui-156b38bcecba3abd.js" crossorigin="anonymous"/>
+    <link rel="preload" href="ferro-ui-156b38bcecba3abd_bg.wasm" crossorigin="anonymous" as="fetch" type="application/wasm"/>
 </head>
 <body>
     <div id="app"></div>
@@ -19,10 +19,10 @@
             <p style="color: #94A3B8;">WebAssembly is required to run this application.</p>
         </div>
     </noscript>
-<script>window.FERRO_SERVER_URL = 'http://127.0.0.1:13000';</script>
+<script>window.FERRO_SERVER_URL = window.FERRO_SERVER_URL || '';</script>
 <script type="module">
-import init, * as bindings from './ferro-ui-472872029f34844f.js';
-const wasm = await init({ module_or_path: './ferro-ui-472872029f34844f_bg.wasm' });
+import init, * as bindings from './ferro-ui-156b38bcecba3abd.js';
+const wasm = await init({ module_or_path: './ferro-ui-156b38bcecba3abd_bg.wasm' });
 window.wasmBindings = bindings;
 dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 </script>

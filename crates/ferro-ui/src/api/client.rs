@@ -117,6 +117,7 @@ impl ApiClient {
 
         for attempt in 0..=self.config.max_retries {
             if attempt > 0 {
+                #[allow(unused_variables)]
                 let delay_ms = 100u32 * (1u32 << (attempt - 1));
                 // Simple busy-wait for retry delay in WASM
                 #[cfg(target_arch = "wasm32")]

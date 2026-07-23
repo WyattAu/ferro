@@ -10,6 +10,12 @@ pub struct Translations {
     map: HashMap<String, String>,
 }
 
+impl Default for Translations {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Translations {
     pub fn new() -> Self {
         Self { map: HashMap::new() }
@@ -81,6 +87,12 @@ pub fn load_english() -> Translations {
 /// Global translation context.
 pub struct I18n {
     current: Translations,
+}
+
+impl Default for I18n {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl I18n {
