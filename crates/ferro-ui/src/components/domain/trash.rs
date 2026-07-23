@@ -97,11 +97,20 @@ pub fn TrashPage() -> impl IntoView {
 }
 
 fn format_size(bytes: u64) -> String {
-    if bytes < 1024 {
+    const KB: u64 = 1024;
+    const MB: u64 = 1024 * KB;
+    const GB: u64 = 1024 * MB;
+    const TB: u64 = 1024 * GB;
+
+    if bytes < KB {
         format!("{} B", bytes)
-    } else if bytes < 1024 * 1024 {
-        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else if bytes < MB {
+        format!("{:.1} KB", bytes as f64 / KB as f64)
+    } else if bytes < GB {
+        format!("{:.1} MB", bytes as f64 / MB as f64)
+    } else if bytes < TB {
+        format!("{:.1} GB", bytes as f64 / GB as f64)
     } else {
-        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+        format!("{:.1} TB", bytes as f64 / TB as f64)
     }
 }
