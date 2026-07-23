@@ -11,12 +11,15 @@
     overflow: hidden;
 }
 .shell-header {
+    background: var(--surface-glass);
+    backdrop-filter: blur(var(--blur-md));
+    -webkit-backdrop-filter: blur(var(--blur-md));
+    border-bottom: 1px solid var(--surface-glass-border);
+    box-shadow: var(--shadow-xs);
     display: flex;
     align-items: center;
     gap: var(--space-4);
     padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-bg-raised);
     z-index: var(--z-sticky);
     flex-shrink: 0;
 }
@@ -37,13 +40,13 @@
 .nav-link {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
+    min-height: 44px;
     padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
     color: var(--color-text-secondary);
-    transition: all var(--transition-fast);
+    text-decoration: none;
+    font-size: var(--text-sm);
+    border-radius: var(--radius-md);
+    transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 .nav-link:hover {
     background: var(--color-bg-sunken);
@@ -108,9 +111,10 @@
     color: var(--color-text);
 }
 .btn-sm {
-    padding: var(--space-1) var(--space-3);
-    font-size: var(--text-xs);
-    min-height: 28px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
 }
 .btn-lg {
     padding: var(--space-3) var(--space-6);
@@ -305,4 +309,38 @@
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* Spatial Materialism -- glass surfaces */
+.glass {
+    background: var(--surface-glass);
+    backdrop-filter: blur(var(--blur-md));
+    -webkit-backdrop-filter: blur(var(--blur-md));
+    border: 1px solid var(--surface-glass-border);
+}
+.glass-elevated {
+    background: var(--surface-glass-elevated);
+    backdrop-filter: blur(var(--blur-lg));
+    -webkit-backdrop-filter: blur(var(--blur-lg));
+    border: 1px solid var(--surface-glass-border);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+html.dark .glass-elevated {
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Focus management -- accessibility */
+.btn:focus-visible,
+.input:focus-visible,
+.nav-link:focus-visible,
+.select:focus-visible,
+[role="button"]:focus-visible {
+    outline: 2px solid var(--color-border-focus, var(--color-accent));
+    outline-offset: 2px;
+}
+.btn:focus:not(:focus-visible),
+.input:focus:not(:focus-visible),
+.nav-link:focus:not(:focus-visible),
+.select:focus:not(:focus-visible) {
+    outline: none;
 }

@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - name: Install cargo-machete
         run: cargo install cargo-machete --locked
       - name: Check for unused dependencies
@@ -31,6 +33,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: stable
@@ -46,6 +50,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri
@@ -64,6 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Run gitleaks
         uses: gitleaks/gitleaks-action@950ad79c889908398568694a48e45c1e328e8c22 # v2.3.3
@@ -76,6 +83,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: stable
@@ -93,6 +102,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@nightly
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev protobuf-compiler
@@ -112,6 +123,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: stable

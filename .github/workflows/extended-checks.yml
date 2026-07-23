@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - name: Build Docker image
         run: docker build -t ferro:e2e .
       - name: Start server from Docker image
@@ -82,6 +84,8 @@ jobs:
       DATABASE_URL: postgres://ferro:ferro@localhost:5432/ferro_test
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
           toolchain: stable

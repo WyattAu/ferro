@@ -84,8 +84,11 @@ pub fn App() -> impl IntoView {
 fn ShellLayout(children: Children) -> impl IntoView {
     view! {
         <div class="shell">
+            <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[9999] focus:bg-accent focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
+                "Skip to main content"
+            </a>
             <AppHeader />
-            <main class="shell-content" style="padding:0;">
+            <main id="main-content" class="shell-content" style="padding:0;">
                 {children()}
             </main>
         </div>

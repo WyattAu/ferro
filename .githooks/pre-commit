@@ -54,25 +54,21 @@ if [ "${SKIP_CLIPPY:-0}" != "1" ]; then
   if [ -n "$CLIPPY_CHANGED" ]; then
     echo "[pre-commit] Clippy on changed crates: $(echo $CLIPPY_CHANGED | tr '\n' ' ')"
     for CRATE in $CLIPPY_CHANGED; do
-      # Try ferro-$CRATE with features, bare $CRATE with features, then without features
-      if ! (cargo clippy -p "ferro-${CRATE}" --all-targets \
-        --features "s3,gcs,azure,pg,redis,ldap" \
-        --locked -- -D warnings 2>/dev/null || \
-        cargo clippy -p "${CRATE}" --all-targets \
-        --features "s3,gcs,azure,pg,redis,ldap" \
-        --locked -- -D warnings 2>/dev/null || \
-        cargo clippy -p "ferro-${CRATE}" --all-targets \
-        --locked -- -D warnings 2>/dev/null || \
-        cargo clippy -p "${CRATE}" --all-targets \
-        --locked -- -D warnings 2>/dev/null); then
+      # Resolve correct package name using cargo metadata (single lookup)
+      PKG=$(cargo metadata --format-version 1 --no-deps 2>/dev/null | \
+        python3 -c "import sys,json; pkgs=json.load(sys.stdin)['packages']; names=[p['name'] for p in pkgs if p['name']=='${CRATE}' or p['name']=='ferro-${CRATE}']; print(names[0] if names else '')" 2>/dev/null || true)
+      if [ -z "$PKG" ]; then
+        echo "[pre-commit] WARNING: Could not resolve package for '$CRATE', skipping clippy"
+        continue
+      fi
+      # Single clippy invocation with --all-features (auto-syncs with Cargo.toml)
+      if ! cargo clippy -p "$PKG" --all-targets --all-features --locked -- -D warnings 2>/dev/null; then
         CLIPPY_FAILED=1
       fi
     done
   else
     echo "[pre-commit] No crate changes detected, running clippy on full workspace..."
-    if ! cargo clippy --workspace --all-targets \
-      --features "s3,gcs,azure,pg,redis,ldap" \
-      --locked -- -D warnings 2>/dev/null; then
+    if ! cargo clippy --workspace --all-targets --all-features --locked -- -D warnings 2>/dev/null; then
       CLIPPY_FAILED=1
     fi
   fi
@@ -94,28 +90,21 @@ if [ "${SKIP_SECRET_SCAN:-0}" != "1" ]; then
   STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
   SECRET_FOUND=0
   if [ -n "$STAGED_FILES" ]; then
-    # Check for common secret patterns in staged Rust and TOML files
-    for PATTERN in \
-      'password\s*=\s*"[^"]*"' \
-      'secret\s*=\s*"[^"]*"' \
-      'api_key\s*=\s*"[^"]*"' \
-      'token\s*=\s*"[^"]*"' \
-      'PRIVATE KEY' \
-      'BEGIN RSA' \
-      'BEGIN EC PRIVATE' \
-      'AKIA[0-9A-Z]{16}' \
-    ; do
-      MATCHES=$(echo "$STAGED_FILES" | grep -E '\.(rs|toml|yaml|yml|json|env|sh|conf|cfg)$' | xargs grep -l "$PATTERN" 2>/dev/null || true)
+    # Single grep with combined patterns for efficiency
+    CODE_FILES=$(echo "$STAGED_FILES" | grep -E '\.(rs|toml|yaml|yml|json|env|sh|conf|cfg)$' || true)
+    if [ -n "$CODE_FILES" ]; then
+      MATCHES=$(echo "$CODE_FILES" | xargs grep -lE \
+        '(password|secret|api_key|token)\s*=\s*"[^"]*"|PRIVATE KEY|BEGIN RSA|BEGIN EC PRIVATE|AKIA[0-9A-Z]{16}' \
+        2>/dev/null || true)
       if [ -n "$MATCHES" ]; then
         for F in $MATCHES; do
-          # Skip test files and example configs
           echo "$F" | grep -qE '(test|example|\.env\.example)' && continue
-          echo "[pre-commit] WARNING: Possible secret in $F (pattern: $PATTERN)"
+          echo "[pre-commit] WARNING: Possible secret in $F"
           SECRET_FOUND=1
           WARN=$((WARN + 1))
         done
       fi
-    done
+    fi
   fi
   if [ "$SECRET_FOUND" -eq 0 ]; then
     echo "[pre-commit] No hardcoded secrets detected."
@@ -162,12 +151,14 @@ else
     echo "[pre-commit] Testing changed crates: $(echo $CHANGED | tr '\n' ' ')"
     TEST_FAILED=0
     for CRATE in $CHANGED; do
-      # Try ferro-$CRATE first, fall back to bare $CRATE
-      if cargo test -p "ferro-${CRATE}" --locked 2>/dev/null; then
-        : # pass
-      elif cargo test -p "${CRATE}" --locked 2>/dev/null; then
-        : # pass
-      else
+      # Resolve correct package name using cargo metadata
+      PKG=$(cargo metadata --format-version 1 --no-deps 2>/dev/null | \
+        python3 -c "import sys,json; pkgs=json.load(sys.stdin)['packages']; names=[p['name'] for p in pkgs if p['name']=='${CRATE}' or p['name']=='ferro-${CRATE}']; print(names[0] if names else '')" 2>/dev/null || true)
+      if [ -z "$PKG" ]; then
+        echo "[pre-commit] WARNING: Could not resolve package for '$CRATE', skipping tests"
+        continue
+      fi
+      if ! cargo test -p "$PKG" --all-features --locked 2>/dev/null; then
         TEST_FAILED=1
       fi
     done

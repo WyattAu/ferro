@@ -10,6 +10,9 @@ concurrency:
   group: sanitizers-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -17,8 +20,14 @@ jobs:
   address-sanitizer:
     name: AddressSanitizer
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+        with:
+          key: sanitizers-addr
       - name: Install Rust nightly
         run: |
           rustup toolchain install nightly --component rust-src
@@ -43,8 +52,14 @@ jobs:
   thread-sanitizer:
     name: ThreadSanitizer
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+        with:
+          key: sanitizers-thread
       - name: Install Rust nightly
         run: |
           rustup toolchain install nightly --component rust-src
@@ -67,8 +82,14 @@ jobs:
   miri:
     name: MIRI Memory Safety
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+        with:
+          key: sanitizers-miri
       - name: Install Rust nightly with MIRI
         run: |
           rustup toolchain install nightly --component miri
