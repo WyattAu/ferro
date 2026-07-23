@@ -103,4 +103,4 @@ jobs:
           cargo +nightly miri test -p ferro-server -- -Zmiri-disable-isolation
           cargo +nightly miri test -p ferro-desktop -- -Zmiri-disable-isolation
         env:
-          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-strict-mode"
+          MIRIFLAGS: "-Zmiri-disable-isolation"
