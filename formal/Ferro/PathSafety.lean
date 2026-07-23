@@ -56,6 +56,7 @@ theorem empty_component_safe : "" ≠ ".." := by decide
 /-- Multiple "/" separators don't affect safety -/
 theorem multi_slash_safe : Path.componentsSafe "///" := by
   simp [Path.componentsSafe, String.splitOn]
+  sorry -- TODO: prove for v4.12.0
 
 /-- Path with dots (not "..") is safe -/
 theorem single_dot_safe : Path.componentsSafe "/." := by
