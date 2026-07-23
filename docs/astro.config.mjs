@@ -6,6 +6,7 @@ import starlight from '@astrojs/starlight';
 export default defineConfig({
   site: 'https://wyattau.github.io',
   base: '/ferro',
+  trailingSlash: 'always',
   integrations: [
     starlight({
       title: 'Ferro Documentation',
@@ -16,6 +17,10 @@ export default defineConfig({
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/WyattAu/ferro' },
       ],
+      components: {
+        Head: './src/components/overrides/Head.astro',
+        SiteTitle: './src/components/overrides/SiteTitle.astro',
+      },
       sidebar: [
         {
           label: 'Getting Started',

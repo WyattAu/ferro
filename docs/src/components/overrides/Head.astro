@@ -1,0 +1,21 @@
+---
+const { head } = Astro.locals.starlightRoute;
+---
+
+{head.map(({ tag: Tag, attrs, content }) => <Tag {...attrs} set:html={content} />)}
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Ferro Documentation",
+  "url": "https://wyattau.github.io/ferro/",
+  "description": "Self-hosted, distributed file storage orchestrator. WebDAV, CalDAV, CardDAV, WOPI, ActivityPub, end-to-end encryption.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Ferro",
+    "url": "https://github.com/WyattAu/ferro",
+    "logo": "https://wyattau.github.io/ferro/src/assets/logo.svg"
+  }
+}
+</script>
