@@ -28,10 +28,10 @@ jobs:
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
         with:
           key: sanitizers-addr
-      - name: Install Rust nightly
-        run: |
-          rustup toolchain install nightly --component rust-src
-          rustup default nightly
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rust-src, miri
       - name: Install ASan
         run: |
           sudo apt-get update
@@ -60,10 +60,10 @@ jobs:
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
         with:
           key: sanitizers-thread
-      - name: Install Rust nightly
-        run: |
-          rustup toolchain install nightly --component rust-src
-          rustup default nightly
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rust-src
       - name: Install TSan
         run: |
           sudo apt-get update
@@ -90,10 +90,10 @@ jobs:
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
         with:
           key: sanitizers-miri
-      - name: Install Rust nightly with MIRI
-        run: |
-          rustup toolchain install nightly --component miri
-          rustup default nightly
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: miri
       - name: Run MIRI on unsafe crates
         run: |
           cargo +nightly miri test -p ferro-client -- -Zmiri-disable-isolation
