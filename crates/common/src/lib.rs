@@ -22,6 +22,9 @@ pub mod webdav;
 pub mod xml_escape;
 pub mod zeroize;
 
+#[cfg(feature = "http")]
+pub mod http_client;
+
 #[cfg(test)]
 mod path_proptest;
 

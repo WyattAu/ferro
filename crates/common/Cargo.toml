@@ -32,12 +32,14 @@ tracing = "0.1"
 mime_guess = "2"
 bumpalo = "3.12"
 dashmap = "6"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"], optional = true }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 
 [features]
 default = ["simd"]
 simd = []
 db = ["dep:rusqlite"]
+http = ["dep:reqwest"]
 
 [dev-dependencies]
 proptest = "1"

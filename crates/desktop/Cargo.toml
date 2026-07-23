@@ -90,6 +90,7 @@ dirs = "5"
 sha2 = { version = "0.10", optional = true }
 hex = { version = "0.4", optional = true }
 zip = { version = "0.6", optional = true }
+common = { package = "ferro-common", path = "../common", features = ["http"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"

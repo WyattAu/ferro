@@ -32,6 +32,7 @@ tokio = { workspace = true }
 tracing = "0.1"
 thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
+common = { package = "ferro-common", path = "../common", features = ["http"] }
 
 [build-dependencies]
 tauri-build = { version = "2", optional = true , features = [] }

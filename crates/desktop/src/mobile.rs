@@ -181,15 +181,11 @@ pub enum MobileConflictStrategy {
 }
 
 fn build_http_client(auth_token: &str) -> Result<reqwest::Client, MobileError> {
-    let mut headers = reqwest::header::HeaderMap::new();
-    let value = reqwest::header::HeaderValue::from_str(&format!("Bearer {}", auth_token))
-        .map_err(|e| MobileError::InvalidConfig(format!("Invalid token: {}", e)))?;
-    headers.insert(reqwest::header::AUTHORIZATION, value);
-    reqwest::Client::builder()
-        .default_headers(headers)
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| MobileError::NetworkError(format!("Failed to create HTTP client: {}", e)))
+    common::http_client::build_client(
+        auth_token,
+        common::http_client::HttpClientOptions::default(),
+    )
+    .map_err(|e| MobileError::NetworkError(e))
 }
 
 async fn do_propfind_http(client: &reqwest::Client, server_url: &str, path: &str) -> Result<String, MobileError> {

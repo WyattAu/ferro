@@ -3171,6 +3171,7 @@ dependencies = [
  "hex",
  "mime_guess",
  "proptest",
+ "reqwest 0.12.28",
  "rusqlite",
  "serde",
  "serde_json",
@@ -3275,6 +3276,7 @@ dependencies = [
  "core-foundation 0.9.4",
  "core-foundation-sys",
  "dirs 5.0.1",
+ "ferro-common",
  "glib",
  "gtk",
  "hex",
@@ -3424,6 +3426,7 @@ name = "ferro-mobile"
 version = "3.0.0"
 dependencies = [
  "chrono",
+ "ferro-common",
  "reqwest 0.12.28",
  "serde",
  "tauri",
