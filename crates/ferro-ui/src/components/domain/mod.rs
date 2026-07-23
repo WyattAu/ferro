@@ -3,6 +3,7 @@ pub mod calendar;
 pub mod chat;
 pub mod contacts;
 pub mod file_browser;
+pub mod file_preview;
 pub mod notes;
 pub mod photos;
 pub mod search;

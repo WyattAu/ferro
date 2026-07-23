@@ -1,4 +1,5 @@
 use crate::api::endpoints::FileEntry;
+use crate::components::domain::file_preview::FilePreview;
 use leptos::prelude::*;
 
 /// File browser with list/grid views, breadcrumb, selection.
@@ -11,6 +12,8 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
     let (view_mode, set_view_mode) = signal("list".to_string());
     let (selected, set_selected) = signal(std::collections::HashSet::<String>::new());
     let (error, set_error) = signal(None::<String>);
+    let (preview, set_preview) = signal(None::<FileEntry>);
+    let server_url_for_preview = server_url.clone();
 
     Effect::new(move |_| {
         let _path = current_path.get();
@@ -97,16 +100,6 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
         set_selected.set(std::collections::HashSet::new());
     };
 
-    let toggle_select = move |path: String| {
-        set_selected.update(|s| {
-            if s.contains(&path) {
-                s.remove(&path);
-            } else {
-                s.insert(path);
-            }
-        });
-    };
-
     view! {
         <div class="flex flex-col h-full">
             <div class="flex items-center gap-3 px-4 py-2 border-b border-[var(--color-border)]">
@@ -137,8 +130,8 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
                         view! { <div class="p-12 text-center"><div class="text-6xl mb-4">"📁"</div><h3 class="text-lg font-semibold mb-2">"This folder is empty"</h3></div> }.into_any()
                     } else if view_mode.get() == "grid" {
                         view! { <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 p-4">
-                            {entries.get().into_iter().map(|entry| { let p = entry.path.clone(); let p2 = p.clone(); let is_dir = entry.is_collection; let icon = if is_dir { "📁".to_string() } else { file_icon(&entry.name).to_string() }; let sz = if is_dir { "--".to_string() } else { format_size(entry.size) }; let nm = entry.name.clone();
-                                view! { <div class="card cursor-pointer transition-all hover:shadow-md" on:click=move |_| { if is_dir { navigate(p.clone()) } else { toggle_select(p2.clone()) } }>
+                            {entries.get().into_iter().map(|entry| { let p = entry.path.clone(); let is_dir = entry.is_collection; let icon = if is_dir { "📁".to_string() } else { file_icon(&entry.name).to_string() }; let sz = if is_dir { "--".to_string() } else { format_size(entry.size) }; let nm = entry.name.clone(); let e = entry.clone();
+                                view! { <div class="card cursor-pointer transition-all hover:shadow-md" on:click=move |_| { if is_dir { navigate(p.clone()) } else { set_preview.set(Some(e.clone())) } }>
                                     <div class="text-4xl text-center mb-2">{icon}</div>
                                     <p class="text-sm font-medium truncate text-center">{nm}</p>
                                     <p class="text-xs text-secondary text-center">{sz}</p>
@@ -147,8 +140,8 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
                         </div> }.into_any()
                     } else {
                         view! { <table class="table w-full"><thead><tr><th class="w-10"></th><th>"Name"</th><th class="w-24">"Size"</th><th class="w-40">"Modified"</th></tr></thead><tbody>
-                            {entries.get().into_iter().map(|entry| { let p = entry.path.clone(); let p2 = p.clone(); let is_dir = entry.is_collection; let icon = if is_dir { "📁" } else { file_icon(&entry.name) }; let sz = if is_dir { "--".to_string() } else { format_size(entry.size) }; let nm = entry.name.clone(); let mod_at = entry.modified_at.clone();
-                                view! { <tr class="cursor-pointer hover:bg-sunken" on:click=move |_| { if is_dir { navigate(p.clone()) } else { toggle_select(p2.clone()) } }>
+                            {entries.get().into_iter().map(|entry| { let p = entry.path.clone(); let is_dir = entry.is_collection; let icon = if is_dir { "📁" } else { file_icon(&entry.name) }; let sz = if is_dir { "--".to_string() } else { format_size(entry.size) }; let nm = entry.name.clone(); let mod_at = entry.modified_at.clone(); let e = entry.clone();
+                                view! { <tr class="cursor-pointer hover:bg-sunken" on:click=move |_| { if is_dir { navigate(p.clone()) } else { set_preview.set(Some(e.clone())) } }>
                                     <td class="text-center">{icon}</td><td class="font-medium truncate">{nm}</td><td class="text-secondary text-sm">{sz}</td><td class="text-secondary text-sm whitespace-nowrap">{mod_at}</td>
                                 </tr> }
                             }).collect_view()}
@@ -157,6 +150,20 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
                 }}
             </div>
         </div>
+        {move || {
+            if let Some(entry) = preview.get() {
+                let close = set_preview;
+                view! {
+                    <FilePreview
+                        entry=entry
+                        server_url=server_url_for_preview.clone()
+                        on_close=Callback::new(move |_| close.set(None))
+                    />
+                }.into_any()
+            } else {
+                ().into_any()
+            }
+        }}
     }
 }
 
@@ -175,7 +182,7 @@ fn Breadcrumb(path: ReadSignal<String>, navigate: Callback<String>) -> impl Into
 }
 
 #[allow(dead_code)]
-async fn tauri_invoke(cmd: &str, args: &serde_json::Value) -> Result<String, String> {
+pub(crate) async fn tauri_invoke(cmd: &str, args: &serde_json::Value) -> Result<String, String> {
     #[cfg(target_arch = "wasm32")]
     {
         use wasm_bindgen::JsCast;
@@ -210,7 +217,7 @@ async fn tauri_invoke(cmd: &str, args: &serde_json::Value) -> Result<String, Str
     }
 }
 
-fn format_size(bytes: u64) -> String {
+pub(crate) fn format_size(bytes: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = 1024 * KB;
     const GB: u64 = 1024 * MB;
