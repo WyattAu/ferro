@@ -1,6 +1,8 @@
 use base64::Engine;
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use serde::Deserialize;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use crate::error::{MigrationError, Result as MigrateResult};
 use crate::webdav::{DavEntry, parse_propfind};
@@ -20,13 +22,26 @@ pub enum AuthMethod {
     Basic { username: String, password: String },
 }
 
+/// OIDC credentials for token refresh.
+#[derive(Debug, Clone)]
+struct OidcCredentials {
+    token_endpoint: String,
+    client_id: String,
+    username: String,
+    password: String,
+}
+
 pub struct OcisClient {
-    http: reqwest::Client,
+    http: Arc<RwLock<reqwest::Client>>,
     url: String,
     #[allow(dead_code)]
     username: String,
     auth: AuthMethod,
     webdav_base: String,
+    /// OIDC credentials for token refresh (None for Basic auth or PAT)
+    oidc_creds: Option<OidcCredentials>,
+    /// Token expiration time (instant when token expires)
+    token_expires: Arc<RwLock<Option<std::time::Instant>>>,
 }
 
 /// OIDC discovery document from `.well-known/openid-configuration`.
@@ -43,7 +58,6 @@ struct OidcTokenResponse {
     access_token: String,
     #[allow(dead_code)]
     token_type: String,
-    #[allow(dead_code)]
     expires_in: Option<u64>,
 }
 
@@ -64,7 +78,7 @@ impl OcisClient {
             .build()?;
 
         Ok(Self {
-            http,
+            http: Arc::new(RwLock::new(http)),
             url: url.trim_end_matches('/').to_string(),
             username: username.to_string(),
             auth: AuthMethod::Basic {
@@ -72,6 +86,8 @@ impl OcisClient {
                 password: password.to_string(),
             },
             webdav_base: "/dav/files".to_string(),
+            oidc_creds: None,
+            token_expires: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -89,11 +105,13 @@ impl OcisClient {
             .build()?;
 
         Ok(Self {
-            http,
+            http: Arc::new(RwLock::new(http)),
             url: url.trim_end_matches('/').to_string(),
             username: username.to_string(),
             auth: AuthMethod::Bearer(token.to_string()),
             webdav_base: "/dav/files".to_string(),
+            oidc_creds: None,
+            token_expires: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -136,14 +154,25 @@ impl OcisClient {
                 ))
             })?;
 
+        let expires_in = token_resp.expires_in.unwrap_or(3600);
         tracing::info!(
             "OIDC token acquired (type={}, expires_in={:?})",
             token_resp.token_type,
             token_resp.expires_in
         );
 
-        // Build client with Bearer token
-        Self::with_token(url, username, &token_resp.access_token)
+        let expires = std::time::Instant::now() + std::time::Duration::from_secs(expires_in);
+
+        let mut client = Self::with_token(url, username, &token_resp.access_token)?;
+        client.oidc_creds = Some(OidcCredentials {
+            token_endpoint: discovery.token_endpoint,
+            client_id: oidc_client_id.to_string(),
+            username: username.to_string(),
+            password: password.to_string(),
+        });
+        *client.token_expires.write().await = Some(expires);
+
+        Ok(client)
     }
 
     /// Try to connect to oCIS using the best available auth method.
@@ -152,13 +181,15 @@ impl OcisClient {
     /// 1. Existing auth (already set in headers)
     /// 2. If Basic, also attempts without auth to detect the server's auth mode
     pub async fn validate(&self, user: &str) -> MigrateResult<()> {
-        let url = format!("{}/{}/{}/", self.url, self.webdav_base, user);
-        let resp = self
-            .http
+        self.ensure_token_valid().await?;
+        let url = format!("{}/{}/{}/", self.url, self.webdav_base.trim_start_matches('/'), user);
+        let http = self.http.read().await;
+        let resp = http
             .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
             .header("Depth", "0")
             .send()
             .await?;
+        drop(http);
 
         let status = resp.status();
         if status.as_u16() == 401 || status.as_u16() == 403 {
@@ -186,26 +217,120 @@ impl OcisClient {
         self
     }
 
+    /// Refresh the Bearer token if it's about to expire or has expired.
+    async fn ensure_token_valid(&self) -> MigrateResult<()> {
+        let expires = self.token_expires.read().await;
+        if let Some(exp) = *expires {
+            // Refresh if less than 60 seconds remaining
+            if std::time::Instant::now() + std::time::Duration::from_secs(60) < exp {
+                return Ok(());
+            }
+        }
+        drop(expires);
+
+        // Need refresh
+        let creds = match &self.oidc_creds {
+            Some(c) => c.clone(),
+            None => return Ok(()), // No OIDC creds — can't refresh (PAT or Basic)
+        };
+
+        tracing::info!("Refreshing OIDC token...");
+
+        let http = reqwest::Client::builder().danger_accept_invalid_certs(true).build()?;
+        let token_resp: OidcTokenResponse = http
+            .post(&creds.token_endpoint)
+            .form(&[
+                ("grant_type", "password"),
+                ("client_id", &creds.client_id),
+                ("username", &creds.username),
+                ("password", &creds.password),
+                ("scope", "openid profile email"),
+            ])
+            .send()
+            .await?
+            .json()
+            .await
+            .map_err(|e| MigrationError::authentication(format!("Token refresh failed: {}", e)))?;
+
+        let expires_in = token_resp.expires_in.unwrap_or(3600);
+        let new_expires = std::time::Instant::now() + std::time::Duration::from_secs(expires_in);
+
+        // Update the default headers with the new token
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {}", token_resp.access_token))
+                .map_err(|e| MigrationError::config(e.to_string()))?,
+        );
+
+        // Rebuild the client with new headers
+        let new_http = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .default_headers(headers)
+            .build()?;
+
+        // Update the HTTP client and token expiration
+        *self.http.write().await = new_http;
+        *self.token_expires.write().await = Some(new_expires);
+
+        tracing::info!("Token refreshed successfully (expires in {}s)", expires_in);
+        Ok(())
+    }
+
+    /// Encode a file path for use in a WebDAV URL.
+    /// Handles non-ASCII characters by percent-encoding each path segment.
+    fn encode_path(path: &str) -> String {
+        // Split by /, encode each segment, rejoin
+        let segments: Vec<&str> = path.split('/').collect();
+        let encoded: Vec<String> = segments
+            .iter()
+            .map(|segment| {
+                if segment.is_empty() {
+                    return String::new();
+                }
+                let mut result = String::new();
+                for byte in segment.bytes() {
+                    match byte {
+                        b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' |
+                        b'!' | b'$' | b'&' | b'\'' | b'(' | b')' | b'*' | b'+' | b',' | b';' | b'=' => {
+                            result.push(byte as char);
+                        }
+                        _ => {
+                            result.push_str(&format!("%{:02X}", byte));
+                        }
+                    }
+                }
+                result
+            })
+            .collect();
+        encoded.join("/")
+    }
+
     fn webdav_url(&self, user: &str, path: &str) -> String {
         // PROPFIND returns full paths like /dav/files/wyatt/Documents/
-        // We need to strip the base prefix to avoid double-prefixing
-        let base_prefix = format!("{}/{}/", self.webdav_base, user);
+        // Strip the base prefix to get relative path, then reconstruct URL
+        let base_prefix = format!("{}/{}", self.webdav_base.trim_start_matches('/'), user);
         let clean_path = path
             .trim_start_matches('/')
-            .strip_prefix(base_prefix.trim_start_matches('/'))
-            .unwrap_or(path.trim_start_matches('/'));
+            .strip_prefix(&base_prefix)
+            .unwrap_or_else(|| path.trim_start_matches('/'))
+            .trim_start_matches('/');
 
-        format!("{}/{}/{}/{}", self.url, self.webdav_base, user, clean_path)
+        let encoded_path = Self::encode_path(clean_path);
+        format!("{}/{}/{}/{}", self.url, self.webdav_base.trim_start_matches('/'), user, encoded_path)
     }
 
     pub async fn list_directory(&self, user: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {
+        self.ensure_token_valid().await?;
         let url = self.webdav_url(user, path);
-        let resp = self
-            .http
+        tracing::debug!("PROPFIND {}", url);
+        let http = self.http.read().await;
+        let resp = http
             .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
             .header("Depth", "1")
             .send()
             .await?;
+        drop(http);
 
         if resp.status().as_u16() != 207 {
             return Err(MigrationError::webdav(format!(
@@ -220,6 +345,7 @@ impl OcisClient {
     }
 
     pub async fn list_directory_recursive(&self, user: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {
+        self.ensure_token_valid().await?;
         let mut all_entries = Vec::new();
         let mut dirs_to_process = vec![path.to_string()];
 
@@ -251,8 +377,12 @@ impl OcisClient {
     }
 
     pub async fn download_file(&self, user: &str, path: &str) -> MigrateResult<Vec<u8>> {
+        self.ensure_token_valid().await?;
         let url = self.webdav_url(user, path);
-        let resp = self.http.get(&url).send().await?;
+        tracing::debug!("DOWNLOAD {}", url);
+        let http = self.http.read().await;
+        let resp = http.get(&url).send().await?;
+        drop(http);
 
         if !resp.status().is_success() {
             return Err(MigrationError::webdav(format!(

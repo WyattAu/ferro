@@ -91,6 +91,7 @@ impl FerroTarget {
 
     pub async fn put_file(&self, path: &str, content: &[u8]) -> MigrateResult<()> {
         let url = format!("{}{}", self.url, path);
+        tracing::debug!("PUT {} ({} bytes)", url, content.len());
         let resp = self
             .http
             .put(&url)
@@ -99,13 +100,16 @@ impl FerroTarget {
             .send()
             .await?;
 
-        if !resp.status().is_success() {
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            tracing::error!("PUT {} failed: {} {}", path, status, &body[..body.len().min(200)]);
             return Err(MigrationError::webdav(format!(
-                "PUT {} failed: {}",
-                path,
-                resp.status()
+                "PUT {} failed: {} {}",
+                path, status, &body[..body.len().min(200)]
             )));
         }
+        tracing::debug!("PUT {} OK ({})", path, status);
         Ok(())
     }
 

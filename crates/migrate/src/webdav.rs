@@ -52,98 +52,100 @@ pub struct WebDavPipeline<'a> {
     source: &'a WebDavSource,
     target: &'a FerroTarget,
     max_file_size: u64,
-    batch_size: usize,
 }
 
 impl<'a> WebDavPipeline<'a> {
-    pub fn new(source: &'a WebDavSource, target: &'a FerroTarget, max_file_size: u64, batch_size: usize) -> Self {
+    pub fn new(source: &'a WebDavSource, target: &'a FerroTarget, max_file_size: u64, _batch_size: usize) -> Self {
         Self {
             source,
             target,
             max_file_size,
-            batch_size,
         }
     }
 
+    /// Streaming migration: traverses directories lazily and uploads files
+    /// as they are discovered. Bounded memory — never holds the full file list.
     pub async fn copy_all_files(
         &self,
         user: &str,
         progress: &crate::progress::ProgressTracker,
     ) -> MigrateResult<FileCopyStats> {
-        let entries = self.source.list_directory_recursive(user, "/").await?;
-
-        let dirs: Vec<_> = entries.iter().filter(|e| e.is_collection).collect();
-        let files: Vec<_> = entries.iter().filter(|e| !e.is_collection).collect();
-
-        progress.set_file_total(files.len() as u64);
-
-        for dir in &dirs {
-            let ferro_path = dav_path_to_ferro(&dir.path);
-            if let Err(e) = self.target.create_directory(&ferro_path).await {
-                tracing::warn!("Skipping directory {}: {}", ferro_path, e);
-            }
-        }
-
         let mut stats = FileCopyStats::default();
-        let mut batch: Vec<&DavEntry> = Vec::new();
+        let mut stack = vec!["/".to_string()];
+        let mut visited = std::collections::HashSet::new();
 
-        for file in &files {
-            if self.max_file_size > 0 && file.size > self.max_file_size {
-                tracing::info!("Skipping large file ({} bytes): {}", file.size, file.path);
-                stats.skipped += 1;
-                progress.inc_file(0);
+        while let Some(dir) = stack.pop() {
+            if !visited.insert(dir.clone()) {
                 continue;
             }
 
-            batch.push(file);
-
-            if batch.len() >= self.batch_size {
-                self.process_batch(user, &batch, &mut stats, progress).await?;
-                batch.clear();
-            }
-        }
-
-        if !batch.is_empty() {
-            self.process_batch(user, &batch, &mut stats, progress).await?;
-        }
-
-        Ok(stats)
-    }
-
-    async fn process_batch(
-        &self,
-        user: &str,
-        batch: &[&DavEntry],
-        stats: &mut FileCopyStats,
-        progress: &crate::progress::ProgressTracker,
-    ) -> MigrateResult<()> {
-        for file in batch {
-            let ferro_path = dav_path_to_ferro(&file.path);
-
-            match self.source.download_file(user, &file.path).await {
-                Ok(content) => {
-                    let bytes = content.len() as u64;
-                    match self.target.put_file(&ferro_path, &content).await {
-                        Ok(()) => {
-                            stats.migrated += 1;
-                            stats.total_bytes += bytes;
-                            progress.inc_file(bytes);
+            match self.source.list_directory(user, &dir).await {
+                Ok(entries) => {
+                    for entry in &entries {
+                        // Skip the directory itself
+                        if entry.path.trim_end_matches('/') == dir.trim_end_matches('/') {
+                            continue;
                         }
-                        Err(e) => {
-                            tracing::error!("Failed to upload {}: {}", ferro_path, e);
-                            stats.failed += 1;
-                            progress.inc_file(0);
+
+                        if entry.is_collection {
+                            stack.push(entry.path.clone());
+                        } else {
+                            if self.max_file_size > 0 && entry.size > self.max_file_size {
+                                tracing::info!("Skipping large file ({} bytes): {}", entry.size, entry.path);
+                                stats.skipped += 1;
+                                progress.inc_file(0);
+                                continue;
+                            }
+
+                            // Upload immediately — no batching, no full tree in memory
+                            let ferro_path = dav_path_to_ferro(&entry.path);
+
+                            // Create parent directory on-the-fly
+                            if let Some(parent) = ferro_path.rsplit('/').next() {
+                                if !parent.is_empty() {
+                                    let parent_path = ferro_path[..ferro_path.len() - parent.len()].trim_end_matches('/');
+                                    if !parent_path.is_empty() {
+                                        let _ = self.target.create_directory(parent_path).await;
+                                    }
+                                }
+                            }
+
+                            match self.source.download_file(user, &entry.path).await {
+                                Ok(content) => {
+                                    let bytes = content.len() as u64;
+                                    tracing::debug!("Downloaded {} ({} bytes), uploading to {}", entry.path, bytes, ferro_path);
+                                    match self.target.put_file(&ferro_path, &content).await {
+                                        Ok(()) => {
+                                            stats.migrated += 1;
+                                            stats.total_bytes += bytes;
+                                            progress.inc_file(bytes);
+                                            if stats.migrated % 100 == 0 {
+                                                tracing::info!("Migrated {} files ({:.1} MB)", stats.migrated, stats.total_bytes as f64 / 1_048_576.0);
+                                            }
+                                        }
+                                        Err(e) => {
+                                            tracing::error!("Failed to upload {}: {}", ferro_path, e);
+                                            stats.failed += 1;
+                                            progress.inc_file(0);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to download {}: {}", entry.path, e);
+                                    stats.failed += 1;
+                                    progress.inc_file(0);
+                                }
+                            }
                         }
                     }
                 }
                 Err(e) => {
-                    tracing::error!("Failed to download {}: {}", file.path, e);
-                    stats.failed += 1;
-                    progress.inc_file(0);
+                    tracing::warn!("Skipping directory {}: {}", dir, e);
                 }
             }
         }
-        Ok(())
+
+        Ok(stats)
     }
 }
 

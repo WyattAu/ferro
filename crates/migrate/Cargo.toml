@@ -18,3 +18,4 @@ tracing = "0.1"
 indicatif = "0.17"
 quick-xml = { version = "0.41", features = ["serialize"] }
 base64 = "0.22"
+tokio = { version = "1", features = ["sync", "rt"] }
