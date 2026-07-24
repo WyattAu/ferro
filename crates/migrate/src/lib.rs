@@ -351,9 +351,23 @@ async fn run_ocis_migration(
     report: &mut MigrationReport,
 ) -> MigrateResult<()> {
     // Determine auth method: token > OIDC > basic
+    // When token + oidc_client_id are both provided, use token but enable refresh
     let ocis = if let Some(ref token) = source.token {
-        tracing::info!("Using Bearer token authentication for oCIS");
-        OcisClient::with_token(&source.url, &source.username, token)?
+        if let Some(ref client_id) = source.oidc_client_id {
+            tracing::info!("Using Bearer token with OIDC refresh (client_id={})...", client_id);
+            let mut client = OcisClient::with_token(&source.url, &source.username, token)?;
+            // Set up OIDC refresh credentials
+            client.set_oidc_refresh(
+                &source.url,
+                source.username.clone(),
+                source.password.clone(),
+                client_id.clone(),
+            ).await;
+            client
+        } else {
+            tracing::info!("Using Bearer token authentication for oCIS");
+            OcisClient::with_token(&source.url, &source.username, token)?
+        }
     } else if let Some(ref client_id) = source.oidc_client_id {
         tracing::info!("Acquiring OIDC token via ROPC grant (client_id={})...", client_id);
         OcisClient::with_oidc(&source.url, &source.username, &source.password, client_id).await?

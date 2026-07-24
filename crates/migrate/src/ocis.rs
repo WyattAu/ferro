@@ -217,63 +217,98 @@ impl OcisClient {
         self
     }
 
+    /// Set up OIDC refresh credentials for a token-based client.
+    /// This allows the client to refresh the token before it expires.
+    pub async fn set_oidc_refresh(&mut self, url: &str, username: String, password: String, client_id: String) {
+        // Discover OIDC token endpoint
+        let discovery_url = format!("{}/.well-known/openid-configuration", url);
+        if let Ok(discovery) = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .and_then(|c| Ok(c))
+        {
+            if let Ok(resp) = discovery.get(&discovery_url).send().await {
+                if let Ok(doc) = resp.json::<OidcDiscovery>().await {
+                    self.oidc_creds = Some(OidcCredentials {
+                        token_endpoint: doc.token_endpoint,
+                        client_id,
+                        username,
+                        password,
+                    });
+                    // Set initial expiration to 5 minutes from now (conservative)
+                    *self.token_expires.write().await = Some(
+                        std::time::Instant::now() + std::time::Duration::from_secs(300)
+                    );
+                    tracing::info!("OIDC refresh configured (token_endpoint={})", self.oidc_creds.as_ref().unwrap().token_endpoint);
+                    return;
+                }
+            }
+        }
+        tracing::warn!("Could not configure OIDC refresh — token will not be auto-refreshed");
+    }
+
     /// Refresh the Bearer token if it's about to expire or has expired.
     async fn ensure_token_valid(&self) -> MigrateResult<()> {
         let expires = self.token_expires.read().await;
         if let Some(exp) = *expires {
-            // Refresh if less than 60 seconds remaining
-            if std::time::Instant::now() + std::time::Duration::from_secs(60) < exp {
+            // Refresh if less than 5 minutes remaining (OCIS tokens last ~10 min)
+            if std::time::Instant::now() + std::time::Duration::from_secs(300) < exp {
                 return Ok(());
             }
         }
         drop(expires);
 
-        // Need refresh
-        let creds = match &self.oidc_creds {
-            Some(c) => c.clone(),
-            None => return Ok(()), // No OIDC creds — can't refresh (PAT or Basic)
-        };
+        // Try OIDC refresh if credentials available
+        if let Some(ref creds) = self.oidc_creds {
+            tracing::info!("Refreshing OIDC token...");
+            let http = reqwest::Client::builder().danger_accept_invalid_certs(true).build()?;
+            let token_resp: OidcTokenResponse = http
+                .post(&creds.token_endpoint)
+                .form(&[
+                    ("grant_type", "password"),
+                    ("client_id", &creds.client_id),
+                    ("username", &creds.username),
+                    ("password", &creds.password),
+                    ("scope", "openid profile email"),
+                ])
+                .send()
+                .await?
+                .json()
+                .await
+                .map_err(|e| MigrationError::authentication(format!("Token refresh failed: {}", e)))?;
 
-        tracing::info!("Refreshing OIDC token...");
+            let expires_in = token_resp.expires_in.unwrap_or(3600);
+            let new_expires = std::time::Instant::now() + std::time::Duration::from_secs(expires_in);
 
-        let http = reqwest::Client::builder().danger_accept_invalid_certs(true).build()?;
-        let token_resp: OidcTokenResponse = http
-            .post(&creds.token_endpoint)
-            .form(&[
-                ("grant_type", "password"),
-                ("client_id", &creds.client_id),
-                ("username", &creds.username),
-                ("password", &creds.password),
-                ("scope", "openid profile email"),
-            ])
-            .send()
-            .await?
-            .json()
-            .await
-            .map_err(|e| MigrationError::authentication(format!("Token refresh failed: {}", e)))?;
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", token_resp.access_token))
+                    .map_err(|e| MigrationError::config(e.to_string()))?,
+            );
 
-        let expires_in = token_resp.expires_in.unwrap_or(3600);
-        let new_expires = std::time::Instant::now() + std::time::Duration::from_secs(expires_in);
+            let new_http = reqwest::Client::builder()
+                .danger_accept_invalid_certs(true)
+                .default_headers(headers)
+                .build()?;
 
-        // Update the default headers with the new token
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", token_resp.access_token))
-                .map_err(|e| MigrationError::config(e.to_string()))?,
-        );
+            *self.http.write().await = new_http;
+            *self.token_expires.write().await = Some(new_expires);
+            tracing::info!("Token refreshed (expires in {}s)", expires_in);
+            return Ok(());
+        }
 
-        // Rebuild the client with new headers
-        let new_http = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .default_headers(headers)
-            .build()?;
+        // No OIDC credentials — try to detect JWT expiration from the current token
+        // and re-acquire using the OIDC token endpoint if we know the issuer
+        if let AuthMethod::Bearer(ref token) = self.auth {
+            if token.starts_with("eyJ") {
+                // Try to decode JWT header to get kid, then find the issuer
+                // For now, just warn and continue
+                tracing::warn!("Bearer token may expire soon but no OIDC credentials for refresh. \
+                    Consider using --oidc-client-id for automatic token refresh.");
+            }
+        }
 
-        // Update the HTTP client and token expiration
-        *self.http.write().await = new_http;
-        *self.token_expires.write().await = Some(new_expires);
-
-        tracing::info!("Token refreshed successfully (expires in {}s)", expires_in);
         Ok(())
     }
 
