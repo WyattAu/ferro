@@ -277,35 +277,6 @@ impl OcisClient {
         Ok(())
     }
 
-    /// Encode a file path for use in a WebDAV URL.
-    /// Handles non-ASCII characters by percent-encoding each path segment.
-    fn encode_path(path: &str) -> String {
-        // Split by /, encode each segment, rejoin
-        let segments: Vec<&str> = path.split('/').collect();
-        let encoded: Vec<String> = segments
-            .iter()
-            .map(|segment| {
-                if segment.is_empty() {
-                    return String::new();
-                }
-                let mut result = String::new();
-                for byte in segment.bytes() {
-                    match byte {
-                        b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' |
-                        b'!' | b'$' | b'&' | b'\'' | b'(' | b')' | b'*' | b'+' | b',' | b';' | b'=' => {
-                            result.push(byte as char);
-                        }
-                        _ => {
-                            result.push_str(&format!("%{:02X}", byte));
-                        }
-                    }
-                }
-                result
-            })
-            .collect();
-        encoded.join("/")
-    }
-
     fn webdav_url(&self, user: &str, path: &str) -> String {
         // PROPFIND returns full paths like /dav/files/wyatt/Documents/
         // Strip the base prefix to get relative path, then reconstruct URL
@@ -316,8 +287,9 @@ impl OcisClient {
             .unwrap_or_else(|| path.trim_start_matches('/'))
             .trim_start_matches('/');
 
-        let encoded_path = Self::encode_path(clean_path);
-        format!("{}/{}/{}/{}", self.url, self.webdav_base.trim_start_matches('/'), user, encoded_path)
+        // Don't percent-encode — reqwest handles UTF-8 URLs correctly.
+        // Our manual encoding was double-encoding UTF-8 bytes (treating them as Latin-1).
+        format!("{}/{}/{}/{}", self.url, self.webdav_base.trim_start_matches('/'), user, clean_path)
     }
 
     pub async fn list_directory(&self, user: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {
