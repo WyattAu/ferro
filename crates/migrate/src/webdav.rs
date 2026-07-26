@@ -298,6 +298,131 @@ impl<'a> WebDavPipeline<'a> {
 
         Ok(file_stats)
     }
+
+    /// Migration using Graph API for discovery + WebDAV for download.
+    /// This handles OCIS spaces that WebDAV can't access.
+    pub async fn copy_all_files_graph(
+        &self,
+        user: &str,
+        progress: &crate::progress::ProgressTracker,
+    ) -> MigrateResult<FileCopyStats> {
+        let graph = match self.source {
+            WebDavSource::Ocis(oc) => oc.graph_client(),
+            _ => return Err(MigrationError::config("Graph API is only supported for oCIS sources")),
+        };
+
+        let mut file_stats = FileCopyStats::default();
+        let mut dirs_to_list: Vec<String> = vec!["/".to_string()];
+
+        while let Some(dir) = dirs_to_list.pop() {
+            let items = match graph.list_children(&dir).await {
+                Ok(items) => items,
+                Err(e) => {
+                    tracing::warn!("Graph API failed to list {}: {}", dir, e);
+                    continue;
+                }
+            };
+
+            let mut new_dirs = Vec::new();
+            let mut files = Vec::new();
+
+            for item in &items {
+                if item.deleted.is_some() {
+                    continue;
+                }
+                if item.folder.is_some() {
+                    let child_path = format!("{}/{}", dir.trim_end_matches('/'), item.name);
+                    new_dirs.push(child_path);
+                } else if item.file.is_some() {
+                    let remote_path = format!("{}/{}", dir.trim_end_matches('/'), item.name);
+                    files.push((remote_path, item.size));
+                }
+            }
+
+            dirs_to_list.extend(new_dirs);
+
+            let graph_clone = graph.clone();
+            for (remote_path, file_size) in &files {
+                let ferro_path = dav_path_to_ferro(remote_path);
+
+                if self.config.max_file_size > 0 && *file_size > self.config.max_file_size {
+                    file_stats.skipped += 1;
+                    continue;
+                }
+
+                if let Some(parent) = ferro_path.rsplit('/').next() {
+                    if !parent.is_empty() {
+                        let parent_path = ferro_path[..ferro_path.len() - parent.len()]
+                            .trim_end_matches('/');
+                        if !parent_path.is_empty() {
+                            let _ = self.target.create_directory(parent_path).await;
+                        }
+                    }
+                }
+
+                let mut last_err = None;
+                for attempt in 0..=self.config.max_retries {
+                    let content = match self.source.download_file(user, remote_path).await {
+                        Ok(c) => c,
+                        Err(_) => {
+                            tracing::debug!("WebDAV download failed for {}, trying Graph API", remote_path);
+                            match graph_clone.download_file(remote_path).await {
+                                Ok(c) => c,
+                                Err(e) => {
+                                    last_err = Some(format!("download: {}", e));
+                                    if attempt < self.config.max_retries {
+                                        tokio::time::sleep(std::time::Duration::from_millis(
+                                            100 * (attempt + 1) as u64,
+                                        ))
+                                        .await;
+                                    }
+                                    continue;
+                                }
+                            }
+                        }
+                    };
+                    let bytes = content.len() as u64;
+                    match self.target.put_file(&ferro_path, &content).await {
+                        Ok(()) => {
+                            file_stats.migrated += 1;
+                            file_stats.total_bytes += bytes;
+                            progress.inc_file(bytes);
+                            if file_stats.migrated % 100 == 0 {
+                                tracing::info!(
+                                    "Migrated {} files ({:.1} MB)",
+                                    file_stats.migrated,
+                                    file_stats.total_bytes as f64 / 1_048_576.0
+                                );
+                            }
+                            last_err = None;
+                            break;
+                        }
+                        Err(e) => {
+                            last_err = Some(format!("upload: {}", e));
+                            if attempt < self.config.max_retries {
+                                tokio::time::sleep(std::time::Duration::from_millis(
+                                    100 * (attempt + 1) as u64,
+                                ))
+                                .await;
+                            }
+                        }
+                    }
+                }
+
+                if let Some(err) = last_err {
+                    file_stats.failed += 1;
+                    tracing::error!(
+                        "Failed {} after {} retries: {}",
+                        remote_path,
+                        self.config.max_retries,
+                        err
+                    );
+                }
+            }
+        }
+
+        Ok(file_stats)
+    }
 }
 
 /// Thread-safe migration statistics for traversal workers.

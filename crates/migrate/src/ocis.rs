@@ -319,6 +319,15 @@ impl OcisClient {
         Ok(())
     }
 
+    /// Create a Graph API client using the current OIDC token.
+    pub fn graph_client(&self) -> crate::graph_api::GraphApiClient {
+        let token = match &self.auth {
+            AuthMethod::Bearer(t) => t.clone(),
+            _ => panic!("Graph API requires Bearer token"),
+        };
+        crate::graph_api::GraphApiClient::new(&self.url, &token)
+    }
+
     fn webdav_url(&self, user: &str, path: &str) -> String {
         // PROPFIND returns full paths like /dav/files/wyatt/Documents/
         // Strip the base prefix to get relative path, then reconstruct URL

@@ -287,6 +287,10 @@ enum MigrateCommands {
         /// Number of concurrent transfer workers (default: 8)
         #[arg(long, default_value = "8")]
         concurrency: usize,
+
+        /// Use Graph API for file discovery (better for large oCIS instances)
+        #[arg(long)]
+        use_graph_api: bool,
     },
 }
 
@@ -642,6 +646,7 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
                     batch_size,
                     max_file_size,
                     concurrency,
+                    use_graph_api: false,
                 },
             };
 
@@ -667,6 +672,7 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
             max_file_size,
             batch_size,
             concurrency,
+            use_graph_api,
         } => {
             let config = ferro_migrate::MigrationConfig {
                 source: ferro_migrate::MigrationSource::Ocis(ferro_migrate::OcisSource {
@@ -690,6 +696,7 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
                     batch_size,
                     max_file_size,
                     concurrency,
+                    use_graph_api,
                 },
             };
 

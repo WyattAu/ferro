@@ -1,6 +1,7 @@
 pub mod db;
 pub mod error;
 pub mod ferro_target;
+pub mod graph_api;
 pub mod mapper;
 pub mod nextcloud;
 pub mod ocis;
@@ -83,6 +84,8 @@ pub struct MigrationOptions {
     pub max_file_size: u64,
     #[serde(default = "default_concurrency")]
     pub concurrency: usize,
+    #[serde(default)]
+    pub use_graph_api: bool,
 }
 
 fn default_batch_size() -> usize {
@@ -104,6 +107,7 @@ impl Default for MigrationOptions {
             batch_size: 50,
             max_file_size: 0,
             concurrency: 8,
+            use_graph_api: false,
         }
     }
 }
@@ -411,7 +415,13 @@ async fn run_ocis_migration(
             ..PipelineConfig::default()
         };
         let pipeline = pipeline.with_config(config);
-        match pipeline.copy_all_files(&source.username, progress).await {
+        let file_result = if options.use_graph_api {
+            tracing::info!("Using Graph API for file discovery + WebDAV for download");
+            pipeline.copy_all_files_graph(&source.username, progress).await
+        } else {
+            pipeline.copy_all_files(&source.username, progress).await
+        };
+        match file_result {
             Ok(stats) => {
                 report.files_migrated = stats.migrated;
                 report.files_skipped = stats.skipped;
