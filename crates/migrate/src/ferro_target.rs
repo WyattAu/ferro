@@ -1,4 +1,5 @@
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
+use serde::Deserialize;
 use serde_json::json;
 
 use crate::error::{MigrationError, Result as MigrateResult};
@@ -188,4 +189,28 @@ impl FerroTarget {
         }
         Ok(())
     }
+
+    /// Check if a file exists at the target with matching content hash.
+    /// Returns `true` if the file exists and hashes match (skip upload).
+    pub async fn file_exists_with_hash(&self, path: &str, expected_hash: &str) -> bool {
+        let url = format!("{}/api/v1/files{}", self.url, path);
+        match self.http.get(&url).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                if let Ok(info) = resp.json::<FileInfo>().await {
+                    if let Some(ref hash) = info.content_hash {
+                        return hash == expected_hash;
+                    }
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+}
+
+/// Response from GET /api/v1/files/{path} for CAS dedup.
+#[derive(Debug, Deserialize)]
+pub struct FileInfo {
+    pub path: String,
+    pub content_hash: Option<String>,
 }
