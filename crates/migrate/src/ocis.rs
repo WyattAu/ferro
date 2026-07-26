@@ -31,6 +31,7 @@ struct OidcCredentials {
     password: String,
 }
 
+#[derive(Clone)]
 pub struct OcisClient {
     http: Arc<RwLock<reqwest::Client>>,
     url: String,
@@ -235,9 +236,10 @@ impl OcisClient {
                         username,
                         password,
                     });
-                    // Set initial expiration to 5 minutes from now (conservative)
+                    // Set initial expiration to 60 seconds (token lifetime is 5 min)
+                    // This ensures the first request triggers a refresh
                     *self.token_expires.write().await = Some(
-                        std::time::Instant::now() + std::time::Duration::from_secs(300)
+                        std::time::Instant::now() + std::time::Duration::from_secs(60)
                     );
                     tracing::info!("OIDC refresh configured (token_endpoint={})", self.oidc_creds.as_ref().unwrap().token_endpoint);
                     return;
@@ -248,15 +250,20 @@ impl OcisClient {
     }
 
     /// Refresh the Bearer token if it's about to expire or has expired.
+    /// When OIDC credentials are available, refresh aggressively to avoid 401 errors.
     async fn ensure_token_valid(&self) -> MigrateResult<()> {
-        let expires = self.token_expires.read().await;
-        if let Some(exp) = *expires {
-            // Refresh if less than 5 minutes remaining (OCIS tokens last ~10 min)
-            if std::time::Instant::now() + std::time::Duration::from_secs(300) < exp {
-                return Ok(());
+        if self.oidc_creds.is_some() {
+            let expires = self.token_expires.read().await;
+            if let Some(exp) = *expires {
+                // Refresh if less than 2 minutes remaining
+                // OCIS tokens last 5 min, refresh at 3 min remaining
+                if std::time::Instant::now() + std::time::Duration::from_secs(120) < exp {
+                    drop(expires);
+                    return Ok(());
+                }
             }
+            drop(expires);
         }
-        drop(expires);
 
         // Try OIDC refresh if credentials available
         if let Some(ref creds) = self.oidc_creds {

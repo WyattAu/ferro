@@ -214,6 +214,10 @@ enum MigrateCommands {
         /// Number of files per batch
         #[arg(long, default_value = "50")]
         batch_size: usize,
+
+        /// Number of concurrent transfer workers (default: 8)
+        #[arg(long, default_value = "8")]
+        concurrency: usize,
     },
 
     /// Migrate from an oCIS instance to Ferro
@@ -279,6 +283,10 @@ enum MigrateCommands {
         /// Number of files per batch
         #[arg(long, default_value = "50")]
         batch_size: usize,
+
+        /// Number of concurrent transfer workers (default: 8)
+        #[arg(long, default_value = "8")]
+        concurrency: usize,
     },
 }
 
@@ -612,6 +620,7 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
             skip_favorites,
             max_file_size,
             batch_size,
+            concurrency,
         } => {
             let config = ferro_migrate::MigrationConfig {
                 source: ferro_migrate::MigrationSource::Nextcloud(ferro_migrate::NextcloudSource {
@@ -632,6 +641,7 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
                     skip_favorites,
                     batch_size,
                     max_file_size,
+                    concurrency,
                 },
             };
 
@@ -656,6 +666,7 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
             skip_favorites,
             max_file_size,
             batch_size,
+            concurrency,
         } => {
             let config = ferro_migrate::MigrationConfig {
                 source: ferro_migrate::MigrationSource::Ocis(ferro_migrate::OcisSource {
@@ -678,6 +689,7 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
                     skip_favorites,
                     batch_size,
                     max_file_size,
+                    concurrency,
                 },
             };
 

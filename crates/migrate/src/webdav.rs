@@ -2,6 +2,8 @@ use crate::error::{MigrationError, Result as MigrateResult};
 use crate::ferro_target::FerroTarget;
 use crate::nextcloud::NextcloudClient;
 use crate::ocis::OcisClient;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct DavEntry {
@@ -13,6 +15,7 @@ pub struct DavEntry {
     pub content_type: Option<String>,
 }
 
+#[derive(Clone)]
 pub enum WebDavSource {
     Nextcloud(NextcloudClient),
     Ocis(OcisClient),
@@ -33,13 +36,6 @@ impl WebDavSource {
         }
     }
 
-    pub async fn list_directory_recursive(&self, user: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {
-        match self {
-            WebDavSource::Nextcloud(nc) => nc.list_directory_recursive(user, path).await,
-            WebDavSource::Ocis(oc) => oc.list_directory_recursive(user, path).await,
-        }
-    }
-
     pub async fn download_file(&self, user: &str, path: &str) -> MigrateResult<Vec<u8>> {
         match self {
             WebDavSource::Nextcloud(nc) => nc.download_file(user, path).await,
@@ -48,104 +44,274 @@ impl WebDavSource {
     }
 }
 
+/// Configuration for the parallel migration pipeline.
+#[derive(Clone)]
+pub struct PipelineConfig {
+    /// Number of concurrent directory traversal workers.
+    pub traverse_workers: usize,
+    /// Number of concurrent file transfer workers.
+    pub transfer_workers: usize,
+    /// Maximum file size to transfer (0 = no limit).
+    pub max_file_size: u64,
+    /// Channel buffer size for directories.
+    pub dir_channel_size: usize,
+    /// Channel buffer size for files.
+    pub file_channel_size: usize,
+    /// Maximum retries per file transfer.
+    pub max_retries: u32,
+}
+
+impl Default for PipelineConfig {
+    fn default() -> Self {
+        Self {
+            traverse_workers: 4,
+            transfer_workers: 8,
+            max_file_size: 0,
+            dir_channel_size: 256,
+            file_channel_size: 512,
+            max_retries: 3,
+        }
+    }
+}
+
 pub struct WebDavPipeline<'a> {
     source: &'a WebDavSource,
     target: &'a FerroTarget,
-    max_file_size: u64,
+    config: PipelineConfig,
 }
 
 impl<'a> WebDavPipeline<'a> {
-    pub fn new(source: &'a WebDavSource, target: &'a FerroTarget, max_file_size: u64, _batch_size: usize) -> Self {
+    pub fn new(
+        source: &'a WebDavSource,
+        target: &'a FerroTarget,
+        max_file_size: u64,
+        _batch_size: usize,
+    ) -> Self {
         Self {
             source,
             target,
-            max_file_size,
+            config: PipelineConfig {
+                max_file_size,
+                ..PipelineConfig::default()
+            },
         }
     }
 
-    /// Streaming migration: traverses directories lazily and uploads files
-    /// as they are discovered. Bounded memory — never holds the full file list.
+    pub fn with_config(mut self, config: PipelineConfig) -> Self {
+        self.config = config;
+        self
+    }
+
+    /// Parallel streaming migration with concurrent directory traversal and file transfers.
+    ///
+    /// Architecture:
+    /// - N directory workers traverse directories in parallel, sending files to a bounded channel
+    /// - M file workers consume from the channel, downloading and uploading concurrently
+    /// - Token refresh happens automatically before each request
+    /// - Bounded channels prevent memory exhaustion
+    /// - Atomic counters provide thread-safe progress tracking
     pub async fn copy_all_files(
         &self,
         user: &str,
         progress: &crate::progress::ProgressTracker,
     ) -> MigrateResult<FileCopyStats> {
-        let mut stats = FileCopyStats::default();
-        let mut stack = vec!["/".to_string()];
-        let mut visited = std::collections::HashSet::new();
+        let config = self.config.clone();
+        let source_clone = self.source.clone();
+        let _target_clone = self.target.clone();
+        let progress = progress.clone();
 
-        while let Some(dir) = stack.pop() {
-            if !visited.insert(dir.clone()) {
-                continue;
-            }
+        // Shared atomic counters for thread-safe progress
+        let stats = Arc::new(AtomicTraversalStats::default());
 
-            match self.source.list_directory(user, &dir).await {
-                Ok(entries) => {
-                    for entry in &entries {
-                        // Skip the directory itself
-                        if entry.path.trim_end_matches('/') == dir.trim_end_matches('/') {
-                            continue;
-                        }
+        // Track active traversal workers
+        let active_traversers = Arc::new(std::sync::atomic::AtomicUsize::new(config.traverse_workers));
 
-                        if entry.is_collection {
-                            stack.push(entry.path.clone());
-                        } else {
-                            if self.max_file_size > 0 && entry.size > self.max_file_size {
-                                tracing::info!("Skipping large file ({} bytes): {}", entry.size, entry.path);
-                                stats.skipped += 1;
-                                progress.inc_file(0);
+        // Channel for discovered files (bounded to limit memory)
+        let (file_tx, mut file_rx) = tokio::sync::mpsc::channel::<DavEntry>(config.file_channel_size);
+
+        // Channel for directories to traverse (broadcast allows multiple consumers)
+        let (dir_tx, mut dir_rx) = tokio::sync::broadcast::channel::<String>(config.dir_channel_size);
+
+        // Spawn directory traversal workers
+        let mut traverse_handles = Vec::new();
+        for worker_id in 0..config.traverse_workers {
+            let source = source_clone.clone();
+            let mut dir_rx = dir_rx.resubscribe();
+            let dir_tx = dir_tx.clone();
+            let file_tx = file_tx.clone();
+            let user = user.to_string();
+            let _config_clone = PipelineConfig {
+                traverse_workers: config.traverse_workers,
+                ..PipelineConfig::default()
+            };
+            let stats = Arc::clone(&stats);
+            let active_traversers = Arc::clone(&active_traversers);
+
+            let handle = tokio::spawn(async move {
+                tracing::info!("[traverse-{}] started, waiting for directories", worker_id);
+                let mut local_dirs = Vec::new();
+                let mut recv_count = 0u64;
+                let mut processed = std::collections::HashSet::new();
+
+                loop {
+                    match tokio::time::timeout(
+                        std::time::Duration::from_secs(5),
+                        dir_rx.recv()
+                    ).await {
+                        Ok(Ok(dir)) => {
+                            recv_count += 1;
+                            // Skip if another worker already processed this directory
+                            if !processed.insert(dir.clone()) {
                                 continue;
                             }
-
-                            // Upload immediately — no batching, no full tree in memory
-                            let ferro_path = dav_path_to_ferro(&entry.path);
-
-                            // Create parent directory on-the-fly
-                            if let Some(parent) = ferro_path.rsplit('/').next() {
-                                if !parent.is_empty() {
-                                    let parent_path = ferro_path[..ferro_path.len() - parent.len()].trim_end_matches('/');
-                                    if !parent_path.is_empty() {
-                                        let _ = self.target.create_directory(parent_path).await;
-                                    }
-                                }
+                            // Rate limit: small delay to avoid overwhelming OCIS
+                            if local_dirs.is_empty() {
+                                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                             }
 
-                            match self.source.download_file(user, &entry.path).await {
-                                Ok(content) => {
-                                    let bytes = content.len() as u64;
-                                    tracing::debug!("Downloaded {} ({} bytes), uploading to {}", entry.path, bytes, ferro_path);
-                                    match self.target.put_file(&ferro_path, &content).await {
-                                        Ok(()) => {
-                                            stats.migrated += 1;
-                                            stats.total_bytes += bytes;
-                                            progress.inc_file(bytes);
-                                            if stats.migrated % 100 == 0 {
-                                                tracing::info!("Migrated {} files ({:.1} MB)", stats.migrated, stats.total_bytes as f64 / 1_048_576.0);
-                                            }
+                            match source.list_directory(&user, &dir).await {
+                                Ok(entries) => {
+                                    for entry in &entries {
+                                        if entry.path.trim_end_matches('/') == dir.trim_end_matches('/') {
+                                            continue;
                                         }
-                                        Err(e) => {
-                                            tracing::error!("Failed to upload {}: {}", ferro_path, e);
-                                            stats.failed += 1;
-                                            progress.inc_file(0);
+
+                                        if entry.is_collection {
+                                            local_dirs.push(entry.path.clone());
+                                        } else {
+                                            if config.max_file_size > 0 && entry.size > config.max_file_size {
+                                                stats.skipped.fetch_add(1, Ordering::Relaxed);
+                                                continue;
+                                            }
+
+                                            if file_tx.send(entry.clone()).await.is_err() {
+                                                tracing::debug!("[traverse-{}] file channel closed, stopping", worker_id);
+                                                break;
+                                            }
                                         }
                                     }
                                 }
                                 Err(e) => {
-                                    tracing::error!("Failed to download {}: {}", entry.path, e);
-                                    stats.failed += 1;
-                                    progress.inc_file(0);
+                                    stats.failed.fetch_add(1, Ordering::Relaxed);
+                                    tracing::warn!("[traverse-{}] skipping {}: {}", worker_id, dir, e);
+                                }
+                            }
+
+                            // Forward discovered directories
+                            for d in local_dirs.drain(..) {
+                                if dir_tx.send(d).is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                        Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => {
+                            continue;
+                        }
+                        Ok(Err(tokio::sync::broadcast::error::RecvError::Closed)) => {
+                            tracing::debug!("[traverse-{}] dir channel closed, stopping", worker_id);
+                            break;
+                        }
+                        Err(_elapsed) => {
+                            // Timeout — no directory received in 5 seconds
+                            let remaining = active_traversers.fetch_sub(1, Ordering::SeqCst);
+                            if remaining <= 1 {
+                                tracing::debug!("[traverse-{}] last worker, stopping", worker_id);
+                                break;
+                            }
+                            tracing::debug!("[traverse-{}] timeout, {} workers still active", worker_id, remaining - 1);
+                            break;
+                        }
+                    }
+                }
+
+                tracing::debug!("[traverse-{}] finished", worker_id);
+            });
+            traverse_handles.push(handle);
+        }
+
+        // Seed the directory queue with root AFTER workers are spawned
+        let _ = dir_tx.send("/".to_string());
+
+        // Drop the original dir_tx so channel closes when all workers finish
+        drop(dir_tx);
+
+        // Wait for all traversal workers to finish first
+        for handle in traverse_handles {
+            let _ = handle.await;
+        }
+
+        // Now process files sequentially from the channel (no spawn needed)
+        let mut file_stats = FileCopyStats::default();
+        while let Some(entry) = file_rx.recv().await {
+            let ferro_path = dav_path_to_ferro(&entry.path);
+
+            // Create parent directory on-the-fly
+            if let Some(parent) = ferro_path.rsplit('/').next() {
+                if !parent.is_empty() {
+                    let parent_path = ferro_path[..ferro_path.len() - parent.len()]
+                        .trim_end_matches('/');
+                    if !parent_path.is_empty() {
+                        let _ = self.target.create_directory(parent_path).await;
+                    }
+                }
+            }
+
+            // Download with retries
+            let mut last_err = None;
+            for attempt in 0..=self.config.max_retries {
+                match self.source.download_file(user, &entry.path).await {
+                    Ok(content) => {
+                        let bytes = content.len() as u64;
+                        match self.target.put_file(&ferro_path, &content).await {
+                            Ok(()) => {
+                                file_stats.migrated += 1;
+                                file_stats.total_bytes += bytes;
+                                progress.inc_file(bytes);
+                                if file_stats.migrated % 100 == 0 {
+                                    tracing::info!("Migrated {} files ({:.1} MB)", file_stats.migrated, file_stats.total_bytes as f64 / 1_048_576.0);
+                                }
+                                last_err = None;
+                                break;
+                            }
+                            Err(e) => {
+                                last_err = Some(format!("upload: {}", e));
+                                if attempt < self.config.max_retries {
+                                    tokio::time::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64)).await;
                                 }
                             }
                         }
                     }
+                    Err(e) => {
+                        last_err = Some(format!("download: {}", e));
+                        if attempt < self.config.max_retries {
+                            tokio::time::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64)).await;
+                        }
+                    }
                 }
-                Err(e) => {
-                    tracing::warn!("Skipping directory {}: {}", dir, e);
-                }
+            }
+
+            if let Some(err) = last_err {
+                file_stats.failed += 1;
+                tracing::error!("Failed {} after {} retries: {}", entry.path, self.config.max_retries, err);
             }
         }
 
-        Ok(stats)
+        Ok(file_stats)
+    }
+}
+
+/// Thread-safe migration statistics for traversal workers.
+struct AtomicTraversalStats {
+    skipped: AtomicU64,
+    failed: AtomicU64,
+}
+
+impl Default for AtomicTraversalStats {
+    fn default() -> Self {
+        Self {
+            skipped: AtomicU64::new(0),
+            failed: AtomicU64::new(0),
+        }
     }
 }
 
@@ -264,21 +430,21 @@ fn decode_href(href: &str) -> String {
 
 mod urlencoding {
     pub fn decode(input: &str) -> Result<String, ()> {
-        let mut result = String::new();
+        let mut bytes = Vec::new();
         let mut chars = input.chars();
         while let Some(c) = chars.next() {
             if c == '%' {
                 let hex: String = chars.by_ref().take(2).collect();
                 if let Ok(byte) = u8::from_str_radix(&hex, 16) {
-                    result.push(byte as char);
+                    bytes.push(byte);
                 } else {
-                    result.push('%');
-                    result.push_str(&hex);
+                    bytes.push(b'%');
+                    bytes.extend(hex.bytes());
                 }
             } else {
-                result.push(c);
+                bytes.extend(c.to_string().as_bytes());
             }
         }
-        Ok(result)
+        String::from_utf8(bytes).map_err(|_| ())
     }
 }

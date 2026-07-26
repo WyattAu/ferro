@@ -4,6 +4,7 @@ use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use crate::error::{MigrationError, Result as MigrateResult};
 use crate::webdav::{DavEntry, parse_propfind};
 
+#[derive(Clone)]
 pub struct NextcloudClient {
     http: reqwest::Client,
     url: String,

@@ -15,7 +15,7 @@ use mapper::{map_share, map_user, nc_path_to_ferro};
 use nextcloud::NextcloudClient;
 use ocis::OcisClient;
 use progress::ProgressTracker;
-use webdav::{WebDavPipeline, WebDavSource};
+use webdav::{WebDavPipeline, WebDavSource, PipelineConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationConfig {
@@ -81,10 +81,16 @@ pub struct MigrationOptions {
     pub batch_size: usize,
     #[serde(default)]
     pub max_file_size: u64,
+    #[serde(default = "default_concurrency")]
+    pub concurrency: usize,
 }
 
 fn default_batch_size() -> usize {
     50
+}
+
+fn default_concurrency() -> usize {
+    8
 }
 
 impl Default for MigrationOptions {
@@ -97,6 +103,7 @@ impl Default for MigrationOptions {
             skip_favorites: false,
             batch_size: 50,
             max_file_size: 0,
+            concurrency: 8,
         }
     }
 }
@@ -399,6 +406,11 @@ async fn run_ocis_migration(
     if !options.skip_files {
         tracing::info!("Migrating files from oCIS...");
         let pipeline = WebDavPipeline::new(&webdav_source, ferro, options.max_file_size, options.batch_size);
+        let config = PipelineConfig {
+            transfer_workers: options.concurrency,
+            ..PipelineConfig::default()
+        };
+        let pipeline = pipeline.with_config(config);
         match pipeline.copy_all_files(&source.username, progress).await {
             Ok(stats) => {
                 report.files_migrated = stats.migrated;

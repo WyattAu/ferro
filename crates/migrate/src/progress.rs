@@ -1,8 +1,13 @@
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 pub struct ProgressTracker {
+    inner: Arc<ProgressTrackerInner>,
+}
+
+struct ProgressTrackerInner {
     multi: MultiProgress,
     users_pb: ProgressBar,
     files_pb: ProgressBar,
@@ -10,6 +15,12 @@ pub struct ProgressTracker {
     tags_pb: ProgressBar,
     favorites_pb: ProgressBar,
     start: Instant,
+}
+
+impl Clone for ProgressTracker {
+    fn clone(&self) -> Self {
+        Self { inner: Arc::clone(&self.inner) }
+    }
 }
 
 impl Default for ProgressTracker {
@@ -46,62 +57,64 @@ impl ProgressTracker {
         let favorites_pb = multi.add(ProgressBar::new(0).with_prefix("Favorites").with_style(style_bytes));
 
         Self {
-            multi,
-            users_pb,
-            files_pb,
-            shares_pb,
-            tags_pb,
-            favorites_pb,
-            start: Instant::now(),
+            inner: Arc::new(ProgressTrackerInner {
+                multi,
+                users_pb,
+                files_pb,
+                shares_pb,
+                tags_pb,
+                favorites_pb,
+                start: Instant::now(),
+            }),
         }
     }
 
     pub fn set_user_total(&self, total: u64) {
-        self.users_pb.set_length(total);
+        self.inner.users_pb.set_length(total);
     }
 
     pub fn inc_user(&self) {
-        self.users_pb.inc(1);
+        self.inner.users_pb.inc(1);
     }
 
     pub fn set_file_total(&self, total: u64) {
-        self.files_pb.set_length(total);
+        self.inner.files_pb.set_length(total);
     }
 
     pub fn inc_file(&self, bytes: u64) {
-        self.files_pb.inc(1);
-        self.files_pb.inc(bytes);
+        self.inner.files_pb.inc(1);
+        self.inner.files_pb.inc(bytes);
     }
 
     pub fn set_share_total(&self, total: u64) {
-        self.shares_pb.set_length(total);
+        self.inner.shares_pb.set_length(total);
     }
 
     pub fn inc_share(&self) {
-        self.shares_pb.inc(1);
+        self.inner.shares_pb.inc(1);
     }
 
     pub fn set_tag_total(&self, total: u64) {
-        self.tags_pb.set_length(total);
+        self.inner.tags_pb.set_length(total);
     }
 
     pub fn inc_tag(&self) {
-        self.tags_pb.inc(1);
+        self.inner.tags_pb.inc(1);
     }
 
     pub fn set_favorite_total(&self, total: u64) {
-        self.favorites_pb.set_length(total);
+        self.inner.favorites_pb.set_length(total);
     }
 
     pub fn inc_favorite(&self) {
-        self.favorites_pb.inc(1);
+        self.inner.favorites_pb.inc(1);
     }
 
     pub fn finish(&self) {
-        self.multi.clear().ok();
+        self.inner.multi.clear().ok();
     }
 
     pub fn elapsed(&self) -> Duration {
-        self.start.elapsed()
+        self.inner.start.elapsed()
     }
 }

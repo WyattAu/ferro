@@ -4,6 +4,7 @@ use serde_json::json;
 use crate::error::{MigrationError, Result as MigrateResult};
 use crate::mapper::FerroUser;
 
+#[derive(Clone)]
 pub struct FerroTarget {
     http: reqwest::Client,
     url: String,
