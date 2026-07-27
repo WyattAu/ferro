@@ -469,10 +469,15 @@ async fn dfs_traverse(
     checkpoint: &RwLock<Checkpoint>,
     max_file_size: u64,
 ) {
-    let mut stack = vec![root.to_string()];
+    // BFS (breadth-first) traversal: process all directories at current level
+    // before going deeper. This ensures large directories like Books (10GB)
+    // get processed before the tool exhausts its time budget.
+    let mut queue = std::collections::VecDeque::new();
     let mut visited = std::collections::HashSet::new();
 
-    while let Some(dir) = stack.pop() {
+    queue.push_back(root.to_string());
+
+    while let Some(dir) = queue.pop_front() {
         if !visited.insert(dir.clone()) {
             continue;
         }
@@ -486,7 +491,7 @@ async fn dfs_traverse(
                     }
 
                     if entry.is_collection {
-                        stack.push(entry.path.clone());
+                        queue.push_back(entry.path.clone());
                     } else {
                         // Skip files already marked done in checkpoint
                         {
