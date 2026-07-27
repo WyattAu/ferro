@@ -46,6 +46,13 @@ impl WebDavSource {
             WebDavSource::Ocis(oc) => oc.download_file(user, path).await,
         }
     }
+
+    pub async fn list_directory_recursive(&self, user: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {
+        match self {
+            WebDavSource::Nextcloud(nc) => nc.list_directory_recursive(user, path).await,
+            WebDavSource::Ocis(oc) => oc.list_directory_recursive(user, path).await,
+        }
+    }
 }
 
 /// Configuration for the parallel migration pipeline.
@@ -616,7 +623,7 @@ pub struct FileCopyStats {
     pub total_bytes: u64,
 }
 
-fn dav_path_to_ferro(dav_path: &str) -> String {
+pub(crate) fn dav_path_to_ferro(dav_path: &str) -> String {
     let trimmed = dav_path.trim_start_matches('/');
     if trimmed.is_empty() {
         return "/".to_string();
@@ -716,9 +723,14 @@ pub fn parse_propfind(xml: &str) -> MigrateResult<Vec<DavEntry>> {
 }
 
 fn decode_href(href: &str) -> String {
-    urlencoding::decode(href)
-        .map(|s| s.to_string())
-        .unwrap_or_else(|_| href.to_string())
+    let mut current = href.to_string();
+    // Decode in a loop to handle double-encoded paths (e.g., %25E5 → %E5 → 发)
+    loop {
+        match urlencoding::decode(&current) {
+            Ok(decoded) if decoded != current => current = decoded,
+            _ => return current,
+        }
+    }
 }
 
 mod urlencoding {

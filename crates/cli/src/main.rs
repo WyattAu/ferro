@@ -218,6 +218,14 @@ enum MigrateCommands {
         /// Number of concurrent transfer workers (default: 8)
         #[arg(long, default_value = "8")]
         concurrency: usize,
+
+        /// Verify migration after completion (compare source and target)
+        #[arg(long)]
+        verify: bool,
+
+        /// Show visual progress bars during migration
+        #[arg(long)]
+        progress: bool,
     },
 
     /// Migrate from an oCIS instance to Ferro
@@ -291,6 +299,14 @@ enum MigrateCommands {
         /// Use Graph API for file discovery (better for large oCIS instances)
         #[arg(long)]
         use_graph_api: bool,
+
+        /// Verify migration after completion (compare source and target)
+        #[arg(long)]
+        verify: bool,
+
+        /// Show visual progress bars during migration
+        #[arg(long)]
+        progress: bool,
     },
 }
 
@@ -625,6 +641,8 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
             max_file_size,
             batch_size,
             concurrency,
+            verify,
+            progress,
         } => {
             let config = ferro_migrate::MigrationConfig {
                 source: ferro_migrate::MigrationSource::Nextcloud(ferro_migrate::NextcloudSource {
@@ -647,13 +665,20 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
                     max_file_size,
                     concurrency,
                     use_graph_api: false,
+                    show_progress: progress,
                 },
             };
 
             println!("Starting Nextcloud -> Ferro migration...");
-            let report = ferro_migrate::run_migration(config).await?;
+            let report = ferro_migrate::run_migration(config.clone()).await?;
 
             print_migration_report(&report);
+
+            if verify {
+                println!("\nVerifying migration...");
+                let vreport = ferro_migrate::verify_migration(config).await?;
+                print_verification_report(&vreport);
+            }
         }
         MigrateCommands::Ocis {
             source_url,
@@ -673,6 +698,8 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
             batch_size,
             concurrency,
             use_graph_api,
+            verify,
+            progress,
         } => {
             let config = ferro_migrate::MigrationConfig {
                 source: ferro_migrate::MigrationSource::Ocis(ferro_migrate::OcisSource {
@@ -697,13 +724,20 @@ async fn cmd_migrate(cmd: MigrateCommands) -> anyhow::Result<()> {
                     max_file_size,
                     concurrency,
                     use_graph_api,
+                    show_progress: progress,
                 },
             };
 
             println!("Starting oCIS -> Ferro migration...");
-            let report = ferro_migrate::run_migration(config).await?;
+            let report = ferro_migrate::run_migration(config.clone()).await?;
 
             print_migration_report(&report);
+
+            if verify {
+                println!("\nVerifying migration...");
+                let vreport = ferro_migrate::verify_migration(config).await?;
+                print_verification_report(&vreport);
+            }
         }
     }
     Ok(())
@@ -726,6 +760,29 @@ fn print_migration_report(report: &ferro_migrate::MigrationReport) {
     println!("Favorites:  {} migrated", report.favorites_migrated);
     println!("Total data: {:.2} MB", report.total_bytes as f64 / 1_048_576.0);
     println!("Duration:   {:.1}s", report.duration_secs);
+
+    if !report.errors.is_empty() {
+        println!();
+        println!("Errors ({}):", report.errors.len());
+        for err in &report.errors {
+            println!("  - {}", err);
+        }
+    }
+}
+
+fn print_verification_report(report: &ferro_migrate::VerificationReport) {
+    println!();
+    println!("Verification Report");
+    println!("===================");
+    println!("Total source files: {}", report.total_source_files);
+    println!("Verified (match):   {}", report.verified);
+    println!("Missing on target:  {}", report.missing_on_target);
+    println!("Hash mismatch:      {}", report.hash_mismatch);
+    println!("Duration:           {:.1}s", report.duration_secs);
+
+    if report.missing_on_target == 0 && report.hash_mismatch == 0 {
+        println!("\nAll files verified successfully!");
+    }
 
     if !report.errors.is_empty() {
         println!();

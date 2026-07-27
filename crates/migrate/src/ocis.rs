@@ -255,9 +255,9 @@ impl OcisClient {
         if self.oidc_creds.is_some() {
             let expires = self.token_expires.read().await;
             if let Some(exp) = *expires {
-                // Refresh if less than 2 minutes remaining
-                // OCIS tokens last 5 min, refresh at 3 min remaining
-                if std::time::Instant::now() + std::time::Duration::from_secs(120) < exp {
+                // Refresh if less than 60 seconds remaining
+                // OCIS tokens last 5 min, refresh at ~4 min remaining
+                if std::time::Instant::now() + std::time::Duration::from_secs(60) < exp {
                     drop(expires);
                     return Ok(());
                 }

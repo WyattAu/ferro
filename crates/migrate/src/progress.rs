@@ -31,7 +31,25 @@ impl Default for ProgressTracker {
 
 impl ProgressTracker {
     pub fn new() -> Self {
+        Self::new_visible(true)
+    }
+
+    pub fn new_visible(visible: bool) -> Self {
         let multi = MultiProgress::new();
+
+        if !visible {
+            return Self {
+                inner: Arc::new(ProgressTrackerInner {
+                    multi,
+                    users_pb: ProgressBar::hidden(),
+                    files_pb: ProgressBar::hidden(),
+                    shares_pb: ProgressBar::hidden(),
+                    tags_pb: ProgressBar::hidden(),
+                    favorites_pb: ProgressBar::hidden(),
+                    start: Instant::now(),
+                }),
+            };
+        }
 
         let style_bytes =
             ProgressStyle::with_template("{spinner:.green} {prefix:12} [{bar:40.cyan/blue}] {pos}/{len} ({eta})")

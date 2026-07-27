@@ -86,6 +86,12 @@ pub struct MigrationOptions {
     pub concurrency: usize,
     #[serde(default)]
     pub use_graph_api: bool,
+    #[serde(default = "default_true")]
+    pub show_progress: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_batch_size() -> usize {
@@ -108,6 +114,7 @@ impl Default for MigrationOptions {
             max_file_size: 0,
             concurrency: 8,
             use_graph_api: false,
+            show_progress: true,
         }
     }
 }
@@ -151,7 +158,7 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
         .await
         .map_err(|e| MigrationError::connection(format!("Cannot connect to Ferro target: {}", e)))?;
 
-    let progress = ProgressTracker::new();
+    let progress = ProgressTracker::new_visible(config.options.show_progress);
 
     match config.source {
         MigrationSource::Nextcloud(source) => {
@@ -459,4 +466,114 @@ async fn run_ocis_migration(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerificationReport {
+    pub total_source_files: usize,
+    pub verified: usize,
+    pub missing_on_target: usize,
+    pub hash_mismatch: usize,
+    pub errors: Vec<String>,
+    pub duration_secs: f64,
+}
+
+pub async fn verify_migration(config: MigrationConfig) -> MigrateResult<VerificationReport> {
+    let start = std::time::Instant::now();
+    let mut report = VerificationReport {
+        total_source_files: 0,
+        verified: 0,
+        missing_on_target: 0,
+        hash_mismatch: 0,
+        errors: Vec::new(),
+        duration_secs: 0.0,
+    };
+
+    let ferro = FerroTarget::new(&config.target.url, &config.target.admin_token)?;
+
+    tracing::info!("Validating Ferro target connection...");
+    ferro
+        .validate()
+        .await
+        .map_err(|e| MigrationError::connection(format!("Cannot connect to Ferro target: {}", e)))?;
+
+    let webdav_source = match &config.source {
+        MigrationSource::Nextcloud(source) => {
+            let nc = NextcloudClient::new(&source.url, &source.username, &source.password)?;
+            tracing::info!("Validating Nextcloud connection...");
+            let ws = WebDavSource::Nextcloud(nc);
+            ws.validate(&source.username)
+                .await
+                .map_err(|e| MigrationError::connection(format!("Cannot connect to Nextcloud: {}", e)))?;
+            ws
+        }
+        MigrationSource::Ocis(source) => {
+            let ocis = if let Some(ref token) = source.token {
+                OcisClient::with_token(&source.url, &source.username, token)?
+            } else if !source.password.is_empty() {
+                OcisClient::new(&source.url, &source.username, &source.password)?
+            } else {
+                return Err(MigrationError::authentication(
+                    "No auth method specified for oCIS verification.",
+                ));
+            };
+            let ocis = ocis.with_webdav_base(&source.webdav_base);
+            let ws = WebDavSource::Ocis(ocis);
+            tracing::info!("Validating oCIS connection...");
+            ws.validate(&source.username)
+                .await
+                .map_err(|e| MigrationError::connection(format!("Cannot connect to oCIS: {}", e)))?;
+            ws
+        }
+    };
+
+    let user = match &config.source {
+        MigrationSource::Nextcloud(s) => s.username.clone(),
+        MigrationSource::Ocis(s) => s.username.clone(),
+    };
+
+    tracing::info!("Listing source files for verification...");
+    let source_files = webdav_source.list_directory_recursive(&user, "/").await?;
+    let source_files: Vec<_> = source_files.into_iter().filter(|e| !e.is_collection).collect();
+    report.total_source_files = source_files.len();
+    tracing::info!("Found {} source files to verify", source_files.len());
+
+    for entry in &source_files {
+        let ferro_path = webdav::dav_path_to_ferro(&entry.path);
+
+        // Download from source to get content hash
+        match webdav_source.download_file(&user, &entry.path).await {
+            Ok(content) => {
+                let content_hash = {
+                    use sha2::Digest;
+                    let mut hasher = sha2::Sha256::new();
+                    hasher.update(&content);
+                    format!("{:x}", hasher.finalize())
+                };
+
+                if ferro.file_exists_with_hash(&ferro_path, &content_hash).await {
+                    report.verified += 1;
+                } else {
+                    // Check if file exists but hash differs
+                    let url = format!("{}/api/v1/files{}", config.target.url, ferro_path);
+                    match ferro.http.get(&url).send().await {
+                        Ok(resp) if resp.status().is_success() => {
+                            report.hash_mismatch += 1;
+                            tracing::warn!("Hash mismatch: {}", ferro_path);
+                        }
+                        _ => {
+                            report.missing_on_target += 1;
+                            tracing::warn!("Missing on target: {}", ferro_path);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                report.errors.push(format!("{}: {}", entry.path, e));
+            }
+        }
+    }
+
+    report.duration_secs = start.elapsed().as_secs_f64();
+    Ok(report)
 }

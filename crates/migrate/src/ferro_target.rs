@@ -7,7 +7,7 @@ use crate::mapper::FerroUser;
 
 #[derive(Clone)]
 pub struct FerroTarget {
-    http: reqwest::Client,
+    pub(crate) http: reqwest::Client,
     url: String,
     #[allow(dead_code)]
     admin_token: String,
