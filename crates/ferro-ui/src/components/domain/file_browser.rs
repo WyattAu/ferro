@@ -14,6 +14,8 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
     let (error, set_error) = signal(None::<String>);
     let (preview, set_preview) = signal(None::<FileEntry>);
     let server_url_for_preview = server_url.clone();
+    let entries_for_preview = entries;
+    let set_preview_for_nav = set_preview;
 
     Effect::new(move |_| {
         let _path = current_path.get();
@@ -153,11 +155,15 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
         {move || {
             if let Some(entry) = preview.get() {
                 let close = set_preview;
+                let nav_entries = entries_for_preview.get();
+                let nav_cb = set_preview_for_nav;
                 view! {
                     <FilePreview
                         entry=entry
                         server_url=server_url_for_preview.clone()
                         on_close=Callback::new(move |_| close.set(None))
+                        entries=nav_entries
+                        on_navigate=Callback::new(move |e| nav_cb.set(Some(e)))
                     />
                 }.into_any()
             } else {
