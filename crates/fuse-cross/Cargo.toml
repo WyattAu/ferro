@@ -1,0 +1,27 @@
+[package]
+name = "ferro-fuse-cross"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Cross-platform FUSE mount for Ferro (Linux/macOS/Windows)"
+license.workspace = true
+repository = "https://github.com/WyattAu/ferro"
+publish = false
+
+[[bin]]
+name = "ferro-fuse-cross"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+bytes = "1"
+clap = { version = "4", features = ["derive", "env"] }
+fuser = "0.18"
+libc = "0.2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+fastrand = "2"
