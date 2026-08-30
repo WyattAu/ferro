@@ -25,11 +25,8 @@ fn get_config() -> Result<SyncConfig, MobileError> {
 }
 
 fn build_client(auth_token: &str) -> Result<reqwest::Client, MobileError> {
-    common::http_client::build_client(
-        auth_token,
-        common::http_client::HttpClientOptions::default(),
-    )
-    .map_err(|e| MobileError::InvalidConfig(e))
+    common::http_client::build_client(auth_token, common::http_client::HttpClientOptions::default())
+        .map_err(|e| MobileError::InvalidConfig(e))
 }
 
 #[tauri::command]

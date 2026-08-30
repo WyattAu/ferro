@@ -76,10 +76,7 @@ impl GraphApiClient {
             AUTHORIZATION,
             HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
         );
-        headers.insert(
-            "Content-Type",
-            HeaderValue::from_static("application/json"),
-        );
+        headers.insert("Content-Type", HeaderValue::from_static("application/json"));
 
         let http = reqwest::Client::builder()
             .danger_accept_invalid_certs(true)
@@ -98,10 +95,7 @@ impl GraphApiClient {
     /// Path format: "/Documents", "/Photos/vacation"
     pub async fn list_children(&self, path: &str) -> MigrateResult<Vec<GraphDriveItem>> {
         let encoded_path = path.trim_start_matches('/').replace('/', "%2F");
-        let url = format!(
-            "{}/graph/v1.0/me/drive/root:/{}:/children",
-            self.base_url, encoded_path
-        );
+        let url = format!("{}/graph/v1.0/me/drive/root:/{}:/children", self.base_url, encoded_path);
 
         let resp = self.http.get(&url).send().await?;
         let status = resp.status();
@@ -120,10 +114,7 @@ impl GraphApiClient {
 
     /// List children by item ID.
     pub async fn list_children_by_id(&self, item_id: &str) -> MigrateResult<Vec<GraphDriveItem>> {
-        let url = format!(
-            "{}/graph/v1.0/me/drive/items/{}/children",
-            self.base_url, item_id
-        );
+        let url = format!("{}/graph/v1.0/me/drive/items/{}/children", self.base_url, item_id);
 
         let resp = self.http.get(&url).send().await?;
         let status = resp.status();
@@ -138,18 +129,12 @@ impl GraphApiClient {
     /// Download a file by path.
     pub async fn download_file(&self, path: &str) -> MigrateResult<Vec<u8>> {
         let encoded_path = path.trim_start_matches('/').replace('/', "%2F");
-        let url = format!(
-            "{}/graph/v1.0/me/drive/root:/{}:/content",
-            self.base_url, encoded_path
-        );
+        let url = format!("{}/graph/v1.0/me/drive/root:/{}:/content", self.base_url, encoded_path);
 
         let resp = self.http.get(&url).send().await?;
         let status = resp.status();
         if !status.is_success() {
-            return Err(MigrationError::webdav(format!(
-                "Graph API download failed: {}",
-                status
-            )));
+            return Err(MigrationError::webdav(format!("Graph API download failed: {}", status)));
         }
 
         Ok(resp.bytes().await?.to_vec())

@@ -22,11 +22,7 @@ pub fn FilePreview(
 
     let prev_entry = entries.as_ref().and_then(|list| {
         let idx = list.iter().position(|e| e.path == entry.path)?;
-        if idx > 0 {
-            Some(list[idx - 1].clone())
-        } else {
-            None
-        }
+        if idx > 0 { Some(list[idx - 1].clone()) } else { None }
     });
     let next_entry = entries.as_ref().and_then(|list| {
         let idx = list.iter().position(|e| e.path == entry.path)?;
@@ -57,10 +53,7 @@ pub fn FilePreview(
             <iframe src=&url class="w-full h-[80vh] border-0" />
         }
         .into_any()
-    } else if mime.starts_with("text/")
-        || mime.contains("json")
-        || mime.contains("javascript")
-    {
+    } else if mime.starts_with("text/") || mime.contains("json") || mime.contains("javascript") {
         let (text, _set_text) = signal("Loading...".to_string());
         #[cfg(target_arch = "wasm32")]
         {
@@ -73,12 +66,7 @@ pub fn FilePreview(
                     "token": "",
                     "path": path,
                 });
-                match crate::components::domain::file_browser::tauri_invoke(
-                    "get_file_content",
-                    &args,
-                )
-                .await
-                {
+                match crate::components::domain::file_browser::tauri_invoke("get_file_content", &args).await {
                     Ok(content) => set_t.set(content),
                     Err(e) => set_t.set(format!("Error loading file: {}", e)),
                 }

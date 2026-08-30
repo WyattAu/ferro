@@ -12,6 +12,10 @@ pub struct UserInfo {
 
 #[allow(dead_code)] // Used by WASM runtime
 const STORAGE_KEY: &str = "ferro_access_token";
+#[allow(dead_code)] // Used by WASM runtime
+const REFRESH_KEY: &str = "ferro_refresh_token";
+#[allow(dead_code)] // Used by WASM runtime
+const OIDC_LOGOUT_KEY: &str = "ferro_oidc_logout_url";
 
 #[derive(Clone)]
 #[allow(dead_code)] // Used by WASM runtime
@@ -122,7 +126,32 @@ fn store_token(token: &str) {
 fn clear_stored_token() {
     if let Some(storage) = get_local_storage() {
         let _ = storage.remove_item(STORAGE_KEY);
+        let _ = storage.remove_item(REFRESH_KEY);
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn store_refresh_token(token: &str) {
+    if let Some(storage) = get_local_storage() {
+        let _ = storage.set_item(REFRESH_KEY, token);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn read_stored_refresh_token() -> Option<String> {
+    get_local_storage()?.get_item(REFRESH_KEY).ok()?
+}
+
+#[cfg(target_arch = "wasm32")]
+fn store_oidc_logout_url(url: &str) {
+    if let Some(storage) = get_local_storage() {
+        let _ = storage.set_item(OIDC_LOGOUT_KEY, url);
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn read_oidc_logout_url() -> Option<String> {
+    get_local_storage()?.get_item(OIDC_LOGOUT_KEY).ok()?
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -223,6 +252,12 @@ pub fn handle_callback(state: &AuthState, code: &str, query_state: &str) {
                 store_token(&resp.access_token);
                 state.set_access_token.set(Some(resp.access_token));
                 state.set_user.set(Some(resp.user));
+                // Store refresh token if provided
+                if let Some(rt) = &resp.refresh_token {
+                    store_refresh_token(rt);
+                }
+                // Store OIDC logout URL for proper front-channel logout
+                store_oidc_logout_url(&resp.logout_url);
                 let redirect = if resp.redirect.is_empty() {
                     "/ui/".to_string()
                 } else {
@@ -248,6 +283,17 @@ pub fn logout(state: &AuthState) {
     clear_stored_token();
     state.set_access_token.set(None);
     state.set_user.set(None);
+    // Redirect to OIDC end_session_endpoint for proper front-channel logout
+    if let Some(logout_url) = read_oidc_logout_url() {
+        if !logout_url.is_empty() {
+            if let Some(window) = web_sys::window() {
+                let location = window.location();
+                let _ = location.set_href(&logout_url);
+                return;
+            }
+        }
+    }
+    // Fallback: just redirect to home
     if let Some(window) = web_sys::window() {
         let location = window.location();
         let _ = location.set_href("/ui/");

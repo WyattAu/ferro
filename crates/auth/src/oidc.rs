@@ -67,6 +67,15 @@ impl OidcValidator {
         &self.config
     }
 
+    /// Build an OIDC end_session_endpoint URL for front-channel logout.
+    #[must_use]
+    pub fn end_session_url(&self, _sub: &str, post_logout_redirect: &str) -> String {
+        format!(
+            "{}/protocol/openid-connect/logout?client_id={}&post_logout_redirect_uri={}",
+            self.config.issuer, self.config.client_id, post_logout_redirect,
+        )
+    }
+
     /// Store a PKCE session for later retrieval during the OAuth callback.
     pub async fn store_pkce_session(&self, state: &str, code_verifier: &str, redirect_uri: &str, callback_url: &str) {
         let cutoff = Instant::now().checked_sub(Duration::from_mins(10)).unwrap();

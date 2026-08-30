@@ -19,7 +19,9 @@ struct ProgressTrackerInner {
 
 impl Clone for ProgressTracker {
     fn clone(&self) -> Self {
-        Self { inner: Arc::clone(&self.inner) }
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
     }
 }
 

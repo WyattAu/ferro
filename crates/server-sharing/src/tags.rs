@@ -1,9 +1,7 @@
 use axum::extract::{Extension, Path, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-pub use ferro_server_collaboration::tags::{
-    AddTagsRequest, FileTags, SearchTagQuery, TagStore,
-};
+pub use ferro_server_collaboration::tags::{AddTagsRequest, FileTags, SearchTagQuery, TagStore};
 
 use crate::SharingState;
 use crate::api_error::ApiError;

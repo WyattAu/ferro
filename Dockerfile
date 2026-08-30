@@ -34,10 +34,9 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY migrations/ migrations/
 
-# Build WASM frontend first (trunk needs wasm32 target)
-# For BuildKit, add cache mounts: --mount=type=cache,target=/usr/local/cargo/registry
+# WASM frontend — pre-built in CI, COPY from build context
 WORKDIR /app/crates/web
-RUN trunk build --release --dist dist
+COPY crates/web/dist/ dist/
 
 WORKDIR /app
 

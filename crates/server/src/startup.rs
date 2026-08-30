@@ -263,8 +263,8 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
         let policy_text = std::fs::read_to_string(policy_file)
             .map_err(|e| anyhow::anyhow!("Failed to read Cedar policy file {}: {}", policy_file, e))?;
         let authorizer = crate::auth::cedar::CedarAuthorizer::new()?;
-        authorizer.add_policy(&policy_text).await?;
-        info!("Cedar authorization enabled: {} policies", 1);
+        authorizer.load_policies(&[policy_text]).await?;
+        info!("Cedar authorization enabled from policy file");
         state.with_cedar(authorizer)
     } else {
         if cli.oidc_issuer.is_some() {

@@ -1,3 +1,4 @@
+use crate::api::client::ApiClient;
 use crate::api::endpoints::FileEntry;
 use crate::components::domain::file_preview::FilePreview;
 use leptos::prelude::*;
@@ -35,61 +36,79 @@ pub fn FileBrowser(#[prop(into)] server_url: String) -> impl IntoView {
                     "token": "",
                     "path": p,
                 });
-                match tauri_invoke("list_files_rest", &args).await {
-                    Ok(json_str) => {
-                        // Response is { entries: [...] } — parse the entries array
-                        match serde_json::from_str::<serde_json::Value>(&json_str) {
-                            Ok(val) => {
-                                let items: Vec<FileEntry> = val
-                                    .get("entries")
-                                    .and_then(|e| e.as_array())
-                                    .map(|arr| {
-                                        arr.iter()
-                                            .filter_map(|v| {
-                                                Some(FileEntry {
-                                                    name: v.get("name")?.as_str()?.to_string(),
-                                                    path: v.get("path")?.as_str()?.to_string(),
-                                                    size: v.get("size").and_then(|n| n.as_u64()).unwrap_or(0),
-                                                    is_collection: v
-                                                        .get("isCollection")
-                                                        .and_then(|b| b.as_bool())
-                                                        .or_else(|| v.get("is_collection").and_then(|b| b.as_bool()))
-                                                        .unwrap_or(false),
-                                                    modified_at: v
-                                                        .get("modifiedAt")
-                                                        .and_then(|s| s.as_str())
-                                                        .or_else(|| v.get("modified_at").and_then(|s| s.as_str()))
-                                                        .unwrap_or("")
-                                                        .to_string(),
-                                                    mime_type: v
-                                                        .get("mimeType")
-                                                        .and_then(|s| s.as_str())
-                                                        .or_else(|| v.get("mime_type").and_then(|s| s.as_str()))
-                                                        .map(String::from),
-                                                    etag: v.get("etag").and_then(|s| s.as_str()).map(String::from),
-                                                })
-                                            })
-                                            .collect()
-                                    })
-                                    .unwrap_or_default();
-                                log::info!("[file_browser] loaded {} entries from path={}", items.len(), p);
-                                set_e.set(items);
-                                set_l.set(false);
-                            }
+                // Try Tauri IPC first, fall back to HTTP if not in Tauri
+                let result = tauri_invoke("list_files_rest", &args).await;
+                let json_str = match result {
+                    Ok(s) => s,
+                    Err(e) if e.contains("__TAURI__") => {
+                        // Not in Tauri — use direct HTTP
+                        let api = ApiClient::from_env();
+                        match api
+                            .get::<crate::api::endpoints::ListFilesResponse>(&format!("/api/v1/files?path={}", p))
+                            .await
+                        {
+                            Ok(resp) => serde_json::to_string(&resp).unwrap_or_default(),
                             Err(e) => {
-                                log::error!(
-                                    "[file_browser] parse error: {} — raw: {}",
-                                    e,
-                                    &json_str[..json_str.len().min(200)]
-                                );
-                                set_err.set(Some(format!("Parse: {}", e)));
+                                log::error!("[file_browser] HTTP fallback error: {:?}", e);
+                                set_err.set(Some(format!("HTTP: {:?}", e)));
                                 set_l.set(false);
+                                return;
                             }
                         }
                     }
                     Err(e) => {
                         log::error!("[file_browser] invoke error: {}", e);
                         set_err.set(Some(e));
+                        set_l.set(false);
+                        return;
+                    }
+                };
+                // Response is { entries: [...] } — parse the entries array
+                match serde_json::from_str::<serde_json::Value>(&json_str) {
+                    Ok(val) => {
+                        let items: Vec<FileEntry> = val
+                            .get("entries")
+                            .and_then(|e| e.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| {
+                                        Some(FileEntry {
+                                            name: v.get("name")?.as_str()?.to_string(),
+                                            path: v.get("path")?.as_str()?.to_string(),
+                                            size: v.get("size").and_then(|n| n.as_u64()).unwrap_or(0),
+                                            is_collection: v
+                                                .get("isCollection")
+                                                .and_then(|b| b.as_bool())
+                                                .or_else(|| v.get("is_collection").and_then(|b| b.as_bool()))
+                                                .unwrap_or(false),
+                                            modified_at: v
+                                                .get("modifiedAt")
+                                                .and_then(|s| s.as_str())
+                                                .or_else(|| v.get("modified_at").and_then(|s| s.as_str()))
+                                                .unwrap_or("")
+                                                .to_string(),
+                                            mime_type: v
+                                                .get("mimeType")
+                                                .and_then(|s| s.as_str())
+                                                .or_else(|| v.get("mime_type").and_then(|s| s.as_str()))
+                                                .map(String::from),
+                                            etag: v.get("etag").and_then(|s| s.as_str()).map(String::from),
+                                        })
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        log::info!("[file_browser] loaded {} entries from path={}", items.len(), p);
+                        set_e.set(items);
+                        set_l.set(false);
+                    }
+                    Err(e) => {
+                        log::error!(
+                            "[file_browser] parse error: {} — raw: {}",
+                            e,
+                            &json_str[..json_str.len().min(200)]
+                        );
+                        set_err.set(Some(format!("Parse: {}", e)));
                         set_l.set(false);
                     }
                 }

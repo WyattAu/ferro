@@ -10,6 +10,10 @@ pub struct AuthCallbackResponse {
     pub expires_in: u64,
     pub user: UserInfo,
     pub redirect: String,
+    #[serde(default)]
+    pub refresh_token: Option<String>,
+    #[serde(default)]
+    pub logout_url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -250,6 +254,20 @@ fn make_opts_with_auth(method: &str) -> web_sys::RequestInit {
     let opts = web_sys::RequestInit::new();
     opts.set_method(method);
     opts.set_headers(&headers);
+    opts
+}
+
+#[cfg(target_arch = "wasm32")]
+fn make_opts_with_body(method: &str, body: &serde_json::Value) -> web_sys::RequestInit {
+    let headers = web_sys::Headers::new().expect("Headers::new must succeed in browser context");
+    with_auth_headers(&headers);
+    let _ = headers.set("Content-Type", "application/json");
+    let opts = web_sys::RequestInit::new();
+    opts.set_method(method);
+    opts.set_headers(&headers);
+    let body_str = serde_json::to_string(body).unwrap_or_default();
+    let body_js = wasm_bindgen::JsValue::from_str(&body_str);
+    opts.set_body(&body_js);
     opts
 }
 
@@ -636,7 +654,22 @@ pub async fn auth_callback(_code: &str, _state: &str) -> Result<AuthCallbackResp
         expires_in: 0,
         user: UserInfo::default(),
         redirect: String::new(),
+        refresh_token: None,
+        logout_url: String::new(),
     })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn auth_refresh_token(refresh_token: &str) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({ "refresh_token": refresh_token });
+    let opts = make_opts_with_body("POST", &body);
+    let text = fetch_text("/api/auth/refresh", &opts).await?;
+    serde_json::from_str(&text).map_err(|e| format!("JSON parse failed: {}", e))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn auth_refresh_token(_refresh_token: &str) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({}))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

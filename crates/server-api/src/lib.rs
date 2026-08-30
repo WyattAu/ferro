@@ -265,6 +265,11 @@ pub async fn auth_callback_impl<S: ferro_server_state::ServerState>(state: &S, p
         .get("expires_in")
         .and_then(|v| v.as_u64())
         .unwrap_or(3600);
+    let refresh_token = token_response
+        .get("refresh_token")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let logout_url = oidc.end_session_url(&claims.sub, &session.redirect_uri);
     (
         StatusCode::OK,
         axum::Json(serde_json::json!({
@@ -277,6 +282,8 @@ pub async fn auth_callback_impl<S: ferro_server_state::ServerState>(state: &S, p
                 "name": claims.name,
             },
             "redirect": session.redirect_uri,
+            "refresh_token": refresh_token,
+            "logout_url": logout_url,
         })),
     )
         .into_response()

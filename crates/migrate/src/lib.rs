@@ -16,7 +16,7 @@ use mapper::{map_share, map_user, nc_path_to_ferro};
 use nextcloud::NextcloudClient;
 use ocis::OcisClient;
 use progress::ProgressTracker;
-use webdav::{WebDavPipeline, WebDavSource, PipelineConfig};
+use webdav::{PipelineConfig, WebDavPipeline, WebDavSource};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationConfig {
@@ -375,12 +375,14 @@ async fn run_ocis_migration(
             tracing::info!("Using Bearer token with OIDC refresh (client_id={})...", client_id);
             let mut client = OcisClient::with_token(&source.url, &source.username, token)?;
             // Set up OIDC refresh credentials
-            client.set_oidc_refresh(
-                &source.url,
-                source.username.clone(),
-                source.password.clone(),
-                client_id.clone(),
-            ).await;
+            client
+                .set_oidc_refresh(
+                    &source.url,
+                    source.username.clone(),
+                    source.password.clone(),
+                    client_id.clone(),
+                )
+                .await;
             client
         } else {
             tracing::info!("Using Bearer token authentication for oCIS");

@@ -646,9 +646,10 @@ where
         .try_get_matches_from(args)
         .ok();
     let was_set = |name: &str| {
-        matches
-            .as_ref()
-            .is_some_and(|m| m.value_source(name) == Some(clap::parser::ValueSource::CommandLine))
+        matches.as_ref().is_some_and(|m| {
+            let src = m.value_source(name);
+            src == Some(clap::parser::ValueSource::CommandLine) || src == Some(clap::parser::ValueSource::EnvVariable)
+        })
     };
 
     if !was_set("host")

@@ -238,10 +238,12 @@ impl OcisClient {
                     });
                     // Set initial expiration to 60 seconds (token lifetime is 5 min)
                     // This ensures the first request triggers a refresh
-                    *self.token_expires.write().await = Some(
-                        std::time::Instant::now() + std::time::Duration::from_secs(60)
+                    *self.token_expires.write().await =
+                        Some(std::time::Instant::now() + std::time::Duration::from_secs(60));
+                    tracing::info!(
+                        "OIDC refresh configured (token_endpoint={})",
+                        self.oidc_creds.as_ref().unwrap().token_endpoint
                     );
-                    tracing::info!("OIDC refresh configured (token_endpoint={})", self.oidc_creds.as_ref().unwrap().token_endpoint);
                     return;
                 }
             }
@@ -311,8 +313,10 @@ impl OcisClient {
             if token.starts_with("eyJ") {
                 // Try to decode JWT header to get kid, then find the issuer
                 // For now, just warn and continue
-                tracing::warn!("Bearer token may expire soon but no OIDC credentials for refresh. \
-                    Consider using --oidc-client-id for automatic token refresh.");
+                tracing::warn!(
+                    "Bearer token may expire soon but no OIDC credentials for refresh. \
+                    Consider using --oidc-client-id for automatic token refresh."
+                );
             }
         }
 
@@ -340,7 +344,13 @@ impl OcisClient {
 
         // Don't percent-encode — reqwest handles UTF-8 URLs correctly.
         // Our manual encoding was double-encoding UTF-8 bytes (treating them as Latin-1).
-        format!("{}/{}/{}/{}", self.url, self.webdav_base.trim_start_matches('/'), user, clean_path)
+        format!(
+            "{}/{}/{}/{}",
+            self.url,
+            self.webdav_base.trim_start_matches('/'),
+            user,
+            clean_path
+        )
     }
 
     pub async fn list_directory(&self, user: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {

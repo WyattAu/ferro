@@ -47,8 +47,7 @@ pub fn build_client(token: &str, opts: HttpClientOptions) -> Result<reqwest::Cli
     };
 
     if !auth_header.is_empty() {
-        let value =
-            reqwest::header::HeaderValue::from_str(&auth_header).map_err(|e| format!("Invalid token: {e}"))?;
+        let value = reqwest::header::HeaderValue::from_str(&auth_header).map_err(|e| format!("Invalid token: {e}"))?;
         headers.insert(reqwest::header::AUTHORIZATION, value);
     }
 
@@ -64,7 +63,9 @@ pub fn build_client(token: &str, opts: HttpClientOptions) -> Result<reqwest::Cli
         builder = builder.connect_timeout(ct);
     }
 
-    builder.build().map_err(|e| format!("Failed to create HTTP client: {e}"))
+    builder
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))
 }
 
 fn base64_encode(input: &[u8]) -> String {

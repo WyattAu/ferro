@@ -5,9 +5,9 @@ use crate::ocis::OcisClient;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use std::sync::atomic::{AtomicU64, Ordering};
+use tokio::sync::{RwLock, mpsc};
 
 #[derive(Debug, Clone)]
 pub struct DavEntry {
@@ -92,12 +92,7 @@ pub struct WebDavPipeline<'a> {
 }
 
 impl<'a> WebDavPipeline<'a> {
-    pub fn new(
-        source: &'a WebDavSource,
-        target: &'a FerroTarget,
-        max_file_size: u64,
-        _batch_size: usize,
-    ) -> Self {
+    pub fn new(source: &'a WebDavSource, target: &'a FerroTarget, max_file_size: u64, _batch_size: usize) -> Self {
         Self {
             source,
             target,
@@ -183,8 +178,7 @@ impl<'a> WebDavPipeline<'a> {
             // Create parent directory on-the-fly
             if let Some(parent) = ferro_path.rsplit('/').next() {
                 if !parent.is_empty() {
-                    let parent_path =
-                        ferro_path[..ferro_path.len() - parent.len()].trim_end_matches('/');
+                    let parent_path = ferro_path[..ferro_path.len() - parent.len()].trim_end_matches('/');
                     if !parent_path.is_empty() {
                         let _ = target.create_directory(parent_path).await;
                     }
@@ -246,10 +240,8 @@ impl<'a> WebDavPipeline<'a> {
                             Err(e) => {
                                 last_err = Some(format!("upload: {}", e));
                                 if attempt < config.max_retries {
-                                    tokio::time::sleep(std::time::Duration::from_millis(
-                                        100 * (attempt + 1) as u64,
-                                    ))
-                                    .await;
+                                    tokio::time::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64))
+                                        .await;
                                 }
                             }
                         }
@@ -257,10 +249,7 @@ impl<'a> WebDavPipeline<'a> {
                     Err(e) => {
                         last_err = Some(format!("download: {}", e));
                         if attempt < config.max_retries {
-                            tokio::time::sleep(std::time::Duration::from_millis(
-                                100 * (attempt + 1) as u64,
-                            ))
-                            .await;
+                            tokio::time::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64)).await;
                         }
                     }
                 }
@@ -268,12 +257,7 @@ impl<'a> WebDavPipeline<'a> {
 
             if let Some(err) = last_err {
                 file_stats.failed += 1;
-                tracing::error!(
-                    "Failed {} after {} retries: {}",
-                    entry.path,
-                    config.max_retries,
-                    err
-                );
+                tracing::error!("Failed {} after {} retries: {}", entry.path, config.max_retries, err);
 
                 // Mark failed in checkpoint so retry is possible on restart
                 {
@@ -360,8 +344,7 @@ impl<'a> WebDavPipeline<'a> {
 
                 if let Some(parent) = ferro_path.rsplit('/').next() {
                     if !parent.is_empty() {
-                        let parent_path = ferro_path[..ferro_path.len() - parent.len()]
-                            .trim_end_matches('/');
+                        let parent_path = ferro_path[..ferro_path.len() - parent.len()].trim_end_matches('/');
                         if !parent_path.is_empty() {
                             let _ = self.target.create_directory(parent_path).await;
                         }
@@ -435,10 +418,7 @@ impl<'a> WebDavPipeline<'a> {
                         Err(e) => {
                             last_err = Some(format!("upload: {}", e));
                             if attempt < self.config.max_retries {
-                                tokio::time::sleep(std::time::Duration::from_millis(
-                                    100 * (attempt + 1) as u64,
-                                ))
-                                .await;
+                                tokio::time::sleep(std::time::Duration::from_millis(100 * (attempt + 1) as u64)).await;
                             }
                         }
                     }

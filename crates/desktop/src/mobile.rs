@@ -181,11 +181,8 @@ pub enum MobileConflictStrategy {
 }
 
 fn build_http_client(auth_token: &str) -> Result<reqwest::Client, MobileError> {
-    common::http_client::build_client(
-        auth_token,
-        common::http_client::HttpClientOptions::default(),
-    )
-    .map_err(|e| MobileError::NetworkError(e))
+    common::http_client::build_client(auth_token, common::http_client::HttpClientOptions::default())
+        .map_err(|e| MobileError::NetworkError(e))
 }
 
 async fn do_propfind_http(client: &reqwest::Client, server_url: &str, path: &str) -> Result<String, MobileError> {

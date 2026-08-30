@@ -108,7 +108,9 @@ impl FerroTarget {
             tracing::error!("PUT {} failed: {} {}", path, status, &body[..body.len().min(200)]);
             return Err(MigrationError::webdav(format!(
                 "PUT {} failed: {} {}",
-                path, status, &body[..body.len().min(200)]
+                path,
+                status,
+                &body[..body.len().min(200)]
             )));
         }
         tracing::debug!("PUT {} OK ({})", path, status);

@@ -831,12 +831,8 @@ async fn cmd_install_update(app_handle: tauri::AppHandle) -> Result<String, Stri
             tracing::info!("Update installed, restarting app");
             app_handle.restart();
         }
-        Ok(None) => {
-            Err("No update available".to_string())
-        }
-        Err(e) => {
-            Err(format!("Update check failed: {}", e))
-        }
+        Ok(None) => Err("No update available".to_string()),
+        Err(e) => Err(format!("Update check failed: {}", e)),
     }
 }
 
@@ -1254,31 +1250,32 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                 // Inject FERRO_SERVER_URL from CLI args — patch the HTML file directly
                 // so the value is available before WASM module scripts execute.
                 if let Some(conn) = app.try_state::<CliConnection>()
-                    && let Some(ref url) = conn.server_url {
-                        // Patch the index.html file in-place
-                        let html_path = std::env::current_exe()
-                            .ok()
-                            .and_then(|p| p.parent().map(|d| d.join("frontend/index.html")))
-                            .or_else(|| {
-                                // Fallback: look relative to manifest dir
-                                Some(std::path::PathBuf::from("frontend/index.html"))
-                            });
-                        #[allow(clippy::collapsible_if)]
-                        if let Some(path) = html_path {
-                            if let Ok(html) = std::fs::read_to_string(&path) {
-                                let patched = html.replace(
-                                    "window.FERRO_SERVER_URL = window.FERRO_SERVER_URL || '';",
-                                    &format!("window.FERRO_SERVER_URL = '{}';", url),
-                                );
-                                let _ = std::fs::write(&path, patched);
-                                tracing::info!("Patched index.html with FERRO_SERVER_URL = {}", url);
-                            }
+                    && let Some(ref url) = conn.server_url
+                {
+                    // Patch the index.html file in-place
+                    let html_path = std::env::current_exe()
+                        .ok()
+                        .and_then(|p| p.parent().map(|d| d.join("frontend/index.html")))
+                        .or_else(|| {
+                            // Fallback: look relative to manifest dir
+                            Some(std::path::PathBuf::from("frontend/index.html"))
+                        });
+                    #[allow(clippy::collapsible_if)]
+                    if let Some(path) = html_path {
+                        if let Ok(html) = std::fs::read_to_string(&path) {
+                            let patched = html.replace(
+                                "window.FERRO_SERVER_URL = window.FERRO_SERVER_URL || '';",
+                                &format!("window.FERRO_SERVER_URL = '{}';", url),
+                            );
+                            let _ = std::fs::write(&path, patched);
+                            tracing::info!("Patched index.html with FERRO_SERVER_URL = {}", url);
                         }
-                        // Also eval as fallback
-                        let js = format!("window.FERRO_SERVER_URL = '{}';", url);
-                        let _ = window.eval(&js);
-                        tracing::info!("Injected FERRO_SERVER_URL = {}", url);
                     }
+                    // Also eval as fallback
+                    let js = format!("window.FERRO_SERVER_URL = '{}';", url);
+                    let _ = window.eval(&js);
+                    tracing::info!("Injected FERRO_SERVER_URL = {}", url);
+                }
             }
 
             // Auto-capture screenshot after page loads for debugging
