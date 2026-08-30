@@ -1,6 +1,6 @@
 # Ferro Roadmap
 
-**Version:** 16.0 | **Date:** 2026-07-23 | **Status:** Audit cycle complete
+**Version:** 17.0 | **Date:** 2026-08-30 | **Status:** Deployment + Cross-platform mount
 
 ---
 
@@ -15,6 +15,9 @@
 | MSRV | 1.92 |
 | Toolchain | 1.95.0 |
 | License | AGPL-3.0-or-later |
+| Deployment | TrueNAS Docker (ghcr.io/wyattau/ferro:latest) |
+| Web URL | https://ferro.wyattau.com |
+| OIDC | Keycloak (company-realm, client: ferro) |
 
 ## Completed (v16.0 Audit Cycle)
 
@@ -61,52 +64,88 @@
 
 ---
 
-## Next: v17.0 Production Hardening
+## Completed (v17.0 Deployment + Security)
+
+### OIDC Flow
+- Fixed FERRO_EXTERNAL_URL for correct OIDC redirect_uri
+- Added OIDC refresh_token storage and end_session_url
+- Server callback returns refresh_token and logout_url
+- Web client stores refresh token in localStorage
+- Logout redirects to Keycloak end_session_endpoint for front-channel logout
+- Created Keycloak client `ferro` (secret: ferro-secret-2026, audience: account)
+
+### Deployment
+- Deployed on TrueNAS Docker (ghcr.io/wyattau/ferro:latest)
+- Cloudflare tunnel + DNS: ferro.wyattau.com → Traefik → Ferro
+- Dockerfile: use pre-built WASM dist via COPY (not trunk build)
+- Deployed crates/web/ dist (pure web, no Tauri dependency)
+- Fixed Tauri fallback to HTTP in file_browser.rs
+
+### Security
+- 6 security headers via Traefik middleware (CSP, HSTS, X-Frame-Options, etc.)
+- HTML meta tags (OG, Twitter Card, JSON-LD, canonical, accessibility headings)
+- Fixed Cedar policy loading (load_policies instead of add_policy)
+- Cedar policy: permit all (open for testing)
+
+### Infrastructure
+- Automated backups: SQLite backup script, daily at 3am, 7-day retention
+- Headscale: both nodes online (cachyos + truenas)
+- crawlkit audit: 43 findings (16 warnings addressed)
+
+### Bugs Fixed
+- GLIBC mismatch (binary built on glibc 2.43, container had 2.36)
+- Socket-proxy EIR image (empty rootfs, switched to tecnativa/docker-socket-proxy)
+- YAML duplicate key in dynamic.yml
+- Missing CMD in Docker image (entrypoint.sh with no args)
+- CORS + OIDC conflict (FERRO_CORS_ORIGINS)
+
+---
+
+## Next: v18.0 Cross-Platform Mount
 
 ### P0 — Critical
 
 | Item | Scope | Effort |
 |------|-------|--------|
-| Fix pre-existing CI failures | Lean4 proof syntax, benchmark flakiness, miri toolchain, audit test | 2-3 days |
-| Extract shared HTTP client | Create ferro-http-client crate, consolidate gui.rs + mobile.rs | 1 day |
-| Extract shared MobileError | Single error enum in common or shared crate | 0.5 days |
-| Delete duplicate OIDC middleware | Remove server/src/auth/oidc.rs, use server-security-middleware re-export | 0.5 days |
-| Consolidate comments/tags | Make server-collaboration the single source of truth, remove from server-sharing | 1 day |
+| Cross-platform FUSE mount | Migrate from fuse3 (Linux-only) to fuser (Linux/macOS/Windows) | 3-5 days |
+| macOS mount support | macFUSE or FUSE-T integration via fuser crate | 1-2 days |
+| Windows mount support | WinFSP integration via fuser crate | 1-2 days |
+| External WebDAV via Headscale | ACL rules, mount documentation | 0.5 days |
+| External WebDAV via Cloudflare | Tunnel ingress for /dav/ path | 0.5 days |
 
 ### P1 — High
 
 | Item | Scope | Effort |
 |------|-------|--------|
-| Frontend use_data_loader hook | Extract loading/error/empty state pattern into reusable hook | 1 day |
-| Frontend error states | Add error display to all domain components (currently only file_browser shows errors) | 1 day |
-| Frontend loading spinners | Fix unused _loading signals, render spinners in all components | 0.5 days |
-| Dialog focus trap | Implement Tab cycling within dialog, auto-focus first element | 1 day |
-| Responsive sidebar collapse | Mobile hamburger menu, sidebar toggle on small screens | 2 days |
-| ARIA tab panels | Admin/Settings: role="tablist", role="tab", role="tabpanel" | 1 day |
+| Native OS mount integration | Automount (launchd/fstab/systemd), Finder/Explorer sidebar | 2 days |
+| Token refresh interceptor | Proactive token refresh in web client before expiry | 1 day |
+| Desktop client OIDC | PKCE flow in Tauri for desktop app | 3-5 days |
+| Lock down Cedar policy | Replace permit-all with per-user rules from Keycloak groups | 1 day |
+| Crawlkit re-crawl | Verify security headers + meta tags fix all warnings | 0.5 days |
 
 ### P2 — Medium
 
 | Item | Scope | Effort |
 |------|-------|--------|
-| Reduce unwrap() in production code | notes.rs (109), tcp_transport.rs (82), backup.rs (70) | 3 days |
-| Add xl/2xl responsive utilities | Extend CSS breakpoint system | 0.5 days |
-| Deduplicate ShellLayout vs Shell | Remove unused shell.rs, use routes/mod.rs ShellLayout only | 0.5 days |
-| Add entrance/exit animations | Modals, toasts, list items | 2 days |
-| Micro-interactions | Button press scale, card hover elevation | 1 day |
-| Spring-based transitions | Organic motion curves for Amoebic UI feel | 1 day |
+| Extract shared HTTP client | Create ferro-http-client crate, consolidate gui.rs + mobile.rs | 1 day |
+| Extract shared MobileError | Single error enum in common or shared crate | 0.5 days |
+| Delete duplicate OIDC middleware | Remove server/src/auth/oidc.rs, use server-security-middleware re-export | 0.5 days |
+| Consolidate comments/tags | Make server-collaboration the single source of truth | 1 day |
+| Frontend use_data_loader hook | Extract loading/error/empty state pattern | 1 day |
 
 ### P3 — Low
 
 | Item | Scope | Effort |
 |------|-------|--------|
-| cargo-llvm-cov config file | .cargo/config.toml alias for local coverage | 0.5 days |
-| Codecov config | codecov.yml with coverage thresholds | 0.5 days |
-| Status badges | Add CI/security/release badges to README | 0.5 days |
-| Composite action for cargo install | Reduce duplication of cargo-deny, cargo-fuzz, etc. across workflows | 1 day |
+| Responsive sidebar collapse | Mobile hamburger menu, sidebar toggle | 2 days |
+| ARIA tab panels | Admin/Settings: role="tablist", role="tab", role="tabpanel" | 1 day |
+| Entrance/exit animations | Modals, toasts, list items | 2 days |
+| Micro-interactions | Button press scale, card hover elevation | 1 day |
+| Spring-based transitions | Organic motion curves for Amoebic UI feel | 1 day |
 
 ---
 
-## v18.0 Feature Expansion
+## v19.0 Feature Expansion
 
 ### Storage & Performance
 - Erasure coding for distributed storage
@@ -164,6 +203,7 @@
 | ADR-004: Pre-commit Hook Design | Accepted | 2026-07-23 |
 | ADR-005: CI/CD Security Hardening | Accepted | 2026-07-23 |
 | ADR-006: Spatial Materialism + Amoebic UI | Accepted | 2026-07-23 |
+| ADR-007: Cross-platform FUSE via fuser | Pending | 2026-08-30 |
 
 ---
 
