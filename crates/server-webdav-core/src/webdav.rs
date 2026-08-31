@@ -104,6 +104,9 @@ pub async fn handle_any<S: WebDavCoreState>(
             let user_root = format!("/users/{}", sub);
             if path_str == "/" || path_str.is_empty() {
                 user_root
+            } else if path_str.starts_with(&user_root) {
+                // Path already contains user root prefix — use as-is
+                path_str.to_string()
             } else {
                 format!("{}{}", user_root, path_str)
             }

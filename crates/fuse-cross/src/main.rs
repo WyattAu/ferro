@@ -253,36 +253,40 @@ fn parse_propfind_children(xml: &str, parent_path: &str) -> Vec<(String, bool, u
     let mut current_is_collection = false;
     let mut current_size: u64 = 0;
 
-    for line in xml.lines() {
-        let t = line.trim();
-        if let Some(start) = t.find("<D:href>").or_else(|| t.find("<d:href>")) {
-            let s = start + t[start..].find('>').unwrap() + 1;
-            if let Some(e) = t[s..].find('<') {
-                current_href = Some(t[s..s + e].to_string());
+    // XML may be all on one line — split by response tags instead of newlines
+    for response_chunk in xml.split("</D:response>").chain(xml.split("</d:response>")) {
+        current_href = None;
+        current_is_collection = false;
+        current_size = 0;
+
+        // Extract href
+        if let Some(start) = response_chunk.find("<D:href>").or_else(|| response_chunk.find("<d:href>")) {
+            let s = start + response_chunk[start..].find('>').unwrap() + 1;
+            if let Some(e) = response_chunk[s..].find('<') {
+                current_href = Some(response_chunk[s..s + e].to_string());
             }
         }
-        if t.contains("<D:collection") || t.contains("<d:collection") {
+        // Check for collection
+        if response_chunk.contains("<D:collection") || response_chunk.contains("<d:collection") {
             current_is_collection = true;
         }
-        if let Some(start) = t
+        // Extract content length
+        if let Some(start) = response_chunk
             .find("<D:getcontentlength>")
-            .or_else(|| t.find("<d:getcontentlength>"))
+            .or_else(|| response_chunk.find("<d:getcontentlength>"))
         {
-            let s = start + t[start..].find('>').unwrap() + 1;
-            if let Some(e) = t[s..].find('<') {
-                current_size = t[s..s + e].parse().unwrap_or(0);
+            let s = start + response_chunk[start..].find('>').unwrap() + 1;
+            if let Some(e) = response_chunk[s..].find('<') {
+                current_size = response_chunk[s..s + e].parse().unwrap_or(0);
             }
         }
-        if t.contains("</D:response>") || t.contains("</d:response>") {
-            if let Some(href) = current_href.take() {
-                let normalized = href.trim_end_matches('/');
-                let parent_normalized = parent_path.trim_end_matches('/');
-                if normalized != parent_normalized {
-                    children.push((href, current_is_collection, current_size));
-                }
+
+        if let Some(href) = current_href.take() {
+            let normalized = href.trim_end_matches('/');
+            let parent_normalized = parent_path.trim_end_matches('/');
+            if normalized != parent_normalized {
+                children.push((href, current_is_collection, current_size));
             }
-            current_is_collection = false;
-            current_size = 0;
         }
     }
     children
