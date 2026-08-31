@@ -164,6 +164,59 @@ pub fn get_auth_header() -> Option<String> {
     None
 }
 
+/// Proactively refresh the access token before it expires.
+/// Call this periodically (e.g., every 5 minutes) from init_auth.
+#[cfg(target_arch = "wasm32")]
+pub fn spawn_token_refresh(state: &AuthState) {
+    let state = state.clone();
+    leptos::task::spawn_local(async move {
+        loop {
+            // Wait 5 minutes between refresh attempts
+            let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+                web_sys::window()
+                    .unwrap()
+                    .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 300_000);
+            });
+            let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+
+            // Check if we have a refresh token
+            let refresh_token = match read_stored_refresh_token() {
+                Some(rt) => rt,
+                None => continue,
+            };
+
+            // Try to refresh
+            match crate::api::auth_refresh_token(&refresh_token).await {
+                Ok(data) => {
+                    if let Some(new_token) = data.get("access_token").and_then(|v| v.as_str()) {
+                        store_token(new_token);
+                        state.set_access_token.set(Some(new_token.to_string()));
+                        web_sys::console::log_1(&"Token refreshed successfully".into());
+                    }
+                    // Store new refresh token if provided
+                    if let Some(new_rt) = data.get("refresh_token").and_then(|v| v.as_str()) {
+                        store_refresh_token(new_rt);
+                    }
+                }
+                Err(e) => {
+                    web_sys::console::warn_1(&format!("Token refresh failed: {}", e).into());
+                    // If refresh fails, clear tokens and redirect to login
+                    clear_stored_token();
+                    state.set_access_token.set(None);
+                    state.set_user.set(None);
+                    if let Some(window) = web_sys::window() {
+                        let _ = window.location().set_href("/ui/");
+                    }
+                    return;
+                }
+            }
+        }
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn spawn_token_refresh(_state: &AuthState) {}
+
 #[cfg(target_arch = "wasm32")]
 pub fn init_auth(state: &AuthState) {
     let token = read_stored_token();

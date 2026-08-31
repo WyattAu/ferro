@@ -41,6 +41,7 @@ pub fn App() -> impl IntoView {
 
     Effect::new(move |_| {
         auth::init_auth(&auth_state);
+        auth::spawn_token_refresh(&auth_state);
     });
 
     Effect::new(move |_| {
