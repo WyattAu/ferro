@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ferro.fuse-mount</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/ferro-fuse-cross</string>
+        <string>--server-url</string>
+        <string>https://ferro.wyattau.com</string>
+        <string>--mount</string>
+        <string>/Users/USERNAME/ferro</string>
+        <string>--token</string>
+        <string>TOKEN_PLACEHOLDER</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/ferro-fuse.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ferro-fuse.log</string>
+</dict>
+</plist>

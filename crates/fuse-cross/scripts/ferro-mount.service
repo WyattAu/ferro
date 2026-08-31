@@ -1,0 +1,16 @@
+[Unit]
+Description=Ferro File Sync (FUSE mount)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ferro-fuse-cross --server-url https://ferro.wyattau.com --mount %h/ferro --token ${FERRO_TOKEN}
+ExecStop=/usr/bin/fusermount -u %h/ferro
+Restart=on-failure
+RestartSec=5
+Environment=FERRO_TOKEN=
+EnvironmentFile=-%h/.config/ferro/token
+
+[Install]
+WantedBy=default.target
