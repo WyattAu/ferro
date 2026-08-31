@@ -1374,6 +1374,17 @@ pub fn build_router_with_static(
                         }
                     };
 
+                    // Only serve static files for GET/HEAD requests.
+                    // WebDAV methods (PROPFIND, MKCOL, PUT, DELETE, MOVE, etc.)
+                    // must pass through to the WebDAV handler.
+                    let method = req.method().clone();
+                    let is_static_method = method == axum::http::Method::GET
+                        || method == axum::http::Method::HEAD;
+
+                    if !is_static_method {
+                        return next.run(req).await;
+                    }
+
                     // Root path: serve index.html
                     if path == "/" {
                         if let Some(resp) = serve_file("index.html").await {
