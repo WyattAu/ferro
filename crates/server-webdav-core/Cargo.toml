@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
-ferro-core = { path = "../core" }
+ferro-core = { path = "../core", features = ["wasm"] }
 ferro-dav = { path = "../dav", features = ["handlers"] }
 ferro-offline = { path = "../offline" }
 ferro-server-compliance = { path = "../server-compliance" }

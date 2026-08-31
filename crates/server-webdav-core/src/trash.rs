@@ -500,3 +500,79 @@ pub async fn soft_delete<S: WebDavCoreState>(state: &S, path: &str) -> Result<()
     state.trash_store().persist_insert(&entry);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_entry(path: &str, size: u64) -> TrashedEntry {
+        TrashedEntry {
+            original_path: path.to_string(),
+            trash_path: format!(".trash/{}", path),
+            deleted_at: chrono::Utc::now(),
+            size,
+            mime_type: "application/octet-stream".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_trash_store_new_is_empty() {
+        let store = TrashStore::new();
+        assert!(store.is_empty());
+        assert_eq!(store.len(), 0);
+    }
+
+    #[test]
+    fn test_trash_store_insert_and_list() {
+        let store = TrashStore::new();
+        store.insert("/file1.txt".to_string(), make_entry("/file1.txt", 100));
+        store.insert("/file2.txt".to_string(), make_entry("/file2.txt", 200));
+
+        assert_eq!(store.len(), 2);
+        let entries = store.list();
+        assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn test_trash_store_remove() {
+        let store = TrashStore::new();
+        store.insert("/file1.txt".to_string(), make_entry("/file1.txt", 100));
+        store.insert("/file2.txt".to_string(), make_entry("/file2.txt", 200));
+
+        let removed = store.remove("/file1.txt");
+        assert!(removed.is_some());
+        assert_eq!(store.len(), 1);
+        assert!(!store.contains("/file1.txt"));
+        assert!(store.contains("/file2.txt"));
+    }
+
+    #[test]
+    fn test_trash_store_clear() {
+        let store = TrashStore::new();
+        store.insert("/file1.txt".to_string(), make_entry("/file1.txt", 100));
+        store.insert("/file2.txt".to_string(), make_entry("/file2.txt", 200));
+
+        store.clear();
+        assert!(store.is_empty());
+    }
+
+    #[test]
+    fn test_trash_store_evict_oldest() {
+        let store = TrashStore::new();
+        // Insert MAX_TRASH_ENTRIES + 1 entries, then evict
+        for i in 0..=MAX_TRASH_ENTRIES {
+            store.insert(format!("/file{}.txt", i), make_entry(&format!("/file{}.txt", i), i as u64));
+        }
+        store.evict_oldest_if_needed();
+        // Should have evicted the oldest
+        assert!(store.len() <= MAX_TRASH_ENTRIES);
+    }
+
+    #[test]
+    fn test_trashed_entry_fields() {
+        let entry = make_entry("/test/path.txt", 12345);
+        assert_eq!(entry.original_path, "/test/path.txt");
+        assert_eq!(entry.size, 12345);
+        assert!(entry.deleted_at <= chrono::Utc::now());
+    }
+}

@@ -17,7 +17,7 @@ use ferro_auth::users::UserStoreTrait;
 use ferro_common::storage::StorageEngine;
 use std::sync::Arc;
 
-pub use common::DbHandle;
+pub use ferro_common::DbHandle;
 
 pub trait SecurityAppState: Clone + Send + Sync + 'static {
     fn auth_attempt_tracker(&self) -> &Arc<AuthAttemptTracker>;

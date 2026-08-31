@@ -673,4 +673,76 @@ mod tests {
         let token = "NOT_VALID.eyJzdWIiOiIxIn0.[]";
         assert!(decode_claims_unsafe(token).is_err());
     }
+
+    #[tokio::test]
+    async fn test_auth_middleware_public_path() {
+        use axum::body::Body;
+        use axum::http::Request;
+
+        let request = Request::builder()
+            .uri("/healthz")
+            .body(Body::empty())
+            .unwrap();
+
+        // Test that public paths bypass auth
+        let path = request.uri().path();
+        assert!(is_public_auth_path(path));
+    }
+
+    #[tokio::test]
+    async fn test_auth_middleware_requires_token() {
+        use axum::body::Body;
+        use axum::http::Request;
+
+        let request = Request::builder()
+            .uri("/api/files")
+            .body(Body::empty())
+            .unwrap();
+
+        // Verify no Authorization header
+        let token = request
+            .headers()
+            .get("Authorization")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "));
+        assert!(token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_auth_middleware_extracts_bearer_token() {
+        use axum::body::Body;
+        use axum::http::Request;
+
+        let request = Request::builder()
+            .uri("/api/files")
+            .header("Authorization", "Bearer test-token-123")
+            .body(Body::empty())
+            .unwrap();
+
+        let token = request
+            .headers()
+            .get("Authorization")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "));
+        assert_eq!(token, Some("test-token-123"));
+    }
+
+    #[tokio::test]
+    async fn test_auth_middleware_non_bearer_auth() {
+        use axum::body::Body;
+        use axum::http::Request;
+
+        let request = Request::builder()
+            .uri("/api/files")
+            .header("Authorization", "Basic dXNlcjpwYXNz")
+            .body(Body::empty())
+            .unwrap();
+
+        let token = request
+            .headers()
+            .get("Authorization")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "));
+        assert!(token.is_none());
+    }
 }

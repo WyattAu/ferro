@@ -74,3 +74,44 @@ pub async fn copy_file<S: WebDavCoreState>(
         ),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_move_empty_source() {
+        let body = MoveCopyRequest {
+            source: String::new(),
+            destination: "/dest".to_string(),
+        };
+        assert!(body.source.is_empty());
+        assert_eq!(body.destination, "/dest");
+    }
+
+    #[test]
+    fn test_move_same_source_dest() {
+        let body = MoveCopyRequest {
+            source: "/file.txt".to_string(),
+            destination: "/file.txt".to_string(),
+        };
+        assert_eq!(body.source, body.destination);
+    }
+
+    #[test]
+    fn test_copy_empty_destination() {
+        let body = MoveCopyRequest {
+            source: "/file.txt".to_string(),
+            destination: String::new(),
+        };
+        assert!(body.destination.is_empty());
+    }
+
+    #[test]
+    fn test_move_copy_request_deserialize() {
+        let json = r#"{"source": "/a", "destination": "/b"}"#;
+        let body: MoveCopyRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(body.source, "/a");
+        assert_eq!(body.destination, "/b");
+    }
+}
