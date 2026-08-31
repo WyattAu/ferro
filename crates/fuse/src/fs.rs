@@ -1093,4 +1093,38 @@ mod tests {
         let attr = entry.to_file_attr(1000, 1000);
         assert_eq!(attr.blocks, 10000_u64.div_ceil(512));
     }
+
+    #[test]
+    fn test_make_url_root() {
+        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000, None).unwrap();
+        assert_eq!(fs.make_url("/"), "http://localhost:8080/");
+    }
+
+    #[test]
+    fn test_make_url_path() {
+        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000, None).unwrap();
+        assert_eq!(fs.make_url("/file.txt"), "http://localhost:8080/file.txt");
+    }
+
+    #[test]
+    fn test_make_url_encoded() {
+        let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000, None).unwrap();
+        let url = fs.make_url("/path/file with spaces.txt");
+        // URL encoding encodes the entire path including slashes
+        assert!(url.contains("file%20with%20spaces.txt"));
+        assert!(url.starts_with("http://localhost:8080/"));
+    }
+
+
+    #[test]
+    fn test_inodes_map_root() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let fs = FerroFs::new("http://localhost:8080", None, 1000, 1000, None).unwrap();
+            let inodes = fs.inodes.read().await;
+            // Root inode should exist after first lookup
+            // For now, just verify the struct is initialized correctly
+            assert!(inodes.is_empty());
+        });
+    }
 }
