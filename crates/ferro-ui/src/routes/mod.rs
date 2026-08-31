@@ -82,12 +82,14 @@ pub fn App() -> impl IntoView {
 /// Shared layout with navigation header wrapping all pages.
 #[component]
 fn ShellLayout(children: Children) -> impl IntoView {
+    let (sidebar_open, set_sidebar_open) = signal(false);
+
     view! {
         <div class="shell">
             <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[9999] focus:bg-accent focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
                 "Skip to main content"
             </a>
-            <AppHeader />
+            <AppHeader sidebar_open=sidebar_open set_sidebar_open=set_sidebar_open />
             <main id="main-content" class="shell-content" style="padding:0;">
                 {children()}
             </main>
@@ -204,9 +206,22 @@ fn TrashPage() -> impl IntoView {
 
 /// Shared app header with navigation.
 #[component]
-fn AppHeader() -> impl IntoView {
+fn AppHeader(
+    sidebar_open: ReadSignal<bool>,
+    set_sidebar_open: WriteSignal<bool>,
+) -> impl IntoView {
     view! {
         <header class="shell-header">
+            // Mobile hamburger button (hidden on sm+)
+            <button
+                class="sm:hidden p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] rounded focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label="Toggle navigation"
+                on:click=move |_| set_sidebar_open.update(|v| *v = !*v)
+            >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
             <a href="/ui/" class="text-xl font-bold tracking-tight">"⚡ Ferro"</a>
             <nav class="flex items-center gap-1 ml-6 overflow-x-auto">
                 <a href="/ui/" class="nav-link">"Files"</a>

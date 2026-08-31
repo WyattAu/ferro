@@ -178,12 +178,12 @@ pub fn SettingsPage() -> impl IntoView {
                 <NavigationSidebar />
                 <main id="main-content" class="flex-1 overflow-auto p-6">
                     {/* Tab Navigation */}
-                    <div class="flex flex-wrap items-center gap-1 mb-6">
-                        <button on:click=move |_| set_tab.set(SettingsTab::Account) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Account { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_account")}</button>
-                        <button on:click=move |_| set_tab.set(SettingsTab::Preferences) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Preferences { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_preferences")}</button>
-                        <button on:click=move |_| set_tab.set(SettingsTab::Notifications) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Notifications { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_notifications")}</button>
-                        <button on:click=move |_| set_tab.set(SettingsTab::Appearance) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Appearance { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_appearance")}</button>
-                        <button on:click=move |_| set_tab.set(SettingsTab::Sync) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Sync { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_sync")}</button>
+                    <div class="flex flex-wrap items-center gap-1 mb-6" role="tablist" aria-label="Settings tabs">
+                        <button role="tab" aria-selected=move || tab.get() == SettingsTab::Account aria-controls="panel-account" id="tab-account" on:click=move |_| set_tab.set(SettingsTab::Account) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Account { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_account")}</button>
+                        <button role="tab" aria-selected=move || tab.get() == SettingsTab::Preferences aria-controls="panel-preferences" id="tab-preferences" on:click=move |_| set_tab.set(SettingsTab::Preferences) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Preferences { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_preferences")}</button>
+                        <button role="tab" aria-selected=move || tab.get() == SettingsTab::Notifications aria-controls="panel-notifications" id="tab-notifications" on:click=move |_| set_tab.set(SettingsTab::Notifications) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Notifications { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_notifications")}</button>
+                        <button role="tab" aria-selected=move || tab.get() == SettingsTab::Appearance aria-controls="panel-appearance" id="tab-appearance" on:click=move |_| set_tab.set(SettingsTab::Appearance) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Appearance { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_appearance")}</button>
+                        <button role="tab" aria-selected=move || tab.get() == SettingsTab::Sync aria-controls="panel-sync" id="tab-sync" on:click=move |_| set_tab.set(SettingsTab::Sync) class=move || format!("px-4 py-2 text-sm font-medium rounded-lg transition-colors {}", if tab.get() == SettingsTab::Sync { "bg-[var(--accent)] text-[var(--text-on-accent)]" } else { "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)] hover:bg-[var(--interactive-hover)]" })>{t!("settings.tab_sync")}</button>
                     </div>
 
                     {move || loading.get().then(|| view! {
@@ -196,7 +196,7 @@ pub fn SettingsPage() -> impl IntoView {
                     <div class="max-w-2xl w-full surface brutal-border shadow-concrete rounded-lg overflow-hidden">
                         {/* Account Tab */}
                         {move || (tab.get() == SettingsTab::Account && !loading.get()).then(|| view! {
-                            <div class="p-6 space-y-6">
+                            <div id="panel-account" role="tabpanel" aria-labelledby="tab-account" class="p-6 space-y-6">
                                 <h2 class="text-section font-mono text-[var(--text-primary)]">{t!("settings.section_account")}</h2>
                                 <div class="space-y-4">
                                     <div>
@@ -225,7 +225,7 @@ pub fn SettingsPage() -> impl IntoView {
 
                         {/* Preferences Tab */}
                         {move || (tab.get() == SettingsTab::Preferences && !loading.get()).then(|| view! {
-                            <div class="p-6 space-y-6">
+                            <div id="panel-preferences" role="tabpanel" aria-labelledby="tab-preferences" class="p-6 space-y-6">">
                                 <h2 class="text-section font-mono text-[var(--text-primary)]">{t!("settings.section_prefs")}</h2>
                                 <div class="space-y-5">
                                     <fieldset>
@@ -292,7 +292,7 @@ pub fn SettingsPage() -> impl IntoView {
 
                         {/* Notifications Tab */}
                         {move || (tab.get() == SettingsTab::Notifications && !loading.get()).then(|| view! {
-                            <div class="p-6 space-y-6">
+                            <div id="panel-notifications" role="tabpanel" aria-labelledby="tab-notifications" class="p-6 space-y-6">">
                                 <h2 class="text-section font-mono text-[var(--text-primary)]">{t!("settings.section_notifications")}</h2>
                                 <div class="space-y-4">
                                     <div class="grid grid-cols-3 gap-4 text-xs font-bold uppercase font-mono text-[var(--text-tertiary)]">
@@ -343,7 +343,7 @@ pub fn SettingsPage() -> impl IntoView {
 
                         {/* Appearance Tab */}
                         {move || (tab.get() == SettingsTab::Appearance && !loading.get()).then(|| view! {
-                            <div class="p-6 space-y-6">
+                            <div id="panel-appearance" role="tabpanel" aria-labelledby="tab-appearance" class="p-6 space-y-6">
                                 <h2 class="text-section font-mono text-[var(--text-primary)]">{t!("settings.section_appearance")}</h2>
                                 <div class="space-y-5">
                                     <fieldset>
@@ -382,7 +382,7 @@ pub fn SettingsPage() -> impl IntoView {
 
                         {/* Sync Tab */}
                         {move || (tab.get() == SettingsTab::Sync && !loading.get()).then(|| view! {
-                            <div class="p-6 space-y-6">
+                            <div id="panel-sync" role="tabpanel" aria-labelledby="tab-sync" class="p-6 space-y-6">
                                 <h2 class="text-section font-mono text-[var(--text-primary)]">{t!("settings.section_sync")}</h2>
                                 <div class="space-y-5">
                                     <div class="flex items-center justify-between">

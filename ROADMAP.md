@@ -105,43 +105,43 @@
 
 ### P0 — Critical
 
-| Item | Scope | Effort |
-|------|-------|--------|
-| Cross-platform FUSE mount | Migrate from fuse3 (Linux-only) to fuser (Linux/macOS/Windows) | 3-5 days |
-| macOS mount support | macFUSE or FUSE-T integration via fuser crate | 1-2 days |
-| Windows mount support | WinFSP integration via fuser crate | 1-2 days |
-| External WebDAV via Headscale | ACL rules, mount documentation | 0.5 days |
-| External WebDAV via Cloudflare | Tunnel ingress for /dav/ path | 0.5 days |
+| Item | Scope | Effort | Status |
+|------|-------|--------|--------|
+| Cross-platform FUSE mount | Migrate from fuse3 (Linux-only) to fuser (Linux/macOS/Windows) | 3-5 days | Done |
+| macOS mount support | macFUSE or FUSE-T integration via fuser crate | 1-2 days | Done (via fuser) |
+| Windows mount support | WinFSP integration via fuser crate | 1-2 days | Done (via fuser) |
+| External WebDAV via Headscale | ACL rules, mount documentation | 0.5 days | Done |
+| External WebDAV via Cloudflare | Tunnel ingress for /dav/ path | 0.5 days | Done |
 
 ### P1 — High
 
-| Item | Scope | Effort |
-|------|-------|--------|
-| Native OS mount integration | Automount (launchd/fstab/systemd), Finder/Explorer sidebar | 2 days |
-| Token refresh interceptor | Proactive token refresh in web client before expiry | 1 day |
-| Desktop client OIDC | PKCE flow in Tauri for desktop app | 3-5 days |
-| Lock down Cedar policy | Replace permit-all with per-user rules from Keycloak groups | 1 day |
-| Crawlkit re-crawl | Verify security headers + meta tags fix all warnings | 0.5 days |
+| Item | Scope | Effort | Status |
+|------|-------|--------|--------|
+| Native OS mount integration | Automount (launchd/fstab/systemd), Finder/Explorer sidebar | 2 days | Done |
+| Token refresh interceptor | Proactive token refresh in web client before expiry | 1 day | Done |
+| Desktop client OIDC | PKCE flow in Tauri for desktop app | 3-5 days | Done |
+| Lock down Cedar policy | Replace permit-all with per-user rules from Keycloak groups | 1 day | Done |
+| Crawlkit re-crawl | Verify security headers + meta tags fix all warnings | 0.5 days | Done |
 
 ### P2 — Medium
 
-| Item | Scope | Effort |
-|------|-------|--------|
-| Extract shared HTTP client | Create ferro-http-client crate, consolidate gui.rs + mobile.rs | 1 day |
-| Extract shared MobileError | Single error enum in common or shared crate | 0.5 days |
-| Delete duplicate OIDC middleware | Remove server/src/auth/oidc.rs, use server-security-middleware re-export | 0.5 days |
-| Consolidate comments/tags | Make server-collaboration the single source of truth | 1 day |
-| Frontend use_data_loader hook | Extract loading/error/empty state pattern | 1 day |
+| Item | Scope | Effort | Status |
+|------|-------|--------|--------|
+| Extract shared HTTP client | Create ferro-http-client crate, consolidate gui.rs + mobile.rs | 1 day | Pending |
+| Extract shared MobileError | Single error enum in common or shared crate | 0.5 days | Pending |
+| Delete duplicate OIDC middleware | Remove server/src/auth/oidc.rs, use server-security-middleware re-export | 0.5 days | Pending |
+| Consolidate comments/tags | Make server-collaboration the single source of truth | 1 day | Pending |
+| Frontend use_data_loader hook | Extract loading/error/empty state pattern | 1 day | Pending |
 
 ### P3 — Low
 
-| Item | Scope | Effort |
-|------|-------|--------|
-| Responsive sidebar collapse | Mobile hamburger menu, sidebar toggle | 2 days |
-| ARIA tab panels | Admin/Settings: role="tablist", role="tab", role="tabpanel" | 1 day |
-| Entrance/exit animations | Modals, toasts, list items | 2 days |
-| Micro-interactions | Button press scale, card hover elevation | 1 day |
-| Spring-based transitions | Organic motion curves for Amoebic UI feel | 1 day |
+| Item | Scope | Effort | Status |
+|------|-------|--------|--------|
+| Responsive sidebar collapse | Mobile hamburger menu, sidebar toggle | 2 days | Done |
+| ARIA tab panels | Admin/Settings: role="tablist", role="tab", role="tabpanel" | 1 day | Done |
+| Entrance/exit animations | Modals, toasts, list items | 2 days | Pending |
+| Micro-interactions | Button press scale, card hover elevation | 1 day | Pending |
+| Spring-based transitions | Organic motion curves for Amoebic UI feel | 1 day | Pending |
 
 ---
 
