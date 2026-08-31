@@ -1,12 +1,19 @@
 use std::sync::LazyLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use ferro_circuit_breaker::{CircuitBreaker, CircuitState};
+use breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use redis::aio::ConnectionManager;
 
 const REDIS_OP_TIMEOUT: Duration = Duration::from_secs(5);
 
-static REDIS_CB: LazyLock<CircuitBreaker> = LazyLock::new(|| CircuitBreaker::new(5, Duration::from_secs(30)));
+static REDIS_CB: LazyLock<CircuitBreaker> = LazyLock::new(|| {
+    CircuitBreaker::builder(CircuitBreakerConfig {
+        failure_rate_threshold: 5,
+        wait_duration: Duration::from_secs(30),
+        ..CircuitBreakerConfig::standard()
+    })
+    .build()
+});
 
 pub struct RedisRateLimiter {
     client: ConnectionManager,
@@ -47,7 +54,7 @@ impl RedisRateLimiter {
             .await
         {
             Ok(c) => c,
-            Err(e) if e.state == CircuitState::Open => return true,
+            Err(CircuitBreakerError::CircuitOpen) => return true,
             _ => return true,
         };
 

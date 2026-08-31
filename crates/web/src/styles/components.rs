@@ -4,10 +4,10 @@
 /// All colors use CSS custom properties from the theme system for consistency.
 /// Button component styles.
 pub mod button {
-    pub const BASE: &str = "inline-flex items-center justify-center font-medium transition-colors \
+    pub const BASE: &str = "inline-flex items-center justify-center font-medium transition-all duration-150 \
         focus:outline-none focus:ring-2 focus:ring-offset-2 \
         disabled:opacity-50 disabled:cursor-not-allowed \
-        min-w-[44px] min-h-[44px]";
+        min-w-[44px] min-h-[44px] active:scale-[0.97]";
 
     pub const VARIANT_PRIMARY: &str = "bg-[var(--accent)] text-[var(--text-on-accent)] hover:bg-[var(--accent-hover)] focus:ring-[var(--border-focus)]";
     pub const VARIANT_SECONDARY: &str = "bg-[var(--bg-surface-raised)] text-[var(--text-primary)] border border-[var(--border-default)] \
@@ -43,10 +43,10 @@ pub mod input {
 /// Dialog/Modal component styles.
 pub mod dialog {
     pub const BACKDROP: &str = "fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 \
-         bg-[var(--overlay)] backdrop-blur-sm";
+         bg-[var(--overlay)] backdrop-blur-sm animate-[modal-enter_200ms_cubic-bezier(0.16,1,0.3,1)]";
 
     pub const PANEL: &str = "bg-[var(--bg-surface)] rounded-xl shadow-xl p-6 w-[calc(100%-2rem)] sm:w-96 mx-auto \
-         transition-all duration-200 border border-[var(--border-default)]";
+         transition-all duration-200 border border-[var(--border-default)] animate-[modal-enter_300ms_cubic-bezier(0.34,1.56,0.64,1)]";
 
     pub const TITLE: &str = "text-lg font-semibold text-[var(--text-primary)]";
 

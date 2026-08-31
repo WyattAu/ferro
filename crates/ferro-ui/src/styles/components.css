@@ -372,3 +372,103 @@ html.dark .glass-elevated {
 .select:focus:not(:focus-visible) {
     outline: none;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Entrance/Exit Animations
+   ═══════════════════════════════════════════════════════════ */
+
+/* Modal entrance */
+@keyframes modal-enter {
+    from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-enter {
+    animation: modal-enter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Toast entrance */
+@keyframes toast-enter {
+    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.toast-enter {
+    animation: toast-enter 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* List item entrance */
+@keyframes list-item-enter {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.list-item-enter {
+    animation: list-item-enter 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: both;
+}
+
+/* Staggered list items */
+.list-item-enter:nth-child(1) { animation-delay: 0ms; }
+.list-item-enter:nth-child(2) { animation-delay: 30ms; }
+.list-item-enter:nth-child(3) { animation-delay: 60ms; }
+.list-item-enter:nth-child(4) { animation-delay: 90ms; }
+.list-item-enter:nth-child(5) { animation-delay: 120ms; }
+
+/* Sidebar drawer entrance */
+@keyframes drawer-enter {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Micro-interactions
+   ═══════════════════════════════════════════════════════════ */
+
+/* Button press scale */
+.btn:active {
+    transform: scale(0.97);
+    transition: transform 100ms ease-out;
+}
+
+/* Card hover elevation */
+.card-hover {
+    transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.card-hover:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Focus ring animation */
+@keyframes focus-ring {
+    from { box-shadow: 0 0 0 0px var(--color-border-focus, var(--color-accent)); }
+    to { box-shadow: 0 0 0 3px var(--color-border-focus, var(--color-accent)); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Spring-based Transitions
+   ═══════════════════════════════════════════════════════════ */
+
+/* Organic motion curves for Amoebic UI feel */
+.spring-transition {
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.spring-fast {
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.spring-smooth {
+    transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Modal spring */
+.modal-spring {
+    animation: modal-enter 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Toast spring */
+.toast-spring {
+    animation: toast-enter 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}

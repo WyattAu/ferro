@@ -9,7 +9,7 @@ pub use retry::{RetryPolicy, retry_with_backoff};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ferro_circuit_breaker::CircuitState;
+    use breaker::State;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::time::Duration;
@@ -23,12 +23,12 @@ mod tests {
             recovery_timeout: Duration::from_secs(60),
             half_open_max: 1,
         });
-        assert_eq!(rc.state(), CircuitState::Closed);
+        assert_eq!(rc.state(), State::Closed);
 
         for _ in 0..3 {
             let _ = rc.call(|| async { Err::<(), &str>("fail") }).await;
         }
-        assert_eq!(rc.state(), CircuitState::Open);
+        assert_eq!(rc.state(), State::Open);
     }
 
     #[tokio::test]
@@ -42,10 +42,10 @@ mod tests {
         for _ in 0..2 {
             let _ = rc.call(|| async { Err::<(), &str>("fail") }).await;
         }
-        assert_eq!(rc.state(), CircuitState::Open);
+        assert_eq!(rc.state(), State::Open);
 
         tokio::time::sleep(Duration::from_millis(60)).await;
-        assert_eq!(rc.state(), CircuitState::HalfOpen);
+        assert_eq!(rc.state(), State::HalfOpen);
     }
 
     #[tokio::test]
@@ -60,11 +60,11 @@ mod tests {
             let _ = rc.call(|| async { Err::<(), &str>("fail") }).await;
         }
         tokio::time::sleep(Duration::from_millis(60)).await;
-        assert_eq!(rc.state(), CircuitState::HalfOpen);
+        assert_eq!(rc.state(), State::HalfOpen);
 
         let result = rc.call(|| async { Ok::<(), &str>(()) }).await;
         assert!(result.is_ok());
-        assert_eq!(rc.state(), CircuitState::Closed);
+        assert_eq!(rc.state(), State::Closed);
     }
 
     #[tokio::test]
@@ -79,10 +79,10 @@ mod tests {
             let _ = rc.call(|| async { Err::<(), &str>("fail") }).await;
         }
         tokio::time::sleep(Duration::from_millis(60)).await;
-        assert_eq!(rc.state(), CircuitState::HalfOpen);
+        assert_eq!(rc.state(), State::HalfOpen);
 
         let _ = rc.call(|| async { Err::<(), &str>("still broken") }).await;
-        assert_eq!(rc.state(), CircuitState::Open);
+        assert_eq!(rc.state(), State::Open);
     }
 
     #[tokio::test]
@@ -97,7 +97,7 @@ mod tests {
         );
 
         let _ = ncb.call(|| async { Err::<(), &str>("fail") }).await;
-        assert_eq!(ncb.state(), CircuitState::Open);
+        assert_eq!(ncb.state(), State::Open);
 
         let result = ncb.call(|| async { Ok::<(), &str>(()) }).await;
         assert!(result.is_err());

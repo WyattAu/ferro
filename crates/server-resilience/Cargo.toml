@@ -9,7 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
-ferro-circuit-breaker = { path = "../circuit-breaker" }
+breaker = { workspace = true }
 tokio = { workspace = true }
 tracing = "0.1"
 parking_lot = "0.12"

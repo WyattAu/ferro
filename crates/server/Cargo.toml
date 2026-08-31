@@ -94,7 +94,7 @@ ferro-server-automation = { path = "../server-automation" }
 ferro-server-integrations = { path = "../server-integrations" }
 ferro-server-plugins = { path = "../server-plugins" }
 ferro-server-admin-api = { path = "../server-admin-api" }
-ferro-circuit-breaker = { path = "../circuit-breaker" }
+breaker = { workspace = true }
 ferro-server-resilience = { path = "../server-resilience" }
 ferro-server-api-core = { path = "../server-api-core" }
 zip = "2"

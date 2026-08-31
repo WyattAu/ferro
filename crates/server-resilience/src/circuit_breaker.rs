@@ -2,7 +2,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use ferro_circuit_breaker::{CircuitBreaker, CircuitBreakerError, CircuitState};
+use breaker::{CircuitBreaker, CircuitBreakerError, CircuitBreakerConfig, State};
 use tracing::warn;
 
 /// Configuration for a circuit breaker instance.
@@ -44,12 +44,18 @@ impl ResilientCall {
     /// Create a new `ResilientCall` with the given configuration.
     #[must_use]
     pub fn new(config: CircuitBreakerConfig) -> Self {
-        let breaker = Arc::new(CircuitBreaker::new(config.failure_threshold, config.recovery_timeout));
+        let breaker_config = CircuitBreakerConfig::builder()
+            .failure_rate_threshold(config.failure_threshold as u32)
+            .wait_duration(config.recovery_timeout)
+            .half_open_max_calls(config.half_open_max)
+            .success_threshold(config.half_open_max)
+            .build();
+        let breaker = Arc::new(CircuitBreaker::builder(breaker_config).build());
         Self { breaker, config }
     }
 
     /// Get the current state of the circuit breaker.
-    pub fn state(&self) -> CircuitState {
+    pub fn state(&self) -> State {
         self.breaker.state()
     }
 
@@ -65,9 +71,9 @@ impl ResilientCall {
 
     /// Execute a call through the circuit breaker.
     ///
-    /// Returns `CircuitBreakerError::Open` if the circuit is open.
+    /// Returns `CircuitBreakerError::CircuitOpen` if the circuit is open.
     /// Records success/failure for state transitions.
-    pub async fn call<F, Fut, T, E>(&self, f: F) -> Result<T, CircuitBreakerError<E>>
+    pub async fn call<F, Fut, T, E>(&self, f: F) -> Result<T, CircuitBreakerError>
     where
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<T, E>>,
@@ -99,22 +105,20 @@ impl NamedCircuitBreaker {
     }
 
     /// Execute a call through the named circuit breaker.
-    pub async fn call<F, Fut, T, E>(&self, f: F) -> Result<T, CircuitBreakerError<E>>
+    pub async fn call<F, Fut, T, E>(&self, f: F) -> Result<T, CircuitBreakerError>
     where
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<T, E>>,
     {
         let result = self.inner.call(f).await;
-        if let Err(ref e) = result
-            && e.state == CircuitState::Open
-        {
+        if result.as_ref().err() == Some(&CircuitBreakerError::CircuitOpen) {
             warn!("Circuit breaker '{}' is open, call rejected", self.name);
         }
         result
     }
 
     /// Get the current state.
-    pub fn state(&self) -> CircuitState {
+    pub fn state(&self) -> State {
         self.inner.state()
     }
 
@@ -140,7 +144,7 @@ mod tests {
             let _ = rc.call(|| async { Err::<(), &str>("fail") }).await;
         }
 
-        assert_eq!(rc.state(), CircuitState::Open);
+        assert_eq!(rc.state(), State::Open);
 
         let result = rc.call(|| async { Ok::<(), &str>(()) }).await;
         assert!(result.is_err());
@@ -157,7 +161,7 @@ mod tests {
         let _ = rc.call(|| async { Err::<(), &str>("fail") }).await;
         let _ = rc.call(|| async { Ok::<(), &str>(()) }).await;
 
-        assert_eq!(rc.state(), CircuitState::Closed);
+        assert_eq!(rc.state(), State::Closed);
     }
 
     #[tokio::test]

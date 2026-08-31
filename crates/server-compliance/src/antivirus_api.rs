@@ -7,7 +7,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use ferro_circuit_breaker::CircuitBreaker;
+use breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::{Arc, LazyLock};
@@ -21,7 +21,11 @@ use common::server_context::HasStorage;
 const MAX_SCAN_HISTORY: usize = 100;
 
 static CLAMAV_CB: LazyLock<CircuitBreaker> =
-    LazyLock::new(|| CircuitBreaker::new(3, std::time::Duration::from_secs(60)));
+    LazyLock::new(|| CircuitBreaker::builder(CircuitBreakerConfig {
+        failure_rate_threshold: 3,
+        wait_duration: std::time::Duration::from_secs(60),
+        ..CircuitBreakerConfig::standard()
+    }).build());
 
 /// In-memory scan history store.
 pub struct ScanHistory {
@@ -260,24 +264,21 @@ pub async fn scan_file_impl<S: HasStorage>(state: &S, file_path: &str) -> Respon
             )
                 .into_response()
         }
-        Err(cb_err) => {
-            if let Some(e) = cb_err.inner {
-                (
-                    StatusCode::BAD_GATEWAY,
-                    Json(serde_json::json!({
-                        "error": format!("ClamAV scan failed: {}", e),
-                    })),
-                )
-                    .into_response()
-            } else {
-                (
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    Json(serde_json::json!({
-                        "error": "ClamAV circuit breaker is open: service unavailable",
-                    })),
-                )
-                    .into_response()
-            }
+        Err(cb_err) => match cb_err {
+            CircuitBreakerError::Inner(e) => (
+                StatusCode::BAD_GATEWAY,
+                Json(serde_json::json!({
+                    "error": format!("ClamAV scan failed: {}", e),
+                })),
+            )
+                .into_response(),
+            _ => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(serde_json::json!({
+                    "error": "ClamAV circuit breaker is open: service unavailable",
+                })),
+            )
+                .into_response(),
         }
     }
 }
@@ -370,10 +371,9 @@ pub async fn scan_all_impl<S: HasStorage>(state: &S, directory: &str) -> Respons
                 }
             }
             Err(cb_err) => {
-                let error_msg = if let Some(e) = cb_err.inner {
-                    e
-                } else {
-                    "ClamAV circuit breaker is open".to_string()
+                let error_msg = match cb_err {
+                    CircuitBreakerError::Inner(e) => e,
+                    _ => "ClamAV circuit breaker is open".to_string(),
                 };
                 results.push(serde_json::json!({
                     "file_path": meta.path,

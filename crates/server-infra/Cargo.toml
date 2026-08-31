@@ -15,7 +15,7 @@ redis = ["dep:redis"]
 
 [dependencies]
 common = { package = "ferro-common", path = "../common" }
-ferro-circuit-breaker = { path = "../circuit-breaker" }
+breaker = { workspace = true }
 ferro-server-activitypub = { path = "../server-activitypub" }
 ferro-server-security = { path = "../server-security" }
 ferro-server-security-middleware = { path = "../server-security-middleware" }

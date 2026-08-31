@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 common = { package = "ferro-common", path = "../common", features = ["db"] }
-ferro-circuit-breaker = { path = "../circuit-breaker" }
+breaker = { workspace = true }
 ferro-server-security = { path = "../server-security" }
 ferro-server-security-middleware = { path = "../server-security-middleware" }
 axum = { workspace = true }

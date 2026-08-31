@@ -230,7 +230,7 @@ fn ToastItem(toast: ToastMessage, on_dismiss: Callback<()>) -> impl IntoView {
     view! {
         <div
             class=move || format!(
-                "pointer-events-auto rounded-lg px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-in-out relative overflow-hidden {} {}",
+                "pointer-events-auto rounded-lg px-4 py-3 flex items-start gap-3 transition-all duration-300 ease-in-out relative overflow-hidden {} {} animate-[toast-enter_300ms_cubic-bezier(0.34,1.56,0.64,1)]",
                 bg_class,
                 if dismissed.get() { "opacity-0 translate-x-full scale-95" } else { "opacity-100 translate-x-0 scale-100" }
             )

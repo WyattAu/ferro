@@ -5,7 +5,7 @@ use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 use dashmap::DashMap;
-use ferro_circuit_breaker::CircuitBreaker;
+use breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use http_body_util::BodyExt;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, LazyLock};
@@ -18,7 +18,11 @@ const CONNECT_TIMEOUT_SECS: u64 = 10;
 const READ_TIMEOUT_SECS: u64 = 30;
 
 static REMOTE_MOUNT_CB: LazyLock<CircuitBreaker> =
-    LazyLock::new(|| CircuitBreaker::new(5, std::time::Duration::from_secs(30)));
+    LazyLock::new(|| CircuitBreaker::builder(CircuitBreakerConfig {
+        failure_rate_threshold: 5,
+        wait_duration: std::time::Duration::from_secs(30),
+        ..CircuitBreakerConfig::standard()
+    }).build());
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RemoteMount {
@@ -271,10 +275,11 @@ pub async fn proxy_remote_mount<S: IntegrationsState>(
         .await
     {
         Ok(r) => r,
-        Err(cb_err) => {
-            if let Some(e) = cb_err.inner {
+        Err(cb_err) => match cb_err {
+            CircuitBreakerError::Inner(e) => {
                 return ApiError::bad_gateway(ApiError::BAD_GATEWAY, format!("Remote server unreachable: {}", e));
-            } else {
+            }
+            _ => {
                 return (
                     StatusCode::SERVICE_UNAVAILABLE,
                     axum::Json(serde_json::json!({
@@ -456,10 +461,9 @@ pub async fn test_mount<S: IntegrationsState>(State(state): State<S>, Path(id): 
                 .into_response()
         }
         Err(cb_err) => {
-            let error_msg = if let Some(e) = cb_err.inner {
-                e.to_string()
-            } else {
-                "Circuit breaker is open".to_string()
+            let error_msg = match cb_err {
+                CircuitBreakerError::Inner(e) => e,
+                _ => "Circuit breaker is open".to_string(),
             };
             (
                 StatusCode::OK,

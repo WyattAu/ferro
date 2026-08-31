@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use common::error::{FerroError, Result};
 use common::webdav::{LockDepth, LockInfo, LockScope, LockToken, LockType};
-use ferro_circuit_breaker::{CircuitBreaker, CircuitBreakerError, CircuitState};
+use breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use redis::aio::ConnectionManager;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -16,8 +16,14 @@ const REDIS_OP_TIMEOUT: Duration = Duration::from_secs(5);
 const KEY_PREFIX: &str = "ferro:lock";
 const TOKEN_INDEX_PREFIX: &str = "ferro:lock:token";
 
-static REDIS_CB: LazyLock<CircuitBreaker> =
-    LazyLock::new(|| CircuitBreaker::new(5, Duration::from_secs(30)));
+static REDIS_CB: LazyLock<CircuitBreaker> = LazyLock::new(|| {
+    CircuitBreaker::builder(CircuitBreakerConfig {
+        failure_rate_threshold: 5,
+        wait_duration: Duration::from_secs(30),
+        ..CircuitBreakerConfig::standard()
+    })
+    .build()
+});
 
 pub struct RedisLockManager {
     client: ConnectionManager,
