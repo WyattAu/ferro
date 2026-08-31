@@ -34,6 +34,9 @@ pub struct CliArgs {
 
     /// Auto-audit mode: navigate all pages, screenshot each, then exit.
     pub audit: bool,
+
+    /// Use OIDC authentication (opens browser for Keycloak login).
+    pub oidc: bool,
 }
 
 impl CliArgs {
@@ -44,6 +47,7 @@ impl CliArgs {
         let mut auth_token = None;
         let mut debug = 0u8;
         let mut audit = false;
+        let mut oidc = false;
 
         let mut i = 0;
         while i < raw.len() {
@@ -78,12 +82,17 @@ impl CliArgs {
                     audit = true;
                     i += 1;
                 }
+                "--oidc" => {
+                    oidc = true;
+                    i += 1;
+                }
                 "--help" | "-h" => {
                     println!("Usage: ferro-desktop [OPTIONS]");
                     println!();
                     println!("Options:");
                     println!("  -s, --server-url <URL>    Server URL (auto-connects, skips form)");
                     println!("  -t, --auth-token <TOKEN>  Auth token (Bearer or user:pass)");
+                    println!("  --oidc                    Use OIDC authentication (opens browser)");
                     println!("  -d, --debug              Enable debug logging to /tmp/ferro-desktop.log");
                     println!("  -dd                      Verbose debug logging");
                     println!("  --audit                  Auto-audit: screenshot all pages, then exit");
@@ -105,6 +114,7 @@ impl CliArgs {
             auth_token,
             debug,
             audit,
+            oidc,
         }
     }
 }
@@ -1029,6 +1039,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             mobile_commands::mobile_monitor_connectivity,
             #[cfg(feature = "mobile")]
             mobile_commands::mobile_register_push_notifications,
+            cmd_oidc_login,
         ])
         .setup(move |app| {
             let audit_mode = audit_mode;
@@ -1427,6 +1438,139 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             e
         })?;
     Ok(())
+}
+
+/// OIDC login command: starts a local HTTP server for the callback,
+/// opens the browser to Keycloak, and waits for the authorization code.
+#[tauri::command]
+async fn cmd_oidc_login(
+    _server_url: String,
+    oidc_issuer: String,
+    client_id: String,
+) -> Result<String, String> {
+    use std::sync::mpsc;
+
+    // Generate PKCE code verifier and challenge
+    let code_verifier = generate_pkce_verifier();
+    let code_challenge = generate_pkce_challenge(&code_verifier);
+
+    // Start a local HTTP server for the callback
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").map_err(|e| format!("Failed to bind: {e}"))?;
+    let port = listener.local_addr().map_err(|e| format!("Failed to get port: {e}"))?.port();
+    let redirect_uri = format!("http://localhost:{}/callback", port);
+
+    let (tx, rx) = mpsc::channel();
+
+    // Spawn a thread to handle the callback
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            if let Ok(stream) = stream {
+                let mut reader = std::io::BufReader::new(&stream);
+                let mut request_line = String::new();
+                let _ = std::io::BufRead::read_line(&mut reader, &mut request_line);
+
+                if request_line.contains("/callback") {
+                    // Extract the code from the query string
+                    let code = request_line
+                        .split_whitespace()
+                        .nth(1)
+                        .unwrap_or("")
+                        .split('?')
+                        .nth(1)
+                        .unwrap_or("")
+                        .split('&')
+                        .find(|p| p.starts_with("code="))
+                        .map(|p| p[5..].to_string())
+                        .unwrap_or_default();
+
+                    // Send a response
+                    let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<h1>Login successful! You can close this window.</h1>";
+                    let _ = std::io::Write::write_all(&mut std::io::BufWriter::new(&stream), response.as_bytes());
+
+                    let _ = tx.send(code);
+                    break;
+                }
+            }
+        }
+    });
+
+    // Build the authorization URL
+    let auth_url = format!(
+        "{}/protocol/openid-connect/auth?response_type=code&client_id={}&redirect_uri={}&scope=openid+profile+email&code_challenge={}&code_challenge_method=S256",
+        oidc_issuer, client_id, urlencoding::encode(&redirect_uri), code_challenge
+    );
+
+    // Open the browser
+    let _ = open::that(&auth_url);
+
+    // Wait for the callback (timeout after 5 minutes)
+    let code = rx.recv_timeout(std::time::Duration::from_secs(300))
+        .map_err(|_| "Login timed out after 5 minutes".to_string())?;
+
+    if code.is_empty() {
+        return Err("No authorization code received".to_string());
+    }
+
+    // Exchange the code for tokens
+    let token_url = format!("{}/protocol/openid-connect/token", oidc_issuer);
+    let params = [
+        ("grant_type", "authorization_code"),
+        ("client_id", &client_id),
+        ("code", &code),
+        ("redirect_uri", &redirect_uri),
+        ("code_verifier", &code_verifier),
+    ];
+
+    let client = reqwest::Client::new();
+    let resp = client.post(&token_url)
+        .form(&params)
+        .send()
+        .await
+        .map_err(|e| format!("Token exchange failed: {e}"))?;
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse token response: {e}"))?;
+
+    let access_token = body.get("access_token")
+        .and_then(|v| v.as_str())
+        .ok_or("No access_token in response")?
+        .to_string();
+
+    let refresh_token = body.get("refresh_token")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let expires_in = body.get("expires_in")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(3600);
+
+    // Store the tokens
+    let token_data = serde_json::json!({
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "expires_in": expires_in,
+        "token_type": body.get("token_type").and_then(|v| v.as_str()).unwrap_or("Bearer"),
+    });
+
+    Ok(token_data.to_string())
+}
+
+/// Generate a PKCE code verifier (random 43-128 character string)
+fn generate_pkce_verifier() -> String {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let chars: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~".chars().collect();
+    (0..64)
+        .map(|_| chars[rng.gen_range(0..chars.len())])
+        .collect()
+}
+
+/// Generate a PKCE code challenge (SHA-256 hash of verifier, base64url encoded)
+fn generate_pkce_challenge(verifier: &str) -> String {
+    use sha2::{Sha256, Digest};
+    use base64::Engine;
+    let hash = Sha256::digest(verifier.as_bytes());
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash)
 }
 
 #[cfg(test)]

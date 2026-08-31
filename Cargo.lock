@@ -3269,6 +3269,7 @@ name = "ferro-desktop"
 version = "3.0.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "cairo-rs",
  "chrono",
  "clap",
@@ -3281,6 +3282,8 @@ dependencies = [
  "gtk",
  "hex",
  "objc",
+ "open",
+ "rand 0.8.6",
  "reqwest 0.12.28",
  "roxmltree 0.20.0",
  "serde",
@@ -3298,6 +3301,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "urlencoding",
  "walkdir",
  "webkit2gtk",
  "zip 0.6.6",
