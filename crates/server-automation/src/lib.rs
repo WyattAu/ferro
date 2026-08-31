@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use tokio::sync::RwLock;
 
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AuditEntry {

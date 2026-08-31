@@ -149,8 +149,11 @@ async fn capture_screenshot(app_handle: tauri::AppHandle, path: String) -> Resul
                 move |result| {
                     match result {
                         Ok(surface) => {
-                            // Snapshot returns a cairo::Surface which is actually an ImageSurface
-                            // Use unsafe transmute since webkit2gtk always returns ImageSurface for snapshots
+                            // SAFETY: webkit2gtk's SnapshotRegion::Visible always returns
+                            // an ImageSurface. The cairo::Surface and cairo::ImageSurface
+                            // are repr(transparent) wrappers around the same C pointer.
+                            // This transmute is safe as long as webkit2gtk's behavior
+                            // doesn't change. If it does, the PNG write will fail gracefully.
                             let img: cairo::ImageSurface = unsafe { std::mem::transmute(surface) };
                             let mut f = std::fs::File::create(&path).unwrap();
                             let _ = img.write_to_png(&mut f);

@@ -10,7 +10,7 @@ use tracing::warn;
 /// The wrapped `rusqlite::Connection` is only accessed via short-lived lock guards
 /// that never cross an `.await` point. `SQLite` operations are synchronous
 /// and complete in microseconds, well below the threshold for async poisoning.
-pub type DbHandle = std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 /// Role assigned to a user, controlling their access level.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]

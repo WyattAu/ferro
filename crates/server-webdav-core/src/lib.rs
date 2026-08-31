@@ -46,7 +46,7 @@ pub struct WebdavFileEvent {
 // DbHandle type alias (matches ferro-server and ferro-server-api-core)
 // ---------------------------------------------------------------------------
 
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 // ---------------------------------------------------------------------------
 // Sub-traits for composable state access

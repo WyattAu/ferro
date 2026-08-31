@@ -177,7 +177,7 @@ pub struct SqliteChangeQueue {
 /// # Safety
 /// The wrapped Connection is only accessed via short-lived lock guards
 /// that never cross an `.await` point.
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 impl SqliteChangeQueue {
     /// Create a new queue backed by a SQLite connection.

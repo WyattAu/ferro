@@ -8,7 +8,7 @@ pub mod whiteboard;
 use ferro_dav::store::{AddressBookStore, CalendarStore};
 use std::sync::Arc;
 
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 pub trait ProductivityState: common::server_context::HasStorage + Clone + Send + Sync + 'static {
     fn data_dir(&self) -> Option<&str>;

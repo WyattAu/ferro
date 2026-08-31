@@ -142,7 +142,7 @@ pub trait AddressBookStore: Send + Sync {
 /// that never cross an `.await` point. SQLite operations are synchronous
 /// and complete in microseconds, well below the threshold for async poisoning.
 #[cfg(feature = "persistence")]
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 /// Type-erased calendar store reference for use in async contexts.
 pub type DynCalendarStore = Arc<dyn CalendarStore>;

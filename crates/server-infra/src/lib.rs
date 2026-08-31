@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 pub use ferro_server_security_middleware::api_error::ApiError;
 
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 pub trait InfraState: Clone + Send + Sync + 'static {
     fn federation_secret(&self) -> &str;

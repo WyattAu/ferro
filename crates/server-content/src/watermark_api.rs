@@ -11,7 +11,7 @@ use tracing::warn;
 use common::storage::StorageEngine;
 use ferro_server_security_middleware::api_error::ApiError;
 
-pub type DbHandle = Arc<std::sync::Mutex<rusqlite::Connection>>;
+pub use common::DbHandle;
 
 /// Trait for state needed by watermark handlers.
 /// The server crate implements this for its `AppState`.
