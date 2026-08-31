@@ -1,3 +1,23 @@
+// TODO: Migrate to shared `breaker` crate (https://github.com/WyattAu/breaker).
+//
+// BLOCKED: The shared `breaker` crate uses a non-generic `CircuitBreakerError`
+// enum (`CircuitOpen`, `Timeout`, `Inner(String)`), while ferro's version uses
+// a generic `CircuitBreakerError<E>` with public `state`/`inner` fields.
+// Six crates pattern-match on the generic error type:
+//   - server-resilience (ResilientCall, NamedCircuitBreaker)
+//   - server-infra (re-exports all)
+//   - server-integrations (remote_mount.rs)
+//   - server-compliance (antivirus_api.rs)
+//   - server (redis_rate_limiter.rs, redis_lock.rs)
+//
+// The breaker crate also uses a sliding-window metrics model vs ferro's
+// simple atomic failure counter, and exposes `metrics()`/`trip()`/`reset()`
+// instead of `state()`/`record_success()`/`record_failure()`.
+//
+// To migrate: rewrite error handling in all 6 consumers, replace
+// CircuitBreaker::new(threshold, timeout) with CircuitBreaker::new(config),
+// and update state access to use breaker::State + metrics().
+
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 

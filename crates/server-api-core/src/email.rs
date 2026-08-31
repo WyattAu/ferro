@@ -1,3 +1,14 @@
+// TODO: Migrate to shared `mailkit` crate (https://github.com/WyattAu/mailkit).
+//
+// BLOCKED: mailkit::SmtpProvider uses synchronous SmtpTransport without TLS
+// configuration, while ferro uses AsyncSmtpTransport with explicit TLS
+// (TlsParameters, Required/Wrapper modes). mailkit also only handles the
+// first recipient and doesn't support CC/BCC/attachments.
+//
+// To migrate: extend mailkit::SmtpProvider to support async transport,
+// TLS configuration, and multi-recipient messages, then replace the
+// lettre calls in send_email().
+
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 

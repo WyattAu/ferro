@@ -1,3 +1,10 @@
+// TODO: Migrate to shared `mailkit` crate (https://github.com/WyattAu/mailkit).
+//
+// BLOCKED: Same reasons as server-api-core/email.rs — mailkit::SmtpProvider
+// lacks async transport, TLS configuration, and multi-recipient support.
+// This file is a near-duplicate of server-api-core/src/email.rs; both
+// should be consolidated into a single implementation when migrating.
+
 //! Email notification system for file events.
 //!
 //! Uses the `lettre` crate for SMTP delivery over TLS (STARTTLS on port 587).

@@ -83,6 +83,12 @@ edition = "2024"
 rust-version = "1.92"
 
 [workspace.dependencies]
+# Shared crates
+breaker = { path = "../breaker" }
+ratelimit = { path = "../ratelimit" }
+mailkit = { path = "../mailkit" }
+cryptkit = { path = "../cryptkit" }
+
 # Shared dependency versions across all crates
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
