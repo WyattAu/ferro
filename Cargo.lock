@@ -3378,6 +3378,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferro-fuse-cross"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "clap",
+ "fastrand",
+ "fuser",
+ "libc",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "ferro-graphql"
 version = "3.0.0"
 dependencies = [
@@ -4633,12 +4651,32 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "libc",
- "nix",
+ "nix 0.29.0",
  "serde",
  "slab",
  "tokio",
  "tracing",
  "trait-make",
+]
+
+[[package]]
+name = "fuser"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b82b6597d216503555ead6b358f341ef748869bf5c6fbae6a0cb9dd231baecfd"
+dependencies = [
+ "bitflags 2.13.0",
+ "libc",
+ "log",
+ "memchr",
+ "nix 0.31.3",
+ "num_enum",
+ "page_size",
+ "parking_lot 0.12.5",
+ "pkg-config",
+ "ref-cast",
+ "smallvec",
+ "zerocopy",
 ]
 
 [[package]]
@@ -7172,6 +7210,19 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "libc",
+]
+
+[[package]]
+name = "nix"
+version = "0.31.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf20d2fde8ff38632c426f1165ed7436270b44f199fc55284c38276f9db47c3d"
+dependencies = [
+ "bitflags 2.13.0",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
+ "memoffset",
 ]
 
 [[package]]
