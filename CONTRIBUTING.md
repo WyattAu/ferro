@@ -202,4 +202,4 @@ The workspace is organized into domain-specific crates:
 
 ## License
 
-By contributing to Ferro, you agree that your contributions will be licensed under the MIT License.
+By contributing to Ferro, you agree that your contributions will be licensed under the AGPL-3.0-or-later License.

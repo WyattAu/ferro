@@ -3,7 +3,7 @@ name: ferro
 description: Self-hosted file server with WebDAV, S3-compatible API, federation, and WASM workers
 type: application
 version: 1.0.0
-appVersion: "2.5.1"
+appVersion: "3.0.0"
 home: https://github.com/WyattAu/ferro
 sources:
   - https://github.com/WyattAu/ferro

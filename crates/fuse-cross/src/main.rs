@@ -5,8 +5,8 @@ use reqwest::blocking::Client;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::info;
 
@@ -98,7 +98,13 @@ impl FerroFs {
     }
 
     fn dav_url(&self, path: &str) -> String {
-        let clean = path.trim_start_matches('/');
+        // The server automatically prepends /users/{sub}/ based on the auth token.
+        // Strip /users/{sub}/ prefix so the server receives the correct relative path.
+        let clean = path
+            .strip_prefix("/users/")
+            .and_then(|p| p.find('/').map(|i| &p[i + 1..]))
+            .unwrap_or(path)
+            .trim_start_matches('/');
         if clean.is_empty() {
             format!("{}/", self.server_url)
         } else {
@@ -122,10 +128,7 @@ impl FerroFs {
             modified: SystemTime::now(),
         };
         self.inodes.write().unwrap().insert(ino, entry);
-        self.path_index
-            .write()
-            .unwrap()
-            .insert(path.to_string(), ino);
+        self.path_index.write().unwrap().insert(path.to_string(), ino);
         ino
     }
 
@@ -300,6 +303,21 @@ impl Filesystem for FerroFs {
                 return;
             }
         };
+
+        // Try PROPFIND to discover the actual child path
+        let children = self.webdav_propfind_children(&parent_path);
+        for (href, is_dir, size) in &children {
+            let child_name = href.trim_end_matches('/').rsplit('/').next().unwrap_or("").to_string();
+            if child_name == name_str {
+                let ino = self.get_or_create_inode(&href, *is_dir, *size);
+                let entry = self.inodes.read().unwrap().get(&ino).cloned().unwrap();
+                let attr = entry.to_file_attr(self.uid, self.gid);
+                reply.entry(&TTL, &attr, fuser::Generation(0));
+                return;
+            }
+        }
+
+        // Fallback: construct path from parent + name
         let child_path = if parent_path == "/" {
             format!("/{}", name_str)
         } else {
@@ -331,14 +349,7 @@ impl Filesystem for FerroFs {
         }
     }
 
-    fn readdir(
-        &self,
-        _req: &Request,
-        ino: INodeNo,
-        _fh: FileHandle,
-        _offset: u64,
-        mut reply: ReplyDirectory,
-    ) {
+    fn readdir(&self, _req: &Request, ino: INodeNo, _fh: FileHandle, _offset: u64, mut reply: ReplyDirectory) {
         let parent_path = match self.inodes.read().unwrap().get(&u64::from(ino)) {
             Some(e) => e.path.clone(),
             None => {
@@ -347,7 +358,12 @@ impl Filesystem for FerroFs {
             }
         };
 
+        tracing::debug!("readdir: ino={} parent_path={}", u64::from(ino), parent_path);
         let children = self.webdav_propfind_children(&parent_path);
+        tracing::debug!("readdir: got {} children", children.len());
+        for (href, is_dir, size) in &children {
+            tracing::debug!("  child: href={} is_dir={} size={}", href, is_dir, size);
+        }
 
         for (href, is_dir, size) in &children {
             self.get_or_create_inode(href, *is_dir, *size);
@@ -358,22 +374,11 @@ impl Filesystem for FerroFs {
         entries.push((1, FileType::Directory, "..".to_string()));
 
         for (href, is_dir, _size) in &children {
-            let name = href
-                .trim_end_matches('/')
-                .rsplit('/')
-                .next()
-                .unwrap_or("")
-                .to_string();
+            let name = href.trim_end_matches('/').rsplit('/').next().unwrap_or("").to_string();
             if name.is_empty() {
                 continue;
             }
-            let child_ino = self
-                .path_index
-                .read()
-                .unwrap()
-                .get(href.as_str())
-                .copied()
-                .unwrap_or(0);
+            let child_ino = self.path_index.read().unwrap().get(href.as_str()).copied().unwrap_or(0);
             let kind = if *is_dir {
                 FileType::Directory
             } else {
@@ -458,15 +463,7 @@ impl Filesystem for FerroFs {
         }
     }
 
-    fn mkdir(
-        &self,
-        _req: &Request,
-        parent: INodeNo,
-        name: &OsStr,
-        _mode: u32,
-        _umask: u32,
-        reply: ReplyEntry,
-    ) {
+    fn mkdir(&self, _req: &Request, parent: INodeNo, name: &OsStr, _mode: u32, _umask: u32, reply: ReplyEntry) {
         let name_str = name.to_string_lossy().to_string();
         let parent_path = match self.inodes.read().unwrap().get(&u64::from(parent)) {
             Some(e) => e.path.clone(),
@@ -556,11 +553,7 @@ impl Filesystem for FerroFs {
         let new_path = if new_parent_path == "/" {
             format!("/{}", new_name_str)
         } else {
-            format!(
-                "{}/{}",
-                new_parent_path.trim_end_matches('/'),
-                new_name_str
-            )
+            format!("{}/{}", new_parent_path.trim_end_matches('/'), new_name_str)
         };
 
         if self.webdav_move(&old_path, &new_path) {
@@ -602,10 +595,7 @@ impl Filesystem for FerroFs {
             let entry = self.inodes.read().unwrap().get(&ino).cloned().unwrap();
             let attr = entry.to_file_attr(self.uid, self.gid);
             let fh = self.fh_counter.fetch_add(1, Ordering::SeqCst);
-            self.file_handles
-                .write()
-                .unwrap()
-                .insert(fh, child_path);
+            self.file_handles.write().unwrap().insert(fh, child_path);
             reply.created(&TTL, &attr, fuser::Generation(0), FileHandle(fh), FopenFlags::empty());
         } else {
             reply.error(Errno::EIO);
@@ -622,14 +612,42 @@ impl Filesystem for FerroFs {
         _flush: bool,
         reply: ReplyEmpty,
     ) {
-        self.file_handles
-            .write()
-            .unwrap()
-            .remove(&u64::from(fh));
+        self.file_handles.write().unwrap().remove(&u64::from(fh));
         reply.ok();
     }
 
     fn forget(&self, _req: &Request, _ino: INodeNo, _nlookup: u64) {}
+
+    fn setattr(
+        &self,
+        _req: &Request,
+        ino: INodeNo,
+        _mode: Option<u32>,
+        _uid: Option<u32>,
+        _gid: Option<u32>,
+        _size: Option<u64>,
+        _atime: Option<fuser::TimeOrNow>,
+        _mtime: Option<fuser::TimeOrNow>,
+        _ctime: Option<std::time::SystemTime>,
+        _fh: Option<FileHandle>,
+        _crtime: Option<std::time::SystemTime>,
+        _chgtime: Option<std::time::SystemTime>,
+        _bkuptime: Option<std::time::SystemTime>,
+        _flags: Option<fuser::BsdFileFlags>,
+        reply: ReplyAttr,
+    ) {
+        // For truncate (size: Some(0)), we just acknowledge it — the actual content
+        // is managed by the server via PUT. For other attributes, return current attrs.
+        match self.inodes.read().unwrap().get(&u64::from(ino)) {
+            Some(entry) => {
+                let attr = entry.to_file_attr(self.uid, self.gid);
+                reply.attr(&TTL, &attr);
+            }
+            None => {
+                reply.error(Errno::ENOENT);
+            }
+        }
+    }
 
     fn statfs(&self, _req: &Request, _ino: INodeNo, reply: ReplyStatfs) {
         reply.statfs(0, 0, 0, 0, 0, BLOCK_SIZE, 255, 4096);
@@ -639,8 +657,7 @@ impl Filesystem for FerroFs {
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".parse().unwrap()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".parse().unwrap()),
         )
         .init();
 
@@ -691,7 +708,7 @@ fn main() -> Result<()> {
     let fs = FerroFs::new(server_url, auth_header, uid, gid);
 
     let mut options = vec![
-        MountOption::RO,
+        MountOption::RW,
         MountOption::FSName("ferro".to_string()),
         MountOption::Subtype("ferro".to_string()),
     ];

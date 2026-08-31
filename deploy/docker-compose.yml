@@ -14,7 +14,7 @@ services:
       FERRO_LOG_FORMAT: json
       FERRO_LOG_LEVEL: info
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      test: ["CMD", "/shim", "healthcheck", "--tcp", "127.0.0.1:8080"]
       interval: 30s
       timeout: 5s
       retries: 3

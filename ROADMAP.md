@@ -72,7 +72,7 @@
 - Server callback returns refresh_token and logout_url
 - Web client stores refresh token in localStorage
 - Logout redirects to Keycloak end_session_endpoint for front-channel logout
-- Created Keycloak client `ferro` (secret: ferro-secret-2026, audience: account)
+- Created Keycloak client `ferro` (secret: [REDACTED - stored in Keycloak], audience: account)
 
 ### Deployment
 - Deployed on TrueNAS Docker (ghcr.io/wyattau/ferro:latest)
@@ -207,4 +207,4 @@
 
 ---
 
-**End of Roadmap v16.0**
+**End of Roadmap v17.0**

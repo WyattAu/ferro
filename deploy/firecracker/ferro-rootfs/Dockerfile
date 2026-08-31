@@ -26,9 +26,9 @@ LABEL org.opencontainers.image.title="Ferro Rootfs" \
 RUN apk add --no-cache ca-certificates wget
 
 # Copy binaries from official Ferro image
-COPY --from=ghcr.io/wyattau/ferro:latest /app/ferro-server /usr/local/bin/ferro-server
-COPY --from=ghcr.io/wyattau/ferro:latest /app/ferro-cli /usr/local/bin/ferro-cli
-COPY --from=ghcr.io/wyattau/ferro:latest /app/ui /usr/local/share/ferro/ui
+COPY --from=ghcr.io/wyattau/ferro:latest /ferro-server /usr/local/bin/ferro-server
+COPY --from=ghcr.io/wyattau/ferro:latest /ferro-cli /usr/local/bin/ferro-cli
+COPY --from=ghcr.io/wyattau/ferro:latest /ui /usr/local/share/ferro/ui
 
 # Create data directory with correct ownership
 RUN mkdir -p /data && chown 65532:65532 /data

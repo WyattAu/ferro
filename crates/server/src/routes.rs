@@ -1378,8 +1378,7 @@ pub fn build_router_with_static(
                     // WebDAV methods (PROPFIND, MKCOL, PUT, DELETE, MOVE, etc.)
                     // must pass through to the WebDAV handler.
                     let method = req.method().clone();
-                    let is_static_method = method == axum::http::Method::GET
-                        || method == axum::http::Method::HEAD;
+                    let is_static_method = method == axum::http::Method::GET || method == axum::http::Method::HEAD;
 
                     if !is_static_method {
                         return next.run(req).await;
