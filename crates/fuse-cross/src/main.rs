@@ -304,7 +304,7 @@ impl Filesystem for FerroFs {
             }
         };
 
-        // Try PROPFIND to discover the actual child path
+        // PROPFIND the parent to discover children, then find by name
         let children = self.webdav_propfind_children(&parent_path);
         for (href, is_dir, size) in &children {
             let child_name = href.trim_end_matches('/').rsplit('/').next().unwrap_or("").to_string();
@@ -317,24 +317,7 @@ impl Filesystem for FerroFs {
             }
         }
 
-        // Fallback: construct path from parent + name
-        let child_path = if parent_path == "/" {
-            format!("/{}", name_str)
-        } else {
-            format!("{}/{}", parent_path.trim_end_matches('/'), name_str)
-        };
-
-        match self.webdav_head(&child_path) {
-            Some(head) => {
-                let ino = self.get_or_create_inode(&child_path, head.is_collection, head.size);
-                let entry = self.inodes.read().unwrap().get(&ino).cloned().unwrap();
-                let attr = entry.to_file_attr(self.uid, self.gid);
-                reply.entry(&TTL, &attr, fuser::Generation(0));
-            }
-            None => {
-                reply.error(Errno::ENOENT);
-            }
-        }
+        reply.error(Errno::ENOENT);
     }
 
     fn getattr(&self, _req: &Request, ino: INodeNo, _fh: Option<FileHandle>, reply: ReplyAttr) {
