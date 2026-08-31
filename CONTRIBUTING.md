@@ -77,6 +77,7 @@ The workspace is organized into domain-specific crates:
 | `mobile` | Tauri v2 mobile bindings (iOS/Android) |
 | `client` | Rust client SDK with C-FFI, remote wipe |
 | `fuse` | FUSE filesystem mount |
+| `fuse-cross` | Cross-platform FUSE mount (Linux/macOS/Windows via fuser) |
 | `mount-nfs` | NFS mount support |
 | `crdt` | CRDT-based collaborative data structures |
 | `sync-protocol` | Sync protocol for multi-node replication |
@@ -88,7 +89,11 @@ The workspace is organized into domain-specific crates:
 | `cache` | Caching layer for metadata and content |
 | `health` | Health check and readiness probes |
 | `audit-log` | Audit logging for file operations |
-| `webhook` | Outgoing webhook delivery |
+| `caldav` | CalDAV protocol implementation (RFC 4791) |
+| `ferro-ui` | Tauri desktop UI components |
+| `fuse-cross` | Cross-platform FUSE mount (Linux/macOS/Windows via fuser) |
+| `server-fips` | FIPS compliance checks |
+| `webhook` | Outgoing webhook delivery (module within server-automation) |
 | `backend-router` | Storage backend routing and selection |
 | `consistent-hash` | Consistent hashing for distributed nodes |
 | `wasm-host` | WASM runtime host for file processing |

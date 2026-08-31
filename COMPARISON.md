@@ -72,8 +72,8 @@
 | FUSE mount | **Yes** | No | **Yes** (EOS) | **Yes** (SeaDrive) | No | No | No | **Yes** (magic-folder) |
 | WebDAV sync | **Yes** (Class 1/2/3) | **Yes** | **Yes** | Partial | No | No | No | No |
 | Encryption (transit) | TLS only | TLS | TLS | TLS | **Yes** (TLS+relay) | TLS | **Yes** | **Yes** (TLS+caps) |
-| Encryption (at-rest) | **Yes** (AES-256-GCM) | **Yes** | **Yes** | **Yes** (Pro) | No | **Yes** | No | **Yes** (client-side) |
-| E2EE | **Yes** (ferro-e2ee) | **Yes** (mature) | **Yes** | **Yes** (Pro) | No | No | No | **Yes** (capability-based) |
+| Encryption (at-rest) | **Yes** (ChaCha20-Poly1305 (age)) | **Yes** | **Yes** | **Yes** (Pro) | No | **Yes** | No | **Yes** (client-side) |
+| E2EE | **Yes** (server-security) | **Yes** (mature) | **Yes** | **Yes** (Pro) | No | No | No | **Yes** (capability-based) |
 | P2P sync | Via WebRTC signaling | **Yes** (Global Scale) | No | No | **Yes** (native P2P) | No | No | **Yes** (native P2P) |
 | Resumable upload | **Yes** (chunked) | **Yes** | **Yes** (TUS) | **Yes** | **Yes** | Yes (basic) | **Yes** | **Yes** |
 | Versioning | **Yes** (configurable) | **Yes** | **Yes** | **Yes** | **Yes** | No | **Yes** | No |
@@ -188,7 +188,7 @@
 
 | Feature | **Ferro** | **Nextcloud** | **Seafile** | **Cryptomator** | **Tahoe-LAFS** | **IPFS** | **Storj** | **Syncthing** |
 |---------|:---------:|:-------------:|:--------:|:------------:|:-----------:|:-----:|:-------:|:-----------:|
-| Server-side encryption | **Yes** (AES-256-GCM) | **Yes** | **Yes** (Pro) | N/A | No (encrypted by default) | No | **Yes** | No |
+| Server-side encryption | **Yes** (ChaCha20-Poly1305 (age)) | **Yes** | **Yes** (Pro) | N/A | No (encrypted by default) | No | **Yes** | No |
 | E2EE (client-side) | **Yes** (X25519+AES) | **Yes** | **Yes** (Pro) | **Yes** (AES-256) | **Yes** (capability) | No | **Yes** (segment) | **Yes** (out-of-band) |
 | Key derivation | **Yes** (HKDF-SHA256) | **Yes** | **Yes** | **Yes** (Argon2) | **Yes** | No | **Yes** | N/A |
 | Content-addressable | **Yes** (SHA-256 CAS) | No | **Yes** (block dedup) | No | **Yes** (inherent) | **Yes** (inherent) | **Yes** (Erasure coded) | **Yes** (rolling hash) |
@@ -289,7 +289,7 @@
 
 | Platform | Unique Strength |
 |----------|----------------|
-| **Ferro** | Rust-native performance, full WebDAV 1/2/3, WASM plugin sandbox, CRDT co-editing, Cedar policy engine, ActivityPub federation, AES-256-GCM E2EE, SHA-256 audit chain, block-level delta sync, multi-tenant isolation, Raft consensus, semantic AI search, mobile API contracts, Tauri desktop, FCM/APNS push notifications, compliance docs (SOC 2, ISO 27001, HIPAA) |
+| **Ferro** | Rust-native performance, full WebDAV 1/2/3, WASM plugin sandbox, CRDT co-editing, Cedar policy engine, ActivityPub federation, ChaCha20-Poly1305 (age) E2EE, SHA-256 audit chain, block-level delta sync, multi-tenant isolation, Raft consensus, semantic AI search, mobile API contracts, Tauri desktop, FCM/APNS push notifications, compliance docs (SOC 2, ISO 27001, HIPAA) |
 | **Nextcloud** | Largest app ecosystem (200+), mature groupware, Talk/Calendar/Contacts, Global Scale, broadest platform support, admin UI, GDPR Compliance Kit |
 | **OCIS** | Microservice architecture, CS3 standard compliance, SCIM provisioning, Reva auth, native Go performance, scalable design |
 | **Seafile** | Block-level delta sync (most efficient), WORM mode, ransomware detection, cluster mode, reliable at scale |

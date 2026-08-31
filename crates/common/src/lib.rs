@@ -10,6 +10,7 @@ pub mod format;
 pub mod gdpr;
 pub mod metadata;
 pub mod mime;
+pub mod mobile_error;
 pub mod multitenancy;
 pub mod notifications;
 pub mod path;

@@ -15,7 +15,7 @@ ferro-core         Storage backends (memory, local, S3, GCS, Azure)
 ferro-common       Shared types, traits, error handling
 ferro-crypto       SHA-256, HMAC, password hashing, age encryption
 ferro-auth         OIDC (PKCE), Cedar authorization, API keys, WebAuthn
-ferro-dav          WebDAV RFC 4918 — PROPFIND, MKCOL, PUT, LOCK, COPY, MOVE
+ferro-dav          WebDAV RFC 4918 — PROPFIND, MKCOL, PUT, LOCK, UNLOCK, COPY, MOVE, PROPPATCH
 ferro-caldav       CalDAV RFC 4791, CardDAV RFC 6352
 ferro-web          Leptos WASM frontend — file browser, search, sharing
 ferro-desktop      Tauri v2 desktop client (Linux, macOS, Windows)
