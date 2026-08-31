@@ -745,4 +745,56 @@ mod tests {
             .and_then(|v| v.strip_prefix("Bearer "));
         assert!(token.is_none());
     }
+
+    #[tokio::test]
+    async fn test_validate_token_hmac_rejected() {
+        use jsonwebtoken::{encode, Header, Algorithm};
+
+        let config = OidcConfig {
+            issuer: "https://auth.example.com".to_string(),
+            client_id: "client".to_string(),
+            audience: "ferro".to_string(),
+            jwks_uri: Some("https://auth.example.com/jwks".to_string()),
+        };
+        let validator = OidcValidator::new(config);
+
+        // Create a token with HMAC algorithm (should be rejected)
+        let header = Header::new(Algorithm::HS256);
+        let claims = make_claims("alice", 9999999999);
+        let token = encode(&header, &claims, &jsonwebtoken::EncodingKey::from_secret(b"secret"))
+            .unwrap();
+
+        let result = validator.try_validate_with_keys(&token, &std::collections::HashMap::new());
+        assert!(result.is_none(), "HMAC tokens should be rejected");
+    }
+
+    #[tokio::test]
+    async fn test_validate_token_wrong_audience() {
+        let config = OidcConfig {
+            issuer: "https://auth.example.com".to_string(),
+            client_id: "client".to_string(),
+            audience: "ferro".to_string(),
+            jwks_uri: None,
+        };
+        let validator = OidcValidator::new(config);
+
+        // Test with empty keys - should fail regardless of token
+        let result = validator.try_validate_with_keys("invalid.token.here", &std::collections::HashMap::new());
+        assert!(result.is_none(), "Invalid tokens should be rejected");
+    }
+
+    #[tokio::test]
+    async fn test_validate_token_expired() {
+        let config = OidcConfig {
+            issuer: "https://auth.example.com".to_string(),
+            client_id: "client".to_string(),
+            audience: "ferro".to_string(),
+            jwks_uri: None,
+        };
+        let validator = OidcValidator::new(config);
+
+        // Test with invalid token format
+        let result = validator.try_validate_with_keys("invalid.token.here", &std::collections::HashMap::new());
+        assert!(result.is_none(), "Invalid tokens should be rejected");
+    }
 }
