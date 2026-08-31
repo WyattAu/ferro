@@ -127,9 +127,9 @@
 
 | Item | Scope | Effort | Status |
 |------|-------|--------|--------|
-| Extract shared HTTP client | Create ferro-http-client crate, consolidate gui.rs + mobile.rs | 1 day | Pending |
+| Extract shared HTTP client | Create ferro-http-client crate, consolidate gui.rs + mobile.rs | 1 day | Done (uses common::http_client) |
 | Extract shared MobileError | Single error enum in common or shared crate | 0.5 days | Pending |
-| Delete duplicate OIDC middleware | Remove server/src/auth/oidc.rs, use server-security-middleware re-export | 0.5 days | Pending |
+| Delete duplicate OIDC middleware | Remove server/src/auth/oidc.rs, use server-security-middleware re-export | 0.5 days | Done (server-security-middleware re-exports ferro-auth) |
 | Consolidate comments/tags | Make server-collaboration the single source of truth | 1 day | Pending |
 | Frontend use_data_loader hook | Extract loading/error/empty state pattern | 1 day | Pending |
 
@@ -203,7 +203,7 @@
 | ADR-004: Pre-commit Hook Design | Accepted | 2026-07-23 |
 | ADR-005: CI/CD Security Hardening | Accepted | 2026-07-23 |
 | ADR-006: Spatial Materialism + Amoebic UI | Accepted | 2026-07-23 |
-| ADR-007: Cross-platform FUSE via fuser | Pending | 2026-08-30 |
+| ADR-007: Cross-platform FUSE via fuser | Accepted | 2026-08-30 |
 
 ---
 
