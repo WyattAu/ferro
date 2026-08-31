@@ -48,6 +48,7 @@ impl InodeEntry {
     }
 }
 
+#[allow(dead_code)]
 struct HeadResult {
     size: u64,
     is_collection: bool,
@@ -132,6 +133,7 @@ impl FerroFs {
         ino
     }
 
+    #[allow(dead_code)]
     fn webdav_head(&self, path: &str) -> Option<HeadResult> {
         let url = self.dav_url(path);
         let mut req = self.client.head(&url);
@@ -247,6 +249,7 @@ impl FerroFs {
     }
 }
 
+#[allow(dead_code, unused_assignments)]
 fn parse_propfind_children(xml: &str, parent_path: &str) -> Vec<(String, bool, u64)> {
     let mut children = Vec::new();
     let mut current_href: Option<String> = None;
