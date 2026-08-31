@@ -2,7 +2,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use breaker::{CircuitBreaker, CircuitBreakerError, CircuitBreakerConfig, State};
+use breaker::{CircuitBreaker, CircuitBreakerError, State};
 use tracing::warn;
 
 /// Configuration for a circuit breaker instance.
@@ -44,7 +44,7 @@ impl ResilientCall {
     /// Create a new `ResilientCall` with the given configuration.
     #[must_use]
     pub fn new(config: CircuitBreakerConfig) -> Self {
-        let breaker_config = CircuitBreakerConfig::builder()
+        let breaker_config = breaker::CircuitBreakerConfig::builder()
             .failure_rate_threshold(config.failure_threshold as u32)
             .wait_duration(config.recovery_timeout)
             .half_open_max_calls(config.half_open_max)
@@ -77,6 +77,7 @@ impl ResilientCall {
     where
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<T, E>>,
+        E: std::fmt::Display,
     {
         self.breaker.call(f).await
     }
@@ -109,9 +110,10 @@ impl NamedCircuitBreaker {
     where
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<T, E>>,
+        E: std::fmt::Display,
     {
         let result = self.inner.call(f).await;
-        if result.as_ref().err() == Some(&CircuitBreakerError::CircuitOpen) {
+        if matches!(result, Err(CircuitBreakerError::CircuitOpen)) {
             warn!("Circuit breaker '{}' is open, call rejected", self.name);
         }
         result

@@ -3,11 +3,15 @@
 use libfuzzer_sys::fuzz_target;
 use std::sync::Arc;
 use std::time::Duration;
-use ferro_circuit_breaker::CircuitBreaker;
+use breaker::{CircuitBreaker, CircuitBreakerConfig, State};
 
 fuzz_target!(|data: &[u8]| {
-    let threshold = if data.is_empty() { 1 } else { (data[0] % 10) as u64 + 1 };
-    let cb = Arc::new(CircuitBreaker::new(threshold, Duration::from_secs(60)));
+    let threshold = if data.is_empty() { 1 } else { (data[0] % 10) as u32 + 1 };
+    let config = CircuitBreakerConfig::builder()
+        .failure_rate_threshold(threshold)
+        .wait_duration(Duration::from_secs(60))
+        .build();
+    let cb = Arc::new(CircuitBreaker::new(config));
 
     // Fuzz rapid state transitions via synchronous API
     for &byte in data.iter().take(100) {
@@ -21,9 +25,7 @@ fuzz_target!(|data: &[u8]| {
     // State must always be valid
     let state = cb.state();
     assert!(
-        matches!(state, ferro_circuit_breaker::CircuitState::Closed
-            | ferro_circuit_breaker::CircuitState::Open
-            | ferro_circuit_breaker::CircuitState::HalfOpen),
+        matches!(state, State::Closed | State::Open | State::HalfOpen),
         "invalid state: {:?}",
         state
     );
@@ -54,9 +56,7 @@ fuzz_target!(|data: &[u8]| {
     // State must still be valid after concurrent access
     let final_state = cb.state();
     assert!(
-        matches!(final_state, ferro_circuit_breaker::CircuitState::Closed
-            | ferro_circuit_breaker::CircuitState::Open
-            | ferro_circuit_breaker::CircuitState::HalfOpen),
+        matches!(final_state, State::Closed | State::Open | State::HalfOpen),
         "invalid final state: {:?}",
         final_state
     );

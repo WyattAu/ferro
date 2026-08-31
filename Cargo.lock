@@ -958,6 +958,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "breaker"
+version = "0.1.0"
+dependencies = [
+ "parking_lot 0.12.5",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "brotli"
 version = "8.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3118,10 +3128,7 @@ dependencies = [
 name = "ferro-circuit-breaker"
 version = "3.0.0"
 dependencies = [
- "anyhow",
- "parking_lot 0.12.5",
- "tokio",
- "tracing",
+ "breaker",
 ]
 
 [[package]]
@@ -3581,6 +3588,7 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.22.1",
+ "breaker",
  "bytes",
  "chrono",
  "clap",
@@ -3590,7 +3598,6 @@ dependencies = [
  "ferro-ai",
  "ferro-auth",
  "ferro-cache",
- "ferro-circuit-breaker",
  "ferro-common",
  "ferro-core",
  "ferro-crdt",
@@ -3848,8 +3855,8 @@ version = "3.0.0"
 dependencies = [
  "async-trait",
  "axum",
+ "breaker",
  "chrono",
- "ferro-circuit-breaker",
  "ferro-common",
  "ferro-server-security",
  "ferro-server-security-middleware",
@@ -3943,9 +3950,9 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "breaker",
  "chrono",
  "dashmap",
- "ferro-circuit-breaker",
  "ferro-common",
  "ferro-server-activitypub",
  "ferro-server-api-core",
@@ -3971,10 +3978,10 @@ version = "3.0.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
+ "breaker",
  "bytes",
  "chrono",
  "dashmap",
- "ferro-circuit-breaker",
  "ferro-common",
  "ferro-offline",
  "ferro-server-security-middleware",
@@ -4037,7 +4044,7 @@ dependencies = [
 name = "ferro-server-resilience"
 version = "3.0.0"
 dependencies = [
- "ferro-circuit-breaker",
+ "breaker",
  "parking_lot 0.12.5",
  "rand 0.9.4",
  "tokio",

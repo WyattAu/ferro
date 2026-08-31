@@ -1,8 +1,8 @@
 use async_trait::async_trait;
+use breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use chrono::Utc;
 use common::error::{FerroError, Result};
 use common::webdav::{LockDepth, LockInfo, LockScope, LockToken, LockType};
-use breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use redis::aio::ConnectionManager;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -161,6 +161,16 @@ impl RedisLockManager {
     }
 }
 
+fn cb_err_to_ferro(e: CircuitBreakerError) -> FerroError {
+    match e {
+        CircuitBreakerError::CircuitOpen => {
+            FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
+        }
+        CircuitBreakerError::Inner(inner) => FerroError::Internal(inner),
+        CircuitBreakerError::Timeout => FerroError::Timeout,
+    }
+}
+
 #[async_trait]
 impl LockManagerTrait for RedisLockManager {
     async fn check_lock(&self, path: &str) -> Option<LockInfo> {
@@ -252,15 +262,12 @@ impl LockManagerTrait for RedisLockManager {
         };
 
         REDIS_CB
-            .call(|| async { self.store_lock(&lock).await })
+            .call(|| {
+                let result = self.store_lock(&lock);
+                async { result.map_err(|e| e.to_string()) }
+            })
             .await
-            .map_err(|e| match e {
-                CircuitBreakerError { state: CircuitState::Open, .. } => {
-                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
-                }
-                CircuitBreakerError { inner: Some(inner), .. } => inner,
-                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
-            })?;
+            .map_err(cb_err_to_ferro)?;
 
         debug!(
             "LOCK acquired (Redis): {} by {} (scope={:?}, timeout={}s)",
@@ -290,13 +297,7 @@ impl LockManagerTrait for RedisLockManager {
                 }
             })
             .await
-            .map_err(|e| match e {
-                CircuitBreakerError { state: CircuitState::Open, .. } => {
-                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
-                }
-                CircuitBreakerError { inner: Some(inner), .. } => inner,
-                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
-            })?;
+            .map_err(cb_err_to_ferro)?;
 
         let path = match path {
             Some(p) => p,
@@ -304,18 +305,6 @@ impl LockManagerTrait for RedisLockManager {
         };
 
         let lock_key = Self::lock_key(&path);
-
-        let script = redis::Script::new(
-            r#"
-            local token = ARGV[1]
-            local actual = redis.call('HGET', KEYS[1], 'token')
-            if actual and string.find(actual, token) then
-                return redis.call('DEL', KEYS[1])
-            else
-                return 0
-            end
-            "#,
-        );
 
         let mut conn = self.client.clone();
         let deleted: i32 = REDIS_CB
@@ -347,13 +336,7 @@ impl LockManagerTrait for RedisLockManager {
                 }
             })
             .await
-            .map_err(|e| match e {
-                CircuitBreakerError { state: CircuitState::Open, .. } => {
-                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
-                }
-                CircuitBreakerError { inner: Some(inner), .. } => inner,
-                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
-            })?;
+            .map_err(cb_err_to_ferro)?;
 
         let token_index_key_cleanup = Self::token_index_key(token);
         let _ = REDIS_CB
@@ -402,13 +385,7 @@ impl LockManagerTrait for RedisLockManager {
                 }
             })
             .await
-            .map_err(|e| match e {
-                CircuitBreakerError { state: CircuitState::Open, .. } => {
-                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
-                }
-                CircuitBreakerError { inner: Some(inner), .. } => inner,
-                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
-            })?;
+            .map_err(cb_err_to_ferro)?;
 
         let path = match path {
             Some(p) => p,
@@ -426,15 +403,12 @@ impl LockManagerTrait for RedisLockManager {
         lock.refresh_count += 1;
 
         REDIS_CB
-            .call(|| async { self.store_lock(&lock).await })
+            .call(|| {
+                let result = self.store_lock(&lock);
+                async { result.map_err(|e| e.to_string()) }
+            })
             .await
-            .map_err(|e| match e {
-                CircuitBreakerError { state: CircuitState::Open, .. } => {
-                    FerroError::Internal("Circuit breaker open: Redis unavailable".to_string())
-                }
-                CircuitBreakerError { inner: Some(inner), .. } => inner,
-                CircuitBreakerError { .. } => FerroError::Internal("Circuit breaker error".to_string()),
-            })?;
+            .map_err(cb_err_to_ferro)?;
 
         debug!(
             "LOCK refreshed (Redis): {} (refresh #{})",
