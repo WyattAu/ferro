@@ -1,15 +1,14 @@
 use anyhow::Result;
 use bytes::Bytes;
-use fuser::{
-    FileAttr, FileType, Filesystem, MountOption, ReplyAttr, ReplyData, ReplyDirectory,
-    ReplyEmpty, ReplyEntry, ReplyOpen, ReplyWrite, Request, Errno,
-};
-use reqwest::Client;
+use fuser::*;
+use reqwest::blocking::Client;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::time::{Duration, SystemTime};
-use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use std::io;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::RwLock;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tracing::info;
 
 const TTL: Duration = Duration::from_secs(1);
 const BLOCK_SIZE: u32 = 4096;
@@ -26,12 +25,13 @@ struct InodeEntry {
 impl InodeEntry {
     fn to_file_attr(&self, uid: u32, gid: u32) -> FileAttr {
         FileAttr {
-            ino: self.ino,
+            ino: INodeNo(self.ino),
             size: self.size,
             blocks: self.size.div_ceil(512),
             atime: self.modified,
             mtime: self.modified,
             ctime: self.modified,
+            crtime: UNIX_EPOCH,
             kind: if self.is_dir {
                 FileType::Directory
             } else {
@@ -42,27 +42,14 @@ impl InodeEntry {
             uid,
             gid,
             rdev: 0,
-            blksize: BLOCK_SIZE,
-            #[cfg(target_os = "macos")]
-            crtime: self.modified,
-            #[cfg(target_os = "macos")]
             flags: 0,
+            blksize: BLOCK_SIZE,
         }
     }
 }
 
-#[derive(Debug)]
-struct FileHandleEntry {
-    #[allow(dead_code)]
-    path: String,
-    flags: u32,
-    #[allow(dead_code)]
-    ino: u64,
-}
-
 struct HeadResult {
     size: u64,
-    modified: String,
     is_collection: bool,
 }
 
@@ -72,21 +59,16 @@ pub struct FerroFs {
     auth_header: Option<String>,
     uid: u32,
     gid: u32,
-    cache: Arc<RwLock<HashMap<String, Bytes>>>,
-    inodes: Arc<RwLock<HashMap<u64, InodeEntry>>>,
-    file_handles: Arc<RwLock<HashMap<u64, FileHandleEntry>>>,
-    fh_counter: std::sync::atomic::AtomicU64,
-    inode_counter: std::sync::atomic::AtomicU64,
+    inodes: RwLock<HashMap<u64, InodeEntry>>,
+    path_index: RwLock<HashMap<String, u64>>,
+    file_handles: RwLock<HashMap<u64, String>>,
+    fh_counter: AtomicU64,
+    inode_counter: AtomicU64,
 }
 
 impl FerroFs {
-    pub fn new(
-        server_url: String,
-        auth_header: Option<String>,
-        uid: u32,
-        gid: u32,
-    ) -> Self {
-        Self {
+    pub fn new(server_url: String, auth_header: Option<String>, uid: u32, gid: u32) -> Self {
+        let fs = Self {
             client: Client::builder()
                 .timeout(Duration::from_secs(30))
                 .build()
@@ -95,12 +77,24 @@ impl FerroFs {
             auth_header,
             uid,
             gid,
-            cache: Arc::new(RwLock::new(HashMap::new())),
-            inodes: Arc::new(RwLock::new(HashMap::new())),
-            file_handles: Arc::new(RwLock::new(HashMap::new())),
-            fh_counter: std::sync::atomic::AtomicU64::new(1),
-            inode_counter: std::sync::atomic::AtomicU64::new(1),
-        }
+            inodes: RwLock::new(HashMap::new()),
+            path_index: RwLock::new(HashMap::new()),
+            file_handles: RwLock::new(HashMap::new()),
+            fh_counter: AtomicU64::new(1),
+            inode_counter: AtomicU64::new(2),
+        };
+        fs.inodes.write().unwrap().insert(
+            1,
+            InodeEntry {
+                path: "/".to_string(),
+                ino: 1,
+                is_dir: true,
+                size: 0,
+                modified: SystemTime::now(),
+            },
+        );
+        fs.path_index.write().unwrap().insert("/".to_string(), 1);
+        fs
     }
 
     fn dav_url(&self, path: &str) -> String {
@@ -108,58 +102,61 @@ impl FerroFs {
         if clean.is_empty() {
             format!("{}/", self.server_url)
         } else {
-            format!("{}/{}", self.server_url, clean)
+            format!("{}/{}/", self.server_url, clean)
         }
     }
 
-    fn api_url(&self, path: &str) -> String {
-        let clean = path.trim_start_matches('/');
-        format!("{}/api/v1/files/{}", self.server_url, clean)
+    fn get_or_create_inode(&self, path: &str, is_dir: bool, size: u64) -> u64 {
+        {
+            let index = self.path_index.read().unwrap();
+            if let Some(&ino) = index.get(path) {
+                return ino;
+            }
+        }
+        let ino = self.inode_counter.fetch_add(1, Ordering::SeqCst);
+        let entry = InodeEntry {
+            path: path.to_string(),
+            ino,
+            is_dir,
+            size,
+            modified: SystemTime::now(),
+        };
+        self.inodes.write().unwrap().insert(ino, entry);
+        self.path_index
+            .write()
+            .unwrap()
+            .insert(path.to_string(), ino);
+        ino
     }
 
-    async fn webdav_head(&self, path: &str) -> Option<HeadResult> {
+    fn webdav_head(&self, path: &str) -> Option<HeadResult> {
         let url = self.dav_url(path);
         let mut req = self.client.head(&url);
         if let Some(ref token) = self.auth_header {
             req = req.header("Authorization", token);
         }
-        match req.send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                let headers = resp.headers().clone();
-                if status.is_success() || status == 404 {
-                    let content_length = headers
-                        .get("content-length")
-                        .and_then(|v| v.to_str().ok())
-                        .and_then(|v| v.parse::<u64>().ok())
-                        .unwrap_or(0);
-                    let modified = headers
-                        .get("last-modified")
-                        .and_then(|v| v.to_str().ok())
-                        .unwrap_or("")
-                        .to_string();
-                    let is_collection = headers
-                        .get("content-type")
-                        .and_then(|v| v.to_str().ok())
-                        .map(|ct| ct.contains("httpd/unix-directory"))
-                        .unwrap_or(false);
-                    Some(HeadResult {
-                        size: content_length,
-                        modified,
-                        is_collection,
-                    })
-                } else {
-                    None
-                }
-            }
-            Err(e) => {
-                warn!("HEAD {} failed: {}", path, e);
-                None
-            }
+        let resp = req.send().ok()?;
+        if !resp.status().is_success() {
+            return None;
         }
+        let headers = resp.headers().clone();
+        let content_length = headers
+            .get("content-length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(0);
+        let is_collection = headers
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .map(|ct| ct.contains("httpd/unix-directory") || ct.contains("text/xml"))
+            .unwrap_or(false);
+        Some(HeadResult {
+            size: content_length,
+            is_collection,
+        })
     }
 
-    async fn webdav_propfind(&self, path: &str) -> Option<Vec<InodeEntry>> {
+    fn webdav_propfind_children(&self, path: &str) -> Vec<(String, bool, u64)> {
         let url = self.dav_url(path);
         let body = r#"<?xml version="1.0" encoding="utf-8"?>
 <D:propfind xmlns:D="DAV:">
@@ -174,85 +171,54 @@ impl FerroFs {
         if let Some(ref token) = self.auth_header {
             req = req.header("Authorization", token);
         }
-        match req.send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                if !status.is_success() {
-                    warn!("PROPFIND {} returned {}", path, status);
-                    return None;
-                }
-                match resp.text().await {
-                    Ok(xml) => parse_propfind_response(&xml),
-                    Err(e) => {
-                        warn!("PROPFIND {} body read failed: {}", path, e);
-                        None
-                    }
-                }
-            }
-            Err(e) => {
-                warn!("PROPFIND {} failed: {}", path, e);
-                None
-            }
+        let resp = match req.send() {
+            Ok(r) => r,
+            Err(_) => return Vec::new(),
+        };
+        if !resp.status().is_success() {
+            return Vec::new();
         }
+        let xml = match resp.text() {
+            Ok(t) => t,
+            Err(_) => return Vec::new(),
+        };
+        parse_propfind_children(&xml, path)
     }
 
-    async fn webdav_get(&self, path: &str, offset: u64, size: u32) -> Option<Bytes> {
+    fn webdav_get(&self, path: &str, offset: u64, size: u32) -> Option<Bytes> {
         let url = self.dav_url(path);
         let range = format!("bytes={}-{}", offset, offset + size as u64 - 1);
-        let mut req = self
-            .client
-            .get(&url)
-            .header("Range", &range);
+        let mut req = self.client.get(&url).header("Range", &range);
         if let Some(ref token) = self.auth_header {
             req = req.header("Authorization", token);
         }
-        match req.send().await {
-            Ok(resp) => {
-                if resp.status().is_success() {
-                    resp.bytes().await.ok()
-                } else {
-                    warn!("GET {} returned {}", path, resp.status());
-                    None
-                }
-            }
-            Err(e) => {
-                warn!("GET {} failed: {}", path, e);
-                None
-            }
+        let resp = req.send().ok()?;
+        if resp.status().is_success() {
+            resp.bytes().ok()
+        } else {
+            None
         }
     }
 
-    async fn webdav_put(&self, path: &str, data: &[u8]) -> bool {
+    fn webdav_put(&self, path: &str, data: &[u8]) -> bool {
         let url = self.dav_url(path);
         let mut req = self.client.put(&url).body(data.to_vec());
         if let Some(ref token) = self.auth_header {
             req = req.header("Authorization", token);
         }
-        match req.send().await {
-            Ok(resp) => resp.status().is_success(),
-            Err(e) => {
-                warn!("PUT {} failed: {}", path, e);
-                false
-            }
-        }
+        req.send().map(|r| r.status().is_success()).unwrap_or(false)
     }
 
-    async fn webdav_delete(&self, path: &str) -> bool {
+    fn webdav_delete(&self, path: &str) -> bool {
         let url = self.dav_url(path);
         let mut req = self.client.delete(&url);
         if let Some(ref token) = self.auth_header {
             req = req.header("Authorization", token);
         }
-        match req.send().await {
-            Ok(resp) => resp.status().is_success(),
-            Err(e) => {
-                warn!("DELETE {} failed: {}", path, e);
-                false
-            }
-        }
+        req.send().map(|r| r.status().is_success()).unwrap_or(false)
     }
 
-    async fn webdav_mkcol(&self, path: &str) -> bool {
+    fn webdav_mkcol(&self, path: &str) -> bool {
         let url = self.dav_url(path);
         let mut req = self
             .client
@@ -260,851 +226,412 @@ impl FerroFs {
         if let Some(ref token) = self.auth_header {
             req = req.header("Authorization", token);
         }
-        match req.send().await {
-            Ok(resp) => resp.status().is_success(),
-            Err(e) => {
-                warn!("MKCOL {} failed: {}", path, e);
-                false
-            }
-        }
+        req.send().map(|r| r.status().is_success()).unwrap_or(false)
     }
 
-    async fn resolve_path(&self, path: &str) -> Option<InodeEntry> {
-        let inodes = self.inodes.read().await;
-        for entry in inodes.values() {
-            if entry.path == path {
-                return Some(entry.clone());
-            }
+    fn webdav_move(&self, src: &str, dst: &str) -> bool {
+        let src_url = self.dav_url(src);
+        let dst_url = self.dav_url(dst);
+        let mut req = self
+            .client
+            .request(reqwest::Method::from_bytes(b"MOVE").unwrap(), &src_url)
+            .header("Destination", &dst_url)
+            .header("Overwrite", "T");
+        if let Some(ref token) = self.auth_header {
+            req = req.header("Authorization", token);
         }
-        drop(inodes);
-
-        let head = self.webdav_head(path).await?;
-        let ino = self
-            .inode_counter
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let entry = InodeEntry {
-            path: path.to_string(),
-            ino,
-            is_dir: head.is_collection,
-            size: head.size,
-            modified: SystemTime::now(),
-        };
-        let mut inodes = self.inodes.write().await;
-        inodes.insert(ino, entry.clone());
-        Some(entry)
+        req.send().map(|r| r.status().is_success()).unwrap_or(false)
     }
 }
 
-fn parse_propfind_response(xml: &str) -> Option<Vec<InodeEntry>> {
-    let mut entries = Vec::new();
+fn parse_propfind_children(xml: &str, parent_path: &str) -> Vec<(String, bool, u64)> {
+    let mut children = Vec::new();
     let mut current_href: Option<String> = None;
     let mut current_is_collection = false;
     let mut current_size: u64 = 0;
 
     for line in xml.lines() {
-        let trimmed = line.trim();
-        if trimmed.contains("<D:href>") || trimmed.contains("<d:href>") {
-            let start = trimmed.find('>').map(|i| i + 1)?;
-            let end = trimmed.rfind('<')?;
-            current_href = Some(trimmed[start..end].to_string());
+        let t = line.trim();
+        if let Some(start) = t.find("<D:href>").or_else(|| t.find("<d:href>")) {
+            let s = start + t[start..].find('>').unwrap() + 1;
+            if let Some(e) = t[s..].find('<') {
+                current_href = Some(t[s..s + e].to_string());
+            }
         }
-        if trimmed.contains("<D:collection") || trimmed.contains("<d:collection") {
+        if t.contains("<D:collection") || t.contains("<d:collection") {
             current_is_collection = true;
         }
-        if trimmed.contains("<D:getcontentlength>")
-            || trimmed.contains("<d:getcontentlength>")
+        if let Some(start) = t
+            .find("<D:getcontentlength>")
+            .or_else(|| t.find("<d:getcontentlength>"))
         {
-            let start = trimmed.find('>').map(|i| i + 1)?;
-            let end = trimmed.rfind('<')?;
-            current_size = trimmed[start..end].parse().unwrap_or(0);
+            let s = start + t[start..].find('>').unwrap() + 1;
+            if let Some(e) = t[s..].find('<') {
+                current_size = t[s..s + e].parse().unwrap_or(0);
+            }
         }
-        if trimmed.contains("</D:response>") || trimmed.contains("</d:response>") {
+        if t.contains("</D:response>") || t.contains("</d:response>") {
             if let Some(href) = current_href.take() {
-                let ino = fastrand::u64(..);
-                entries.push(InodeEntry {
-                    path: href,
-                    ino,
-                    is_dir: current_is_collection,
-                    size: current_size,
-                    modified: SystemTime::now(),
-                });
+                let normalized = href.trim_end_matches('/');
+                let parent_normalized = parent_path.trim_end_matches('/');
+                if normalized != parent_normalized {
+                    children.push((href, current_is_collection, current_size));
+                }
             }
             current_is_collection = false;
             current_size = 0;
         }
     }
-    Some(entries)
+    children
 }
 
 impl Filesystem for FerroFs {
-    fn init(&mut self, _req: &Request<'_>, _config: &mut fuser::KernelConfig) -> Result<(), i32> {
+    fn init(&mut self, _req: &Request, _config: &mut KernelConfig) -> io::Result<()> {
         info!("FerroFS mounted");
         Ok(())
     }
 
-    fn lookup(
-        &mut self,
-        _req: &Request<'_>,
-        parent: u64,
-        name: &OsStr,
-        reply: ReplyEntry,
-    ) {
+    fn lookup(&self, _req: &Request, parent: INodeNo, name: &OsStr, reply: ReplyEntry) {
         let name_str = name.to_string_lossy().to_string();
-        let server_url = self.server_url.clone();
-        let auth = self.auth_header.clone();
-        let inodes = self.inodes.clone();
-        let uid = self.uid;
-        let gid = self.gid;
-        let inode_counter = self.inode_counter.clone();
-
-        tokio::runtime::Handle::current().spawn(async move {
-            let parent_path = {
-                let inodes = inodes.read().await;
-                inodes.get(&parent).map(|e| e.path.clone())
-            };
-            let parent_path = match parent_path {
-                Some(p) => p,
-                None => {
-                    reply.error(libc::ENOENT);
-                    return;
-                }
-            };
-            let child_path = if parent_path == "/" {
-                format!("/{}", name_str)
-            } else {
-                format!("{}/{}", parent_path, name_str)
-            };
-
-            let client = Client::builder()
-                .timeout(Duration::from_secs(10))
-                .build()
-                .unwrap();
-            let dav_url = format!(
-                "{}/{}",
-                server_url,
-                child_path.trim_start_matches('/')
-            );
-            let mut req = client.head(&dav_url);
-            if let Some(ref token) = auth {
-                req = req.header("Authorization", token.as_str());
+        let parent_path = match self.inodes.read().unwrap().get(&u64::from(parent)) {
+            Some(e) => e.path.clone(),
+            None => {
+                reply.error(Errno::ENOENT);
+                return;
             }
-            match req.send().await {
-                Ok(resp) => {
-                    let status = resp.status();
-                    let headers = resp.headers().clone();
-                    if status.is_success() || status == 404 {
-                        if status == 404 {
-                            reply.error(libc::ENOENT);
-                            return;
-                        }
-                        let content_length = headers
-                            .get("content-length")
-                            .and_then(|v| v.to_str().ok())
-                            .and_then(|v| v.parse::<u64>().ok())
-                            .unwrap_or(0);
-                        let is_collection = headers
-                            .get("content-type")
-                            .and_then(|v| v.to_str().ok())
-                            .map(|ct| ct.contains("httpd/unix-directory"))
-                            .unwrap_or(false);
-                        let ino = inode_counter.fetch_add(1, Ordering::SeqCst);
-                        let entry = InodeEntry {
-                            path: child_path,
-                            ino,
-                            is_dir: is_collection,
-                            size: content_length,
-                            modified: SystemTime::now(),
-                        };
-                        let attr = entry.to_file_attr(uid, gid);
-                        inodes.write().await.insert(ino, entry);
-                        reply.entry(&TTL, &attr, 0);
-                    } else {
-                        reply.error(libc::ENOENT);
-                    }
-                }
-                Err(_) => {
-                    reply.error(libc::EIO);
-                }
+        };
+        let child_path = if parent_path == "/" {
+            format!("/{}", name_str)
+        } else {
+            format!("{}/{}", parent_path.trim_end_matches('/'), name_str)
+        };
+
+        match self.webdav_head(&child_path) {
+            Some(head) => {
+                let ino = self.get_or_create_inode(&child_path, head.is_collection, head.size);
+                let entry = self.inodes.read().unwrap().get(&ino).cloned().unwrap();
+                let attr = entry.to_file_attr(self.uid, self.gid);
+                reply.entry(&TTL, &attr, fuser::Generation(0));
             }
-        });
+            None => {
+                reply.error(Errno::ENOENT);
+            }
+        }
     }
 
-    fn getattr(&mut self, _req: &Request<'_>, ino: u64, _fh: Option<u64>, reply: ReplyAttr) {
-        let inodes = self.inodes.clone();
-        let uid = self.uid;
-        let gid = self.gid;
-
-        tokio::runtime::Handle::current().spawn(async move {
-            let inodes = inodes.read().await;
-            match inodes.get(&ino) {
-                Some(entry) => {
-                    let attr = entry.to_file_attr(uid, gid);
-                    reply.attr(&TTL, &attr);
-                }
-                None => {
-                    reply.error(libc::ENOENT);
-                }
+    fn getattr(&self, _req: &Request, ino: INodeNo, _fh: Option<FileHandle>, reply: ReplyAttr) {
+        match self.inodes.read().unwrap().get(&u64::from(ino)) {
+            Some(entry) => {
+                let attr = entry.to_file_attr(self.uid, self.gid);
+                reply.attr(&TTL, &attr);
             }
-        });
+            None => {
+                reply.error(Errno::ENOENT);
+            }
+        }
     }
 
     fn readdir(
-        &mut self,
-        _req: &Request<'_>,
-        ino: u64,
-        _fh: u64,
-        offset: i64,
+        &self,
+        _req: &Request,
+        ino: INodeNo,
+        _fh: FileHandle,
+        _offset: u64,
         mut reply: ReplyDirectory,
     ) {
-        let inodes_ref = self.inodes.clone();
-        let server_url = self.server_url.clone();
-        let auth = self.auth_header.clone();
-        let inode_counter = self.inode_counter.clone();
-        let uid = self.uid;
-        let gid = self.gid;
-
-        tokio::runtime::Handle::current().spawn(async move {
-            let parent_path = {
-                let inodes = inodes_ref.read().await;
-                inodes.get(&ino).map(|e| e.path.clone())
-            };
-            let parent_path = match parent_path {
-                Some(p) => p,
-                None => {
-                    reply.error(libc::ENOENT);
-                    return;
-                }
-            };
-
-            // PROPFIND the parent directory
-            let client = Client::builder()
-                .timeout(Duration::from_secs(15))
-                .build()
-                .unwrap();
-            let dav_url = format!(
-                "{}/{}",
-                server_url,
-                parent_path.trim_start_matches('/')
-            );
-            let body = r#"<?xml version="1.0" encoding="utf-8"?>
-<D:propfind xmlns:D="DAV:">
-  <D:allprop/>
-</D:propfind>"#;
-            let mut req = client
-                .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &dav_url)
-                .header("Depth", "1")
-                .header("Content-Type", "application/xml")
-                .body(body);
-            if let Some(ref token) = auth {
-                req = req.header("Authorization", token.as_str());
+        let parent_path = match self.inodes.read().unwrap().get(&u64::from(ino)) {
+            Some(e) => e.path.clone(),
+            None => {
+                reply.error(Errno::ENOENT);
+                return;
             }
+        };
 
-            let entries = match req.send().await {
-                Ok(resp) => {
-                    if !resp.status().is_success() {
-                        reply.error(libc::EIO);
-                        return;
-                    }
-                    match resp.text().await {
-                        Ok(xml) => {
-                            let mut parsed = Vec::new();
-                            let mut current_href: Option<String> = None;
-                            let mut current_is_collection = false;
-                            let mut current_size: u64 = 0;
+        let children = self.webdav_propfind_children(&parent_path);
 
-                            for line in xml.lines() {
-                                let t = line.trim();
-                                if t.contains("<D:href>") || t.contains("<d:href>") {
-                                    if let (Some(s), Some(e)) = (t.find('>').map(|i| i + 1), t.rfind('<'))
-                                    {
-                                        current_href = Some(t[s..e].to_string());
-                                    }
-                                }
-                                if t.contains("<D:collection") || t.contains("<d:collection") {
-                                    current_is_collection = true;
-                                }
-                                if t.contains("<D:getcontentlength>") || t.contains("<d:getcontentlength>") {
-                                    if let (Some(s), Some(e)) = (t.find('>').map(|i| i + 1), t.rfind('<'))
-                                    {
-                                        current_size = t[s..e].parse().unwrap_or(0);
-                                    }
-                                }
-                                if t.contains("</D:response>") || t.contains("</d:response>") {
-                                    if let Some(href) = current_href.take() {
-                                        let ino = inode_counter.fetch_add(1, Ordering::SeqCst);
-                                        parsed.push(InodeEntry {
-                                            path: href,
-                                            ino,
-                                            is_dir: current_is_collection,
-                                            size: current_size,
-                                            modified: SystemTime::now(),
-                                        });
-                                    }
-                                    current_is_collection = false;
-                                    current_size = 0;
-                                }
-                            }
-                            parsed
-                        }
-                        Err(_) => {
-                            reply.error(libc::EIO);
-                            return;
-                        }
-                    }
-                }
-                Err(_) => {
-                    reply.error(libc::EIO);
-                    return;
-                }
+        for (href, is_dir, size) in &children {
+            self.get_or_create_inode(href, *is_dir, *size);
+        }
+
+        let mut entries: Vec<(u64, FileType, String)> = Vec::new();
+        entries.push((1, FileType::Directory, ".".to_string()));
+        entries.push((1, FileType::Directory, "..".to_string()));
+
+        for (href, is_dir, _size) in &children {
+            let name = href
+                .trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .to_string();
+            if name.is_empty() {
+                continue;
+            }
+            let child_ino = self
+                .path_index
+                .read()
+                .unwrap()
+                .get(href.as_str())
+                .copied()
+                .unwrap_or(0);
+            let kind = if *is_dir {
+                FileType::Directory
+            } else {
+                FileType::RegularFile
             };
+            entries.push((child_ino, kind, name));
+        }
 
-            // Filter out the parent directory itself
-            let filtered: Vec<_> = entries
-                .into_iter()
-                .filter(|e| e.path != parent_path && e.path != format!("{}/", parent_path))
-                .collect();
-
-            // Store inodes
-            {
-                let mut inodes = inodes_ref.write().await;
-                for entry in &filtered {
-                    inodes.insert(entry.ino, entry.clone());
-                }
+        for (i, (entry_ino, kind, name)) in entries.iter().enumerate() {
+            if (i as u64) < _offset {
+                continue;
             }
-
-            // Add . and .. entries
-            let entries_with_dots = std::iter::once((ino, FileType::Directory, "."))
-                .chain(std::iter::once((1, FileType::Directory, "..")))
-                .chain(
-                    filtered
-                        .iter()
-                        .map(|e| (e.ino, if e.is_dir { FileType::Directory } else { FileType::RegularFile }, "")),
-                )
-                .enumerate();
-
-            for (i, (entry_ino, kind, name)) in entries_with_dots {
-                if (i as i64) < offset {
-                    continue;
-                }
-                let name_str = if name.is_empty() {
-                    filtered[i - 2]
-                        .path
-                        .rsplit('/')
-                        .next()
-                        .unwrap_or("")
-                        .to_string()
-                } else {
-                    name.to_string()
-                };
-                if reply.add(entry_ino, (i as i64) + 1, kind, &name_str) {
-                    break;
-                }
+            if reply.add(INodeNo(*entry_ino), i as u64 + 1, *kind, name) {
+                break;
             }
-            reply.ok();
-        });
+        }
+        reply.ok();
     }
 
-    fn open(&mut self, _req: &Request<'_>, ino: u64, flags: u32, reply: ReplyOpen) {
-        let inodes = self.inodes.clone();
-        let file_handles = self.file_handles.clone();
-        let fh_counter = self.fh_counter.clone();
-
-        tokio::runtime::Handle::current().spawn(async move {
-            let path = {
-                let inodes = inodes.read().await;
-                inodes.get(&ino).map(|e| e.path.clone())
-            };
-            match path {
-                Some(path) => {
-                    let fh = fh_counter.fetch_add(1, Ordering::SeqCst);
-                    file_handles.write().await.insert(
-                        fh,
-                        FileHandleEntry {
-                            path,
-                            flags,
-                            ino,
-                        },
-                    );
-                    reply.opened(fh, flags);
-                }
-                None => {
-                    reply.error(libc::ENOENT);
-                }
+    fn open(&self, _req: &Request, ino: INodeNo, _flags: OpenFlags, reply: ReplyOpen) {
+        let path = match self.inodes.read().unwrap().get(&u64::from(ino)) {
+            Some(e) => e.path.clone(),
+            None => {
+                reply.error(Errno::ENOENT);
+                return;
             }
-        });
+        };
+        let fh = self.fh_counter.fetch_add(1, Ordering::SeqCst);
+        self.file_handles.write().unwrap().insert(fh, path);
+        reply.opened(FileHandle(fh), FopenFlags::empty());
     }
 
     fn read(
-        &mut self,
-        _req: &Request<'_>,
-        _ino: u64,
-        fh: u64,
-        offset: i64,
+        &self,
+        _req: &Request,
+        _ino: INodeNo,
+        fh: FileHandle,
+        offset: u64,
         size: u32,
-        _flags: i32,
-        _lock_owner: Option<u64>,
+        _flags: OpenFlags,
+        _lock_owner: Option<LockOwner>,
         reply: ReplyData,
     ) {
-        let file_handles = self.file_handles.clone();
-        let server_url = self.server_url.clone();
-        let auth = self.auth_header.clone();
-
-        tokio::runtime::Handle::current().spawn(async move {
-            let path = {
-                let fh = file_handles.read().await;
-                fh.get(&fh).map(|e| e.path.clone())
-            };
-            let path = match path {
-                Some(p) => p,
-                None => {
-                    reply.error(libc::EBADF);
-                    return;
-                }
-            };
-
-            let client = Client::builder()
-                .timeout(Duration::from_secs(30))
-                .build()
-                .unwrap();
-            let url = format!(
-                "{}/{}",
-                server_url,
-                path.trim_start_matches('/')
-            );
-            let range = format!("bytes={}-{}", offset, offset + size as i64 - 1);
-            let mut req = client.get(&url).header("Range", &range);
-            if let Some(ref token) = auth {
-                req = req.header("Authorization", token.as_str());
+        let fh_id = u64::from(fh);
+        let path = match self.file_handles.read().unwrap().get(&fh_id) {
+            Some(p) => p.clone(),
+            None => {
+                reply.error(Errno::EBADF);
+                return;
             }
-
-            match req.send().await {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        match resp.bytes().await {
-                            Ok(data) => {
-                                reply.data(&data);
-                            }
-                            Err(_) => {
-                                reply.error(libc::EIO);
-                            }
-                        }
-                    } else {
-                        reply.error(libc::EIO);
-                    }
-                }
-                Err(_) => {
-                    reply.error(libc::EIO);
-                }
-            }
-        });
+        };
+        match self.webdav_get(&path, offset, size) {
+            Some(data) => reply.data(&data),
+            None => reply.error(Errno::EIO),
+        }
     }
 
     fn write(
-        &mut self,
-        _req: &Request<'_>,
-        _ino: u64,
-        fh: u64,
-        offset: i64,
+        &self,
+        _req: &Request,
+        _ino: INodeNo,
+        fh: FileHandle,
+        _offset: u64,
         data: &[u8],
-        _write_flags: u32,
-        _flags: i32,
-        _lock_owner: Option<u64>,
+        _write_flags: WriteFlags,
+        _flags: OpenFlags,
+        _lock_owner: Option<LockOwner>,
         reply: ReplyWrite,
     ) {
-        let file_handles = self.file_handles.clone();
-        let server_url = self.server_url.clone();
-        let auth = self.auth_header.clone();
-
-        tokio::runtime::Handle::current().spawn(async move {
-            let path = {
-                let fh = file_handles.read().await;
-                fh.get(&fh).map(|e| e.path.clone())
-            };
-            let path = match path {
-                Some(p) => p,
-                None => {
-                    reply.error(libc::EBADF);
-                    return;
-                }
-            };
-
-            let client = Client::builder()
-                .timeout(Duration::from_secs(30))
-                .build()
-                .unwrap();
-            let url = format!(
-                "{}/{}",
-                server_url,
-                path.trim_start_matches('/')
-            );
-            let mut req = client.put(&url).body(data.to_vec());
-            if let Some(ref token) = auth {
-                req = req.header("Authorization", token.as_str());
+        let fh_id = u64::from(fh);
+        let path = match self.file_handles.read().unwrap().get(&fh_id) {
+            Some(p) => p.clone(),
+            None => {
+                reply.error(Errno::EBADF);
+                return;
             }
-
-            match req.send().await {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        reply.written(data.len() as u32);
-                    } else {
-                        reply.error(libc::EIO);
-                    }
-                }
-                Err(_) => {
-                    reply.error(libc::EIO);
-                }
-            }
-        });
+        };
+        if self.webdav_put(&path, data) {
+            reply.written(data.len() as u32);
+        } else {
+            reply.error(Errno::EIO);
+        }
     }
 
     fn mkdir(
-        &mut self,
-        _req: &Request<'_>,
-        parent: u64,
+        &self,
+        _req: &Request,
+        parent: INodeNo,
         name: &OsStr,
         _mode: u32,
         _umask: u32,
         reply: ReplyEntry,
     ) {
         let name_str = name.to_string_lossy().to_string();
-        let inodes_ref = self.inodes.clone();
-        let server_url = self.server_url.clone();
-        let auth = self.auth_header.clone();
-        let inode_counter = self.inode_counter.clone();
-        let uid = self.uid;
-        let gid = self.gid;
-
-        tokio::runtime::Handle::current().spawn(async move {
-            let parent_path = {
-                let inodes = inodes_ref.read().await;
-                inodes.get(&parent).map(|e| e.path.clone())
-            };
-            let parent_path = match parent_path {
-                Some(p) => p,
-                None => {
-                    reply.error(libc::ENOENT);
-                    return;
-                }
-            };
-            let child_path = if parent_path == "/" {
-                format!("/{}", name_str)
-            } else {
-                format!("{}/{}", parent_path, name_str)
-            };
-
-            let client = Client::builder()
-                .timeout(Duration::from_secs(10))
-                .build()
-                .unwrap();
-            let url = format!(
-                "{}/{}",
-                server_url,
-                child_path.trim_start_matches('/')
-            );
-            let mut req = client
-                .request(reqwest::Method::from_bytes(b"MKCOL").unwrap(), &url);
-            if let Some(ref token) = auth {
-                req = req.header("Authorization", token.as_str());
+        let parent_path = match self.inodes.read().unwrap().get(&u64::from(parent)) {
+            Some(e) => e.path.clone(),
+            None => {
+                reply.error(Errno::ENOENT);
+                return;
             }
+        };
+        let child_path = if parent_path == "/" {
+            format!("/{}", name_str)
+        } else {
+            format!("{}/{}", parent_path.trim_end_matches('/'), name_str)
+        };
 
-            match req.send().await {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        let ino = inode_counter.fetch_add(1, Ordering::SeqCst);
-                        let entry = InodeEntry {
-                            path: child_path,
-                            ino,
-                            is_dir: true,
-                            size: 0,
-                            modified: SystemTime::now(),
-                        };
-                        let attr = entry.to_file_attr(uid, gid);
-                        inodes_ref.write().await.insert(ino, entry);
-                        reply.entry(&TTL, &attr, 0);
-                    } else {
-                        reply.error(libc::EIO);
-                    }
-                }
-                Err(_) => {
-                    reply.error(libc::EIO);
-                }
-            }
-        });
+        if self.webdav_mkcol(&child_path) {
+            let ino = self.get_or_create_inode(&child_path, true, 0);
+            let entry = self.inodes.read().unwrap().get(&ino).cloned().unwrap();
+            let attr = entry.to_file_attr(self.uid, self.gid);
+            reply.entry(&TTL, &attr, fuser::Generation(0));
+        } else {
+            reply.error(Errno::EIO);
+        }
     }
 
-    fn unlink(
-        &mut self,
-        _req: &Request<'_>,
-        parent: u64,
-        name: &OsStr,
-        reply: ReplyEmpty,
-    ) {
+    fn unlink(&self, _req: &Request, parent: INodeNo, name: &OsStr, reply: ReplyEmpty) {
         let name_str = name.to_string_lossy().to_string();
-        let inodes_ref = self.inodes.clone();
-        let server_url = self.server_url.clone();
-        let auth = self.auth_header.clone();
-
-        tokio::runtime::Handle::current().spawn(async move {
-            let parent_path = {
-                let inodes = inodes_ref.read().await;
-                inodes.get(&parent).map(|e| e.path.clone())
-            };
-            let parent_path = match parent_path {
-                Some(p) => p,
-                None => {
-                    reply.error(libc::ENOENT);
-                    return;
-                }
-            };
-            let child_path = if parent_path == "/" {
-                format!("/{}", name_str)
-            } else {
-                format!("{}/{}", parent_path, name_str)
-            };
-
-            let client = Client::builder()
-                .timeout(Duration::from_secs(10))
-                .build()
-                .unwrap();
-            let url = format!(
-                "{}/{}",
-                server_url,
-                child_path.trim_start_matches('/')
-            );
-            let mut req = client.delete(&url);
-            if let Some(ref token) = auth {
-                req = req.header("Authorization", token.as_str());
+        let parent_path = match self.inodes.read().unwrap().get(&u64::from(parent)) {
+            Some(e) => e.path.clone(),
+            None => {
+                reply.error(Errno::ENOENT);
+                return;
             }
+        };
+        let child_path = if parent_path == "/" {
+            format!("/{}", name_str)
+        } else {
+            format!("{}/{}", parent_path.trim_end_matches('/'), name_str)
+        };
 
-            match req.send().await {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        reply.ok();
-                    } else {
-                        reply.error(libc::EIO);
-                    }
-                }
-                Err(_) => {
-                    reply.error(libc::EIO);
-                }
+        if self.webdav_delete(&child_path) {
+            if let Some(ino) = self.path_index.write().unwrap().remove(&child_path) {
+                self.inodes.write().unwrap().remove(&ino);
             }
-        });
+            reply.ok();
+        } else {
+            reply.error(Errno::EIO);
+        }
     }
 
-    fn rmdir(
-        &mut self,
-        _req: &Request<'_>,
-        parent: u64,
-        name: &OsStr,
-        reply: ReplyEmpty,
-    ) {
-        self.unlink(_req, parent, name, reply);
+    fn rmdir(&self, req: &Request, parent: INodeNo, name: &OsStr, reply: ReplyEmpty) {
+        self.unlink(req, parent, name, reply);
     }
 
     fn rename(
-        &mut self,
-        _req: &Request<'_>,
-        parent: u64,
+        &self,
+        _req: &Request,
+        parent: INodeNo,
         name: &OsStr,
-        new_parent: u64,
+        new_parent: INodeNo,
         new_name: &OsStr,
-        _flags: u32,
+        _flags: RenameFlags,
         reply: ReplyEmpty,
     ) {
         let name_str = name.to_string_lossy().to_string();
         let new_name_str = new_name.to_string_lossy().to_string();
-        let inodes_ref = self.inodes.clone();
-        let server_url = self.server_url.clone();
-        let auth = self.auth_header.clone();
 
-        tokio::runtime::Handle::current().spawn(async move {
-            let old_parent_path = {
-                let inodes = inodes_ref.read().await;
-                inodes.get(&parent).map(|e| e.path.clone())
-            };
-            let new_parent_path = {
-                let inodes = inodes_ref.read().await;
-                inodes.get(&new_parent).map(|e| e.path.clone())
-            };
-            let old_parent = match old_parent_path {
-                Some(p) => p,
-                None => {
-                    reply.error(libc::ENOENT);
-                    return;
-                }
-            };
-            let new_parent = match new_parent_path {
-                Some(p) => p,
-                None => {
-                    reply.error(libc::ENOENT);
-                    return;
-                }
-            };
+        let old_parent_path = match self.inodes.read().unwrap().get(&u64::from(parent)) {
+            Some(e) => e.path.clone(),
+            None => {
+                reply.error(Errno::ENOENT);
+                return;
+            }
+        };
+        let new_parent_path = match self.inodes.read().unwrap().get(&u64::from(new_parent)) {
+            Some(e) => e.path.clone(),
+            None => {
+                reply.error(Errno::ENOENT);
+                return;
+            }
+        };
 
-            let old_path = if old_parent == "/" {
-                format!("/{}", name_str)
-            } else {
-                format!("{}/{}", old_parent, name_str)
-            };
-            let new_path = if new_parent == "/" {
-                format!("/{}", new_name_str)
-            } else {
-                format!("{}/{}", new_parent, new_name_str)
-            };
-
-            let client = Client::builder()
-                .timeout(Duration::from_secs(10))
-                .build()
-                .unwrap();
-            let dest_url = format!(
+        let old_path = if old_parent_path == "/" {
+            format!("/{}", name_str)
+        } else {
+            format!("{}/{}", old_parent_path.trim_end_matches('/'), name_str)
+        };
+        let new_path = if new_parent_path == "/" {
+            format!("/{}", new_name_str)
+        } else {
+            format!(
                 "{}/{}",
-                server_url,
-                new_path.trim_start_matches('/')
-            );
-            let mut req = client
-                .request(reqwest::Method::from_bytes(b"MOVE").unwrap(), &dest_url)
-                .header(
-                    "Destination",
-                    format!(
-                        "{}/{}",
-                        server_url,
-                        new_path.trim_start_matches('/')
-                    ),
-                )
-                .header("Overwrite", "T");
-            if let Some(ref token) = auth {
-                req = req.header("Authorization", token.as_str());
-            }
+                new_parent_path.trim_end_matches('/'),
+                new_name_str
+            )
+        };
 
-            match req.send().await {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        reply.ok();
-                    } else {
-                        reply.error(libc::EIO);
-                    }
-                }
-                Err(_) => {
-                    reply.error(libc::EIO);
-                }
+        if self.webdav_move(&old_path, &new_path) {
+            if let Some(ino) = self.path_index.write().unwrap().remove(&old_path) {
+                self.inodes.write().unwrap().remove(&ino);
             }
-        });
+            reply.ok();
+        } else {
+            reply.error(Errno::EIO);
+        }
     }
 
     fn create(
-        &mut self,
-        _req: &Request<'_>,
-        parent: u64,
+        &self,
+        _req: &Request,
+        parent: INodeNo,
         name: &OsStr,
-        mode: u32,
-        flags: u32,
+        _mode: u32,
         _umask: u32,
-        reply: ReplyOpen,
+        _flags: i32,
+        reply: ReplyCreate,
     ) {
         let name_str = name.to_string_lossy().to_string();
-        let inodes_ref = self.inodes.clone();
-        let server_url = self.server_url.clone();
-        let auth = self.auth_header.clone();
-        let inode_counter = self.inode_counter.clone();
-        let file_handles = self.file_handles.clone();
-        let fh_counter = self.fh_counter.clone();
-        let uid = self.uid;
-        let gid = self.gid;
-
-        tokio::runtime::Handle::current().spawn(async move {
-            let parent_path = {
-                let inodes = inodes_ref.read().await;
-                inodes.get(&parent).map(|e| e.path.clone())
-            };
-            let parent_path = match parent_path {
-                Some(p) => p,
-                None => {
-                    reply.error(libc::ENOENT);
-                    return;
-                }
-            };
-            let child_path = if parent_path == "/" {
-                format!("/{}", name_str)
-            } else {
-                format!("{}/{}", parent_path, name_str)
-            };
-
-            // PUT an empty file to create it
-            let client = Client::builder()
-                .timeout(Duration::from_secs(10))
-                .build()
-                .unwrap();
-            let url = format!(
-                "{}/{}",
-                server_url,
-                child_path.trim_start_matches('/')
-            );
-            let mut req = client.put(&url).body(Vec::new());
-            if let Some(ref token) = auth {
-                req = req.header("Authorization", token.as_str());
+        let parent_path = match self.inodes.read().unwrap().get(&u64::from(parent)) {
+            Some(e) => e.path.clone(),
+            None => {
+                reply.error(Errno::ENOENT);
+                return;
             }
+        };
+        let child_path = if parent_path == "/" {
+            format!("/{}", name_str)
+        } else {
+            format!("{}/{}", parent_path.trim_end_matches('/'), name_str)
+        };
 
-            match req.send().await {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        let ino = inode_counter.fetch_add(1, Ordering::SeqCst);
-                        let entry = InodeEntry {
-                            path: child_path,
-                            ino,
-                            is_dir: false,
-                            size: 0,
-                            modified: SystemTime::now(),
-                        };
-                        let attr = entry.to_file_attr(uid, gid);
-                        inodes_ref.write().await.insert(ino, entry);
-                        let fh = fh_counter.fetch_add(1, Ordering::SeqCst);
-                        file_handles.write().await.insert(
-                            fh,
-                            FileHandleEntry {
-                                path: entry.path,
-                                flags,
-                                ino,
-                            },
-                        );
-                        reply.opened(fh, flags);
-                    } else {
-                        reply.error(libc::EIO);
-                    }
-                }
-                Err(_) => {
-                    reply.error(libc::EIO);
-                }
-            }
-        });
+        if self.webdav_put(&child_path, b"") {
+            let ino = self.get_or_create_inode(&child_path, false, 0);
+            let entry = self.inodes.read().unwrap().get(&ino).cloned().unwrap();
+            let attr = entry.to_file_attr(self.uid, self.gid);
+            let fh = self.fh_counter.fetch_add(1, Ordering::SeqCst);
+            self.file_handles
+                .write()
+                .unwrap()
+                .insert(fh, child_path);
+            reply.created(&TTL, &attr, fuser::Generation(0), FileHandle(fh), FopenFlags::empty());
+        } else {
+            reply.error(Errno::EIO);
+        }
     }
 
     fn release(
-        &mut self,
-        _req: &Request<'_>,
-        _ino: u64,
-        fh: u64,
-        _flags: i32,
-        _lock_owner: Option<u64>,
+        &self,
+        _req: &Request,
+        _ino: INodeNo,
+        fh: FileHandle,
+        _flags: OpenFlags,
+        _lock_owner: Option<LockOwner>,
         _flush: bool,
         reply: ReplyEmpty,
     ) {
-        let file_handles = self.file_handles.clone();
-        tokio::runtime::Handle::current().spawn(async move {
-            file_handles.write().await.remove(&fh);
-            reply.ok();
-        });
+        self.file_handles
+            .write()
+            .unwrap()
+            .remove(&u64::from(fh));
+        reply.ok();
     }
 
-    fn forget(&mut self, _req: &Request<'_>, _ino: u64, _nlookup: u64) {
-        // No-op: inodes are kept in memory for simplicity
-    }
+    fn forget(&self, _req: &Request, _ino: INodeNo, _nlookup: u64) {}
 
-    fn statfs(
-        &mut self,
-        _req: &Request<'_>,
-        _ino: u64,
-        reply: fuser::ReplyStatfs,
-    ) {
+    fn statfs(&self, _req: &Request, _ino: INodeNo, reply: ReplyStatfs) {
         reply.statfs(0, 0, 0, 0, 0, BLOCK_SIZE, 255, 4096);
     }
 }
@@ -1149,12 +676,11 @@ fn main() -> Result<()> {
 
     let server_url = matches.get_one::<String>("server-url").unwrap().clone();
     let mount_point = matches.get_one::<String>("mount").unwrap().clone();
-    let token = matches.get_one::<String>("token").map(|s| s.clone());
+    let token = matches.get_one::<String>("token").cloned();
     let allow_root = matches.get_flag("allow-root");
 
     info!("Mounting Ferro at {} from {}", mount_point, server_url);
 
-    // Create mount directory if needed
     std::fs::create_dir_all(&mount_point)?;
 
     let uid = unsafe { libc::getuid() };
@@ -1162,52 +688,22 @@ fn main() -> Result<()> {
 
     let auth_header = token.map(|t| format!("Bearer {}", t));
 
-    let mut fs = FerroFs::new(server_url, auth_header, uid, gid);
+    let fs = FerroFs::new(server_url, auth_header, uid, gid);
 
     let mut options = vec![
-        MountOption::AutoUnmount,
+        MountOption::RO,
         MountOption::FSName("ferro".to_string()),
         MountOption::Subtype("ferro".to_string()),
     ];
     if allow_root {
-        options.push(MountOption::AllowOther);
+        options.push(MountOption::CUSTOM("allow_other".to_string()));
     }
 
-    // Run the FUSE event loop in a tokio runtime
-    let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(async {
-        // Spawn the FUSE mount in a blocking thread
-        let mount_point_clone = mount_point.clone();
-        let mount_handle = std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async {
-                let mount_point = mount_point_clone;
-                fuser::mount2(fs, &mount_point, &options).unwrap();
-            });
-        });
+    let mut config = Config::default();
+    config.mount_options = options;
 
-        // Wait for Ctrl+C
-        tokio::signal::ctrl_c().await?;
-        info!("Unmounting...");
-
-        // Try to unmount
-        #[cfg(target_os = "linux")]
-        {
-            use std::process::Command;
-            let _ = Command::new("fusermount")
-                .args(["-u", &mount])
-                .status();
-        }
-        #[cfg(target_os = "macos")]
-        {
-            use std::process::Command;
-            let _ = Command::new("umount")
-                .arg(&mount)
-                .status();
-        }
-
-        Ok::<(), anyhow::Error>(())
-    })?;
+    info!("Mounting filesystem...");
+    fuser::mount(fs, &mount_point, &config)?;
 
     Ok(())
 }
