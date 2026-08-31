@@ -134,17 +134,17 @@ impl SharedBufferPool {
 
     /// Get a buffer from the pool.
     pub fn get(&self) -> Vec<u8> {
-        self.inner.lock().unwrap().get()
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).get()
     }
 
     /// Return a buffer to the pool.
     pub fn put(&self, buffer: Vec<u8>) {
-        self.inner.lock().unwrap().put(buffer)
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).put(buffer)
     }
 
     /// Get the number of available buffers.
     pub fn available(&self) -> usize {
-        self.inner.lock().unwrap().available()
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).available()
     }
 }
 

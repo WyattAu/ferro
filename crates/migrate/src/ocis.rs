@@ -324,12 +324,12 @@ impl OcisClient {
     }
 
     /// Create a Graph API client using the current OIDC token.
-    pub fn graph_client(&self) -> crate::graph_api::GraphApiClient {
+    pub fn graph_client(&self) -> crate::Result<crate::graph_api::GraphApiClient> {
         let token = match &self.auth {
             AuthMethod::Bearer(t) => t.clone(),
-            _ => panic!("Graph API requires Bearer token"),
+            _ => return Err(crate::MigrationError::auth("Graph API requires Bearer token")),
         };
-        crate::graph_api::GraphApiClient::new(&self.url, &token)
+        Ok(crate::graph_api::GraphApiClient::new(&self.url, &token))
     }
 
     fn webdav_url(&self, user: &str, path: &str) -> String {
