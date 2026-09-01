@@ -1,86 +1,53 @@
-use std::time::{Duration, Instant};
+use std::sync::Arc;
+use std::time::Duration;
 
-use async_trait::async_trait;
-use dashmap::DashMap;
+use parking_lot::RwLock;
+use throttle_kit::{InMemoryBackend, Quota, RateLimitBackend as _};
 
-use crate::{RateLimitError, RateLimitResult, RateLimiter};
+use crate::{RateLimitError, RateLimitResult, RateLimiter, convert_result};
 
-struct WindowState {
-    count: u32,
-    window_start: Instant,
-}
-
+/// Fixed-window rate limiter backed by throttle-kit's GCRA implementation.
+///
+/// Maps `max_requests` per `window` to a throttle-kit [`Quota`] where each
+/// token represents one request.
 pub struct FixedWindowLimiter {
-    max_requests: u32,
-    window: Duration,
-    states: DashMap<String, WindowState>,
+    quota: Quota,
+    backend: RwLock<Arc<InMemoryBackend>>,
 }
 
 impl FixedWindowLimiter {
     pub fn new(max_requests: u32, window: Duration) -> Self {
+        let interval = if max_requests == 0 || window.is_zero() {
+            Duration::from_secs(365 * 24 * 3600)
+        } else {
+            window / max_requests
+        };
+
         Self {
-            max_requests,
-            window,
-            states: DashMap::new(),
+            quota: Quota::from_parts(interval, max_requests),
+            backend: RwLock::new(Arc::new(InMemoryBackend::new())),
         }
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 impl RateLimiter for FixedWindowLimiter {
     async fn check(&self, key: &str) -> Result<RateLimitResult, RateLimitError> {
-        let now = Instant::now();
-        let mut entry = self.states.entry(key.to_owned()).or_insert_with(|| WindowState {
-            count: 0,
-            window_start: now,
-        });
-
-        let state = entry.value_mut();
-        if now.duration_since(state.window_start) >= self.window {
-            state.count = 0;
-            state.window_start = now;
-        }
-
-        if state.count < self.max_requests {
-            state.count += 1;
-            let remaining = self.max_requests - state.count;
-            let reset_at = state.window_start + self.window;
-            Ok(RateLimitResult {
-                allowed: true,
-                remaining,
-                reset_at,
-                retry_after: None,
-            })
-        } else {
-            let reset_at = state.window_start + self.window;
-            let retry_after = reset_at.saturating_duration_since(now);
-            Ok(RateLimitResult {
-                allowed: false,
-                remaining: 0,
-                reset_at,
-                retry_after: Some(retry_after),
-            })
-        }
+        let backend = self.backend.read().clone();
+        let result = backend.check(key, &self.quota).await;
+        Ok(convert_result(result))
     }
 
     async fn record(&self, key: &str, cost: u32) -> Result<(), RateLimitError> {
-        let now = Instant::now();
-        let mut entry = self.states.entry(key.to_owned()).or_insert_with(|| WindowState {
-            count: 0,
-            window_start: now,
-        });
-
-        let state = entry.value_mut();
-        if now.duration_since(state.window_start) >= self.window {
-            state.count = 0;
-            state.window_start = now;
+        let backend = self.backend.read().clone();
+        for _ in 0..cost {
+            backend.check(key, &self.quota).await;
         }
-        state.count = state.count.saturating_add(cost);
         Ok(())
     }
 
-    async fn reset(&self, key: &str) {
-        self.states.remove(key);
+    async fn reset(&self, _key: &str) {
+        *self.backend.write() = Arc::new(InMemoryBackend::new());
     }
 }
 

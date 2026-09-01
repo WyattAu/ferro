@@ -1115,7 +1115,6 @@ mod tests {
         assert!(url.starts_with("http://localhost:8080/"));
     }
 
-
     #[test]
     fn test_inodes_map_root() {
         let rt = tokio::runtime::Runtime::new().unwrap();

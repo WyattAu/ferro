@@ -306,7 +306,10 @@ fn parse_propfind_children(xml: &str, parent_path: &str) -> Vec<(String, bool, u
         current_size = 0;
 
         // Extract href
-        if let Some(start) = response_chunk.find("<D:href>").or_else(|| response_chunk.find("<d:href>")) {
+        if let Some(start) = response_chunk
+            .find("<D:href>")
+            .or_else(|| response_chunk.find("<d:href>"))
+        {
             let s = start + response_chunk[start..].find('>').unwrap() + 1;
             if let Some(e) = response_chunk[s..].find('<') {
                 current_href = Some(response_chunk[s..s + e].to_string());

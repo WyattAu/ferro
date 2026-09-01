@@ -206,10 +206,7 @@ fn TrashPage() -> impl IntoView {
 
 /// Shared app header with navigation.
 #[component]
-fn AppHeader(
-    sidebar_open: ReadSignal<bool>,
-    set_sidebar_open: WriteSignal<bool>,
-) -> impl IntoView {
+fn AppHeader(sidebar_open: ReadSignal<bool>, set_sidebar_open: WriteSignal<bool>) -> impl IntoView {
     view! {
         <header class="shell-header">
             // Mobile hamburger button (hidden on sm+)

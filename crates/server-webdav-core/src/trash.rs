@@ -561,7 +561,10 @@ mod tests {
         let store = TrashStore::new();
         // Insert MAX_TRASH_ENTRIES + 1 entries, then evict
         for i in 0..=MAX_TRASH_ENTRIES {
-            store.insert(format!("/file{}.txt", i), make_entry(&format!("/file{}.txt", i), i as u64));
+            store.insert(
+                format!("/file{}.txt", i),
+                make_entry(&format!("/file{}.txt", i), i as u64),
+            );
         }
         store.evict_oldest_if_needed();
         // Should have evicted the oldest

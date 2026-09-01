@@ -679,10 +679,7 @@ mod tests {
         use axum::body::Body;
         use axum::http::Request;
 
-        let request = Request::builder()
-            .uri("/healthz")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/healthz").body(Body::empty()).unwrap();
 
         // Test that public paths bypass auth
         let path = request.uri().path();
@@ -694,10 +691,7 @@ mod tests {
         use axum::body::Body;
         use axum::http::Request;
 
-        let request = Request::builder()
-            .uri("/api/files")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/api/files").body(Body::empty()).unwrap();
 
         // Verify no Authorization header
         let token = request
@@ -748,7 +742,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_token_hmac_rejected() {
-        use jsonwebtoken::{encode, Header, Algorithm};
+        use jsonwebtoken::{Algorithm, Header, encode};
 
         let config = OidcConfig {
             issuer: "https://auth.example.com".to_string(),
@@ -761,8 +755,7 @@ mod tests {
         // Create a token with HMAC algorithm (should be rejected)
         let header = Header::new(Algorithm::HS256);
         let claims = make_claims("alice", 9999999999);
-        let token = encode(&header, &claims, &jsonwebtoken::EncodingKey::from_secret(b"secret"))
-            .unwrap();
+        let token = encode(&header, &claims, &jsonwebtoken::EncodingKey::from_secret(b"secret")).unwrap();
 
         let result = validator.try_validate_with_keys(&token, &std::collections::HashMap::new());
         assert!(result.is_none(), "HMAC tokens should be rejected");

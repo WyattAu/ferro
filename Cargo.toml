@@ -85,7 +85,7 @@ rust-version = "1.92"
 [workspace.dependencies]
 # Shared crates
 breaker = { path = "../breaker" }
-ratelimit = { path = "../ratelimit" }
+throttle-kit = { path = "../ratelimit" }
 mailkit = { path = "../mailkit" }
 cryptkit = { path = "../cryptkit" }
 

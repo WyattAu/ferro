@@ -1,78 +1,53 @@
-use std::time::{Duration, Instant};
+use std::sync::Arc;
+use std::time::Duration;
 
-use async_trait::async_trait;
-use dashmap::DashMap;
+use parking_lot::RwLock;
+use throttle_kit::{InMemoryBackend, Quota, RateLimitBackend as _};
 
-use crate::{RateLimitError, RateLimitResult, RateLimiter};
+use crate::{RateLimitError, RateLimitResult, RateLimiter, convert_result};
 
+/// Sliding-window rate limiter backed by throttle-kit's GCRA implementation.
+///
+/// Maps `max_requests` per `window` to a throttle-kit [`Quota`] where each
+/// token represents one request.
 pub struct SlidingWindowLimiter {
-    max_requests: u32,
-    window: Duration,
-    timestamps: DashMap<String, Vec<Instant>>,
+    quota: Quota,
+    backend: RwLock<Arc<InMemoryBackend>>,
 }
 
 impl SlidingWindowLimiter {
     pub fn new(max_requests: u32, window: Duration) -> Self {
-        Self {
-            max_requests,
-            window,
-            timestamps: DashMap::new(),
-        }
-    }
+        let interval = if max_requests == 0 || window.is_zero() {
+            Duration::from_secs(365 * 24 * 3600)
+        } else {
+            window / max_requests
+        };
 
-    fn prune_old(timestamps: &mut Vec<Instant>, window: Duration) {
-        let cutoff = Instant::now() - window;
-        timestamps.retain(|&t| t > cutoff);
+        Self {
+            quota: Quota::from_parts(interval, max_requests),
+            backend: RwLock::new(Arc::new(InMemoryBackend::new())),
+        }
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 impl RateLimiter for SlidingWindowLimiter {
     async fn check(&self, key: &str) -> Result<RateLimitResult, RateLimitError> {
-        let mut entry = self.timestamps.entry(key.to_owned()).or_default();
-        let timestamps = entry.value_mut();
-
-        Self::prune_old(timestamps, self.window);
-
-        if timestamps.len() < self.max_requests as usize {
-            timestamps.push(Instant::now());
-            let remaining = (self.max_requests as usize).saturating_sub(timestamps.len());
-            let window_end = timestamps[0] + self.window;
-            Ok(RateLimitResult {
-                allowed: true,
-                remaining: remaining as u32,
-                reset_at: window_end,
-                retry_after: None,
-            })
-        } else {
-            let now = Instant::now();
-            let retry_after = if let Some(&oldest) = timestamps.first() {
-                (oldest + self.window - now).max(Duration::ZERO)
-            } else {
-                self.window
-            };
-            Ok(RateLimitResult {
-                allowed: false,
-                remaining: 0,
-                reset_at: now + self.window,
-                retry_after: Some(retry_after),
-            })
-        }
+        let backend = self.backend.read().clone();
+        let result = backend.check(key, &self.quota).await;
+        Ok(convert_result(result))
     }
 
     async fn record(&self, key: &str, cost: u32) -> Result<(), RateLimitError> {
-        let mut entry = self.timestamps.entry(key.to_owned()).or_default();
-        let timestamps = entry.value_mut();
-        Self::prune_old(timestamps, self.window);
-        let now = Instant::now();
+        let backend = self.backend.read().clone();
         for _ in 0..cost {
-            timestamps.push(now);
+            backend.check(key, &self.quota).await;
         }
         Ok(())
     }
 
-    async fn reset(&self, key: &str) {
-        self.timestamps.remove(key);
+    async fn reset(&self, _key: &str) {
+        *self.backend.write() = Arc::new(InMemoryBackend::new());
     }
 }
 

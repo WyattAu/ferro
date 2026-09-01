@@ -20,12 +20,14 @@ use common::server_context::HasStorage;
 /// Maximum number of scan results to retain in history.
 const MAX_SCAN_HISTORY: usize = 100;
 
-static CLAMAV_CB: LazyLock<CircuitBreaker> =
-    LazyLock::new(|| CircuitBreaker::builder(CircuitBreakerConfig {
+static CLAMAV_CB: LazyLock<CircuitBreaker> = LazyLock::new(|| {
+    CircuitBreaker::builder(CircuitBreakerConfig {
         failure_rate_threshold: 3,
         wait_duration: std::time::Duration::from_secs(60),
         ..CircuitBreakerConfig::standard()
-    }).build());
+    })
+    .build()
+});
 
 /// In-memory scan history store.
 pub struct ScanHistory {
@@ -279,7 +281,7 @@ pub async fn scan_file_impl<S: HasStorage>(state: &S, file_path: &str) -> Respon
                 })),
             )
                 .into_response(),
-        }
+        },
     }
 }
 

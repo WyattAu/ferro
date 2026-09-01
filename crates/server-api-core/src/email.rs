@@ -1,14 +1,3 @@
-// TODO: Migrate to shared `mailkit` crate (https://github.com/WyattAu/mailkit).
-//
-// BLOCKED: mailkit::SmtpProvider uses synchronous SmtpTransport without TLS
-// configuration, while ferro uses AsyncSmtpTransport with explicit TLS
-// (TlsParameters, Required/Wrapper modes). mailkit also only handles the
-// first recipient and doesn't support CC/BCC/attachments.
-//
-// To migrate: extend mailkit::SmtpProvider to support async transport,
-// TLS configuration, and multi-recipient messages, then replace the
-// lettre calls in send_email().
-
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -68,7 +57,7 @@ pub struct EmailMessage {
     pub body_html: Option<String>,
 }
 
-/// Send an email via SMTP using the lettre crate.
+/// Send an email via SMTP using the `mailkit` crate's [`AsyncSmtpProvider`].
 ///
 /// When `config.enabled` is false, logs the message at INFO level and returns Ok.
 pub async fn send_email(config: &EmailConfig, msg: &EmailMessage) -> common::error::Result<()> {
@@ -81,74 +70,47 @@ pub async fn send_email(config: &EmailConfig, msg: &EmailMessage) -> common::err
         return Ok(());
     }
 
-    let from = format!("{} <{}>", config.from_name, config.from_address);
+    let from_mailbox: lettre::message::Mailbox = format!("{} <{}>", config.from_name, config.from_address)
+        .parse()
+        .map_err(|e| common::error::FerroError::Internal(format!("Invalid from address: {e}")))?;
 
-    let email_builder = lettre::Message::builder()
-        .from(
-            from.parse()
-                .map_err(|e| common::error::FerroError::Internal(format!("Invalid from address: {e}")))?,
-        )
-        .to(msg
-            .to
-            .parse()
-            .map_err(|e| common::error::FerroError::Internal(format!("Invalid to address: {e}")))?)
+    let provider = mailkit::AsyncSmtpProvider::new(
+        &config.smtp_host,
+        config.smtp_port,
+        config.smtp_username.clone(),
+        config.smtp_password.clone(),
+        from_mailbox,
+    )
+    .map_err(|e| common::error::FerroError::Internal(format!("SMTP provider init error: {e}")))?;
+
+    let mut builder = mailkit::EmailMessage::builder()
+        .from(format!("{} <{}>", config.from_name, config.from_address))
+        .to(&msg.to)
         .subject(&msg.subject);
 
-    let email = if let Some(ref html) = msg.body_html {
-        email_builder
-            .multipart(lettre::message::MultiPart::alternative_plain_html(
-                msg.body_text.clone(),
-                html.clone(),
-            ))
-            .map_err(|e| common::error::FerroError::Internal(format!("Email build error: {e}")))?
-    } else {
-        email_builder
-            .body(msg.body_text.clone())
-            .map_err(|e| common::error::FerroError::Internal(format!("Email body error: {e}")))?
-    };
-
-    use lettre::AsyncTransport;
-
-    let tls_params = lettre::transport::smtp::client::TlsParameters::builder(config.smtp_host.clone())
-        .build()
-        .map_err(|e| common::error::FerroError::Internal(format!("TLS config error: {e}")))?;
-
-    let tls_mode = lettre::transport::smtp::client::Tls::Required(tls_params);
-
-    let transport_builder = lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(&config.smtp_host)
-        .port(config.smtp_port)
-        .tls(tls_mode);
-
-    let transport = if let (Some(username), Some(password)) = (&config.smtp_username, &config.smtp_password) {
-        transport_builder
-            .credentials(lettre::transport::smtp::authentication::Credentials::new(
-                username.clone(),
-                password.clone(),
-            ))
-            .build()
-    } else {
-        transport_builder.build()
-    };
-
-    match transport.send(email).await {
-        Ok(_) => {
-            tracing::info!(
-                to = %msg.to,
-                subject = %msg.subject,
-                "Email sent successfully"
-            );
-            Ok(())
-        }
-        Err(e) => {
-            tracing::warn!(
-                to = %msg.to,
-                subject = %msg.subject,
-                error = %e,
-                "Failed to send email via SMTP"
-            );
-            Err(common::error::FerroError::Internal(format!("SMTP send error: {e}")))
-        }
+    if let Some(ref html) = msg.body_html {
+        builder = builder.html_body(html.clone());
     }
+
+    builder = builder.text_body(msg.body_text.clone());
+
+    let email_msg = builder
+        .build()
+        .map_err(|e| common::error::FerroError::Internal(format!("Email build error: {e}")))?;
+
+    use mailkit::EmailProvider;
+
+    provider
+        .send(&email_msg)
+        .await
+        .map_err(|e| common::error::FerroError::Internal(format!("SMTP send error: {e}")))?;
+
+    tracing::info!(
+        to = %msg.to,
+        subject = %msg.subject,
+        "Email sent successfully"
+    );
+    Ok(())
 }
 
 #[cfg(test)]

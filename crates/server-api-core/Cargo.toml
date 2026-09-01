@@ -29,6 +29,7 @@ hmac = "0.13"
 sha2 = "0.11"
 hex = "0.4"
 rand = "0.9"
+mailkit = { workspace = true, features = ["smtp"] }
 lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1-rustls", "builder", "tokio1", "aws-lc-rs", "webpki-roots"] }
 zeroize = { workspace = true, features = ["derive"] }
 

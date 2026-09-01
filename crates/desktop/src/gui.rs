@@ -1455,11 +1455,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
 /// OIDC login command: starts a local HTTP server for the callback,
 /// opens the browser to Keycloak, and waits for the authorization code.
 #[tauri::command]
-async fn cmd_oidc_login(
-    _server_url: String,
-    oidc_issuer: String,
-    client_id: String,
-) -> Result<String, String> {
+async fn cmd_oidc_login(_server_url: String, oidc_issuer: String, client_id: String) -> Result<String, String> {
     use std::sync::mpsc;
 
     // Generate PKCE code verifier and challenge
@@ -1468,7 +1464,10 @@ async fn cmd_oidc_login(
 
     // Start a local HTTP server for the callback
     let listener = std::net::TcpListener::bind("127.0.0.1:0").map_err(|e| format!("Failed to bind: {e}"))?;
-    let port = listener.local_addr().map_err(|e| format!("Failed to get port: {e}"))?.port();
+    let port = listener
+        .local_addr()
+        .map_err(|e| format!("Failed to get port: {e}"))?
+        .port();
     let redirect_uri = format!("http://localhost:{}/callback", port);
 
     let (tx, rx) = mpsc::channel();
@@ -1509,14 +1508,18 @@ async fn cmd_oidc_login(
     // Build the authorization URL
     let auth_url = format!(
         "{}/protocol/openid-connect/auth?response_type=code&client_id={}&redirect_uri={}&scope=openid+profile+email&code_challenge={}&code_challenge_method=S256",
-        oidc_issuer, client_id, urlencoding::encode(&redirect_uri), code_challenge
+        oidc_issuer,
+        client_id,
+        urlencoding::encode(&redirect_uri),
+        code_challenge
     );
 
     // Open the browser
     let _ = open::that(&auth_url);
 
     // Wait for the callback (timeout after 5 minutes)
-    let code = rx.recv_timeout(std::time::Duration::from_secs(300))
+    let code = rx
+        .recv_timeout(std::time::Duration::from_secs(300))
         .map_err(|_| "Login timed out after 5 minutes".to_string())?;
 
     if code.is_empty() {
@@ -1534,27 +1537,30 @@ async fn cmd_oidc_login(
     ];
 
     let client = reqwest::Client::new();
-    let resp = client.post(&token_url)
+    let resp = client
+        .post(&token_url)
         .form(&params)
         .send()
         .await
         .map_err(|e| format!("Token exchange failed: {e}"))?;
 
-    let body: serde_json::Value = resp.json().await
+    let body: serde_json::Value = resp
+        .json()
+        .await
         .map_err(|e| format!("Failed to parse token response: {e}"))?;
 
-    let access_token = body.get("access_token")
+    let access_token = body
+        .get("access_token")
         .and_then(|v| v.as_str())
         .ok_or("No access_token in response")?
         .to_string();
 
-    let refresh_token = body.get("refresh_token")
+    let refresh_token = body
+        .get("refresh_token")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    let expires_in = body.get("expires_in")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(3600);
+    let expires_in = body.get("expires_in").and_then(|v| v.as_u64()).unwrap_or(3600);
 
     // Store the tokens
     let token_data = serde_json::json!({
@@ -1571,16 +1577,16 @@ async fn cmd_oidc_login(
 fn generate_pkce_verifier() -> String {
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    let chars: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~".chars().collect();
-    (0..64)
-        .map(|_| chars[rng.gen_range(0..chars.len())])
-        .collect()
+    let chars: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+        .chars()
+        .collect();
+    (0..64).map(|_| chars[rng.gen_range(0..chars.len())]).collect()
 }
 
 /// Generate a PKCE code challenge (SHA-256 hash of verifier, base64url encoded)
 fn generate_pkce_challenge(verifier: &str) -> String {
-    use sha2::{Sha256, Digest};
     use base64::Engine;
+    use sha2::{Digest, Sha256};
     let hash = Sha256::digest(verifier.as_bytes());
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash)
 }

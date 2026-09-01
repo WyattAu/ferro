@@ -3,9 +3,9 @@ use axum::extract::{Path, State};
 use axum::http::header::HeaderName;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
+use breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use chrono::Utc;
 use dashmap::DashMap;
-use breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use http_body_util::BodyExt;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, LazyLock};
@@ -17,12 +17,14 @@ use crate::IntegrationsState;
 const CONNECT_TIMEOUT_SECS: u64 = 10;
 const READ_TIMEOUT_SECS: u64 = 30;
 
-static REMOTE_MOUNT_CB: LazyLock<CircuitBreaker> =
-    LazyLock::new(|| CircuitBreaker::builder(CircuitBreakerConfig {
+static REMOTE_MOUNT_CB: LazyLock<CircuitBreaker> = LazyLock::new(|| {
+    CircuitBreaker::builder(CircuitBreakerConfig {
         failure_rate_threshold: 5,
         wait_duration: std::time::Duration::from_secs(30),
         ..CircuitBreakerConfig::standard()
-    }).build());
+    })
+    .build()
+});
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RemoteMount {
@@ -288,7 +290,7 @@ pub async fn proxy_remote_mount<S: IntegrationsState>(
                 )
                     .into_response();
             }
-        }
+        },
     };
 
     let status = response.status();
