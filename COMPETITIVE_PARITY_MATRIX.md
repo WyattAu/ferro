@@ -37,7 +37,7 @@ Ferro is a self-hosted file sync server written in Rust with 73 crates, 2500+ te
 | **Trash/undelete** | Yes (TTL auto-purge) | 30 days | 30-365 days | Configurable | Yes | Yes | Yes |
 | **File locking** | WebDAV Class 2/3 | Partial | Yes | No | Yes | Yes | Yes |
 | **Deduplication** | SHA-256 CAS | Internal only | Block-level | Block-level | No | No | Block-level (core) |
-| **Compression** | No | Transparent | Transparent | Transparent | No | No | Chunk-based |
+| **Compression** | Yes (HTTP gzip via tower-http) | Transparent | Transparent | Transparent | No | No | Chunk-based |
 | **Encryption at rest** | AES-256-GCM | AES-256 | AES-256 | Client-side AES | Server-side | Server-side | Server-side + optional E2E |
 | **External storage** | NFS/SMB/WebDAV | No | No | No | Extensive (FTP/S3/SMB/Dropbox/Google) | EOS/S3/WND | S3 |
 | **Quota management** | Per-tenant/user | Per-user | Per-user | Per-user | Per-user | Per-space | Per-user/library |
