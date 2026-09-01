@@ -310,9 +310,11 @@ fn parse_propfind_children(xml: &str, parent_path: &str) -> Vec<(String, bool, u
             .find("<D:href>")
             .or_else(|| response_chunk.find("<d:href>"))
         {
-            let s = start + response_chunk[start..].find('>').unwrap() + 1;
-            if let Some(e) = response_chunk[s..].find('<') {
-                current_href = Some(response_chunk[s..s + e].to_string());
+            if let Some(s) = response_chunk[start..].find('>') {
+                let s = start + s + 1;
+                if let Some(e) = response_chunk[s..].find('<') {
+                    current_href = Some(response_chunk[s..s + e].to_string());
+                }
             }
         }
         // Check for collection
@@ -324,9 +326,11 @@ fn parse_propfind_children(xml: &str, parent_path: &str) -> Vec<(String, bool, u
             .find("<D:getcontentlength>")
             .or_else(|| response_chunk.find("<d:getcontentlength>"))
         {
-            let s = start + response_chunk[start..].find('>').unwrap() + 1;
-            if let Some(e) = response_chunk[s..].find('<') {
-                current_size = response_chunk[s..s + e].parse().unwrap_or(0);
+            if let Some(s) = response_chunk[start..].find('>') {
+                let s = start + s + 1;
+                if let Some(e) = response_chunk[s..].find('<') {
+                    current_size = response_chunk[s..s + e].parse().unwrap_or(0);
+                }
             }
         }
 
