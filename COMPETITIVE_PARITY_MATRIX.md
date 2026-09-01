@@ -19,11 +19,10 @@ Ferro is a self-hosted file sync server written in Rust with 73 crates, 2500+ te
 5. Deployment: Single static binary, no external dependencies
 
 **Ferro's top 5 gaps** vs competitors:
-1. No native mobile apps (iOS/Android)
-2. Desktop client (Tauri) exists but needs polish
-3. No transparent compression
-4. No extensive external storage support (S3/EOS)
-5. Smaller plugin ecosystem (73 crates vs Nextcloud's 200+ apps)
+1. Mobile apps (Tauri exists but needs polish, not native React Native)
+2. Desktop client (Tauri exists but needs polish)
+3. No transparent file storage compression
+4. Smaller plugin ecosystem (73 crates vs Nextcloud's 200+ apps)
 
 ---
 
@@ -295,7 +294,7 @@ Ferro is a self-hosted file sync server written in Rust with 73 crates, 2500+ te
 
 | Dimension | Gap | Severity | Competitor Benchmark |
 |-----------|-----|----------|---------------------|
-| **Native mobile apps** | Contract only, no real apps | CRITICAL | Nextcloud: full iOS/Android |
+| **Native mobile apps** | Tauri mobile (Android + iOS scaffold) | MEDIUM | Nextcloud: full iOS/Android |
 | **Desktop client (Win/Mac)** | Tauri buildable, no installer | HIGH | Dropbox/Nextcloud: native |
 | **Groupware suite** | Chat/Tasks/Notes/Whiteboard (REST APIs) | HIGH | Nextcloud: Talk+Mail+Tasks+Notes |
 | **Office suite** | WOPI works but no built-in editor | MEDIUM | Google: Docs/Sheets/Slides |
