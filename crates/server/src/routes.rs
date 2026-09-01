@@ -1062,7 +1062,12 @@ pub fn build_router_with_static(
             use ferro_rate_limiter::RateLimiter;
             match limiter.check(&client_ip).await {
                 Ok(result) if result.allowed => {}
-                _ => return api_error::ApiError::too_many_requests(api_error::ApiError::RATE_LIMITED, "Rate limit exceeded"),
+                _ => {
+                    return api_error::ApiError::too_many_requests(
+                        api_error::ApiError::RATE_LIMITED,
+                        "Rate limit exceeded",
+                    );
+                }
             }
 
             // Tenant rate limit (if configured)
@@ -1081,10 +1086,12 @@ pub fn build_router_with_static(
                             }
                             return response;
                         }
-                        _ => return api_error::ApiError::too_many_requests(
-                            api_error::ApiError::RATE_LIMITED,
-                            "Tenant rate limit exceeded",
-                        ),
+                        _ => {
+                            return api_error::ApiError::too_many_requests(
+                                api_error::ApiError::RATE_LIMITED,
+                                "Tenant rate limit exceeded",
+                            );
+                        }
                     }
                 }
             }
@@ -1276,8 +1283,7 @@ pub fn build_router_with_static(
             let sum = duration_sum_ms.clone();
             request_logging::request_logging_middleware(counter, buckets, sum, statuses, Some(storage_ops), req, next)
         }))
-        .layer(axum::middleware::from_fn(security_headers::security_headers_middleware))
-        .layer(axum::middleware::from_fn(security_headers::panic_handler_middleware))
+        .layer(axum::middleware::from_fn(security_headers::security_and_panic_middleware))
         .layer(CompressionLayer::new())
         .layer(axum::extract::DefaultBodyLimit::max(state.max_body_size as usize))
         // Cap concurrent in-flight requests to prevent the tokio runtime and
