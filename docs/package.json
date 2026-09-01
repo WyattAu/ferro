@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.1",
+    "@pediment/starlight": "file:../../pediment/packages/starlight",
+    "@pediment/tokens": "file:../../pediment/packages/tokens",
     "astro": "^7.0.2",
     "sharp": "^0.34.5"
   }

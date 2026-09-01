@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import pedimentStarlight from '@pediment/starlight';
 
 // https://astro.build/config
 export default defineConfig({
@@ -9,6 +10,7 @@ export default defineConfig({
   trailingSlash: 'always',
   integrations: [
     starlight({
+      plugins: [pedimentStarlight()],
       title: 'Ferro Documentation',
       logo: {
         src: './src/assets/logo.svg',
