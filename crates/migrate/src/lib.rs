@@ -75,9 +75,13 @@ pub struct MigrationOptions {
     #[serde(default)]
     pub skip_shares: bool,
     #[serde(default)]
+    pub skip_groups: bool,
+    #[serde(default)]
     pub skip_tags: bool,
     #[serde(default)]
     pub skip_favorites: bool,
+    #[serde(default)]
+    pub skip_spaces: bool,
     #[serde(default = "default_batch_size")]
     pub batch_size: usize,
     #[serde(default)]
@@ -108,8 +112,10 @@ impl Default for MigrationOptions {
             skip_files: false,
             skip_users: false,
             skip_shares: false,
+            skip_groups: false,
             skip_tags: false,
             skip_favorites: false,
+            skip_spaces: false,
             batch_size: 50,
             max_file_size: 0,
             concurrency: 8,
@@ -307,10 +313,33 @@ async fn run_nextcloud_migration(
                             .collect();
                         let ferro_tags = mapper::map_tags(&tags, &mapped_mappings);
                         progress.set_tag_total(ferro_tags.len() as u64);
+
+                        // Build file_id -> path lookup from filecache
+                        let filecache = db.read_filecache().unwrap_or_default();
+                        let id_to_path: std::collections::HashMap<i64, String> = filecache
+                            .iter()
+                            .map(|f| {
+                                let path = mapper::nc_path_to_ferro(&f.path, &source.username);
+                                (f.file_id, path)
+                            })
+                            .collect();
+
                         for tag in &ferro_tags {
-                            if let Err(e) = ferro.apply_tags("/", std::slice::from_ref(&tag.name)).await {
-                                tracing::warn!("Tag migration failed: {}", e);
+                            // Apply tag to each file that has it
+                            let files_with_tag: Vec<&str> = tag
+                                .file_ids
+                                .iter()
+                                .filter_map(|id| id_to_path.get(id).map(|s| s.as_str()))
+                                .collect();
+
+                            if files_with_tag.is_empty() {
+                                tracing::warn!("Tag '{}' has no matching files in filecache", tag.name);
                             } else {
+                                for file_path in &files_with_tag {
+                                    if let Err(e) = ferro.apply_tags(file_path, std::slice::from_ref(&tag.name)).await {
+                                        tracing::warn!("Tag '{}' on '{}' failed: {}", tag.name, file_path, e);
+                                    }
+                                }
                                 report.tags_migrated += 1;
                             }
                             progress.inc_tag();
@@ -693,7 +722,7 @@ async fn run_ocis_migration(
     }
 
     // Migrate groups via Graph API
-    {
+    if !options.skip_groups {
         tracing::info!("Migrating groups from oCIS via Graph API...");
         let graph = crate::graph_api::GraphApiClient::new(&source.url, &ocis_token);
         match graph.list_groups().await {
@@ -727,6 +756,8 @@ async fn run_ocis_migration(
                 report.errors.push(format!("list oCIS groups: {}", e));
             }
         }
+    } else {
+        tracing::info!("Skipping group migration");
     }
 
     if !options.skip_tags || !options.skip_favorites {
@@ -801,7 +832,11 @@ async fn run_ocis_migration(
     }
 
     // Migrate project spaces
-    run_ocis_space_migration(source, ferro, &ocis_token, &ocis_for_shares, options, progress, report).await?;
+    if !options.skip_spaces {
+        run_ocis_space_migration(source, ferro, &ocis_token, &ocis_for_shares, options, progress, report).await?;
+    } else {
+        tracing::info!("Skipping project space migration");
+    }
 
     Ok(())
 }
