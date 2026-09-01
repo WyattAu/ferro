@@ -524,18 +524,111 @@ async fn run_ocis_migration(
         tracing::info!("Skipping share migration");
     }
 
-    if !options.skip_tags {
-        tracing::info!("oCIS tag migration requires extended PROPFIND (not yet implemented)");
-        tracing::info!("Skipping tag migration");
-    } else {
-        tracing::info!("Skipping tag migration");
+    // Migrate groups via Graph API
+    {
+        tracing::info!("Migrating groups from oCIS via Graph API...");
+        let graph = crate::graph_api::GraphApiClient::new(&source.url, &ocis_token);
+        match graph.list_groups().await {
+            Ok(groups) => {
+                for graph_group in &groups {
+                    let name = graph_group.displayName.as_deref().unwrap_or("unnamed");
+                    let desc = graph_group.description.as_deref();
+                    if let Err(e) = ferro.create_group(name, desc).await {
+                        tracing::warn!("Create group '{}' failed: {}", name, e);
+                        continue;
+                    }
+                    // Add members
+                    if let Some(ref group_id) = graph_group.id {
+                        if let Ok(members) = graph.list_group_members(group_id).await {
+                            for member in &members {
+                                let username = member
+                                    .userPrincipalName
+                                    .as_deref()
+                                    .or(member.displayName.as_deref())
+                                    .unwrap_or("unknown");
+                                if let Err(e) = ferro.add_group_member(name, username).await {
+                                    tracing::warn!("Add member '{}' to group '{}' failed: {}", username, name, e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to list oCIS groups via Graph API: {}", e);
+                report.errors.push(format!("list oCIS groups: {}", e));
+            }
+        }
     }
 
-    if !options.skip_favorites {
-        tracing::info!("oCIS favorites migration requires extended PROPFIND (not yet implemented)");
-        tracing::info!("Skipping favorite migration");
+    if !options.skip_tags || !options.skip_favorites {
+        tracing::info!("Migrating tags and favorites from oCIS via extended PROPFIND...");
+        let graph = crate::graph_api::GraphApiClient::new(&source.url, &ocis_token);
+        // Walk the user's file tree and extract tags/favorites
+        let mut dirs_to_scan: Vec<String> = vec!["/".to_string()];
+        let mut file_entries: Vec<(String, Vec<String>, bool)> = Vec::new(); // (path, tags, is_favorite)
+
+        while let Some(dir) = dirs_to_scan.pop() {
+            match ocis_for_shares.list_with_metadata(&source.username, &dir).await {
+                Ok(entries) => {
+                    for entry in &entries {
+                        // Skip the directory itself
+                        let normalized = entry.href.trim_end_matches('/');
+                        let parent_normalized = format!("/remote.php/dav/files/{}{}", source.username, dir.trim_end_matches('/'));
+                        if normalized == parent_normalized.trim_end_matches('/') {
+                            continue;
+                        }
+                        // Extract relative path from href
+                        let rel_path = if let Some(pos) = entry.href.find(&format!("/dav/files/{}/", source.username)) {
+                            entry.href[pos + format!("/dav/files/{}/", source.username).len()..].to_string()
+                        } else {
+                            entry.href.clone()
+                        };
+
+                        if entry.is_collection && !rel_path.is_empty() {
+                            dirs_to_scan.push(format!("{}/{}", dir.trim_end_matches('/'), rel_path));
+                        } else if !entry.is_collection {
+                            file_entries.push((rel_path, entry.tags.clone(), entry.is_favorite));
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("PROPFIND metadata for '{}' failed: {}", dir, e);
+                }
+            }
+        }
+
+        // Apply tags
+        if !options.skip_tags {
+            let files_with_tags: Vec<_> = file_entries.iter().filter(|(_, tags, _)| !tags.is_empty()).collect();
+            tracing::info!("Found {} files with tags", files_with_tags.len());
+            for (path, tags, _) in &files_with_tags {
+                if let Err(e) = ferro.apply_tags(path, tags).await {
+                    tracing::warn!("Tag migration failed for '{}': {}", path, e);
+                } else {
+                    report.tags_migrated += 1;
+                }
+            }
+        } else {
+            tracing::info!("Skipping tag migration");
+        }
+
+        // Apply favorites
+        if !options.skip_favorites {
+            let fav_files: Vec<_> = file_entries.iter().filter(|(_, _, fav)| *fav).collect();
+            tracing::info!("Found {} favorite files", fav_files.len());
+            for (path, _, _) in &fav_files {
+                if let Err(e) = ferro.set_favorite(path, true).await {
+                    tracing::warn!("Favorite migration failed for '{}': {}", path, e);
+                } else {
+                    report.favorites_migrated += 1;
+                }
+            }
+        } else {
+            tracing::info!("Skipping favorite migration");
+        }
     } else {
-        tracing::info!("Skipping favorite migration");
+        tracing::info!("Skipping tag and favorite migration");
     }
 
     Ok(())

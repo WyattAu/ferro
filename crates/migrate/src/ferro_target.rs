@@ -73,6 +73,47 @@ impl FerroTarget {
         Ok(())
     }
 
+    pub async fn create_group(&self, name: &str, description: Option<&str>) -> MigrateResult<()> {
+        let body = json!({
+            "name": name,
+            "description": description.unwrap_or(""),
+        });
+
+        let resp = self
+            .http
+            .post(format!("{}/api/admin/groups", self.url))
+            .json(&body)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let err_body: serde_json::Value = resp.json().await.unwrap_or_default();
+            let msg = err_body.get("error").and_then(|v| v.as_str()).unwrap_or("unknown error");
+            tracing::warn!("Create group '{}' failed ({}): {}", name, status, msg);
+        }
+        Ok(())
+    }
+
+    pub async fn add_group_member(&self, group_name: &str, username: &str) -> MigrateResult<()> {
+        let body = json!({
+            "username": username,
+        });
+
+        let resp = self
+            .http
+            .post(format!("{}/api/admin/groups/{}/members", self.url, group_name))
+            .json(&body)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            tracing::warn!("Add member '{}' to group '{}' failed: {}", username, group_name, status);
+        }
+        Ok(())
+    }
+
     pub async fn create_directory(&self, path: &str) -> MigrateResult<()> {
         let url = format!("{}{}", self.url, path);
         let resp = self

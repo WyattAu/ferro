@@ -465,6 +465,148 @@ impl OcisClient {
         let data: OcsShareResponse = resp.json().await?;
         Ok(data.ocs.data)
     }
+
+    /// List directory contents with extended metadata (tags, favorites) via PROPFIND.
+    pub async fn list_with_metadata(&self, user: &str, path: &str) -> MigrateResult<Vec<DavMetadataEntry>> {
+        self.ensure_token_valid().await?;
+        let url = self.webdav_url(user, path);
+        let body = r#"<?xml version="1.0" encoding="UTF-8"?>
+<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
+  <d:allprop/>
+  <d:prop>
+    <oc:tags/>
+    <oc:favorite/>
+  </d:prop>
+</d:propfind>"#;
+
+        let http = self.http.read().await;
+        let resp = http
+            .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
+            .header("Depth", "1")
+            .header("Content-Type", "application/xml")
+            .body(body)
+            .send()
+            .await?;
+        drop(http);
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(MigrationError::webdav(format!(
+                "PROPFIND metadata failed ({}): {}",
+                status,
+                &body[..body.len().min(200)]
+            )));
+        }
+
+        let xml = resp.text().await?;
+        parse_metadata_propfind(&xml)
+    }
+}
+
+/// A single entry from an extended PROPFIND response with tags and favorites.
+#[derive(Debug, Clone)]
+pub struct DavMetadataEntry {
+    pub href: String,
+    pub is_collection: bool,
+    pub size: u64,
+    pub tags: Vec<String>,
+    pub is_favorite: bool,
+}
+
+fn parse_metadata_propfind(xml: &str) -> MigrateResult<Vec<DavMetadataEntry>> {
+    let mut entries = Vec::new();
+    let mut current_href = String::new();
+    let mut current_is_collection = false;
+    let mut current_size = 0u64;
+    let mut current_tags = Vec::new();
+    let mut current_favorite = false;
+    let mut in_response = false;
+
+    for line in xml.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.contains("<d:response") || trimmed.contains("<D:response") {
+            in_response = true;
+            current_href.clear();
+            current_is_collection = false;
+            current_size = 0;
+            current_tags.clear();
+            current_favorite = false;
+        }
+
+        if in_response {
+            // Extract href
+            if let Some(start) = trimmed.find("<d:href>").or_else(|| trimmed.find("<D:href>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_href = trimmed[s..s + e].to_string();
+                    }
+                }
+            }
+
+            // Check for collection
+            if trimmed.contains("<d:collection") || trimmed.contains("<D:collection") {
+                current_is_collection = true;
+            }
+
+            // Extract content length
+            if let Some(start) = trimmed.find("<d:getcontentlength>").or_else(|| trimmed.find("<D:getcontentlength>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_size = trimmed[s..s + e].parse().unwrap_or(0);
+                    }
+                }
+            }
+
+            // Extract tags
+            if trimmed.contains("<oc:tags>") || trimmed.contains("<oc:tag>") {
+                // Simple extraction: look for <oc:tag>name</oc:tag>
+                let mut search = trimmed;
+                while let Some(tag_start) = search.find("<oc:tag>") {
+                    let s = tag_start + 8;
+                    if let Some(e) = search[s..].find("</oc:tag>") {
+                        let tag = search[s..s + e].to_string();
+                        if !tag.is_empty() {
+                            current_tags.push(tag);
+                        }
+                        search = &search[s + e..];
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Extract favorite status
+            if trimmed.contains("<oc:favorite>") {
+                if let Some(start) = trimmed.find("<oc:favorite>") {
+                    let s = start + 13;
+                    if let Some(e) = trimmed[s..].find("</oc:favorite>") {
+                        current_favorite = trimmed[s..s + e].trim() == "1"
+                            || trimmed[s..s + e].trim().to_lowercase() == "true";
+                    }
+                }
+            }
+        }
+
+        // End of response
+        if trimmed.contains("</d:response>") || trimmed.contains("</D:response>") {
+            if in_response && !current_href.is_empty() {
+                entries.push(DavMetadataEntry {
+                    href: current_href.clone(),
+                    is_collection: current_is_collection,
+                    size: current_size,
+                    tags: current_tags.clone(),
+                    is_favorite: current_favorite,
+                });
+            }
+            in_response = false;
+        }
+    }
+
+    Ok(entries)
 }
 
 #[derive(Debug, Clone, Deserialize)]
