@@ -307,3 +307,450 @@ fn scan_directory(
     }
     Ok(())
 }
+
+// ── File Browser Commands ─────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn list_files(path: String) -> Result<Vec<crate::MobileFileEntry>, String> {
+    let config = get_config().map_err(|e| e.to_string())?;
+    let client = build_client(&config.auth_token).map_err(|e| e.to_string())?;
+
+    let url = format!(
+        "{}/remote.php/dav/files/default{}",
+        config.server_url.trim_end_matches('/'),
+        if path.is_empty() { "/" } else { &path }
+    );
+
+    let resp = client
+        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
+        .header("Depth", "1")
+        .send()
+        .await
+        .map_err(|e| format!("PROPFIND failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("PROPFIND failed: {}", resp.status()));
+    }
+
+    let xml = resp.text().await.map_err(|e| format!("Read response: {}", e))?;
+    parse_dav_response(&xml, &path)
+}
+
+fn parse_dav_response(xml: &str, parent_path: &str) -> Result<Vec<crate::MobileFileEntry>, String> {
+    let mut entries = Vec::new();
+    let mut current_href = String::new();
+    let mut current_size = 0u64;
+    let mut current_is_collection = false;
+    let mut current_modified = String::new();
+    let mut in_response = false;
+
+    for line in xml.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.contains("<d:response") || trimmed.contains("<D:response") {
+            in_response = true;
+            current_href.clear();
+            current_size = 0;
+            current_is_collection = false;
+            current_modified.clear();
+        }
+
+        if in_response {
+            if let Some(start) = trimmed.find("<d:href>").or_else(|| trimmed.find("<D:href>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_href = trimmed[s..s + e].to_string();
+                    }
+                }
+            }
+            if trimmed.contains("<d:collection") || trimmed.contains("<D:collection") {
+                current_is_collection = true;
+            }
+            if let Some(start) = trimmed.find("<d:getcontentlength>").or_else(|| trimmed.find("<D:getcontentlength>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_size = trimmed[s..s + e].parse().unwrap_or(0);
+                    }
+                }
+            }
+            if let Some(start) = trimmed.find("<d:getlastmodified>").or_else(|| trimmed.find("<D:getlastmodified>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_modified = trimmed[s..s + e].to_string();
+                    }
+                }
+            }
+        }
+
+        if trimmed.contains("</d:response>") || trimmed.contains("</D:response>") {
+            if in_response && !current_href.is_empty() {
+                // Skip the parent directory itself
+                let parent_href = if parent_path.is_empty() || parent_path == "/" {
+                    "/remote.php/dav/files/default/".to_string()
+                } else {
+                    format!("/remote.php/dav/files/default{}", parent_path)
+                };
+                if current_href.trim_end_matches('/') == parent_href.trim_end_matches('/') {
+                    in_response = false;
+                    continue;
+                }
+
+                let name = current_href
+                    .trim_end_matches('/')
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("")
+                    .to_string();
+
+                if !name.is_empty() {
+                    entries.push(crate::MobileFileEntry {
+                        name,
+                        path: current_href.clone(),
+                        size: current_size,
+                        is_dir: current_is_collection,
+                        modified: current_modified.clone(),
+                        content_type: if current_is_collection {
+                            "inode/directory".to_string()
+                        } else {
+                            "application/octet-stream".to_string()
+                        },
+                        is_pinned: false,
+                        is_available_offline: false,
+                    });
+                }
+            }
+            in_response = false;
+        }
+    }
+
+    Ok(entries)
+}
+
+// ── Share Commands ────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MobileShare {
+    pub id: String,
+    pub path: String,
+    pub share_type: String,
+    pub shared_with: Option<String>,
+    pub permissions: SharePermissions,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SharePermissions {
+    pub read: bool,
+    pub write: bool,
+}
+
+#[tauri::command]
+pub async fn list_shares(path: Option<String>) -> Result<Vec<MobileShare>, String> {
+    let config = get_config().map_err(|e| e.to_string())?;
+    let client = build_client(&config.auth_token).map_err(|e| e.to_string())?;
+
+    let mut url = format!(
+        "{}/ocs/v2.php/apps/files_sharing/api/v1/shares?format=json",
+        config.server_url.trim_end_matches('/')
+    );
+    if let Some(ref p) = path {
+        url.push_str(&format!("&path={}", p));
+    }
+
+    let resp = client
+        .get(&url)
+        .header("OCS-APIRequest", "true")
+        .send()
+        .await
+        .map_err(|e| format!("List shares failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("List shares failed: {}", resp.status()));
+    }
+
+    let body: serde_json::Value = resp.json().await.map_err(|e| format!("Parse response: {}", e))?;
+    let shares_data = body.get("ocs").and_then(|o| o.get("data")).and_then(|d| d.as_array());
+
+    let shares = shares_data
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|s| {
+                    let id = s.get("id")?.as_str()?.to_string();
+                    let path = s.get("path")?.as_str()?.to_string();
+                    let share_type = match s.get("share_type")?.as_i64()? {
+                        0 => "user",
+                        1 => "group",
+                        3 => "link",
+                        _ => "unknown",
+                    };
+                    let shared_with = s.get("share_with").and_then(|v| v.as_str()).map(|s| s.to_string());
+                    let perms = s.get("permissions")?.as_i64()?;
+                    Some(MobileShare {
+                        id,
+                        path,
+                        share_type: share_type.to_string(),
+                        shared_with,
+                        permissions: SharePermissions {
+                            read: perms & 1 != 0,
+                            write: perms & 2 != 0,
+                        },
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Ok(shares)
+}
+
+#[tauri::command]
+pub async fn create_share(
+    path: String,
+    share_type: String,
+    shared_with: Option<String>,
+    read: bool,
+    write: bool,
+) -> Result<MobileShare, String> {
+    let config = get_config().map_err(|e| e.to_string())?;
+    let client = build_client(&config.auth_token).map_err(|e| e.to_string())?;
+
+    let share_type_id = match share_type.as_str() {
+        "user" => 0,
+        "group" => 1,
+        "link" => 3,
+        _ => return Err(format!("Invalid share type: {}", share_type)),
+    };
+
+    let mut body = serde_json::json!({
+        "path": path,
+        "shareType": share_type_id,
+        "permissions": (if read { 1 } else { 0 }) | (if write { 2 } else { 0 }),
+    });
+    if let Some(ref with) = shared_with {
+        body["shareWith"] = serde_json::json!(with);
+    }
+
+    let url = format!(
+        "{}/ocs/v2.php/apps/files_sharing/api/v1/shares?format=json",
+        config.server_url.trim_end_matches('/')
+    );
+
+    let resp = client
+        .post(&url)
+        .header("OCS-APIRequest", "true")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Create share failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Create share failed: {}", resp.status()));
+    }
+
+    let body: serde_json::Value = resp.json().await.map_err(|e| format!("Parse response: {}", e))?;
+    let s = body.get("ocs").and_then(|o| o.get("data")).ok_or("No data in response")?;
+
+    Ok(MobileShare {
+        id: s.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        path: s.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        share_type: share_type,
+        shared_with: shared_with,
+        permissions: SharePermissions { read, write },
+    })
+}
+
+// ── Version History Commands ──────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileVersion {
+    pub version: String,
+    pub size: u64,
+    pub modified: String,
+}
+
+#[tauri::command]
+pub async fn list_versions(path: String) -> Result<Vec<FileVersion>, String> {
+    let config = get_config().map_err(|e| e.to_string())?;
+    let client = build_client(&config.auth_token).map_err(|e| e.to_string())?;
+
+    let encoded = path.trim_start_matches('/').replace('/', "%2F");
+    let url = format!(
+        "{}/remote.php/dav/versions/default/versions/{}",
+        config.server_url.trim_end_matches('/'),
+        encoded
+    );
+
+    let resp = client
+        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
+        .header("Depth", "1")
+        .send()
+        .await
+        .map_err(|e| format!("PROPFIND versions failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("PROPFIND versions failed: {}", resp.status()));
+    }
+
+    let xml = resp.text().await.map_err(|e| format!("Read response: {}", e))?;
+    let mut versions = Vec::new();
+    let mut current_href = String::new();
+    let mut current_size = 0u64;
+    let mut current_modified = String::new();
+    let mut in_response = false;
+
+    for line in xml.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("<d:response") || trimmed.contains("<D:response") {
+            in_response = true;
+            current_href.clear();
+            current_size = 0;
+            current_modified.clear();
+        }
+        if in_response {
+            if let Some(start) = trimmed.find("<d:href>").or_else(|| trimmed.find("<D:href>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_href = trimmed[s..s + e].to_string();
+                    }
+                }
+            }
+            if let Some(start) = trimmed.find("<d:getcontentlength>").or_else(|| trimmed.find("<D:getcontentlength>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_size = trimmed[s..s + e].parse().unwrap_or(0);
+                    }
+                }
+            }
+            if let Some(start) = trimmed.find("<d:getlastmodified>").or_else(|| trimmed.find("<D:getlastmodified>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_modified = trimmed[s..s + e].to_string();
+                    }
+                }
+            }
+        }
+        if trimmed.contains("</d:response>") || trimmed.contains("</D:response>") {
+            if in_response && !current_href.is_empty() {
+                let version = current_href
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("")
+                    .to_string();
+                if !version.is_empty() && version != "versions" {
+                    versions.push(FileVersion {
+                        version,
+                        size: current_size,
+                        modified: current_modified.clone(),
+                    });
+                }
+            }
+            in_response = false;
+        }
+    }
+
+    Ok(versions)
+}
+
+// ── Trash Commands ────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrashEntry {
+    pub id: String,
+    pub name: String,
+    pub original_location: String,
+    pub deleted_at: String,
+    pub size: u64,
+}
+
+#[tauri::command]
+pub async fn list_trash() -> Result<Vec<TrashEntry>, String> {
+    let config = get_config().map_err(|e| e.to_string())?;
+    let client = build_client(&config.auth_token).map_err(|e| e.to_string())?;
+
+    let url = format!(
+        "{}/remote.php/dav/trashbin/default/trash?depth=1",
+        config.server_url.trim_end_matches('/')
+    );
+
+    let resp = client
+        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
+        .header("Depth", "1")
+        .send()
+        .await
+        .map_err(|e| format!("PROPFIND trash failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("PROPFIND trash failed: {}", resp.status()));
+    }
+
+    let xml = resp.text().await.map_err(|e| format!("Read response: {}", e))?;
+    let mut entries = Vec::new();
+    let mut current_href = String::new();
+    let mut current_size = 0u64;
+    let mut current_name = String::new();
+    let mut in_response = false;
+
+    for line in xml.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("<d:response") || trimmed.contains("<D:response") {
+            in_response = true;
+            current_href.clear();
+            current_size = 0;
+            current_name.clear();
+        }
+        if in_response {
+            if let Some(start) = trimmed.find("<d:href>").or_else(|| trimmed.find("<D:href>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_href = trimmed[s..s + e].to_string();
+                    }
+                }
+            }
+            if let Some(start) = trimmed.find("<d:displayname>").or_else(|| trimmed.find("<D:displayname>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_name = trimmed[s..s + e].to_string();
+                    }
+                }
+            }
+            if let Some(start) = trimmed.find("<d:getcontentlength>").or_else(|| trimmed.find("<D:getcontentlength>")) {
+                if let Some(s) = trimmed[start..].find('>') {
+                    let s = start + s + 1;
+                    if let Some(e) = trimmed[s..].find('<') {
+                        current_size = trimmed[s..s + e].parse().unwrap_or(0);
+                    }
+                }
+            }
+        }
+        if trimmed.contains("</d:response>") || trimmed.contains("</D:response>") {
+            if in_response && !current_href.is_empty() && current_name != "." && current_name != ".." {
+                let id = current_href
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("")
+                    .to_string();
+                entries.push(TrashEntry {
+                    id,
+                    name: current_name.clone(),
+                    original_location: current_href.clone(),
+                    deleted_at: String::new(),
+                    size: current_size,
+                });
+            }
+            in_response = false;
+        }
+    }
+
+    Ok(entries)
+}
