@@ -88,6 +88,7 @@ breaker = { path = "../breaker" }
 throttle-kit = { path = "../ratelimit" }
 mailkit = { path = "../mailkit" }
 cryptkit = { path = "../cryptkit" }
+tokenkit = { path = "../tokenkit" }
 
 # Shared dependency versions across all crates
 tokio = { version = "1", features = ["full"] }

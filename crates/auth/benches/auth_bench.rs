@@ -1,7 +1,7 @@
 use common::auth::Claims;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use jsonwebtoken::{EncodingKey, Header, Validation, decode, encode};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokenkit::service::{JwtConfig, JwtService};
 
 fn sample_claims() -> Claims {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
@@ -20,26 +20,34 @@ fn sample_claims() -> Claims {
 
 fn bench_jwt_encode(c: &mut Criterion) {
     let claims = sample_claims();
-    let encoding_key = EncodingKey::from_secret(b"benchmark-secret-key-32-bytes-long!!");
+    let service = JwtService::new(JwtConfig {
+        secret: "benchmark-secret-key-32-bytes-long!!".to_string(),
+        ..Default::default()
+    });
 
     c.bench_function("jwt_encode", |b| {
-        b.iter(|| encode(&Header::default(), &claims, &encoding_key).unwrap())
+        b.iter(|| service.encode(&claims).unwrap())
     });
 }
 
 fn bench_jwt_decode(c: &mut Criterion) {
     let claims = sample_claims();
-    let encoding_key = EncodingKey::from_secret(b"benchmark-secret-key-32-bytes-long!!");
-    let token = encode(&Header::default(), &claims, &encoding_key).unwrap();
-    let decoding_key = jsonwebtoken::DecodingKey::from_secret(b"benchmark-secret-key-32-bytes-long!!");
+    let service = JwtService::new(JwtConfig {
+        secret: "benchmark-secret-key-32-bytes-long!!".to_string(),
+        ..Default::default()
+    });
+    let token = service.encode(&claims).unwrap();
 
     c.bench_function("jwt_decode", |b| {
-        b.iter(|| decode::<Claims>(&token, &decoding_key, &Validation::default()).unwrap())
+        b.iter(|| service.decode::<Claims>(&token).unwrap())
     });
 }
 
 fn bench_jwt_encode_payload_sizes(c: &mut Criterion) {
-    let encoding_key = EncodingKey::from_secret(b"benchmark-secret-key-32-bytes-long!!");
+    let service = JwtService::new(JwtConfig {
+        secret: "benchmark-secret-key-32-bytes-long!!".to_string(),
+        ..Default::default()
+    });
     let base_claims = sample_claims();
 
     let mut group = c.benchmark_group("jwt_encode/payload_sizes");
@@ -47,18 +55,21 @@ fn bench_jwt_encode_payload_sizes(c: &mut Criterion) {
         let mut claims = base_claims.clone();
         claims.groups = Some(vec!["role".to_string(); group_count]);
         group.bench_with_input(BenchmarkId::from_parameter(group_count), &claims, |b, claims| {
-            b.iter(|| encode(&Header::default(), claims, &encoding_key).unwrap())
+            b.iter(|| service.encode(claims).unwrap())
         });
     }
     group.finish();
 }
 
 fn bench_jwt_decode_invalid_token(c: &mut Criterion) {
-    let decoding_key = jsonwebtoken::DecodingKey::from_secret(b"benchmark-secret-key-32-bytes-long!!");
+    let service = JwtService::new(JwtConfig {
+        secret: "benchmark-secret-key-32-bytes-long!!".to_string(),
+        ..Default::default()
+    });
 
     c.bench_function("jwt_decode/invalid_token", |b| {
         b.iter(|| {
-            let _ = decode::<Claims>("invalid.token.value", &decoding_key, &Validation::default());
+            let _ = service.decode::<Claims>("invalid.token.value");
         })
     });
 }

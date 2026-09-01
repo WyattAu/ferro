@@ -48,7 +48,6 @@ clap_complete = "4"
 dashmap = "6"
 anyhow = "1"
 toml = "0.8"
-jsonwebtoken = "9"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 base64 = "0.22"
 async-trait = "0.1"

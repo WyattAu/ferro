@@ -17,6 +17,7 @@ tracing = "0.1"
 chrono = "0.4"
 uuid = { version = "1", features = ["v4"] }
 jsonwebtoken = "9"
+tokenkit = { workspace = true }
 cedar-policy = "4"
 base64 = "0.22"
 axum = { version = "0.7", features = ["macros"], optional = true }

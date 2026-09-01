@@ -1,20 +1,14 @@
-// TODO: Migrate HMAC functionality to shared `cryptkit` crate (https://github.com/WyattAu/cryptkit).
+// DONE: HMAC functionality migrated to shared `cryptkit` crate (https://github.com/WyattAu/cryptkit).
 //
-// BLOCKED: The shared `cryptkit` crate exposes synchronous `hmac_sign()` and
-// `hmac_verify()` functions, while ferro-crypto uses an async trait method
-// `hmac_sha256()` via `CryptoProvider`. The crate also provides SHA-256/512,
-// bcrypt, random bytes, and token generation — functions not present in cryptkit.
+// `RingProvider::hmac_sha256()` now delegates to `cryptkit::hmac::hmac_sign()`.
+// `RingProvider::constant_time_eq()` now delegates to `cryptkit::hmac::constant_time_eq()`.
 //
 // Only two crates depend on ferro-crypto:
 //   - server-fips (Cargo.toml only)
 //   - benchmarks (benches/crypto_ops.rs)
 //
 // The FIPS-specific code uses `ring` primitives directly (same as cryptkit's
-// `fips` feature), so those can remain unchanged.
-//
-// To migrate: replace `RingProvider::hmac_sha256()` calls with
-// `cryptkit::hmac::hmac_sign()`, keep the async trait for SHA/bcrypt/random,
-// and update the two consumers.
+// `fips` feature), so those remain unchanged.
 
 //! Cryptographic primitives with pluggable provider backends.
 

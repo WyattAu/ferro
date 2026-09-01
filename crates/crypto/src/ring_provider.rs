@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use ring::rand::SecureRandom;
-use ring::{digest, hmac, rand};
+use ring::{digest, rand};
 
 use super::traits::{CryptoProvider, Result};
 use crate::CryptoError;
 
-/// HMAC-SHA256 implementation using the Ring cryptography library.
+/// HMAC-SHA256 implementation using cryptkit (backed by the hmac/sha2 crates).
 pub struct RingProvider {
     _private: (),
 }
@@ -51,9 +51,8 @@ impl CryptoProvider for RingProvider {
         let key = key.to_vec();
         let data = data.to_vec();
         tokio::task::spawn_blocking(move || {
-            let key = hmac::Key::new(hmac::HMAC_SHA256, &key);
-            let tag = hmac::sign(&key, &data);
-            Ok(tag.as_ref().to_vec())
+            let tag = cryptkit::hmac::hmac_sign(&key, &data);
+            Ok(tag.to_vec())
         })
         .await
         .map_err(|e| CryptoError::Internal(format!("HMAC task error: {e}")))?
@@ -96,15 +95,7 @@ impl CryptoProvider for RingProvider {
     }
 
     fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-        let max_len = a.len().max(b.len());
-        let mut result = 0u8;
-        for i in 0..max_len {
-            let byte_a = if i < a.len() { a[i] } else { 0 };
-            let byte_b = if i < b.len() { b[i] } else { 0 };
-            result |= byte_a ^ byte_b;
-        }
-        result |= (a.len() ^ b.len()) as u8;
-        result == 0
+        cryptkit::hmac::constant_time_eq(a, b)
     }
 
     fn provider_name(&self) -> &'static str {
