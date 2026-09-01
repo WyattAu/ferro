@@ -39,13 +39,13 @@ Ferro is a self-hosted file sync server written in Rust with 73 crates, 2500+ te
 | **Deduplication** | SHA-256 CAS | Internal only | Block-level | Block-level | No | No | Block-level (core) |
 | **Compression** | Yes (HTTP gzip via tower-http) | Transparent | Transparent | Transparent | No | No | Chunk-based |
 | **Encryption at rest** | AES-256-GCM | AES-256 | AES-256 | Client-side AES | Server-side | Server-side | Server-side + optional E2E |
-| **External storage** | NFS/SMB/WebDAV | No | No | No | Extensive (FTP/S3/SMB/Dropbox/Google) | EOS/S3/WND | S3 |
+| **External storage** | S3/GCS/Azure/NAS/NFS/SMB | No | No | No | Extensive (FTP/S3/SMB/Dropbox/Google) | EOS/S3/WND | S3 |
 | **Quota management** | Per-tenant/user | Per-user | Per-user | Per-user | Per-user | Per-space | Per-user/library |
-| **Storage backends** | Local/S3/GCS/Azure/PostgreSQL | Google-managed | Dropbox-managed | MEGA-managed | Local + external | Local/S3/EOS | Local/S3 |
+| **Storage backends** | Local/S3/GCS/Azure/NAS/NFS/SMB | Google-managed | Dropbox-managed | MEGA-managed | Local + external | Local/S3/EOS | Local/S3 |
 | **Resumable uploads** | Yes (chunked) | Yes | Yes | Yes | Yes | Yes (TUS) | Yes |
 
-**Ferro advantages:** Deduplication (SHA-256 CAS), multiple storage backends, external storage mounting
-**Ferro gaps:** No compression, no block-level sync (Seafile/Dropbox), no extensive external storage support
+**Ferro advantages:** Deduplication (SHA-256 CAS), multiple storage backends, external storage mounting (S3/GCS/Azure/NAS/NFS/SMB)
+**Ferro gaps:** No block-level sync (Seafile/Dropbox)
 
 ---
 
