@@ -4,6 +4,10 @@ use common::auth::Claims;
 pub fn resolve_user_path(path: &str, claims: Option<&Claims>) -> String {
     match claims {
         Some(c) if c.sub != "anonymous" => {
+            // Allow /_spaces/ paths to pass through unchanged (shared namespace)
+            if path.starts_with("/_spaces/") {
+                return path.to_string();
+            }
             let user_root = format!("/users/{}", c.sub);
             if path == "/" || path.is_empty() {
                 return user_root;
@@ -18,6 +22,10 @@ pub fn resolve_user_path(path: &str, claims: Option<&Claims>) -> String {
 pub fn can_access_path(path: &str, claims: Option<&Claims>) -> bool {
     match claims {
         Some(c) if c.sub != "anonymous" => {
+            // Allow access to /_spaces/ paths (shared namespace, access controlled by shares)
+            if path.starts_with("/_spaces/") {
+                return true;
+            }
             let prefix = format!("/users/{}/", c.sub);
             path == format!("/users/{}", c.sub) || path.starts_with(&prefix)
         }

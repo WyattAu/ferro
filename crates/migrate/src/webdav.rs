@@ -611,6 +611,25 @@ pub(crate) fn dav_path_to_ferro(dav_path: &str) -> String {
     format!("/{}", trimmed)
 }
 
+/// Map a project space WebDAV path to a Ferro path.
+///
+/// OCIS: `/dav/spaces/{space-id}/Documents/report.pdf`
+/// Ferro: `/_spaces/{space-name}/Documents/report.pdf`
+pub fn space_path_to_ferro(space_name: &str, dav_path: &str) -> String {
+    // Strip the /dav/spaces/{space-id}/ prefix to get relative path
+    let relative = dav_path
+        .trim_start_matches('/')
+        .strip_prefix("dav/spaces/")
+        .and_then(|s| s.find('/').map(|i| &s[i + 1..]))
+        .unwrap_or(dav_path.trim_start_matches('/'));
+
+    if relative.is_empty() {
+        format!("/_spaces/{}", space_name)
+    } else {
+        format!("/_spaces/{}/{}", space_name, relative)
+    }
+}
+
 pub fn parse_propfind(xml: &str) -> MigrateResult<Vec<DavEntry>> {
     use quick_xml::Reader;
     use quick_xml::events::Event;

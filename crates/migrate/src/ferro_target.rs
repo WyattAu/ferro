@@ -114,6 +114,55 @@ impl FerroTarget {
         Ok(())
     }
 
+    /// Create a share for a project space member.
+    ///
+    /// Maps OCIS roles to Ferro permissions:
+    /// - Manager: read=true, write=true, share=true
+    /// - Editor: read=true, write=true, share=false
+    /// - Viewer: read=true, write=false, share=false
+    pub async fn create_space_member_share(
+        &self,
+        space_path: &str,
+        username: &str,
+        role: &str,
+    ) -> MigrateResult<()> {
+        let (read, write, share) = match role {
+            "manager" => (true, true, true),
+            "editor" => (true, true, false),
+            "viewer" => (true, false, false),
+            _ => (true, false, false),
+        };
+
+        let body = json!({
+            "path": space_path,
+            "share_type": "user",
+            "shared_with": username,
+            "permissions": {
+                "read": read,
+                "write": write,
+            },
+        });
+
+        let resp = self
+            .http
+            .post(format!("{}/api/shares", self.url))
+            .json(&body)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            tracing::warn!(
+                "Share for space member '{}' on '{}' failed ({}): role={}",
+                username,
+                space_path,
+                status,
+                role
+            );
+        }
+        Ok(())
+    }
+
     pub async fn create_directory(&self, path: &str) -> MigrateResult<()> {
         let url = format!("{}{}", self.url, path);
         let resp = self

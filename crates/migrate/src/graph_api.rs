@@ -141,10 +141,20 @@ impl GraphApiClient {
     }
 
     /// List all spaces accessible to the user.
-    pub async fn list_spaces(&self) -> MigrateResult<Vec<GraphDriveItem>> {
+    pub async fn list_spaces(&self) -> MigrateResult<Vec<GraphDrive>> {
         let url = format!("{}/graph/v1.0/me/drives", self.base_url);
         let resp = self.http.get(&url).send().await?;
-        let data: GraphListResponse = resp.json().await?;
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(MigrationError::connection(format!(
+                "Graph API list_spaces failed ({}): {}",
+                status,
+                &body[..body.len().min(200)]
+            )));
+        }
+
+        let data: GraphDriveListResponse = resp.json().await?;
         Ok(data.value)
     }
 
@@ -234,6 +244,82 @@ pub struct GraphGroup {
 pub struct GraphGroupListResponse {
     #[serde(default)]
     pub value: Vec<GraphGroup>,
+    #[serde(default)]
+    pub odata_nextLink: Option<String>,
+}
+
+// ── Drive / Space types ───────────────────────────────────────────────
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphDrive {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub driveType: Option<String>,
+    #[serde(default)]
+    pub driveAlias: Option<String>,
+    #[serde(default)]
+    pub owner: Option<GraphDriveIdentitySet>,
+    #[serde(default)]
+    pub quota: Option<GraphDriveQuota>,
+    #[serde(default)]
+    pub root: Option<GraphDriveRoot>,
+    #[serde(default)]
+    pub lastModifiedDateTime: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphDriveIdentitySet {
+    #[serde(default)]
+    pub user: Option<GraphDriveIdentity>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphDriveIdentity {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub displayName: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphDriveQuota {
+    #[serde(default)]
+    pub total: Option<u64>,
+    #[serde(default)]
+    pub used: Option<u64>,
+    #[serde(default)]
+    pub remaining: Option<u64>,
+    #[serde(default)]
+    pub state: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphDriveRoot {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub webDavUrl: Option<String>,
+    #[serde(default)]
+    pub permissions: Option<Vec<GraphDrivePermission>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphDrivePermission {
+    #[serde(default)]
+    pub grantedToIdentities: Option<Vec<GraphDriveIdentitySet>>,
+    #[serde(default)]
+    pub roles: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphDriveListResponse {
+    #[serde(default)]
+    pub value: Vec<GraphDrive>,
     #[serde(default)]
     pub odata_nextLink: Option<String>,
 }

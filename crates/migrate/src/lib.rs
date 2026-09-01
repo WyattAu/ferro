@@ -361,6 +361,163 @@ async fn run_nextcloud_migration(
     Ok(())
 }
 
+/// Migrate OCIS project spaces to Ferro.
+///
+/// Each space is mapped to `/_spaces/{space-name}/` in Ferro.
+/// Files are migrated via WebDAV, members are migrated as shares.
+async fn run_ocis_space_migration(
+    source: &OcisSource,
+    ferro: &FerroTarget,
+    ocis_token: &str,
+    ocis_client: &OcisClient,
+    options: &MigrationOptions,
+    progress: &ProgressTracker,
+    report: &mut MigrationReport,
+) -> MigrateResult<()> {
+    tracing::info!("Migrating oCIS project spaces...");
+    let graph = crate::graph_api::GraphApiClient::new(&source.url, ocis_token);
+
+    let spaces = match graph.list_spaces().await {
+        Ok(spaces) => spaces,
+        Err(e) => {
+            tracing::error!("Failed to list oCIS spaces: {}", e);
+            report.errors.push(format!("list oCIS spaces: {}", e));
+            return Ok(());
+        }
+    };
+
+    // Filter to project spaces only (skip personal and virtual)
+    let project_spaces: Vec<_> = spaces
+        .iter()
+        .filter(|s| s.driveType.as_deref() == Some("project"))
+        .collect();
+
+    tracing::info!("Found {} project spaces", project_spaces.len());
+
+    for space in &project_spaces {
+        let space_name = space.name.as_deref().unwrap_or("unnamed");
+        let space_id = space.id.as_deref().unwrap_or("");
+        tracing::info!("Migrating space: {} (id={})", space_name, space_id);
+
+        // Create the space directory in Ferro
+        let space_ferro_path = format!("/_spaces/{}", space_name);
+        if let Err(e) = ferro.create_directory(&space_ferro_path).await {
+            tracing::warn!("Create space directory '{}' failed: {}", space_ferro_path, e);
+            continue;
+        }
+
+        // Migrate space members as shares
+        if let Some(ref root) = space.root {
+            if let Some(ref permissions) = root.permissions {
+                for perm in permissions {
+                    if let Some(ref identities) = perm.grantedToIdentities {
+                        let role = perm.roles.as_ref()
+                            .and_then(|r| r.first())
+                            .map(|r| match r.as_str() {
+                                "312c0871-5ef7-4b3a-85b6-0e4074c64049" => "manager",
+                                "fb6c3e19-e378-47e5-b277-9732f9de6e21" => "editor",
+                                "b1e2218d-eef8-4d4c-b82d-0f1a1b48f3b5" => "viewer",
+                                _ => "viewer",
+                            })
+                            .unwrap_or("viewer");
+
+                        for identity in identities {
+                            if let Some(ref user) = identity.user {
+                                let username = user.displayName.as_deref()
+                                    .or(user.id.as_deref())
+                                    .unwrap_or("unknown");
+                                if let Err(e) = ferro.create_space_member_share(
+                                    &space_ferro_path,
+                                    username,
+                                    role,
+                                ).await {
+                                    tracing::warn!(
+                                        "Share space member '{}' on '{}' failed: {}",
+                                        username,
+                                        space_name,
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Migrate files from the space
+        if !options.skip_files {
+            tracing::info!("  Migrating files from space '{}'...", space_name);
+            let mut dirs_to_list: Vec<String> = vec!["/".to_string()];
+            let mut files_migrated = 0usize;
+            let mut files_failed = 0usize;
+
+            while let Some(dir) = dirs_to_list.pop() {
+                match ocis_client.list_space_contents(space_id, &dir).await {
+                    Ok(entries) => {
+                        for entry in &entries {
+                            // DavEntry uses `path` (the WebDAV href)
+                            let normalized = entry.path.trim_end_matches('/');
+                            let parent_url = ocis_client.space_webdav_url(space_id, &dir);
+                            let parent_normalized = parent_url.trim_end_matches('/');
+                            if normalized == parent_normalized {
+                                continue;
+                            }
+
+                            // Extract relative path from the WebDAV path
+                            let rel_path = if let Some(pos) = entry.path.find(&format!("/dav/spaces/{}/", space_id)) {
+                                entry.path[pos + format!("/dav/spaces/{}/", space_id).len()..].to_string()
+                            } else {
+                                entry.path.trim_start_matches('/').to_string()
+                            };
+
+                            if entry.is_collection && !rel_path.is_empty() {
+                                let sub_dir = format!("{}/{}", dir.trim_end_matches('/'), rel_path);
+                                dirs_to_list.push(sub_dir.clone());
+                                let sub_ferro_path = webdav::space_path_to_ferro(space_name, &format!("/dav/spaces/{}{}", space_id, sub_dir));
+                                if let Err(e) = ferro.create_directory(&sub_ferro_path).await {
+                                    tracing::warn!("  Create space subdir '{}' failed: {}", sub_ferro_path, e);
+                                }
+                            } else if !entry.is_collection {
+                                // Download and upload the file
+                                let ferro_path = webdav::space_path_to_ferro(space_name, &entry.path);
+                                match ocis_client.download_space_file(space_id, &rel_path).await {
+                                    Ok(content) => {
+                                        if let Err(e) = ferro.put_file(&ferro_path, &content).await {
+                                            tracing::warn!("  Upload '{}' failed: {}", ferro_path, e);
+                                            files_failed += 1;
+                                        } else {
+                                            files_migrated += 1;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!("  Download '{}' failed: {}", rel_path, e);
+                                        files_failed += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("  PROPFIND space '{}' at '{}' failed: {}", space_name, dir, e);
+                    }
+                }
+            }
+
+            tracing::info!(
+                "  Space '{}': {} files migrated, {} failed",
+                space_name,
+                files_migrated,
+                files_failed
+            );
+            report.files_migrated += files_migrated;
+            report.files_failed += files_failed;
+        }
+    }
+
+    Ok(())
+}
+
 async fn run_ocis_migration(
     source: &OcisSource,
     ferro: &FerroTarget,
@@ -630,6 +787,9 @@ async fn run_ocis_migration(
     } else {
         tracing::info!("Skipping tag and favorite migration");
     }
+
+    // Migrate project spaces
+    run_ocis_space_migration(source, ferro, &ocis_token, &ocis_for_shares, options, progress, report).await?;
 
     Ok(())
 }

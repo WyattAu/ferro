@@ -502,6 +502,65 @@ impl OcisClient {
         let xml = resp.text().await?;
         parse_metadata_propfind(&xml)
     }
+
+    /// Build a WebDAV URL for a project space.
+    pub fn space_webdav_url(&self, space_id: &str, path: &str) -> String {
+        let clean_path = path
+            .trim_start_matches('/');
+        format!(
+            "{}/dav/spaces/{}/{}",
+            self.url,
+            space_id,
+            clean_path
+        )
+    }
+
+    /// List directory contents of a project space via PROPFIND.
+    pub async fn list_space_contents(&self, space_id: &str, path: &str) -> MigrateResult<Vec<DavEntry>> {
+        self.ensure_token_valid().await?;
+        let url = self.space_webdav_url(space_id, path);
+        tracing::debug!("PROPFIND (space) {}", url);
+        let http = self.http.read().await;
+        let resp = http
+            .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
+            .header("Depth", "1")
+            .send()
+            .await?;
+        drop(http);
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(MigrationError::webdav(format!(
+                "PROPFIND space {} failed ({}): {}",
+                space_id,
+                status,
+                &body[..body.len().min(200)]
+            )));
+        }
+
+        let xml = resp.text().await?;
+        crate::webdav::parse_propfind(&xml)
+    }
+
+    /// Download a file from a project space.
+    pub async fn download_space_file(&self, space_id: &str, path: &str) -> MigrateResult<Vec<u8>> {
+        self.ensure_token_valid().await?;
+        let url = self.space_webdav_url(space_id, path);
+        tracing::debug!("DOWNLOAD (space) {}", url);
+        let http = self.http.read().await;
+        let resp = http.get(&url).send().await?;
+        drop(http);
+
+        if !resp.status().is_success() {
+            return Err(MigrationError::webdav(format!(
+                "GET space file failed: {}",
+                resp.status()
+            )));
+        }
+
+        Ok(resp.bytes().await?.to_vec())
+    }
 }
 
 /// A single entry from an extended PROPFIND response with tags and favorites.
