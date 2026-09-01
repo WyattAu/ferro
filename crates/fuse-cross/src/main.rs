@@ -257,7 +257,12 @@ fn parse_propfind_children(xml: &str, parent_path: &str) -> Vec<(String, bool, u
     let mut current_size: u64 = 0;
 
     // XML may be all on one line — split by response tags instead of newlines
-    for response_chunk in xml.split("</D:response>").chain(xml.split("</d:response>")) {
+    let chunks: Vec<&str> = if xml.contains("</D:response>") {
+        xml.split("</D:response>").collect()
+    } else {
+        xml.split("</d:response>").collect()
+    };
+    for response_chunk in chunks {
         current_href = None;
         current_is_collection = false;
         current_size = 0;
@@ -713,4 +718,69 @@ fn main() -> Result<()> {
     fuser::mount(fs, &mount_point, &config)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_propfind_children_empty() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?><D:multistatus xmlns:D="DAV:"></D:multistatus>"#;
+        let children = parse_propfind_children(xml, "/");
+        assert!(children.is_empty());
+    }
+
+    #[test]
+    fn test_parse_propfind_children_single() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?><D:multistatus xmlns:D="DAV:"><D:response><D:href>/file.txt</D:href><D:propstat><D:prop><D:getcontentlength>100</D:getcontentlength><D:resourcetype></D:resourcetype></D:prop></D:propstat></D:response></D:multistatus>"#;
+        let children = parse_propfind_children(xml, "/");
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].0, "/file.txt");
+        assert!(!children[0].1); // not a collection
+        assert_eq!(children[0].2, 100);
+    }
+
+    #[test]
+    fn test_parse_propfind_children_collection() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?><D:multistatus xmlns:D="DAV:"><D:response><D:href>/mydir</D:href><D:propstat><D:prop><D:getcontentlength>0</D:getcontentlength><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat></D:response></D:multistatus>"#;
+        let children = parse_propfind_children(xml, "/");
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].0, "/mydir");
+        assert!(children[0].1); // is a collection
+    }
+
+    #[test]
+    fn test_parse_propfind_children_filter_parent() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?><D:multistatus xmlns:D="DAV:"><D:response><D:href>/users/abc</D:href><D:propstat><D:prop><D:getcontentlength>0</D:getcontentlength><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat></D:response><D:response><D:href>/users/abc/file.txt</D:href><D:propstat><D:prop><D:getcontentlength>50</D:getcontentlength><D:resourcetype></D:resourcetype></D:prop></D:propstat></D:response></D:multistatus>"#;
+        let children = parse_propfind_children(xml, "/users/abc");
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].0, "/users/abc/file.txt");
+    }
+
+    #[test]
+    fn test_parse_propfind_children_single_line() {
+        // Test that single-line XML (no newlines) works
+        let xml = r#"<D:multistatus xmlns:D="DAV:"><D:response><D:href>/test</D:href><D:propstat><D:prop><D:getcontentlength>0</D:getcontentlength><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat></D:response></D:multistatus>"#;
+        let children = parse_propfind_children(xml, "/");
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].0, "/test");
+        assert!(children[0].1);
+    }
+
+    #[test]
+    fn test_dav_url_strips_user_prefix() {
+        let fs = FerroFs::new("https://example.com".to_string(), None, 0, 0);
+        let url = fs.dav_url("/users/abc/file.txt");
+        assert!(url.starts_with("https://example.com/"));
+        assert!(url.contains("file.txt"));
+        // URL has trailing slash
+        assert!(url.ends_with('/'));
+    }
+
+    #[test]
+    fn test_dav_url_root() {
+        let fs = FerroFs::new("https://example.com".to_string(), None, 0, 0);
+        assert_eq!(fs.dav_url("/"), "https://example.com/");
+    }
 }
