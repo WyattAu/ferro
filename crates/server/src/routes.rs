@@ -949,12 +949,30 @@ pub fn build_router_with_static(
         )
     });
 
-    // Enforce password change when default password is in use.
-    // This runs AFTER simple_auth, so we know the request passed authentication.
-    let default_password_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-        let pw = admin_password_for_default_check.clone();
-        let rotated = admin_password_rotated.clone();
+    // Combined server state gate: maintenance mode + default password enforcement
+    let maintenance_mode = state.maintenance_mode.clone();
+    let pw_for_gate = admin_password_for_default_check.clone();
+    let rotated_for_gate = admin_password_rotated.clone();
+    let server_state_gate_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
+        let flag = maintenance_mode.clone();
+        let pw = pw_for_gate.clone();
+        let rotated = rotated_for_gate.clone();
         async move {
+            // Maintenance mode check
+            if flag.load(std::sync::atomic::Ordering::Relaxed) {
+                let method = req.method();
+                let path = req.uri().path();
+                let is_read = matches!(method.as_str(), "GET" | "HEAD" | "OPTIONS");
+                let is_maintenance_toggle = path == "/api/admin/maintenance";
+                if !is_read && !is_maintenance_toggle {
+                    return Ok::<_, std::convert::Infallible>(crate::api_error::ApiError::service_unavailable(
+                        crate::api_error::ApiError::MAINTENANCE_MODE,
+                        "Server is in maintenance mode. Write operations are temporarily disabled.",
+                    ));
+                }
+            }
+
+            // Default password check
             if !rotated.load(std::sync::atomic::Ordering::Relaxed)
                 && let Some(ref pw_val) = pw
                 && security::is_default_password(pw_val)
@@ -964,28 +982,7 @@ pub fn build_router_with_static(
                     return Ok::<_, std::convert::Infallible>(security::response_require_password_change());
                 }
             }
-            Ok(next.run(req).await)
-        }
-    });
 
-    let maintenance_mode = state.maintenance_mode.clone();
-    let maintenance_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-        let flag = maintenance_mode.clone();
-        async move {
-            if flag.load(std::sync::atomic::Ordering::Relaxed) {
-                let method = req.method();
-                let path = req.uri().path();
-                // Allow read operations and the maintenance toggle endpoint.
-                let is_read = matches!(method.as_str(), "GET" | "HEAD" | "OPTIONS");
-                // Allow the admin maintenance toggle even during maintenance.
-                let is_maintenance_toggle = path == "/api/admin/maintenance";
-                if !is_read && !is_maintenance_toggle {
-                    return Ok::<_, std::convert::Infallible>(crate::api_error::ApiError::service_unavailable(
-                        crate::api_error::ApiError::MAINTENANCE_MODE,
-                        "Server is in maintenance mode. Write operations are temporarily disabled.",
-                    ));
-                }
-            }
             Ok(next.run(req).await)
         }
     });
@@ -1047,9 +1044,13 @@ pub fn build_router_with_static(
         state.rate_limit_refill,
         std::time::Duration::from_secs(1),
     ));
-    let rate_limit_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
+    let tenant_rate_limiter = state.tenant_rate_limiter.clone();
+    // Combined rate limit middleware (global IP + tenant)
+    let combined_rate_limit_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
         let limiter = rate_limiter.clone();
+        let tenant_limiter = tenant_rate_limiter.clone();
         async move {
+            // Global IP rate limit
             let client_ip = req
                 .headers()
                 .get("x-forwarded-for")
@@ -1060,9 +1061,35 @@ pub fn build_router_with_static(
 
             use ferro_rate_limiter::RateLimiter;
             match limiter.check(&client_ip).await {
-                Ok(result) if result.allowed => next.run(req).await,
-                _ => api_error::ApiError::too_many_requests(api_error::ApiError::RATE_LIMITED, "Rate limit exceeded"),
+                Ok(result) if result.allowed => {}
+                _ => return api_error::ApiError::too_many_requests(api_error::ApiError::RATE_LIMITED, "Rate limit exceeded"),
             }
+
+            // Tenant rate limit (if configured)
+            if let Some(ref limiter) = tenant_limiter {
+                if let Some(tid) = req
+                    .headers()
+                    .get("x-tenant-id")
+                    .and_then(|v| v.to_str().ok())
+                    .map(|s| s.to_string())
+                {
+                    match limiter.check(&tid).await {
+                        Ok(result) if result.allowed => {
+                            let mut response = next.run(req).await;
+                            if let Ok(val) = axum::http::HeaderValue::from_str(&result.remaining.to_string()) {
+                                response.headers_mut().insert("X-RateLimit-Remaining", val);
+                            }
+                            return response;
+                        }
+                        _ => return api_error::ApiError::too_many_requests(
+                            api_error::ApiError::RATE_LIMITED,
+                            "Tenant rate limit exceeded",
+                        ),
+                    }
+                }
+            }
+
+            next.run(req).await
         }
     });
 
@@ -1225,46 +1252,7 @@ pub fn build_router_with_static(
         // /api/v1 prefix). Using fallback() ensures we run after all route
         // matching, and we dispatch based on path prefix.
         .fallback(api_and_webdav_fallback)
-        .layer(rate_limit_layer)
-        .layer({
-            let tenant_limiter = state.tenant_rate_limiter.clone();
-            axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
-                let limiter = tenant_limiter.clone();
-                async move {
-                    // Only apply tenant rate limiting if a tenant limiter is configured.
-                    let Some(limiter) = limiter else {
-                        return next.run(req).await;
-                    };
-
-                    // Extract tenant ID from X-Tenant-ID header.
-                    let tenant_id = req
-                        .headers()
-                        .get("x-tenant-id")
-                        .and_then(|v| v.to_str().ok())
-                        .map(|s| s.to_string());
-
-                    let Some(tid) = tenant_id else {
-                        // No tenant header — pass through (global rate limit already applied).
-                        return next.run(req).await;
-                    };
-
-                    use ferro_rate_limiter::RateLimiter;
-                    match limiter.check(&tid).await {
-                        Ok(result) if result.allowed => {
-                            let mut response = next.run(req).await;
-                            if let Ok(val) = axum::http::HeaderValue::from_str(&result.remaining.to_string()) {
-                                response.headers_mut().insert("X-RateLimit-Remaining", val);
-                            }
-                            response
-                        }
-                        _ => api_error::ApiError::too_many_requests(
-                            api_error::ApiError::RATE_LIMITED,
-                            "Tenant rate limit exceeded",
-                        ),
-                    }
-                }
-            })
-        })
+        .layer(combined_rate_limit_layer)
         .layer(cedar_layer)
         .layer(auth_layer)
         .layer(simple_auth_layer)
@@ -1273,8 +1261,7 @@ pub fn build_router_with_static(
             state.clone(),
             guests::guest_expiry_middleware::<AppState>,
         ))
-        .layer(default_password_layer)
-        .layer(maintenance_layer)
+        .layer(server_state_gate_layer)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             security::auth_guard_middleware::<AppState>,
