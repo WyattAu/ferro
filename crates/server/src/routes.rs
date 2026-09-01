@@ -52,7 +52,6 @@ use crate::push_notifications;
 use crate::qr_sharing;
 use crate::quota;
 use crate::remote_mount;
-use crate::request_id;
 use crate::request_logging;
 use crate::retention;
 use crate::search;
@@ -1274,16 +1273,17 @@ pub fn build_router_with_static(
             security::auth_guard_middleware::<AppState>,
         ))
         .layer(cors_layer)
-        .layer(axum::middleware::from_fn(request_id::request_id_middleware))
         .layer(axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
             let counter = request_counter.clone();
             let buckets = duration_buckets.clone();
             let statuses = status_counts.clone();
             let storage_ops = storage_op_counts.clone();
             let sum = duration_sum_ms.clone();
-            request_logging::request_logging_middleware(counter, buckets, sum, statuses, Some(storage_ops), req, next)
+            request_logging::observability_middleware(counter, buckets, sum, statuses, Some(storage_ops), req, next)
         }))
-        .layer(axum::middleware::from_fn(security_headers::security_and_panic_middleware))
+        .layer(axum::middleware::from_fn(
+            security_headers::security_and_panic_middleware,
+        ))
         .layer(CompressionLayer::new())
         .layer(axum::extract::DefaultBodyLimit::max(state.max_body_size as usize))
         // Cap concurrent in-flight requests to prevent the tokio runtime and

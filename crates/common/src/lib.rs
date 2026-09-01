@@ -72,5 +72,9 @@ where
         f(&conn)
     })
     .await
-    .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(crate::error::FerroError::Internal(format!("spawn_blocking panicked: {e}"))) })?
+    .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(crate::error::FerroError::Internal(format!(
+            "spawn_blocking panicked: {e}"
+        )))
+    })?
 }

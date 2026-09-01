@@ -242,7 +242,7 @@ pub(crate) async fn tauri_invoke(cmd: &str, args: &serde_json::Value) -> Result<
     }
 }
 
-pub(crate) use common::format::format_size;
+pub(crate) use ferro_common::format::format_size;
 
 fn file_icon(name: &str) -> &'static str {
     let ext = name.rsplit('.').next().unwrap_or("");

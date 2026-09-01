@@ -1,7 +1,6 @@
 use leptos::ev;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
-use wasm_bindgen::prelude::Closure;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AudioTrack {

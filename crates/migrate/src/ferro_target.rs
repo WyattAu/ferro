@@ -89,7 +89,10 @@ impl FerroTarget {
         if !resp.status().is_success() {
             let status = resp.status();
             let err_body: serde_json::Value = resp.json().await.unwrap_or_default();
-            let msg = err_body.get("error").and_then(|v| v.as_str()).unwrap_or("unknown error");
+            let msg = err_body
+                .get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown error");
             tracing::warn!("Create group '{}' failed ({}): {}", name, status, msg);
         }
         Ok(())
@@ -120,12 +123,7 @@ impl FerroTarget {
     /// - Manager: read=true, write=true, share=true
     /// - Editor: read=true, write=true, share=false
     /// - Viewer: read=true, write=false, share=false
-    pub async fn create_space_member_share(
-        &self,
-        space_path: &str,
-        username: &str,
-        role: &str,
-    ) -> MigrateResult<()> {
+    pub async fn create_space_member_share(&self, space_path: &str, username: &str, role: &str) -> MigrateResult<()> {
         let (read, write, share) = match role {
             "manager" => (true, true, true),
             "editor" => (true, true, false),

@@ -4,19 +4,36 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
+use uuid::Uuid;
 
-/// Middleware that logs each request with method, path, status, duration, and request ID.
-/// Also records Prometheus-compatible histogram buckets and status-code counters,
-/// and tracks storage operation counts by HTTP method.
-pub async fn request_logging_middleware(
+/// Extracted request ID extension (re-exported from request_id module).
+#[derive(Debug, Clone)]
+pub struct RequestId(pub String);
+
+/// Combined observability middleware: request ID + request logging.
+///
+/// Merges `request_id_middleware` and `request_logging_middleware` into a single layer
+/// to eliminate redundant header parsing and one future allocation per request.
+pub async fn observability_middleware(
     request_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
     duration_buckets: std::sync::Arc<[std::sync::atomic::AtomicU64; 11]>,
     duration_sum_ms: std::sync::Arc<std::sync::atomic::AtomicU64>,
     status_counts: std::sync::Arc<[std::sync::atomic::AtomicU64; 4]>,
     storage_op_counts: Option<std::sync::Arc<[std::sync::atomic::AtomicU64; 6]>>,
-    req: Request<Body>,
+    mut req: Request<Body>,
     next: Next,
 ) -> Response {
+    // Request ID extraction (from request_id_middleware)
+    let request_id = req
+        .headers()
+        .get("x-request-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+    req.extensions_mut().insert(RequestId(request_id.clone()));
+
+    // Logging setup (from request_logging_middleware)
     let start = Instant::now();
     let method = req.method().clone();
     let path = req.uri().path().to_string();
@@ -28,8 +45,20 @@ pub async fn request_logging_middleware(
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "-".to_string());
 
-    let response = next.run(req).await;
+    let mut response = next.run(req).await;
 
+    // Insert request ID into response header
+    let header_value = match request_id.parse::<axum::http::HeaderValue>() {
+        Ok(v) => v,
+        Err(_) => {
+            let fresh = Uuid::new_v4().to_string();
+            response.extensions_mut().insert(RequestId(fresh.clone()));
+            axum::http::HeaderValue::from_bytes(fresh.as_bytes()).expect("UUID is always valid HeaderValue")
+        }
+    };
+    response.headers_mut().insert("x-request-id", header_value);
+
+    // Metrics recording (from request_logging_middleware)
     request_count.fetch_add(1, Ordering::Relaxed);
 
     let duration = start.elapsed();
@@ -77,12 +106,6 @@ pub async fn request_logging_middleware(
             ops[idx].fetch_add(1, Ordering::Relaxed);
         }
     }
-
-    let request_id = response
-        .headers()
-        .get("x-request-id")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("-");
 
     tracing::info!(
         request_id = %request_id,

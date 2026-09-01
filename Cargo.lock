@@ -4432,6 +4432,7 @@ name = "ferro-ui"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "ferro-common",
  "js-sys",
  "leptos",
  "leptos_meta",

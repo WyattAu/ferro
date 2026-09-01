@@ -505,14 +505,8 @@ impl OcisClient {
 
     /// Build a WebDAV URL for a project space.
     pub fn space_webdav_url(&self, space_id: &str, path: &str) -> String {
-        let clean_path = path
-            .trim_start_matches('/');
-        format!(
-            "{}/dav/spaces/{}/{}",
-            self.url,
-            space_id,
-            clean_path
-        )
+        let clean_path = path.trim_start_matches('/');
+        format!("{}/dav/spaces/{}/{}", self.url, space_id, clean_path)
     }
 
     /// List directory contents of a project space via PROPFIND.
@@ -611,7 +605,10 @@ fn parse_metadata_propfind(xml: &str) -> MigrateResult<Vec<DavMetadataEntry>> {
             }
 
             // Extract content length
-            if let Some(start) = trimmed.find("<d:getcontentlength>").or_else(|| trimmed.find("<D:getcontentlength>")) {
+            if let Some(start) = trimmed
+                .find("<d:getcontentlength>")
+                .or_else(|| trimmed.find("<D:getcontentlength>"))
+            {
                 if let Some(s) = trimmed[start..].find('>') {
                     let s = start + s + 1;
                     if let Some(e) = trimmed[s..].find('<') {
@@ -643,8 +640,8 @@ fn parse_metadata_propfind(xml: &str) -> MigrateResult<Vec<DavMetadataEntry>> {
                 if let Some(start) = trimmed.find("<oc:favorite>") {
                     let s = start + 13;
                     if let Some(e) = trimmed[s..].find("</oc:favorite>") {
-                        current_favorite = trimmed[s..s + e].trim() == "1"
-                            || trimmed[s..s + e].trim().to_lowercase() == "true";
+                        current_favorite =
+                            trimmed[s..s + e].trim() == "1" || trimmed[s..s + e].trim().to_lowercase() == "true";
                     }
                 }
             }

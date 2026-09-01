@@ -121,4 +121,4 @@ pub fn TrashPage() -> impl IntoView {
     }
 }
 
-use common::format::format_size;
+use ferro_common::format::format_size;

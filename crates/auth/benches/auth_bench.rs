@@ -25,9 +25,7 @@ fn bench_jwt_encode(c: &mut Criterion) {
         ..Default::default()
     });
 
-    c.bench_function("jwt_encode", |b| {
-        b.iter(|| service.encode(&claims).unwrap())
-    });
+    c.bench_function("jwt_encode", |b| b.iter(|| service.encode(&claims).unwrap()));
 }
 
 fn bench_jwt_decode(c: &mut Criterion) {
@@ -38,9 +36,7 @@ fn bench_jwt_decode(c: &mut Criterion) {
     });
     let token = service.encode(&claims).unwrap();
 
-    c.bench_function("jwt_decode", |b| {
-        b.iter(|| service.decode::<Claims>(&token).unwrap())
-    });
+    c.bench_function("jwt_decode", |b| b.iter(|| service.decode::<Claims>(&token).unwrap()));
 }
 
 fn bench_jwt_encode_payload_sizes(c: &mut Criterion) {

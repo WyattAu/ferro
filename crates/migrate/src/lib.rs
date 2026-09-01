@@ -411,7 +411,9 @@ async fn run_ocis_space_migration(
             if let Some(ref permissions) = root.permissions {
                 for perm in permissions {
                     if let Some(ref identities) = perm.grantedToIdentities {
-                        let role = perm.roles.as_ref()
+                        let role = perm
+                            .roles
+                            .as_ref()
                             .and_then(|r| r.first())
                             .map(|r| match r.as_str() {
                                 "312c0871-5ef7-4b3a-85b6-0e4074c64049" => "manager",
@@ -423,14 +425,9 @@ async fn run_ocis_space_migration(
 
                         for identity in identities {
                             if let Some(ref user) = identity.user {
-                                let username = user.displayName.as_deref()
-                                    .or(user.id.as_deref())
-                                    .unwrap_or("unknown");
-                                if let Err(e) = ferro.create_space_member_share(
-                                    &space_ferro_path,
-                                    username,
-                                    role,
-                                ).await {
+                                let username = user.displayName.as_deref().or(user.id.as_deref()).unwrap_or("unknown");
+                                if let Err(e) = ferro.create_space_member_share(&space_ferro_path, username, role).await
+                                {
                                     tracing::warn!(
                                         "Share space member '{}' on '{}' failed: {}",
                                         username,
@@ -474,7 +471,10 @@ async fn run_ocis_space_migration(
                             if entry.is_collection && !rel_path.is_empty() {
                                 let sub_dir = format!("{}/{}", dir.trim_end_matches('/'), rel_path);
                                 dirs_to_list.push(sub_dir.clone());
-                                let sub_ferro_path = webdav::space_path_to_ferro(space_name, &format!("/dav/spaces/{}{}", space_id, sub_dir));
+                                let sub_ferro_path = webdav::space_path_to_ferro(
+                                    space_name,
+                                    &format!("/dav/spaces/{}{}", space_id, sub_dir),
+                                );
                                 if let Err(e) = ferro.create_directory(&sub_ferro_path).await {
                                     tracing::warn!("  Create space subdir '{}' failed: {}", sub_ferro_path, e);
                                 }
@@ -584,8 +584,16 @@ async fn run_ocis_migration(
                     let display_name = graph_user.displayName.as_deref().unwrap_or(username);
                     let ferro_user = mapper::FerroUser {
                         username: username.to_string(),
-                        email: if email.is_empty() { None } else { Some(email.to_string()) },
-                        display_name: if display_name.is_empty() { None } else { Some(display_name.to_string()) },
+                        email: if email.is_empty() {
+                            None
+                        } else {
+                            Some(email.to_string())
+                        },
+                        display_name: if display_name.is_empty() {
+                            None
+                        } else {
+                            Some(display_name.to_string())
+                        },
                         role: "user".to_string(),
                     };
                     match ferro.create_user(&ferro_user).await {
@@ -662,7 +670,10 @@ async fn run_ocis_migration(
                     let shared_with = ocs_share.share_with.as_deref();
                     let read = ocs_share.permissions & 1 != 0;
                     let write = ocs_share.permissions & 2 != 0;
-                    match ferro.create_share(&path, share_type_str, shared_with, read, write).await {
+                    match ferro
+                        .create_share(&path, share_type_str, shared_with, read, write)
+                        .await
+                    {
                         Ok(()) => report.shares_migrated += 1,
                         Err(e) => {
                             tracing::warn!("Share migration failed: {}", e);
@@ -731,7 +742,8 @@ async fn run_ocis_migration(
                     for entry in &entries {
                         // Skip the directory itself
                         let normalized = entry.href.trim_end_matches('/');
-                        let parent_normalized = format!("/remote.php/dav/files/{}{}", source.username, dir.trim_end_matches('/'));
+                        let parent_normalized =
+                            format!("/remote.php/dav/files/{}{}", source.username, dir.trim_end_matches('/'));
                         if normalized == parent_normalized.trim_end_matches('/') {
                             continue;
                         }
