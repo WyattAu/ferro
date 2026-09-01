@@ -947,6 +947,7 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(?cli_conn, "CLI args for frontend");
 
     let audit_mode = cli_args.audit;
+    let oidc_mode = cli_args.oidc;
 
     // Patch index.html with the server URL BEFORE Tauri serves it.
     // This avoids the race condition where WASM loads before window.eval() runs.
@@ -1045,6 +1046,14 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             cmd_oidc_login,
         ])
         .setup(move |app| {
+            // Auto-trigger OIDC login if --oidc flag is set
+            if oidc_mode {
+                tracing::info!("OIDC mode enabled — triggering login flow");
+                let handle = app.handle().clone();
+                // Emit event that frontend can listen to for OIDC login
+                let _ = handle.emit("oidc-login-required", ());
+            }
+
             let audit_mode = audit_mode;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
