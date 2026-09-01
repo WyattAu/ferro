@@ -44,3 +44,33 @@ mod format_proptest;
 /// within an async context. Previously defined 19 times across the workspace; now unified here.
 #[cfg(feature = "db")]
 pub type DbHandle = std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>;
+
+/// Run a blocking database operation on a `DbHandle` via `tokio::task::spawn_blocking`.
+///
+/// This prevents blocking the async runtime when executing synchronous SQLite queries.
+/// All handler code that accesses `DbHandle` should use this function instead of calling
+/// `db.lock().unwrap()` directly.
+///
+/// # Example
+/// ```ignore
+/// let tasks = ferro_common::db_run(db.clone(), |conn| {
+///     let mut stmt = conn.prepare("SELECT * FROM tasks")?;
+///     let rows = stmt.query_map([], |row| { ... })?;
+///     Ok(rows.collect::<Result<Vec<_>, _>>()?)
+/// }).await?;
+/// ```
+#[cfg(feature = "db")]
+pub async fn db_run<F, T>(db: DbHandle, f: F) -> Result<T, Box<dyn std::error::Error + Send + Sync>>
+where
+    F: FnOnce(&rusqlite::Connection) -> Result<T, Box<dyn std::error::Error + Send + Sync>> + Send + 'static,
+    T: Send + 'static,
+{
+    tokio::task::spawn_blocking(move || {
+        let conn = db.lock().map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
+            Box::new(crate::error::FerroError::Internal(format!("DB lock poisoned: {e}")))
+        })?;
+        f(&conn)
+    })
+    .await
+    .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(crate::error::FerroError::Internal(format!("spawn_blocking panicked: {e}"))) })?
+}

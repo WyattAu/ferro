@@ -282,7 +282,7 @@ impl<'a> WebDavPipeline<'a> {
         progress: &crate::progress::ProgressTracker,
     ) -> MigrateResult<FileCopyStats> {
         let graph = match self.source {
-            WebDavSource::Ocis(oc) => oc.graph_client(),
+            WebDavSource::Ocis(oc) => oc.graph_client()?,
             _ => return Err(MigrationError::config("Graph API is only supported for oCIS sources")),
         };
 

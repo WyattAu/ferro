@@ -63,6 +63,14 @@ struct OidcTokenResponse {
 }
 
 impl OcisClient {
+    /// Get the bearer token if available (for use with Graph API).
+    pub fn token(&self) -> &str {
+        match &self.auth {
+            AuthMethod::Bearer(token) => token,
+            AuthMethod::Basic { .. } => "",
+        }
+    }
+
     /// Create a new client with Basic Auth (legacy behavior).
     pub fn new(url: &str, username: &str, password: &str) -> MigrateResult<Self> {
         let mut headers = HeaderMap::new();
@@ -324,10 +332,10 @@ impl OcisClient {
     }
 
     /// Create a Graph API client using the current OIDC token.
-    pub fn graph_client(&self) -> crate::Result<crate::graph_api::GraphApiClient> {
+    pub fn graph_client(&self) -> crate::error::Result<crate::graph_api::GraphApiClient> {
         let token = match &self.auth {
             AuthMethod::Bearer(t) => t.clone(),
-            _ => return Err(crate::MigrationError::auth("Graph API requires Bearer token")),
+            _ => return Err(crate::MigrationError::authentication("Graph API requires Bearer token")),
         };
         Ok(crate::graph_api::GraphApiClient::new(&self.url, &token))
     }
@@ -427,6 +435,66 @@ impl OcisClient {
 
         Ok(resp.bytes().await?.to_vec())
     }
+
+    /// List all shares via OCS API.
+    pub async fn list_shares(&self) -> MigrateResult<Vec<OcsShare>> {
+        self.ensure_token_valid().await?;
+        let url = format!(
+            "{}/ocs/v2.php/apps/files_sharing/api/v1/shares?format=json&reshare=false",
+            self.url
+        );
+        let http = self.http.read().await;
+        let resp = http
+            .get(&url)
+            .header("OCS-APIRequest", "true")
+            .header("Accept", "application/json")
+            .send()
+            .await?;
+        drop(http);
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(MigrationError::connection(format!(
+                "OCS shares API failed ({}): {}",
+                status,
+                &body[..body.len().min(200)]
+            )));
+        }
+
+        let data: OcsShareResponse = resp.json().await?;
+        Ok(data.ocs.data)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OcsShareResponse {
+    pub ocs: OcsShareData,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OcsShareData {
+    pub data: Vec<OcsShare>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OcsShare {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub share_type: i32,
+    #[serde(default)]
+    pub uid_owner: Option<String>,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub share_with: Option<String>,
+    #[serde(default)]
+    pub permissions: i32,
+    #[serde(default)]
+    pub share_name: Option<String>,
+    #[serde(default)]
+    pub token: Option<String>,
 }
 
 fn base64_engine() -> base64::engine::GeneralPurpose {

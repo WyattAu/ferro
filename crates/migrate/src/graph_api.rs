@@ -147,4 +147,93 @@ impl GraphApiClient {
         let data: GraphListResponse = resp.json().await?;
         Ok(data.value)
     }
+
+    /// List all users via Graph API (requires admin token).
+    pub async fn list_users(&self) -> MigrateResult<Vec<GraphUser>> {
+        let url = format!("{}/graph/v1.0/users", self.base_url);
+        let resp = self.http.get(&url).send().await?;
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(MigrationError::connection(format!(
+                "Graph API list_users failed ({}): {}",
+                status,
+                &body[..body.len().min(200)]
+            )));
+        }
+
+        let data: GraphUserListResponse = resp.json().await?;
+        Ok(data.value)
+    }
+
+    /// List all groups via Graph API (requires admin token).
+    pub async fn list_groups(&self) -> MigrateResult<Vec<GraphGroup>> {
+        let url = format!("{}/graph/v1.0/groups", self.base_url);
+        let resp = self.http.get(&url).send().await?;
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(MigrationError::connection(format!(
+                "Graph API list_groups failed ({}): {}",
+                status,
+                &body[..body.len().min(200)]
+            )));
+        }
+
+        let data: GraphGroupListResponse = resp.json().await?;
+        Ok(data.value)
+    }
+
+    /// List members of a group.
+    pub async fn list_group_members(&self, group_id: &str) -> MigrateResult<Vec<GraphUser>> {
+        let url = format!("{}/graph/v1.0/groups/{}/members", self.base_url, group_id);
+        let resp = self.http.get(&url).send().await?;
+        let status = resp.status();
+        if !status.is_success() {
+            return Ok(vec![]);
+        }
+
+        let data: GraphUserListResponse = resp.json().await?;
+        Ok(data.value)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphUser {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub displayName: Option<String>,
+    #[serde(default)]
+    pub mail: Option<String>,
+    #[serde(default)]
+    pub userPrincipalName: Option<String>,
+    #[serde(default)]
+    pub accountEnabled: Option<bool>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphUserListResponse {
+    #[serde(default)]
+    pub value: Vec<GraphUser>,
+    #[serde(default)]
+    pub odata_nextLink: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphGroup {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub displayName: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct GraphGroupListResponse {
+    #[serde(default)]
+    pub value: Vec<GraphGroup>,
+    #[serde(default)]
+    pub odata_nextLink: Option<String>,
 }

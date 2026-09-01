@@ -401,6 +401,8 @@ async fn run_ocis_migration(
         ));
     };
     let ocis = ocis.with_webdav_base(&source.webdav_base);
+    let ocis_token = ocis.token().to_string();
+    let ocis_for_shares = ocis.clone();
     let webdav_source = WebDavSource::Ocis(ocis);
 
     tracing::info!("Validating oCIS connection...");
@@ -410,8 +412,43 @@ async fn run_ocis_migration(
         .map_err(|e| MigrationError::connection(format!("Cannot connect to oCIS: {}", e)))?;
 
     if !options.skip_users {
-        tracing::info!("oCIS user migration via WebDAV is not supported (no database access)");
-        tracing::info!("Skipping user migration (oCIS users must be created manually or via oCIS API)");
+        tracing::info!("Migrating users from oCIS via Graph API...");
+        let graph = crate::graph_api::GraphApiClient::new(&source.url, &ocis_token);
+        match graph.list_users().await {
+            Ok(users) => {
+                progress.set_user_total(users.len() as u64);
+                for graph_user in &users {
+                    let username = graph_user
+                        .userPrincipalName
+                        .as_deref()
+                        .or(graph_user.displayName.as_deref())
+                        .unwrap_or("unknown");
+                    let email = graph_user.mail.as_deref().unwrap_or("");
+                    let display_name = graph_user.displayName.as_deref().unwrap_or(username);
+                    let ferro_user = mapper::FerroUser {
+                        username: username.to_string(),
+                        email: if email.is_empty() { None } else { Some(email.to_string()) },
+                        display_name: if display_name.is_empty() { None } else { Some(display_name.to_string()) },
+                        role: "user".to_string(),
+                    };
+                    match ferro.create_user(&ferro_user).await {
+                        Ok(()) => {
+                            report.users_migrated += 1;
+                        }
+                        Err(e) => {
+                            tracing::warn!("Skipping user '{}': {}", username, e);
+                            report.users_skipped += 1;
+                            report.errors.push(format!("user {}: {}", username, e));
+                        }
+                    }
+                    progress.inc_user();
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to list oCIS users via Graph API: {}", e);
+                report.errors.push(format!("list oCIS users: {}", e));
+            }
+        }
     } else {
         tracing::info!("Skipping user migration");
     }
@@ -447,21 +484,55 @@ async fn run_ocis_migration(
     }
 
     if !options.skip_shares {
-        tracing::info!("oCIS share migration via WebDAV is not supported");
-        tracing::info!("Skipping share migration");
+        tracing::info!("Migrating shares from oCIS via OCS API...");
+        match ocis_for_shares.list_shares().await {
+            Ok(shares) => {
+                progress.set_share_total(shares.len() as u64);
+                for ocs_share in &shares {
+                    let path = if let Some(ref p) = ocs_share.path {
+                        format!("/remote.php/dav/files/{}{}", source.username, p)
+                    } else {
+                        tracing::warn!("Skipping share without path: {:?}", ocs_share.id);
+                        progress.inc_share();
+                        continue;
+                    };
+                    let share_type_str = match ocs_share.share_type {
+                        0 => "user",
+                        1 => "group",
+                        3 => "remote",
+                        _ => "link",
+                    };
+                    let shared_with = ocs_share.share_with.as_deref();
+                    let read = ocs_share.permissions & 1 != 0;
+                    let write = ocs_share.permissions & 2 != 0;
+                    match ferro.create_share(&path, share_type_str, shared_with, read, write).await {
+                        Ok(()) => report.shares_migrated += 1,
+                        Err(e) => {
+                            tracing::warn!("Share migration failed: {}", e);
+                            report.errors.push(format!("share: {}", e));
+                        }
+                    }
+                    progress.inc_share();
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to list oCIS shares: {}", e);
+                report.errors.push(format!("list oCIS shares: {}", e));
+            }
+        }
     } else {
         tracing::info!("Skipping share migration");
     }
 
     if !options.skip_tags {
-        tracing::info!("oCIS tag migration via WebDAV is not supported");
+        tracing::info!("oCIS tag migration requires extended PROPFIND (not yet implemented)");
         tracing::info!("Skipping tag migration");
     } else {
         tracing::info!("Skipping tag migration");
     }
 
     if !options.skip_favorites {
-        tracing::info!("oCIS favorites migration via WebDAV is not supported");
+        tracing::info!("oCIS favorites migration requires extended PROPFIND (not yet implemented)");
         tracing::info!("Skipping favorite migration");
     } else {
         tracing::info!("Skipping favorite migration");

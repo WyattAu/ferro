@@ -365,8 +365,9 @@ pub async fn list_tasks(
     State(state): State<AppState>,
     Query(params): Query<TasksQuery>,
 ) -> impl IntoResponse {
-    match state.task_store().list(&params) {
-        Ok(tasks) => (
+    let store = state.task_store().clone();
+    match tokio::task::spawn_blocking(move || store.list(&params)).await {
+        Ok(Ok(tasks)) => (
             StatusCode::OK,
             Json(serde_json::json!({
                 "tasks": tasks,
@@ -374,14 +375,19 @@ pub async fn list_tasks(
             })),
         )
             .into_response(),
-        Err(e) if e == "Database not configured" => (
+        Ok(Err(e)) if e == "Database not configured" => (
             StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": e})),
+        )
+            .into_response(),
+        Ok(Err(e)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": e})),
         )
             .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e})),
+            Json(serde_json::json!({"error": format!("Task listing failed: {e}")})),
         )
             .into_response(),
     }
@@ -391,16 +397,22 @@ pub async fn create_task(
     State(state): State<AppState>,
     Json(req): Json<CreateTaskRequest>,
 ) -> impl IntoResponse {
-    match state.task_store().create(&req) {
-        Ok(task) => (StatusCode::CREATED, Json(serde_json::json!(task))).into_response(),
-        Err(e) if e == "Database not configured" => (
+    let store = state.task_store().clone();
+    match tokio::task::spawn_blocking(move || store.create(&req)).await {
+        Ok(Ok(task)) => (StatusCode::CREATED, Json(serde_json::json!(task))).into_response(),
+        Ok(Err(e)) if e == "Database not configured" => (
             StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": e})),
+        )
+            .into_response(),
+        Ok(Err(e)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": e})),
         )
             .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e})),
+            Json(serde_json::json!({"error": format!("Task creation failed: {e}")})),
         )
             .into_response(),
     }
@@ -411,21 +423,27 @@ pub async fn update_task(
     Path(id): Path<String>,
     Json(req): Json<UpdateTaskRequest>,
 ) -> impl IntoResponse {
-    match state.task_store().update(&id, &req) {
-        Ok(Some(task)) => Json(serde_json::json!(task)).into_response(),
-        Ok(None) => (
+    let store = state.task_store().clone();
+    match tokio::task::spawn_blocking(move || store.update(&id, &req)).await {
+        Ok(Ok(Some(task))) => Json(serde_json::json!(task)).into_response(),
+        Ok(Ok(None)) => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "Task not found"})),
         )
             .into_response(),
-        Err(e) if e == "Database not configured" => (
+        Ok(Err(e)) if e == "Database not configured" => (
             StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": e})),
+        )
+            .into_response(),
+        Ok(Err(e)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": e})),
         )
             .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e})),
+            Json(serde_json::json!({"error": format!("Task update failed: {e}")})),
         )
             .into_response(),
     }
@@ -435,21 +453,27 @@ pub async fn delete_task(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match state.task_store().delete(&id) {
-        Ok(true) => StatusCode::NO_CONTENT.into_response(),
-        Ok(false) => (
+    let store = state.task_store().clone();
+    match tokio::task::spawn_blocking(move || store.delete(&id)).await {
+        Ok(Ok(true)) => StatusCode::NO_CONTENT.into_response(),
+        Ok(Ok(false)) => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "Task not found"})),
         )
             .into_response(),
-        Err(e) if e == "Database not configured" => (
+        Ok(Err(e)) if e == "Database not configured" => (
             StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": e})),
+        )
+            .into_response(),
+        Ok(Err(e)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": e})),
         )
             .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e})),
+            Json(serde_json::json!({"error": format!("Task deletion failed: {e}")})),
         )
             .into_response(),
     }
@@ -460,21 +484,27 @@ pub async fn move_task(
     Path(id): Path<String>,
     Json(req): Json<MoveTaskRequest>,
 ) -> impl IntoResponse {
-    match state.task_store().move_task(&id, &req.status) {
-        Ok(Some(task)) => Json(serde_json::json!(task)).into_response(),
-        Ok(None) => (
+    let store = state.task_store().clone();
+    match tokio::task::spawn_blocking(move || store.move_task(&id, &req.status)).await {
+        Ok(Ok(Some(task))) => Json(serde_json::json!(task)).into_response(),
+        Ok(Ok(None)) => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "Task not found"})),
         )
             .into_response(),
-        Err(e) if e == "Database not configured" => (
+        Ok(Err(e)) if e == "Database not configured" => (
             StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": e})),
+        )
+            .into_response(),
+        Ok(Err(e)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": e})),
         )
             .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e})),
+            Json(serde_json::json!({"error": format!("Task move failed: {e}")})),
         )
             .into_response(),
     }

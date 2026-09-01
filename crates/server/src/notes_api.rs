@@ -167,6 +167,28 @@ pub async fn list_notes(
         Err(e) => return e.into_response(),
     };
 
+    match tokio::task::spawn_blocking(move || list_notes_sync(dir, params)).await {
+        Ok(Ok(notes)) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "notes": notes,
+                "total": notes.len(),
+            })),
+        )
+            .into_response(),
+        Ok(Err(e)) => e.into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("Notes listing failed: {e}")})),
+        )
+            .into_response(),
+    }
+}
+
+fn list_notes_sync(
+    dir: std::path::PathBuf,
+    params: NotesQuery,
+) -> Result<Vec<NoteMeta>, (StatusCode, Json<serde_json::Value>)> {
     let mut notes: Vec<NoteMeta> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {
@@ -186,14 +208,12 @@ pub async fn list_notes(
         }
     }
 
-    // Filter by folder
     if let Some(ref folder) = params.folder
         && !folder.is_empty()
     {
         notes.retain(|n| n.folder == *folder);
     }
 
-    // Search filter
     if let Some(ref q) = params.q
         && !q.is_empty()
     {
@@ -203,7 +223,6 @@ pub async fn list_notes(
         });
     }
 
-    // Sort
     let sort_by = params.sort.as_deref().unwrap_or("updated_at");
     let order = params.order.as_deref().unwrap_or("desc");
     notes.sort_by(|a, b| {
@@ -215,11 +234,7 @@ pub async fn list_notes(
         if order == "asc" { cmp.reverse() } else { cmp }
     });
 
-    Json(serde_json::json!({
-        "notes": notes,
-        "total": notes.len(),
-    }))
-    .into_response()
+    Ok(notes)
 }
 
 pub async fn get_note(State(state): State<AppState>, Path(id): Path<String>) -> impl IntoResponse {
