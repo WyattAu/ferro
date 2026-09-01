@@ -214,6 +214,39 @@ impl FerroFs {
         req.send().map(|r| r.status().is_success()).unwrap_or(false)
     }
 
+    /// Read the entire file content.
+    fn read_full(&self, path: &str) -> Option<Vec<u8>> {
+        let url = self.dav_url(path);
+        let mut req = self.client.get(&url);
+        if let Some(ref token) = self.auth_header {
+            req = req.header("Authorization", token);
+        }
+        let resp = req.send().ok()?;
+        if resp.status().is_success() {
+            resp.bytes().ok().map(|b| b.to_vec())
+        } else {
+            None
+        }
+    }
+
+    /// Get the file size via HEAD request.
+    fn get_file_size(&self, path: &str) -> Option<u64> {
+        let url = self.dav_url(path);
+        let mut req = self.client.head(&url);
+        if let Some(ref token) = self.auth_header {
+            req = req.header("Authorization", token);
+        }
+        let resp = req.send().ok()?;
+        if resp.status().is_success() {
+            resp.headers()
+                .get("content-length")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<u64>().ok())
+        } else {
+            None
+        }
+    }
+
     fn webdav_delete(&self, path: &str) -> bool {
         let url = self.dav_url(path);
         let mut req = self.client.delete(&url);
@@ -436,7 +469,7 @@ impl Filesystem for FerroFs {
         _req: &Request,
         _ino: INodeNo,
         fh: FileHandle,
-        _offset: u64,
+        offset: u64,
         data: &[u8],
         _write_flags: WriteFlags,
         _flags: OpenFlags,
@@ -451,10 +484,40 @@ impl Filesystem for FerroFs {
                 return;
             }
         };
-        if self.webdav_put(&path, data) {
-            reply.written(data.len() as u32);
+
+        // For offset writes: read existing content, splice in the new data, PUT the result
+        // For append (offset == file size): just PUT the new data
+        if offset == 0 && data.len() as u64 >= self.get_file_size(&path).unwrap_or(0) {
+            // Simple case: writing from start, new data is larger than existing
+            if self.webdav_put(&path, data) {
+                reply.written(data.len() as u32);
+            } else {
+                reply.error(Errno::EIO);
+            }
         } else {
-            reply.error(Errno::EIO);
+            // Complex case: need to read existing content and splice
+            match self.read_full(&path) {
+                Some(mut existing) => {
+                    let end = (offset as usize) + data.len();
+                    if end > existing.len() {
+                        existing.resize(end, 0);
+                    }
+                    existing[offset as usize..end].copy_from_slice(data);
+                    if self.webdav_put(&path, &existing) {
+                        reply.written(data.len() as u32);
+                    } else {
+                        reply.error(Errno::EIO);
+                    }
+                }
+                None => {
+                    // File doesn't exist yet, just PUT the new data
+                    if self.webdav_put(&path, data) {
+                        reply.written(data.len() as u32);
+                    } else {
+                        reply.error(Errno::EIO);
+                    }
+                }
+            }
         }
     }
 
@@ -611,7 +674,14 @@ impl Filesystem for FerroFs {
         reply.ok();
     }
 
-    fn forget(&self, _req: &Request, _ino: INodeNo, _nlookup: u64) {}
+    fn forget(&self, _req: &Request, ino: INodeNo, _nlookup: u64) {
+        // When the kernel drops all references to an inode, remove it from cache
+        // to prevent unbounded memory growth.
+        let ino_val = u64::from(ino);
+        if let Some(entry) = self.inodes.write().unwrap().remove(&ino_val) {
+            self.path_index.write().unwrap().remove(&entry.path);
+        }
+    }
 
     fn setattr(
         &self,
