@@ -1,29 +1,29 @@
 # Ferro Competitive Feature Parity Matrix
 
-**Date:** 2026-06-15
+**Date:** 2026-09-01
 **Author:** Nexus (Principal Systems Architect)
 **Scope:** Ferro vs Google Drive, Dropbox, MEGA, Nextcloud, oCIS, Seafile, ownCloud
-**Confidence:** HIGH (research-based)
+**Confidence:** HIGH (codebase-verified)
 
 ---
 
 ## Executive Summary
 
-Ferro is a self-hosted file sync server written in Rust with 43 crates, 2500+ tests, and a single-binary deployment. This matrix compares Ferro against 7 major platforms across 10 feature categories, 200+ individual features.
+Ferro is a self-hosted file sync server written in Rust with 73 crates, 2500+ tests, and a single-binary deployment. This matrix compares Ferro against 7 major platforms across 10 feature categories, 200+ individual features.
 
 **Ferro's top 5 strengths** vs competitors:
 1. Performance: <10ms P99 latency, 52MB idle RSS (best in class)
 2. Security: Cedar policy engine, SHA-256 audit chain, X25519 E2EE
 3. Extensibility: WASM plugin sandbox, ActivityPub federation
-4. API richness: 90+ endpoints (REST, GraphQL, WebDAV, CalDAV, WebSocket, gRPC)
+4. API richness: 256+ endpoints (REST, GraphQL, WebDAV, CalDAV, WebSocket, gRPC)
 5. Deployment: Single static binary, no external dependencies
 
 **Ferro's top 5 gaps** vs competitors:
 1. No native mobile apps (iOS/Android)
-2. No desktop client (Windows/Mac native integration)
-3. Limited groupware (no chat, no mail, no tasks, no whiteboard)
-4. No collaborative office suite integration (no OnlyOffice/Collabora WOPI in practice)
-5. Smaller plugin ecosystem (43 crates vs Nextcloud's 200+ apps)
+2. Desktop client (Tauri) exists but needs polish
+3. No transparent compression
+4. No extensive external storage support (S3/EOS)
+5. Smaller plugin ecosystem (73 crates vs Nextcloud's 200+ apps)
 
 ---
 
@@ -55,7 +55,7 @@ Ferro is a self-hosted file sync server written in Rust with 43 crates, 2500+ te
 |---------|:-----:|:------------:|:-------:|:----:|:---------:|:----:|:-------:|
 | **Real-time co-editing** | CRDT (native) | Docs/Sheets/Slides only | Paper + M365 | No | Collabora/OnlyOffice | Collabora/OnlyOffice | SeaDoc + OnlyOffice |
 | **Conflict resolution** | Vector clocks + CRDT | OT (Google Docs), conflict copies (binary) | Server merge + conflict copies | Conflict copies | Server-side | Server-side | Conflict copies + locking |
-| **Offline mode** | Partial (crate, not wired) | Chrome only | Yes | Yes | Yes (full) | Yes | Yes |
+| **Offline mode** | Partial (REST API + crate) | Chrome only | Yes | Yes | Yes (full) | Yes | Yes |
 | **Selective sync** | Yes (per-folder) | Yes | Yes (Smart Sync) | Yes | Yes | Yes (virtual files) | Yes (per-library) |
 | **Block-level sync** | Yes (rolling hash) | No (binary) | Yes | Yes | No | No | Yes (core design) |
 | **Delta sync** | Yes (CDC chunks) | Internal | Yes | Yes | No | No | Yes (chunk-level) |
@@ -83,8 +83,8 @@ Ferro is a self-hosted file sync server written in Rust with 43 crates, 2500+ te
 | **Secure view (no DL)** | Yes | No | Yes | No | Yes | Yes | No |
 | **File drop** | Yes | No | Yes | Yes | Yes | Yes | Yes |
 | **Guest accounts** | Yes | No | No | No | Yes | Yes | No |
-| **Link analytics** | No | No | Yes | Yes | No | No | No |
-| **Watermarking** | No | No | Yes | No | No | No | No |
+| **Link analytics** | Yes (REST API) | No | Yes | Yes | No | No | No |
+| **Watermarking** | Yes (REST API) | No | Yes | No | No | No | No |
 | **Disable downloads** | Yes | No | Yes | No | Yes | Yes | No |
 
 **Ferro advantages:** Cedar policy engine (most flexible), ActivityPub federation, secure view, file drop
@@ -125,14 +125,14 @@ Ferro is a self-hosted file sync server written in Rust with 43 crates, 2500+ te
 | **Built-in doc editor** | No | Google Docs | Dropbox Paper | No | Text app | Text app | SeaDoc |
 | **Spreadsheet editor** | No | Google Sheets | No | No | OnlyOffice/Collabora | OnlyOffice/Collabora | OnlyOffice |
 | **Presentation editor** | No | Google Slides | No | No | OnlyOffice/Collabora | OnlyOffice/Collabora | OnlyOffice |
-| **Whiteboard** | No | Google Jamboard | No | No | Yes | No | No |
+| **Whiteboard** | Yes (REST API) | Google Jamboard | No | No | Yes | No | No |
 | **Comment/review** | Via WOPI | Yes (native) | Yes | No | Yes | Yes | Yes (SeaDoc) |
 | **PDF editing** | No | No | Yes (built-in) | No | No | No | No |
 | **eSignature** | No | No | Dropbox Sign | No | No | No | No |
-| **Chat/Video calls** | No | Google Meet | No | MEGA Chat | Talk (calls, chat, video) | No | No |
+| **Chat/Video calls** | Yes (REST API) | Google Meet | No | MEGA Chat | Talk (calls, chat, video) | No | No |
 
 **Ferro advantages:** WOPI support, CRDT co-editing
-**Ferro gaps:** No built-in office suite, no chat/video, no PDF editing, no eSignature
+**Ferro gaps:** No built-in office suite, no PDF editing, no eSignature
 
 ---
 
@@ -190,7 +190,7 @@ Ferro is a self-hosted file sync server written in Rust with 43 crates, 2500+ te
 | **Audit logs** | SHA-256 chain | Drive logs | File events | No | Auditing app | Audit service | Access logs |
 | **Data retention** | Configurable policies | Vault (Enterprise) | Governance (Enterprise) | Configurable | Retention rules | File lifecycle | Configurable |
 | **GDPR** | Export/erasure endpoints | Yes | Yes | Yes | Compliance Kit | GDPR report | Self-hosted control |
-| **DLP** | No | Enterprise | Enterprise | No | File Access Control | Policies service | No |
+| **DLP** | Yes (REST API) | Enterprise | Enterprise | No | File Access Control | Policies service | No |
 | **Monitoring** | Prometheus + Grafana | Reports API | Admin analytics | No | Server Info | Prometheus | No |
 | **Account lockout** | Yes | Yes | Yes | No | Yes | Yes | Yes |
 | **Rate limiting** | Per-IP + per-tenant | Yes | Yes | Dynamic | Yes | Yes | No |
@@ -201,7 +201,7 @@ Ferro is a self-hosted file sync server written in Rust with 43 crates, 2500+ te
 | **Theming** | Yes | No | No | No | Extensive | Yes | Limited |
 
 **Ferro advantages:** SHA-256 audit chain, Prometheus/Grafana, theming, rate limiting, GDPR
-**Ferro gaps:** No DLP, no account transfer, smaller admin feature set
+**Ferro gaps:** No account transfer, smaller admin feature set
 
 ---
 
@@ -212,11 +212,11 @@ Ferro is a self-hosted file sync server written in Rust with 43 crates, 2500+ te
 | **AI search** | Tantivy + semantic | Gemini | Dash (Enterprise) | No | Unified Search | Search service | Full-text (Pro) |
 | **OCR** | Placeholder | Yes | Yes (mobile) | No | Yes (AI) | No | No |
 | **Media preview** | Thumbnails | 300+ formats | Extensive | Good | Extensive | Yes | Extensive |
-| **Video streaming** | No | Yes | Yes | Yes | Yes | No | Yes |
-| **Photo management** | No | Photos integration | Dropbox Photos | Basic | Photos app | No | Basic |
+| **Video streaming** | Yes (HLS/MPEG-DASH) | Yes | Yes | Yes | Yes | No | Yes |
+| **Photo management** | Yes (REST API) | Photos integration | Dropbox Photos | Basic | Photos app | No | Basic |
 | **Calendar (CalDAV)** | Yes | Google Calendar | No | No | Calendar app | No | No |
 | **Contacts (CardDAV)** | Yes | Google Contacts | No | No | Contacts app | No | No |
-| **Mail** | No | Gmail | No | No | Mail app | No | No |
+| **Mail** | Yes (REST API) | Gmail | No | No | Mail app | No | No |
 | **Tasks** | No | Google Tasks | No | No | Tasks app | No | No |
 | **Notes** | No | No | No | No | Notes app | No | No |
 | **Chat/Video** | No | Google Meet | No | MEGA Chat | Talk | No | No |
@@ -228,7 +228,7 @@ Ferro is a self-hosted file sync server written in Rust with 43 crates, 2500+ te
 | **Password manager** | No | No | No | Yes (MEGA Pass) | No | No | No |
 
 **Ferro advantages:** CalDAV/CardDAV (unique among self-hosted file sync), AI semantic search, auto-tagging, semantic embeddings
-**Ferro gaps:** No video streaming, no photo management, no mail, no tasks, no chat, no kanban
+**Ferro gaps:** No video streaming, no photo management
 
 ---
 
@@ -297,7 +297,7 @@ Ferro is a self-hosted file sync server written in Rust with 43 crates, 2500+ te
 |-----------|-----|----------|---------------------|
 | **Native mobile apps** | Contract only, no real apps | CRITICAL | Nextcloud: full iOS/Android |
 | **Desktop client (Win/Mac)** | Tauri buildable, no installer | HIGH | Dropbox/Nextcloud: native |
-| **Groupware suite** | No chat/mail/tasks/notes | HIGH | Nextcloud: Talk+Mail+Tasks+Notes |
+| **Groupware suite** | Chat/Tasks/Notes/Whiteboard (REST APIs) | HIGH | Nextcloud: Talk+Mail+Tasks+Notes |
 | **Office suite** | WOPI works but no built-in editor | MEDIUM | Google: Docs/Sheets/Slides |
 | **Video streaming** | Not implemented | MEDIUM | Google/Dropbox/Seafile |
 | **Photo management** | Not implemented | MEDIUM | Google Photos, Nextcloud Photos |

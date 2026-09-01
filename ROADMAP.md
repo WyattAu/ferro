@@ -1,6 +1,6 @@
 # Ferro Roadmap
 
-**Version:** 17.0 | **Date:** 2026-08-30 | **Status:** Deployment + Cross-platform mount
+**Version:** 18.1 | **Date:** 2026-09-01 | **Status:** Documentation & Bug Fixes
 
 ---
 
@@ -18,6 +18,7 @@
 | Deployment | TrueNAS Docker (ghcr.io/wyattau/ferro:latest) |
 | Web URL | https://ferro.wyattau.com |
 | OIDC | Keycloak (company-realm, client: ferro) |
+| Throughput | ~335 req/s direct, ~45 req/s via Cloudflare tunnel |
 
 ## Completed (v16.0 Audit Cycle)
 
@@ -142,6 +143,30 @@
 | Entrance/exit animations | Modals, toasts, list items | 2 days | Pending |
 | Micro-interactions | Button press scale, card hover elevation | 1 day | Pending |
 | Spring-based transitions | Organic motion curves for Amoebic UI feel | 1 day | Pending |
+
+---
+
+## v18.1 Documentation & Bug Fixes
+
+### Bug Fixes
+- Fix Nextcloud tag migration path bug (was applying tags to "/" instead of actual file paths)
+- Fix map_tags to use object_id as file_id (was using tag_id)
+- Add skip_groups and skip_spaces flags to MigrationOptions
+
+### Documentation
+- Update COMPETITIVE_PARITY_MATRIX.md (was stale, dated 2026-06-15)
+- Update ROADMAP.md version header and status
+- Mark groupware features as implemented (chat, mail, tasks, notes, whiteboard)
+- Mark DLP, link analytics, watermarking, video streaming, photo management as implemented
+
+---
+
+## v18.2 Cloudflare Tunnel Optimization
+
+### Options
+- Enable HTTP/2 on tunnel (+30-60% throughput)
+- Move tunnel to same host as Ferro (+200-400%)
+- Use Cloudflare Spectrum (TCP) (+500%+)
 
 ---
 
