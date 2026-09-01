@@ -161,8 +161,9 @@ impl FerroFs {
         })
     }
 
-    fn webdav_propfind_children(&self, path: &str) -> Vec<(String, bool, u64)> {
+    fn webdav_propfind_children(&self, path: &str) -> Result<Vec<(String, bool, u64)>, Errno> {
         let url = self.dav_url(path);
+        tracing::debug!("PROPFIND url={} auth={}", url, self.auth_header.is_some());
         let body = r#"<?xml version="1.0" encoding="utf-8"?>
 <D:propfind xmlns:D="DAV:">
   <D:allprop/>
@@ -178,16 +179,20 @@ impl FerroFs {
         }
         let resp = match req.send() {
             Ok(r) => r,
-            Err(_) => return Vec::new(),
+            Err(e) => {
+                tracing::error!("PROPFIND failed: {}", e);
+                return Err(Errno::EIO);
+            }
         };
+        tracing::debug!("PROPFIND status={}", resp.status());
         if !resp.status().is_success() {
-            return Vec::new();
+            return Err(Errno::EIO);
         }
         let xml = match resp.text() {
             Ok(t) => t,
-            Err(_) => return Vec::new(),
+            Err(_) => return Err(Errno::EIO),
         };
-        parse_propfind_children(&xml, path)
+        Ok(parse_propfind_children(&xml, path))
     }
 
     fn webdav_get(&self, path: &str, offset: u64, size: u32) -> Option<Bytes> {
@@ -350,7 +355,13 @@ impl Filesystem for FerroFs {
         };
 
         // PROPFIND the parent to discover children, then find by name
-        let children = self.webdav_propfind_children(&parent_path);
+        let children = match self.webdav_propfind_children(&parent_path) {
+            Ok(c) => c,
+            Err(e) => {
+                reply.error(e);
+                return;
+            }
+        };
         for (href, is_dir, size) in &children {
             let child_name = href.trim_end_matches('/').rsplit('/').next().unwrap_or("").to_string();
             if child_name == name_str {
@@ -387,7 +398,13 @@ impl Filesystem for FerroFs {
         };
 
         tracing::debug!("readdir: ino={} parent_path={}", u64::from(ino), parent_path);
-        let children = self.webdav_propfind_children(&parent_path);
+        let children = match self.webdav_propfind_children(&parent_path) {
+            Ok(c) => c,
+            Err(e) => {
+                reply.error(e);
+                return;
+            }
+        };
         tracing::debug!("readdir: got {} children", children.len());
         for (href, is_dir, size) in &children {
             tracing::debug!("  child: href={} is_dir={} size={}", href, is_dir, size);
