@@ -31,11 +31,23 @@ pub struct AuditEntry {
 }
 
 /// In-memory audit log with optional SQLite persistence.
+///
+/// Persistence writes are off the request path: `log()` enqueues via an unbounded
+/// channel and a background writer task drains + persists sequentially (the
+/// tamper-evident chain hash requires ordered writes anyway). At 50+ concurrent
+/// users this removes 2 SQLite round-trips per request from the hot path.
+///
+/// Trade-off: on abrupt process kill, the last few queued entries may be lost.
+/// Graceful shutdown lets the runtime finish the writer task before exit.
 #[derive(Debug)]
 pub struct AuditLog {
     entries: Arc<RwLock<VecDeque<AuditEntry>>>,
     persistence: Option<Arc<ferro_core::persistence::SqlitePersistence>>,
+    persistence_tx: Option<tokio::sync::mpsc::UnboundedSender<ferro_core::persistence::PersistedAuditEntry>>,
 }
+
+/// Batch size for draining the audit persistence channel per write cycle.
+const AUDIT_WRITE_BATCH: usize = 64;
 
 impl AuditLog {
     /// Create a new in-memory audit log.
@@ -43,12 +55,40 @@ impl AuditLog {
         Self {
             entries: Arc::new(RwLock::new(VecDeque::new())),
             persistence: None,
+            persistence_tx: None,
         }
     }
 
     /// Add optional SQLite persistence to this audit log.
+    ///
+    /// Spawns a background writer task that drains the queue and persists entries
+    /// off the request path. The task exits when the `AuditLog` (and its sender)
+    /// is dropped.
     pub fn with_persistence(mut self, persistence: Arc<ferro_core::persistence::SqlitePersistence>) -> Self {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<ferro_core::persistence::PersistedAuditEntry>();
+        let writer_persistence = persistence.clone();
+        tokio::spawn(async move {
+            while let Some(first) = rx.recv().await {
+                let mut batch = Vec::with_capacity(AUDIT_WRITE_BATCH);
+                batch.push(first);
+                // Drain whatever else is immediately queued (non-blocking).
+                while batch.len() < AUDIT_WRITE_BATCH {
+                    match rx.try_recv() {
+                        Ok(entry) => batch.push(entry),
+                        Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+                        | Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => break,
+                    }
+                }
+                for entry in batch {
+                    if let Err(e) = writer_persistence.log(entry).await {
+                        warn!(error = %e, "audit log persistence failed");
+                    }
+                }
+            }
+            tracing::debug!("audit persistence writer exiting");
+        });
         self.persistence = Some(persistence);
+        self.persistence_tx = Some(tx);
         self
     }
 
@@ -70,23 +110,23 @@ impl AuditLog {
             }
         }
 
-        if let Some(ref p) = self.persistence
-            && let Err(e) = p
-                .log(ferro_core::persistence::PersistedAuditEntry {
-                    id: 0,
-                    timestamp: entry.timestamp.clone(),
-                    method: entry.method.clone(),
-                    path: entry.path.clone(),
-                    user: entry.user.clone(),
-                    status: entry.status,
-                    client_ip: entry.client_ip.clone(),
-                    user_agent: entry.user_agent.clone(),
-                    content_length: entry.content_length,
-                    chain_hash: None, // Computed by persistence layer
-                })
-                .await
-        {
-            warn!(error = %e, "audit log persistence failed");
+        // Non-blocking enqueue — the background writer persists off the request path.
+        if let Some(ref tx) = self.persistence_tx {
+            let persisted = ferro_core::persistence::PersistedAuditEntry {
+                id: 0,
+                timestamp: entry.timestamp,
+                method: entry.method,
+                path: entry.path,
+                user: entry.user,
+                status: entry.status,
+                client_ip: entry.client_ip,
+                user_agent: entry.user_agent,
+                content_length: entry.content_length,
+                chain_hash: None, // Computed by persistence layer
+            };
+            if let Err(e) = tx.send(persisted) {
+                warn!(error = %e, "audit persistence queue send failed");
+            }
         }
     }
 
