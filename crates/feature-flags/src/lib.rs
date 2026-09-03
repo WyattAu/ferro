@@ -459,12 +459,7 @@ impl FeatureFlags {
     ///
     /// See [`FeatureFlags::set_flag`] for semantics; `who` is recorded in
     /// the `FlagChange` audit entry when persistence is enabled.
-    pub fn set_flag_as(
-        &mut self,
-        name: &str,
-        flag: FeatureFlag,
-        who: &str,
-    ) -> Result<(), flag_kit::FlagError> {
+    pub fn set_flag_as(&mut self, name: &str, flag: FeatureFlag, who: &str) -> Result<(), flag_kit::FlagError> {
         let flag_name = flag_name_for(name);
         let old = self.is_enabled(name);
         let persistable = flag.to_flag(flag_name.clone());
@@ -475,13 +470,7 @@ impl FeatureFlags {
             let new_enabled = new_flag.enabled;
             pollster::block_on(self.store.flag_store().set(new_flag))?;
             if let Store::Sqlite(sqlite) = &self.store {
-                let change = FlagChange::new(
-                    flag_name,
-                    old,
-                    new_enabled,
-                    who,
-                    chrono::Utc::now().timestamp(),
-                );
+                let change = FlagChange::new(flag_name, old, new_enabled, who, chrono::Utc::now().timestamp());
                 let _ = pollster::block_on(sqlite.record_change(&change));
             }
         } else {
@@ -843,9 +832,7 @@ mod tests {
 
         let mut config = FeatureFlagConfig::default();
         config.persist_path = Some(path.clone());
-        config
-            .flags
-            .insert("persist_flag".into(), FeatureFlag::Enabled);
+        config.flags.insert("persist_flag".into(), FeatureFlag::Enabled);
         {
             let mut flags = FeatureFlags::from_config(&config);
             // First run: default seeded from config.
@@ -870,16 +857,12 @@ mod tests {
         config.persist_path = Some(path.clone());
         {
             let mut flags = FeatureFlags::from_config(&config);
-            flags
-                .set_flag_as("audit_flag", FeatureFlag::Enabled, "tester")
-                .unwrap();
+            flags.set_flag_as("audit_flag", FeatureFlag::Enabled, "tester").unwrap();
             flags.disable_flag("audit_flag").unwrap();
         }
         // Inspect the audit trail via a fresh handle on the same db.
         let store = SqliteFlagStore::new(&path).unwrap();
-        let changes =
-            pollster::block_on(store.list_changes(&FlagName::new_unchecked("audit_flag")))
-                .unwrap();
+        let changes = pollster::block_on(store.list_changes(&FlagName::new_unchecked("audit_flag"))).unwrap();
         assert_eq!(changes.len(), 2);
         assert!(changes.iter().any(|c| c.who == "tester" && c.enabled()));
         assert!(changes.iter().any(|c| c.who == "system" && c.disabled()));

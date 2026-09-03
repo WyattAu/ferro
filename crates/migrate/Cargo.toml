@@ -18,6 +18,7 @@ tracing = "0.1"
 indicatif = "0.17"
 quick-xml = { version = "0.41", features = ["serialize"] }
 base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt", "sync", "macros", "time"] }
 sha2 = { workspace = true }
 hex = { workspace = true }

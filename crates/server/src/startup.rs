@@ -103,6 +103,9 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
             let dir = path
                 .strip_prefix("local:")
                 .ok_or_else(|| anyhow::anyhow!("Invalid local storage path: {}", path))?;
+            // LocalFileSystem canonicalizes the prefix and fails if missing — create it.
+            std::fs::create_dir_all(dir)
+                .map_err(|e| anyhow::anyhow!("Failed to create local storage dir {}: {}", dir, e))?;
             let store = object_store::local::LocalFileSystem::new_with_prefix(dir)
                 .map_err(|e| anyhow::anyhow!("Failed to open local storage at {}: {}", dir, e))?;
             let base_path = std::path::PathBuf::from(dir);
@@ -1173,6 +1176,8 @@ fn build_storage_backend(url: &str) -> anyhow::Result<std::sync::Arc<dyn common:
             let dir = path
                 .strip_prefix("local:")
                 .ok_or_else(|| anyhow::anyhow!("Invalid local storage path: {}", path))?;
+            std::fs::create_dir_all(dir)
+                .map_err(|e| anyhow::anyhow!("Failed to create local storage dir {}: {}", dir, e))?;
             let store = object_store::local::LocalFileSystem::new_with_prefix(dir)
                 .map_err(|e| anyhow::anyhow!("Failed to open local storage at {}: {}", dir, e))?;
             Ok(std::sync::Arc::new(

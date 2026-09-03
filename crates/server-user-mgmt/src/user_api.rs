@@ -18,9 +18,25 @@ fn require_admin(info: &UserInfo) -> Result<(), Response> {
 
 pub async fn create_user<S: UserMgmtState>(
     State(state): State<S>,
+    headers: axum::http::HeaderMap,
     axum::Json(body): axum::Json<CreateUserRequest>,
 ) -> Response {
-    let info = match state.user_info(&body.username) {
+    // Admin check: prefer the configured admin user, fall back to the
+    // OIDC-authenticated caller (X-Ferro-User, set by the auth middleware) when
+    // no CLI admin is configured — matches the groups API posture.
+    let admin_user = state.admin_user().as_deref().unwrap_or("");
+    let info = state.user_info(admin_user).await.or_else(|| {
+        headers
+            .get("x-ferro-user")
+            .and_then(|v| v.to_str().ok())
+            .filter(|u| !u.is_empty() && *u != "anonymous")
+            .map(|u| UserInfo {
+                user_id: u.to_string(),
+                username: u.to_string(),
+                role: UserRole::Admin,
+            })
+    });
+    let info = match info {
         Some(i) => i,
         None => return ApiError::unauthorized(ApiError::AUTH_REQUIRED, "Not authenticated"),
     };
@@ -73,7 +89,7 @@ pub async fn create_user<S: UserMgmtState>(
 
 pub async fn list_users<S: UserMgmtState>(State(state): State<S>) -> Response {
     let admin_user = state.admin_user().as_deref().unwrap_or("");
-    let info = match state.user_info(admin_user) {
+    let info = match state.user_info(admin_user).await {
         Some(i) => i,
         None => return ApiError::unauthorized(ApiError::AUTH_REQUIRED, "Not authenticated"),
     };
@@ -98,7 +114,7 @@ pub async fn list_users<S: UserMgmtState>(State(state): State<S>) -> Response {
 
 pub async fn get_user<S: UserMgmtState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let admin_user = state.admin_user().as_deref().unwrap_or("");
-    let info = match state.user_info(admin_user) {
+    let info = match state.user_info(admin_user).await {
         Some(i) => i,
         None => return ApiError::unauthorized(ApiError::AUTH_REQUIRED, "Not authenticated"),
     };
@@ -132,7 +148,7 @@ pub async fn update_user<S: UserMgmtState>(
     axum::Json(body): axum::Json<UpdateUserRequest>,
 ) -> Response {
     let admin_user = state.admin_user().as_deref().unwrap_or("");
-    let info = match state.user_info(admin_user) {
+    let info = match state.user_info(admin_user).await {
         Some(i) => i,
         None => return ApiError::unauthorized(ApiError::AUTH_REQUIRED, "Not authenticated"),
     };
@@ -163,7 +179,7 @@ pub async fn update_user<S: UserMgmtState>(
 
 pub async fn delete_user<S: UserMgmtState>(State(state): State<S>, Path(id): Path<String>) -> Response {
     let admin_user = state.admin_user().as_deref().unwrap_or("");
-    let info = match state.user_info(admin_user) {
+    let info = match state.user_info(admin_user).await {
         Some(i) => i,
         None => return ApiError::unauthorized(ApiError::AUTH_REQUIRED, "Not authenticated"),
     };
@@ -186,7 +202,7 @@ pub async fn reset_password<S: UserMgmtState>(
     axum::Json(body): axum::Json<ResetPasswordRequest>,
 ) -> Response {
     let admin_user = state.admin_user().as_deref().unwrap_or("");
-    let info = match state.user_info(admin_user) {
+    let info = match state.user_info(admin_user).await {
         Some(i) => i,
         None => return ApiError::unauthorized(ApiError::AUTH_REQUIRED, "Not authenticated"),
     };

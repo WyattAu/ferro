@@ -89,8 +89,11 @@ impl ferro_server_collaboration::CollaborationState for AppState {
 // ---------------------------------------------------------------------------
 
 impl ferro_server_user_mgmt::UserMgmtState for AppState {
-    fn user_info(&self, username: &str) -> Option<ferro_auth::users::UserInfo> {
-        self.user_info(username)
+    fn user_info<'a>(
+        &'a self,
+        username: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<ferro_auth::users::UserInfo>> + Send + 'a>> {
+        Box::pin(async move { AppState::user_info(self, username).await })
     }
 
     fn admin_user(&self) -> &Option<String> {

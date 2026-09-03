@@ -101,14 +101,19 @@ pub async fn handle_any<S: WebDavCoreState>(
     let user_sub = headers.get("X-Ferro-User").and_then(|v| v.to_str().ok());
     let resolved_path = match user_sub {
         Some(sub) if sub != "anonymous" => {
-            let user_root = format!("/users/{}", sub);
-            if path_str == "/" || path_str.is_empty() {
-                user_root
-            } else if path_str.starts_with(&user_root) {
-                // Path already contains user root prefix — use as-is
+            // Shared namespaces bypass user-root isolation (access controlled by shares)
+            if path_str.starts_with("/_spaces/") {
                 path_str.to_string()
             } else {
-                format!("{}{}", user_root, path_str)
+                let user_root = format!("/users/{}", sub);
+                if path_str == "/" || path_str.is_empty() {
+                    user_root
+                } else if path_str.starts_with(&user_root) {
+                    // Path already contains user root prefix — use as-is
+                    path_str.to_string()
+                } else {
+                    format!("{}{}", user_root, path_str)
+                }
             }
         }
         _ => path_str.clone(),

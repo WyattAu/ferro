@@ -44,11 +44,23 @@ impl FerroTarget {
     }
 
     pub async fn create_user(&self, user: &FerroUser) -> MigrateResult<()> {
+        // Ferro requires a password for local auth; migrated users authenticate via
+        // OIDC, so generate a random throwaway password.
+        let random_password = uuid::Uuid::new_v4().to_string();
+
+        // Ferro's UserRole enum deserializes PascalCase variants ("Admin"/"User"/"ReadOnly").
+        let role_pascal = match user.role.to_ascii_lowercase().as_str() {
+            "admin" => "Admin",
+            "readonly" | "read_only" | "read-only" => "ReadOnly",
+            _ => "User",
+        };
+
         let body = json!({
             "username": user.username,
-            "email": user.email,
-            "display_name": user.display_name,
-            "role": user.role,
+            "email": user.email.clone().unwrap_or_default(),
+            "display_name": user.display_name.clone().unwrap_or_else(|| user.username.clone()),
+            "role": role_pascal,
+            "password": random_password,
         });
 
         let resp = self
@@ -77,11 +89,12 @@ impl FerroTarget {
         let body = json!({
             "name": name,
             "description": description.unwrap_or(""),
+            "members": [],
         });
 
         let resp = self
             .http
-            .post(format!("{}/api/admin/groups", self.url))
+            .post(format!("{}/api/groups", self.url))
             .json(&body)
             .send()
             .await?;
@@ -99,14 +112,33 @@ impl FerroTarget {
     }
 
     pub async fn add_group_member(&self, group_name: &str, username: &str) -> MigrateResult<()> {
-        let body = json!({
-            "username": username,
+        // Resolve group id by name via /api/groups listing
+        let resp = self.http.get(format!("{}/api/groups", self.url)).send().await?;
+        if !resp.status().is_success() {
+            tracing::warn!(
+                "Add member '{}' to group '{}': list failed ({})",
+                username,
+                group_name,
+                resp.status()
+            );
+            return Ok(());
+        }
+        let body: serde_json::Value = resp.json().await.unwrap_or_default();
+        let group_id = body.get("groups").and_then(|g| g.as_array()).and_then(|arr| {
+            arr.iter()
+                .find(|g| g.get("name").and_then(|n| n.as_str()) == Some(group_name))
+                .and_then(|g| g.get("id").and_then(|i| i.as_str()))
+                .map(|s| s.to_string())
         });
+
+        let Some(group_id) = group_id else {
+            tracing::warn!("Add member '{}' to group '{}': group not found", username, group_name);
+            return Ok(());
+        };
 
         let resp = self
             .http
-            .post(format!("{}/api/admin/groups/{}/members", self.url, group_name))
-            .json(&body)
+            .post(format!("{}/api/groups/{}/members/{}", self.url, group_id, username))
             .send()
             .await?;
 

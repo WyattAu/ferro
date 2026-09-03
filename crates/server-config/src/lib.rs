@@ -112,7 +112,7 @@ pub struct ServerConfig {
     pub log_format: String,
 
     /// Storage backend: "memory" (default) or "local:/path/to/dir"
-    #[arg(long, default_value = "memory")]
+    #[arg(long, env = "FERRO_STORAGE", default_value = "memory")]
     pub storage: String,
 
     /// OIDC issuer URL (enables authentication)

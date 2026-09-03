@@ -415,8 +415,8 @@ impl AppState {
         self.sync_clock.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
-    pub fn user_info(&self, username: &str) -> Option<crate::users::UserInfo> {
-        match self.user_store.get_user_by_username_blocking(username) {
+    pub async fn user_info(&self, username: &str) -> Option<crate::users::UserInfo> {
+        match self.user_store.get_user_by_username(username).await {
             Ok(u) if u.is_active() => Some(crate::users::UserInfo::from(&u)),
             _ => {
                 if self.admin_user.as_deref() == Some(username) {

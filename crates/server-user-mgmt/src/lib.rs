@@ -20,7 +20,10 @@ pub use ferro_server_security_middleware::api_error::ApiError;
 
 // Blanket impl: Arc<S> delegates to S when S: UserMgmtState
 impl<S: UserMgmtState> UserMgmtState for Arc<S> {
-    fn user_info(&self, username: &str) -> Option<ferro_auth::users::UserInfo> {
+    fn user_info<'a>(
+        &'a self,
+        username: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<ferro_auth::users::UserInfo>> + Send + 'a>> {
         (**self).user_info(username)
     }
     fn admin_user(&self) -> &Option<String> {
@@ -66,7 +69,10 @@ pub trait AuditLog: Send + Sync {
 /// Trait abstracting AppState for user management handlers.
 /// The server crate implements this for its AppState.
 pub trait UserMgmtState: Clone + Send + Sync + 'static {
-    fn user_info(&self, username: &str) -> Option<UserInfo>;
+    fn user_info<'a>(
+        &'a self,
+        username: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<UserInfo>> + Send + 'a>>;
     fn admin_user(&self) -> &Option<String>;
     fn user_store(&self) -> &Arc<dyn UserStoreTrait>;
     fn db(&self) -> &Option<DbHandle>;
