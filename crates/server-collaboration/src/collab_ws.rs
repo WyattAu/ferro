@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use ws_kit::config::WsConfig;
-use ws_kit::hub::BroadcastHub;
+use ws_kit::room::{Room as WsRoom, RoomManager};
 
 use crate::CollaborationState;
 
@@ -80,56 +80,47 @@ pub struct ParticipantEntry {
 
 #[derive(Debug)]
 struct Room {
-    /// Broadcast hub via ws-kit — typed BroadcastHub<String> replaces broadcast::Sender<String>.
-    hub: BroadcastHub<String>,
-    participants: DashMap<u32, String>,
+    /// ws-kit room — broadcast hub + participant roster (connection id -> name).
+    ws: Arc<WsRoom>,
     document: std::sync::RwLock<CrdtDocument>,
     dirty: AtomicBool,
     load_state: std::sync::Mutex<bool>,
 }
 
 impl Room {
-    fn new(document_id: &str) -> Self {
-        let cfg = collab_ws_config();
-        let hub = BroadcastHub::from_config(&cfg);
+    fn new(document_id: &str, ws: Arc<WsRoom>) -> Self {
         Room {
-            hub,
-            participants: DashMap::new(),
+            ws,
             document: std::sync::RwLock::new(CrdtDocument::new(DocumentId(document_id.to_string()))),
             dirty: AtomicBool::new(false),
             load_state: std::sync::Mutex::new(false),
         }
     }
 
-    fn participant_list(&self) -> Vec<ParticipantEntry> {
-        self.participants
-            .iter()
-            .map(|r| ParticipantEntry {
-                participant_id: *r.key(),
-                name: r.value().clone(),
-            })
-            .collect()
-    }
-
+    /// Broadcast the participant roster from the ws-kit room snapshot.
     fn broadcast_participants(&self) {
-        let msg = CollabMessage::Participants {
-            participants: self.participant_list(),
-        };
+        let participants: Vec<ParticipantEntry> = self
+            .ws
+            .participants()
+            .into_iter()
+            .map(|(participant_id, name)| ParticipantEntry { participant_id, name })
+            .collect();
+        let msg = CollabMessage::Participants { participants };
         if let Ok(json) = serde_json::to_string(&msg) {
-            let _ = self.hub.try_broadcast(json);
+            let _ = self.ws.broadcast(json);
         }
-    }
-
-    /// Expose hub sender for advanced use (wraps BroadcastHub).
-    #[allow(dead_code)]
-    fn sender(&self) -> &tokio::sync::broadcast::Sender<String> {
-        self.hub.sender()
     }
 }
 
+/// Collaboration room registry. The ws-side plumbing — room registry,
+/// broadcast hub, and participant rosters — is delegated to
+/// `ws_kit::RoomManager`; only the CRDT domain state lives here.
 #[derive(Debug, Clone)]
 pub struct CollabRoomManager {
-    rooms: Arc<DashMap<String, Arc<Room>>>,
+    /// ws-kit room registry — hub + participants per document id.
+    rooms: Arc<RoomManager>,
+    /// Domain rooms (CRDT document + dirty + load gate), paired with ws rooms by id.
+    domains: Arc<DashMap<String, Arc<Room>>>,
     /// WsConfig drives broadcast capacity and heartbeat (30s) for all rooms.
     #[allow(dead_code)]
     config: WsConfig,
@@ -137,44 +128,42 @@ pub struct CollabRoomManager {
 
 impl CollabRoomManager {
     pub fn new() -> Self {
-        CollabRoomManager {
-            rooms: Arc::new(DashMap::new()),
-            config: collab_ws_config(),
-        }
+        Self::with_config(collab_ws_config())
     }
 
-    /// Alternate constructor mirroring ws_kit::RoomManager::new() with explicit config.
+    /// Alternate constructor mirroring ws_kit::RoomManager::with_config.
     #[allow(dead_code)]
     pub fn with_config(config: WsConfig) -> Self {
-        Self {
-            rooms: Arc::new(DashMap::new()),
+        CollabRoomManager {
+            rooms: Arc::new(RoomManager::with_config(&config)),
+            domains: Arc::new(DashMap::new()),
             config,
         }
     }
 
     fn get_or_create_room(&self, document_id: &str) -> Arc<Room> {
-        self.rooms
+        let ws = self.rooms.get_or_create(document_id);
+        let entry = self
+            .domains
             .entry(document_id.to_string())
-            .or_insert_with(|| Arc::new(Room::new(document_id)))
-            .clone()
+            .or_insert_with(|| Arc::new(Room::new(document_id, ws)));
+        Arc::clone(entry.value())
     }
 
+    /// Drop the room pair once ws-kit reports no participants left.
     fn cleanup_room(&self, document_id: &str) {
-        if let Some(entry) = self.rooms.get(document_id)
-            && entry.participants.is_empty()
-        {
-            drop(entry);
-            self.rooms
-                .remove_if(document_id, |_, room| room.participants.is_empty());
+        if self.rooms.get(document_id).is_none_or(|r| r.participant_count() == 0) {
+            self.rooms.remove(document_id);
+            self.domains.remove(document_id);
         }
     }
 
     pub fn room_count(&self) -> usize {
-        self.rooms.len()
+        self.rooms.room_count()
     }
 
     pub fn participant_count(&self, document_id: &str) -> usize {
-        self.rooms.get(document_id).map(|r| r.participants.len()).unwrap_or(0)
+        self.rooms.get(document_id).map(|r| r.participant_count()).unwrap_or(0)
     }
 
     /// Expose underlying WsConfig (heartbeat 30s, capacity 1024).
@@ -204,7 +193,7 @@ async fn idle_save_loop(room: Arc<Room>, storage: Arc<dyn StorageEngine>, docume
     let mut interval = tokio::time::interval(cfg.heartbeat_interval);
     loop {
         interval.tick().await;
-        if room.participants.is_empty() {
+        if room.ws.participant_count() == 0 {
             break;
         }
         if room.dirty.swap(false, Ordering::Relaxed) {
@@ -248,7 +237,7 @@ async fn handle_collab_socket(
         });
     }
 
-    let mut rx = room.hub.subscribe();
+    let mut rx = room.ws.subscribe();
     let (mut ws_sender, mut ws_receiver) = socket.split();
 
     let my_participant_id = Arc::new(std::sync::Mutex::new(None::<u32>));
@@ -274,7 +263,7 @@ async fn handle_collab_socket(
                             CollabMessage::Join {
                                 participant_id, name, ..
                             } => {
-                                room_for_recv.participants.insert(participant_id, name.clone());
+                                room_for_recv.ws.join(participant_id, name.clone());
                                 {
                                     let mut doc = room_for_recv.document.write().unwrap_or_else(|e| e.into_inner());
                                     doc.join(ParticipantId(participant_id), &name);
@@ -294,7 +283,7 @@ async fn handle_collab_socket(
                                 }
 
                                 room_for_recv.broadcast_participants();
-                                let _ = room_for_recv.hub.try_broadcast(text);
+                                let _ = room_for_recv.ws.broadcast(text);
                             }
                             CollabMessage::Operations { ops } => {
                                 {
@@ -302,7 +291,7 @@ async fn handle_collab_socket(
                                     doc.apply_ops(&ops);
                                 }
                                 room_for_recv.dirty.store(true, Ordering::Relaxed);
-                                let _ = room_for_recv.hub.try_broadcast(text);
+                                let _ = room_for_recv.ws.broadcast(text);
                             }
                             _ => {}
                         }
@@ -347,7 +336,7 @@ async fn handle_collab_socket(
     }
 
     if let Some(pid) = *my_participant_id.lock().unwrap_or_else(|e| e.into_inner()) {
-        room.participants.remove(&pid);
+        room.ws.leave(pid);
         room.broadcast_participants();
     }
 
@@ -365,6 +354,11 @@ async fn handle_collab_socket(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Domain room with an isolated ws-kit room (capacity 16) for unit tests.
+    fn test_room(id: &str) -> Room {
+        Room::new(id, Arc::new(WsRoom::new(id, 16)))
+    }
 
     #[test]
     fn test_room_manager_create() {
@@ -390,11 +384,11 @@ mod tests {
         let manager = CollabRoomManager::new();
         let room = manager.get_or_create_room("doc-1");
 
-        room.participants.insert(1, "Alice".to_string());
-        room.participants.insert(2, "Bob".to_string());
+        room.ws.join(1, "Alice".to_string());
+        room.ws.join(2, "Bob".to_string());
         assert_eq!(manager.participant_count("doc-1"), 2);
 
-        room.participants.remove(&1);
+        room.ws.leave(1);
         assert_eq!(manager.participant_count("doc-1"), 1);
     }
 
@@ -412,7 +406,7 @@ mod tests {
     fn test_cleanup_skips_nonempty_room() {
         let manager = CollabRoomManager::new();
         let room = manager.get_or_create_room("doc-1");
-        room.participants.insert(1, "Alice".to_string());
+        room.ws.join(1, "Alice".to_string());
 
         drop(room);
         manager.cleanup_room("doc-1");
@@ -423,9 +417,9 @@ mod tests {
     async fn test_room_broadcast() {
         let manager = CollabRoomManager::new();
         let room = manager.get_or_create_room("doc-1");
-        let mut rx = room.hub.subscribe();
+        let mut rx = room.ws.subscribe();
 
-        room.participants.insert(1, "Alice".to_string());
+        room.ws.join(1, "Alice".to_string());
         room.broadcast_participants();
 
         let msg = rx.recv().await.unwrap();
@@ -444,11 +438,11 @@ mod tests {
     async fn test_operations_broadcast() {
         let manager = CollabRoomManager::new();
         let room = manager.get_or_create_room("doc-1");
-        let mut rx = room.hub.subscribe();
+        let mut rx = room.ws.subscribe();
 
         let ops_msg = CollabMessage::Operations { ops: vec![] };
         let json = serde_json::to_string(&ops_msg).unwrap();
-        let _ = room.hub.try_broadcast(json);
+        let _ = room.ws.broadcast(json);
 
         let msg = rx.recv().await.unwrap();
         let parsed: CollabMessage = serde_json::from_str(&msg).unwrap();
@@ -457,12 +451,16 @@ mod tests {
 
     #[test]
     fn test_participant_list() {
-        let room = Room::new("test-doc");
-        room.participants.insert(1, "Alice".to_string());
-        room.participants.insert(2, "Bob".to_string());
+        let manager = CollabRoomManager::new();
+        let room = manager.get_or_create_room("doc-1");
+        room.ws.join(1, "Alice".to_string());
+        room.ws.join(2, "Bob".to_string());
 
-        let list = room.participant_list();
-        assert_eq!(list.len(), 2);
+        let names = room.ws.participant_names();
+        assert_eq!(names.len(), 2);
+        let pairs = room.ws.participants();
+        assert!(pairs.contains(&(1, "Alice".to_string())));
+        assert!(pairs.contains(&(2, "Bob".to_string())));
     }
 
     #[test]
@@ -488,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_room_crdt_document() {
-        let room = Room::new("crdt-doc");
+        let room = test_room("crdt-doc");
         {
             let mut doc = room.document.write().unwrap();
             doc.join(ParticipantId(1), "Alice");
@@ -501,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_room_dirty_flag() {
-        let room = Room::new("dirty-doc");
+        let room = test_room("dirty-doc");
         assert!(!room.dirty.load(Ordering::SeqCst));
         room.dirty.store(true, Ordering::SeqCst);
         assert!(room.dirty.load(Ordering::SeqCst));
@@ -522,7 +520,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_crdt_operations_in_room() {
-        let room = Room::new("ops-doc");
+        let room = test_room("ops-doc");
         {
             let mut doc = room.document.write().unwrap();
             doc.join(ParticipantId(1), "Alice");
@@ -589,9 +587,9 @@ mod tests {
 
     #[test]
     fn test_hub_wrapper() {
-        let room = Room::new("hub-test");
-        assert_eq!(room.hub.receiver_count(), 0);
-        let _rx = room.hub.subscribe();
-        assert_eq!(room.hub.receiver_count(), 1);
+        let room = test_room("hub-test");
+        assert_eq!(room.ws.receiver_count(), 0);
+        let _rx = room.ws.subscribe();
+        assert_eq!(room.ws.receiver_count(), 1);
     }
 }
