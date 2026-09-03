@@ -8,18 +8,22 @@
 //! - **Validation**: `is_valid_flag_name` now delegates to `flag_kit::FlagName::try_from`
 //!   which enforces `^[a-z][a-z0-9_]*$` (lowercase snake_case). See
 //!   “Before/After invalid flag handling” below.
-//! - **Storage**: the hot-path store wraps `flag_kit::MemoryFlagStore` (`DashMap`)
-//!   via the `FlagStore` trait. The existing `FeatureFlag` enum is kept as a
+//! - **Storage**: the store is `flag_kit::MemoryFlagStore` (`DashMap`) by
+//!   default, or `flag_kit::SqliteFlagStore` when
+//!   `FeatureFlagConfig::persist_path` is set (requires `flag-kit/sqlite`,
+//!   enabled by this crate). The existing `FeatureFlag` enum is kept as a
 //!   wrapper that delegates to `flag_kit::Flag { name, enabled, percentage }`.
-//!   For v1 `MemoryFlagStore` is wrapped synchronously; a future `sqlite` feature
-//!   will delegate to `flag_kit::SqliteFlagStore` (requires `flag-kit/sqlite`).
+//!   The store is wrapped synchronously via `pollster::block_on`.
 //! - **Rollout**: percentage evaluation now uses `flag_kit::bucket` /
 //!   `Evaluator::enabled_for(&FlagName, user_id, org_id)` (SipHash of
 //!   `flag_name + user_id % 100 < percentage`) instead of the previous custom
 //!   FNV-1a `hash_in_range`.
-//! - **DB persistence**: not yet wired; `MemoryFlagStore` is used directly.
-//!   Persisted stores can be added via `FlagStore` and `reload` without API
-//!   breakage; audit trail via `FlagChange` is available in `flag-kit`.
+//! - **DB persistence**: set `FeatureFlagConfig::persist_path` to persist
+//!   flags to SQLite. On first run the store is empty and defaults from
+//!   `from_config` are seeded; on reopen persisted values override config
+//!   defaults. `set_flag` / `enable_flag` / `disable_flag` write through to
+//!   the store and record a `FlagChange` audit entry (readable via
+//!   `SqliteFlagStore::list_changes`).
 //!
 //! # Before / After invalid flag handling
 //!
@@ -49,7 +53,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use flag_kit::{Flag, FlagName, FlagStore, MemoryFlagStore, bucket};
+use flag_kit::{Flag, FlagChange, FlagName, FlagStore, MemoryFlagStore, SqliteFlagStore, bucket};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tracing::trace;
@@ -140,30 +144,80 @@ pub struct FeatureFlagConfig {
     /// Map of flag name to its state.
     #[serde(default)]
     pub flags: HashMap<String, FeatureFlag>,
+    /// Optional SQLite file path for durable flag persistence
+    /// (`flag_kit::SqliteFlagStore`). When set, the SQLite store is the
+    /// primary store: config defaults are seeded on first run and persisted
+    /// values override config defaults on reopen.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persist_path: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
-// FeatureFlags — wraps MemoryFlagStore + FlagStore, delegates to Flag
+// FeatureFlags — wraps MemoryFlagStore or SqliteFlagStore, delegates to Flag
 // ---------------------------------------------------------------------------
 
-/// Thread-safe feature flag evaluator backed by `flag_kit::MemoryFlagStore`.
+/// Backing store for [`FeatureFlags`].
+enum Store {
+    Memory(Arc<MemoryFlagStore>),
+    Sqlite(Arc<SqliteFlagStore>),
+}
+
+impl Store {
+    /// Returns the backing store as a trait object.
+    fn flag_store(&self) -> Arc<dyn FlagStore> {
+        match self {
+            Store::Memory(m) => m.clone(),
+            Store::Sqlite(s) => s.clone(),
+        }
+    }
+}
+
+/// Thread-safe feature flag evaluator backed by a `flag_kit` store.
 ///
-/// Holds a snapshot of all flags behind a `RwLock` for legacy `TenantOnly`/
-/// `UserOnly` plus an `Arc<MemoryFlagStore>` for `FlagStore` operations.
-/// The store is wrapped synchronously via `pollster::block_on` for the
-/// existing sync API; async callers can use `store()` / `evaluator()`
-/// and `enabled_for_async`.
+/// The backing store is [`MemoryFlagStore`] by default, or
+/// [`SqliteFlagStore`] when `FeatureFlagConfig::persist_path` is set. With
+/// SQLite the persisted store is primary: defaults are seeded on first run
+/// and persisted values override config defaults on reopen. Mutations via
+/// [`FeatureFlags::set_flag`] / [`FeatureFlags::enable_flag`] /
+/// [`FeatureFlags::disable_flag`] write through to the store and record a
+/// `FlagChange` audit entry.
 ///
-/// For v1 `MemoryFlagStore` is used directly. A future `sqlite` feature will
-/// allow `flag_kit::SqliteFlagStore` behind the same `FlagStore` trait and
-/// `FlagChange` audit trail — the `FeatureFlags` API will not need to change.
+/// A snapshot of all flags is held behind a `RwLock` for legacy `TenantOnly`/
+/// `UserOnly` plus sync reads. The store is wrapped synchronously via
+/// `pollster::block_on` for the existing sync API; async callers can use
+/// `store()` / `evaluator()` and `enabled_for_async`.
 pub struct FeatureFlags {
-    store: Arc<MemoryFlagStore>,
+    store: Store,
     inner: RwLock<FeatureFlagsInner>,
 }
 
 struct FeatureFlagsInner {
     flags: HashMap<String, FeatureFlag>,
+}
+
+/// Resolves a flag name, falling back to `new_unchecked` for legacy
+/// hyphenated defaults (with a `tracing::trace`).
+fn flag_name_for(name: &str) -> FlagName {
+    match FlagName::try_from(name) {
+        Ok(n) => n,
+        Err(e) => {
+            trace!(flag = name, error = %e, "invalid flag name, storing via new_unchecked for backward compat");
+            FlagName::new_unchecked(name.to_string())
+        }
+    }
+}
+
+/// Populates a fresh `MemoryFlagStore` from config defaults.
+fn memory_store_from_config(config: &FeatureFlagConfig) -> Arc<MemoryFlagStore> {
+    let store = Arc::new(MemoryFlagStore::new());
+    for (k, v) in &config.flags {
+        // Populate MemoryFlagStore for representable variants.
+        if let Some(flag) = v.to_flag(flag_name_for(k)) {
+            // `MemoryFlagStore::set` is async; block synchronously for sync constructor.
+            let _ = pollster::block_on(store.set(flag));
+        }
+    }
+    store
 }
 
 impl FeatureFlags {
@@ -173,28 +227,46 @@ impl FeatureFlags {
     /// still stored via `FlagName::new_unchecked` for backward compatibility
     /// (legacy hyphenated defaults like `"webdav-class3"`), but a `tracing::trace`
     /// is emitted. New code should call `is_valid_flag_name` before insertion.
+    ///
+    /// When `config.persist_path` is set, a `SqliteFlagStore` is opened at
+    /// that path and used as the primary store: if the store is empty the
+    /// config defaults are seeded into it, otherwise persisted values are
+    /// loaded and override the config defaults. If the store cannot be
+    /// opened, a warning is logged and execution falls back to memory.
     pub fn from_config(config: &FeatureFlagConfig) -> Self {
-        let store = Arc::new(MemoryFlagStore::new());
         let mut flags = HashMap::with_capacity(config.flags.len());
-
         for (k, v) in &config.flags {
-            // Validate via FlagName::try_from; keep legacy hyphenated names via unchecked.
-            let flag_name = match FlagName::try_from(k.as_str()) {
-                Ok(n) => n,
-                Err(e) => {
-                    trace!(flag = k, error = %e, "invalid flag name, storing via new_unchecked for backward compat");
-                    FlagName::new_unchecked(k.clone())
-                }
-            };
-
-            // Populate MemoryFlagStore for representable variants.
-            if let Some(flag) = v.to_flag(flag_name) {
-                // `MemoryFlagStore::set` is async; block synchronously for sync constructor.
-                let _ = pollster::block_on(store.set(flag));
-            }
             // Keep full wrapper in HashMap for TenantOnly/UserOnly and sync reads.
             flags.insert(k.clone(), v.clone());
         }
+
+        let store = match &config.persist_path {
+            None => Store::Memory(memory_store_from_config(config)),
+            Some(path) => match SqliteFlagStore::new(path) {
+                Ok(sqlite) => {
+                    let existing = pollster::block_on(sqlite.list());
+                    if existing.is_empty() {
+                        // First run: seed defaults from config.
+                        for (k, v) in &config.flags {
+                            if let Some(flag) = v.to_flag(flag_name_for(k)) {
+                                let _ = pollster::block_on(sqlite.set(flag));
+                            }
+                        }
+                    } else {
+                        // Reopen: persisted values win over config defaults.
+                        for f in existing {
+                            trace!(flag = %f.name, "loading persisted flag from sqlite");
+                            flags.insert(f.name.as_str().to_string(), FeatureFlag::from_flag(&f));
+                        }
+                    }
+                    Store::Sqlite(Arc::new(sqlite))
+                }
+                Err(e) => {
+                    tracing::warn!(path = %path, error = %e, "failed to open sqlite flag store, falling back to memory");
+                    Store::Memory(memory_store_from_config(config))
+                }
+            },
+        };
 
         Self {
             store,
@@ -202,9 +274,19 @@ impl FeatureFlags {
         }
     }
 
-    /// Returns the underlying `MemoryFlagStore` (for `FlagStore` trait usage).
-    pub fn store(&self) -> Arc<MemoryFlagStore> {
-        self.store.clone()
+    /// Returns the underlying store (for `FlagStore` trait usage).
+    pub fn store(&self) -> Arc<dyn FlagStore> {
+        self.store.flag_store()
+    }
+
+    /// Returns the underlying `SqliteFlagStore` when persistence is enabled.
+    ///
+    /// Use `list_changes` on the returned store to inspect the audit trail.
+    pub fn sqlite_store(&self) -> Option<Arc<SqliteFlagStore>> {
+        match &self.store {
+            Store::Memory(_) => None,
+            Store::Sqlite(s) => Some(s.clone()),
+        }
     }
 
     /// Returns an `Evaluator` wrapping the underlying store.
@@ -212,7 +294,7 @@ impl FeatureFlags {
     /// Use `evaluator.enabled_for(&FlagName, user_id, org_id).await` for
     /// deterministic rollout checks.
     pub fn evaluator(&self) -> flag_kit::Evaluator {
-        flag_kit::Evaluator::new(self.store.clone())
+        flag_kit::Evaluator::new(self.store.flag_store())
     }
 
     /// Check if a flag is enabled (unconditionally or via percentage).
@@ -267,7 +349,7 @@ impl FeatureFlags {
                 }
                 // Use Evaluator path: lookup store, then bucket.
                 // We already have pct, but verify store consistency.
-                let stored = self.store.get(&validated).await;
+                let stored = self.store().get(&validated).await;
                 let effective_pct = stored.map(|f| f.percentage).unwrap_or(pct);
                 let b = bucket(validated.as_str(), user_id);
                 // org_id currently logged but not bucketed (flag-kit semantics).
@@ -321,28 +403,103 @@ impl FeatureFlags {
     /// Hot-reload flags from a new config.
     ///
     /// This replaces the entire flag set atomically under a write lock and
-    /// repopulates the underlying `MemoryFlagStore` via `FlagStore::set`.
-    /// Readers that already hold a read lock will continue to see the old
-    /// set until they release it.
+    /// repopulates the underlying store via `FlagStore::set`. Readers that
+    /// already hold a read lock will continue to see the old set until they
+    /// release it.
+    ///
+    /// With SQLite persistence, flags removed from the new config are
+    /// deleted from the store and the rest are upserted.
     pub fn reload(&mut self, config: FeatureFlagConfig) {
-        // Clear store first (MemoryFlagStore has clear()).
-        self.store.clear();
         let mut inner = self.inner.write();
-        inner.flags.clear();
-        for (k, v) in config.flags {
-            let flag_name = match FlagName::try_from(k.as_str()) {
-                Ok(n) => n,
-                Err(e) => {
-                    trace!(flag = k, error = %e, "invalid flag name on reload, storing via new_unchecked");
-                    FlagName::new_unchecked(k.clone())
+        match &self.store {
+            Store::Memory(memory) => {
+                // Clear store first (MemoryFlagStore has clear()).
+                memory.clear();
+                inner.flags.clear();
+                for (k, v) in config.flags {
+                    if let Some(flag) = v.to_flag(flag_name_for(&k)) {
+                        let _ = pollster::block_on(memory.set(flag));
+                    }
+                    inner.flags.insert(k, v);
                 }
-            };
-            if let Some(flag) = v.to_flag(flag_name) {
-                let _ = pollster::block_on(self.store.set(flag));
             }
-            inner.flags.insert(k, v);
+            Store::Sqlite(sqlite) => {
+                // Delete persisted flags absent from the new config; upsert the rest.
+                let current = pollster::block_on(sqlite.list());
+                for f in current {
+                    if !config.flags.contains_key(f.name.as_str()) {
+                        let _ = pollster::block_on(sqlite.delete(&f.name));
+                    }
+                }
+                inner.flags.clear();
+                for (k, v) in config.flags {
+                    if let Some(flag) = v.to_flag(flag_name_for(&k)) {
+                        let _ = pollster::block_on(sqlite.set(flag));
+                    }
+                    inner.flags.insert(k, v);
+                }
+            }
         }
         trace!("feature flags reloaded");
+    }
+
+    /// Set a flag's state, persisting the change and recording an audit
+    /// entry attributed to `"system"`.
+    ///
+    /// Updates the legacy snapshot map, writes representable variants
+    /// (`Enabled`/`Disabled`/`Percentage`) through to the backing store, and
+    /// — with SQLite persistence — records a `FlagChange`. `TenantOnly`/
+    /// `UserOnly` are updated in the legacy map only (no store
+    /// representation) and are not persisted.
+    pub fn set_flag(&mut self, name: &str, flag: FeatureFlag) -> Result<(), flag_kit::FlagError> {
+        self.set_flag_as(name, flag, "system")
+    }
+
+    /// Set a flag's state with an explicit audit actor.
+    ///
+    /// See [`FeatureFlags::set_flag`] for semantics; `who` is recorded in
+    /// the `FlagChange` audit entry when persistence is enabled.
+    pub fn set_flag_as(
+        &mut self,
+        name: &str,
+        flag: FeatureFlag,
+        who: &str,
+    ) -> Result<(), flag_kit::FlagError> {
+        let flag_name = flag_name_for(name);
+        let old = self.is_enabled(name);
+        let persistable = flag.to_flag(flag_name.clone());
+
+        self.inner.write().flags.insert(name.to_string(), flag);
+
+        if let Some(new_flag) = persistable {
+            let new_enabled = new_flag.enabled;
+            pollster::block_on(self.store.flag_store().set(new_flag))?;
+            if let Store::Sqlite(sqlite) = &self.store {
+                let change = FlagChange::new(
+                    flag_name,
+                    old,
+                    new_enabled,
+                    who,
+                    chrono::Utc::now().timestamp(),
+                );
+                let _ = pollster::block_on(sqlite.record_change(&change));
+            }
+        } else {
+            trace!(flag = name, "flag variant not persistable, legacy map updated only");
+        }
+        Ok(())
+    }
+
+    /// Enable a flag, persisting the change with an audit entry
+    /// attributed to `"system"`.
+    pub fn enable_flag(&mut self, name: &str) -> Result<(), flag_kit::FlagError> {
+        self.set_flag(name, FeatureFlag::Enabled)
+    }
+
+    /// Disable a flag, persisting the change with an audit entry
+    /// attributed to `"system"`.
+    pub fn disable_flag(&mut self, name: &str) -> Result<(), flag_kit::FlagError> {
+        self.set_flag(name, FeatureFlag::Disabled)
     }
 
     /// Evaluate a generic flag (no tenant/user context).
@@ -421,7 +578,10 @@ pub fn default_flags() -> FeatureFlagConfig {
     flags.insert("webrtc".into(), FeatureFlag::Disabled);
     flags.insert("caldav-scheduling".into(), FeatureFlag::Enabled);
     flags.insert("remote-mount".into(), FeatureFlag::Enabled);
-    FeatureFlagConfig { flags }
+    FeatureFlagConfig {
+        flags,
+        persist_path: None,
+    }
 }
 
 #[cfg(test)]
@@ -669,9 +829,66 @@ mod tests {
         assert_eq!(got.percentage, 25);
     }
 
-    async fn flags_store_helper() -> Arc<MemoryFlagStore> {
+    async fn flags_store_helper() -> Arc<dyn FlagStore> {
         let cfg = FeatureFlagConfig::default();
         let f = FeatureFlags::from_config(&cfg);
         f.store()
+    }
+
+    #[test]
+    fn sqlite_persistence_across_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("flags.db");
+        let path = path.to_str().unwrap().to_string();
+
+        let mut config = FeatureFlagConfig::default();
+        config.persist_path = Some(path.clone());
+        config
+            .flags
+            .insert("persist_flag".into(), FeatureFlag::Enabled);
+        {
+            let mut flags = FeatureFlags::from_config(&config);
+            // First run: default seeded from config.
+            assert!(flags.is_enabled("persist_flag"));
+            assert!(flags.sqlite_store().is_some());
+            // Change must be written through to sqlite.
+            flags.disable_flag("persist_flag").unwrap();
+            assert!(!flags.is_enabled("persist_flag"));
+        }
+        // Reopen: persisted value must win over the config default.
+        let reopened = FeatureFlags::from_config(&config);
+        assert!(!reopened.is_enabled("persist_flag"));
+    }
+
+    #[test]
+    fn sqlite_audit_trail_records_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("audit.db");
+        let path = path.to_str().unwrap().to_string();
+
+        let mut config = FeatureFlagConfig::default();
+        config.persist_path = Some(path.clone());
+        {
+            let mut flags = FeatureFlags::from_config(&config);
+            flags
+                .set_flag_as("audit_flag", FeatureFlag::Enabled, "tester")
+                .unwrap();
+            flags.disable_flag("audit_flag").unwrap();
+        }
+        // Inspect the audit trail via a fresh handle on the same db.
+        let store = SqliteFlagStore::new(&path).unwrap();
+        let changes =
+            pollster::block_on(store.list_changes(&FlagName::new_unchecked("audit_flag")))
+                .unwrap();
+        assert_eq!(changes.len(), 2);
+        assert!(changes.iter().any(|c| c.who == "tester" && c.enabled()));
+        assert!(changes.iter().any(|c| c.who == "system" && c.disabled()));
+    }
+
+    #[test]
+    fn memory_backend_has_no_sqlite_store() {
+        let config = FeatureFlagConfig::default();
+        let flags = FeatureFlags::from_config(&config);
+        assert!(flags.sqlite_store().is_none());
     }
 }

@@ -9,7 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
-flag-kit = { path = "../../../flag-kit" }
+flag-kit = { path = "../../../flag-kit", features = ["sqlite"] }
 pollster = "0.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -17,3 +17,6 @@ tracing = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }
 parking_lot = "0.12"
+
+[dev-dependencies]
+tempfile = "3"
