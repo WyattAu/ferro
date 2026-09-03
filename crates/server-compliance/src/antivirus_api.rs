@@ -373,8 +373,8 @@ pub async fn scan_all_impl<S: HasStorage>(state: &S, directory: &str) -> Respons
                 }
             }
             Err(cb_err) => {
-                let error_msg = match cb_err {
-                    CircuitBreakerError::Inner(e) => e,
+                let error_msg: String = match cb_err {
+                    CircuitBreakerError::Inner(e) => e.into_owned(),
                     _ => "ClamAV circuit breaker is open".to_string(),
                 };
                 results.push(serde_json::json!({

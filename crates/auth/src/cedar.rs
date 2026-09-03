@@ -22,9 +22,7 @@ pub struct CedarAuthorizer {
 impl CedarAuthorizer {
     /// Create a new Cedar authorizer with a default deny-all policy.
     pub fn new() -> Result<Self> {
-        warn!(
-            "WARNING: No Cedar policies configured. All access is denied. Configure policies to enable access control."
-        );
+        debug!("Cedar authorizer initialized with default deny-all policy (will be replaced if policy file is loaded)");
 
         let default_policy = r#"
             @id("deny_all")
