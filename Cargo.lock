@@ -3397,7 +3397,9 @@ name = "ferro-feature-flags"
 version = "3.0.0"
 dependencies = [
  "chrono",
+ "flag-kit",
  "parking_lot 0.12.5",
+ "pollster",
  "serde",
  "serde_json",
  "tokio",
@@ -3888,6 +3890,7 @@ dependencies = [
  "tokio-tungstenite",
  "tracing",
  "uuid",
+ "ws-kit",
 ]
 
 [[package]]
@@ -4520,6 +4523,18 @@ name = "fixedbitset"
 version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
+
+[[package]]
+name = "flag-kit"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "dashmap",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
 
 [[package]]
 name = "flate2"
@@ -8517,6 +8532,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "pollster"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22686f4785f02a4fcc856d3b3bb19bf6c8160d103f7a99cc258bddd0251dc7f2"
+
+[[package]]
 name = "poly1305"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11698,7 +11719,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokenkit"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "jsonwebtoken",
@@ -14188,6 +14209,19 @@ dependencies = [
  "windows-core",
  "windows-version",
  "x11-dl",
+]
+
+[[package]]
+name = "ws-kit"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "futures",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

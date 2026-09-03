@@ -9,6 +9,8 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
+flag-kit = { path = "../../../flag-kit" }
+pollster = "0.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
