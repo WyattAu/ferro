@@ -161,7 +161,7 @@ mod tests {
                     let ds = ds.clone();
                     let sc = sc.clone();
                     let so = so.clone();
-                    async move { request_logging_middleware(rc, db, ds, sc, Some(so), req, next).await }
+                    async move { observability_middleware(rc, db, ds, sc, Some(so), req, next).await }
                 }))
         }
 

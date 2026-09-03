@@ -367,7 +367,10 @@ fn parse_dav_response(xml: &str, parent_path: &str) -> Result<Vec<crate::MobileF
             if trimmed.contains("<d:collection") || trimmed.contains("<D:collection") {
                 current_is_collection = true;
             }
-            if let Some(start) = trimmed.find("<d:getcontentlength>").or_else(|| trimmed.find("<D:getcontentlength>")) {
+            if let Some(start) = trimmed
+                .find("<d:getcontentlength>")
+                .or_else(|| trimmed.find("<D:getcontentlength>"))
+            {
                 if let Some(s) = trimmed[start..].find('>') {
                     let s = start + s + 1;
                     if let Some(e) = trimmed[s..].find('<') {
@@ -375,7 +378,10 @@ fn parse_dav_response(xml: &str, parent_path: &str) -> Result<Vec<crate::MobileF
                     }
                 }
             }
-            if let Some(start) = trimmed.find("<d:getlastmodified>").or_else(|| trimmed.find("<D:getlastmodified>")) {
+            if let Some(start) = trimmed
+                .find("<d:getlastmodified>")
+                .or_else(|| trimmed.find("<D:getlastmodified>"))
+            {
                 if let Some(s) = trimmed[start..].find('>') {
                     let s = start + s + 1;
                     if let Some(e) = trimmed[s..].find('<') {
@@ -552,7 +558,10 @@ pub async fn create_share(
     }
 
     let body: serde_json::Value = resp.json().await.map_err(|e| format!("Parse response: {}", e))?;
-    let s = body.get("ocs").and_then(|o| o.get("data")).ok_or("No data in response")?;
+    let s = body
+        .get("ocs")
+        .and_then(|o| o.get("data"))
+        .ok_or("No data in response")?;
 
     Ok(MobileShare {
         id: s.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
@@ -620,7 +629,10 @@ pub async fn list_versions(path: String) -> Result<Vec<FileVersion>, String> {
                     }
                 }
             }
-            if let Some(start) = trimmed.find("<d:getcontentlength>").or_else(|| trimmed.find("<D:getcontentlength>")) {
+            if let Some(start) = trimmed
+                .find("<d:getcontentlength>")
+                .or_else(|| trimmed.find("<D:getcontentlength>"))
+            {
                 if let Some(s) = trimmed[start..].find('>') {
                     let s = start + s + 1;
                     if let Some(e) = trimmed[s..].find('<') {
@@ -628,7 +640,10 @@ pub async fn list_versions(path: String) -> Result<Vec<FileVersion>, String> {
                     }
                 }
             }
-            if let Some(start) = trimmed.find("<d:getlastmodified>").or_else(|| trimmed.find("<D:getlastmodified>")) {
+            if let Some(start) = trimmed
+                .find("<d:getlastmodified>")
+                .or_else(|| trimmed.find("<D:getlastmodified>"))
+            {
                 if let Some(s) = trimmed[start..].find('>') {
                     let s = start + s + 1;
                     if let Some(e) = trimmed[s..].find('<') {
@@ -639,11 +654,7 @@ pub async fn list_versions(path: String) -> Result<Vec<FileVersion>, String> {
         }
         if trimmed.contains("</d:response>") || trimmed.contains("</D:response>") {
             if in_response && !current_href.is_empty() {
-                let version = current_href
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
+                let version = current_href.rsplit('/').next().unwrap_or("").to_string();
                 if !version.is_empty() && version != "versions" {
                     versions.push(FileVersion {
                         version,
@@ -716,7 +727,10 @@ pub async fn list_trash() -> Result<Vec<TrashEntry>, String> {
                     }
                 }
             }
-            if let Some(start) = trimmed.find("<d:displayname>").or_else(|| trimmed.find("<D:displayname>")) {
+            if let Some(start) = trimmed
+                .find("<d:displayname>")
+                .or_else(|| trimmed.find("<D:displayname>"))
+            {
                 if let Some(s) = trimmed[start..].find('>') {
                     let s = start + s + 1;
                     if let Some(e) = trimmed[s..].find('<') {
@@ -724,7 +738,10 @@ pub async fn list_trash() -> Result<Vec<TrashEntry>, String> {
                     }
                 }
             }
-            if let Some(start) = trimmed.find("<d:getcontentlength>").or_else(|| trimmed.find("<D:getcontentlength>")) {
+            if let Some(start) = trimmed
+                .find("<d:getcontentlength>")
+                .or_else(|| trimmed.find("<D:getcontentlength>"))
+            {
                 if let Some(s) = trimmed[start..].find('>') {
                     let s = start + s + 1;
                     if let Some(e) = trimmed[s..].find('<') {
@@ -735,11 +752,7 @@ pub async fn list_trash() -> Result<Vec<TrashEntry>, String> {
         }
         if trimmed.contains("</d:response>") || trimmed.contains("</D:response>") {
             if in_response && !current_href.is_empty() && current_name != "." && current_name != ".." {
-                let id = current_href
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
+                let id = current_href.rsplit('/').next().unwrap_or("").to_string();
                 entries.push(TrashEntry {
                     id,
                     name: current_name.clone(),

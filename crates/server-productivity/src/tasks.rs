@@ -270,7 +270,7 @@ impl TaskStore {
         let now = chrono::Utc::now().to_rfc3339();
         let task = Task {
             id: existing.id,
-            title: req.title.clone().unwrap_or(existing.title),
+            title: req.title.clone().unwrap_or_else(|| existing.title),
             description: req.description.clone().unwrap_or(existing.description),
             status: req.status.clone().unwrap_or(existing.status),
             assignee: req.assignee.clone().unwrap_or(existing.assignee),

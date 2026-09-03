@@ -242,8 +242,9 @@ pub async fn create_note<S: ProductivityState>(
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
 
+    let path = dir.join(format!("{}.md", id));
     let note = Note {
-        id: id.clone(),
+        id,
         title: req.title.unwrap_or_else(|| "Untitled".to_string()),
         content: req.content.unwrap_or_default(),
         folder: req.folder.unwrap_or_default(),
@@ -251,8 +252,6 @@ pub async fn create_note<S: ProductivityState>(
         created_at: now.clone(),
         updated_at: now,
     };
-
-    let path = dir.join(format!("{}.md", id));
     if let Err(e) = write_note_to_file(&path, &note) {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,

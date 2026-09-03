@@ -105,7 +105,7 @@ pub async fn create_whiteboard<S: ProductivityState>(
     let now = chrono::Utc::now().to_rfc3339();
 
     let whiteboard = WhiteboardState {
-        id: id.clone(),
+        id,
         name,
         elements: vec![],
         viewport: Viewport::default(),
