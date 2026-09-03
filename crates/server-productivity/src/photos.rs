@@ -246,15 +246,18 @@ pub async fn get_exif_impl<S: HasStorage>(state: &S, path: &str) -> Response {
     let clean_path = path.trim_start_matches('/');
 
     match storage.get(clean_path).await {
-        Ok(_data) => {
+        Ok(data) => {
+            let exif = media_kit::exif::read_exif(&data).ok().flatten().unwrap_or_default();
+            let dims = media_kit::meta::dimensions(&data);
+
             let exif = ExifData {
-                camera_make: None,
-                camera_model: None,
-                date_taken: None,
-                latitude: None,
-                longitude: None,
-                width: None,
-                height: None,
+                camera_make: exif.camera_make,
+                camera_model: exif.camera_model,
+                date_taken: exif.date_taken,
+                latitude: exif.gps_lat,
+                longitude: exif.gps_lon,
+                width: dims.map(|(w, _)| w),
+                height: dims.map(|(_, h)| h),
             };
 
             Json(serde_json::json!(exif)).into_response()
