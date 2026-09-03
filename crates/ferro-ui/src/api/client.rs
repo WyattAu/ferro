@@ -141,6 +141,46 @@ impl ApiClient {
         Err(ApiError::Network("max retries exceeded".into()))
     }
 
+    /// PUT raw bytes (for file upload).
+    pub async fn put_bytes(&self, path: &str, bytes: Vec<u8>, content_type: &str) -> Result<(), ApiError> {
+        let url = format!("{}{}", self.config.base_url, path);
+        #[cfg(target_arch = "wasm32")]
+        {
+            use wasm_bindgen::JsCast;
+            let window = web_sys::window().ok_or_else(|| ApiError::Network("no window".into()))?;
+            let opts = web_sys::RequestInit::new();
+            opts.set_method("PUT");
+            opts.set_credentials(web_sys::RequestCredentials::Include);
+            let headers = web_sys::Headers::new().map_err(|e| ApiError::Network(format!("headers: {:?}", e)))?;
+            headers
+                .set("Content-Type", content_type)
+                .map_err(|e| ApiError::Network(format!("header: {:?}", e)))?;
+            opts.set_headers(&headers);
+            let array = js_sys::Uint8Array::from(bytes.as_slice());
+            opts.set_body(&array);
+            let request = web_sys::Request::new_with_str_and_init(&url, &opts)
+                .map_err(|e| ApiError::Network(format!("request: {:?}", e)))?;
+            let resp_value = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+                .await
+                .map_err(|e| ApiError::Network(format!("fetch: {:?}", e)))?;
+            let resp: web_sys::Response = resp_value
+                .dyn_into()
+                .map_err(|_| ApiError::Network("invalid response".into()))?;
+            match resp.status() {
+                200..=299 => Ok(()),
+                401 => Err(ApiError::Unauthorized),
+                403 => Err(ApiError::Forbidden),
+                404 => Err(ApiError::NotFound),
+                s => Err(ApiError::Server(format!("HTTP {}", s))),
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = (path, bytes, content_type);
+            Err(ApiError::Network("native not supported".into()))
+        }
+    }
+
     async fn execute_fetch<B: Serialize, T: DeserializeOwned>(
         &self,
         method: &str,

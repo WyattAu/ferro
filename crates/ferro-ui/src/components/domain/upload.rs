@@ -42,9 +42,20 @@ pub fn UploadZone(#[prop(into)] _path: String, #[prop(optional)] _on_complete: O
                                 match array_buffer {
                                     Ok(ab) => {
                                         let bytes = js_sys::Uint8Array::new(&ab).to_vec();
-                                        let _client = crate::api::ApiClient::from_env();
-                                        // TODO: implement actual upload via PUT /api/v1/files/{path}
-                                        log::info!("Upload: {} ({} bytes)", file_path, bytes.len());
+                                        let client = crate::api::ApiClient::from_env();
+                                        let ct = file.type_();
+                                        let ct = if ct.is_empty() { "application/octet-stream" } else { &ct };
+                                        match client
+                                            .put_bytes(&format!("/api/v1/files{}", file_path), bytes.clone(), ct)
+                                            .await
+                                        {
+                                            Ok(()) => log::info!("Upload: {} ({} bytes) OK", file_path, bytes.len()),
+                                            Err(e) => {
+                                                let msg = format!("Upload failed {}: {}", file_path, e);
+                                                log::error!("{}", msg);
+                                                set_err.set(Some(msg));
+                                            }
+                                        }
                                     }
                                     Err(e) => {
                                         set_err.set(Some(format!("Read failed: {:?}", e)));

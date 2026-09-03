@@ -9,12 +9,19 @@ use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tokio::sync::broadcast;
+use std::time::Duration;
+use ws_kit::config::WsConfig;
+use ws_kit::hub::BroadcastHub;
 
 use crate::CollaborationState;
 
-const BROADCAST_CAPACITY: usize = 256;
-const IDLE_SAVE_INTERVAL_SECS: u64 = 30;
+/// Canonical collaboration WS config — heartbeat 30s, broadcast 1024 (ws-kit WsConfig).
+fn collab_ws_config() -> WsConfig {
+    WsConfig::builder()
+        .heartbeat_interval(Duration::from_secs(30))
+        .broadcast_capacity(1024)
+        .build()
+}
 
 fn collab_storage_path(document_id: &str) -> String {
     format!(".ferro-collab/{}.crdt", document_id)
@@ -73,7 +80,8 @@ pub struct ParticipantEntry {
 
 #[derive(Debug)]
 struct Room {
-    tx: broadcast::Sender<String>,
+    /// Broadcast hub via ws-kit — typed BroadcastHub<String> replaces broadcast::Sender<String>.
+    hub: BroadcastHub<String>,
     participants: DashMap<u32, String>,
     document: std::sync::RwLock<CrdtDocument>,
     dirty: AtomicBool,
@@ -82,9 +90,10 @@ struct Room {
 
 impl Room {
     fn new(document_id: &str) -> Self {
-        let (tx, _) = broadcast::channel(BROADCAST_CAPACITY);
+        let cfg = collab_ws_config();
+        let hub = BroadcastHub::from_config(&cfg);
         Room {
-            tx,
+            hub,
             participants: DashMap::new(),
             document: std::sync::RwLock::new(CrdtDocument::new(DocumentId(document_id.to_string()))),
             dirty: AtomicBool::new(false),
@@ -107,20 +116,39 @@ impl Room {
             participants: self.participant_list(),
         };
         if let Ok(json) = serde_json::to_string(&msg) {
-            let _ = self.tx.send(json);
+            let _ = self.hub.try_broadcast(json);
         }
+    }
+
+    /// Expose hub sender for advanced use (wraps BroadcastHub).
+    #[allow(dead_code)]
+    fn sender(&self) -> &tokio::sync::broadcast::Sender<String> {
+        self.hub.sender()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct CollabRoomManager {
     rooms: Arc<DashMap<String, Arc<Room>>>,
+    /// WsConfig drives broadcast capacity and heartbeat (30s) for all rooms.
+    #[allow(dead_code)]
+    config: WsConfig,
 }
 
 impl CollabRoomManager {
     pub fn new() -> Self {
         CollabRoomManager {
             rooms: Arc::new(DashMap::new()),
+            config: collab_ws_config(),
+        }
+    }
+
+    /// Alternate constructor mirroring ws_kit::RoomManager::new() with explicit config.
+    #[allow(dead_code)]
+    pub fn with_config(config: WsConfig) -> Self {
+        Self {
+            rooms: Arc::new(DashMap::new()),
+            config,
         }
     }
 
@@ -148,6 +176,11 @@ impl CollabRoomManager {
     pub fn participant_count(&self, document_id: &str) -> usize {
         self.rooms.get(document_id).map(|r| r.participants.len()).unwrap_or(0)
     }
+
+    /// Expose underlying WsConfig (heartbeat 30s, capacity 1024).
+    pub fn ws_config(&self) -> &WsConfig {
+        &self.config
+    }
 }
 
 impl Default for CollabRoomManager {
@@ -166,7 +199,9 @@ pub async fn collab_ws_handler<S: CollaborationState>(
 }
 
 async fn idle_save_loop(room: Arc<Room>, storage: Arc<dyn StorageEngine>, document_id: &str) {
-    let mut interval = tokio::time::interval(std::time::Duration::from_secs(IDLE_SAVE_INTERVAL_SECS));
+    let cfg = collab_ws_config();
+    // Use WsConfig heartbeat interval (30s) for idle-save cadence.
+    let mut interval = tokio::time::interval(cfg.heartbeat_interval);
     loop {
         interval.tick().await;
         if room.participants.is_empty() {
@@ -213,7 +248,7 @@ async fn handle_collab_socket(
         });
     }
 
-    let mut rx = room.tx.subscribe();
+    let mut rx = room.hub.subscribe();
     let (mut ws_sender, mut ws_receiver) = socket.split();
 
     let my_participant_id = Arc::new(std::sync::Mutex::new(None::<u32>));
@@ -259,7 +294,7 @@ async fn handle_collab_socket(
                                 }
 
                                 room_for_recv.broadcast_participants();
-                                let _ = room_for_recv.tx.send(text);
+                                let _ = room_for_recv.hub.try_broadcast(text);
                             }
                             CollabMessage::Operations { ops } => {
                                 {
@@ -267,7 +302,7 @@ async fn handle_collab_socket(
                                     doc.apply_ops(&ops);
                                 }
                                 room_for_recv.dirty.store(true, Ordering::Relaxed);
-                                let _ = room_for_recv.tx.send(text);
+                                let _ = room_for_recv.hub.try_broadcast(text);
                             }
                             _ => {}
                         }
@@ -388,7 +423,7 @@ mod tests {
     async fn test_room_broadcast() {
         let manager = CollabRoomManager::new();
         let room = manager.get_or_create_room("doc-1");
-        let mut rx = room.tx.subscribe();
+        let mut rx = room.hub.subscribe();
 
         room.participants.insert(1, "Alice".to_string());
         room.broadcast_participants();
@@ -409,11 +444,11 @@ mod tests {
     async fn test_operations_broadcast() {
         let manager = CollabRoomManager::new();
         let room = manager.get_or_create_room("doc-1");
-        let mut rx = room.tx.subscribe();
+        let mut rx = room.hub.subscribe();
 
         let ops_msg = CollabMessage::Operations { ops: vec![] };
         let json = serde_json::to_string(&ops_msg).unwrap();
-        let _ = room.tx.send(json);
+        let _ = room.hub.try_broadcast(json);
 
         let msg = rx.recv().await.unwrap();
         let parsed: CollabMessage = serde_json::from_str(&msg).unwrap();
@@ -543,5 +578,20 @@ mod tests {
         doc2.apply_ops(&ops_a);
 
         assert_eq!(doc1.get_text(), doc2.get_text());
+    }
+
+    #[test]
+    fn test_ws_config_heartbeat_and_capacity() {
+        let cfg = collab_ws_config();
+        assert_eq!(cfg.heartbeat_interval, Duration::from_secs(30));
+        assert_eq!(cfg.broadcast_capacity, 1024);
+    }
+
+    #[test]
+    fn test_hub_wrapper() {
+        let room = Room::new("hub-test");
+        assert_eq!(room.hub.receiver_count(), 0);
+        let _rx = room.hub.subscribe();
+        assert_eq!(room.hub.receiver_count(), 1);
     }
 }
