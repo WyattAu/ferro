@@ -216,11 +216,8 @@ fn apply_text_watermark(
     color_hex: &str,
 ) {
     let (w, h) = img.dimensions();
-    let rgba = img.to_rgba8();
-    let mut out = rgba.clone();
 
     let color = parse_color(color_hex);
-    let alpha = (opacity * 255.0) as u8;
 
     // Simple pixel-based text rendering: draw text as a horizontal band
     // Using the image crate's built-in drawing primitives.
@@ -229,78 +226,54 @@ fn apply_text_watermark(
 
     let text_width = (text.len() as u32) * (font_size / 2);
     let text_height = font_size;
+    if text_width == 0 || text_height == 0 {
+        return;
+    }
 
-    let (x_offset, y_offset) = match position {
-        "top-left" => (10, 10),
-        "top-right" => (w.saturating_sub(text_width + 10), 10),
-        "bottom-left" => (10, h.saturating_sub(text_height + 10)),
-        "bottom-right" => (w.saturating_sub(text_width + 10), h.saturating_sub(text_height + 10)),
+    let band = image::RgbaImage::from_pixel(text_width, text_height, color);
+
+    let positions: Vec<(i64, i64)> = match position {
         "tiled" => {
             // For tiled, we mark every ~200px
-            let step_x = 200;
-            let step_y = 200;
-            for y in (0..h).step_by(step_y as usize) {
-                for x in (0..w).step_by(step_x as usize) {
-                    blend_region(
-                        &mut out,
-                        x,
-                        y,
-                        text_width.min(w - x),
-                        text_height.min(h - y),
-                        alpha,
-                        color,
-                        w,
-                        h,
-                    );
+            let step = 200u32;
+            let mut pts = Vec::new();
+            let mut y = 0u32;
+            while y < h {
+                let mut x = 0u32;
+                while x < w {
+                    pts.push((i64::from(x), i64::from(y)));
+                    x = x.saturating_add(step);
                 }
+                y = y.saturating_add(step);
             }
-            return;
+            pts
         }
-        _ => {
-            // center
-            (w.saturating_sub(text_width) / 2, h.saturating_sub(text_height) / 2)
-        }
+        "top-left" => vec![(10, 10)],
+        "top-right" => vec![(i64::from(w.saturating_sub(text_width + 10)), 10)],
+        "bottom-left" => vec![(10, i64::from(h.saturating_sub(text_height + 10)))],
+        "bottom-right" => vec![(
+            i64::from(w.saturating_sub(text_width + 10)),
+            i64::from(h.saturating_sub(text_height + 10)),
+        )],
+        _ => vec![(
+            i64::from(w.saturating_sub(text_width) / 2),
+            i64::from(h.saturating_sub(text_height) / 2),
+        )],
     };
 
-    blend_region(
-        &mut out,
-        x_offset,
-        y_offset,
-        text_width,
-        text_height,
-        alpha,
-        color,
-        w,
-        h,
-    );
-
-    *img = image::DynamicImage::ImageRgba8(out);
-}
-
-#[allow(clippy::too_many_arguments)]
-fn blend_region(
-    img: &mut image::RgbaImage,
-    x_start: u32,
-    y_start: u32,
-    width: u32,
-    height: u32,
-    alpha: u8,
-    color: Rgba<u8>,
-    img_w: u32,
-    img_h: u32,
-) {
-    let x_end = (x_start + width).min(img_w);
-    let y_end = (y_start + height).min(img_h);
-    for y in y_start..y_end {
-        for x in x_start..x_end {
-            let pixel = img.get_pixel_mut(x, y);
-            let blend_factor = alpha as f32 / 255.0;
-            let inv = 1.0 - blend_factor;
-            pixel[0] = (pixel[0] as f32 * inv + color[0] as f32 * blend_factor) as u8;
-            pixel[1] = (pixel[1] as f32 * inv + color[1] as f32 * blend_factor) as u8;
-            pixel[2] = (pixel[2] as f32 * inv + color[2] as f32 * blend_factor) as u8;
-        }
+    // Pre-compose all bands onto a transparent canvas, then blend once.
+    let mut bands = image::RgbaImage::new(w, h);
+    for (x, y) in positions {
+        image::imageops::overlay(&mut bands, &band, x, y);
     }
+
+    *img = media_kit::composite::overlay(
+        img,
+        &image::DynamicImage::ImageRgba8(bands),
+        0,
+        0,
+        media_kit::composite::Blend::Over { opacity },
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -346,12 +319,12 @@ pub async fn preview_watermark<S: WatermarkState>(
 
     apply_text_watermark(&mut img, &req.text, &position, opacity, font_size, &color);
 
-    let mut output_buf = std::io::Cursor::new(Vec::new());
-    if let Err(e) = img.write_to(&mut output_buf, image::ImageFormat::Png) {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to encode image: {e}"));
-    }
-
-    let bytes = output_buf.into_inner();
+    let bytes = match media_kit::encode::encode(&img, &media_kit::encode::OutFormat::Png) {
+        Ok(b) => b,
+        Err(e) => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to encode image: {e}"));
+        }
+    };
     (StatusCode::OK, [(axum::http::header::CONTENT_TYPE, "image/png")], bytes).into_response()
 }
 
@@ -390,12 +363,14 @@ pub async fn apply_watermark<S: WatermarkState>(State(state): State<S>, Path(fil
 
     apply_text_watermark(&mut img, &text, &position, opacity, font_size, &color);
 
-    let mut output_buf = std::io::Cursor::new(Vec::new());
-    if let Err(e) = img.write_to(&mut output_buf, image::ImageFormat::Png) {
-        return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to encode image: {e}"));
-    }
+    let bytes = match media_kit::encode::encode(&img, &media_kit::encode::OutFormat::Png) {
+        Ok(b) => b,
+        Err(e) => {
+            return ApiError::internal(ApiError::INTERNAL_ERROR, format!("Failed to encode image: {e}"));
+        }
+    };
 
-    let bytes = bytes::Bytes::from(output_buf.into_inner());
+    let bytes = bytes::Bytes::from(bytes);
     if let Err(e) = state.storage().put(&file_path, bytes.clone(), "watermark").await {
         return ApiError::internal(
             ApiError::INTERNAL_ERROR,

@@ -21,4 +21,5 @@ uuid = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+media-kit = { workspace = true }
 pdf = "0.9"
