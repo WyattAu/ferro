@@ -63,23 +63,37 @@ pub fn is_collection_path(path: &str) -> bool {
 }
 
 /// Validate that a path is non-empty and does not contain traversal components.
+/// Migrated to validkit: delegates to ObjectKey::try_from after stripping leading `/`,
+/// with ValidError mapped to bool for backwards compat. Keeps SIMD fast path for x86_64.
 #[must_use]
 pub fn validate_path(path: &str) -> bool {
     if path.trim().is_empty() {
         return false;
     }
-
+    // Use validkit ObjectKey as primary validator (handles .., length, etc.)
+    // Strip leading '/' because ObjectKey prohibits absolute paths.
+    let normalized = normalize_path(path);
+    // Quick SIMD pre-check for traversal markers (preserves original behavior on x86_64)
     #[cfg(target_arch = "x86_64")]
-    {
+    let traversal_ok = {
         !contains_simd(path, "..")
             && !contains_simd(path, "./")
             && !contains_simd(path, ".\\")
-            && !contains_simd(&normalize_path(path), "..")
-    }
+            && !contains_simd(&normalized, "..")
+    };
     #[cfg(not(target_arch = "x86_64"))]
-    {
-        !path.contains("..") && !path.contains("./") && !path.contains(".\\") && !normalize_path(path).contains("..")
+    let traversal_ok =
+        { !path.contains("..") && !path.contains("./") && !path.contains(".\\") && !normalized.contains("..") };
+    if !traversal_ok {
+        return false;
     }
+    // Delegate to validkit for additional guarantees (no .., <=1024, valid chars)
+    let stripped = normalized.trim_start_matches('/');
+    if stripped.is_empty() {
+        return true; // root "/" is valid
+    }
+    // Backwards compat wrapper: validkit ValidError -> bool
+    validkit::ObjectKey::try_from(stripped).is_ok()
 }
 
 /// Join a base path and a segment, normalizing slashes.
