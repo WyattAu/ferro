@@ -139,7 +139,9 @@ cargo valgrind
 | Metric | Target | Current |
 |--------|--------|---------|
 | p50 latency | <10ms | 9.27ms |
-| p99 latency | <100ms | 1.55s |
-| Throughput | >1000 req/s | 48 req/s |
+| p99 latency | <100ms | 1.55s (direct 327 req/s measured 2026-09-03, p99 via `observability_middleware` buckets `crates/server/src/request_logging.rs:40`) |
+| Throughput | >1000 req/s | 48 req/s via tunnel / 327 req/s direct (local `xargs -P50`, `ConcurrencyLimitLayer` `crates/server/src/routes.rs:1292`) |
 | Memory usage | <512MB | ~256MB |
 | CPU usage | <50% | ~30% |
+
+> **Note 2026-09-03:** `cargo check` 21s, `238 passed` `ferro-server --lib`. Profiling gap remains — see `docs/sre/performance_optimization_plan.md` (flamegraph `ConcurrencyLimitLayer`, `Mutex<rusqlite::Connection>` `crates/common/src/lib.rs:46`, `VACUUM INTO` `crates/server/src/startup.rs:982`). Tunnel same-host direct `http://127.0.0.1:8081` tested `530 1033` and reverted to `https://127.0.0.1:443` `keepAlive 10/90s`.

@@ -29,6 +29,7 @@ pub struct FileConfigValues {
     pub oidc_audience: Option<String>,
     pub oidc_jwks_uri: Option<String>,
     pub cedar_policy_file: Option<String>,
+    pub allow_open_authz: Option<bool>,
     pub search_index_path: Option<String>,
     pub metadata_db: Option<String>,
     pub cas_enabled: Option<bool>,
@@ -133,6 +134,10 @@ pub struct ServerConfig {
     /// Path to Cedar policy file
     #[arg(long, env = "FERRO_CEDAR_POLICY_FILE")]
     pub cedar_policy_file: Option<String>,
+
+    /// Allow open authz (disable Cedar deny-all default) — required for public/simple_auth deployments
+    #[arg(long, env = "FERRO_ALLOW_OPEN_AUTHZ", default_value_t = false)]
+    pub allow_open_authz: bool,
 
     /// Search index directory (defaults to {data-dir}/search-index, or /tmp/ferro-search if no data-dir)
     #[arg(long)]
@@ -607,6 +612,7 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
         oidc_audience: override_.oidc_audience.or(base.oidc_audience),
         oidc_jwks_uri: override_.oidc_jwks_uri.or(base.oidc_jwks_uri),
         cedar_policy_file: override_.cedar_policy_file.or(base.cedar_policy_file),
+        allow_open_authz: override_.allow_open_authz.or(base.allow_open_authz),
         search_index_path: override_.search_index_path.or(base.search_index_path),
         metadata_db: override_.metadata_db.or(base.metadata_db),
         cas_enabled: override_.cas_enabled.or(base.cas_enabled),

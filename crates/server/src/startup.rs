@@ -258,7 +258,7 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
         state
     };
 
-    // Configure Cedar if policy file is set
+    // Configure Cedar — always deny-all by default (close open ACL gap)
     let state = if let Some(policy_file) = &cli.cedar_policy_file {
         let policy_text = std::fs::read_to_string(policy_file)
             .map_err(|e| anyhow::anyhow!("Failed to read Cedar policy file {}: {}", policy_file, e))?;
@@ -266,14 +266,19 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
         authorizer.load_policies(&[policy_text]).await?;
         info!("Cedar authorization enabled from policy file");
         state.with_cedar(authorizer)
+    } else if cli.allow_open_authz {
+        tracing::warn!("Cedar authorization DISABLED via --allow-open-authz — open ACL!");
+        state
     } else {
+        let authorizer = crate::auth::cedar::CedarAuthorizer::new()?;
         if cli.oidc_issuer.is_some() {
-            let authorizer = crate::auth::cedar::CedarAuthorizer::new()?;
-            info!("Cedar authorization enabled with default policy");
-            state.with_cedar(authorizer)
+            info!("Cedar authorization enabled with default deny-all policy");
         } else {
-            state
+            tracing::warn!(
+                "Cedar authorization enabled with default deny-all (no OIDC, no policy file) — use --allow-open-authz to disable"
+            );
         }
+        state.with_cedar(authorizer)
     };
 
     // Configure search
@@ -979,7 +984,9 @@ pub fn spawn_daemons(state: &AppState, cli: &Cli, shutdown_token: &CancellationT
                             let result = tokio::task::spawn_blocking(move || {
                                 let conn = rusqlite::Connection::open(format!("{}/ferro.db", backup_data_dir_clone))?;
                                 conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", [])?;
-                                conn.execute(&format!("VACUUM INTO '{}'", backup_path_clone), [])?;
+                                // Escape single quotes for VACUUM INTO (SQLite requires '' for ')
+                                let escaped_path = backup_path_clone.replace('\'', "''");
+                                conn.execute(&format!("VACUUM INTO '{}'", escaped_path), [])?;
                                 anyhow::Ok(())
                             })
                             .await;

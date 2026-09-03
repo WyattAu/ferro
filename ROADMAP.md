@@ -140,9 +140,9 @@
 |------|-------|--------|--------|
 | Responsive sidebar collapse | Mobile hamburger menu, sidebar toggle | 2 days | Done |
 | ARIA tab panels | Admin/Settings: role="tablist", role="tab", role="tabpanel" | 1 day | Done |
-| Entrance/exit animations | Modals, toasts, list items | 2 days | Pending |
-| Micro-interactions | Button press scale, card hover elevation | 1 day | Pending |
-| Spring-based transitions | Organic motion curves for Amoebic UI feel | 1 day | Pending |
+| Entrance/exit animations | Modals, toasts, list items | 2 days | Done (crates/ferro-ui/src/styles/components.css:380 modal-enter/toast-enter/list-item-enter stagger) |
+| Micro-interactions | Button press scale, card hover elevation | 1 day | Done (crates/ferro-ui/src/styles/components.css:428 btn:active scale 0.97, card-hover) |
+| Spring-based transitions | Organic motion curves for Amoebic UI feel | 1 day | Done (crates/ferro-ui/src/styles/components.css:452 spring cubic-bezier 0.34,1.56,0.64,1) |
 
 ---
 
