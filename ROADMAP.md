@@ -129,10 +129,10 @@
 | Item | Scope | Effort | Status |
 |------|-------|--------|--------|
 | Extract shared HTTP client | Create ferro-http-client crate, consolidate gui.rs + mobile.rs | 1 day | Done (uses common::http_client) |
-| Extract shared MobileError | Single error enum in common or shared crate | 0.5 days | Pending |
+| Extract shared MobileError | Single error enum in common or shared crate | 0.5 days | Done (common::mobile_error re-exported in desktop) |
 | Delete duplicate OIDC middleware | Remove server/src/auth/oidc.rs, use server-security-middleware re-export | 0.5 days | Done (server-security-middleware re-exports ferro-auth) |
-| Consolidate comments/tags | Make server-collaboration the single source of truth | 1 day | Pending |
-| Frontend use_data_loader hook | Extract loading/error/empty state pattern | 1 day | Pending |
+| Consolidate comments/tags | Make server-collaboration the single source of truth | 1 day | Done (verified single source: `ferro_server_collaboration::tags::TagStore` + `comments::CommentStore`) |
+| Frontend use_data_loader hook | Extract loading/error/empty state pattern | 1 day | Done (crates/web/src/hooks/data_loader.rs + crates/ferro-ui/src/hooks/data_loader.rs) |
 
 ### P3 — Low
 
@@ -232,4 +232,4 @@
 
 ---
 
-**End of Roadmap v17.0**
+**End of Roadmap v18.1**

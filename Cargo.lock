@@ -973,7 +973,7 @@ dependencies = [
 
 [[package]]
 name = "breaker"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "parking_lot 0.12.5",
  "thiserror 2.0.18",

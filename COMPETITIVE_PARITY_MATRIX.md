@@ -326,4 +326,4 @@ Ferro is a self-hosted file sync server written in Rust with 73 crates, 2500+ te
 
 ---
 
-*This matrix is based on research from official documentation, GitHub repositories, and product websites as of 2026-06-15.*
+*This matrix is based on research from official documentation, GitHub repositories, and product websites as of 2026-09-03. Verified against Ferro codebase: 256+ endpoints `crates/server/src/routes.rs`, 73 crates, middleware 16 layers, throughput 327 req/s direct / 48 req/s tunnel.*

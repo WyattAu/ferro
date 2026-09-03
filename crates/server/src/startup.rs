@@ -944,6 +944,76 @@ pub fn spawn_daemons(state: &AppState, cli: &Cli, shutdown_token: &CancellationT
         );
     }
 
+    // Spawn automated backup daemon (daily at 02:00 UTC, keeps 7 days)
+    if let Some(data_dir) = state.data_dir.clone() {
+        let backup_cancel = shutdown_token.clone();
+        let backup_data_dir = data_dir.clone();
+        tokio::spawn(async move {
+            // Align to next 02:00 UTC
+            let now = chrono::Utc::now();
+            let next_backup = now
+                .date_naive()
+                .and_hms_opt(2, 0, 0)
+                .unwrap()
+                .and_local_timezone(chrono::Utc)
+                .unwrap();
+            let mut next = if next_backup > now {
+                next_backup
+            } else {
+                next_backup + chrono::Duration::days(1)
+            };
+            loop {
+                let sleep_dur = (next - chrono::Utc::now())
+                    .to_std()
+                    .unwrap_or(std::time::Duration::from_secs(3600));
+                tokio::select! {
+                    _ = tokio::time::sleep(sleep_dur) => {
+                        let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S").to_string();
+                        let backup_path = format!("{}/backups/ferro-{}.db", backup_data_dir, timestamp);
+                        if let Err(e) = std::fs::create_dir_all(format!("{}/backups", backup_data_dir)) {
+                            tracing::warn!("Backup daemon: create backup dir failed: {}", e);
+                        } else {
+                            // WAL checkpoint + VACUUM INTO (SQLite online backup)
+                            let backup_data_dir_clone = backup_data_dir.clone();
+                            let backup_path_clone = backup_path.clone();
+                            let result = tokio::task::spawn_blocking(move || {
+                                let conn = rusqlite::Connection::open(format!("{}/ferro.db", backup_data_dir_clone))?;
+                                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", [])?;
+                                conn.execute(&format!("VACUUM INTO '{}'", backup_path_clone), [])?;
+                                anyhow::Ok(())
+                            })
+                            .await;
+                            match result {
+                                Ok(Ok(())) => tracing::info!("Automated backup created: {}", backup_path),
+                                Ok(Err(e)) => tracing::warn!("Automated backup failed: {}", e),
+                                Err(e) => tracing::warn!("Automated backup task panicked: {}", e),
+                            }
+                            // Prune old backups (keep 7 days)
+                            if let Ok(entries) = std::fs::read_dir(format!("{}/backups", backup_data_dir)) {
+                                let cutoff = chrono::Utc::now() - chrono::Duration::days(7);
+                                for entry in entries.flatten() {
+                                    if let Ok(meta) = entry.metadata() {
+                                        if let Ok(modified) = meta.modified() {
+                                            let modified_dt: chrono::DateTime<chrono::Utc> = modified.into();
+                                            if modified_dt < cutoff {
+                                                let _ = std::fs::remove_file(entry.path());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        next += chrono::Duration::days(1);
+                    }
+                    _ = backup_cancel.cancelled() => {
+                        tracing::info!("Backup daemon shutting down");
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
     // Spawn lock cleanup daemon
     let lock_manager = state.lock_manager.clone();
     let lock_cancel = shutdown_token.clone();
