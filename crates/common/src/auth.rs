@@ -29,6 +29,11 @@ pub struct Claims {
     /// Subject — unique identifier for the authenticated user.
     pub sub: String,
     /// Audience — intended recipient of the token.
+    ///
+    /// IdPs emit this as either a string (`"aud": "ferro"`) or an array
+    /// (`"aud": ["ferro", "account"]`); both deserialize into a String
+    /// (array form keeps the first entry).
+    #[serde(deserialize_with = "deserialize_aud")]
     pub aud: String,
     /// Issuer — authority that issued the token.
     pub iss: String,
@@ -44,6 +49,24 @@ pub struct Claims {
     pub name: Option<String>,
     /// Groups or roles the user belongs to.
     pub groups: Option<Vec<String>>,
+}
+
+/// Deserialize the `aud` claim from either a string or an array of strings.
+fn deserialize_aud<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum AudShape {
+        Str(String),
+        Arr(Vec<String>),
+    }
+    match AudShape::deserialize(deserializer)? {
+        AudShape::Str(s) => Ok(s),
+        AudShape::Arr(v) => Ok(v.into_iter().next().unwrap_or_default()),
+    }
 }
 
 impl Claims {
@@ -188,5 +211,19 @@ mod tests {
             context: serde_json::json!({"ip": "127.0.0.1"}),
         };
         assert_eq!(req.principal, "alice");
+    }
+
+    #[test]
+    fn test_claims_aud_string_form() {
+        let json = r#"{"sub":"wyatt","aud":"ferro","iss":"https://idp","exp":9,"iat":1}"#;
+        let claims: Claims = serde_json::from_str(json).unwrap();
+        assert_eq!(claims.aud, "ferro");
+    }
+
+    #[test]
+    fn test_claims_aud_array_form_keycloak() {
+        let json = r#"{"sub":"wyatt","aud":["ferro","account"],"iss":"https://idp","exp":9,"iat":1}"#;
+        let claims: Claims = serde_json::from_str(json).unwrap();
+        assert_eq!(claims.aud, "ferro");
     }
 }
