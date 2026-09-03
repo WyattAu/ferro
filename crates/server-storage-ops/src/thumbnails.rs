@@ -94,17 +94,20 @@ impl ThumbnailService {
         let content = content.clone();
         let max_size = self.max_size;
         tokio::task::spawn_blocking(move || {
-            let img = image::load_from_memory(&content).map_err(|e| format!("Failed to load image: {}", e))?;
+            let limits = media_kit::meta::Limits::new()
+                .max_bytes(64 * 1024 * 1024)
+                .max_width(16384)
+                .max_height(16384);
+            let out = media_kit::pipeline::Pipeline::new(media_kit::encode::OutFormat::Jpeg(75))
+                .limits(limits)
+                .resize(
+                    media_kit::resize::Fit::MaxSide(max_size),
+                    media_kit::resize::Filter::Lanczos3,
+                )
+                .run(&content)
+                .map_err(|e| format!("Thumbnail generation failed: {}", e))?;
 
-            let thumbnail = img.thumbnail(max_size, max_size);
-
-            let mut buf = Vec::with_capacity(64 * 1024);
-            let mut cursor = std::io::Cursor::new(&mut buf);
-            thumbnail
-                .write_to(&mut cursor, image::ImageFormat::Jpeg)
-                .map_err(|e| format!("Failed to encode JPEG: {}", e))?;
-
-            Ok(Bytes::from(buf))
+            Ok(Bytes::from(out))
         })
         .await
         .map_err(|e| format!("Task join error: {}", e))?

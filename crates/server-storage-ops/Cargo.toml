@@ -27,6 +27,7 @@ tempfile = "3"
 utoipa = { version = "5", features = ["axum_extras"] }
 chrono = { version = "0.4", features = ["serde"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+media-kit = { workspace = true }
 pdf = "0.9"
 dashmap = "6"
 lru = "0.16"

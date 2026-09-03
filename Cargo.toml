@@ -89,6 +89,7 @@ throttle-kit = { path = "../ratelimit" }
 mailkit = { path = "../mailkit" }
 cryptkit = { path = "../cryptkit" }
 tokenkit = { path = "../tokenkit" }
+media-kit = { path = "../media-kit" }
 
 # Shared dependency versions across all crates
 tokio = { version = "1", features = ["full"] }
