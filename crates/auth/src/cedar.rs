@@ -108,7 +108,20 @@ impl CedarAuthorizer {
             }
         };
 
-        let resource: EntityUid = match format!("File::\"{}\"", request.resource).parse() {
+        // Cedar EntityUid strings require escaping for ' " \ and normalized content —
+        // real filesystem paths contain all of these.
+        let resource_escaped: String =
+            request
+                .resource
+                .chars()
+                .fold(String::with_capacity(request.resource.len() + 8), |mut acc, c| {
+                    if matches!(c, '\'' | '"' | '\\') {
+                        acc.push('\\');
+                    }
+                    acc.push(c);
+                    acc
+                });
+        let resource: EntityUid = match format!("File::\"{}\"", resource_escaped).parse() {
             Ok(uid) => uid,
             Err(e) => {
                 warn!(

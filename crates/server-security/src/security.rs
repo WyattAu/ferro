@@ -521,6 +521,18 @@ pub async fn auth_guard_middleware<S: crate::SecurityAppState>(
     let client_ip = extract_client_ip(&req);
     let username = extract_username(&req).unwrap_or_default();
 
+    // Trusted-network bypass: loopback/LAN callers (and the reverse proxy itself,
+    // whose X-Forwarded-For equals the docker gateway) are exempt from the
+    // brute-force lockout. Public clients still arrive via X-Forwarded-For with
+    // their real address and remain subject to lockout.
+    if client_ip
+        .parse::<std::net::IpAddr>()
+        .map(|ip| is_private_ip(ip))
+        .unwrap_or(false)
+    {
+        return next.run(req).await;
+    }
+
     if state.auth_attempt_tracker().is_locked_out(&client_ip, &username) {
         tracing::warn!(
             %client_ip,
