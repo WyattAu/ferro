@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "crates/circuit-breaker",
-    "crates/crdt",
     "crates/core",
     "crates/common",
     "crates/dav",

@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 ferro-common = { path = "../common" }
-ferro-crdt = { path = "../crdt", features = ["wasm"] }
+crdts-kit = { version = "0.1", features = ["serde", "wasm"] }
 futures = "0.3"
 leptos = { workspace = true }
 leptos_router = { version = "0.8" }

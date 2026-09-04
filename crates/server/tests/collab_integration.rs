@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use common::storage::StorageEngine;
-use ferro_crdt::document::{CrdtDocument, DocumentId, ParticipantId};
+use crdts_kit::document::{CrdtDocument, DocumentId, ParticipantId};
 use ferro_server::collab_ws::CollabMessage;
 use ferro_server::storage::InMemoryStorageEngine;
 use ferro_server::{AppState, build_router};
@@ -220,7 +220,9 @@ async fn test_concurrent_operations_converge() {
     doc2.apply_ops(&ops_a);
 
     assert_eq!(doc1.get_text(), doc2.get_text());
-    assert!(doc1.get_text().contains("AxyB") || doc1.get_text().contains("Ayx"));
+    // Canonical RGA tie-break (crdts-kit): equal counters order by site id,
+    // so participant 2's "y" lands before participant 1's "x".
+    assert_eq!(doc1.get_text(), "AyxB");
 }
 
 #[tokio::test]

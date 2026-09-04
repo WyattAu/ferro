@@ -83,7 +83,7 @@ ferro-multi-tenant = { path = "../multi-tenant" }
 ferro-mount-nfs = { path = "../mount-nfs" }
 ferro-event-bus = { path = "../event-bus" }
 ferro-ai = { path = "../ai" }
-ferro-crdt = { path = "../crdt" }
+crdts-kit = { version = "0.1", features = ["serde"] }
 ferro-distributed = { path = "../distributed" }
 ferro-offline = { path = "../offline" }
 ferro-server-security = { path = "../server-security" }

@@ -2047,6 +2047,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "crdts-kit"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f96bd3d594bd89039d6716932f560f581fbf2e6617d46d7c2c180f11a4767957"
+dependencies = [
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "criterion"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3268,15 +3279,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferro-crdt"
-version = "3.0.0"
-dependencies = [
- "serde",
- "serde_json",
- "uuid",
-]
-
-[[package]]
 name = "ferro-crypto"
 version = "3.0.0"
 dependencies = [
@@ -3638,6 +3640,7 @@ dependencies = [
  "chrono",
  "clap",
  "clap_complete",
+ "crdts-kit",
  "criterion",
  "dashmap",
  "ferro-ai",
@@ -3645,7 +3648,6 @@ dependencies = [
  "ferro-cache",
  "ferro-common",
  "ferro-core",
- "ferro-crdt",
  "ferro-dav",
  "ferro-distributed",
  "ferro-event-bus",
@@ -3879,9 +3881,9 @@ dependencies = [
  "axum",
  "bytes",
  "chrono",
+ "crdts-kit",
  "dashmap",
  "ferro-common",
- "ferro-crdt",
  "ferro-server-security",
  "ferro-server-security-middleware",
  "futures",
@@ -6998,7 +7000,7 @@ dependencies = [
 
 [[package]]
 name = "mailkit"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "lettre",
@@ -7100,7 +7102,7 @@ dependencies = [
 
 [[package]]
 name = "media-kit"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "image",
  "kamadak-exif",
@@ -13314,8 +13316,8 @@ version = "3.0.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
+ "crdts-kit",
  "ferro-common",
- "ferro-crdt",
  "futures",
  "getrandom 0.2.17",
  "js-sys",
@@ -14255,7 +14257,7 @@ dependencies = [
 
 [[package]]
 name = "ws-kit"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dashmap",
  "futures",

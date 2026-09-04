@@ -2,7 +2,7 @@
 //!
 //! Provides helper functions for real-time document collaboration.
 
-use ferro_crdt::{CrdtDocument, DocumentId, ParticipantId, TextOperation};
+use crdts_kit::{CrdtDocument, DocumentId, ParticipantId, TextOperation};
 
 pub fn create_collab_doc(id: &str) -> CrdtDocument {
     CrdtDocument::new(DocumentId(id.to_string()))

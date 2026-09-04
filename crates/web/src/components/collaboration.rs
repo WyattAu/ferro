@@ -5,8 +5,8 @@ use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
 use crate::t;
-use ferro_crdt::document::{CrdtDocument, DocumentId, ParticipantId};
-use ferro_crdt::text::TextOperation;
+use crdts_kit::document::{CrdtDocument, DocumentId, ParticipantId};
+use crdts_kit::text::TextOperation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CollabConnectionState {
