@@ -133,6 +133,8 @@ pub struct MigrationReport {
     pub files_skipped: usize,
     pub files_failed: usize,
     pub shares_migrated: usize,
+    #[serde(default)]
+    pub shares_skipped: usize,
     pub tags_migrated: usize,
     pub favorites_migrated: usize,
     pub total_bytes: u64,
@@ -149,6 +151,7 @@ pub async fn run_migration(config: MigrationConfig) -> MigrateResult<MigrationRe
         files_skipped: 0,
         files_failed: 0,
         shares_migrated: 0,
+        shares_skipped: 0,
         tags_migrated: 0,
         favorites_migrated: 0,
         total_bytes: 0,
@@ -678,37 +681,21 @@ async fn run_ocis_migration(
     }
 
     if !options.skip_shares {
-        tracing::info!("Migrating shares from oCIS via OCS API...");
+        // Ferro has no per-user share ACL; OCIS user/group shares are covered by
+        // /_spaces membership + Cedar policies. Recreate link shares in the Ferro
+        // UI (seconds per share). Count and report instead of creating junk rows.
+        tracing::info!("Inventorying oCIS shares (no Ferro per-user ACL — see report)...");
         match ocis_for_shares.list_shares().await {
             Ok(shares) => {
                 progress.set_share_total(shares.len() as u64);
                 for ocs_share in &shares {
-                    let path = if let Some(ref p) = ocs_share.path {
-                        format!("/remote.php/dav/files/{}{}", source.username, p)
-                    } else {
-                        tracing::warn!("Skipping share without path: {:?}", ocs_share.id);
-                        progress.inc_share();
-                        continue;
-                    };
-                    let share_type_str = match ocs_share.share_type {
-                        0 => "user",
-                        1 => "group",
-                        3 => "remote",
-                        _ => "link",
-                    };
-                    let shared_with = ocs_share.share_with.as_deref();
-                    let read = ocs_share.permissions & 1 != 0;
-                    let write = ocs_share.permissions & 2 != 0;
-                    match ferro
-                        .create_share(&path, share_type_str, shared_with, read, write)
-                        .await
-                    {
-                        Ok(()) => report.shares_migrated += 1,
-                        Err(e) => {
-                            tracing::warn!("Share migration failed: {}", e);
-                            report.errors.push(format!("share: {}", e));
-                        }
-                    }
+                    report.shares_skipped += 1;
+                    tracing::info!(
+                        "oCIS share #{} (type {}) on {:?} — re-create as link share in Ferro if needed",
+                        ocs_share.id.as_deref().unwrap_or("?"),
+                        ocs_share.share_type,
+                        ocs_share.path
+                    );
                     progress.inc_share();
                 }
             }

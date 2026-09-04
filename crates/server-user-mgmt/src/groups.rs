@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::DbHandle;
+
 /// A group of users for organizing share permissions and access control.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
@@ -43,13 +45,22 @@ pub trait GroupStoreTrait: Send + Sync {
 
 pub struct GroupStore {
     groups: Arc<RwLock<Vec<Group>>>,
+    db: Option<DbHandle>,
 }
 
 impl GroupStore {
     pub fn new() -> Self {
         Self {
             groups: Arc::new(RwLock::new(Vec::new())),
+            db: None,
         }
+    }
+
+    /// Attach SQLite persistence. Groups are written through on every mutation
+    /// and reloaded on startup via [`Self::load_all_from_db`].
+    pub fn with_db(mut self, db: DbHandle) -> Self {
+        self.db = Some(db);
+        self
     }
 
     pub async fn load_group(&self, group: Group) {
@@ -63,6 +74,58 @@ impl GroupStore {
                 guard.push(group);
             }
         });
+    }
+
+    fn persist_group(&self, group: &Group) {
+        let Some(ref db) = self.db else {
+            return;
+        };
+        let members_json = serde_json::to_string(&group.members).unwrap_or_else(|_| "[]".to_string());
+        if let Err(e) = db
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .execute(
+                "INSERT OR REPLACE INTO groups (id, name, description, members, created_by, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                rusqlite::params![group.id, group.name, group.description, members_json, group.created_by, group.created_at],
+            )
+        {
+            tracing::warn!("Failed to persist group to SQLite: {}", e);
+        }
+    }
+
+    fn delete_group_from_db(&self, id: &str) {
+        let Some(ref db) = self.db else {
+            return;
+        };
+        if let Err(e) = db
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .execute("DELETE FROM groups WHERE id = ?1", rusqlite::params![id])
+        {
+            tracing::warn!("Failed to delete group from SQLite: {}", e);
+        }
+    }
+
+    /// Load all groups from a SQLite connection (used at startup).
+    pub fn load_all_from_db(conn: &rusqlite::Connection) -> Result<Vec<Group>, rusqlite::Error> {
+        let mut stmt = conn.prepare("SELECT id, name, description, members, created_by, created_at FROM groups")?;
+        let rows = stmt.query_map([], |row| {
+            let members_json: String = row.get(3)?;
+            let members: Vec<String> = serde_json::from_str(&members_json).unwrap_or_default();
+            Ok(Group {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                members,
+                created_by: row.get(4)?,
+                created_at: row.get(5)?,
+            })
+        })?;
+        let mut groups = Vec::new();
+        for row in rows {
+            groups.push(row?);
+        }
+        Ok(groups)
     }
 }
 
@@ -88,6 +151,7 @@ impl GroupStoreTrait for GroupStore {
         };
 
         self.groups.write().await.push(group.clone());
+        self.persist_group(&group);
         group
     }
 
@@ -110,7 +174,10 @@ impl GroupStoreTrait for GroupStore {
             if let Some(desc) = req.description {
                 group.description = Some(desc);
             }
-            Some(group.clone())
+            let updated = group.clone();
+            drop(groups);
+            self.persist_group(&updated);
+            Some(updated)
         } else {
             None
         }
@@ -120,6 +187,8 @@ impl GroupStoreTrait for GroupStore {
         let mut groups = self.groups.write().await;
         if let Some(pos) = groups.iter().position(|g| g.id == id) {
             groups.remove(pos);
+            drop(groups);
+            self.delete_group_from_db(id);
             true
         } else {
             false
@@ -137,6 +206,9 @@ impl GroupStoreTrait for GroupStore {
             if !group.members.contains(&username.to_string()) {
                 group.members.push(username.to_string());
             }
+            let updated = group.clone();
+            drop(groups);
+            self.persist_group(&updated);
             true
         } else {
             false
@@ -149,6 +221,9 @@ impl GroupStoreTrait for GroupStore {
             && let Some(pos) = group.members.iter().position(|m| m == username)
         {
             group.members.remove(pos);
+            let updated = group.clone();
+            drop(groups);
+            self.persist_group(&updated);
             return true;
         }
         false

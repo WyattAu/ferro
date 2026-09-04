@@ -472,10 +472,12 @@ impl OcisClient {
         let url = self.webdav_url(user, path);
         let body = r#"<?xml version="1.0" encoding="UTF-8"?>
 <d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
-  <d:allprop/>
   <d:prop>
     <oc:tags/>
     <oc:favorite/>
+    <d:getcontentlength/>
+    <d:getlastmodified/>
+    <d:resourcetype/>
   </d:prop>
 </d:propfind>"#;
 

@@ -4,7 +4,7 @@ use tracing::info;
 pub use common::DbHandle;
 
 #[cfg(test)]
-const SCHEMA_VERSION: i64 = 15;
+const SCHEMA_VERSION: i64 = 16;
 
 const MIGRATIONS: &[(&str, &str)] = &[
     ("001", include_str!("../../../migrations/001_initial_schema.sql")),
@@ -26,10 +26,8 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "014",
         include_str!("../../../migrations/014_devices_notification_prefs.sql"),
     ),
-    (
-        "015",
-        include_str!("../../../migrations/015_users_wipe_pending.sql"),
-    ),
+    ("015", include_str!("../../../migrations/015_users_wipe_pending.sql")),
+    ("016", include_str!("../../../migrations/016_groups.sql")),
 ];
 
 fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {

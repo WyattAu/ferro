@@ -35,6 +35,12 @@ pub(super) fn with_db(mut state: AppState, db: DbHandle) -> AppState {
     }
     state.tags = Arc::new(tags_store);
 
+    let group_store = ferro_server_user_mgmt::groups::GroupStore::new().with_db(db.clone());
+    if let Ok(groups) = ferro_server_user_mgmt::groups::GroupStore::load_all_from_db(&conn) {
+        group_store.load_groups_blocking(groups);
+    }
+    state.group_store = Arc::new(group_store);
+
     let comments_store = crate::comments::CommentStore::new().with_db(db.clone());
     state.comments = Arc::new(comments_store);
 

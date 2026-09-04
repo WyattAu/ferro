@@ -22,7 +22,11 @@ impl FerroTarget {
                 .map_err(|e| MigrationError::config(e.to_string()))?,
         );
 
-        let http = reqwest::Client::builder().default_headers(headers).build()?;
+        // Self-signed Traefik origins are common for self-hosted targets.
+        let http = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .default_headers(headers)
+            .build()?;
 
         Ok(Self {
             http,
@@ -149,47 +153,20 @@ impl FerroTarget {
         Ok(())
     }
 
-    /// Create a share for a project space member.
+    /// Record a project space member.
     ///
-    /// Maps OCIS roles to Ferro permissions:
-    /// - Manager: read=true, write=true, share=true
-    /// - Editor: read=true, write=true, share=false
-    /// - Viewer: read=true, write=false, share=false
+    /// Ferro has no per-user space ACL API — space access is governed by Cedar
+    /// policies. This logs the role mapping so operators can tighten Cedar later:
+    /// - Manager: read+write+share
+    /// - Editor: read+write
+    /// - Viewer: read
     pub async fn create_space_member_share(&self, space_path: &str, username: &str, role: &str) -> MigrateResult<()> {
-        let (read, write, share) = match role {
-            "manager" => (true, true, true),
-            "editor" => (true, true, false),
-            "viewer" => (true, false, false),
-            _ => (true, false, false),
-        };
-
-        let body = json!({
-            "path": space_path,
-            "share_type": "user",
-            "shared_with": username,
-            "permissions": {
-                "read": read,
-                "write": write,
-            },
-        });
-
-        let resp = self
-            .http
-            .post(format!("{}/api/shares", self.url))
-            .json(&body)
-            .send()
-            .await?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            tracing::warn!(
-                "Share for space member '{}' on '{}' failed ({}): role={}",
-                username,
-                space_path,
-                status,
-                role
-            );
-        }
+        tracing::info!(
+            "Space member (no Ferro ACL API — enforce via Cedar): '{}' role={} on '{}'",
+            username,
+            role,
+            space_path
+        );
         Ok(())
     }
 
@@ -237,6 +214,12 @@ impl FerroTarget {
         Ok(())
     }
 
+    /// Create a share on the Ferro target.
+    ///
+    /// Ferro's share model is public link shares (`/api/shares` → ShareLink with
+    /// token); it has no per-user file ACL API. OCIS link shares (share_type 3)
+    /// map to Ferro link shares; user/group shares (0/1/2) have no equivalent and
+    /// are skipped — recipients get access via `/_spaces` + Cedar policies.
     pub async fn create_share(
         &self,
         path: &str,
@@ -245,14 +228,38 @@ impl FerroTarget {
         permissions_read: bool,
         permissions_write: bool,
     ) -> MigrateResult<()> {
+        if share_type != "link" {
+            tracing::info!(
+                "Skipping {} share on '{}' (no Ferro equivalent — use /_spaces or link shares)",
+                share_type,
+                path
+            );
+            return Ok(());
+        }
+
+        // Dedup: skip if a share already exists for this path.
+        let existing: serde_json::Value = self
+            .http
+            .get(format!("{}/api/shares", self.url))
+            .send()
+            .await?
+            .json()
+            .await
+            .unwrap_or_default();
+        if existing
+            .get("shares")
+            .and_then(|s| s.as_array())
+            .map(|arr| arr.iter().any(|s| s.get("path").and_then(|p| p.as_str()) == Some(path)))
+            .unwrap_or(false)
+        {
+            tracing::debug!("Link share for '{}' already exists — skipping", path);
+            return Ok(());
+        }
+
         let body = json!({
             "path": path,
-            "share_type": share_type,
-            "shared_with": shared_with,
-            "permissions": {
-                "read": permissions_read,
-                "write": permissions_write,
-            },
+            "allow_download": permissions_read,
+            "allow_upload": permissions_write,
         });
 
         let resp = self
@@ -266,7 +273,7 @@ impl FerroTarget {
             let status = resp.status();
             let err_body: serde_json::Value = resp.json().await.unwrap_or_default();
             let msg = err_body.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
-            tracing::warn!("Share creation for '{}' failed ({}): {}", path, status, msg);
+            tracing::warn!("Link share for '{}' failed ({}): {}", path, status, msg);
         }
         Ok(())
     }
