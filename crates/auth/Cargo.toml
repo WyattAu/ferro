@@ -34,8 +34,7 @@ rand = "0.9"
 flate2 = "1"
 urlencoding = "2"
 zeroize = { workspace = true, features = ["derive"] }
-ring = "0.17"
-ciborium = "0.2"
+webauthn-kit = { version = "0.1", features = ["serde"] }
 
 [features]
 default = ["handlers"]

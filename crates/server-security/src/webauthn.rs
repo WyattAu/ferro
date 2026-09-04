@@ -75,7 +75,7 @@ async fn get_existing_credential_ids<S: SecurityAppState>(state: &S, username: &
         .collect()
 }
 
-async fn begin_registration(
+async fn begin_registration<S: SecurityAppState>(
     state: &S,
     config: &WebAuthnConfig,
     username: &str,
@@ -179,7 +179,7 @@ async fn get_allowed_credentials<S: SecurityAppState>(state: &S, username: &str)
         .collect()
 }
 
-async fn begin_authentication(
+async fn begin_authentication<S: SecurityAppState>(
     state: &S,
     config: &WebAuthnConfig,
     credential_ids: Vec<String>,

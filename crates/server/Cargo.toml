@@ -16,7 +16,7 @@ azure = ["ferro-core/azure", "object_store/azure"]
 pg = ["ferro-core/postgres", "sqlx", "sqlx/postgres", "sqlx/chrono", "ferro-server-config/pg"]
 redis = ["dep:redis", "ferro-health/redis", "ferro-server-infra/redis", "ferro-server-config/redis"]
 ldap = ["dep:ldap3", "ferro-server-config/ldap"]
-webauthn = []
+webauthn = ["ferro-server-security-middleware/webauthn"]
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
 
 [dependencies]

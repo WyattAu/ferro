@@ -3084,7 +3084,6 @@ dependencies = [
  "bcrypt",
  "cedar-policy",
  "chrono",
- "ciborium",
  "criterion",
  "dashmap",
  "ferro-common",
@@ -3096,7 +3095,6 @@ dependencies = [
  "proptest",
  "rand 0.9.4",
  "reqwest 0.12.28",
- "ring",
  "rusqlite",
  "serde",
  "serde_json",
@@ -3110,6 +3108,7 @@ dependencies = [
  "tracing",
  "urlencoding",
  "uuid",
+ "webauthn-kit",
  "zeroize",
 ]
 
@@ -13363,6 +13362,21 @@ dependencies = [
  "phf_codegen",
  "string_cache 0.9.0",
  "string_cache_codegen",
+]
+
+[[package]]
+name = "webauthn-kit"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e781e281e91d8af946321a80f31ea1eeea0277dbe78b2e6feac6a8553bab68d4"
+dependencies = [
+ "base64 0.22.1",
+ "ciborium",
+ "ring",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

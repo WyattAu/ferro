@@ -1,7 +1,10 @@
 //! WebAuthn/FIDO2 passwordless authentication framework.
 //!
-//! Provides challenge-response flows for credential registration and authentication
-//! with real CTAP2/COSE cryptographic verification.
+//! Protocol and cryptographic verification are delegated to the published
+//! `webauthn-kit` crate (CTAP2 authenticator data parsing, COSE ES256/RS256
+//! signature verification via `ring`, challenge freshness/replay protection).
+//! This module keeps what the kit deliberately leaves to the integrator:
+//! credential storage ([`WebAuthnStore`]) and the re-exported kit API.
 //!
 //! Supports:
 //! - ES256 (ECDSA P-256 + SHA-256) — the most common `WebAuthn` algorithm
@@ -9,7 +12,8 @@
 //!
 //! ## Security
 //!
-//! This module performs full cryptographic verification of `WebAuthn` assertions:
+//! Verification (performed by `webauthn-kit`) covers full cryptographic
+//! checking of `WebAuthn` ceremonies:
 //! - COSE public key parsing and signature verification via `ring`
 //! - Authenticator data parsing (rpIdHash, flags, signCount, credential data)
 //! - Client data JSON hash verification
@@ -17,26 +21,26 @@
 //! - Challenge freshness and replay protection
 
 mod credential;
-mod crypto;
-mod error;
-mod protocol;
 
-pub use credential::*;
-pub use error::WebAuthnError;
-pub use protocol::{AuthenticationParams, verify_authentication, verify_registration};
+pub use credential::WebAuthnStore;
+pub use webauthn_kit::{
+    AllowCredential, AuthenticationOptions, AuthenticationParams, AuthenticationResponse, AuthenticationResult,
+    AuthenticatorSelection, ExcludeCredential, PubKeyCredParam, RegistrationOptions, RegistrationResponse,
+    RegistrationResult, RelyingParty, WebauthnConfig as WebAuthnConfig, WebauthnCredential as WebAuthnCredential,
+    WebauthnError as WebAuthnError, WebauthnUser as WebAuthnUser, verify_authentication, verify_registration,
+};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use credential::{WebAuthnConfig, WebAuthnCredential, WebAuthnStore};
-    use crypto::{base64_encode_urlsafe, generate_challenge_bytes};
+    use credential::WebAuthnStore;
 
     fn test_config() -> WebAuthnConfig {
         WebAuthnConfig {
-            enabled: true,
             rp_id: "localhost".to_string(),
             rp_name: "Ferro Test".to_string(),
             rp_origins: vec!["http://localhost:8080".to_string()],
+            allowed_algorithms: vec![-7, -257],
             challenge_timeout_secs: 300,
         }
     }
@@ -44,10 +48,9 @@ mod tests {
     #[test]
     fn test_webauthn_config_default() {
         let config = WebAuthnConfig::default();
-        assert!(!config.enabled);
         assert_eq!(config.rp_id, "localhost");
-        assert_eq!(config.rp_name, "Ferro");
         assert_eq!(config.rp_origins, vec!["http://localhost:8080"]);
+        assert_eq!(config.allowed_algorithms, vec![-7, -257]);
         assert_eq!(config.challenge_timeout_secs, 300);
     }
 
@@ -92,11 +95,27 @@ mod tests {
 
     #[test]
     fn test_challenge_expiration() {
-        let mut store = WebAuthnStore::new();
+        // Expiry semantics live in webauthn-kit's ChallengeStore; exercise it
+        // directly via its public `_at` constructor.
+        let mut store = webauthn_kit::ChallengeStore::new();
         store.store_registration_challenge_at("ch-1", "alice", vec![0u8; 32], chrono::Utc::now().timestamp() - 301);
 
         let result = store.consume_registration_challenge("ch-1", 300);
         assert!(matches!(result, Err(WebAuthnError::ChallengeExpired)));
+    }
+
+    #[test]
+    fn test_challenge_expiry_with_injected_clock() {
+        let t0 = 1_700_000_000i64;
+        let mut store = webauthn_kit::ChallengeStore::with_clock(std::sync::Arc::new(move || t0 + 301));
+        store.store_registration_challenge_at("ch", "alice", vec![0u8; 32], t0);
+
+        let result = store.consume_registration_challenge("ch", 300);
+        assert!(matches!(result, Err(WebAuthnError::ChallengeExpired)));
+
+        // Just inside the freshness window succeeds.
+        store.store_registration_challenge_at("ch-ok", "alice", vec![0u8; 32], t0 + 1);
+        assert!(store.consume_registration_challenge("ch-ok", 300).is_ok());
     }
 
     #[test]
@@ -210,7 +229,7 @@ mod tests {
             store.generate_registration_challenge(&config, "alice", "Alice Johnson", &["existing-1".to_string()]);
 
         let json = serde_json::to_string(&options).unwrap();
-        let deser: credential::RegistrationOptions = serde_json::from_str(&json).unwrap();
+        let deser: RegistrationOptions = serde_json::from_str(&json).unwrap();
         assert_eq!(deser.rp.id, "localhost");
         assert_eq!(deser.user.display_name, "alice");
         assert_eq!(deser.exclude_credentials.len(), 1);
@@ -224,23 +243,9 @@ mod tests {
         let (_, options) = store.generate_authentication_challenge(&config, vec!["cred-1".to_string()]);
 
         let json = serde_json::to_string(&options).unwrap();
-        let deser: credential::AuthenticationOptions = serde_json::from_str(&json).unwrap();
+        let deser: AuthenticationOptions = serde_json::from_str(&json).unwrap();
         assert_eq!(deser.rp_id, "localhost");
         assert_eq!(deser.allow_credentials.len(), 1);
-    }
-
-    #[test]
-    fn test_generate_challenge_bytes_length() {
-        let bytes = generate_challenge_bytes();
-        assert_eq!(bytes.len(), 32);
-    }
-
-    #[test]
-    fn test_base64_roundtrip() {
-        let original = b"hello world";
-        let encoded = base64_encode_urlsafe(original);
-        let decoded = crypto::base64_decode_urlsafe(&encoded).unwrap();
-        assert_eq!(decoded, original);
     }
 
     #[test]
@@ -280,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_consume_authentication_challenge_expired() {
-        let mut store = WebAuthnStore::new();
+        let mut store = webauthn_kit::ChallengeStore::new();
         store.store_authentication_challenge_at(
             "ch-1",
             "alice",
@@ -403,10 +408,10 @@ mod tests {
     fn test_registration_options_configurable() {
         let store = WebAuthnStore::new();
         let config = WebAuthnConfig {
-            enabled: true,
             rp_id: "custom.example.com".to_string(),
             rp_name: "Custom App".to_string(),
             rp_origins: vec!["https://custom.example.com".to_string()],
+            allowed_algorithms: vec![-7, -257],
             challenge_timeout_secs: 600,
         };
         let (_, options) =
@@ -421,28 +426,15 @@ mod tests {
     fn test_authentication_options_configurable() {
         let store = WebAuthnStore::new();
         let config = WebAuthnConfig {
-            enabled: true,
             rp_id: "custom.example.com".to_string(),
             rp_name: "Custom App".to_string(),
             rp_origins: vec![],
+            allowed_algorithms: vec![],
             challenge_timeout_secs: 120,
         };
         let (_, options) = store.generate_authentication_challenge(&config, vec!["c1".to_string(), "c2".to_string()]);
         assert_eq!(options.rp_id, "custom.example.com");
         assert_eq!(options.timeout, 120_000);
         assert_eq!(options.allow_credentials.len(), 2);
-    }
-
-    #[test]
-    fn test_base64_decode_urlsafe_invalid() {
-        let result = crypto::base64_decode_urlsafe("NOT_VALID_BASE64!!!");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_base64_encode_decode_empty() {
-        let encoded = base64_encode_urlsafe(b"");
-        let decoded = crypto::base64_decode_urlsafe(&encoded).unwrap();
-        assert!(decoded.is_empty());
     }
 }
