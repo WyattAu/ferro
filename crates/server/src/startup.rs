@@ -262,17 +262,38 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
         state
     };
 
-    // Configure Cedar — always deny-all by default (close open ACL gap)
-    let state = if let Some(policy_file) = &cli.cedar_policy_file {
+    // Configure Cedar — deny-all default unless a policy file provides rules
+    // or --cedar-auto generates the locked-down policy set.
+    let state = if let Some(policy_file) = &cli.cedar_policy_file
+        && !cli.cedar_auto
+    {
         let policy_text = std::fs::read_to_string(policy_file)
             .map_err(|e| anyhow::anyhow!("Failed to read Cedar policy file {}: {}", policy_file, e))?;
         let authorizer = crate::auth::cedar::CedarAuthorizer::new()?;
         authorizer.load_policies(&[policy_text]).await?;
         info!("Cedar authorization enabled from policy file");
         state.with_cedar(authorizer)
-    } else if cli.allow_open_authz {
-        tracing::warn!("Cedar authorization DISABLED via --allow-open-authz — open ACL!");
-        state
+    } else if cli.cedar_auto {
+        let admin_sub = cli
+            .admin_sub
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("--cedar-auto requires --admin-sub (sub treated as admin)"))?;
+        let mut spaces: Vec<crate::auth::cedar::SpaceMembership> = Vec::new();
+        if let Some(members_file) = &cli.space_members_file {
+            let text = std::fs::read_to_string(members_file).unwrap_or_default();
+            spaces = serde_json::from_str(&text)
+                .map_err(|e| anyhow::anyhow!("Failed to parse space members file {}: {}", members_file, e))?;
+            info!("Space memberships loaded: {} spaces", spaces.len());
+        }
+        let policies = crate::auth::cedar::generate_auto_policies(&admin_sub, &spaces);
+        let authorizer = crate::auth::cedar::CedarAuthorizer::new()?;
+        authorizer.load_policies(&policies).await?;
+        info!(
+            "Cedar auto policies generated: {} policies, admin sub {}",
+            policies.len(),
+            admin_sub
+        );
+        state.with_cedar(authorizer)
     } else {
         let authorizer = crate::auth::cedar::CedarAuthorizer::new()?;
         if cli.oidc_issuer.is_some() {

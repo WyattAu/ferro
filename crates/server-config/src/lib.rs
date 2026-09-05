@@ -29,6 +29,9 @@ pub struct FileConfigValues {
     pub oidc_audience: Option<String>,
     pub oidc_jwks_uri: Option<String>,
     pub oidc_client_secret: Option<String>,
+    pub admin_sub: Option<String>,
+    pub cedar_auto: Option<bool>,
+    pub space_members_file: Option<String>,
     pub cedar_policy_file: Option<String>,
     pub allow_open_authz: Option<bool>,
     pub search_index_path: Option<String>,
@@ -135,6 +138,20 @@ pub struct ServerConfig {
     /// OIDC client secret (required for confidential clients on the auth-code exchange)
     #[arg(long, env = "FERRO_OIDC_CLIENT_SECRET")]
     pub oidc_client_secret: Option<String>,
+
+    /// Subject (sub claim) treated as Cedar admin — permitted everything
+    #[arg(long, env = "FERRO_ADMIN_SUB")]
+    pub admin_sub: Option<String>,
+
+    /// Generate the locked-down Cedar policy set (admin + own-root + spaces)
+    /// instead of requiring a hand-written policy file
+    #[arg(long, env = "FERRO_CEDAR_AUTO", default_value_t = false)]
+    pub cedar_auto: bool,
+
+    /// JSON file mapping space memberships for Cedar generation:
+    /// [{"space":"Deontic","editors":["<sub>"],"managers":[]}]
+    #[arg(long, env = "FERRO_SPACE_MEMBERS_FILE")]
+    pub space_members_file: Option<String>,
 
     /// Path to Cedar policy file
     #[arg(long, env = "FERRO_CEDAR_POLICY_FILE")]
@@ -617,6 +634,9 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
         oidc_audience: override_.oidc_audience.or(base.oidc_audience),
         oidc_jwks_uri: override_.oidc_jwks_uri.or(base.oidc_jwks_uri),
         oidc_client_secret: override_.oidc_client_secret.or(base.oidc_client_secret),
+        admin_sub: override_.admin_sub.or(base.admin_sub),
+        cedar_auto: override_.cedar_auto.or(base.cedar_auto),
+        space_members_file: override_.space_members_file.or(base.space_members_file),
         cedar_policy_file: override_.cedar_policy_file.or(base.cedar_policy_file),
         allow_open_authz: override_.allow_open_authz.or(base.allow_open_authz),
         search_index_path: override_.search_index_path.or(base.search_index_path),

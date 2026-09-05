@@ -271,11 +271,25 @@ pub async fn cedar_middleware(
         .unwrap_or("unknown")
         .to_string();
 
+    // Own-root bypass: access to the caller's own /users/{sub} tree is already
+    // enforced in code by resolve_user_path/can_access_path (cross-root -> 403).
+    // Cedar arbitrates admin paths, the shared /_spaces namespace, and anything
+    // outside per-user roots. Anonymous requests were 401'd by the auth
+    // middleware before reaching here.
+    let is_own_root = !claims.sub.is_empty()
+        && claims.sub != "anonymous"
+        && (path == format!("/users/{}", claims.sub) || path.starts_with(&format!("/users/{}/", claims.sub)));
+    if is_own_root {
+        return next.run(request).await;
+    }
+
     // Build Cedar context with request metadata for policy evaluation.
     let context = serde_json::json!({
         "ip": client_ip,
         "method": method,
         "resource": resource,
+        "sub": claims.sub,
+        "path": resource,
     });
 
     match authorizer
@@ -709,4 +723,72 @@ mod tests {
         let result = authorizer.load_policies(&[p1.to_string(), p2.to_string()]).await;
         assert!(result.is_err());
     }
+}
+
+/// Generated-policy input: one editable space with its member subs.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct SpaceMembership {
+    pub space: String,
+    /// Subs that may read.
+    #[serde(default)]
+    pub viewers: Vec<String>,
+    /// Subs that may read + write.
+    #[serde(default)]
+    pub editors: Vec<String>,
+    /// Subs that may read + write + delete + manage.
+    #[serde(default)]
+    pub managers: Vec<String>,
+}
+
+/// Generate the locked-down policy set:
+/// - admin sub: all actions on all paths
+/// - each authenticated user: read on /_spaces/** (shared company spaces)
+/// - space editors/managers: write (editors) or write/delete/admin (managers)
+///   on their space subtree, from space_members.json
+/// - default: deny (the authorizer's built-in deny-all remains for anything
+///   not matched)
+///
+/// Own /users/{sub} roots are NOT covered here — that isolation is enforced
+/// in code (resolve_user_path/can_access_path) and the middleware skips Cedar
+/// for own-root requests entirely.
+pub fn generate_auto_policies(admin_sub: &str, spaces: &[SpaceMembership]) -> Vec<String> {
+    let mut out = Vec::new();
+
+    // Admin: everything
+    out.push(format!(
+        "permit(principal, action, resource) when {{ context.sub == \"{admin_sub}\" }};"
+    ));
+
+    // Shared spaces: read for every authenticated user
+    out.push(
+        "permit(principal, action, resource) when { context.path like \"/_spaces/*\" && action == Action::\"read\" };"
+            .to_string(),
+    );
+    out.push(
+        "permit(principal, action, resource) when { context.path like \"/_spaces/*\" && action == Action::\"list\" };"
+            .to_string(),
+    );
+
+    // Per-space write/delete/manage from membership config
+    for space in spaces {
+        let prefix = format!("/_spaces/{}", space.space);
+        for editor in &space.editors {
+            if editor == admin_sub {
+                continue; // admin already permitted
+            }
+            out.push(format!(
+                "permit(principal, action, resource) when {{ context.sub == \"{editor}\" && context.path like \"{prefix}*\" && action in [Action::\"write\", Action::\"read\", Action::\"list\"] }};"
+            ));
+        }
+        for manager in &space.managers {
+            if manager == admin_sub {
+                continue;
+            }
+            out.push(format!(
+                "permit(principal, action, resource) when {{ context.sub == \"{manager}\" && context.path like \"{prefix}*\" }};"
+            ));
+        }
+    }
+
+    out
 }
