@@ -1043,20 +1043,34 @@ pub fn build_router_with_static(
         state.rate_limit_refill,
         std::time::Duration::from_secs(1),
     ));
+    // throttle-kit 0.4 client-IP identity: X-Forwarded-For is only honored
+    // when the direct peer is a configured trusted proxy. Empty config
+    // (default) keys by direct socket address — secure by default.
+    let client_ip_config = Arc::new(ferro_rate_limiter::ClientIpConfig {
+        trusted_proxies: state
+            .rate_limit_trusted_proxies
+            .iter()
+            .filter(|s| !s.trim().is_empty())
+            .filter_map(|s| match ferro_rate_limiter::IpNet::parse(s.trim()) {
+                Ok(net) => Some(net),
+                Err(e) => {
+                    tracing::warn!("Ignoring invalid FERRO_RATE_LIMIT_TRUSTED_PROXIES entry {:?}: {}", s, e);
+                    None
+                }
+            })
+            .collect(),
+        num_trusted_hops: state.rate_limit_trusted_hops,
+        trusted_header: None,
+    });
     let tenant_rate_limiter = state.tenant_rate_limiter.clone();
     // Combined rate limit middleware (global IP + tenant)
     let combined_rate_limit_layer = axum::middleware::from_fn(move |req: axum::http::Request<Body>, next: Next| {
         let limiter = rate_limiter.clone();
         let tenant_limiter = tenant_rate_limiter.clone();
+        let client_ip_config = client_ip_config.clone();
         async move {
             // Global IP rate limit
-            let client_ip = req
-                .headers()
-                .get("x-forwarded-for")
-                .and_then(|v: &axum::http::HeaderValue| v.to_str().ok())
-                .and_then(|s: &str| s.split(',').next())
-                .map(|s: &str| s.trim().to_string())
-                .unwrap_or_else(|| "unknown".to_string());
+            let client_ip = rate_limit_identity(req.headers(), req.extensions(), &client_ip_config);
 
             use ferro_rate_limiter::RateLimiter;
             match limiter.check(&client_ip).await {
@@ -1645,4 +1659,121 @@ pub(crate) async fn api_and_webdav_fallback(
     }
     // Fall through to WebDAV handler
     webdav::handle_any::<AppState>(method, uri, State(state), None, headers, body).await
+}
+
+/// Extract the direct peer IP from our axum's `ConnectInfo<SocketAddr>`
+/// request extension, if present.
+///
+/// NOTE: throttle-kit's `client_ip::peer_ip_from_extensions` is typed on
+/// axum 0.8 (`ConnectInfo` is not version-agnostic) and would silently
+/// never match our axum 0.7 extension — extract with our own axum
+/// version and pass the result to the pure `resolve_client_identity`.
+fn rate_limit_peer_ip(extensions: &axum::http::Extensions) -> Option<std::net::IpAddr> {
+    extensions
+        .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+        .map(|connect_info| connect_info.0.ip())
+}
+
+/// Derive the rate-limit identity for a request using throttle-kit 0.4
+/// client-IP semantics.
+///
+/// - Direct peer not in `trusted_proxies` (or empty config, the default)
+///   → peer socket address; forwarded headers are ignored because they
+///   are attacker-controlled.
+/// - Trusted peer → right-to-left walk of `X-Forwarded-For` skipping
+///   `num_trusted_hops` entries.
+/// - No `ConnectInfo` in extensions (in-memory/test harness) → shared
+///   `"unknown"` bucket, mirroring
+///   [`ferro_rate_limiter::MissingClientPolicy::FallbackKey`].
+fn rate_limit_identity(
+    headers: &axum::http::HeaderMap,
+    extensions: &axum::http::Extensions,
+    config: &ferro_rate_limiter::ClientIpConfig,
+) -> String {
+    let peer = rate_limit_peer_ip(extensions);
+    match ferro_rate_limiter::client_ip::resolve_client_identity(headers, peer, config) {
+        Ok(client) => client.ip.to_string(),
+        Err(ferro_rate_limiter::MissingClientIdentity) => "unknown".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod rate_limit_identity_tests {
+    use super::rate_limit_identity;
+    use ferro_rate_limiter::{ClientIpConfig, IpNet};
+    use std::net::SocketAddr;
+
+    fn connect_info(addr: &str) -> axum::extract::ConnectInfo<SocketAddr> {
+        axum::extract::ConnectInfo(addr.parse::<SocketAddr>().unwrap())
+    }
+
+    #[test]
+    fn untrusted_peer_ignores_forwarded_for() {
+        let config = ClientIpConfig::default();
+        let req = axum::http::Request::builder()
+            .header("x-forwarded-for", "1.2.3.4")
+            .extension(connect_info("203.0.113.9:44344"))
+            .body(())
+            .unwrap();
+        let (parts, ()) = req.into_parts();
+        // Spoofed XFF must not mint a fresh bucket: identity is the socket.
+        assert_eq!(
+            rate_limit_identity(&parts.headers, &parts.extensions, &config),
+            "203.0.113.9"
+        );
+    }
+
+    #[test]
+    fn trusted_peer_resolves_right_to_left() {
+        let config = ClientIpConfig {
+            trusted_proxies: vec![IpNet::parse("127.0.0.0/8").unwrap()],
+            num_trusted_hops: 1,
+            trusted_header: None,
+        };
+        let req = axum::http::Request::builder()
+            .header("x-forwarded-for", "198.51.100.7, 10.0.0.9")
+            .extension(connect_info("127.0.0.1:5000"))
+            .body(())
+            .unwrap();
+        let (parts, ()) = req.into_parts();
+        // Rightmost entry (10.0.0.9) is our proxy chain; skip 1 hop.
+        assert_eq!(
+            rate_limit_identity(&parts.headers, &parts.extensions, &config),
+            "198.51.100.7"
+        );
+    }
+
+    #[test]
+    fn trusted_peer_short_chain_falls_back_to_peer() {
+        let config = ClientIpConfig {
+            trusted_proxies: vec![IpNet::parse("127.0.0.1").unwrap()],
+            num_trusted_hops: 1,
+            trusted_header: None,
+        };
+        let req = axum::http::Request::builder()
+            .header("x-forwarded-for", "198.51.100.7")
+            .extension(connect_info("127.0.0.1:5000"))
+            .body(())
+            .unwrap();
+        let (parts, ()) = req.into_parts();
+        // Chain (1 entry) shorter than hops (1): safe fallback to peer.
+        assert_eq!(
+            rate_limit_identity(&parts.headers, &parts.extensions, &config),
+            "127.0.0.1"
+        );
+    }
+
+    #[test]
+    fn missing_connect_info_shares_fallback_bucket() {
+        let config = ClientIpConfig::default();
+        let req = axum::http::Request::builder()
+            .header("x-forwarded-for", "1.2.3.4")
+            .body(())
+            .unwrap();
+        let (parts, ()) = req.into_parts();
+        assert_eq!(
+            rate_limit_identity(&parts.headers, &parts.extensions, &config),
+            "unknown"
+        );
+    }
 }

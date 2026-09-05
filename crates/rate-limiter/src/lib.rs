@@ -44,3 +44,20 @@ fn convert_result(r: throttle_kit::RateLimitResult) -> RateLimitResult {
         retry_after: r.retry_after,
     }
 }
+
+/// Client-IP identity resolution (throttle-kit 0.4 semantics).
+///
+/// Since throttle-kit 0.4, `X-Forwarded-For` is ignored unless trusted
+/// proxies are configured; callers key by the direct peer address by
+/// default. Re-exported so the server can build a
+/// [`ClientIpConfig`] from `FERRO_RATE_LIMIT_TRUSTED_PROXIES` /
+/// `FERRO_RATE_LIMIT_TRUSTED_HOPS`.
+///
+/// CAUTION: throttle-kit's `client_ip::peer_ip_from_extensions` is typed
+/// on axum 0.8 and never matches axum 0.7's `ConnectInfo` extension —
+/// callers here extract the peer with their own axum version and pass
+/// `Option<IpAddr>` to the pure `resolve_client_identity`.
+pub use throttle_kit::client_ip;
+pub use throttle_kit::{
+    ClientIpConfig, ClientIpError, ClientIpSource, IpNet, MissingClientIdentity, MissingClientPolicy, ResolvedClient,
+};

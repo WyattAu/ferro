@@ -179,6 +179,11 @@ pub struct AppState {
     pub rate_limit_burst: u32,
     /// Rate limiter refill rate per second.
     pub rate_limit_refill: u32,
+    /// Proxy CIDRs/IPs trusted to set X-Forwarded-For for rate-limit
+    /// identity. Empty = XFF ignored (key by direct peer address).
+    pub rate_limit_trusted_proxies: Vec<String>,
+    /// Trusted proxy hops: right-to-left XFF entries to skip.
+    pub rate_limit_trusted_hops: usize,
     /// Maximum concurrent in-flight requests.
     pub max_concurrent_requests: usize,
     /// Maximum number of snapshot versions to retain.
@@ -242,6 +247,8 @@ impl AppState {
             snapshot_store: Arc::new(SnapshotStore::new(50)),
             rate_limit_burst: 10_000,
             rate_limit_refill: 166,
+            rate_limit_trusted_proxies: Vec::new(),
+            rate_limit_trusted_hops: 1,
             max_concurrent_requests: 128,
             max_snapshot_versions: 50,
             max_body_size: 1024 * 1024 * 1024,

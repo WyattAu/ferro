@@ -481,6 +481,8 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
     let mut state = state;
     state.rate_limit_burst = cli.rate_limit_burst;
     state.rate_limit_refill = cli.rate_limit_refill;
+    state.rate_limit_trusted_proxies = cli.rate_limit_trusted_proxies.clone();
+    state.rate_limit_trusted_hops = cli.rate_limit_trusted_hops;
     state.max_concurrent_requests = cli.max_concurrent_requests;
     state.max_snapshot_versions = cli.max_snapshot_versions;
 
@@ -703,7 +705,17 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
                     if meta.is_collection {
                         continue;
                     }
-                    let stored_hash = meta.content_hash.as_str();
+                    // Authoritative hash = metadata store (written at upload time).
+                    // The engine layer derives content_hash from object-store ETags,
+                    // which for the local backend encode mtime/size, not content —
+                    // using it here produced thousands of false mismatches.
+                    let stored_hash = match &state.metadata_store {
+                        Some(store) => match store.get(&meta.path).await {
+                            Ok(m) => m.content_hash.as_str().to_string(),
+                            Err(_) => continue,
+                        },
+                        None => meta.content_hash.as_str().to_string(),
+                    };
                     if stored_hash.is_empty() || stored_hash.len() != 64 {
                         continue;
                     }
@@ -1135,9 +1147,15 @@ pub async fn run_server(state: AppState, cli: &Cli, shutdown_token: Cancellation
     info!("Ferro server listening on {}", addr);
 
     let serve_cancel = shutdown_token.clone();
-    let server = axum::serve(listener, app)
-        .tcp_nodelay(true)
-        .with_graceful_shutdown(shutdown_signal(serve_cancel));
+    // Inject ConnectInfo<SocketAddr> so rate limiting can key by the direct
+    // peer address (throttle-kit 0.4 client-IP resolution; XFF is only
+    // honored for configured trusted proxies).
+    let server = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .tcp_nodelay(true)
+    .with_graceful_shutdown(shutdown_signal(serve_cancel));
 
     match server.await {
         Ok(()) => {

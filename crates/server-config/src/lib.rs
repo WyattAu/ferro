@@ -48,6 +48,8 @@ pub struct FileConfigValues {
     pub offline_queue_size: Option<usize>,
     pub rate_limit_burst: Option<u32>,
     pub rate_limit_refill: Option<u32>,
+    pub rate_limit_trusted_proxies: Option<Vec<String>>,
+    pub rate_limit_trusted_hops: Option<usize>,
     pub max_concurrent_requests: Option<usize>,
     pub max_snapshot_versions: Option<usize>,
     pub fcm_server_key: Option<String>,
@@ -397,6 +399,20 @@ pub struct ServerConfig {
     #[arg(long, env = "FERRO_RATE_LIMIT_REFILL", default_value = "166")]
     pub rate_limit_refill: u32,
 
+    /// Proxy CIDRs/IPs trusted to set X-Forwarded-For for rate-limit identity
+    /// (comma-separated, e.g. "10.0.0.0/8,192.168.0.0/16"). Empty (default)
+    /// ignores XFF entirely and keys by the direct peer address. Set this
+    /// when running behind a reverse proxy, or every client shares the
+    /// proxy's single rate-limit bucket.
+    #[arg(long, env = "FERRO_RATE_LIMIT_TRUSTED_PROXIES", value_delimiter = ',')]
+    pub rate_limit_trusted_proxies: Vec<String>,
+
+    /// Trusted proxy hops in front of the direct peer; the right-to-left
+    /// X-Forwarded-For walk skips this many entries (default: 1, one proxy
+    /// appending one entry).
+    #[arg(long, env = "FERRO_RATE_LIMIT_TRUSTED_HOPS", default_value_t = 1)]
+    pub rate_limit_trusted_hops: usize,
+
     /// Maximum concurrent in-flight requests (default: 128).
     #[arg(long, env = "FERRO_MAX_CONCURRENT_REQUESTS", default_value = "128")]
     pub max_concurrent_requests: usize,
@@ -477,6 +493,8 @@ impl std::fmt::Debug for ServerConfig {
             .field("clamav_port", &self.clamav_port)
             .field("rate_limit_burst", &self.rate_limit_burst)
             .field("rate_limit_refill", &self.rate_limit_refill)
+            .field("rate_limit_trusted_proxies", &self.rate_limit_trusted_proxies)
+            .field("rate_limit_trusted_hops", &self.rate_limit_trusted_hops)
             .field("max_concurrent_requests", &self.max_concurrent_requests)
             .field("max_snapshot_versions", &self.max_snapshot_versions)
             .field("otlp_endpoint", &self.otlp_endpoint)
@@ -540,6 +558,8 @@ impl std::fmt::Debug for FileConfigValues {
             .field("clamav_port", &self.clamav_port)
             .field("rate_limit_burst", &self.rate_limit_burst)
             .field("rate_limit_refill", &self.rate_limit_refill)
+            .field("rate_limit_trusted_proxies", &self.rate_limit_trusted_proxies)
+            .field("rate_limit_trusted_hops", &self.rate_limit_trusted_hops)
             .field("max_concurrent_requests", &self.max_concurrent_requests)
             .field("max_snapshot_versions", &self.max_snapshot_versions)
             .field("otlp_endpoint", &self.otlp_endpoint)
@@ -653,6 +673,8 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
         offline_queue_size: override_.offline_queue_size.or(base.offline_queue_size),
         rate_limit_burst: override_.rate_limit_burst.or(base.rate_limit_burst),
         rate_limit_refill: override_.rate_limit_refill.or(base.rate_limit_refill),
+        rate_limit_trusted_proxies: override_.rate_limit_trusted_proxies.or(base.rate_limit_trusted_proxies),
+        rate_limit_trusted_hops: override_.rate_limit_trusted_hops.or(base.rate_limit_trusted_hops),
         max_concurrent_requests: override_.max_concurrent_requests.or(base.max_concurrent_requests),
         max_snapshot_versions: override_.max_snapshot_versions.or(base.max_snapshot_versions),
         fcm_server_key: override_.fcm_server_key.or(base.fcm_server_key),
@@ -842,6 +864,16 @@ where
         && let Some(refill) = file.rate_limit_refill
     {
         cli.rate_limit_refill = refill;
+    }
+    if !was_set("rate_limit_trusted_proxies")
+        && let Some(ref proxies) = file.rate_limit_trusted_proxies
+    {
+        cli.rate_limit_trusted_proxies = proxies.clone();
+    }
+    if !was_set("rate_limit_trusted_hops")
+        && let Some(hops) = file.rate_limit_trusted_hops
+    {
+        cli.rate_limit_trusted_hops = hops;
     }
     if !was_set("max_concurrent_requests")
         && let Some(max) = file.max_concurrent_requests
@@ -1546,5 +1578,42 @@ mod tests {
         assert_eq!(parse_duration("off"), Some(std::time::Duration::ZERO));
         assert_eq!(parse_duration("never"), Some(std::time::Duration::ZERO));
         assert_eq!(parse_duration("invalid"), None);
+    }
+
+    #[test]
+    fn test_rate_limit_trusted_proxies_defaults_secure() {
+        let cli = ServerConfig::parse_from(["ferro-server"]);
+        // Secure default: no trusted proxies → XFF ignored entirely.
+        assert!(cli.rate_limit_trusted_proxies.is_empty());
+        assert_eq!(cli.rate_limit_trusted_hops, 1);
+    }
+
+    #[test]
+    fn test_rate_limit_trusted_proxies_cli_delimited() {
+        let cli = ServerConfig::parse_from([
+            "ferro-server",
+            "--rate-limit-trusted-proxies",
+            "10.0.0.0/8,192.168.0.0/16",
+            "--rate-limit-trusted-hops",
+            "2",
+        ]);
+        assert_eq!(cli.rate_limit_trusted_proxies, vec!["10.0.0.0/8", "192.168.0.0/16"]);
+        assert_eq!(cli.rate_limit_trusted_hops, 2);
+    }
+
+    #[test]
+    fn test_rate_limit_trusted_proxies_file_override() {
+        let file = FileConfigValues {
+            rate_limit_trusted_proxies: Some(vec!["172.16.0.0/12".into()]),
+            rate_limit_trusted_hops: Some(3),
+            ..Default::default()
+        };
+
+        let args = ["ferro-server"];
+        let mut cli = ServerConfig::parse_from(args.iter().copied());
+        apply_file_config(args.iter().copied(), &mut cli, &file);
+
+        assert_eq!(cli.rate_limit_trusted_proxies, vec!["172.16.0.0/12"]);
+        assert_eq!(cli.rate_limit_trusted_hops, 3);
     }
 }

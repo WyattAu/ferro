@@ -692,7 +692,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
 dependencies = [
  "async-trait",
- "axum-core",
+ "axum-core 0.4.5",
  "axum-macros",
  "base64 0.22.1",
  "bytes",
@@ -703,7 +703,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "itoa",
- "matchit",
+ "matchit 0.7.3",
  "memchr",
  "mime",
  "multer",
@@ -725,6 +725,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90"
+dependencies = [
+ "axum-core 0.5.6",
+ "bytes",
+ "form_urlencoded",
+ "futures-util",
+ "http 1.4.2",
+ "http-body",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "itoa",
+ "matchit 0.8.4",
+ "memchr",
+ "mime",
+ "percent-encoding",
+ "pin-project-lite",
+ "serde_core",
+ "serde_json",
+ "serde_path_to_error",
+ "serde_urlencoded",
+ "sync_wrapper",
+ "tokio",
+ "tower 0.5.3",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "axum-core"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -739,6 +772,25 @@ dependencies = [
  "mime",
  "pin-project-lite",
  "rustversion",
+ "sync_wrapper",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "axum-core"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08c78f31d7b1291f7ee735c1c6780ccde7785daae9a9206026862dab7d8792d1"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "http 1.4.2",
+ "http-body",
+ "http-body-util",
+ "mime",
+ "pin-project-lite",
  "sync_wrapper",
  "tower-layer",
  "tower-service",
@@ -3084,7 +3136,7 @@ name = "ferro-auth"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "bcrypt",
  "cedar-policy",
@@ -3158,7 +3210,7 @@ dependencies = [
 name = "ferro-caldav"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bytes",
  "chrono",
  "ferro-dav",
@@ -3301,7 +3353,7 @@ version = "3.0.0"
 dependencies = [
  "ahash 0.8.12",
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "chrono",
  "criterion",
  "dashmap",
@@ -3460,7 +3512,7 @@ name = "ferro-graphql"
 version = "3.0.0"
 dependencies = [
  "async-graphql",
- "axum",
+ "axum 0.7.9",
  "chrono",
  "ferro-common",
  "serde_json",
@@ -3555,7 +3607,7 @@ dependencies = [
 name = "ferro-observability"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "chrono",
  "parking_lot 0.12.5",
  "serde",
@@ -3609,7 +3661,7 @@ name = "ferro-scim"
 version = "3.0.0"
 dependencies = [
  "anyhow",
- "axum",
+ "axum 0.7.9",
  "chrono",
  "dashmap",
  "serde",
@@ -3637,7 +3689,7 @@ version = "3.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "breaker",
  "bytes",
@@ -3741,7 +3793,7 @@ dependencies = [
 name = "ferro-server-activitypub"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "chrono",
  "dashmap",
@@ -3764,7 +3816,7 @@ name = "ferro-server-admin-api"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "bytes",
  "chrono",
  "ferro-auth",
@@ -3791,7 +3843,7 @@ dependencies = [
 name = "ferro-server-api"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "bytes",
  "chrono",
@@ -3820,7 +3872,7 @@ name = "ferro-server-api-core"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "chrono",
  "ferro-common",
  "ferro-core",
@@ -3851,7 +3903,7 @@ dependencies = [
 name = "ferro-server-automation"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "chrono",
  "ferro-auth",
@@ -3882,7 +3934,7 @@ name = "ferro-server-collaboration"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "bytes",
  "chrono",
  "crdts-kit",
@@ -3907,7 +3959,7 @@ name = "ferro-server-compliance"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "breaker",
  "chrono",
  "ferro-common",
@@ -3943,7 +3995,7 @@ dependencies = [
 name = "ferro-server-content"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bytes",
  "chrono",
  "ferro-common",
@@ -3963,7 +4015,7 @@ dependencies = [
 name = "ferro-server-federation"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "ferro-server-activitypub",
  "serde_json",
 ]
@@ -3990,7 +4042,7 @@ name = "ferro-server-health"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "serde",
  "serde_json",
  "tokio",
@@ -4003,7 +4055,7 @@ version = "3.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "breaker",
  "chrono",
  "dashmap",
@@ -4030,7 +4082,7 @@ dependencies = [
 name = "ferro-server-integrations"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "breaker",
  "bytes",
@@ -4062,7 +4114,7 @@ dependencies = [
 name = "ferro-server-plugins"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "chrono",
  "dashmap",
  "ferro-core",
@@ -4081,7 +4133,7 @@ name = "ferro-server-productivity"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "bytes",
  "chrono",
  "ferro-common",
@@ -4110,7 +4162,7 @@ dependencies = [
 name = "ferro-server-router"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "ferro-health",
  "ferro-server-state",
  "http 1.4.2",
@@ -4125,7 +4177,7 @@ dependencies = [
 name = "ferro-server-routes"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "ferro-auth",
  "ferro-cache",
  "ferro-common",
@@ -4162,7 +4214,7 @@ name = "ferro-server-security"
 version = "3.0.0"
 dependencies = [
  "age",
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "chrono",
  "dashmap",
@@ -4190,7 +4242,7 @@ dependencies = [
 name = "ferro-server-security-middleware"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "bytes",
  "ferro-auth",
@@ -4211,7 +4263,7 @@ name = "ferro-server-sharing"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "bytes",
  "chrono",
  "dashmap",
@@ -4281,7 +4333,7 @@ dependencies = [
 name = "ferro-server-storage-ops"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bytes",
  "chrono",
  "dashmap",
@@ -4309,7 +4361,7 @@ dependencies = [
 name = "ferro-server-sync-handlers"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "ferro-common",
  "futures",
  "serde",
@@ -4322,7 +4374,7 @@ name = "ferro-server-user-mgmt"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "chrono",
  "ferro-auth",
  "ferro-common",
@@ -4344,7 +4396,7 @@ dependencies = [
 name = "ferro-server-versioning"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "bytes",
  "chrono",
  "ferro-common",
@@ -4365,7 +4417,7 @@ name = "ferro-server-webdav-core"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "bytes",
  "chrono",
  "dashmap",
@@ -4396,7 +4448,7 @@ dependencies = [
 name = "ferro-server-webrtc"
 version = "3.0.0"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "dashmap",
  "serde",
  "serde_json",
@@ -4408,7 +4460,7 @@ name = "ferro-server-wopi"
 version = "3.0.0"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "bytes",
  "chrono",
@@ -7105,6 +7157,12 @@ name = "matchit"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
+
+[[package]]
+name = "matchit"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "maybe-owned"
@@ -11722,9 +11780,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d48656d4519c3f240b0b99bd601147c03d0fad1965449006ce8735868cb1836e"
 dependencies = [
  "async-trait",
+ "axum 0.8.9",
  "dashmap",
+ "http 1.4.2",
  "thiserror 2.0.18",
  "tokio",
+ "tower 0.5.3",
+ "tower-layer",
  "tracing",
 ]
 
@@ -12643,7 +12705,7 @@ version = "8.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db4b5ac679cc6dfc5ea3f2823b0291c777750ffd5e13b21137e0f7ac0e8f9617"
 dependencies = [
- "axum",
+ "axum 0.7.9",
  "base64 0.22.1",
  "mime_guess",
  "regex",
