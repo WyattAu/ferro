@@ -9,7 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
-flag-kit = { path = "../../../flag-kit", features = ["sqlite"] }
+flag-kit = { version = "0.1", features = ["sqlite"] }
 pollster = "0.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
