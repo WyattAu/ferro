@@ -15,6 +15,10 @@ pub struct OidcConfig {
     pub issuer: String,
     /// OAuth client ID registered with the OIDC provider.
     pub client_id: String,
+    /// OAuth client secret for confidential clients. Required for the
+    /// authorization-code token exchange when the client is not public.
+    #[serde(default)]
+    pub client_secret: Option<String>,
     /// Expected audience claim in validated tokens.
     pub audience: String,
     /// Optional JWKS URI; if omitted, discovered via `.well-known/openid-configuration`.
@@ -124,13 +128,16 @@ impl OidcValidator {
             .and_then(|v| v.as_str())
             .ok_or_else(|| FerroError::Internal("No token_endpoint in discovery".to_string()))?;
 
-        let params = [
-            ("grant_type", "authorization_code"),
-            ("code", code),
-            ("client_id", &self.config.client_id),
-            ("code_verifier", code_verifier),
-            ("redirect_uri", redirect_uri),
+        let mut params = vec![
+            ("grant_type", "authorization_code".to_string()),
+            ("code", code.to_string()),
+            ("client_id", self.config.client_id.clone()),
+            ("code_verifier", code_verifier.to_string()),
+            ("redirect_uri", redirect_uri.to_string()),
         ];
+        if let Some(secret) = &self.config.client_secret {
+            params.push(("client_secret", secret.clone()));
+        }
 
         let response = self
             .http_client
@@ -138,12 +145,22 @@ impl OidcValidator {
             .form(&params)
             .send()
             .await
-            .map_err(|e| FerroError::Internal(format!("Token exchange request failed: {e}")))?
-            .json::<serde_json::Value>()
+            .map_err(|e| FerroError::Internal(format!("Token exchange request failed: {e}")))?;
+
+        let status = response.status();
+        let body: serde_json::Value = response
+            .json()
             .await
             .map_err(|e| FerroError::Internal(format!("Token exchange response parse failed: {e}")))?;
+        if !status.is_success() {
+            let err = body.get("error").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let desc = body.get("error_description").and_then(|v| v.as_str()).unwrap_or("");
+            return Err(FerroError::Internal(format!(
+                "Token endpoint returned {status}: {err} — {desc}"
+            )));
+        }
 
-        Ok(response)
+        Ok(body)
     }
 
     /// Refresh an access token using a refresh token via the OIDC token endpoint.

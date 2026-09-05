@@ -251,6 +251,7 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
         let oidc_config = crate::auth::oidc::OidcConfig {
             issuer: issuer.clone(),
             client_id: cli.oidc_client_id.clone().unwrap_or_else(|| "ferro".to_string()),
+            client_secret: cli.oidc_client_secret.clone(),
             audience: cli.oidc_audience.clone(),
             jwks_uri: cli.oidc_jwks_uri.clone(),
         };

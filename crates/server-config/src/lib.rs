@@ -28,6 +28,7 @@ pub struct FileConfigValues {
     pub oidc_client_id: Option<String>,
     pub oidc_audience: Option<String>,
     pub oidc_jwks_uri: Option<String>,
+    pub oidc_client_secret: Option<String>,
     pub cedar_policy_file: Option<String>,
     pub allow_open_authz: Option<bool>,
     pub search_index_path: Option<String>,
@@ -130,6 +131,10 @@ pub struct ServerConfig {
     /// JWKS URI (overrides auto-discovery)
     #[arg(long, env = "FERRO_OIDC_JWKS_URI")]
     pub oidc_jwks_uri: Option<String>,
+
+    /// OIDC client secret (required for confidential clients on the auth-code exchange)
+    #[arg(long, env = "FERRO_OIDC_CLIENT_SECRET")]
+    pub oidc_client_secret: Option<String>,
 
     /// Path to Cedar policy file
     #[arg(long, env = "FERRO_CEDAR_POLICY_FILE")]
@@ -611,6 +616,7 @@ fn merge_configs(base: FileConfigValues, override_: FileConfigValues) -> FileCon
         oidc_client_id: override_.oidc_client_id.or(base.oidc_client_id),
         oidc_audience: override_.oidc_audience.or(base.oidc_audience),
         oidc_jwks_uri: override_.oidc_jwks_uri.or(base.oidc_jwks_uri),
+        oidc_client_secret: override_.oidc_client_secret.or(base.oidc_client_secret),
         cedar_policy_file: override_.cedar_policy_file.or(base.cedar_policy_file),
         allow_open_authz: override_.allow_open_authz.or(base.allow_open_authz),
         search_index_path: override_.search_index_path.or(base.search_index_path),
