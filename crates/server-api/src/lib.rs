@@ -245,20 +245,22 @@ pub async fn auth_callback_impl<S: ferro_server_state::ServerState>(state: &S, p
         }
     };
 
-    let id_token_str = token_response.get("id_token").and_then(|v| v.as_str()).unwrap_or("");
-    let claims = match oidc.validate_token(id_token_str).await {
+    // Validate the ACCESS token — it's what the SPA stores and sends as Bearer.
+    // (The id_token's audience is the client itself, which fails the configured
+    // `account` audience check; the access token carries sub/email/profile and
+    // the realm audience.)
+    let access_token = token_response
+        .get("access_token")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let claims = match oidc.validate_token(&access_token).await {
         Ok(c) => c,
         Err(e) => {
             tracing::error!("Token validation failed: {}", e);
             return ApiError::unauthorized(ApiError::TOKEN_INVALID, "Token validation failed");
         }
     };
-
-    let access_token = token_response
-        .get("access_token")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
     let token_type = token_response
         .get("token_type")
         .and_then(|v| v.as_str())
