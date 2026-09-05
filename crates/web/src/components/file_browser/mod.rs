@@ -257,6 +257,12 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
                     set_loading.set(false);
                 }
                 Err(e) => {
+                    // Expired/missing session: go to OIDC login instead of an
+                    // empty browser.
+                    if e.contains("401") {
+                        crate::auth::redirect_to_login();
+                        return;
+                    }
                     set_error.set(Some(e));
                     set_loading.set(false);
                 }

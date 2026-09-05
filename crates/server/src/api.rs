@@ -96,9 +96,66 @@ pub async fn auth_refresh_token(
     ),
     tags = ["files"],
 )]
-#[instrument(name = "list_files", skip(state, params))]
-pub async fn list_files(State(state): State<AppState>, Query(params): Query<ListFilesParams>) -> Response {
-    list_files_impl(&state, &params).await
+/// REST path resolution aligned with the DAV handler: authenticated users get
+/// their `/users/{sub}` root prepended (except the shared `/_spaces/`
+/// namespace), anonymous callers use the path as-is. Returns 403 for paths
+/// outside the caller's root when isolation applies.
+fn resolve_rest_path(claims: Option<&common::auth::Claims>, path: &str) -> Result<String, axum::http::StatusCode> {
+    let resolved = crate::user_paths::resolve_user_path(path, claims);
+    if crate::user_paths::can_access_path(&resolved, claims) {
+        Ok(resolved)
+    } else {
+        Err(axum::http::StatusCode::FORBIDDEN)
+    }
+}
+
+fn claims_from_headers(headers: &axum::http::HeaderMap) -> Option<common::auth::Claims> {
+    // The OIDC middleware sets X-Ferro-User for authenticated requests.
+    let sub = headers
+        .get("X-Ferro-User")
+        .and_then(|v| v.to_str().ok())
+        .filter(|s| !s.is_empty() && *s != "anonymous")?;
+    Some(common::auth::Claims {
+        sub: sub.to_string(),
+        ..common::auth::Claims::anonymous()
+    })
+}
+
+/// GET /api/v1/files — JSON file listing (alternative to WebDAV PROPFIND).
+#[utoipa::path(
+    get,
+    path = "/api/v1/files",
+    params(ListFilesParams),
+    responses(
+        (status = 200, description = "File listing", body = ListFilesResponse),
+        (status = 409, description = "Not a collection", body = ApiError),
+        (status = 403, description = "Path outside caller root"),
+        (status = 404, description = "Path not found", body = ApiError),
+        (status = 500, description = "List failed", body = ApiError),
+    ),
+    tags = ["files"],
+)]
+#[instrument(name = "list_files", skip(state, params, headers))]
+pub async fn list_files(
+    State(state): State<AppState>,
+    Query(params): Query<ListFilesParams>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let claims = claims_from_headers(&headers);
+    match resolve_rest_path(claims.as_ref(), params.path.as_deref().unwrap_or("/")) {
+        Ok(resolved) => {
+            let params = ListFilesParams {
+                path: Some(resolved),
+                ..params
+            };
+            list_files_impl(&state, &params).await
+        }
+        Err(status) => (
+            status,
+            axum::Json(serde_json::json!({"error": "forbidden", "message": "Path outside your root"})),
+        )
+            .into_response(),
+    }
 }
 
 /// GET /api/v1/files/{path} — download file content or get collection metadata.
@@ -118,6 +175,17 @@ pub async fn get_file(
     AxumPath(path): AxumPath<String>,
     headers: axum::http::HeaderMap,
 ) -> Response {
+    let claims = claims_from_headers(&headers);
+    let path = match resolve_rest_path(claims.as_ref(), &path) {
+        Ok(p) => p,
+        Err(status) => {
+            return (
+                status,
+                axum::Json(serde_json::json!({"error": "forbidden", "message": "Path outside your root"})),
+            )
+                .into_response();
+        }
+    };
     get_file_impl(&state, path, headers).await
 }
 
@@ -140,13 +208,17 @@ pub async fn put_file(
     headers: axum::http::HeaderMap,
     body: axum::body::Bytes,
 ) -> Response {
-    let path = match normalize_api_path(&path) {
+    let claims = claims_from_headers(&headers);
+    let path = match resolve_rest_path(claims.as_ref(), &path)
+        .and_then(|p| normalize_api_path(&p).map_err(|_| axum::http::StatusCode::BAD_REQUEST))
+    {
         Ok(p) => p,
-        Err(e) => {
+        Err(status) => {
             return (
-                StatusCode::BAD_REQUEST,
+                status,
                 axum::Json(serde_json::json!({
-                    "error": "invalid_path", "message": e,
+                    "error": if status == axum::http::StatusCode::FORBIDDEN { "forbidden" } else { "invalid_path" },
+                    "message": if status == axum::http::StatusCode::FORBIDDEN { "Path outside your root".to_string() } else { "invalid path".to_string() },
                 })),
             )
                 .into_response();
@@ -255,15 +327,23 @@ pub async fn put_file(
     ),
     tags = ["files"],
 )]
-#[instrument(name = "delete_file", skip(state), fields(path = %path))]
-pub async fn delete_file(State(state): State<AppState>, AxumPath(path): AxumPath<String>) -> Response {
-    let path = match normalize_api_path(&path) {
+#[instrument(name = "delete_file", skip(state, headers), fields(path = %path))]
+pub async fn delete_file(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    AxumPath(path): AxumPath<String>,
+) -> Response {
+    let claims = claims_from_headers(&headers);
+    let path = match resolve_rest_path(claims.as_ref(), &path)
+        .and_then(|p| normalize_api_path(&p).map_err(|e| axum::http::StatusCode::BAD_REQUEST))
+    {
         Ok(p) => p,
-        Err(e) => {
+        Err(status) => {
             return (
-                StatusCode::BAD_REQUEST,
+                status,
                 axum::Json(serde_json::json!({
-                    "error": "invalid_path", "message": e,
+                    "error": if status == axum::http::StatusCode::FORBIDDEN { "forbidden" } else { "invalid_path" },
+                    "message": if status == axum::http::StatusCode::FORBIDDEN { "Path outside your root".to_string() } else { "invalid path".to_string() },
                 })),
             )
                 .into_response();
@@ -350,7 +430,7 @@ pub async fn files_content_handler(
     match method {
         axum::http::Method::GET => get_file(State(state), AxumPath(file_path), headers).await,
         axum::http::Method::PUT => put_file(State(state), AxumPath(file_path), headers, body).await,
-        axum::http::Method::DELETE => delete_file(State(state), AxumPath(file_path)).await,
+        axum::http::Method::DELETE => delete_file(State(state), headers.clone(), AxumPath(file_path)).await,
         _ => (
             StatusCode::METHOD_NOT_ALLOWED,
             axum::Json(serde_json::json!({

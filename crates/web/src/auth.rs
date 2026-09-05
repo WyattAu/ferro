@@ -263,11 +263,31 @@ pub fn init_auth(state: &AuthState) {
             }
         }
 
-        if !state.auth_enabled.get_untracked() {
-            state.set_loading.set(false);
-        } else {
-            state.set_loading.set(false);
+        // Auth guard: when OIDC auth is enabled and the visitor is anonymous,
+        // redirect to the Keycloak login instead of rendering an empty file
+        // browser. Login/callback pages are exempt to avoid redirect loops.
+        if state.auth_enabled.get_untracked() && state.access_token.get_untracked().is_none() {
+            let path = web_sys::window()
+                .map(|w| w.location().pathname().unwrap_or_default())
+                .unwrap_or_default();
+            let on_auth_page = path.starts_with("/ui/auth/login") || path.starts_with("/ui/auth/callback");
+            if !on_auth_page {
+                match crate::api::auth_login().await {
+                    Ok(resp) => {
+                        if let Some(window) = web_sys::window() {
+                            let _ = window.location().set_href(&resp.authorization_url);
+                        }
+                    }
+                    Err(e) => {
+                        web_sys::console::warn_1(&format!("Auth redirect failed: {}", e).into());
+                        state.set_loading.set(false);
+                    }
+                }
+                return;
+            }
         }
+
+        state.set_loading.set(false);
     });
 }
 
@@ -290,6 +310,17 @@ pub fn start_login() {
         }
     });
 }
+
+/// Redirect the browser to the OIDC login. Called from anywhere an API call
+/// returns 401 (e.g. expired session) so the user never stares at an empty
+/// file browser.
+#[cfg(target_arch = "wasm32")]
+pub fn redirect_to_login() {
+    start_login();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn redirect_to_login() {}
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn start_login() {}

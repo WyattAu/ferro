@@ -18,6 +18,10 @@ pub enum RepeatMode {
     One,
 }
 
+// MediaSession integration disabled: web-sys 0.3.100 dropped the unstable
+// MediaSession/MediaMetadata bindings this code used. OS media-key control is
+// cosmetic; re-add against a stabilized binding.
+#[allow(unused_variables, clippy::too_many_arguments, clippy::redundant_clone)]
 #[cfg(target_arch = "wasm32")]
 fn setup_media_session(
     audio_ref: &NodeRef<leptos::html::Audio>,
@@ -30,78 +34,6 @@ fn setup_media_session(
     on_prev: impl Fn() + Clone + 'static,
     on_next: impl Fn() + Clone + 'static,
 ) {
-    use wasm_bindgen::JsCast;
-    use web_sys::MediaSessionAction;
-
-    let window = match web_sys::window() {
-        Some(w) => w,
-        None => return,
-    };
-    let nav = window.navigator().media_session();
-
-    if let Some(track) = track {
-        if let Ok(metadata) = web_sys::MediaMetadata::new() {
-            let _ = metadata.set_title(&track.name);
-            if let Some(ref artist) = track.artist {
-                let _ = metadata.set_artist(artist);
-            }
-            if let Some(ref album) = track.album {
-                let _ = metadata.set_album(album);
-            }
-            nav.set_metadata(Some(&metadata));
-        }
-    }
-
-    let state = if is_playing {
-        web_sys::MediaSessionPlaybackState::Playing
-    } else {
-        web_sys::MediaSessionPlaybackState::Paused
-    };
-    nav.set_playback_state(state);
-
-    if audio_ref.get().is_some() {
-        let pos_state = web_sys::MediaPositionState::new();
-        pos_state.set_position(current_time);
-        pos_state.set_playback_rate(1.0);
-        pos_state.set_duration(duration);
-        nav.set_position_state_with_state(&pos_state);
-    }
-
-    let on_play_cb = on_play.clone();
-    let play_handler =
-        Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
-            on_play_cb();
-        });
-    let play_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> =
-        play_handler.into_js_value().unchecked_into();
-    nav.set_action_handler(MediaSessionAction::Play, Some(&play_func));
-
-    let on_pause_cb = on_pause.clone();
-    let pause_handler =
-        Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
-            on_pause_cb();
-        });
-    let pause_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> =
-        pause_handler.into_js_value().unchecked_into();
-    nav.set_action_handler(MediaSessionAction::Pause, Some(&pause_func));
-
-    let on_prev_cb = on_prev.clone();
-    let prev_handler =
-        Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
-            on_prev_cb();
-        });
-    let prev_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> =
-        prev_handler.into_js_value().unchecked_into();
-    nav.set_action_handler(MediaSessionAction::Previoustrack, Some(&prev_func));
-
-    let on_next_cb = on_next.clone();
-    let next_handler =
-        Closure::<dyn FnMut(web_sys::MediaSessionActionDetails)>::new(move |_d: web_sys::MediaSessionActionDetails| {
-            on_next_cb();
-        });
-    let next_func: js_sys::Function<fn(web_sys::MediaSessionActionDetails) -> js_sys::Undefined> =
-        next_handler.into_js_value().unchecked_into();
-    nav.set_action_handler(MediaSessionAction::Nexttrack, Some(&next_func));
 }
 
 #[component]

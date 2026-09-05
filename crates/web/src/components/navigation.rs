@@ -20,6 +20,11 @@ pub fn NavigationSidebar() -> impl IntoView {
             "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
         ),
         (
+            "/ui/files/_spaces/",
+            "nav.spaces",
+            "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2zm4 6h10m-10 4h6",
+        ),
+        (
             "/ui/calendar",
             "nav.calendar",
             "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",

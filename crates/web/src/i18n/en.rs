@@ -325,6 +325,7 @@ pub static EN: &[(&str, &str)] = &[
     ("nav.dashboard", "Dashboard"),
     ("nav.favorites", "Favorites"),
     ("nav.files", "Files"),
+    ("nav.spaces", "Spaces"),
     ("nav.home", "Home"),
     ("nav.mail", "Mail"),
     ("nav.main", "Main navigation"),
