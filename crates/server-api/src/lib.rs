@@ -91,8 +91,11 @@ pub async fn auth_login_impl<S: ferro_server_state::ServerState>(state: &S, para
     let code_challenge = generate_code_challenge(&code_verifier);
     let state_param = uuid::Uuid::new_v4().to_string();
 
+    // Keycloak authorization endpoint: {issuer}/protocol/openid-connect/auth
+    // (matches end_session pattern used in end_session_url; /authorize is not
+    // a Keycloak route and yields "Page not found" in the realm).
     let auth_url = format!(
-        "{}/authorize?response_type=code&client_id={}&redirect_uri={}&scope=openid%20profile%20email&state={}&code_challenge={}&code_challenge_method=S256",
+        "{}/protocol/openid-connect/auth?response_type=code&client_id={}&redirect_uri={}&scope=openid%20profile%20email&state={}&code_challenge={}&code_challenge_method=S256",
         config.issuer,
         urlencoding(&config.client_id),
         urlencoding(&callback_url),
