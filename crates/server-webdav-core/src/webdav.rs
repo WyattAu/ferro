@@ -102,7 +102,7 @@ pub async fn handle_any<S: WebDavCoreState>(
     let resolved_path = match user_sub {
         Some(sub) if sub != "anonymous" => {
             // Shared namespaces bypass user-root isolation (access controlled by shares)
-            if path_str.starts_with("/_spaces/") {
+            if path_str == "/_spaces" || path_str.starts_with("/_spaces/") {
                 path_str.to_string()
             } else {
                 let user_root = format!("/users/{}", sub);
