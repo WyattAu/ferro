@@ -1354,8 +1354,28 @@ pub fn build_router_with_static(
                                 match tokio::fs::read(&file_path).await {
                                     Ok(content) => {
                                         let ct = mime_guess(&rel);
+                                        // Trunk emits content-hashed filenames for the wasm/js
+                                        // bundle — safe to cache forever. index.html and
+                                        // style.css change between releases — never cache, so
+                                        // browsers/CDNs always pick up the fresh bundle refs.
+                                        let cache = if rel.contains("index.html") || rel.ends_with(".html") {
+                                            "no-cache, no-store, must-revalidate"
+                                        } else if rel.contains('-')
+                                            && (rel.ends_with(".js") || rel.ends_with("_bg.wasm"))
+                                        {
+                                            "public, max-age=31536000, immutable"
+                                        } else {
+                                            "no-cache, must-revalidate"
+                                        };
                                         Some(
-                                            (StatusCode::OK, [(axum::http::header::CONTENT_TYPE, ct)], content)
+                                            (
+                                                StatusCode::OK,
+                                                [
+                                                    (axum::http::header::CONTENT_TYPE, ct),
+                                                    (axum::http::header::CACHE_CONTROL, cache),
+                                                ],
+                                                content,
+                                            )
                                                 .into_response(),
                                         )
                                     }
@@ -1416,7 +1436,10 @@ pub fn build_router_with_static(
                         return match tokio::fs::read(static_dir_path.join("index.html")).await {
                             Ok(content) => (
                                 StatusCode::OK,
-                                [(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                                [
+                                    (axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8"),
+                                    (axum::http::header::CACHE_CONTROL, "no-cache, no-store, must-revalidate"),
+                                ],
                                 content,
                             )
                                 .into_response(),
