@@ -42,22 +42,18 @@ impl CedarAuthorizer {
 
     /// Replace all policies with the given set.
     pub async fn load_policies(&self, policies: &[String]) -> Result<()> {
-        let mut policy_set = PolicySet::new();
-        for (i, policy_text) in policies.iter().enumerate() {
-            let ps: PolicySet = policy_text
-                .parse()
-                .map_err(|e| FerroError::Internal(format!("Policy {i} parse error: {e:?}")))?;
-            for policy in ps.policies() {
-                policy_set
-                    .add(policy.clone())
-                    .map_err(|e| FerroError::Internal(format!("Add policy {i} error: {e:?}")))?;
-            }
-        }
+        // Parse as ONE set: within a single parse Cedar auto-assigns unique ids
+        // (policy0, policy1, …) and rejects duplicate explicit @ids. Per-text
+        // parsing would collide on auto-id "policy0" when merging.
+        let combined = policies.iter().map(|p| p.trim()).collect::<Vec<_>>().join("\n\n");
+        let policy_set: PolicySet = combined
+            .parse()
+            .map_err(|e| FerroError::Internal(format!("Policy parse error: {e:?}")))?;
 
         let mut guard = self.policy_set.write().await;
         *guard = policy_set;
 
-        debug!("Loaded {} Cedar policies", policies.len());
+        debug!("Loaded {} Cedar policy texts", policies.len());
         Ok(())
     }
 
@@ -710,7 +706,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_load_policies_duplicate_policy_id_fails() {
+    async fn test_load_policies_duplicate_annotation_ids_accepted() {
+        // @id is an annotation in Cedar 4.x, not the policy id — duplicates are
+        // accepted (policy ids are auto-assigned per parse and stay unique).
         let authorizer = CedarAuthorizer::new().unwrap();
         let p1 = r#"
             @id("duplicate_id")
@@ -721,7 +719,7 @@ mod tests {
             permit(principal, action, resource);
         "#;
         let result = authorizer.load_policies(&[p1.to_string(), p2.to_string()]).await;
-        assert!(result.is_err());
+        assert!(result.is_ok());
     }
 }
 

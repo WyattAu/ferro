@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 serde = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
-validkit = { path = "../../../validkit", features = ["url"] }
+validkit = { version = "0.1", features = ["url"] }
 sha2 = "0.11"
 hex = "0.4"
 uuid = { version = "1", features = ["v4", "serde"] }

@@ -521,6 +521,7 @@ mod tests {
     #[test]
     fn test_oidc_config_creation() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "ferro-client".to_string(),
             audience: "ferro".to_string(),
@@ -533,6 +534,7 @@ mod tests {
     #[test]
     fn test_oidc_config_no_jwks_uri() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "ferro-client".to_string(),
             audience: "ferro".to_string(),
@@ -545,6 +547,7 @@ mod tests {
     #[tokio::test]
     async fn test_pkce_session_store_and_consume() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "ferro-client".to_string(),
             audience: "ferro".to_string(),
@@ -566,6 +569,7 @@ mod tests {
     #[tokio::test]
     async fn test_pkce_session_consume_removes() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "ferro-client".to_string(),
             audience: "ferro".to_string(),
@@ -588,6 +592,7 @@ mod tests {
     #[tokio::test]
     async fn test_pkce_session_nonexistent_returns_none() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "ferro-client".to_string(),
             audience: "ferro".to_string(),
@@ -603,6 +608,7 @@ mod tests {
     #[test]
     fn test_oidc_config_accessor() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://issuer.example.com".to_string(),
             client_id: "client123".to_string(),
             audience: "aud123".to_string(),
@@ -638,6 +644,7 @@ mod tests {
     #[tokio::test]
     async fn test_pkce_session_multiple() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "ferro-client".to_string(),
             audience: "ferro".to_string(),
@@ -674,6 +681,7 @@ mod tests {
     #[test]
     fn test_oidc_validator_clone() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "client".to_string(),
             audience: "aud".to_string(),
@@ -762,6 +770,7 @@ mod tests {
         use jsonwebtoken::{Algorithm, Header, encode};
 
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "client".to_string(),
             audience: "ferro".to_string(),
@@ -781,6 +790,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_token_wrong_audience() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "client".to_string(),
             audience: "ferro".to_string(),
@@ -796,6 +806,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_token_expired() {
         let config = OidcConfig {
+            client_secret: None,
             issuer: "https://auth.example.com".to_string(),
             client_id: "client".to_string(),
             audience: "ferro".to_string(),

@@ -973,7 +973,7 @@ dependencies = [
 
 [[package]]
 name = "breaker"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "loom",
  "parking_lot 0.12.5",
@@ -11707,7 +11707,7 @@ dependencies = [
 
 [[package]]
 name = "throttle-kit"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "async-trait",
  "dashmap",

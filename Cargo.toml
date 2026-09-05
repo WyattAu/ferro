@@ -83,12 +83,12 @@ rust-version = "1.92"
 
 [workspace.dependencies]
 # Shared crates
-breaker = { path = "../breaker" }
-throttle-kit = { path = "../ratelimit" }
-mailkit = { path = "../mailkit" }
-cryptkit = { path = "../cryptkit" }
-tokenkit = { path = "../tokenkit" }
-media-kit = { path = "../media-kit" }
+breaker = { version = "1" }
+throttle-kit = { version = "0.4" }
+mailkit = { version = "0.2" }
+cryptkit = { version = "0.1" }
+tokenkit = { version = "0.1" }
+media-kit = { version = "0.1" }
 
 # Shared dependency versions across all crates
 tokio = { version = "1", features = ["full"] }
