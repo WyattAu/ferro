@@ -974,6 +974,8 @@ dependencies = [
 [[package]]
 name = "breaker"
 version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "924a6e88f765c0812138b0967de1105584ae2a4e010ad3186e17c05f163c35ac"
 dependencies = [
  "loom",
  "parking_lot 0.12.5",
@@ -2159,6 +2161,8 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 [[package]]
 name = "cryptkit"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c06b2298ff21f74c9d1ed1f1468350edbd961175669295073d48becaf22d4738"
 dependencies = [
  "aes-gcm",
  "hmac 0.12.1",
@@ -7030,6 +7034,8 @@ dependencies = [
 [[package]]
 name = "mailkit"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "beaed188b900f94b90d0a9993c25421be43c8e906d3602b604ff8050624bde71"
 dependencies = [
  "chrono",
  "lettre",
@@ -7132,6 +7138,8 @@ dependencies = [
 [[package]]
 name = "media-kit"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8fb9f7aee4505ff70be67d94f579d43406d1b6cf52bde250ede4759811c9995"
 dependencies = [
  "image",
  "kamadak-exif",
@@ -11708,6 +11716,8 @@ dependencies = [
 [[package]]
 name = "throttle-kit"
 version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d48656d4519c3f240b0b99bd601147c03d0fad1965449006ce8735868cb1836e"
 dependencies = [
  "async-trait",
  "dashmap",
@@ -11795,6 +11805,8 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "tokenkit"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "420028108ec323158bc362a0ae53a5606b0f2c1fbd98fadd3e8e71034a120e4f"
 dependencies = [
  "chrono",
  "jsonwebtoken",
@@ -12663,6 +12675,8 @@ dependencies = [
 [[package]]
 name = "validkit"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d29ccfc9a8e100a618c7fa46a51e5132da5ebd08962c12531c5154f6671ca83"
 dependencies = [
  "chrono",
  "serde",
@@ -14314,6 +14328,8 @@ dependencies = [
 [[package]]
 name = "ws-kit"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "acc2480c9636f5b4a2622d7108fdfd022d727d669091363fd76b1eb2d6bde7d0"
 dependencies = [
  "dashmap",
  "futures",
