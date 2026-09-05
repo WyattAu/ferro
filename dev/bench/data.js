@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788640075913,
+  "lastUpdate": 1788645874770,
   "repoUrl": "https://github.com/WyattAu/ferro",
   "entries": {
     "Benchmark": [
@@ -78682,6 +78682,696 @@ window.BENCHMARK_DATA = {
           {
             "name": "ferro_error_not_found",
             "value": 19,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "committer": {
+            "email": "wyatt_au@protonmail.com",
+            "name": "WyattAu",
+            "username": "WyattAu"
+          },
+          "distinct": true,
+          "id": "3458798166525ecabc1f5758511c7b09a0865b8b",
+          "message": "fix(rate-limit): configurable trusted proxies for throttle-kit 0.4 identity\n\nthrottle-kit 0.4 ignores X-Forwarded-For unless ClientIpConfig trusted\nproxies are configured; the old middleware blindly trusted the first\nXFF entry (spoofable: mint a fresh bucket per request) and fell back to\na shared \"unknown\" bucket for everyone else.\n\n- Key global rate limits via throttle-kit resolve_client_identity:\n  peer socket address by default (XFF ignored), right-to-left XFF walk\n  minus trusted hops only when the direct peer is a configured proxy.\n- Serve with into_make_service_with_connect_info so ConnectInfo is\n  available (throttle-kit 0.4 requirement for peer identity).\n- New env/TOML config (clap + file override, same merge semantics as\n  other settings):\n  FERRO_RATE_LIMIT_TRUSTED_PROXIES  comma-separated CIDRs/IPs\n  FERRO_RATE_LIMIT_TRUSTED_HOPS     right-to-left XFF entries to skip (default 1)\n- Operator config behind one proxy (nginx/ALB as direct peer):\n  set FERRO_RATE_LIMIT_TRUSTED_PROXIES=10.0.0.0/8 and keep\n  FERRO_RATE_LIMIT_TRUSTED_HOPS=1 (proxy appends one XFF entry).\n  Without it, all clients share the proxy IP's single bucket.\n- Note: throttle-kit's peer_ip_from_extensions is axum-0.8-typed; peer\n  is extracted with our axum 0.7 and passed to the pure resolver.\n\nVerified: cargo check/clippy clean; 4 new identity unit tests, 3 new\nconfig tests, middleware (10) and config (19+) suites green.",
+          "timestamp": "2026-09-05T22:38:53+01:00",
+          "tree_id": "27f175196cec754919fe729bc672ce76bb8c75dd",
+          "url": "https://github.com/WyattAu/ferro/commit/3458798166525ecabc1f5758511c7b09a0865b8b"
+        },
+        "date": 1788645873021,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "totp_generate_sha1",
+            "value": 439,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_generate_sha256",
+            "value": 1289,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_verify",
+            "value": 442,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_verify_skew_2",
+            "value": 442,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_generate",
+            "value": 63,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_base32_encode",
+            "value": 235,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_base32_decode",
+            "value": 489,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_otpauth_uri",
+            "value": 716,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_sizes/16",
+            "value": 261,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_sizes/20",
+            "value": 300,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_sizes/32",
+            "value": 452,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "totp_secret_sizes/64",
+            "value": 829,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hash/content_hash_1kb",
+            "value": 1209,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hash/content_hash_1mb",
+            "value": 746037,
+            "range": "± 13110",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/escape_plain",
+            "value": 280,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/escape_special",
+            "value": 379,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/escape_mixed",
+            "value": 705,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_hash",
+            "value": 304537398,
+            "range": "± 969250",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "password_verify",
+            "value": 304474983,
+            "range": "± 727489",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hmac_sha256_sign",
+            "value": 26598,
+            "range": "± 1926",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "sha256",
+            "value": 25280,
+            "range": "± 1180",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/parse_small",
+            "value": 3758,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/parse_medium",
+            "value": 260452,
+            "range": "± 1368",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_serialize/serialize_small",
+            "value": 2868,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/parse_small",
+            "value": 1451,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/parse_complex",
+            "value": 7677,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_serialize/serialize_small",
+            "value": 1258,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_icalendar_3_components",
+            "value": 15262,
+            "range": "± 94",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_vcard_complex",
+            "value": 10059,
+            "range": "± 57",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_calendar_query",
+            "value": 2038,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parse_addressbook_query",
+            "value": 1589,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "build_multistatus_3_responses",
+            "value": 3670,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/small",
+            "value": 5083,
+            "range": "± 197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/medium",
+            "value": 22963,
+            "range": "± 623",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_parse/large",
+            "value": 35007,
+            "range": "± 391",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_serialize/small",
+            "value": 3274,
+            "range": "± 200",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_serialize/medium",
+            "value": 13049,
+            "range": "± 90",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_serialize/large",
+            "value": 19968,
+            "range": "± 455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_roundtrip/small",
+            "value": 8900,
+            "range": "± 66",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ical_roundtrip/medium",
+            "value": 37953,
+            "range": "± 944",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/small",
+            "value": 2828,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/medium",
+            "value": 8963,
+            "range": "± 71",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_parse/large",
+            "value": 15976,
+            "range": "± 377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_serialize/small",
+            "value": 1827,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_serialize/medium",
+            "value": 5379,
+            "range": "± 87",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_serialize/large",
+            "value": 8657,
+            "range": "± 111",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_roundtrip/small",
+            "value": 4723,
+            "range": "± 315",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "vcard_roundtrip/medium",
+            "value": 14751,
+            "range": "± 119",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/plain_1kb",
+            "value": 145,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "xml_escape/special_chars",
+            "value": 25963,
+            "range": "± 57",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dav_multistatus_3_responses",
+            "value": 1867,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1KB",
+            "value": 3663,
+            "range": "± 1465",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1KB",
+            "value": 3841,
+            "range": "± 1639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10KB",
+            "value": 10179,
+            "range": "± 2217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10KB",
+            "value": 10449,
+            "range": "± 1929",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/100KB",
+            "value": 76093,
+            "range": "± 192",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/100KB",
+            "value": 76282,
+            "range": "± 310",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/1MB",
+            "value": 750788,
+            "range": "± 1433",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/1MB",
+            "value": 750734,
+            "range": "± 1086",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put/10MB",
+            "value": 7479313,
+            "range": "± 50040",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_upload/put_throughput_mb/10MB",
+            "value": 7477019,
+            "range": "± 5318",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1KB",
+            "value": 152,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1KB",
+            "value": 312,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10KB",
+            "value": 154,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10KB",
+            "value": 310,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/100KB",
+            "value": 155,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/100KB",
+            "value": 313,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/1MB",
+            "value": 153,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/1MB",
+            "value": 315,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get/10MB",
+            "value": 155,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_download/get_throughput_mb/10MB",
+            "value": 313,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/10",
+            "value": 87825,
+            "range": "± 744",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/10",
+            "value": 30584,
+            "range": "± 724",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/10",
+            "value": 89440,
+            "range": "± 658",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/50",
+            "value": 238726,
+            "range": "± 8731",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/50",
+            "value": 56086,
+            "range": "± 1342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/50",
+            "value": 246280,
+            "range": "± 13079",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_put/100",
+            "value": 438667,
+            "range": "± 20102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_get/100",
+            "value": 74737,
+            "range": "± 2636",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_concurrent/concurrent_mixed/100",
+            "value": 448955,
+            "range": "± 19887",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/100_entries",
+            "value": 138593,
+            "range": "± 496",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/100_entries",
+            "value": 48246,
+            "range": "± 1526",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/100_entries",
+            "value": 49037,
+            "range": "± 336",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/100_entries",
+            "value": 687,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/1000_entries",
+            "value": 1361611,
+            "range": "± 4643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/1000_entries",
+            "value": 578901,
+            "range": "± 3207",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/1000_entries",
+            "value": 298842,
+            "range": "± 3344",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/1000_entries",
+            "value": 688,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/build_multistatus/10000_entries",
+            "value": 13721937,
+            "range": "± 61131",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_directory/10000_entries",
+            "value": 10078120,
+            "range": "± 279370",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/list_all_depth_1/10000_entries",
+            "value": 3149543,
+            "range": "± 334643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_propfind/head_operation/10000_entries",
+            "value": 667,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/single_file_sync_cycle",
+            "value": 11238,
+            "range": "± 54",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/batch_sync_50_files",
+            "value": 309689,
+            "range": "± 1002",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/rename_and_move",
+            "value": 2434,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/concurrent_sync_10_clients",
+            "value": 256831,
+            "range": "± 4697",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "owncloud_sync_workflow/delete_cascade",
+            "value": 324344,
+            "range": "± 1166",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/1kb",
+            "value": 2122,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/10kb",
+            "value": 8792,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "put/100kb",
+            "value": 75453,
+            "range": "± 5103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "get_10kb",
+            "value": 245,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "list_100_files",
+            "value": 45837,
+            "range": "± 105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "delete",
+            "value": 2791,
+            "range": "± 230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/hit",
+            "value": 233,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exists/miss",
+            "value": 114,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "head",
+            "value": 386,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_simple_path",
+            "value": 21,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "normalize_traversal_path",
+            "value": 190,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_serialize",
+            "value": 2097,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metadata_deserialize",
+            "value": 1437,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ferro_error_not_found",
+            "value": 20,
             "range": "± 0",
             "unit": "ns/iter"
           }
