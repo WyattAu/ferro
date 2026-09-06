@@ -8,8 +8,8 @@ use crate::components::toast::ToastContext;
 use crate::t;
 
 #[component]
-pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl IntoView {
-    let (share_path, set_share_path) = signal(String::new());
+pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>, path: ReadSignal<String>) -> impl IntoView {
+    let share_path = path;
     let (active_tab, set_active_tab) = signal(0u8);
 
     let (share_password, set_share_password) = signal(String::new());
@@ -19,12 +19,6 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
     let (share_creating, set_share_creating) = signal(false);
     let (share_error, set_share_error) = signal(String::new());
     let (share_copied, set_share_copied) = signal(false);
-
-    let (invite_email, set_invite_email) = signal(String::new());
-    let (invite_permission, set_invite_permission) = signal(String::from("view"));
-    let (invite_sending, set_invite_sending) = signal(false);
-    let (invite_error, set_invite_error) = signal(String::new());
-    let (invite_sent, set_invite_sent) = signal(false);
 
     let (shares_list, set_shares_list) = signal(Vec::<api::ShareListItem>::new());
     let (shares_loading, set_shares_loading) = signal(false);
@@ -49,18 +43,13 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
         });
     };
 
-    let open_for = Callback::new(move |path: String| {
-        set_share_path.set(path);
+    let open_for = Callback::new(move |_path: String| {
         set_share_password.set(String::new());
         set_share_expires.set(String::from("168"));
         set_share_download_limit.set(String::new());
         set_share_url.set(String::new());
         set_share_error.set(String::new());
         set_share_copied.set(false);
-        set_invite_email.set(String::new());
-        set_invite_permission.set(String::from("view"));
-        set_invite_error.set(String::new());
-        set_invite_sent.set(false);
         set_active_tab.set(0);
         set_open.set(true);
     });
@@ -68,7 +57,7 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
     provide_context(ShareDialogHandle { open_for });
 
     Effect::new(move |_| {
-        if active_tab.get() == 2 {
+        if active_tab.get() == 1 {
             load_shares();
         }
     });
@@ -110,22 +99,6 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
             set_share_copied.set(true);
             ToastContext::info(t!("toast.link_copied"));
         }
-    };
-
-    let do_invite = move |_: ev::MouseEvent| {
-        let email = invite_email.get();
-        let permission = invite_permission.get();
-        if email.is_empty() {
-            set_invite_error.set("Enter a username or email".to_string());
-            return;
-        }
-        set_invite_sending.set(true);
-        set_invite_error.set(String::new());
-        spawn_local(async move {
-            set_invite_sending.set(false);
-            set_invite_sent.set(true);
-            ToastContext::success(format!("Invite sent to {} with {} permission", email, permission));
-        });
     };
 
     let do_revoke = move |token: String| {
@@ -181,12 +154,6 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                             class=("border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]", move || active_tab.get() != 1)
                             role="tab" aria-selected=move || active_tab.get() == 1
                             on:click=move |_| set_active_tab.set(1)
-                        >{t!("share.tab_invite")}</button>
-                        <button class="px-3 py-2 text-sm font-mono font-bold uppercase border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-h-[44px]"
-                            class=("border-blue-500 text-[var(--accent)]", move || active_tab.get() == 2)
-                            class=("border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]", move || active_tab.get() != 2)
-                            role="tab" aria-selected=move || active_tab.get() == 2
-                            on:click=move |_| set_active_tab.set(2)
                         >{t!("share.tab_list")}</button>
                     </div>
 
@@ -222,34 +189,6 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                         </div>
 
                         <div class:hidden=move || active_tab.get() != 1>
-                            <div class="space-y-4">
-                                {move || (!invite_error.get().is_empty()).then(|| view! {
-                                    <div class="p-2 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">{invite_error}</div>
-                                })}
-                                {move || invite_sent.get().then(|| view! {
-                                    <div class="p-2 bg-[var(--success-subtle)] border-l-4 border-l-[var(--success)] rounded text-sm text-[var(--success)]">"Invite sent successfully"</div>
-                                })}
-                                <div>
-                                    <label for="invite-email" class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("share.invite_email_label")}</label>
-                                    <input id="invite-email" type="text" placeholder=t!("share.invite_email_placeholder")
-                                        class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
-                                        prop:value=invite_email on:input=move |ev| set_invite_email.set(event_target_value(&ev))
-                                    />
-                                </div>
-                                <div>
-                                    <label for="invite-permission" class="block text-xs font-bold uppercase font-mono text-[var(--text-secondary)] mb-1">{t!("share.invite_permission_label")}</label>
-                                    <select id="invite-permission" class="w-full px-3 py-2 border rounded bg-[var(--bg-surface)] font-mono text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] text-sm"
-                                        on:change=move |ev| set_invite_permission.set(event_target_value(&ev))
-                                    >
-                                        <option value="view" selected=move || invite_permission.get() == "view">{t!("share.permission_view")}</option>
-                                        <option value="edit" selected=move || invite_permission.get() == "edit">{t!("share.permission_edit")}</option>
-                                        <option value="admin" selected=move || invite_permission.get() == "admin">{t!("share.permission_admin")}</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class:hidden=move || active_tab.get() != 2>
                             <div class:hidden=move || !shares_loading.get() class="text-center py-4 text-sm text-[var(--text-tertiary)] font-mono">{t!("common.loading")}</div>
                             <div class:hidden=move || shares_error.get().is_empty() class="p-2 bg-[var(--danger-subtle)] border-l-4 border-l-[var(--danger)] rounded text-sm text-[var(--danger)]" role="alert">{shares_error}</div>
                             {move || shares_list.get().is_empty().then(|| view! {
@@ -318,12 +257,7 @@ pub fn ShareDialog(open: ReadSignal<bool>, set_open: WriteSignal<bool>) -> impl 
                                 disabled=share_creating on:click=do_create_share
                             >{move || if share_creating.get() { t!("dialog.share.creating") } else { t!("dialog.share.create_share") }}</button>
                         </div>
-                        <div class:hidden=move || active_tab.get() != 1 || invite_sent.get()>
-                            <button class="px-4 py-2 text-sm bg-[var(--accent)] text-[var(--text-on-accent)] brutal-border rounded-sm font-bold uppercase hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-2 dark:focus:ring-offset-[var(--bg-base)]"
-                                disabled=invite_sending on:click=do_invite
-                            >{t!("share.invite_button")}</button>
-                        </div>
-                    </div>
+               </div>
                 </div>
                 </FocusTrap>
             </div>

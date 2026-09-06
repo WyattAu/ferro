@@ -432,9 +432,14 @@ pub async fn upload_file(path: &str, content: &[u8]) -> Result<(), String> {
     let request =
         web_sys::Request::new_with_str_and_init(path, &opts).map_err(|e| js_err("Request creation failed", &e))?;
 
-    let _ = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
         .await
-        .map_err(|e| js_err("Fetch failed", &e))?;
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
+
+    if !resp.ok() {
+        return Err(format!("Upload failed: HTTP {}", resp.status()));
+    }
 
     Ok(())
 }
@@ -479,9 +484,15 @@ pub async fn create_directory(path: &str) -> Result<(), String> {
     let request =
         web_sys::Request::new_with_str_and_init(path, &opts).map_err(|e| js_err("Request creation failed", &e))?;
 
-    let _ = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
         .await
-        .map_err(|e| js_err("Fetch failed", &e))?;
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
+
+    // MKCOL on an existing collection returns 405 — treat as success (idempotent).
+    if !resp.ok() && resp.status() != 405 {
+        return Err(format!("Create folder failed: HTTP {}", resp.status()));
+    }
 
     Ok(())
 }
@@ -738,6 +749,44 @@ pub async fn create_share(
         path: String::new(),
         expires_at: String::new(),
     })
+}
+
+#[cfg(target_arch = "wasm32")]
+/// Fetch the vCard export payload + suggested filename.
+pub async fn export_contacts() -> Result<(String, String), String> {
+    let opts = make_opts_with_auth("GET");
+    let window = web_sys::window().ok_or("No window")?;
+    let request = web_sys::Request::new_with_str_and_init("/api/contacts/export", &opts)
+        .map_err(|e| js_err("Request creation failed", &e))?;
+
+    let resp: web_sys::Response = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
+        .await
+        .map_err(|e| js_err("Fetch failed", &e))?
+        .into();
+
+    if !resp.ok() {
+        return Err(format!("Export failed: HTTP {}", resp.status()));
+    }
+
+    let disposition = resp.headers().get("content-disposition").unwrap_or_default();
+    let filename = disposition
+        .as_deref()
+        .and_then(|d| d.split("filename=").nth(1))
+        .map(|f| f.trim_matches('"').to_string())
+        .unwrap_or_else(|| "contacts.vcf".to_string());
+
+    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|e| js_err("text()", &e))?)
+        .await
+        .map_err(|e| js_err("Read failed", &e))?
+        .as_string()
+        .unwrap_or_default();
+
+    Ok((text, filename))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn export_contacts() -> Result<(String, String), String> {
+    Ok((String::new(), "contacts.vcf".to_string()))
 }
 
 #[cfg(target_arch = "wasm32")]

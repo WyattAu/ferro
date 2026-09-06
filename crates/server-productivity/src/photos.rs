@@ -51,6 +51,7 @@ pub struct CreateAlbumRequest {
 pub struct PhotosQuery {
     pub start: Option<String>,
     pub end: Option<String>,
+    pub album: Option<String>,
 }
 
 fn photos_dir<S: ProductivityState>(state: &S) -> std::path::PathBuf {
@@ -127,7 +128,7 @@ fn save_albums<S: ProductivityState>(state: &S, albums: &[Album]) -> Result<(), 
     std::fs::write(path, serde_json::to_string_pretty(albums).unwrap_or_default())
 }
 
-pub async fn list_photos_impl<S: HasStorage>(state: &S, params: &PhotosQuery) -> Response {
+async fn collect_photos<S: HasStorage>(state: &S, params: &PhotosQuery) -> Vec<Photo> {
     let storage = state.storage();
 
     let entries = storage.list_all("/", 10000).await.unwrap_or_default();
@@ -159,6 +160,11 @@ pub async fn list_photos_impl<S: HasStorage>(state: &S, params: &PhotosQuery) ->
     }
 
     photos.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+    photos
+}
+
+pub async fn list_photos_impl<S: HasStorage>(state: &S, params: &PhotosQuery) -> Response {
+    let photos = collect_photos(state, params).await;
 
     Json(serde_json::json!({
         "photos": photos,
@@ -171,7 +177,26 @@ pub async fn list_photos<S: ProductivityState>(
     State(state): State<S>,
     Query(params): Query<PhotosQuery>,
 ) -> impl IntoResponse {
-    list_photos_impl(&state, &params).await
+    // Album filter: restrict to photos that are members of the album.
+    // (ProductivityState carries data_dir, needed to resolve album membership.)
+    let member_paths: Option<Vec<String>> = params.album.as_ref().and_then(|album_id| {
+        load_albums(&state)
+            .into_iter()
+            .find(|a| &a.id == album_id)
+            .map(|a| a.photo_paths)
+    });
+
+    let mut photos = collect_photos(&state, &params).await;
+    if let Some(allowed) = member_paths {
+        photos.retain(|p| allowed.iter().any(|mp| mp == &p.path));
+    }
+    let total = photos.len();
+
+    Json(serde_json::json!({
+        "photos": photos,
+        "total": total,
+    }))
+    .into_response()
 }
 
 pub async fn list_albums<S: ProductivityState>(State(state): State<S>) -> impl IntoResponse {

@@ -50,12 +50,15 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     let (current_path, set_current_path) = signal(initial_path);
     let (all_entries, set_all_entries) = signal(vec![]);
     let (display_count, set_display_count) = signal(50usize);
+    let (sort_key, set_sort_key) = signal("name".to_string()); // name | size | date
+    let (sort_dir, set_sort_dir) = signal("asc".to_string()); // asc | desc
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal(None::<String>);
     let (show_new_folder, set_show_new_folder) = signal(false);
     let (show_upload, set_show_upload) = signal(false);
     let (upload_drag, set_upload_drag) = signal(false);
     let (show_share_dialog, set_show_share_dialog) = signal(false);
+    let (share_target, set_share_target) = signal(String::new());
     let (preview_file, set_preview_file) = signal(None::<api::FileEntry>);
     let (active_tab, set_active_tab) = signal(BrowserTab::Files);
     let (favorites, set_favorites) = signal::<Vec<String>>(vec![]);
@@ -177,8 +180,26 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
     });
 
     let display_entries = move || {
-        let entries = all_entries.get();
+        let mut entries = all_entries.get();
         let count = display_count.get();
+        let key: String = sort_key.get();
+        let desc: bool = sort_dir.get() == "desc";
+        // Containers first, then requested key.
+        entries.sort_by(|a: &crate::api::FileEntry, b: &crate::api::FileEntry| {
+            if a.is_collection != b.is_collection {
+                return if b.is_collection {
+                    std::cmp::Ordering::Less
+                } else {
+                    std::cmp::Ordering::Greater
+                };
+            }
+            let ord = match key.as_str() {
+                "size" => a.size.cmp(&b.size),
+                "date" => a.modified_at.cmp(&b.modified_at),
+                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            };
+            if desc { ord.reverse() } else { ord }
+        });
         if entries.len() > count {
             entries[..count].to_vec()
         } else {
@@ -340,10 +361,9 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
         });
     };
 
-    // Share dialog opens via context handle (ShareDialogHandle.open_for)
-    let do_share = move |_path: String| {
+    let do_share = move |path: String| {
+        set_share_target.set(path);
         set_show_share_dialog.set(true);
-        // ShareDialogHandle will be available after component mounts via provide_context
     };
 
     let open_version_history = move |path: String| {
@@ -795,6 +815,10 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
            toggle_activity
            show_smart_collections
            toggle_smart_collections
+           sort_key
+           set_sort_key
+           sort_dir
+           set_sort_dir
        >
           <Breadcrumb current_path=Signal::from(current_path) navigate=Callback::new(navigate) />
       </Toolbar>
@@ -843,6 +867,7 @@ pub fn FileBrowser(initial_path: String) -> impl IntoView {
             <ShareDialog
                 open=show_share_dialog
                 set_open=set_show_share_dialog
+                path=share_target
             />
 
             // Error display

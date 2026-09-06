@@ -216,9 +216,16 @@ pub fn ChatPage() -> impl IntoView {
 
     fetch_rooms();
 
+    // Escape HTML first, then highlight @mentions on the escaped text so
+    // user-supplied content can never inject markup (stored XSS).
     let highlight_mentions = move |content: String| {
+        let escaped = content
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;");
         let mut result = String::new();
-        let mut remaining = content.as_str();
+        let mut remaining = escaped.as_str();
         while let Some(at_pos) = remaining.find('@') {
             let before = &remaining[..at_pos];
             result.push_str(before);

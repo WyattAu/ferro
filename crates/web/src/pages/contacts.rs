@@ -300,7 +300,28 @@ pub fn ContactsPage() -> impl IntoView {
 
     let export_contacts = move |_: ev::MouseEvent| {
         spawn_local(async move {
-            let _ = api::fetch_json("/api/contacts/export").await;
+            match api::export_contacts().await {
+                Ok((vcf, filename)) => {
+                    // Trigger a client-side download of the vCard payload.
+                    if let Some(window) = web_sys::window() {
+                        let doc = window.document().expect("no document");
+                        let parts = js_sys::Array::of1(&wasm_bindgen::JsValue::from_str(&vcf));
+                        let blob = web_sys::Blob::new_with_str_sequence(&parts).expect("blob");
+                        let url = web_sys::Url::create_object_url_with_blob(&blob).expect("object url");
+                        let anchor = doc
+                            .create_element("a")
+                            .expect("anchor")
+                            .unchecked_into::<web_sys::HtmlAnchorElement>();
+                        anchor.set_href(&url);
+                        anchor.set_download(&filename);
+                        anchor.click();
+                        let _ = web_sys::Url::revoke_object_url(&url);
+                    }
+                }
+                Err(e) => {
+                    crate::components::toast::ToastContext::error(format!("Export failed: {}", e));
+                }
+            }
         });
     };
 

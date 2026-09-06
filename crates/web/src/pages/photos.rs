@@ -57,6 +57,7 @@ pub fn PhotosPage() -> impl IntoView {
     let (loading, set_loading) = signal(true);
     let (photos, set_photos) = signal(Vec::<Photo>::new());
     let (albums, set_albums) = signal(Vec::<Album>::new());
+    let (selected_album, set_selected_album) = signal(None::<String>);
     let (view_mode, set_view_mode) = signal(ViewMode::Grid);
     let (selected_photo, set_selected_photo) = signal(None::<Photo>);
     let (show_exif, set_show_exif) = signal(false);
@@ -73,6 +74,9 @@ pub fn PhotosPage() -> impl IntoView {
         spawn_local(async move {
             let mut url = "/api/photos".to_string();
             let mut params = Vec::new();
+            if let Some(album_id) = selected_album.get_untracked() {
+                params.push(format!("album={}", album_id));
+            }
             let start = date_start.get();
             let end = date_end.get();
             if !start.is_empty() {
@@ -322,8 +326,18 @@ pub fn PhotosPage() -> impl IntoView {
                                     let:album
                                 >
                                     {
+                                        let album_id = album.id.clone();
+                                        let album_id_active = album.id.clone();
+                                        let album_paths = album.photo_paths.clone();
                                         view! {
-                                            <div class="px-2 py-1.5 rounded hover:bg-[var(--interactive-hover)] cursor-pointer transition-colors">
+                                            <div
+                                                class="px-2 py-1.5 rounded hover:bg-[var(--interactive-hover)] cursor-pointer transition-colors"
+                                                class=("bg-[var(--accent-subtle)]", move || selected_album.get().as_deref() == Some(album_id_active.as_str()))
+                                                on:click=move |_| {
+                                                    set_selected_album.set(Some(album_id.clone()));
+                                                    fetch_photos();
+                                                }
+                                            >
                                                 <div class="text-sm text-[var(--text-secondary)]">{album.name}</div>
                                                 <div class="text-xs text-[var(--text-tertiary)]">{album.photo_paths.len()}" photos"</div>
                                             </div>

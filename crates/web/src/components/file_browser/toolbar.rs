@@ -25,6 +25,10 @@ pub fn Toolbar(
     toggle_activity: impl FnMut(ev::MouseEvent) + 'static,
     show_smart_collections: ReadSignal<bool>,
     toggle_smart_collections: impl FnMut(ev::MouseEvent) + 'static,
+    sort_key: ReadSignal<String>,
+    set_sort_key: WriteSignal<String>,
+    sort_dir: ReadSignal<String>,
+    set_sort_dir: WriteSignal<String>,
     #[allow(unused)] children: Children,
 ) -> impl IntoView {
     let (show_preset_menu, set_show_preset_menu) = signal(false);
@@ -44,6 +48,9 @@ pub fn Toolbar(
         });
     }
 
+    // Sort control state derived from parent props.
+    let current_sort = move || format!("{}:{}", sort_key.get(), sort_dir.get());
+
     let apply_preset = move |preset: ViewPreset, ev: ev::MouseEvent| {
         ev.stop_propagation();
         let view = preset.to_custom_view();
@@ -62,6 +69,27 @@ pub fn Toolbar(
         <div class="brutal-border border-b px-2 sm:px-6 py-1.5 sm:py-3 surface shadow-concrete sticky top-0 z-20 bg-[var(--bg-surface)]">
            <div class="flex items-center justify-between gap-2">
                <div class="flex items-center gap-2 min-w-0 flex-1">
+                   <div class="flex items-center gap-1 shrink-0">
+                       <label class="text-xs text-[var(--text-tertiary)]" for="fb-sort-key">"Sort"</label>
+                       <select
+                           id="fb-sort-key"
+                           class="text-xs px-2 py-1.5 rounded border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)]"
+                           prop:value=move || sort_key.get()
+                           on:change=move |ev| set_sort_key.set(event_target_value(&ev))
+                       >
+                           <option value="name" selected=move || sort_key.get() == "name">"Name"</option>
+                           <option value="size" selected=move || sort_key.get() == "size">"Size"</option>
+                           <option value="date" selected=move || sort_key.get() == "date">"Date"</option>
+                       </select>
+                       <button
+                           class="text-xs px-2 py-1.5 rounded border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] min-h-[36px]"
+                           aria-label="Toggle sort direction"
+                           title="Toggle sort direction"
+                           on:click=move |_| set_sort_dir.update(|d| *d = if d == "asc" { "desc".to_string() } else { "asc".to_string() })
+                       >
+                           {move || if sort_dir.get() == "asc" { "↑" } else { "↓" }}
+                       </button>
+                   </div>
                    <button
                        class="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-inset)] rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
                         aria-label=t!("breadcrumb.parent")

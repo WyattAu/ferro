@@ -92,7 +92,31 @@ pub fn WhiteboardPage() -> impl IntoView {
     let (pan_start, set_pan_start) = signal(None::<Point>);
     let (show_color_picker, set_show_color_picker) = signal(false);
     let (show_stroke_picker, set_show_stroke_picker) = signal(false);
-    let (whiteboard_name, _set_whiteboard_name) = signal("Untitled Whiteboard".to_string());
+    let (whiteboard_name, set_whiteboard_name) = signal("Untitled Whiteboard".to_string());
+
+    // Stable board id: from route param if present, else a session-persistent
+    // uuid kept in localStorage so reloads resume the same board.
+    let board_id = Memo::new(move |_| {
+        use leptos_router::hooks::use_params_map;
+        let from_route = use_params_map()
+            .with(|p| p.get("id").map(|v| v.to_string()))
+            .unwrap_or_default();
+        if !from_route.is_empty() {
+            return from_route;
+        }
+        web_sys::window()
+            .and_then(|w| w.local_storage().ok().flatten())
+            .and_then(|s| s.get_item("ferro_whiteboard_id").ok().flatten())
+            .unwrap_or_else(|| {
+                let id = uuid::Uuid::new_v4().to_string();
+                if let Some(w) = web_sys::window()
+                    && let Ok(Some(s)) = w.local_storage()
+                {
+                    let _ = s.set_item("ferro_whiteboard_id", &id);
+                }
+                id
+            })
+    });
 
     let canvas_ref: NodeRef<leptos::html::Canvas> = NodeRef::new();
     let container_ref: NodeRef<leptos::html::Div> = NodeRef::new();
@@ -148,11 +172,12 @@ pub fn WhiteboardPage() -> impl IntoView {
         }
     };
 
-    // Save whiteboard to server
+    // Save whiteboard to server (PUT /api/whiteboard/{id})
     let save_to_server = move |_: ev::MouseEvent| {
         let current_elements = elements.get();
         let current_viewport = viewport.get();
         let name = whiteboard_name.get();
+        let board_id = board_id.get_untracked();
 
         spawn_local(async move {
             let elements_data: Vec<serde_json::Value> = current_elements
@@ -160,11 +185,19 @@ pub fn WhiteboardPage() -> impl IntoView {
                 .map(|e| {
                     serde_json::json!({
                         "id": e.id,
-                        "tool": format!("{:?}", e.tool).to_lowercase(),
+                        "element_type": format!("{:?}", e.tool).to_lowercase(),
                         "points": e.points.iter().map(|p| serde_json::json!({"x": p.x, "y": p.y})).collect::<Vec<_>>(),
-                        "color": e.color,
-                        "stroke_width": e.stroke_width,
+                        "style": {
+                            "color": e.color,
+                            "stroke_width": e.stroke_width,
+                            "fill": serde_json::Value::Null,
+                            "opacity": serde_json::Value::Null,
+                        },
                         "text": e.text,
+                        "x": serde_json::Value::Null,
+                        "y": serde_json::Value::Null,
+                        "width": serde_json::Value::Null,
+                        "height": serde_json::Value::Null,
                     })
                 })
                 .collect();
@@ -179,9 +212,36 @@ pub fn WhiteboardPage() -> impl IntoView {
                 },
             });
 
-            // In a real implementation, this would call the API
-            // For now, just log to console
-            web_sys::console::log_1(&format!("Saving whiteboard: {}", body).into());
+            let window = web_sys::window().unwrap();
+            let opts = web_sys::RequestInit::new();
+            opts.set_method("PUT");
+            opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
+            if let Some(h) = web_sys::Headers::new().ok() {
+                let _ = h.set("Content-Type", "application/json");
+                opts.set_headers(&h);
+            }
+            let url = format!("/api/whiteboard/{}", board_id);
+            match web_sys::Request::new_with_str_and_init(&url, &opts) {
+                Ok(req) => match wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&req)).await {
+                    Ok(resp_val) => {
+                        let resp: web_sys::Response = resp_val.into();
+                        if resp.ok() {
+                            crate::components::toast::ToastContext::success("Whiteboard saved".to_string());
+                        } else {
+                            crate::components::toast::ToastContext::error(format!(
+                                "Save failed: HTTP {}",
+                                resp.status()
+                            ));
+                        }
+                    }
+                    Err(e) => {
+                        crate::components::toast::ToastContext::error(format!("Save failed: {:?}", e));
+                    }
+                },
+                Err(e) => {
+                    crate::components::toast::ToastContext::error(format!("Request creation failed: {:?}", e));
+                }
+            }
         });
     };
 
