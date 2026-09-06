@@ -40,7 +40,8 @@ async fn list_events_impl<S: ferro_server_state::ServerState>(
     state: &S,
     query: EventRangeQuery,
 ) -> impl IntoResponse {
-    let calendars = state.calendar_store().list_calendars("default").await;
+    let owner = headers.get("x-ferro-user").and_then(|v| v.to_str().ok()).unwrap_or("default").to_string();
+    let calendars = state.calendar_store().list_calendars(&owner).await;
 
     let start = query.start.as_deref().and_then(|s| {
         chrono::DateTime::parse_from_rfc3339(s)
@@ -88,14 +89,15 @@ async fn create_event_impl<S: ferro_server_state::ServerState>(
     state: &S,
     req: CreateEventRequest,
 ) -> impl IntoResponse {
-    let calendars = state.calendar_store().list_calendars("default").await;
+    let owner = headers.get("x-ferro-user").and_then(|v| v.to_str().ok()).unwrap_or("default").to_string();
+    let calendars = state.calendar_store().list_calendars(&owner).await;
     let calendar_id = if req.calendar_id.is_empty() {
         if let Some(cal) = calendars.first() {
             cal.id.clone()
         } else {
             match state
                 .calendar_store()
-                .create_calendar("default", "Default", "#3b82f6")
+                .create_calendar(&owner, "Default", "#3b82f6")
                 .await
             {
                 Ok(cal) => cal.id,
@@ -150,7 +152,8 @@ async fn update_event_impl<S: ferro_server_state::ServerState>(
     uid: &str,
     req: UpdateEventRequest,
 ) -> impl IntoResponse {
-    let calendars = state.calendar_store().list_calendars("default").await;
+    let owner = headers.get("x-ferro-user").and_then(|v| v.to_str().ok()).unwrap_or("default").to_string();
+    let calendars = state.calendar_store().list_calendars(&owner).await;
 
     for cal in &calendars {
         if state
@@ -203,7 +206,8 @@ pub async fn update_event(
 
 /// Core logic for deleting a calendar event.
 async fn delete_event_impl<S: ferro_server_state::ServerState>(state: &S, uid: &str) -> impl IntoResponse {
-    let calendars = state.calendar_store().list_calendars("default").await;
+    let owner = headers.get("x-ferro-user").and_then(|v| v.to_str().ok()).unwrap_or("default").to_string();
+    let calendars = state.calendar_store().list_calendars(&owner).await;
 
     for cal in &calendars {
         if state
