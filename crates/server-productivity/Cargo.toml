@@ -9,7 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [dependencies]
-common = { package = "ferro-common", path = "../common" }
+common = { package = "ferro-common", path = "../common", features = ["db"] }
 ferro-dav = { path = "../dav" }
 axum = { workspace = true }
 serde = { workspace = true }

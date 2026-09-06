@@ -52,13 +52,19 @@ pub struct NotesQuery {
     pub order: Option<String>,
 }
 
-fn notes_dir(data_dir: Option<&str>) -> std::path::PathBuf {
+fn notes_dir(data_dir: Option<&str>, sub: Option<&str>) -> std::path::PathBuf {
     let base = data_dir.unwrap_or(".ferro");
-    std::path::PathBuf::from(base).join("notes")
+    match sub {
+        Some(s) if !s.is_empty() => std::path::PathBuf::from(base).join("notes").join(s),
+        _ => std::path::PathBuf::from(base).join("notes"),
+    }
 }
 
-fn ensure_notes_dir(data_dir: Option<&str>) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
-    let dir = notes_dir(data_dir);
+fn ensure_notes_dir(
+    data_dir: Option<&str>,
+    sub: Option<&str>,
+) -> Result<std::path::PathBuf, (StatusCode, Json<serde_json::Value>)> {
+    let dir = notes_dir(data_dir, sub);
     std::fs::create_dir_all(&dir).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -154,11 +160,24 @@ fn write_note_to_file(path: &std::path::Path, note: &Note) -> Result<(), std::io
     std::fs::write(path, content)
 }
 
+fn sub_from_headers(headers: &axum::http::HeaderMap) -> Option<String> {
+    headers
+        .get("x-ferro-user")
+        .and_then(|v| v.to_str().ok())
+        .filter(|s| !s.is_empty() && *s != "anonymous")
+        .map(|s| s.to_string())
+}
+
+fn data_dir_of<S: ProductivityState>(state: &S) -> Option<String> {
+    state.data_dir().map(|d| d.to_string())
+}
+
 pub async fn list_notes<S: ProductivityState>(
     State(state): State<S>,
+    headers: axum::http::HeaderMap,
     Query(params): Query<NotesQuery>,
 ) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir()) {
+    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -213,8 +232,12 @@ pub async fn list_notes<S: ProductivityState>(
     .into_response()
 }
 
-pub async fn get_note<S: ProductivityState>(State(state): State<S>, Path(id): Path<String>) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir()) {
+pub async fn get_note<S: ProductivityState>(
+    State(state): State<S>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -232,9 +255,10 @@ pub async fn get_note<S: ProductivityState>(State(state): State<S>, Path(id): Pa
 
 pub async fn create_note<S: ProductivityState>(
     State(state): State<S>,
+    headers: axum::http::HeaderMap,
     Json(req): Json<CreateNoteRequest>,
 ) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir()) {
+    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -265,10 +289,11 @@ pub async fn create_note<S: ProductivityState>(
 
 pub async fn update_note<S: ProductivityState>(
     State(state): State<S>,
+    headers: axum::http::HeaderMap,
     Path(id): Path<String>,
     Json(req): Json<UpdateNoteRequest>,
 ) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir()) {
+    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -306,8 +331,12 @@ pub async fn update_note<S: ProductivityState>(
     Json(serde_json::json!(note)).into_response()
 }
 
-pub async fn delete_note<S: ProductivityState>(State(state): State<S>, Path(id): Path<String>) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir()) {
+pub async fn delete_note<S: ProductivityState>(
+    State(state): State<S>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -333,16 +362,17 @@ pub async fn delete_note<S: ProductivityState>(State(state): State<S>, Path(id):
 
 pub async fn search_notes<S: ProductivityState>(
     State(state): State<S>,
+    headers: axum::http::HeaderMap,
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
     let q = params.get("q").cloned().unwrap_or_default();
     if q.is_empty() {
-        return list_notes(State(state), Query(NotesQuery::default()))
+        return list_notes(State(state), headers, Query(NotesQuery::default()))
             .await
             .into_response();
     }
 
-    let dir = match ensure_notes_dir(state.data_dir()) {
+    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -575,13 +605,13 @@ mod tests {
 
     #[test]
     fn notes_dir_default() {
-        let dir = notes_dir(None);
+        let dir = notes_dir(None, None);
         assert_eq!(dir, std::path::PathBuf::from(".ferro/notes"));
     }
 
     #[test]
     fn notes_dir_custom() {
-        let dir = notes_dir(Some("/tmp/mydata"));
+        let dir = notes_dir(Some("/tmp/mydata"), None);
         assert_eq!(dir, std::path::PathBuf::from("/tmp/mydata/notes"));
     }
 
@@ -589,7 +619,7 @@ mod tests {
     fn ensure_notes_dir_creates_directory() {
         let tmp = TempDir::new().unwrap();
         let base = tmp.path().join("sub");
-        let dir = ensure_notes_dir(Some(base.to_str().unwrap())).unwrap();
+        let dir = ensure_notes_dir(Some(base.to_str().unwrap()), None).unwrap();
         assert!(dir.exists());
         assert_eq!(dir, base.join("notes"));
     }
@@ -599,7 +629,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let base = tmp.path().join("existing");
         std::fs::create_dir_all(&base).unwrap();
-        let dir = ensure_notes_dir(Some(base.to_str().unwrap())).unwrap();
+        let dir = ensure_notes_dir(Some(base.to_str().unwrap()), None).unwrap();
         assert!(dir.exists());
     }
 
@@ -719,7 +749,8 @@ mod tests {
     async fn list_notes_empty_dir() {
         let tmp = TempDir::new().unwrap();
         let state = MockState::new(tmp.path().to_str().unwrap());
-        let resp = list_notes(State(state), Query(NotesQuery::default())).await;
+        let headers = axum::http::HeaderMap::new();
+        let resp = list_notes(State(state), headers, Query(NotesQuery::default())).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["total"], 0);
@@ -735,7 +766,8 @@ mod tests {
         write_raw_note(&notes_dir, "b", "---\ntitle: B\n---\nBody B\n");
 
         let state = MockState::new(tmp.path().to_str().unwrap());
-        let resp = list_notes(State(state), Query(NotesQuery::default())).await;
+        let headers = axum::http::HeaderMap::new();
+        let resp = list_notes(State(state), headers, Query(NotesQuery::default())).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["total"], 2);
@@ -752,6 +784,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let resp = list_notes(
             State(state),
+            axum::http::HeaderMap::new(),
             Query(NotesQuery {
                 folder: Some("work".into()),
                 ..Default::default()
@@ -775,6 +808,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let resp = list_notes(
             State(state),
+            axum::http::HeaderMap::new(),
             Query(NotesQuery {
                 q: Some("rust".into()),
                 ..Default::default()
@@ -796,7 +830,8 @@ mod tests {
         std::fs::write(notes_dir.join("skip.txt"), "not a note").unwrap();
 
         let state = MockState::new(tmp.path().to_str().unwrap());
-        let resp = list_notes(State(state), Query(NotesQuery::default())).await;
+        let headers = axum::http::HeaderMap::new();
+        let resp = list_notes(State(state), headers, Query(NotesQuery::default())).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["total"], 1);
@@ -812,7 +847,7 @@ mod tests {
         write_raw_note(&notes_dir, "myid", "---\ntitle: My\n---\nBody\n");
 
         let state = MockState::new(tmp.path().to_str().unwrap());
-        let resp = get_note(State(state), Path("myid".into())).await;
+        let resp = get_note(State(state), axum::http::HeaderMap::new(), Path("myid".into())).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["id"], "myid");
@@ -824,7 +859,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         std::fs::create_dir_all(tmp.path().join("notes")).unwrap();
         let state = MockState::new(tmp.path().to_str().unwrap());
-        let resp = get_note(State(state), Path("nope".into())).await;
+        let resp = get_note(State(state), axum::http::HeaderMap::new(), Path("nope".into())).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["error"], "Note not found");
@@ -838,6 +873,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let resp = create_note(
             State(state),
+            axum::http::HeaderMap::new(),
             Json(CreateNoteRequest {
                 title: Some("New Note".into()),
                 content: Some("Content".into()),
@@ -861,6 +897,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let resp = create_note(
             State(state),
+            axum::http::HeaderMap::new(),
             Json(CreateNoteRequest {
                 title: None,
                 content: None,
@@ -883,6 +920,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let resp = create_note(
             State(state),
+            axum::http::HeaderMap::new(),
             Json(CreateNoteRequest {
                 title: Some("Title with <html> & \"quotes\"".into()),
                 content: Some("Line1\nLine2".into()),
@@ -909,6 +947,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let resp = update_note(
             State(state),
+            axum::http::HeaderMap::new(),
             Path("upd".into()),
             Json(UpdateNoteRequest {
                 title: Some("New".into()),
@@ -931,6 +970,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let resp = update_note(
             State(state),
+            axum::http::HeaderMap::new(),
             Path("nope".into()),
             Json(UpdateNoteRequest {
                 title: Some("X".into()),
@@ -955,6 +995,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let resp = update_note(
             State(state),
+            axum::http::HeaderMap::new(),
             Path("p".into()),
             Json(UpdateNoteRequest {
                 title: Some("Updated".into()),
@@ -982,7 +1023,7 @@ mod tests {
         write_raw_note(&notes_dir, "del", "---\ntitle: Delete\n---\n");
 
         let state = MockState::new(tmp.path().to_str().unwrap());
-        let resp = delete_note(State(state), Path("del".into())).await;
+        let resp = delete_note(State(state), axum::http::HeaderMap::new(), Path("del".into())).await;
         let status = resp.into_response().status();
         assert_eq!(status, StatusCode::NO_CONTENT);
         assert!(!notes_dir.join("del.md").exists());
@@ -993,7 +1034,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         std::fs::create_dir_all(tmp.path().join("notes")).unwrap();
         let state = MockState::new(tmp.path().to_str().unwrap());
-        let resp = delete_note(State(state), Path("nope".into())).await;
+        let resp = delete_note(State(state), axum::http::HeaderMap::new(), Path("nope".into())).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["error"], "Note not found");
@@ -1012,7 +1053,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let mut params = HashMap::new();
         params.insert("q".into(), "rust".into());
-        let resp = search_notes(State(state), Query(params)).await;
+        let resp = search_notes(State(state), axum::http::HeaderMap::new(), Query(params)).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["total"], 1);
@@ -1030,7 +1071,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let mut params = HashMap::new();
         params.insert("q".into(), "axum".into());
-        let resp = search_notes(State(state), Query(params)).await;
+        let resp = search_notes(State(state), axum::http::HeaderMap::new(), Query(params)).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["total"], 1);
@@ -1046,7 +1087,7 @@ mod tests {
 
         let state = MockState::new(tmp.path().to_str().unwrap());
         let params = HashMap::new();
-        let resp = search_notes(State(state), Query(params)).await;
+        let resp = search_notes(State(state), axum::http::HeaderMap::new(), Query(params)).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["total"], 1);
@@ -1062,7 +1103,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let mut params = HashMap::new();
         params.insert("q".into(), "RUST".into());
-        let resp = search_notes(State(state), Query(params)).await;
+        let resp = search_notes(State(state), axum::http::HeaderMap::new(), Query(params)).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["total"], 1);
@@ -1078,7 +1119,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let mut params = HashMap::new();
         params.insert("q".into(), "nonexistent".into());
-        let resp = search_notes(State(state), Query(params)).await;
+        let resp = search_notes(State(state), axum::http::HeaderMap::new(), Query(params)).await;
         let body = response_body(resp).await;
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["total"], 0);
@@ -1097,6 +1138,7 @@ mod tests {
         let state = MockState::new(tmp.path().to_str().unwrap());
         let resp = list_notes(
             State(state),
+            axum::http::HeaderMap::new(),
             Query(NotesQuery {
                 sort: Some("title".into()),
                 order: Some("asc".into()),
