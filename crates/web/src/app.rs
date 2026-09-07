@@ -116,7 +116,9 @@ pub fn App() -> impl IntoView {
                 <Router>
                     <Routes fallback=|| t!("common.not_found")>
                         <Route path=path!("/") view=RootView />
+                        <Route path=path!("/ui") view=RootView />
                         <Route path=path!("/ui/") view=RootView />
+                        <Route path=path!("/ui/files") view=RootView />
                         <Route path=path!("/ui/dashboard") view=DashboardPage />
                         <Route path=path!("/ui/files/") view=RootView />
                         <Route path=path!("/ui/files/*path") view=FileViewRoute />
