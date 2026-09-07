@@ -7,6 +7,16 @@ use serde::{Deserialize, Serialize};
 use crate::AppState;
 use ferro_server_state::ServerState;
 
+fn caller_principal(headers: &axum::http::HeaderMap) -> String {
+    headers
+        .get("x-ferro-user")
+        .and_then(|v| v.to_str().ok())
+        .filter(|s| !s.is_empty() && *s != "anonymous")
+        .unwrap_or("default")
+        .to_string()
+}
+
+
 #[derive(Debug, Serialize)]
 pub struct ContactResponse {
     pub uid: String,
@@ -30,7 +40,7 @@ pub struct UpdateContactRequest {
 
 /// Core logic for listing contacts.
 async fn list_contacts_impl<S: ferro_server_state::ServerState>(state: &S) -> impl IntoResponse {
-    let books = state.address_book_store().list_address_books("default").await;
+    let books = state.address_book_store().list_address_books(&caller_principal(&headers)).await;
     let mut all_contacts = Vec::new();
 
     for book in &books {
@@ -62,14 +72,14 @@ async fn create_contact_impl<S: ferro_server_state::ServerState>(
     state: &S,
     req: CreateContactRequest,
 ) -> impl IntoResponse {
-    let books = state.address_book_store().list_address_books("default").await;
+    let books = state.address_book_store().list_address_books(&caller_principal(&headers)).await;
     let book_id = if req.address_book_id.is_empty() {
         if let Some(book) = books.first() {
             book.id.clone()
         } else {
             match state
                 .address_book_store()
-                .create_address_book("default", "Contacts")
+                .create_address_book(&caller_principal(&headers), "Contacts")
                 .await
             {
                 Ok(book) => book.id,
@@ -113,6 +123,7 @@ async fn create_contact_impl<S: ferro_server_state::ServerState>(
 
 pub async fn create_contact(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(req): Json<CreateContactRequest>,
 ) -> impl IntoResponse {
     create_contact_impl(&state, req).await
@@ -124,7 +135,7 @@ async fn update_contact_impl<S: ferro_server_state::ServerState>(
     uid: &str,
     req: UpdateContactRequest,
 ) -> impl IntoResponse {
-    let books = state.address_book_store().list_address_books("default").await;
+    let books = state.address_book_store().list_address_books(&caller_principal(&headers)).await;
 
     for book in &books {
         if state
@@ -169,6 +180,7 @@ async fn update_contact_impl<S: ferro_server_state::ServerState>(
 
 pub async fn update_contact(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Path(uid): Path<String>,
     Json(req): Json<UpdateContactRequest>,
 ) -> impl IntoResponse {
@@ -177,7 +189,7 @@ pub async fn update_contact(
 
 /// Core logic for deleting a contact.
 async fn delete_contact_impl<S: ferro_server_state::ServerState>(state: &S, uid: &str) -> impl IntoResponse {
-    let books = state.address_book_store().list_address_books("default").await;
+    let books = state.address_book_store().list_address_books(&caller_principal(&headers)).await;
 
     for book in &books {
         if state
@@ -212,6 +224,7 @@ async fn delete_contact_impl<S: ferro_server_state::ServerState>(state: &S, uid:
 
 pub async fn delete_contact(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Path(uid): Path<String>,
 ) -> impl IntoResponse {
     delete_contact_impl(&state, &uid).await
@@ -219,7 +232,7 @@ pub async fn delete_contact(
 
 /// Core logic for exporting contacts.
 async fn export_contacts_impl<S: ferro_server_state::ServerState>(state: &S) -> impl IntoResponse {
-    let books = state.address_book_store().list_address_books("default").await;
+    let books = state.address_book_store().list_address_books(&caller_principal(&headers)).await;
     let mut vcard_data = String::from("BEGIN:VCARD\r\nVERSION:3.0\r\n");
 
     for book in &books {
@@ -257,13 +270,13 @@ pub async fn export_contacts(State(state): State<AppState>) -> impl IntoResponse
 
 /// Core logic for importing contacts.
 async fn import_contacts_impl<S: ferro_server_state::ServerState>(state: &S, body: String) -> impl IntoResponse {
-    let books = state.address_book_store().list_address_books("default").await;
+    let books = state.address_book_store().list_address_books(&caller_principal(&headers)).await;
     let book_id = if let Some(book) = books.first() {
         book.id.clone()
     } else {
         match state
             .address_book_store()
-            .create_address_book("default", "Contacts")
+            .create_address_book(&caller_principal(&headers), "Contacts")
             .await
         {
             Ok(book) => book.id,
