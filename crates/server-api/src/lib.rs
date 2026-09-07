@@ -85,7 +85,7 @@ pub async fn auth_login_impl<S: ferro_server_state::ServerState>(state: &S, para
 
     let config = oidc.config();
     let redirect_uri = params.redirect.unwrap_or_else(|| "/ui/".to_string());
-    let callback_url = format!("{}/api/auth/callback?redirect={}", state.external_url(), redirect_uri);
+    let callback_url = format!("{}/ui/auth/callback?redirect={}", state.external_url(), redirect_uri);
 
     let code_verifier = generate_code_verifier();
     let code_challenge = generate_code_challenge(&code_verifier);
