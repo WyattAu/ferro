@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 #[cfg(unix)]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-#[cfg(unix)]
-use tokio::net::UnixStream;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClamavConfig {
@@ -57,13 +55,18 @@ pub async fn scan_file(
 
     let scan_start = std::time::Instant::now();
 
-    let stream = tokio::time::timeout(
+    let stream = uds_kit::connect(
+        &config.socket_path,
         std::time::Duration::from_millis(config.timeout_ms),
-        UnixStream::connect(&config.socket_path),
     )
     .await
-    .map_err(|_| format!("Timeout connecting to ClamAV daemon at {}", config.socket_path))?
-    .map_err(|e| format!("Failed to connect to ClamAV daemon: {e}"))?;
+    .map_err(|e| match e {
+        uds_kit::UdsError::ConnectTimeout { path } => {
+            format!("Timeout connecting to ClamAV daemon at {}", path.display())
+        }
+        uds_kit::UdsError::Io(io) => format!("Failed to connect to ClamAV daemon: {io}"),
+        other => format!("Failed to connect to ClamAV daemon: {other}"),
+    })?;
 
     let (mut reader, mut writer) = stream.into_split();
 
