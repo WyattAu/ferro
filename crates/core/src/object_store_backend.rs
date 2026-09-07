@@ -61,7 +61,12 @@ impl ObjectStoreStorageEngine {
     }
 
     fn to_virtual_path(&self, obj_path: &object_store::path::Path) -> String {
-        let full = obj_path.as_ref();
+        // object_store percent-encodes paths internally (non-ASCII → %XX).
+        // Decode back to the real filename so metadata and PROPFIND hrefs
+        // contain human-readable paths.
+        let full = percent_encoding::percent_decode_str(obj_path.as_ref())
+            .decode_utf8_lossy()
+            .to_string();
         if self.prefix.is_empty() {
             format!("/{full}")
         } else {
