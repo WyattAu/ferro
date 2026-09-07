@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// SHA-256 content hash stored as 64 hex characters.
-#[repr(align(64))]
+///
+/// Deliberately not cache-line aligned: this is a heap handle (a fat `String`
+/// struct), so aligning it cannot prevent false sharing of the bytes it
+/// points to — it only bloats the handle from 24 to 64 bytes in arrays.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ContentHash(String);
 
@@ -76,7 +79,6 @@ impl ContentHash {
 }
 
 /// Metadata for a file or collection (directory) in the virtual filesystem.
-#[repr(align(64))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileMetadata {
     /// Virtual filesystem path of the file or collection.
