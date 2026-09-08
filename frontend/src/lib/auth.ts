@@ -1,7 +1,8 @@
-import { api, clearToken, storeToken } from "./api";
+import { api, clearTokens, storeTokens, storeLogoutUrl, getLogoutUrl, scheduleRefresh } from "./api";
 
-export async function login(redirect = window.location.pathname) {
-  window.location.href = `/api/auth/login?redirect=${encodeURIComponent(redirect)}`;
+export async function login(redirect = window.location.pathname + window.location.search) {
+  const url = await api.loginUrl(redirect);
+  window.location.href = url;
 }
 
 export async function handleOAuthCallback(): Promise<{ ok: boolean; error?: string }> {
@@ -11,7 +12,9 @@ export async function handleOAuthCallback(): Promise<{ ok: boolean; error?: stri
   if (!code || !state) return { ok: false, error: "Missing code or state" };
   try {
     const resp = await api.callback(code, state);
-    storeToken(resp.access_token);
+    storeTokens(resp.access_token, resp.refresh_token, resp.expires_in);
+    storeLogoutUrl(resp.logout_url);
+    scheduleRefresh();
     const target = resp.redirect && resp.redirect !== "/" ? resp.redirect : "/ui/files/";
     window.location.href = target;
     return { ok: true };
@@ -21,7 +24,8 @@ export async function handleOAuthCallback(): Promise<{ ok: boolean; error?: stri
 }
 
 export function logout(logoutUrl?: string | null) {
-  clearToken();
-  if (logoutUrl) { window.location.href = logoutUrl; return; }
+  const url = logoutUrl ?? getLogoutUrl();
+  clearTokens();
+  if (url) { window.location.href = url; return; }
   window.location.href = "/api/auth/login?redirect=%2Fui%2Ffiles%2F";
 }

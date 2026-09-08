@@ -1,8 +1,10 @@
 import { createSignal, createResource, Show, For, onMount } from "solid-js";
 import { Router, Route, useLocation, useNavigate } from "@solidjs/router";
 import FileBrowser from "./FileBrowser";
+import TrashPage from "./Trash";
 import Callback from "./Callback";
-import { api, getToken, type AuthInfo } from "../lib/api";
+import { SharesList } from "./ShareDialog";
+import { api, getToken, getExpiresAt, scheduleRefresh, type AuthInfo } from "../lib/api";
 import { login, logout } from "../lib/auth";
 
 function Shell(props: { children?: import("solid-js").JSX.Element }) {
@@ -34,6 +36,14 @@ function Files() {
   return <Shell><FileBrowser /></Shell>;
 }
 
+function TrashRoute() {
+  return <Shell><TrashPage /></Shell>;
+}
+
+function SharesRoute() {
+  return <Shell><SharesList /></Shell>;
+}
+
 function Tasks() {
   const [data] = createResource(async () => { try { return await api.listTasks(); } catch { return null; } });
   return (
@@ -52,6 +62,7 @@ function Guard(props: { children?: import("solid-js").JSX.Element }) {
   const [ready, setReady] = createSignal(false);
   onMount(async () => {
     if (!getToken()) { await login(); return; }
+    if (getExpiresAt()) scheduleRefresh();
     setReady(true);
   });
   return (
@@ -77,6 +88,8 @@ export default function App() {
         <Route path="/ui/files" component={Files} />
         <Route path="/ui/files/*rest" component={Files} />
         <Route path="/ui/tasks" component={Tasks} />
+        <Route path="/ui/trash" component={TrashRoute} />
+        <Route path="/ui/shares" component={SharesRoute} />
         <Route path="*" component={NotFound} />
       </Route>
     </Router>
