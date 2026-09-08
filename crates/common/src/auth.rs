@@ -24,6 +24,10 @@ pub fn is_public_auth_path(path: &str) -> bool {
         // RFC 6764 service discovery: unauthenticated redirects to /dav/cal/ and /dav/card/
         || path == "/.well-known/caldav"
         || path == "/.well-known/carddav"
+        // WOPI: Collabora calls carry the HMAC WOPI access token, not a
+        // Bearer; /hosting/discovery is a public capability document.
+        || path.starts_with("/api/wopi/")
+        || path == "/hosting/discovery"
 }
 
 /// JWT claims extracted from an OIDC/Basic auth token.

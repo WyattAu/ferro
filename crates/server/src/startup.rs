@@ -329,16 +329,40 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
                     info!("Search engine enabled at {:?}", search_path);
                     state.with_search(engine)
                 }
-                Err(_) => match ferro_core::search::SearchEngine::new(search_path) {
-                    Ok(engine) => {
-                        info!("Search engine created at {:?}", search_path);
-                        state.with_search(engine)
+                Err(open_err) => {
+                    // open() fails on corrupt/schema-mismatched indexes; the
+                    // previous fallback (create_in_dir over an existing dir)
+                    // ALWAYS failed with "Index already exists", leaving
+                    // search permanently down. The index is rebuildable from
+                    // storage, so wipe and recreate instead.
+                    tracing::warn!(
+                        "Search index open failed ({}); wiping {:?} and recreating",
+                        open_err,
+                        search_path
+                    );
+                    match std::fs::remove_dir_all(search_path)
+                        .and_then(|()| std::fs::create_dir_all(search_path))
+                    {
+                        Ok(()) => match ferro_core::search::SearchEngine::new(search_path) {
+                            Ok(engine) => {
+                                info!("Search engine recreated at {:?}", search_path);
+                                state.with_search(engine)
+                            }
+                            Err(e) => {
+                                tracing::warn!("Search engine unavailable: {}", e);
+                                state
+                            }
+                        },
+                        Err(e) => {
+                            tracing::warn!(
+                                "Search engine unavailable: could not reset {:?}: {}",
+                                search_path,
+                                e
+                            );
+                            state
+                        }
                     }
-                    Err(e) => {
-                        tracing::warn!("Search engine unavailable: {}", e);
-                        state
-                    }
-                },
+                }
             }
         }
     };

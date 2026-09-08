@@ -1,0 +1,155 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.wyattau.ferro"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:4:5-67
+11-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:4:22-64
+12    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+12-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:5:5-79
+12-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:5:22-76
+13    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+13-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:6:5-80
+13-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:6:22-77
+14    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+14-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:7:5-81
+14-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:7:22-78
+15    <uses-permission android:name="android.permission.CAMERA" />
+15-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:8:5-65
+15-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:8:22-62
+16    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+16-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:9:5-76
+16-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:9:22-73
+17    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+17-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:10:5-76
+17-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:10:22-73
+18
+19    <permission
+19-->[androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:22:5-24:47
+20        android:name="com.wyattau.ferro.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+20-->[androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:23:9-81
+21        android:protectionLevel="signature" />
+21-->[androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:24:9-44
+22
+23    <uses-permission android:name="com.wyattau.ferro.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+23-->[androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:26:5-97
+23-->[androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:26:22-94
+24
+25    <application
+25-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:12:5-33:19
+26        android:allowBackup="true"
+26-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:13:9-35
+27        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+27-->[androidx.core:core:1.16.0] /home/wyatt/.gradle/caches/8.14.3/transforms/5f43265304555b79ee8d505dea1b088e/transformed/core-1.16.0/AndroidManifest.xml:28:18-86
+28        android:debuggable="true"
+29        android:extractNativeLibs="false"
+30        android:icon="@mipmap/ic_launcher"
+30-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:14:9-43
+31        android:label="Ferro"
+31-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:15:9-30
+32        android:networkSecurityConfig="@xml/network_security_config"
+32-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:19:9-69
+33        android:supportsRtl="true"
+33-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:16:9-35
+34        android:theme="@style/Theme.Ferro"
+34-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:17:9-43
+35        android:usesCleartextTraffic="true" >
+35-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:18:9-44
+36        <activity
+36-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:21:9-31:20
+37            android:name="com.wyattau.ferro.MainActivity"
+37-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:22:13-41
+38            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"
+38-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:23:13-106
+39            android:exported="true"
+39-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:24:13-36
+40            android:launchMode="singleTask"
+40-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:25:13-44
+41            android:windowSoftInputMode="adjustResize" >
+41-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:26:13-55
+42            <intent-filter>
+42-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:27:13-30:29
+43                <action android:name="android.intent.action.MAIN" />
+43-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:28:17-69
+43-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:28:25-66
+44
+45                <category android:name="android.intent.category.LAUNCHER" />
+45-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:29:17-77
+45-->/home/wyatt/dev/src/github.com/WyattAu/ferro/crates/mobile/android-standalone/app/src/main/AndroidManifest.xml:29:27-74
+46            </intent-filter>
+47        </activity>
+48
+49        <provider
+49-->[androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+50            android:name="androidx.startup.InitializationProvider"
+50-->[androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+51            android:authorities="com.wyattau.ferro.androidx-startup"
+51-->[androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+52            android:exported="false" >
+52-->[androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+53            <meta-data
+53-->[androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+54                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+54-->[androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+55                android:value="androidx.startup" />
+55-->[androidx.emoji2:emoji2:1.3.0] /home/wyatt/.gradle/caches/8.14.3/transforms/78eeb3440f88cd2280b817f0ff1b5cb1/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+56            <meta-data
+56-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:29:13-31:52
+57                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+57-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:30:17-78
+58                android:value="androidx.startup" />
+58-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/wyatt/.gradle/caches/8.14.3/transforms/8d9f28ec009060e5e68a50781a5cc86c/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:31:17-49
+59            <meta-data
+59-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+60                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+60-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+61                android:value="androidx.startup" />
+61-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+62        </provider>
+63
+64        <receiver
+64-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+65            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+65-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+66            android:directBootAware="false"
+66-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+67            android:enabled="true"
+67-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+68            android:exported="true"
+68-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+69            android:permission="android.permission.DUMP" >
+69-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+70            <intent-filter>
+70-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+71                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+71-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+71-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+72            </intent-filter>
+73            <intent-filter>
+73-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+74                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+74-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+74-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+75            </intent-filter>
+76            <intent-filter>
+76-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+77                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+77-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+77-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+78            </intent-filter>
+79            <intent-filter>
+79-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+80                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+80-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+80-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/wyatt/.gradle/caches/8.14.3/transforms/84ab4c766ad5484a6cf25205ed76fcb7/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+81            </intent-filter>
+82        </receiver>
+83    </application>
+84
+85</manifest>

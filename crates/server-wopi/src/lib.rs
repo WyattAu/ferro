@@ -176,6 +176,7 @@ pub fn routes<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
     axum::Router::new()
         .route("/files/*path", axum::routing::get(wopi_get).post(wopi_post))
         .route("/files/{path}/token", axum::routing::post(wopi_issue_token))
+        .route("/office-discovery", axum::routing::get(wopi_office_discovery_proxy))
 }
 
 pub fn discovery_route<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
@@ -230,6 +231,81 @@ pub async fn wopi_discovery(Extension(state): Extension<WopiState>) -> Response 
         axum::http::HeaderValue::from_static("application/xml; charset=utf-8"),
     );
     (StatusCode::OK, headers, discovery_xml).into_response()
+}
+
+/// Relay the office suite's real WOPI discovery document to the frontend.
+///
+/// The browser cannot fetch `https://collabora.../hosting/discovery` itself
+/// (no CORS headers), and our static mirror lacks the versioned
+/// `browser/<id>/cool.html` urlsrc templates the editor iframe needs. This
+/// passthrough is authenticated (sits behind the Bearer auth layer) and
+/// simply relays the XML.
+pub async fn wopi_office_discovery_proxy(Extension(state): Extension<WopiState>) -> Response {
+    if state.wopi_office_url.is_empty() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            axum::Json(serde_json::json!({
+                "error": "WOPI not configured",
+                "error_code": "NOT_CONFIGURED",
+                "message": "Set FERRO_WOPI_OFFICE_URL to enable office editing."
+            })),
+        )
+            .into_response();
+    }
+
+    let discovery_url = format!(
+        "{}/hosting/discovery",
+        state.wopi_office_url.trim_end_matches('/')
+    );
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            return wopi_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "HTTP_CLIENT_ERROR",
+                &format!("Failed to build HTTP client: {e}"),
+            );
+        }
+    };
+    match client.get(&discovery_url).send().await {
+        Ok(resp) => {
+            let status = StatusCode::from_u16(resp.status().as_u16())
+                .unwrap_or(StatusCode::BAD_GATEWAY);
+            let content_type = resp
+                .headers()
+                .get("content-type")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("text/xml")
+                .to_string();
+            match resp.bytes().await {
+                Ok(body) => {
+                    let mut headers = axum::http::HeaderMap::new();
+                    if let Ok(v) = axum::http::HeaderValue::from_str(&content_type) {
+                        headers.insert("Content-Type", v);
+                    }
+                    // Cache for an hour — discovery only changes on office upgrades.
+                    headers.insert(
+                        "Cache-Control",
+                        axum::http::HeaderValue::from_static("public, max-age=3600"),
+                    );
+                    (status, headers, body).into_response()
+                }
+                Err(e) => wopi_error(
+                    StatusCode::BAD_GATEWAY,
+                    "DISCOVERY_READ_ERROR",
+                    &format!("Office discovery read failed: {e}"),
+                ),
+            }
+        }
+        Err(e) => wopi_error(
+            StatusCode::BAD_GATEWAY,
+            "OFFICE_UNREACHABLE",
+            &format!("Office server unreachable at {discovery_url}: {e}"),
+        ),
+    }
 }
 
 pub async fn wopi_get(

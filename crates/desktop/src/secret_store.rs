@@ -30,12 +30,47 @@ pub fn secrets_path() -> PathBuf {
         .join("secrets.json")
 }
 
+const KEYCHAIN_SERVICE: &str = "ferro-desktop";
+const KEYCHAIN_USER: &str = "ferro";
+
+fn load_keychain() -> Option<Secrets> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_USER).ok()?;
+    let raw = entry.get_password().ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+fn save_keychain(secrets: &Secrets) -> Result<(), String> {
+    let entry =
+        keyring::Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_USER).map_err(|e| e.to_string())?;
+    let raw = serde_json::to_string(secrets).map_err(|e| e.to_string())?;
+    entry.set_password(&raw).map_err(|e| e.to_string())
+}
+
 pub fn load_secrets() -> Secrets {
+    // OS keychain first (macOS Keychain, Windows Credential Manager,
+    // Linux Secret Service); owner-only file as fallback for headless
+    // hosts without a keyring daemon.
+    if let Some(secrets) = load_keychain() {
+        if !secrets.is_empty() {
+            return secrets;
+        }
+    }
+    load_file()
+}
+
+fn load_file() -> Secrets {
     let data = std::fs::read_to_string(secrets_path()).unwrap_or_default();
     serde_json::from_str(&data).unwrap_or_default()
 }
 
 pub fn save_secrets(secrets: &Secrets) -> Result<(), String> {
+    // Best effort: keychain primary, file fallback (kept in sync so
+    // headless hosts without a keyring daemon keep working).
+    let _ = save_keychain(secrets);
+    save_file(secrets)
+}
+
+fn save_file(secrets: &Secrets) -> Result<(), String> {
     let path = secrets_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
