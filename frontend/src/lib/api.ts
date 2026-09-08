@@ -186,7 +186,27 @@ export const api = {
   downloadUrl,
   fetchText: (path: string) => fetch(davUrl(path), { headers: authHeaders() }).then((r) => r.ok ? r.text() : Promise.reject(new ApiError(r.status, "Fetch failed"))),
   fetchBlob: (path: string) => fetch(davUrl(path), { headers: authHeaders() }).then((r) => r.ok ? r.blob() : Promise.reject(new ApiError(r.status, "Fetch failed"))),
-  listTasks: () => request<{ tasks: unknown[]; total: number }>("GET", "/api/tasks"),
+  listTasks: () => request<{ tasks: Task[]; total: number }>("GET", "/api/tasks"),
+  createTaskRaw: (body: Partial<Task>) => request<Task>("POST", "/api/tasks", JSON.stringify(body), { "Content-Type": "application/json" }),
+  patchTaskStatus: (id: string, status: string) => request<Task>("PATCH", `/api/tasks/${id}/status`, JSON.stringify({ status }), { "Content-Type": "application/json" }),
+  deleteTask: (id: string) => request<void>("DELETE", `/api/tasks/${id}`),
+
+  listNotes: () => request<{ notes: Note[]; total: number }>("GET", "/api/notes"),
+  createNote: (body: { title: string; content?: string; folder?: string; tags?: string }) =>
+    request<Note>("POST", "/api/notes", JSON.stringify(body), { "Content-Type": "application/json" }),
+  updateNote: (id: string, body: { title?: string; content?: string }) =>
+    request<Note>("PUT", `/api/notes/${id}`, JSON.stringify(body), { "Content-Type": "application/json" }),
+  deleteNote: (id: string) => request<void>("DELETE", `/api/notes/${id}`),
+
+  listContacts: () => request<{ contacts: Contact[] }> ("GET", "/api/contacts"),
+  createContact: (body: { address_book_id: string; vcard_data: string }) =>
+    request<Contact>("POST", "/api/contacts", JSON.stringify(body), { "Content-Type": "application/json" }),
+  deleteContact: (uid: string) => request<void>("DELETE", `/api/contacts/${uid}`),
+
+  listEvents: () => request<{ events: CalEvent[] }>("GET", "/api/calendar/events"),
+  createEvent: (body: { calendar_id: string; ical_data: string }) =>
+    request<CalEvent>("POST", "/api/calendar/events", JSON.stringify(body), { "Content-Type": "application/json" }),
+  deleteEvent: (uid: string) => request<void>("DELETE", `/api/calendar/events/${uid}`),
 
   // Trash
   listTrash: () => request<{ entries: TrashedEntry[] }>("GET", "/api/trash"),
@@ -221,6 +241,23 @@ function encodePath(p: string): string {
   return p.split("/").map(encodeURIComponent).join("/");
 }
 
+export interface Contact {
+  uid: string; address_book_id: string; vcard_data: string; etag: string;
+  created_at: string; updated_at: string;
+}
+export interface CalEvent {
+  uid: string; calendar_id: string; ical_data: string; etag: string;
+  created_at: string; updated_at: string;
+}
+export interface Note {
+  id: string; title: string; content: string; folder: string; tags: string;
+  created_at: string; updated_at: string;
+}
+export interface Task {
+  id: string; title: string; description: string; status: string;
+  assignee: string; due_date: string | null; priority: string; tags: string;
+  created_at: string; updated_at: string;
+}
 export interface TrashedEntry { original_path: string; deleted_at: string; size: number; mime_type: string; }
 export interface ShareLink {
   token: string; path: string; password: string | null;

@@ -4,6 +4,10 @@ import FileBrowser from "./FileBrowser";
 import TrashPage from "./Trash";
 import Callback from "./Callback";
 import { SharesList } from "./ShareDialog";
+import TasksPage from "./Tasks";
+import NotesPage from "./Notes";
+import ContactsPage from "./Contacts";
+import CalendarPage from "./Calendar";
 import { api, getToken, getExpiresAt, scheduleRefresh, type AuthInfo } from "../lib/api";
 import { login, logout } from "../lib/auth";
 
@@ -17,7 +21,10 @@ function Shell(props: { children?: import("solid-js").JSX.Element }) {
         </a>
         <nav class="flex items-center gap-5 text-sm">
           <a href="/ui/files/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Files</a>
-          <a href="/ui/tasks/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Tasks</a>
+          <a href="/ui/calendar/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Calendar</a>
+              <a href="/ui/contacts/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Contacts</a>
+              <a href="/ui/notes/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Notes</a>
+              <a href="/ui/tasks/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Tasks</a>
           <Show when={me()}>
             {(m) => <span class="text-xs text-[var(--text-tertiary)] max-w-40 truncate">{m().name ?? m().email ?? m().sub.slice(0, 8)}</span>}
           </Show>
@@ -36,26 +43,28 @@ function Files() {
   return <Shell><FileBrowser /></Shell>;
 }
 
+function ContactsRoute() {
+  return <Shell><ContactsPage /></Shell>;
+}
+
+function CalendarRoute() {
+  return <Shell><CalendarPage /></Shell>;
+}
+
+function NotesRoute() {
+  return <Shell><NotesPage /></Shell>;
+}
+
+function TasksRoute() {
+  return <Shell><TasksPage /></Shell>;
+}
+
 function TrashRoute() {
   return <Shell><TrashPage /></Shell>;
 }
 
 function SharesRoute() {
   return <Shell><SharesList /></Shell>;
-}
-
-function Tasks() {
-  const [data] = createResource(async () => { try { return await api.listTasks(); } catch { return null; } });
-  return (
-    <Shell>
-      <div class="p-6 max-w-3xl mx-auto">
-        <h1 class="text-xl font-semibold mb-4">Tasks</h1>
-        <Show when={data()} fallback={<p class="text-[var(--text-secondary)]">Loading…</p>}>
-          <p class="text-sm text-[var(--text-secondary)]">{data()!.total} tasks</p>
-        </Show>
-      </div>
-    </Shell>
-  );
 }
 
 function Guard(props: { children?: import("solid-js").JSX.Element }) {
@@ -87,7 +96,10 @@ export default function App() {
       <Route path="/" component={Guard}>
         <Route path="/ui/files" component={Files} />
         <Route path="/ui/files/*rest" component={Files} />
-        <Route path="/ui/tasks" component={Tasks} />
+        <Route path="/ui/tasks" component={TasksRoute} />
+        <Route path="/ui/notes" component={NotesRoute} />
+        <Route path="/ui/contacts" component={ContactsRoute} />
+        <Route path="/ui/calendar" component={CalendarRoute} />
         <Route path="/ui/trash" component={TrashRoute} />
         <Route path="/ui/shares" component={SharesRoute} />
         <Route path="*" component={NotFound} />
