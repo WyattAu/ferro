@@ -209,7 +209,9 @@ export const api = {
   deleteEvent: (uid: string) => request<void>("DELETE", `/api/calendar/events/${uid}`),
 
   listPhotos: () => request<{ photos: Photo[] }>("GET", "/api/photos"),
-  thumbUrl: (path: string) => `/api/photos/thumbnail/${encodeURIComponent(path.replace(/^\/users\//, ""))}`,
+  // Photo paths from /api/photos are decoded virtual paths; encode the
+  // whole thing into the single :path segment (slashes ride as %2F).
+  thumbUrl: (path: string) => `/api/photos/thumbnail/${encodeURIComponent(path)}`,
   downloadUrlForPhoto: (path: string) => path.startsWith("/users/") ? downloadUrl(path) : `/users/${path}`,
 
   listBoards: () => request<{ whiteboards: Board[]; total: number }>("GET", "/api/whiteboard"),
@@ -232,13 +234,19 @@ export const api = {
 
   // Trash
   listTrash: () => request<{ entries: TrashedEntry[] }>("GET", "/api/trash"),
-  trashPath: (path: string) => davJson("DELETE", `/api/trash/${encodePath(path)}`),
+  // NOTE: callers pass transport-ready (already percent-encoded) paths
+  // derived from PROPFIND hrefs — do NOT re-encode here.
+  // The /api/trash/:path route is a SINGLE axum segment — the whole DAV
+  // path must ride inside it with slashes as %2F. Callers pass
+  // transport-ready href-derived paths, so decode first to avoid %25.
+  trashPath: (path: string) => davJson("DELETE", `/api/trash/${encodeURIComponent(decodeURIComponent(path))}`),
   restoreTrash: (originalPath: string) => davJson("POST", "/api/trash/restore", JSON.stringify({ original_path: originalPath })),
   purgeTrash: (originalPath: string) => davJson("DELETE", "/api/trash/purge", JSON.stringify({ original_path: originalPath })),
   emptyTrash: () => davJson("DELETE", "/api/trash/empty"),
 
   // Bulk
-  bulkTrash: (paths: string[]) => davJson("POST", "/api/bulk/delete", JSON.stringify({ paths })),
+  // Hard delete (not trash). Paths are virtual decoded paths.
+  bulkTrash: (paths: string[]) => davJson("POST", "/api/bulk/delete", JSON.stringify({ paths: paths.map((p) => { try { return decodeURIComponent(p); } catch { return p; } }) })),
 
   // Shares
   listShares: () => request<{ shares: ShareLink[] }>("GET", "/api/shares"),
@@ -257,10 +265,6 @@ async function davJson(method: string, path: string, body?: string): Promise<Res
     throw new ApiError(resp.status, msg);
   }
   return resp;
-}
-
-function encodePath(p: string): string {
-  return p.split("/").map(encodeURIComponent).join("/");
 }
 
 export interface AdminStats {

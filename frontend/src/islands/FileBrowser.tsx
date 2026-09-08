@@ -106,8 +106,10 @@ export default function FileBrowser() {
     } catch (err) { setError(err instanceof Error ? err.message : String(err)); }
   };
 
+  // Trash API takes the FULL virtual path (/users/{sub}/...), not the
+  // user-root-relative form — entry.href is exactly that.
   const trashOne = async (entry: FileEntry) => {
-    try { await api.trashPath(davPath(entry)); toast(`Trashed ${entry.name}`); refetch(); clearSelection(); }
+    try { await api.trashPath(entry.href); toast(`Trashed ${entry.name}`); refetch(); clearSelection(); }
     catch (err) { toast(err instanceof Error ? err.message : String(err), true); }
   };
 
@@ -116,7 +118,7 @@ export default function FileBrowser() {
     const targets = list.filter((e) => selected().has(e.href));
     if (!targets.length) return;
     try {
-      await api.bulkTrash(targets.map(davPath));
+      for (const t of targets) await api.trashPath(t.href);
       toast(`Trashed ${targets.length} item(s)`); refetch(); clearSelection();
     } catch (err) { toast(err instanceof Error ? err.message : String(err), true); }
   };

@@ -239,7 +239,14 @@ pub async fn create_album<S: ProductivityState>(
 
 pub async fn get_thumbnail_impl<S: HasStorage>(state: &S, path: &str) -> Response {
     let storage = state.storage();
-    let clean_path = path.trim_start_matches('/');
+    // Storage keys carry the leading slash; callers pass it with or without.
+    let owned;
+    let clean_path = if path.starts_with('/') {
+        path
+    } else {
+        owned = format!("/{path}");
+        &owned
+    };
 
     match storage.get(clean_path).await {
         Ok(data) => {
@@ -268,7 +275,13 @@ pub async fn get_thumbnail<S: ProductivityState>(
 
 pub async fn get_exif_impl<S: HasStorage>(state: &S, path: &str) -> Response {
     let storage = state.storage();
-    let clean_path = path.trim_start_matches('/');
+    let owned;
+    let clean_path = if path.starts_with('/') {
+        path
+    } else {
+        owned = format!("/{path}");
+        &owned
+    };
 
     match storage.get(clean_path).await {
         Ok(data) => {
