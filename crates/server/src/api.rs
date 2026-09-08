@@ -405,7 +405,9 @@ pub async fn files_content_handler(
     body: axum::body::Bytes,
 ) -> Response {
     let file_path = match path {
-        Some(AxumPath(p)) => p,
+        // Manually-constructed `Path` skips axum's percent-decoding — decode
+        // once here so REST and WebDAV agree on storage keys.
+        Some(AxumPath(p)) => common::path::decode_percent(&p).into_owned(),
         None => {
             let path_str = uri.path();
             match path_str

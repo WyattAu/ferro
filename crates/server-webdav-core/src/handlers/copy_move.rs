@@ -38,6 +38,8 @@ pub(crate) async fn handle_copy<S: WebDavCoreState>(state: S, path: &str, header
 
     // WebDAV Destination header is a full URI (RFC 4918 §10.4); extract just the path.
     let dest = strip_uri_authority(destination);
+    // Headers are never URI-decoded by the framework — decode to match storage keys.
+    let dest = common::path::decode_percent(&dest).into_owned();
     let dest = normalize_path(&dest);
 
     if !common::path::validate_path(&path) || !common::path::validate_path(&dest) {

@@ -64,7 +64,12 @@ pub async fn handle_any<S: WebDavCoreState>(
     };
 
     let path_str = match sanitize_path(&raw_path) {
-        Ok(p) => p,
+        // The DAV catch-all receives the RAW percent-encoded path (axum only
+        // decodes `Path` extractor params). Decode exactly once so storage
+        // keys are always the real filenames — without this, MKCOL stores
+        // `Test%20Dir` while PUT (via object_store re-encoding) stores
+        // `Test%2520Dir`, producing ghost duplicates in listings.
+        Ok(p) => common::path::decode_percent(&p).into_owned(),
         Err(e) => {
             warn!("Path sanitization failed for '{}': {}", raw_path, e);
             let status = StatusCode::from_u16(e.status_code()).unwrap_or(StatusCode::BAD_REQUEST);

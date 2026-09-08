@@ -57,8 +57,7 @@ pub fn base_name(path: &str) -> &str {
 
 /// Check whether a path represents a collection (ends with `/`).
 #[inline]
-#[must_use]
-pub fn is_collection_path(path: &str) -> bool {
+#[must_use]pub fn is_collection_path(path: &str) -> bool {
     path.ends_with('/')
 }
 
@@ -109,6 +108,57 @@ pub fn join_path<'a>(base: &'a str, segment: &'a str) -> Cow<'a, str> {
     } else {
         Cow::Owned(format!("{base}/{segment}"))
     }
+}
+
+
+/// Percent-decode a request path exactly once.
+///
+/// WebDAV clients send percent-encoded URLs (`%20` for space, `%E5%8F%91`
+/// for CJK, …). Axum only decodes `Path` extractor params — the DAV
+/// catch-all fallback receives the RAW encoded path, so every DAV handler
+/// must run this before touching storage. Paths without `%` sequences are
+/// returned unchanged (borrowed).
+#[must_use]
+pub fn decode_percent(path: &str) -> Cow<'_, str> {
+    if !path.contains('%') {
+        return Cow::Borrowed(path);
+    }
+    Cow::Owned(
+        percent_encoding::percent_decode_str(path)
+            .decode_utf8_lossy()
+            .into_owned(),
+    )
+}
+
+/// Percent-encode a virtual path for emission in PROPFIND `href`s and
+/// `Location`/`Destination` values (RFC 4918 §8.3 requires encoded URIs).
+/// Encodes each `/`-separated segment, leaving `/` separators intact.
+#[must_use]
+pub fn encode_href(path: &str) -> String {
+    use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
+    const SEGMENT: &AsciiSet = &CONTROLS
+        .add(b' ')
+        .add(b'"')
+        .add(b'<')
+        .add(b'>')
+        .add(b'`')
+        .add(b'#')
+        .add(b'?')
+        .add(b'{')
+        .add(b'}')
+        .add(b'%')
+        .add(b'/')
+        .add(b',')
+        .add(b';')
+        .add(b'=')
+        .add(b'&')
+        .add(b'+')
+        .add(b'$')
+        .add(b'@');
+    path.split('/')
+        .map(|seg| utf8_percent_encode(seg, SEGMENT).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 #[cfg(test)]
@@ -205,6 +255,30 @@ mod tests {
         assert!(matches!(join_path("/foo", ""), Cow::Borrowed(_)));
         // Should return Owned when both are non-empty
         assert!(matches!(join_path("/foo", "bar"), Cow::Owned(_)));
+    }
+
+    #[test]
+    fn test_decode_percent() {
+        assert_eq!(decode_percent("/plain/path"), "/plain/path");
+        assert_eq!(decode_percent("/a%20b/c"), "/a b/c");
+        assert_eq!(decode_percent("/%E5%8F%91"), "/\u{53d1}");
+        // literal % without valid hex stays as-is (lossy decode keeps it)
+        assert!(decode_percent("/100%done").contains("100"));
+    }
+
+    #[test]
+    fn test_encode_href() {
+        assert_eq!(encode_href("/a b/c"), "/a%20b/c");
+        assert_eq!(encode_href("/plain"), "/plain");
+        assert_eq!(encode_href("/a,b"), "/a%2Cb/c".replace("/c", ""));
+    }
+
+    #[test]
+    fn test_href_roundtrip() {
+        let raw = "/Books/Abraham Silberschatz, Peter Baer Galvin/OS Concepts (70).pdf";
+        let enc = encode_href(raw);
+        assert!(!enc.contains(' '));
+        assert_eq!(decode_percent(&enc), raw);
     }
 
     #[test]
