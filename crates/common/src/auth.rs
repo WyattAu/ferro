@@ -21,6 +21,9 @@ pub fn is_public_auth_path(path: &str) -> bool {
         || path.starts_with("/fed/")
         || path == "/.well-known/webfinger"
         || path.starts_with("/.well-known/webfinger")
+        // RFC 6764 service discovery: unauthenticated redirects to /dav/cal/ and /dav/card/
+        || path == "/.well-known/caldav"
+        || path == "/.well-known/carddav"
 }
 
 /// JWT claims extracted from an OIDC/Basic auth token.
