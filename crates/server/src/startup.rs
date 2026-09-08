@@ -695,15 +695,30 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
         }
     }
 
-    // CAS content integrity verification on startup
-    if state.cas_store.is_some() && state.data_dir.is_some() {
+    // CAS content integrity verification on startup (sampled — a full scan
+    // of every byte on every boot kept the server unhealthy for minutes).
+    // Deterministic per-path sampling: hash(path) % 100 < percent.
+    let verify_percent = cli.cas_verify_percent.min(100);
+    if state.cas_store.is_some() && state.data_dir.is_some() && verify_percent > 0 {
         match state.storage.list_all("/", 10000).await {
             Ok(entries) => {
                 let mut verified = 0u32;
                 let mut mismatches = 0u32;
+                let mut skipped_sample = 0u32;
                 for meta in &entries {
                     if meta.is_collection {
                         continue;
+                    }
+                    // Deterministic sample: SipHash of path, mod 100.
+                    {
+                        use std::collections::hash_map::DefaultHasher;
+                        use std::hash::{Hash, Hasher};
+                        let mut h = DefaultHasher::new();
+                        meta.path.hash(&mut h);
+                        if (h.finish() % 100) as u8 >= verify_percent {
+                            skipped_sample += 1;
+                            continue;
+                        }
                     }
                     // Authoritative hash = metadata store (written at upload time).
                     // The engine layer derives content_hash from object-store ETags,
@@ -737,13 +752,14 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
                 }
                 if mismatches > 0 {
                     tracing::warn!(
-                        "CAS startup verification: {} verified, {} mismatches. \
+                        "CAS startup verification: {} verified, {} mismatches ({} sampled out). \
                          Run GET /api/admin/integrity for full report.",
                         verified,
-                        mismatches
+                        mismatches,
+                        skipped_sample
                     );
                 } else if verified > 0 {
-                    tracing::info!("CAS startup verification: {} files verified OK", verified);
+                    tracing::info!("CAS startup verification: {} files verified OK ({} sampled out)", verified, skipped_sample);
                 }
             }
             Err(e) => {

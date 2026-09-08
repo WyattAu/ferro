@@ -175,6 +175,13 @@ pub struct ServerConfig {
     #[arg(long, default_value_t = false)]
     pub cas_enabled: bool,
 
+    /// Percentage of stored files to integrity-verify at startup (0 = skip,
+    /// 100 = all). Sampled deterministically by path hash so the same files
+    /// are checked each boot; full verification is available anytime via
+    /// GET /api/admin/integrity.
+    #[arg(long, env = "FERRO_CAS_VERIFY_PERCENT", default_value_t = 5)]
+    pub cas_verify_percent: u8,
+
     /// Directory for persistent SQLite data (metadata, CAS, snapshots, audit).
     /// When set, all in-memory stores are replaced with SQLite-backed persistence.
     /// Example: `--data-dir /var/lib/ferro`
