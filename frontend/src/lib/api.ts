@@ -208,6 +208,22 @@ export const api = {
     request<CalEvent>("POST", "/api/calendar/events", JSON.stringify(body), { "Content-Type": "application/json" }),
   deleteEvent: (uid: string) => request<void>("DELETE", `/api/calendar/events/${uid}`),
 
+  listPhotos: () => request<{ photos: Photo[] }>("GET", "/api/photos"),
+  thumbUrl: (path: string) => `/api/photos/thumbnail/${encodeURIComponent(path.replace(/^\/users\//, ""))}`,
+  downloadUrlForPhoto: (path: string) => path.startsWith("/users/") ? downloadUrl(path) : `/users/${path}`,
+
+  listBoards: () => request<{ whiteboards: Board[]; total: number }>("GET", "/api/whiteboard"),
+  createBoard: (name: string) => request<Board>("POST", "/api/whiteboard", JSON.stringify({ name }), { "Content-Type": "application/json" }),
+  getBoard: (id: string) => request<unknown>("GET", `/api/whiteboard/${id}`),
+  saveBoard: (id: string, content: string) =>
+    fetch(`/api/whiteboard/${id}`, { method: "PUT", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ content }) }).then(ensureOk),
+
+  listRooms: () => request<{ rooms: ChatRoom[] }>("GET", "/api/chat/rooms"),
+  createRoom: (name: string) => request<ChatRoom>("POST", "/api/chat/rooms", JSON.stringify({ name }), { "Content-Type": "application/json" }),
+  listMessages: (roomId: string) => request<{ messages: ChatMsg[]; total: number; has_more: boolean }>("GET", `/api/chat/rooms/${roomId}/messages`),
+  sendMessage: (roomId: string, content: string) =>
+    request<ChatMsg>("POST", `/api/chat/rooms/${roomId}/messages`, JSON.stringify({ content }), { "Content-Type": "application/json" }),
+
   // Trash
   listTrash: () => request<{ entries: TrashedEntry[] }>("GET", "/api/trash"),
   trashPath: (path: string) => davJson("DELETE", `/api/trash/${encodePath(path)}`),
@@ -241,6 +257,16 @@ function encodePath(p: string): string {
   return p.split("/").map(encodeURIComponent).join("/");
 }
 
+export interface Photo {
+  id: string; path: string; name: string; size: number; mime_type: string;
+  taken_at: string | null; modified_at: string; width: number | null; height: number | null;
+}
+export interface Board { id: string; name: string; updated_at: string; created_at: string; }
+export interface ChatRoom { id: string; name: string; room_type: string; created_at: string; }
+export interface ChatMsg {
+  id: string; room_id: string; user_id: string; content: string;
+  timestamp: string; reply_to: string | null; attachment_path: string | null;
+}
 export interface Contact {
   uid: string; address_book_id: string; vcard_data: string; etag: string;
   created_at: string; updated_at: string;

@@ -8,6 +8,9 @@ import TasksPage from "./Tasks";
 import NotesPage from "./Notes";
 import ContactsPage from "./Contacts";
 import CalendarPage from "./Calendar";
+import PhotosPage from "./Photos";
+import WhiteboardPage from "./Whiteboard";
+import ChatPage from "./Chat";
 import { api, getToken, getExpiresAt, scheduleRefresh, type AuthInfo } from "../lib/api";
 import { login, logout } from "../lib/auth";
 
@@ -24,6 +27,8 @@ function Shell(props: { children?: import("solid-js").JSX.Element }) {
           <a href="/ui/calendar/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Calendar</a>
               <a href="/ui/contacts/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Contacts</a>
               <a href="/ui/notes/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Notes</a>
+              <a href="/ui/photos/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Photos</a>
+              <a href="/ui/chat/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Chat</a>
               <a href="/ui/tasks/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Tasks</a>
           <Show when={me()}>
             {(m) => <span class="text-xs text-[var(--text-tertiary)] max-w-40 truncate">{m().name ?? m().email ?? m().sub.slice(0, 8)}</span>}
@@ -41,6 +46,18 @@ function Shell(props: { children?: import("solid-js").JSX.Element }) {
 
 function Files() {
   return <Shell><FileBrowser /></Shell>;
+}
+
+function PhotosRoute() {
+  return <Shell><PhotosPage /></Shell>;
+}
+
+function WhiteboardRoute() {
+  return <Shell><WhiteboardPage /></Shell>;
+}
+
+function ChatRoute() {
+  return <Shell><ChatPage /></Shell>;
 }
 
 function ContactsRoute() {
@@ -100,6 +117,9 @@ export default function App() {
         <Route path="/ui/notes" component={NotesRoute} />
         <Route path="/ui/contacts" component={ContactsRoute} />
         <Route path="/ui/calendar" component={CalendarRoute} />
+        <Route path="/ui/photos" component={PhotosRoute} />
+        <Route path="/ui/whiteboard" component={WhiteboardRoute} />
+        <Route path="/ui/chat" component={ChatRoute} />
         <Route path="/ui/trash" component={TrashRoute} />
         <Route path="/ui/shares" component={SharesRoute} />
         <Route path="*" component={NotFound} />
