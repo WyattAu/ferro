@@ -48,10 +48,10 @@ jobs:
         run: cargo fetch --locked --target x86_64-pc-windows-msvc
 
       - name: Build desktop crate (release)
-        run: cargo build --locked --release -p ferro-desktop --target x86_64-pc-windows-msvc --features tauri
+        run: cargo build --locked --release -p ferro-desktop --target x86_64-pc-windows-msvc --features "tauri,sync"
 
       - name: Build NSIS installer
-        run: cargo tauri build --target x86_64-pc-windows-msvc --features tauri --bundles nsis
+        run: cargo tauri build --target x86_64-pc-windows-msvc --features "tauri,sync" --bundles nsis
         working-directory: crates/desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -94,10 +94,10 @@ jobs:
         run: cargo fetch --locked
 
       - name: Build for aarch64
-        run: cargo build --locked --release -p ferro-desktop --target aarch64-apple-darwin --features tauri
+        run: cargo build --locked --release -p ferro-desktop --target aarch64-apple-darwin --features "tauri,sync"
 
       - name: Build for x86_64
-        run: cargo build --locked --release -p ferro-desktop --target x86_64-apple-darwin --features tauri
+        run: cargo build --locked --release -p ferro-desktop --target x86_64-apple-darwin --features "tauri,sync"
 
       - name: Create universal binary
         run: |
@@ -108,7 +108,7 @@ jobs:
         working-directory: ${{ github.workspace }}
 
       - name: Build DMG
-        run: cargo tauri build --features tauri --bundles dmg
+        run: cargo tauri build --features "tauri,sync" --bundles dmg
         working-directory: crates/desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -150,10 +150,10 @@ jobs:
         run: cargo fetch --locked
 
       - name: Build desktop crate (release)
-        run: cargo build --locked --release -p ferro-desktop --features tauri
+        run: cargo build --locked --release -p ferro-desktop --features "tauri,sync"
 
       - name: Build Tauri bundles
-        run: cargo tauri build --features tauri --bundles deb,rpm,appimage
+        run: cargo tauri build --features "tauri,sync" --bundles deb,rpm,appimage
         working-directory: crates/desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -249,7 +249,7 @@ jobs:
       - name: Fetch dependencies
         run: cargo fetch --locked
       - name: Clippy desktop crate
-        run: cargo clippy -p ferro-desktop --features tauri --locked -- -D warnings
+        run: cargo clippy -p ferro-desktop --features "tauri,sync" --locked -- -D warnings
 
   # clippy-android omitted: Android builds are cross-compiled via NDK.
   # Host-side clippy cannot resolve Android-only deps (gio-2.0, etc.)

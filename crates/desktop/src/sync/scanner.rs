@@ -29,7 +29,11 @@ pub struct LocalScanResult {
 /// - Hidden files/dirs starting with `.`
 /// - The sync state file `.ferro-sync-state.json`
 /// - Files larger than `max_file_size` bytes (default: 10 GB)
-pub fn scan_local(local_root: &Path, max_file_size: u64) -> Result<LocalScanResult> {
+pub fn scan_local(
+    local_root: &Path,
+    max_file_size: u64,
+    previous: &HashMap<String, (String, u64, i64, bool)>,
+) -> Result<LocalScanResult> {
     let start = std::time::Instant::now();
     let mut files = HashMap::new();
     let mut file_count = 0usize;
@@ -110,13 +114,23 @@ pub fn scan_local(local_root: &Path, max_file_size: u64) -> Result<LocalScanResu
                 .map(|d| d.as_millis() as i64)
                 .unwrap_or(0);
 
-            // Compute SHA-256 hash
-            let hash = match compute_file_hash(entry.path()) {
-                Ok(h) => h,
-                Err(e) => {
-                    tracing::warn!(path = %relative_path, error = %e, "skipping file: hash error");
-                    continue;
+            // Short-circuit: reuse the previous hash when neither size nor
+            // mtime changed — avoids re-reading unchanged data every cycle.
+            let hash = match previous.get(&relative_path) {
+                Some((prev_hash, prev_size, prev_mtime, _))
+                    if !prev_hash.is_empty()
+                        && *prev_size == size
+                        && *prev_mtime == mtime_ms =>
+                {
+                    prev_hash.clone()
                 }
+                _ => match compute_file_hash(entry.path()) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        tracing::warn!(path = %relative_path, error = %e, "skipping file: hash error");
+                        continue;
+                    }
+                },
             };
 
             total_bytes += size;
@@ -154,7 +168,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 
-        let result = scan_local(&dir, 10_000_000_000).unwrap();
+        let result = scan_local(&dir, 10_000_000_000, &HashMap::new()).unwrap();
         assert_eq!(result.file_count, 0);
         assert_eq!(result.dir_count, 0);
 
@@ -175,7 +189,7 @@ mod tests {
         // Create hidden file (should be skipped)
         std::fs::write(dir.join(".hidden"), b"hidden").unwrap();
 
-        let result = scan_local(&dir, 10_000_000_000).unwrap();
+        let result = scan_local(&dir, 10_000_000_000, &HashMap::new()).unwrap();
         assert_eq!(result.file_count, 2); // hello.txt + nested.txt
         assert!(result.files.contains_key("hello.txt"));
         assert!(result.files.contains_key("subdir/nested.txt"));
@@ -200,7 +214,7 @@ mod tests {
         // Create a file that exceeds the limit
         std::fs::write(dir.join("big.txt"), b"x".repeat(100)).unwrap();
 
-        let result = scan_local(&dir, 50).unwrap(); // max 50 bytes
+        let result = scan_local(&dir, 50, &HashMap::new()).unwrap(); // max 50 bytes
         assert_eq!(result.file_count, 0); // skipped due to size
 
         let _ = std::fs::remove_dir_all(&dir);

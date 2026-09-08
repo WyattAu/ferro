@@ -31,6 +31,10 @@ pub struct DesktopConfig {
     pub username: String,
     /// Password or API token
     pub password: String,
+    /// Bearer token (OIDC access token) used by the sync engine. When set,
+    /// takes precedence over username/password basic auth.
+    #[serde(default)]
+    pub auth_token: Option<String>,
     /// Local mount point
     pub mount_point: PathBuf,
     /// rclone binary path (auto-detected if empty)
@@ -47,6 +51,7 @@ impl Default for DesktopConfig {
             server_url: "http://localhost:8080".to_string(),
             username: String::new(),
             password: String::new(),
+            auth_token: None,
             mount_point: Self::default_mount_point(),
             rclone_path: None,
             auto_mount: true,

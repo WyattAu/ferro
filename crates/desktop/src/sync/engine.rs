@@ -34,6 +34,9 @@ pub struct SyncConfig {
     pub username: String,
     /// Password for authentication.
     pub password: String,
+    /// Bearer token (e.g. OIDC access token). When set, takes precedence
+    /// over username/password basic auth.
+    pub bearer_token: Option<String>,
     /// Conflict resolution strategy.
     pub conflict_strategy: ConflictStrategy,
     /// Maximum file size to sync (bytes). Default: 10 GB.
@@ -52,6 +55,7 @@ impl Default for SyncConfig {
             server_url: "http://localhost:8080".to_string(),
             username: String::new(),
             password: String::new(),
+            bearer_token: None,
             conflict_strategy: ConflictStrategy::KeepBoth,
             max_file_size: 10_000_000_000, // 10 GB
             use_block_sync: true,
@@ -68,6 +72,16 @@ pub struct SyncEngine {
 }
 
 impl SyncEngine {
+    /// Apply auth to a request builder: bearer token if configured, else
+    /// HTTP basic auth.
+    fn auth(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Some(token) = &self.config.bearer_token {
+            rb.bearer_auth(token)
+        } else {
+            rb.basic_auth(&self.config.username, Some(&self.config.password))
+        }
+    }
+
     /// Create a new sync engine.
     pub fn new(config: SyncConfig) -> Result<Self> {
         let state = SyncState::load(&config.local_path)?;
@@ -98,11 +112,31 @@ impl SyncEngine {
             "starting sync cycle"
         );
 
-        // Step 1: Scan local filesystem
+        // Step 1: Scan local filesystem. Previous state provides the
+        // (size, mtime) -> hash short-circuit so unchanged files are not
+        // re-read every cycle.
+        let previous_files: std::collections::HashMap<String, (String, u64, i64, bool)> = {
+            let state = self.state.read().await;
+            state
+                .entries()
+                .iter()
+                .map(|(k, e)| {
+                    (
+                        k.clone(),
+                        (
+                            e.local_hash.clone(),
+                            e.local_size,
+                            e.local_mtime_ms,
+                            e.is_dir,
+                        ),
+                    )
+                })
+                .collect()
+        };
         let local_result = tokio::task::spawn_blocking({
             let local_path = self.config.local_path.clone();
             let max_size = self.config.max_file_size;
-            move || scan_local(&local_path, max_size)
+            move || scan_local(&local_path, max_size, &previous_files)
         })
         .await??;
 
@@ -119,6 +153,7 @@ impl SyncEngine {
             &self.config.server_url,
             &self.config.username,
             &self.config.password,
+            self.config.bearer_token.as_deref(),
             &self.config.remote_path,
         )
         .await?;
@@ -372,9 +407,7 @@ impl SyncEngine {
         let size = data.len() as u64;
 
         let response = self
-            .client
-            .put(&remote_url)
-            .basic_auth(&self.config.username, Some(&self.config.password))
+            .auth(self.client.put(&remote_url))
             .header("Content-Type", "application/octet-stream")
             .body(data)
             .send()
@@ -393,9 +426,7 @@ impl SyncEngine {
         let local_path = self.config.local_path.join(relative_path);
 
         let response = self
-            .client
-            .get(&remote_url)
-            .basic_auth(&self.config.username, Some(&self.config.password))
+            .auth(self.client.get(&remote_url))
             .send()
             .await?;
 
@@ -428,9 +459,7 @@ impl SyncEngine {
     async fn delete_remote(&self, relative_path: &str) -> Result<()> {
         let remote_url = self.remote_url(relative_path);
         let response = self
-            .client
-            .delete(&remote_url)
-            .basic_auth(&self.config.username, Some(&self.config.password))
+            .auth(self.client.delete(&remote_url))
             .send()
             .await?;
 

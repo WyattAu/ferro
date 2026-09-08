@@ -22,6 +22,7 @@ pub async fn scan_remote(
     server_url: &str,
     username: &str,
     password: &str,
+    bearer_token: Option<&str>,
     remote_path: &str,
 ) -> Result<RemoteScanResult> {
     let path_suffix = if remote_path.starts_with('/') {
@@ -41,14 +42,15 @@ pub async fn scan_remote(
   </d:prop>
 </d:propfind>"#;
 
-    let response = client
+    let mut rb = client
         .request(reqwest::Method::from_bytes(b"PROPFIND")?, &url)
         .header("Content-Type", "application/xml; charset=utf-8")
-        .header("Depth", "infinity")
-        .basic_auth(username, Some(password))
-        .body(body)
-        .send()
-        .await?;
+        .header("Depth", "infinity");
+    rb = match bearer_token {
+        Some(token) => rb.bearer_auth(token),
+        None => rb.basic_auth(username, Some(password)),
+    };
+    let response = rb.body(body).send().await?;
 
     if !response.status().is_success() {
         anyhow::bail!("PROPFIND failed: {} for {}", response.status(), url);

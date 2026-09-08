@@ -38,7 +38,7 @@ jobs:
         run: cargo fetch --locked --target x86_64-pc-windows-msvc
 
       - name: Build MSI installer
-        run: cargo tauri build --target x86_64-pc-windows-msvc --features tauri --bundles msi
+        run: cargo tauri build --target x86_64-pc-windows-msvc --features "tauri,sync" --bundles msi
         working-directory: crates/desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -92,7 +92,7 @@ jobs:
         run: cargo fetch --locked --target aarch64-apple-darwin
 
       - name: Build DMG installer
-        run: cargo tauri build --target aarch64-apple-darwin --features tauri --bundles dmg
+        run: cargo tauri build --target aarch64-apple-darwin --features "tauri,sync" --bundles dmg
         working-directory: crates/desktop
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -152,7 +152,7 @@ jobs:
         run: cargo fetch --locked
 
       - name: Build AppImage + deb
-        run: cargo tauri build --features tauri --bundles appimage,deb
+        run: cargo tauri build --features "tauri,sync" --bundles appimage,deb
         working-directory: crates/desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

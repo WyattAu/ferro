@@ -169,16 +169,26 @@ impl DesktopState {
         }
 
         let config = self.config.read().await;
-        if config.username.is_empty() || config.password.is_empty() {
-            return Err("sync requires username and password".to_string());
+        // Bearer token (OIDC) takes precedence over basic auth.
+        if config.auth_token.is_none()
+            && (config.username.is_empty() || config.password.is_empty())
+        {
+            return Err("sync requires username and password (or an auth token)".to_string());
         }
 
+        // Sync a real local folder; syncing the FUSE mount point itself would
+        // be circular (every remote read lands in the watched tree).
+        let local_root = dirs::home_dir()
+            .map(|h| h.join("Ferro"))
+            .unwrap_or_else(|| config.mount_point.clone());
+
         let sync_config = crate::sync::engine::SyncConfig {
-            local_path: config.mount_point.clone(),
+            local_path: local_root,
             remote_path: "/".to_string(),
             server_url: config.server_url.clone(),
             username: config.username.clone(),
             password: config.password.clone(),
+            bearer_token: config.auth_token.clone(),
             ..Default::default()
         };
 
@@ -195,19 +205,18 @@ impl DesktopState {
         let engine = Arc::new(engine);
         self.sync_engine.write().await.replace(engine.clone());
 
-        let running = self.sync_running.clone();
-        let error = self.last_sync_summary.clone(); // intentionally kept for future summary storage
         let err_log = self.sync_error.clone();
+        let summary_slot = self.last_sync_summary.clone();
 
         // Spawn initial sync
         let engine_initial = engine.clone();
         tokio::spawn(async move {
-            if let Err(e) = engine_initial.sync().await {
-                let _ = err_log.write().await.insert(e.to_string());
+            match engine_initial.sync().await {
+                Ok(summary) => *summary_slot.write().await = Some(summary),
+                Err(e) => {
+                    let _ = err_log.write().await.insert(e.to_string());
+                }
             }
-            // Note: running is not set to false after initial sync; periodic loop manages lifecycle
-            let _ = running;
-            let _ = error;
         });
 
         // Spawn periodic sync loop
@@ -215,6 +224,7 @@ impl DesktopState {
         let paused_loop = self.sync_paused.clone();
         let mut shutdown = self.sync_shutdown.read().await.subscribe();
         let error_loop = self.sync_error.clone();
+        let summary_loop = self.last_sync_summary.clone();
         let interval_secs = self.config.read().await.sync_interval_secs as u64;
 
         if interval_secs > 0 {
@@ -229,8 +239,9 @@ impl DesktopState {
                             if paused_loop.load(Ordering::Relaxed) {
                                 continue;
                             }
-                            if let Err(e) = engine.sync().await {
-                                *error_loop.write().await = Some(e.to_string());
+                            match engine.sync().await {
+                                Ok(summary) => *summary_loop.write().await = Some(summary),
+                                Err(e) => *error_loop.write().await = Some(e.to_string()),
                             }
                         }
                         _ = shutdown.changed() => {
