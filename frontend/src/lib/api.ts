@@ -224,6 +224,12 @@ export const api = {
   sendMessage: (roomId: string, content: string) =>
     request<ChatMsg>("POST", `/api/chat/rooms/${roomId}/messages`, JSON.stringify({ content }), { "Content-Type": "application/json" }),
 
+  adminStats: () => request<AdminStats>("GET", "/api/admin/stats"),
+  adminAudit: (params: string) => request<{ entries: AuditEntry[] }>("GET", `/api/admin/audit${params}`),
+  adminBackups: () => request<unknown[]>("GET", "/api/admin/backups"),
+  triggerBackup: () => request<unknown>("POST", "/api/admin/backup", "{}", { "Content-Type": "application/json" }),
+  adminGdpr: () => request<{ requests: { id: string; type?: string; status?: string; created_at?: string }[] }>("GET", "/api/admin/gdpr"),
+
   // Trash
   listTrash: () => request<{ entries: TrashedEntry[] }>("GET", "/api/trash"),
   trashPath: (path: string) => davJson("DELETE", `/api/trash/${encodePath(path)}`),
@@ -257,6 +263,15 @@ function encodePath(p: string): string {
   return p.split("/").map(encodeURIComponent).join("/");
 }
 
+export interface AdminStats {
+  version: string; uptime_seconds: number; total_files: number;
+  total_directories: number; total_bytes: number; storage_backend: string;
+  auth_type: string; wasm_workers_loaded: number; search_enabled: boolean;
+}
+export interface AuditEntry {
+  timestamp: string; method: string; path: string; user: string;
+  status: number; client_ip: string; user_agent: string;
+}
 export interface Photo {
   id: string; path: string; name: string; size: number; mime_type: string;
   taken_at: string | null; modified_at: string; width: number | null; height: number | null;

@@ -11,6 +11,7 @@ import CalendarPage from "./Calendar";
 import PhotosPage from "./Photos";
 import WhiteboardPage from "./Whiteboard";
 import ChatPage from "./Chat";
+import AdminPage from "./Admin";
 import { api, getToken, getExpiresAt, scheduleRefresh, type AuthInfo } from "../lib/api";
 import { login, logout } from "../lib/auth";
 
@@ -46,6 +47,10 @@ function Shell(props: { children?: import("solid-js").JSX.Element }) {
 
 function Files() {
   return <Shell><FileBrowser /></Shell>;
+}
+
+function AdminRoute() {
+  return <Shell><AdminPage /></Shell>;
 }
 
 function PhotosRoute() {
@@ -120,6 +125,7 @@ export default function App() {
         <Route path="/ui/photos" component={PhotosRoute} />
         <Route path="/ui/whiteboard" component={WhiteboardRoute} />
         <Route path="/ui/chat" component={ChatRoute} />
+        <Route path="/ui/admin" component={AdminRoute} />
         <Route path="/ui/trash" component={TrashRoute} />
         <Route path="/ui/shares" component={SharesRoute} />
         <Route path="*" component={NotFound} />
