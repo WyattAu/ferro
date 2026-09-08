@@ -11,15 +11,52 @@ pub fn config_path() -> PathBuf {
 pub fn load_config_from_disk() -> Option<DesktopConfig> {
     let path = config_path();
     let data = std::fs::read_to_string(&path).ok()?;
-    serde_json::from_str(&data).ok()
+    let mut config: DesktopConfig = serde_json::from_str(&data).ok()?;
+    // Overlay the owner-only secrets file; it wins over legacy
+    // plaintext values still present in desktop.json.
+    let secrets = crate::secret_store::load_secrets();
+    if let Some(token) = secrets.auth_token {
+        if !token.is_empty() {
+            config.auth_token = Some(token);
+        }
+    }
+    if let Some(password) = secrets.password {
+        if !password.is_empty() {
+            config.password = password;
+        }
+    }
+    // Environment always wins (containers, one-shot CLI runs).
+    if let Ok(token) = std::env::var("FERRO_AUTH_TOKEN") {
+        if !token.is_empty() {
+            config.auth_token = Some(token);
+        }
+    }
+    if let Ok(password) = std::env::var("FERRO_PASSWORD") {
+        if !password.is_empty() {
+            config.password = password;
+        }
+    }
+    Some(config)
 }
 
 pub fn save_config_to_disk(config: &DesktopConfig) -> Result<(), String> {
+    // Secrets go to the owner-only file, never to desktop.json.
+    crate::secret_store::save_secrets(&crate::secret_store::Secrets {
+        auth_token: config.auth_token.clone(),
+        password: if config.password.is_empty() {
+            None
+        } else {
+            Some(config.password.clone())
+        },
+    })?;
+    let mut scrubbed = config.clone();
+    scrubbed.auth_token = None;
+    scrubbed.password = String::new();
     let path = config_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let data = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    let data = serde_json::to_string_pretty(&scrubbed).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())
 }
 

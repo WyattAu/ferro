@@ -935,7 +935,30 @@ async fn cmd_update_tray_tooltip(
 }
 
 pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
-    let config = ferro_desktop::config::load_config_from_disk().unwrap_or_default();
+    let mut config = ferro_desktop::config::load_config_from_disk().unwrap_or_default();
+    // CLI --auth-token (or FERRO_AUTH_TOKEN) seeds the in-memory config and
+    // the owner-only secrets file; the frontend receives it via CliConnection.
+    let cli_token = cli_args
+        .auth_token
+        .clone()
+        .or_else(|| {
+            std::env::var("FERRO_AUTH_TOKEN")
+                .ok()
+                .filter(|s| !s.is_empty())
+        });
+    if let Some(token) = cli_token {
+        if config.auth_token.as_deref() != Some(token.as_str()) {
+            config.auth_token = Some(token);
+            if let Err(e) = ferro_desktop::config::save_config_to_disk(&config) {
+                tracing::warn!("failed to persist auth token: {e}");
+            }
+        }
+    }
+    if let Some(ref url) = cli_args.server_url {
+        if config.server_url != *url {
+            config.server_url = url.clone();
+        }
+    }
     let state = DesktopState::new(config);
 
     // Build CLI connection info for the frontend.

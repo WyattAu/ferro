@@ -5,6 +5,7 @@ pub mod macos_integration;
 pub mod mount;
 pub mod overlay;
 pub mod rclone;
+pub mod secret_store;
 pub mod shell_integration;
 pub mod tauri_commands;
 pub mod tray;
