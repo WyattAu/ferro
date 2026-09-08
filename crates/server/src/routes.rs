@@ -1143,6 +1143,20 @@ pub fn build_router_with_static(
     router_builder = router_builder.route("/", any(webdav::handle_any::<AppState>));
     let router = router_builder
         .route("/.well-known/ferro", axum::routing::get(health_check))
+        // RFC 6764 service discovery for CalDAV/CardDAV clients
+        // (Thunderbird, Apple, GNOME). Unauthenticated 301 to the real endpoints.
+        .route(
+            "/.well-known/caldav",
+            axum::routing::get(|| async {
+                axum::response::Redirect::permanent("/dav/cal/")
+            }),
+        )
+        .route(
+            "/.well-known/carddav",
+            axum::routing::get(|| async {
+                axum::response::Redirect::permanent("/dav/card/")
+            }),
+        )
         .route("/healthz", axum::routing::get(liveness))
         .route("/health", axum::routing::get(health_endpoint))
         .route("/readyz", axum::routing::get(readiness))
