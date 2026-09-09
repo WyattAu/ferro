@@ -275,6 +275,7 @@ export const api = {
     request<MeProfile>("PUT", "/api/users/me", JSON.stringify(body), { "Content-Type": "application/json" }),
   changePassword: (current_password: string, new_password: string) =>
     request<unknown>("POST", "/api/auth/change-password", JSON.stringify({ current_password, new_password }), { "Content-Type": "application/json" }),
+  totpStatus: () => request<{ enabled: boolean; has_secret: boolean }>("GET", "/api/auth/totp/status"),
   totpSetup: (password: string) =>
     request<{ secret: string; otpauth_uri: string }>("POST", "/api/auth/totp/setup", JSON.stringify({ password }), { "Content-Type": "application/json" }),
   totpEnable: (password: string, code: string) =>

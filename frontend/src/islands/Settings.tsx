@@ -35,7 +35,7 @@ function Profile() {
 }
 
 function Security() {
-  const [me] = createResource(async () => api.getMe());
+  const [status] = createResource(async () => api.totpStatus().catch(() => null));
   const [cur, setCur] = createSignal(""); const [nw, setNw] = createSignal("");
   const [pwMsg, setPwMsg] = createSignal<string | null>(null);
   const [secret, setSecret] = createSignal<{ secret: string; otpauth_uri: string } | null>(null);
@@ -77,7 +77,7 @@ function Security() {
 
       <div class="glass rounded-xl p-4 space-y-3">
         <h3 class="text-sm font-medium flex items-center gap-2"><ShieldCheck size={14} /> Two-factor (TOTP)</h3>
-        <Show when={me()}>{(m) => <p class="text-xs text-[var(--text-tertiary)]">Status: {m().totp_enabled ? "enabled" : "disabled"}</p>}</Show>
+        <p class="text-xs text-[var(--text-tertiary)]">Status: {status()?.enabled ? "enabled" : "disabled"}</p>
         <input type="password" value={totpPw()} onInput={(e) => setTotpPw(e.currentTarget.value)} placeholder="Confirm password"
           class="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]" />
         <Show when={!secret()}>
