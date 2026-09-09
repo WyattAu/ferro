@@ -378,6 +378,22 @@ pub async fn auth_middleware(
     let path = request.uri().path();
 
     if is_public_auth_path(path) {
+        // Public paths skip enforcement, but callers like /api/auth/info
+        // still want the identity WHEN a token was sent. Best-effort:
+        // validate and attach claims; never reject on a public path.
+        if let Some(validator) = &oidc {
+            let bearer = request
+                .headers()
+                .get("Authorization")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.strip_prefix("Bearer "))
+                .map(str::to_owned);
+            if let Some(token) = bearer {
+                if let Ok(claims) = validator.validate_token(&token).await {
+                    request.extensions_mut().insert(claims);
+                }
+            }
+        }
         return next.run(request).await;
     }
 
