@@ -24,9 +24,12 @@ pub fn is_public_auth_path(path: &str) -> bool {
         // RFC 6764 service discovery: unauthenticated redirects to /dav/cal/ and /dav/card/
         || path == "/.well-known/caldav"
         || path == "/.well-known/carddav"
-        // WOPI: Collabora calls carry the HMAC WOPI access token, not a
-        // Bearer; /hosting/discovery is a public capability document.
-        || path.starts_with("/api/wopi/")
+        // WOPI (top-level /wopi nest): Collabora's CheckFileInfo/GetFile/
+        // PutFile calls carry the HMAC WOPI access token, not a Bearer, so
+        // the auth layer must let them through — the handler validates the
+        // WOPI token itself. Token ISSUANCE stays Bearer-gated.
+        || (path.starts_with("/wopi/files/") && !path.ends_with("/token"))
+        // Public capability documents.
         || path == "/hosting/discovery"
 }
 
@@ -166,7 +169,9 @@ mod tests {
         assert!(!is_public_auth_path("/api/audit"));
         assert!(!is_public_auth_path("/api/snapshots"));
         assert!(!is_public_auth_path("/"));
-        assert!(!is_public_auth_path("/wopi/files/test.txt"));
+        assert!(is_public_auth_path("/wopi/files/test.txt"));
+        assert!(is_public_auth_path("/wopi/files/a/b%20c/contents"));
+        assert!(!is_public_auth_path("/wopi/files/test.txt/token"));
         assert!(!is_public_auth_path("/api/admin/stats"));
     }
 

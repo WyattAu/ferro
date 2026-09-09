@@ -232,11 +232,11 @@ export const api = {
   triggerBackup: () => request<unknown>("POST", "/api/admin/backup", "{}", { "Content-Type": "application/json" }),
   adminGdpr: () => request<{ requests: { id: string; type?: string; status?: string; created_at?: string }[] }>("GET", "/api/admin/gdpr"),
 
-  wopiDiscovery: () => request<string>("GET", "/api/wopi/office-discovery"),
+  wopiDiscovery: () => request<string>("GET", "/wopi/office-discovery"),
   wopiIssueToken: (path: string) =>
     request<{ access_token: string; expires_in: number }>(
       "POST",
-      `/api/wopi/files/${encodeURIComponent(path)}/token`,
+      `/wopi/files/${encodeURIComponent(path)}/token`,
       undefined,
     ),
   buildEditorUrl: async (path: string): Promise<string> => {
@@ -252,7 +252,7 @@ export const api = {
     }
     if (!urlsrc) throw new ApiError(404, `No online editor for .${ext}`);
     const token = await api.wopiIssueToken(path);
-    const wopiSrc = `${window.location.origin}/api/wopi/files/${encodeURIComponent(path)}`;
+    const wopiSrc = `${window.location.origin}/wopi/files/${encodeURIComponent(path)}`;
     const sep = urlsrc.includes("?") ? "&" : "?";
     return `${urlsrc}${sep}WOPISrc=${encodeURIComponent(wopiSrc)}&access_token=${encodeURIComponent(token.access_token)}`;
   },
