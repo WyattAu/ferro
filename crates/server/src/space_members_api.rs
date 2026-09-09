@@ -105,8 +105,9 @@ pub async fn put_space_members(
         }
     }
 
-    // Atomic write: temp file + rename in the same directory.
-    let tmp = path.with_extension("json.tmp");
+    // In-place write: the members file is typically a SINGLE-FILE bind
+    // mount, where tmp+rename fails (rename over the mountpoint inode is
+    // EBUSY, and :ro mounts reject writes entirely). Compose mounts it :rw.
     let serialized = match serde_json::to_string_pretty(&members) {
         Ok(s) => s,
         Err(e) => {
@@ -117,18 +118,12 @@ pub async fn put_space_members(
                 .into_response();
         }
     };
-    if let Err(e) = std::fs::write(&tmp, serialized) {
+    if let Err(e) = std::fs::write(&path, serialized) {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(serde_json::json!({ "error": format!("write failed: {e}") })),
-        )
-            .into_response();
-    }
-    if let Err(e) = std::fs::rename(&tmp, &path) {
-        let _ = std::fs::remove_file(&tmp);
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(serde_json::json!({ "error": format!("rename failed: {e}") })),
+            axum::Json(serde_json::json!({
+                "error": format!("write failed (is the mount :ro?): {e}"),
+            })),
         )
             .into_response();
     }
