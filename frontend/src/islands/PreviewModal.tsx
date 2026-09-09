@@ -13,7 +13,7 @@ export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
 
   const openEditor = async () => {
     setEditError(null);
-    try { setEditUrl(await api.buildEditorUrl(davPath())); }
+    try { setEditUrl(await api.buildEditorUrl(props.entry.href)); }
     catch (e) { setEditError(e instanceof Error ? e.message : String(e)); }
   };
 

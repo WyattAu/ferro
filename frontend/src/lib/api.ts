@@ -239,7 +239,10 @@ export const api = {
       `/wopi-token?path=${encodeURIComponent(path)}`,
       undefined,
     ),
-  buildEditorUrl: async (path: string): Promise<string> => {
+  // path must be the FULL virtual path INCLUDING /users/<sub>/ — WOPI
+  // handlers key storage directly on it. Pass decoded href, not davPath().
+  buildEditorUrl: async (fullPath: string): Promise<string> => {
+    const path = decodeURIComponent(fullPath);
     const xml = await api.wopiDiscovery();
     const ext = path.split(".").pop()?.toLowerCase() ?? "";
     const doc = new DOMParser().parseFromString(xml, "application/xml");
