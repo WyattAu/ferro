@@ -1,7 +1,6 @@
 use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;

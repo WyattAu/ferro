@@ -57,6 +57,20 @@ pub async fn csrf_middleware(
         return next.run(req).await;
     }
 
+    // --- Skip CSRF for Bearer-authenticated requests ---
+    // The SPA authenticates with a Bearer token held in localStorage and
+    // attached explicitly by its own JS. A cross-site attacker cannot make
+    // the victim's browser attach an Authorization header, so these requests
+    // are not CSRF-forgeable. This matters for non-GET methods the safe-list
+    // misses (PROPFIND, MKCOL, MOVE, ...) which the browser sends with an
+    // Origin header even same-origin.
+    if req
+        .headers()
+        .contains_key(axum::http::header::AUTHORIZATION)
+    {
+        return next.run(req).await;
+    }
+
     // --- Skip CSRF for non-browser requests ---
     // Browser cross-origin requests always include an Origin header. Requests
     // without Origin are either same-origin (browser) or non-browser (API
