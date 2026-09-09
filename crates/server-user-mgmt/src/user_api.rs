@@ -229,7 +229,35 @@ pub async fn reset_password<S: UserMgmtState>(
     }
 }
 
-pub async fn get_current_user<S: UserMgmtState>(State(state): State<S>) -> Response {
+pub async fn get_current_user<S: UserMgmtState>(
+    State(state): State<S>,
+    claims: Option<axum::Extension<common::auth::Claims>>,
+) -> Response {
+    // OIDC callers: the token is authoritative for identity. The local store
+    // is consulted only to enrich (username/role/totp) when a matching
+    // record exists (id == sub).
+    if let Some(axum::Extension(c)) = &claims {
+        let is_admin = c.groups.as_ref().is_some_and(|g| g.contains(&"ferro-admin".to_string()));
+        let mut v = serde_json::json!({
+            "sub": c.sub,
+            "username": c.name.clone().unwrap_or_else(|| c.sub.clone()),
+            "display_name": c.name,
+            "email": c.email,
+            "groups": c.groups.clone().unwrap_or_default(),
+            "role": if is_admin { "Admin" } else { "User" },
+            "is_admin": is_admin,
+        });
+        if let Ok(u) = state.user_store().get_user(&c.sub).await {
+            if let Some(obj) = v.as_object_mut() {
+                obj.insert("username".into(), serde_json::Value::String(u.username.clone()));
+                obj.insert("display_name".into(), serde_json::Value::String(u.display_name.clone()));
+                obj.insert("email".into(), serde_json::Value::String(u.email.clone()));
+                obj.insert("totp_enabled".into(), serde_json::Value::Bool(u.totp_secret.is_some()));
+            }
+        }
+        return (StatusCode::OK, axum::Json(v)).into_response();
+    }
+
     let username = state.admin_user().as_deref().unwrap_or("anonymous");
 
     let user = match state.user_store().get_user_by_username(username).await {
@@ -258,12 +286,39 @@ pub async fn get_current_user<S: UserMgmtState>(State(state): State<S>) -> Respo
 
 pub async fn update_current_user<S: UserMgmtState>(
     State(state): State<S>,
+    headers: axum::http::HeaderMap,
+    claims: Option<axum::Extension<common::auth::Claims>>,
     axum::Json(body): axum::Json<UpdateSelfRequest>,
 ) -> Response {
-    let username = state.admin_user().as_deref().unwrap_or("anonymous");
+    // Resolve the local record: OIDC callers key by sub, basic-auth callers
+    // by the configured admin username. OIDC users without a local record
+    // have their profile managed by the identity provider.
+    let oidc_sub = claims
+        .as_ref()
+        .map(|axum::Extension(c)| c.sub.clone())
+        .or_else(|| {
+            headers
+                .get("x-ferro-user")
+                .and_then(|v| v.to_str().ok())
+                .filter(|u| !u.is_empty() && *u != "anonymous")
+                .map(str::to_owned)
+        });
 
-    let user = match state.user_store().get_user_by_username(username).await {
+    let lookup = match &oidc_sub {
+        Some(sub) => state.user_store().get_user(sub).await,
+        None => {
+            let username = state.admin_user().as_deref().unwrap_or("anonymous");
+            state.user_store().get_user_by_username(username).await
+        }
+    };
+    let user = match lookup {
         Ok(u) => u,
+        Err(_) if oidc_sub.is_some() => {
+            return ApiError::bad_request(
+                ApiError::USER_NOT_FOUND,
+                "Profile is managed by the identity provider (no local user record)",
+            );
+        }
         Err(_) => {
             return ApiError::not_found(ApiError::USER_NOT_FOUND, "Current user not found in user store");
         }
