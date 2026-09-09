@@ -1191,6 +1191,17 @@ pub fn build_router_with_static(
                 wopi_office_url: state.wopi_office_url.clone(),
             })),
         )
+        .route(
+            "/wopi-token/:path",
+            axum::routing::post(ferro_server_wopi::wopi_issue_token).layer(
+                axum::Extension(ferro_server_wopi::WopiState {
+                    storage: state.storage.clone(),
+                    lock_manager: state.lock_manager.clone(),
+                    wopi_token_secret: state.wopi_token_secret.clone(),
+                    wopi_office_url: state.wopi_office_url.clone(),
+                }),
+            ),
+        )
         .nest(
             "/hosting",
             ferro_server_wopi::discovery_route::<AppState>().layer(axum::Extension(ferro_server_wopi::WopiState {

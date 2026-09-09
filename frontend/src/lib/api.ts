@@ -236,7 +236,7 @@ export const api = {
   wopiIssueToken: (path: string) =>
     request<{ access_token: string; expires_in: number }>(
       "POST",
-      `/wopi/token/${encodeURIComponent(path)}`,
+      `/wopi-token/${encodeURIComponent(path)}`,
       undefined,
     ),
   buildEditorUrl: async (path: string): Promise<string> => {
