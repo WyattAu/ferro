@@ -36,6 +36,10 @@ pub struct AppState {
     pub lock_manager: Arc<dyn LockManagerTrait>,
     pub oidc: Option<Arc<OidcValidator>>,
     pub cedar: Option<Arc<CedarAuthorizer>>,
+    /// Admin subject (sub) — drives Cedar auto-policy generation at runtime.
+    pub admin_sub: Option<String>,
+    /// Path to cedar_space_members.json — rewritten by the admin members API.
+    pub space_members_file: Option<std::path::PathBuf>,
     pub search: Option<Arc<tokio::sync::RwLock<SearchEngine>>>,
     pub search_ranking_config: Arc<tokio::sync::RwLock<SearchRankingConfig>>,
     pub ai_search: Option<Arc<crate::ai_search::AiSearchBridge>>,
@@ -233,6 +237,8 @@ impl AppState {
             lock_manager: Arc::new(LockManager::new()),
             oidc: None,
             cedar: None,
+            admin_sub: None,
+            space_members_file: None,
             search: None,
             search_ranking_config: Arc::new(tokio::sync::RwLock::new(SearchRankingConfig::default())),
             ai_search: None,

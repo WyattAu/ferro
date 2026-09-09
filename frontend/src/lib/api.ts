@@ -104,8 +104,8 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export async function propfind(path: string, depth = "1"): Promise<FileEntry[]> {
-  const resp = await fetch(`/users/${path}`, { method: "PROPFIND", headers: { Depth: depth, ...authHeaders() } });
+export async function propfind(path: string, depth = "1", namespace: "users" | "_spaces" = "users"): Promise<FileEntry[]> {
+  const resp = await fetch(`/${namespace}/${path}`, { method: "PROPFIND", headers: { Depth: depth, ...authHeaders() } });
   if (resp.status === 401) {
     if (await refreshAccessToken()) return propfind(path, depth);
     clearTokens(); redirectToLogin();
@@ -115,7 +115,7 @@ export async function propfind(path: string, depth = "1"): Promise<FileEntry[]> 
   const xml = await resp.text();
   const doc = new DOMParser().parseFromString(xml, "application/xml");
   const responses = Array.from(doc.getElementsByTagNameNS("DAV:", "response"));
-  const current = decodeHref(`/users/${path}`).replace(/\/$/, "");
+  const current = decodeHref(`/${namespace}/${path}`).replace(/\/$/, "");
   const entries: FileEntry[] = [];
   for (const r of responses) {
     const hrefEl = r.getElementsByTagNameNS("DAV:", "href")[0];
@@ -315,6 +315,10 @@ export const api = {
   adminMaintenance: (enabled: boolean) =>
     request<unknown>("POST", "/api/admin/maintenance", JSON.stringify({ enabled }), { "Content-Type": "application/json" }),
 
+  getSpaceMembers: () => request<SpaceMembership[]>("GET", "/api/admin/space-members"),
+  putSpaceMembers: (members: SpaceMembership[]) =>
+    request<{ ok: boolean; spaces: number; policies: number }>("PUT", "/api/admin/space-members", JSON.stringify(members), { "Content-Type": "application/json" }),
+
   // Trash
   listTrash: () => request<{ entries: TrashedEntry[] }>("GET", "/api/trash"),
   // NOTE: callers pass transport-ready (already percent-encoded) paths
@@ -357,6 +361,9 @@ export interface MeProfile {
 export interface AdminUser {
   id: string; username: string; role: string; created_at: string;
   last_login: string | null; file_count: number; total_size: number; email?: string;
+}
+export interface SpaceMembership {
+  space: string; viewers: string[]; editors: string[]; managers: string[];
 }
 export interface AdminStats {
   version: string; uptime_seconds: number; total_files: number;

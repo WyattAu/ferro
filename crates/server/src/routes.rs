@@ -59,6 +59,7 @@ use crate::security;
 use crate::security_headers;
 use crate::selective_sync_api;
 use crate::shares;
+use crate::space_members_api;
 use crate::shares_ext;
 use crate::simple_auth;
 use crate::snapshots;
@@ -398,6 +399,11 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         .route(
             "/admin/webhooks/deliveries/dead",
             axum::routing::get(webhooks::list_dead_letters::<AppState>),
+        )
+        .route(
+            "/admin/space-members",
+            axum::routing::get(space_members_api::get_space_members)
+                .put(space_members_api::put_space_members),
         )
         .route(
             "/admin/users",
@@ -1084,27 +1090,26 @@ pub fn build_router_with_static(
             }
 
             // Tenant rate limit (if configured)
-            if let Some(ref limiter) = tenant_limiter {
-                if let Some(tid) = req
+            if let Some(ref limiter) = tenant_limiter
+                && let Some(tid) = req
                     .headers()
                     .get("x-tenant-id")
                     .and_then(|v| v.to_str().ok())
                     .map(|s| s.to_string())
-                {
-                    match limiter.check(&tid).await {
-                        Ok(result) if result.allowed => {
-                            let mut response = next.run(req).await;
-                            if let Ok(val) = axum::http::HeaderValue::from_str(&result.remaining.to_string()) {
-                                response.headers_mut().insert("X-RateLimit-Remaining", val);
-                            }
-                            return response;
+            {
+                match limiter.check(&tid).await {
+                    Ok(result) if result.allowed => {
+                        let mut response = next.run(req).await;
+                        if let Ok(val) = axum::http::HeaderValue::from_str(&result.remaining.to_string()) {
+                            response.headers_mut().insert("X-RateLimit-Remaining", val);
                         }
-                        _ => {
-                            return api_error::ApiError::too_many_requests(
-                                api_error::ApiError::RATE_LIMITED,
-                                "Tenant rate limit exceeded",
-                            );
-                        }
+                        return response;
+                    }
+                    _ => {
+                        return api_error::ApiError::too_many_requests(
+                            api_error::ApiError::RATE_LIMITED,
+                            "Tenant rate limit exceeded",
+                        );
                     }
                 }
             }
@@ -1147,15 +1152,11 @@ pub fn build_router_with_static(
         // (Thunderbird, Apple, GNOME). Unauthenticated 301 to the real endpoints.
         .route(
             "/.well-known/caldav",
-            axum::routing::get(|| async {
-                axum::response::Redirect::permanent("/dav/cal/")
-            }),
+            axum::routing::get(|| async { axum::response::Redirect::permanent("/dav/cal/") }),
         )
         .route(
             "/.well-known/carddav",
-            axum::routing::get(|| async {
-                axum::response::Redirect::permanent("/dav/card/")
-            }),
+            axum::routing::get(|| async { axum::response::Redirect::permanent("/dav/card/") }),
         )
         .route("/healthz", axum::routing::get(liveness))
         .route("/health", axum::routing::get(health_endpoint))
@@ -1193,14 +1194,14 @@ pub fn build_router_with_static(
         )
         .route(
             "/wopi-token",
-            axum::routing::post(ferro_server_wopi::wopi_issue_token).layer(
-                axum::Extension(ferro_server_wopi::WopiState {
+            axum::routing::post(ferro_server_wopi::wopi_issue_token).layer(axum::Extension(
+                ferro_server_wopi::WopiState {
                     storage: state.storage.clone(),
                     lock_manager: state.lock_manager.clone(),
                     wopi_token_secret: state.wopi_token_secret.clone(),
                     wopi_office_url: state.wopi_office_url.clone(),
-                }),
-            ),
+                },
+            )),
         )
         .nest(
             "/hosting",

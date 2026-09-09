@@ -335,7 +335,7 @@ pub async fn delete_file(
 ) -> Response {
     let claims = claims_from_headers(&headers);
     let path = match resolve_rest_path(claims.as_ref(), &path)
-        .and_then(|p| normalize_api_path(&p).map_err(|e| axum::http::StatusCode::BAD_REQUEST))
+        .and_then(|p| normalize_api_path(&p).map_err(|_| axum::http::StatusCode::BAD_REQUEST))
     {
         Ok(p) => p,
         Err(status) => {

@@ -117,6 +117,7 @@ pub mod request_logging;
 pub mod routes;
 pub mod selective_sync_api;
 pub mod shares;
+pub mod space_members_api;
 pub mod shares_ext;
 pub mod simple_auth;
 pub mod storage;

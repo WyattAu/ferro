@@ -286,6 +286,14 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
             policies.len(),
             admin_sub
         );
+        let state = state
+            .with_admin_sub(admin_sub.clone())
+            .with_space_members_file(
+                cli.space_members_file
+                    .clone()
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_default(),
+            );
         state.with_cedar(authorizer)
     } else if let Some(policy_file) = &cli.cedar_policy_file {
         let policy_text = std::fs::read_to_string(policy_file)
@@ -340,9 +348,7 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
                         open_err,
                         search_path
                     );
-                    match std::fs::remove_dir_all(search_path)
-                        .and_then(|()| std::fs::create_dir_all(search_path))
-                    {
+                    match std::fs::remove_dir_all(search_path).and_then(|()| std::fs::create_dir_all(search_path)) {
                         Ok(()) => match ferro_core::search::SearchEngine::new(search_path) {
                             Ok(engine) => {
                                 info!("Search engine recreated at {:?}", search_path);
@@ -354,11 +360,7 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
                             }
                         },
                         Err(e) => {
-                            tracing::warn!(
-                                "Search engine unavailable: could not reset {:?}: {}",
-                                search_path,
-                                e
-                            );
+                            tracing::warn!("Search engine unavailable: could not reset {:?}: {}", search_path, e);
                             state
                         }
                     }
@@ -783,7 +785,11 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
                         skipped_sample
                     );
                 } else if verified > 0 {
-                    tracing::info!("CAS startup verification: {} files verified OK ({} sampled out)", verified, skipped_sample);
+                    tracing::info!(
+                        "CAS startup verification: {} files verified OK ({} sampled out)",
+                        verified,
+                        skipped_sample
+                    );
                 }
             }
             Err(e) => {
@@ -1076,13 +1082,13 @@ pub fn spawn_daemons(state: &AppState, cli: &Cli, shutdown_token: &CancellationT
                             if let Ok(entries) = std::fs::read_dir(format!("{}/backups", backup_data_dir)) {
                                 let cutoff = chrono::Utc::now() - chrono::Duration::days(7);
                                 for entry in entries.flatten() {
-                                    if let Ok(meta) = entry.metadata() {
-                                        if let Ok(modified) = meta.modified() {
+                                    if let Ok(meta) = entry.metadata()
+                                        && let Ok(modified) = meta.modified()
+                                    {
                                             let modified_dt: chrono::DateTime<chrono::Utc> = modified.into();
                                             if modified_dt < cutoff {
                                                 let _ = std::fs::remove_file(entry.path());
                                             }
-                                        }
                                     }
                                 }
                             }

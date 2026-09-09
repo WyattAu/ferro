@@ -24,21 +24,27 @@ export function fmtDate(s: string | null): string {
   return isNaN(+d) ? s : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function FileBrowser() {
+export default function FileBrowser(props: { namespace?: "users" | "_spaces" } = { namespace: "users" }) {
+  const namespace = () => props.namespace ?? "users";
+  const base = () => (namespace() === "users" ? "/ui/files/" : "/ui/spaces/");
   const location = useLocation();
   const nav = useNavigate();
-  const parts = () => location.pathname.split("/").slice(3).filter(Boolean); // after /ui/
+  // /ui/files/... and /ui/spaces/... — segment 3 onward is the DAV path.
+  const parts = () => location.pathname.split("/").slice(3).filter(Boolean);
 
   // /users/<sub> root: at /ui/files (no segments) the user's own home IS
   // the listing — resolve the sub from /api/auth/info.
   const [me] = createResource(async () => {
     try { return await api.authInfo(); } catch { return null; }
   });
-  const subPath = () => parts().join("/") || me()?.sub || "";
+  const subPath = () => {
+    if (namespace() === "_spaces") return parts().join("/");
+    return parts().join("/") || me()?.sub || "";
+  };
 
   const [entries, { refetch }] = createResource(subPath, async (p) => {
     if (!p) return [];
-    return propfind(p);
+    return propfind(p, "1", namespace());
   });
 
   const [error, setError] = createSignal<string | null>(null);
@@ -61,8 +67,8 @@ export default function FileBrowser() {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  const davPath = (entry: FileEntry) => entry.href.replace(/^\/users\//, "");
-  const go = (p: string) => nav(`/ui/files/${p.replace(/^\/+/, "")}`);
+  const davPath = (entry: FileEntry) => entry.href.replace(/^\/(users|_spaces)\//, "");
+  const go = (p: string) => nav(`${base()}${p.replace(/^\/+/, "")}`);
 
   const crumbs = () => {
     const segs = parts();
@@ -189,9 +195,16 @@ export default function FileBrowser() {
           <Upload size={15} /> Upload
           <input type="file" multiple class="hidden" onChange={(e) => e.currentTarget.files && onUpload(e.currentTarget.files, subPath())} />
         </label>
-        <button onClick={(e) => { e.stopPropagation(); setShowMkdir(!showMkdir()); }} class="p-2 rounded-lg hover:bg-[var(--bg-raised)] shrink-0" aria-label="New folder">
-          <FolderPlus size={16} />
-        </button>
+        <Show when={namespace() === "_spaces"}>
+          <button onClick={(e) => { e.stopPropagation(); setShowMkdir(!showMkdir()); }} class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white shrink-0">
+            <FolderPlus size={15} /> New space
+          </button>
+        </Show>
+        <Show when={namespace() === "users"}>
+          <button onClick={(e) => { e.stopPropagation(); setShowMkdir(!showMkdir()); }} class="p-2 rounded-lg hover:bg-[var(--bg-raised)] shrink-0" aria-label="New folder">
+            <FolderPlus size={16} />
+          </button>
+        </Show>
       </div>
 
       {/* New folder input */}

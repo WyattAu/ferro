@@ -13,6 +13,7 @@ import WhiteboardPage from "./Whiteboard";
 import ChatPage from "./Chat";
 import AdminPage from "./Admin";
 import SettingsPage from "./Settings";
+import SpacesList from "./Spaces";
 import { api, getToken, getExpiresAt, scheduleRefresh, type AuthInfo } from "../lib/api";
 import { login, logout } from "../lib/auth";
 
@@ -27,6 +28,7 @@ function Shell(props: { children?: import("solid-js").JSX.Element }) {
         </a>
         <nav class="flex items-center gap-5 text-sm">
           <a href="/ui/files/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Files</a>
+          <a href="/ui/spaces/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Spaces</a>
           <a href="/ui/settings/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Settings</a>
           <Show when={isAdmin()}>
             <a href="/ui/admin/" class="text-[var(--accent)] hover:opacity-80 transition-opacity">Admin</a>
@@ -57,6 +59,14 @@ function Files() {
 
 function SettingsRoute() {
   return <Shell><SettingsPage /></Shell>;
+}
+
+function SpacesRoute() {
+  return <Shell><SpacesList /></Shell>;
+}
+
+function SpaceBrowser() {
+  return <Shell><FileBrowser namespace={"_spaces"} /></Shell>;
 }
 
 function AdminRoute() {
@@ -137,6 +147,8 @@ export default function App() {
         <Route path="/ui/chat" component={ChatRoute} />
         <Route path="/ui/admin" component={AdminRoute} />
         <Route path="/ui/settings" component={SettingsRoute} />
+        <Route path="/ui/spaces" component={SpacesRoute} />
+        <Route path="/ui/spaces/*rest" component={SpaceBrowser} />
         <Route path="/ui/trash" component={TrashRoute} />
         <Route path="/ui/shares" component={SharesRoute} />
         <Route path="*" component={NotFound} />

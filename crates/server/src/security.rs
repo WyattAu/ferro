@@ -64,10 +64,7 @@ pub async fn csrf_middleware(
     // are not CSRF-forgeable. This matters for non-GET methods the safe-list
     // misses (PROPFIND, MKCOL, MOVE, ...) which the browser sends with an
     // Origin header even same-origin.
-    if req
-        .headers()
-        .contains_key(axum::http::header::AUTHORIZATION)
-    {
+    if req.headers().contains_key(axum::http::header::AUTHORIZATION) {
         return next.run(req).await;
     }
 

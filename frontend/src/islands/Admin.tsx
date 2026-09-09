@@ -1,6 +1,6 @@
 import { createSignal, createResource, For, Show, Switch, Match } from "solid-js";
-import { api, type AdminStats, type AuditEntry, type AdminUser } from "../lib/api";
-import { UserPlus, Users as UsersIcon, KeyRound, Trash2 } from "lucide-solid";
+import { api, type AdminStats, type AuditEntry, type AdminUser, type SpaceMembership } from "../lib/api";
+import { UserPlus, Users as UsersIcon, KeyRound, Trash2, Save } from "lucide-solid";
 import { Loader2, ShieldAlert, Database, ScrollText, HardDrive, RefreshCw, Play } from "lucide-solid";
 import { fmtSize } from "./FileBrowser";
 
@@ -233,11 +233,57 @@ function Groups() {
   );
 }
 
+
+function SpaceMembers() {
+  const [members, setMembers] = createSignal<SpaceMembership[] | null>(null);
+  const [raw, setRaw] = createSignal("[]");
+  const [msg, setMsg] = createSignal<string | null>(null);
+  const [busy, setBusy] = createSignal(false);
+
+  createResource(async () => {
+    const m = await api.getSpaceMembers();
+    setMembers(m); setRaw(JSON.stringify(m, null, 2));
+    return m;
+  });
+
+  const save = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const parsed = JSON.parse(raw()) as SpaceMembership[];
+      const r = await api.putSpaceMembers(parsed);
+      setMembers(parsed);
+      setMsg(`Saved — ${r.spaces} spaces, ${r.policies} policies reloaded live`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div class="max-w-3xl">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-sm font-medium">Space memberships</h2>
+        <button onClick={save} disabled={busy()}
+          class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white disabled:opacity-40">
+          <Save size={13} /> Save & reload policies
+        </button>
+      </div>
+      <p class="text-xs text-[var(--text-tertiary)] mb-3">
+        Schema: [{"{"}"space": name, "viewers": [sub…], "editors": [sub…], "managers": [sub…]{"}"}] —
+        saves to cedar_space_members.json and hot-reloads Cedar policies (no restart).
+      </p>
+      <textarea value={raw()} onInput={(e) => setRaw(e.currentTarget.value)} rows={16} spellcheck={false}
+        class="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-[var(--accent)]" />
+      <Show when={msg()}><p class={`text-xs mt-2 ${msg()?.includes("Saved") ? "text-[var(--ok)]" : "text-[var(--danger)]"}`}>{msg()}</p></Show>
+    </div>
+  );
+}
+
 const TABS = [
   { id: "overview", label: "Overview", icon: Database },
   { id: "audit", label: "Audit", icon: ScrollText },
   { id: "users", label: "Users", icon: UsersIcon },
   { id: "groups", label: "Groups", icon: UsersIcon },
+  { id: "members", label: "Space members", icon: UserPlus },
   { id: "backups", label: "Backups", icon: HardDrive },
   { id: "gdpr", label: "GDPR", icon: ShieldAlert },
 ] as const;
@@ -277,6 +323,7 @@ export default function AdminPage() {
               <Match when={tab() === "audit"}><Audit /></Match>
               <Match when={tab() === "users"}><Users /></Match>
               <Match when={tab() === "groups"}><Groups /></Match>
+              <Match when={tab() === "members"}><SpaceMembers /></Match>
               <Match when={tab() === "backups"}><Backups /></Match>
               <Match when={tab() === "gdpr"}><Gdpr /></Match>
             </Switch>

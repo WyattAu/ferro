@@ -24,6 +24,18 @@ impl AppState {
         s
     }
 
+    pub fn with_admin_sub(self, sub: String) -> Self {
+        let mut s = self;
+        s.admin_sub = Some(sub);
+        s
+    }
+
+    pub fn with_space_members_file(self, path: std::path::PathBuf) -> Self {
+        let mut s = self;
+        s.space_members_file = Some(path);
+        s
+    }
+
     pub fn with_search(self, engine: SearchEngine) -> Self {
         let mut s = self;
         s.search = Some(Arc::new(tokio::sync::RwLock::new(engine)));
