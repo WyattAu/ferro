@@ -175,7 +175,10 @@ fn validate_access_token(state: &WopiState, token: &Option<String>) -> Result<St
 pub fn routes<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
     axum::Router::new()
         .route("/files/*path", axum::routing::get(wopi_get).post(wopi_post))
-        .route("/files/{path}/token", axum::routing::post(wopi_issue_token))
+        // Token issuance lives OUTSIDE the /files/*path catch-all — matchit
+        // cannot mix a catch-all and a {param} under the same segment, and
+        // the catch-all would shadow the token route.
+        .route("/token/{path}", axum::routing::post(wopi_issue_token))
         .route("/office-discovery", axum::routing::get(wopi_office_discovery_proxy))
 }
 
