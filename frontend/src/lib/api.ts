@@ -269,6 +269,51 @@ export const api = {
     return `${urlsrc}${sep}WOPISrc=${encodeURIComponent(wopiSrc)}&access_token=${encodeURIComponent(token.access_token)}`;
   },
 
+  // --- User self-service ---
+  getMe: () => request<MeProfile>("GET", "/api/users/me"),
+  updateMe: (body: { display_name?: string; password?: string }) =>
+    request<MeProfile>("PUT", "/api/users/me", JSON.stringify(body), { "Content-Type": "application/json" }),
+  changePassword: (current_password: string, new_password: string) =>
+    request<unknown>("POST", "/api/auth/change-password", JSON.stringify({ current_password, new_password }), { "Content-Type": "application/json" }),
+  totpSetup: (password: string) =>
+    request<{ secret: string; otpauth_uri: string }>("POST", "/api/auth/totp/setup", JSON.stringify({ password }), { "Content-Type": "application/json" }),
+  totpEnable: (password: string, code: string) =>
+    request<{ verified: boolean; error?: string }>("POST", "/api/auth/totp/enable", JSON.stringify({ password, code }), { "Content-Type": "application/json" }),
+  totpDisable: (password: string, code: string) =>
+    request<unknown>("POST", "/api/auth/totp/disable", JSON.stringify({ password, code }), { "Content-Type": "application/json" }),
+  getPreferences: () => request<Record<string, unknown>>("GET", "/api/preferences"),
+  updatePreferences: (prefs: Record<string, unknown>) =>
+    request<unknown>("PUT", "/api/preferences", JSON.stringify(prefs), { "Content-Type": "application/json" }),
+
+  // --- Admin: users / groups / branding / maintenance ---
+  adminUsers: () => request<{ users: AdminUser[] }>("GET", "/api/admin/users"),
+  adminCreateUser: (body: { username: string; display_name: string; email: string; password: string; role?: string }) =>
+    request<unknown>("POST", "/api/admin/users", JSON.stringify(body), { "Content-Type": "application/json" }),
+  adminDeleteUser: (id: string) => request<unknown>("DELETE", `/api/admin/users/${id}`),
+  adminSetRole: (id: string, role: string) =>
+    request<unknown>("PUT", `/api/admin/users/${id}/role`, JSON.stringify({ role }), { "Content-Type": "application/json" }),
+  adminResetPassword: (id: string, new_password: string) =>
+    request<unknown>("POST", `/api/admin/users/${id}/reset-password`, JSON.stringify({ new_password }), { "Content-Type": "application/json" }),
+  adminUserDevices: (id: string) => request<{ devices: { id: string; name?: string; device_type?: string; last_seen?: string }[] }>("GET", `/api/admin/users/${id}/devices`),
+  adminRevokeDevice: (id: string, deviceId: string) =>
+    request<unknown>("DELETE", `/api/admin/users/${id}/devices/${deviceId}/revoke`),
+
+  adminGroups: () => request<{ groups: { id: string; name: string; member_count?: number }[] }>("GET", "/api/groups"),
+  adminCreateGroup: (name: string) =>
+    request<{ id?: string }>("POST", "/api/groups", JSON.stringify({ name }), { "Content-Type": "application/json" }),
+  adminDeleteGroup: (id: string) => request<unknown>("DELETE", `/api/groups/${id}`),
+  adminGroupMembers: (id: string) => request<{ members: { id?: string; username: string }[] }>("GET", `/api/groups/${id}/members`),
+  adminAddGroupMember: (id: string, username: string) =>
+    request<unknown>("POST", `/api/groups/${id}/members/${encodeURIComponent(username)}`),
+  adminRemoveGroupMember: (id: string, username: string) =>
+    request<unknown>("DELETE", `/api/groups/${id}/members/${encodeURIComponent(username)}`),
+
+  adminBranding: () => request<Record<string, unknown>>("GET", "/api/admin/branding"),
+  adminUpdateBranding: (body: Record<string, unknown>) =>
+    request<unknown>("PUT", "/api/admin/branding", JSON.stringify(body), { "Content-Type": "application/json" }),
+  adminMaintenance: (enabled: boolean) =>
+    request<unknown>("POST", "/api/admin/maintenance", JSON.stringify({ enabled }), { "Content-Type": "application/json" }),
+
   // Trash
   listTrash: () => request<{ entries: TrashedEntry[] }>("GET", "/api/trash"),
   // NOTE: callers pass transport-ready (already percent-encoded) paths
@@ -304,6 +349,14 @@ async function davJson(method: string, path: string, body?: string): Promise<Res
   return resp;
 }
 
+export interface MeProfile {
+  id?: string; sub?: string; username?: string; display_name?: string;
+  email?: string; role?: string; totp_enabled?: boolean;
+}
+export interface AdminUser {
+  id: string; username: string; role: string; created_at: string;
+  last_login: string | null; file_count: number; total_size: number; email?: string;
+}
 export interface AdminStats {
   version: string; uptime_seconds: number; total_files: number;
   total_directories: number; total_bytes: number; storage_backend: string;

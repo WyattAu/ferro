@@ -12,11 +12,13 @@ import PhotosPage from "./Photos";
 import WhiteboardPage from "./Whiteboard";
 import ChatPage from "./Chat";
 import AdminPage from "./Admin";
+import SettingsPage from "./Settings";
 import { api, getToken, getExpiresAt, scheduleRefresh, type AuthInfo } from "../lib/api";
 import { login, logout } from "../lib/auth";
 
 function Shell(props: { children?: import("solid-js").JSX.Element }) {
   const [me] = createResource(async () => { try { return await api.authInfo(); } catch { return null; } });
+  const isAdmin = () => !!me()?.groups?.includes("ferro-admin");
   return (
     <div class="h-screen flex flex-col">
       <header class="glass flex items-center justify-between px-5 py-3 shrink-0 z-10">
@@ -25,6 +27,10 @@ function Shell(props: { children?: import("solid-js").JSX.Element }) {
         </a>
         <nav class="flex items-center gap-5 text-sm">
           <a href="/ui/files/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Files</a>
+          <a href="/ui/settings/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Settings</a>
+          <Show when={isAdmin()}>
+            <a href="/ui/admin/" class="text-[var(--accent)] hover:opacity-80 transition-opacity">Admin</a>
+          </Show>
           <a href="/ui/calendar/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Calendar</a>
               <a href="/ui/contacts/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Contacts</a>
               <a href="/ui/notes/" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Notes</a>
@@ -47,6 +53,10 @@ function Shell(props: { children?: import("solid-js").JSX.Element }) {
 
 function Files() {
   return <Shell><FileBrowser /></Shell>;
+}
+
+function SettingsRoute() {
+  return <Shell><SettingsPage /></Shell>;
 }
 
 function AdminRoute() {
@@ -126,6 +136,7 @@ export default function App() {
         <Route path="/ui/whiteboard" component={WhiteboardRoute} />
         <Route path="/ui/chat" component={ChatRoute} />
         <Route path="/ui/admin" component={AdminRoute} />
+        <Route path="/ui/settings" component={SettingsRoute} />
         <Route path="/ui/trash" component={TrashRoute} />
         <Route path="/ui/shares" component={SharesRoute} />
         <Route path="*" component={NotFound} />

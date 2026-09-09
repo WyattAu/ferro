@@ -286,6 +286,7 @@ pub async fn cedar_middleware(
         "resource": resource,
         "sub": claims.sub,
         "path": resource,
+        "groups": claims.groups.clone().unwrap_or_default(),
     });
 
     match authorizer
@@ -441,6 +442,22 @@ mod tests {
         assert_eq!(http_method_to_action(&move_), "write");
         let proppatch: axum::http::Method = "PROPPATCH".parse().unwrap();
         assert_eq!(http_method_to_action(&proppatch), "write");
+    }
+
+    #[test]
+    fn test_auto_policies_include_group_admins() {
+        let policies = generate_auto_policies(
+            "admin-sub",
+            &[SpaceMembership {
+                space: "pep".to_string(),
+                viewers: vec![],
+                editors: vec!["editor-sub".to_string()],
+                managers: vec![],
+            }],
+        );
+        assert!(policies.iter().any(|p| p.contains("context.sub == \"admin-sub\"")));
+        assert!(policies.iter().any(|p| p.contains("\"ferro-admin\" in context.groups")));
+        assert!(policies.iter().any(|p| p.contains("/_spaces/pep")));
     }
 
     #[test]
@@ -756,6 +773,13 @@ pub fn generate_auto_policies(admin_sub: &str, spaces: &[SpaceMembership]) -> Ve
     out.push(format!(
         "permit(principal, action, resource) when {{ context.sub == \"{admin_sub}\" }};"
     ));
+
+    // Keycloak group admins: members of the ferro-admin group (claim mapped
+    // into the token by the ferro-groups mapper) get the same reach.
+    out.push(
+        "permit(principal, action, resource) when { \"ferro-admin\" in context.groups };"
+        .to_string(),
+    );
 
     // Shared spaces: read for every authenticated user
     out.push(
