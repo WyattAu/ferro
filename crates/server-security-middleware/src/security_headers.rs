@@ -45,7 +45,9 @@ pub async fn security_and_panic_middleware(req: Request<axum::body::Body>, next:
             "default-src 'self'; script-src 'self'; \
              style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
              img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; \
+             media-src 'self' blob:; \
              connect-src 'self' https://auth.wyattau.com https://api.github.com ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com; \
+             frame-src 'self' blob: https://collabora.wyattau.com; \
              frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
         ),
     );

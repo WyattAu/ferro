@@ -1,10 +1,35 @@
-import { createSignal, createResource, For, Show, Switch, Match } from "solid-js";
+import { createSignal, createEffect, createResource, For, Show, Switch, Match, onCleanup } from "solid-js";
 import { api, type Photo } from "../lib/api";
 import { Loader2, Image as ImgIcon, X, Download, ChevronLeft, ChevronRight } from "lucide-solid";
 
+// Thumbnail URLs cannot carry the Bearer header in an <img src>, so each
+// one is fetched as an authorized blob and rendered via an object URL.
 export default function PhotosPage() {
   const [photos] = createResource(async () => (await api.listPhotos()).photos as Photo[]);
+  const [thumbs, setThumbs] = createSignal<Map<string, string>>(new Map());
   const [active, setActive] = createSignal<number | null>(null);
+
+  // Queue thumbnail fetches with bounded concurrency once photos load.
+  createEffect(async () => {
+    const list = photos();
+    if (!list?.length) return;
+    const queue = [...list];
+    const workers = Array.from({ length: 6 }, async () => {
+      while (queue.length) {
+        const p = queue.shift()!;
+        try {
+          const url = await api.authedObjectUrl(api.thumbUrl(p.path));
+          setThumbs((m) => {
+            const next = new Map(m);
+            next.set(p.path, url);
+            return next;
+          });
+        } catch { /* leave placeholder */ }
+      }
+    });
+    await Promise.all(workers);
+  });
+  onCleanup(() => { for (const u of thumbs().values()) URL.revokeObjectURL(u); });
 
   const current = () => (active() != null ? (photos() ?? [])[active()!] : null);
 
@@ -26,8 +51,12 @@ export default function PhotosPage() {
               <For each={photos() ?? []}>
                 {(p, i) => (
                   <button onClick={() => setActive(i())} class="group relative aspect-square rounded-xl overflow-hidden bg-[var(--bg-surface)] border border-[var(--border-default)]">
-                    <img src={api.thumbUrl(p.path)} alt={p.name} loading="lazy"
-                      class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    <Show when={thumbs().get(p.path)} fallback={
+                      <div class="w-full h-full flex items-center justify-center bg-[var(--bg-raised)]"><ImgIcon size={22} class="text-[var(--text-tertiary)]" /></div>
+                    }>
+                      <img src={thumbs().get(p.path)} alt={p.name} loading="lazy"
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    </Show>
                     <span class="absolute bottom-0 inset-x-0 px-2 py-1 text-[11px] truncate text-left bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity">{p.name}</span>
                   </button>
                 )}

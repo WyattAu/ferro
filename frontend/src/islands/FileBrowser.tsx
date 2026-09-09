@@ -28,7 +28,13 @@ export default function FileBrowser() {
   const location = useLocation();
   const nav = useNavigate();
   const parts = () => location.pathname.split("/").slice(3).filter(Boolean); // after /ui/
-  const subPath = () => parts().join("/");
+
+  // /users/<sub> root: at /ui/files (no segments) the user's own home IS
+  // the listing — resolve the sub from /api/auth/info.
+  const [me] = createResource(async () => {
+    try { return await api.authInfo(); } catch { return null; }
+  });
+  const subPath = () => parts().join("/") || me()?.sub || "";
 
   const [entries, { refetch }] = createResource(subPath, async (p) => {
     if (!p) return [];
@@ -56,7 +62,7 @@ export default function FileBrowser() {
   };
 
   const davPath = (entry: FileEntry) => entry.href.replace(/^\/users\//, "");
-  const go = (p: string) => nav(`/ui/${p.replace(/^\/+/, "")}`);
+  const go = (p: string) => nav(`/ui/files/${p.replace(/^\/+/, "")}`);
 
   const crumbs = () => {
     const segs = parts();

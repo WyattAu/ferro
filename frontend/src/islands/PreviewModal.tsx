@@ -4,6 +4,8 @@ import { X, Download, Loader2, Pencil } from "lucide-solid";
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/i;
 const TEXT_EXT = /\.(txt|md|markdown|json|ya?ml|toml|xml|html?|css|js|jsx|ts|tsx|py|rs|go|java|c|cpp|h|sh|env|csv|log|ini|conf|cfg)$/i;
+const VIDEO_EXT = /\.(mp4|webm|mov|m4v|mkv)$/i;
+const AUDIO_EXT = /\.(mp3|wav|ogg|flac|m4a|aac|opus)$/i;
 const OFFICE_EXT = /\.(docx|xlsx|pptx|odt|ods|odp)$/i;
 
 export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
@@ -17,10 +19,12 @@ export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
     catch (e) { setEditError(e instanceof Error ? e.message : String(e)); }
   };
 
-  const kind = (): "image" | "pdf" | "text" | "office" | "none" => {
+  const kind = (): "image" | "pdf" | "text" | "video" | "audio" | "office" | "none" => {
     if (IMAGE_EXT.test(props.entry.name)) return "image";
     if (/pdf$/i.test(props.entry.name)) return "pdf";
     if (TEXT_EXT.test(props.entry.name)) return "text";
+    if (VIDEO_EXT.test(props.entry.name)) return "video";
+    if (AUDIO_EXT.test(props.entry.name)) return "audio";
     if (OFFICE_EXT.test(props.entry.name)) return "office";
     return "none";
   };
@@ -29,8 +33,8 @@ export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
     if (!p) return null;
     const k = kind();
     if (k === "text") return api.fetchText(p);
-    if (k === "image") return URL.createObjectURL(await api.fetchBlob(p));
-    if (k === "pdf") return URL.createObjectURL(await api.fetchBlob(p));
+    if (k === "image" || k === "pdf" || k === "video" || k === "audio")
+      return URL.createObjectURL(await api.fetchBlob(p));
     return null;
   });
 
@@ -77,6 +81,12 @@ export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
             </Match>
             <Match when={kind() === "pdf"}>
               <iframe src={content() ?? undefined} class="w-full h-[70vh] rounded border-0" title={props.entry.name} />
+            </Match>
+            <Match when={kind() === "video"}>
+              <video src={content() ?? undefined} controls autoplay={false} class="max-w-full max-h-[70vh] rounded" />
+            </Match>
+            <Match when={kind() === "audio"}>
+              <audio src={content() ?? undefined} controls class="w-full max-w-md" />
             </Match>
             <Match when={kind() === "text"}>
               <pre class="w-full h-full overflow-auto text-xs font-mono whitespace-pre-wrap text-[var(--text-primary)]">{content()}</pre>

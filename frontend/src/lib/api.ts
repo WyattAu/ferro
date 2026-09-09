@@ -212,6 +212,15 @@ export const api = {
   // Photo paths from /api/photos are decoded virtual paths; encode the
   // whole thing into the single :path segment (slashes ride as %2F).
   thumbUrl: (path: string) => `/api/photos/thumbnail/${encodeURIComponent(path)}`,
+  // Fetch any API/DAV URL with the Bearer token and wrap it in an object
+  // URL — <img>/<video>/<audio> src attributes cannot attach auth headers.
+  authedObjectUrl: async (url: string): Promise<string> => {
+    const doFetch = () => fetch(url, { headers: authHeaders() });
+    let resp = await doFetch();
+    if (resp.status === 401 && (await refreshAccessToken())) resp = await doFetch();
+    if (!resp.ok) throw new ApiError(resp.status, `Fetch failed: ${resp.status}`);
+    return URL.createObjectURL(await resp.blob());
+  },
   downloadUrlForPhoto: (path: string) => path.startsWith("/users/") ? downloadUrl(path) : `/users/${path}`,
 
   listBoards: () => request<{ whiteboards: Board[]; total: number }>("GET", "/api/whiteboard"),
