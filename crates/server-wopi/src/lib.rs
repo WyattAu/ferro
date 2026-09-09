@@ -502,10 +502,14 @@ pub async fn wopi_issue_token(
         );
     }
 
-    let full_path = format!("/{}", path.trim_matches('/'));
+    // The frontend single-segment-encodes the virtual path (%2F for '/').
+    // Axum 0.7 hands the RAW segment — decode it here (same pattern as the
+    // DAV entry fix) so the storage key is the real decoded path.
+    let decoded = common::path::decode_percent(&path);
+    let full_path = format!("/{}", decoded.trim_matches('/'));
 
     if !state.storage.exists(&full_path).await.unwrap_or(false) {
-        return wopi_error(StatusCode::NOT_FOUND, "FILE_NOT_FOUND", "File not found");
+        return wopi_error(StatusCode::NOT_FOUND, "FILE_NOT_FOUND", &format!("File not found: {full_path}"));
     }
 
     let expires = chrono::Utc::now().timestamp() + (8 * 3600);
