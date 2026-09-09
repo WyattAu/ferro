@@ -178,7 +178,7 @@ pub fn routes<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
         // Token issuance lives OUTSIDE the /files/*path catch-all — matchit
         // cannot mix a catch-all and a {param} under the same segment, and
         // the catch-all would shadow the token route.
-        .route("/token/{path}", axum::routing::post(wopi_issue_token))
+        .route("/token/:path", axum::routing::post(wopi_issue_token))
         .route("/office-discovery", axum::routing::get(wopi_office_discovery_proxy))
 }
 
