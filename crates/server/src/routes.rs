@@ -1192,7 +1192,7 @@ pub fn build_router_with_static(
             })),
         )
         .route(
-            "/wopi-token/:path",
+            "/wopi-token",
             axum::routing::post(ferro_server_wopi::wopi_issue_token).layer(
                 axum::Extension(ferro_server_wopi::WopiState {
                     storage: state.storage.clone(),

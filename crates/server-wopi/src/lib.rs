@@ -24,6 +24,11 @@ pub struct WopiQueryParams {
     pub access_token: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct TokenQueryParams {
+    pub path: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct WopiCheckFileInfoResponse {
     pub base_file_name: String,
@@ -178,10 +183,7 @@ pub fn routes<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
         .route("/office-discovery", axum::routing::get(wopi_office_discovery_proxy))
 }
 
-/// Standalone token-issuance router, mounted at top level `/wopi-token`.
-pub fn token_routes<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
-    axum::Router::new().route("/:path", axum::routing::post(wopi_issue_token))
-}
+
 
 pub fn discovery_route<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
     axum::Router::new().route("/discovery", axum::routing::get(wopi_discovery))
@@ -488,11 +490,20 @@ async fn unlock_file_inner(state: &WopiState, path: &str, headers: &axum::http::
     }
 }
 
+/// Issue a WOPI access token for `?path=/users/<sub>/<file>`.
+///
+/// The path rides in the QUERY STRING on purpose: matchit 0.7.3 refuses to
+/// match a `:param` segment containing %2F (escaped-slash traversal guard),
+/// so a path-segment form could never express nested files.
 pub async fn wopi_issue_token(
     Extension(state): Extension<WopiState>,
     Extension(claims): Extension<common::auth::Claims>,
-    Path(path): Path<String>,
+    axum::extract::Query(params): axum::extract::Query<TokenQueryParams>,
 ) -> Response {
+    let path = match params.path {
+        Some(p) if !p.is_empty() => p,
+        _ => return wopi_error(StatusCode::BAD_REQUEST, "PATH_REQUIRED", "path query parameter is required"),
+    };
     if state.wopi_token_secret.is_empty() {
         tracing::error!("WOPI token secret is not configured. Set --wopi-token-secret to a strong random value.");
         return wopi_error(
@@ -502,11 +513,7 @@ pub async fn wopi_issue_token(
         );
     }
 
-    // The frontend single-segment-encodes the virtual path (%2F for '/').
-    // Axum 0.7 hands the RAW segment — decode it here (same pattern as the
-    // DAV entry fix) so the storage key is the real decoded path.
-    let decoded = common::path::decode_percent(&path);
-    let full_path = format!("/{}", decoded.trim_matches('/'));
+    let full_path = format!("/{}", path.trim_matches('/'));
 
     if !state.storage.exists(&full_path).await.unwrap_or(false) {
         return wopi_error(StatusCode::NOT_FOUND, "FILE_NOT_FOUND", &format!("File not found: {full_path}"));
