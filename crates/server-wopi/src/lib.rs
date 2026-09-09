@@ -316,12 +316,16 @@ pub async fn wopi_office_discovery_proxy(Extension(state): Extension<WopiState>)
 
 pub async fn wopi_get(
     Extension(state): Extension<WopiState>,
-    Path(path): Path<String>,
+    // Collabora echoes the WOPISrc we issued, which single-segment-encodes
+    // the virtual path (%2F for '/'). Axum 0.7 hands the RAW segment —
+    // decode once so storage keys are the real paths.
+    Path(raw): Path<String>,
     Query(params): Query<WopiQueryParams>,
 ) -> Response {
     if let Err(resp) = validate_access_token(&state, &params.access_token) {
         return resp;
     }
+    let path = common::path::decode_percent(&raw).into_owned();
 
     if let Some((file_path, _)) = split_contents_suffix(&path) {
         get_file_inner(&state, file_path).await
@@ -332,10 +336,11 @@ pub async fn wopi_get(
 
 pub async fn wopi_post(
     Extension(state): Extension<WopiState>,
-    Path(path): Path<String>,
+    Path(raw): Path<String>,
     headers: axum::http::HeaderMap,
     body: bytes::Bytes,
 ) -> Response {
+    let path = common::path::decode_percent(&raw).into_owned();
     let access_token = headers
         .get("X-WOPI-AccessToken")
         .and_then(|v| v.to_str().ok())
