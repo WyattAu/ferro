@@ -5,7 +5,7 @@ import { Folder, Loader2 } from "lucide-solid";
 
 export default function SpacesList() {
   const nav = useNavigate();
-  const [spaces, { refetch }] = createResource(async () => propfind("_spaces", "1", "_spaces"));
+  const [spaces, { refetch }] = createResource(async () => propfind("", "1", "_spaces"));
 
   return (
     <div class="p-6 max-w-3xl mx-auto h-full flex flex-col">

@@ -36,6 +36,8 @@ function Profile() {
 
 function Security() {
   const [status] = createResource(async () => api.totpStatus().catch(() => null));
+  const [me] = createResource(async () => api.authInfo().catch(() => null));
+  const isOidc = () => (me()?.auth_type ?? "oidc") === "oidc";
   const [cur, setCur] = createSignal(""); const [nw, setNw] = createSignal("");
   const [pwMsg, setPwMsg] = createSignal<string | null>(null);
   const [secret, setSecret] = createSignal<{ secret: string; otpauth_uri: string } | null>(null);
@@ -64,6 +66,19 @@ function Security() {
 
   return (
     <div class="max-w-md space-y-4">
+      <Show when={isOidc()}>
+        <div class="glass rounded-xl p-4 space-y-2">
+          <h3 class="text-sm font-medium">Managed by your identity provider</h3>
+          <p class="text-xs text-[var(--text-secondary)]">
+            Password and two-factor authentication for this account live in Keycloak.
+          </p>
+          <a href="https://auth.wyattau.com/realms/company-realm/account" target="_blank" rel="noreferrer"
+            class="inline-block px-3 py-1.5 text-sm rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white">
+            Open Keycloak account
+          </a>
+        </div>
+      </Show>
+      <Show when={!isOidc()}>
       <div class="glass rounded-xl p-4 space-y-3">
         <h3 class="text-sm font-medium flex items-center gap-2"><KeyRound size={14} /> Change password</h3>
         <input type="password" value={cur()} onInput={(e) => setCur(e.currentTarget.value)} placeholder="Current password"
@@ -92,6 +107,7 @@ function Security() {
         </Show>
         <Show when={totpMsg()}><p class="text-xs text-[var(--ok)]">{totpMsg()}</p></Show>
       </div>
+      </Show>
     </div>
   );
 }

@@ -1,4 +1,11 @@
-import { createSignal, createResource, Show, For, Switch, Match, createContext, useContext } from "solid-js";
+import { createSignal, createMemo, createResource, Show, For, Switch, Match, createContext, useContext } from "solid-js";
+import {
+  createTable, tableFeatures,
+  rowSortingFeature, columnFilteringFeature,
+  createSortedRowModel, createFilteredRowModel, sortFns, filterFns,
+  createColumnHelper, FlexRender,
+  type SortingState, type ColumnFiltersState, type ColumnDef,
+} from "@tanstack/solid-table";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { propfind, uploadFile, api, type FileEntry } from "../lib/api";
 import {
@@ -58,6 +65,136 @@ export default function FileBrowser(props: { namespace?: "users" | "_spaces" } =
   const [selected, setSelected] = createSignal<Set<string>>(new Set<string>());
   const [menuFor, setMenuFor] = createSignal<string | null>(null);
   const [shareFor, setShareFor] = createSignal<FileEntry | null>(null);
+  const [ctxEntry, setCtxEntry] = createSignal<FileEntry | null>(null);
+  const [ctxPos, setCtxPos] = createSignal<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [sorting, setSorting] = createSignal<SortingState>([{ id: "name", desc: false }]);
+  const [columnFilters, setColumnFilters] = createSignal<ColumnFiltersState>([]);
+  const [typeFilter, setTypeFilter] = createSignal<string | null>(null);
+
+  // Server-side search (debounced at the call site via createResource)
+  const [searchQuery, setSearchQuery] = createSignal("");
+  const [searchOpen, setSearchOpen] = createSignal(false);
+  const [searchResults, setSearchResults] = createSignal<{ path: string; name: string; score?: number }[] | null>(null);
+  const [searchBusy, setSearchBusy] = createSignal(false);
+  let searchTimer: ReturnType<typeof setTimeout> | undefined;
+  const runSearch = (q: string) => {
+    setSearchQuery(q);
+    clearTimeout(searchTimer);
+    if (!q.trim()) { setSearchResults(null); return; }
+    searchTimer = setTimeout(async () => {
+      setSearchBusy(true);
+      try {
+        const r = await api.search(q.trim());
+        setSearchResults(r.results ?? r.hits ?? []);
+      } catch { setSearchResults([]); }
+      finally { setSearchBusy(false); }
+    }, 300);
+  };
+
+  const entryType = (e: FileEntry): string => {
+    if (e.isCollection) return "folder";
+    const m = e.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() ?? "";
+    if (/^(png|jpe?g|gif|webp|svg|bmp|avif)$/.test(m)) return "image";
+    if (/^pdf$/.test(m)) return "pdf";
+    if (/^(docx|xlsx|pptx|odt|ods|odp|doc|xls|ppt)$/.test(m)) return "office";
+    if (/^(mp4|webm|mov|m4v|mkv|mp3|wav|ogg|flac|m4a)$/.test(m)) return "media";
+    if (/^(txt|md|markdown|json|ya?ml|toml|xml|csv|log)$/.test(m)) return "text";
+    return "file";
+  };
+
+  const tableData = () => {
+    const q = query().toLowerCase();
+    const t = typeFilter();
+    let list = entries() ?? [];
+    if (q) list = list.filter((e) => e.name.toLowerCase().includes(q));
+    if (t && t !== "all") list = list.filter((e) => entryType(e) === t);
+    return list;
+  };
+
+
+const tableFeaturesBuilt = tableFeatures({
+  rowSortingFeature,
+  columnFilteringFeature,
+  sortedRowModel: createSortedRowModel(),
+  filteredRowModel: createFilteredRowModel(),
+  sortFns,
+  filterFns,
+});
+const columnHelper = createColumnHelper<typeof tableFeaturesBuilt, FileEntry>();
+
+  const columns = (): ColumnDef<any, FileEntry, any>[] => [
+    columnHelper.display({
+      id: "select",
+      header: "",
+      cell: (info) => (
+        <button
+          onClick={(e) => toggleSelect(e, info.row.original, info.row.index)}
+          class="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+          aria-label="Select"
+        >
+          <Show when={selected().has(info.row.original.href)} fallback={<Square size={15} />}>
+            <CheckSquare size={15} class="text-[var(--accent)]" />
+          </Show>
+        </button>
+      ),
+      enableSorting: false,
+    }),
+    columnHelper.accessor("name", {
+      header: "Name",
+      cell: (info) => {
+        const entry = info.row.original;
+        return (
+          <span class="flex items-center gap-3 min-w-0">
+            {entry.isCollection
+              ? <Folder size={18} class="text-[var(--accent)] shrink-0" />
+              : <FileIcon size={17} class="text-[var(--text-tertiary)] shrink-0" />}
+            <Show when={renaming()?.href === entry.href} fallback={<span class="text-sm truncate">{info.getValue()}</span>}>
+              <input
+                value={renameValue()} onInput={(e) => setRenameValue(e.currentTarget.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") onRename(); if (e.key === "Escape") setRenaming(null); }}
+                onClick={(e) => e.stopPropagation()}
+                class="flex-1 bg-[var(--bg-surface)] border border-[var(--accent)] rounded px-2 py-0.5 text-sm outline-none" autofocus
+              />
+            </Show>
+          </span>
+        );
+      },
+    }),
+    columnHelper.accessor((row) => entryType(row), {
+      id: "type",
+      header: "Type",
+      cell: (info) => <span class="text-xs text-[var(--text-tertiary)]">{info.getValue()}</span>,
+    }),
+    columnHelper.accessor("size", {
+      header: "Size",
+      cell: (info) => {
+        const e = info.row.original;
+        return (
+          <span class="text-xs text-[var(--text-tertiary)] tabular-nums">
+            {e.isCollection ? "—" : fmtSize(info.getValue() as number | null)}
+          </span>
+        );
+      },
+      sortFn: (a: { original: { isCollection: boolean; size: number | null } }, b: { original: { isCollection: boolean; size: number | null } }) => (a.original.isCollection === b.original.isCollection
+        ? (a.original.size ?? -1) - (b.original.size ?? -1)
+        : a.original.isCollection ? -1 : 1),
+    }),
+    columnHelper.accessor("modifiedAt", {
+      header: "Modified",
+      cell: (info) => <span class="text-xs text-[var(--text-tertiary)] tabular-nums">{fmtDate(info.getValue())}</span>,
+    }),
+  ];
+
+  const table = createMemo(() => createTable({
+    features: tableFeaturesBuilt,
+    data: tableData(),
+    columns: columns(),
+    state: { sorting: sorting(), columnFilters: columnFilters() },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getRowId: (row) => row.href,
+  }));
+
   const [previewFor, setPreviewFor] = createSignal<FileEntry | null>(null);
   const [dragOver, setDragOver] = createSignal(false);
   const [lastIndex, setLastIndex] = createSignal(-1);
@@ -68,6 +205,7 @@ export default function FileBrowser(props: { namespace?: "users" | "_spaces" } =
   };
 
   const davPath = (entry: FileEntry) => entry.href.replace(/^\/(users|_spaces)\//, "");
+  const ns = () => (namespace() === "_spaces" ? "_spaces" : "users") as "users" | "_spaces";
   const go = (p: string) => nav(`${base()}${p.replace(/^\/+/, "")}`);
 
   const crumbs = () => {
@@ -102,7 +240,7 @@ export default function FileBrowser(props: { namespace?: "users" | "_spaces" } =
     setError(null);
     for (const file of Array.from(files)) {
       const target = `${sub}/${encodeURIComponent(file.name)}`;
-      try { setUploadPct(0); await uploadFile(target, file, setUploadPct); }
+      try { setUploadPct(0); await uploadFile(target, file, setUploadPct, ns()); }
       catch (err) { setError(err instanceof Error ? err.message : String(err)); }
       finally { setUploadPct(null); }
     }
@@ -113,7 +251,7 @@ export default function FileBrowser(props: { namespace?: "users" | "_spaces" } =
     const name = newFolder().trim();
     if (!name) return;
     try {
-      await api.mkdir(`${subPath()}/${encodeURIComponent(name)}`);
+      await api.mkdir(`${subPath()}/${encodeURIComponent(name)}`, ns());
       setShowMkdir(false); setNewFolder(""); refetch();
     } catch (err) { setError(err instanceof Error ? err.message : String(err)); }
   };
@@ -142,7 +280,7 @@ export default function FileBrowser(props: { namespace?: "users" | "_spaces" } =
     if (!newName || newName === entry.name) { setRenaming(null); return; }
     const from = davPath(entry);
     const to = from.split("/").slice(0, -1).concat(encodeURIComponent(newName)).join("/");
-    try { await api.move(from, to); toast("Renamed"); setRenaming(null); refetch(); }
+    try { await api.move(from, to, ns()); toast("Renamed"); setRenaming(null); refetch(); }
     catch (err) { toast(err instanceof Error ? err.message : String(err), true); }
   };
 
@@ -183,6 +321,16 @@ export default function FileBrowser(props: { namespace?: "users" | "_spaces" } =
             )}
           </For>
         </nav>
+        <div class="hidden md:flex items-center gap-1">
+          <For each={["all", "folder", "image", "pdf", "office", "media", "text"]}>
+            {(t) => (
+              <button
+                onClick={(e) => { e.stopPropagation(); setTypeFilter((!typeFilter() && t === "all") || typeFilter() === t ? null : t === "all" ? null : t); }}
+                class={`px-2 py-1 text-xs rounded-lg ${(!typeFilter() && t === "all") || typeFilter() === t ? "bg-[var(--accent)] text-white" : "hover:bg-[var(--bg-raised)] text-[var(--text-secondary)]"}`}
+              >{t}</button>
+            )}
+          </For>
+        </div>
         <div class="relative w-56 hidden md:block">
           <Search size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input
@@ -190,6 +338,34 @@ export default function FileBrowser(props: { namespace?: "users" | "_spaces" } =
             placeholder="Filter…" onClick={(e) => e.stopPropagation()}
             class="w-full bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg pl-8 pr-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
           />
+        </div>
+        <div class="relative hidden lg:block">
+          <input
+            value={searchQuery()} onInput={(e) => runSearch(e.currentTarget.value)}
+            onFocus={() => setSearchOpen(true)}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Search all files…"
+            class="w-56 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+          />
+          <Show when={searchOpen() && (searchBusy() || (searchResults() ?? []).length > 0)}>
+            <div class="absolute right-0 top-full mt-1 w-80 max-h-72 overflow-y-auto glass rounded-xl p-1 z-30">
+              <Show when={searchBusy()}><div class="px-3 py-2 text-xs text-[var(--text-tertiary)]">Searching…</div></Show>
+              <For each={searchResults() ?? []}>
+                {(r) => (
+                  <button
+                    class="w-full text-left px-3 py-1.5 text-xs rounded-lg hover:bg-[var(--bg-raised)] truncate"
+                    title={r.path}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSearchOpen(false); setSearchResults(null); setSearchQuery("");
+                      const dir = r.path.replace(/^\/users\//, "").split("/").slice(0, -1).join("/");
+                      go(dir);
+                    }}
+                  >{r.name}</button>
+                )}
+              </For>
+            </div>
+          </Show>
         </div>
         <label class="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-[var(--accent)] text-white cursor-pointer hover:bg-[var(--accent-hover)] transition-colors shrink-0">
           <Upload size={15} /> Upload
@@ -266,43 +442,93 @@ export default function FileBrowser(props: { namespace?: "users" | "_spaces" } =
           <Match when={filtered().length === 0}>
             <div class="text-center pt-16 text-sm text-[var(--text-tertiary)]">Empty — drop files here or use Upload</div>
           </Match>
+
           <Match when={true}>
-            <For each={filtered()}>
-              {(entry, idx) => (
-                <div
-                  class={`${rowClass} ${selected().has(entry.href) ? "bg-[var(--accent-subtle)]" : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (e.ctrlKey || e.metaKey || e.shiftKey) { toggleSelect(e, entry, idx()); return; }
-                    entry.isCollection ? go(davPath(entry)) : setPreviewFor(entry);
+            <Show when={tableData().length === 0}>
+              <div class="text-center pt-16 text-sm text-[var(--text-tertiary)]">Empty — drop files here or use Upload</div>
+            </Show>
+            <table class="w-full border-collapse">
+              <thead class="sticky top-0 bg-[var(--bg-surface)] z-10">
+                <For each={table().getHeaderGroups()}>
+                  {(hg) => (
+                    <tr class="border-b border-[var(--border-default)]">
+                      <For each={hg.headers}>
+                        {(header) => (
+                          <th
+                            class={`px-4 py-1.5 text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] text-left font-medium ${header.column.getCanSort() ? "cursor-pointer select-none hover:text-[var(--text-primary)]" : ""}`}
+                            onClick={(e) => { e.stopPropagation(); header.column.getToggleSortingHandler()?.(e); }}
+                          >
+                            {header.isPlaceholder ? null : <FlexRender header={header} />}
+                            {header.column.getIsSorted() === "asc" ? " ↑" : header.column.getIsSorted() === "desc" ? " ↓" : ""}
+                          </th>
+                        )}
+                      </For>
+                      <th class="w-28" />
+                    </tr>
+                  )}
+                </For>
+              </thead>
+              <tbody>
+                <For each={table().getRowModel().rows}>
+                  {(row) => {
+                    const entry = row.original;
+                    return (
+                      <tr
+                        class={`group border-b border-[var(--border-default)]/40 hover:bg-[var(--bg-raised)] cursor-pointer ${selected().has(entry.href) ? "bg-[var(--accent-subtle)]" : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (e.ctrlKey || e.metaKey || e.shiftKey) { toggleSelect(e, entry, row.index); return; }
+                          entry.isCollection ? go(davPath(entry)) : setPreviewFor(entry);
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault(); e.stopPropagation();
+                          setCtxEntry(entry); setCtxPos({ x: e.clientX, y: e.clientY });
+                        }}
+                      >
+                        <For each={row.getVisibleCells()}>
+                          {(cell) => (
+                            <td class="px-4 py-2.5"><FlexRender cell={cell} /></td>
+                          )}
+                        </For>
+                        <td class="pr-2">
+                          <div class="flex gap-0.5 justify-end">
+                            <Show when={!entry.isCollection}>
+                              <button class={iconBtn} aria-label="Preview" onClick={(e) => { e.stopPropagation(); setPreviewFor(entry); }}><Eye size={14} /></button>
+                              <a href={api.downloadUrl(davPath(entry), ns())} class={iconBtn} download="" aria-label="Download" onClick={(e) => e.stopPropagation()}><Download size={14} /></a>
+                            </Show>
+                            <button class={iconBtn} aria-label="Share" onClick={(e) => { e.stopPropagation(); setShareFor(entry); }}><Share2 size={14} /></button>
+                            <button class={iconBtn} aria-label="Rename" onClick={(e) => { e.stopPropagation(); setRenaming(entry); setRenameValue(entry.name); }}><Pencil size={14} /></button>
+                            <button class="p-1.5 rounded opacity-0 group-hover:opacity-100 text-[var(--danger)] hover:bg-[var(--danger-subtle)] transition-all shrink-0" aria-label="Trash" onClick={(e) => { e.stopPropagation(); trashOne(entry); }}><Trash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
                   }}
-                >
-                  <button onClick={(e) => toggleSelect(e, entry, idx())} class="shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]" aria-label="Select">
-                    <Show when={selected().has(entry.href)} fallback={<Square size={15} />}><CheckSquare size={15} class="text-[var(--accent)]" /></Show>
-                  </button>
-                  {entry.isCollection
-                    ? <Folder size={18} class="text-[var(--accent)] shrink-0" />
-                    : <FileIcon size={17} class="text-[var(--text-tertiary)] shrink-0" />}
-                  <Show when={renaming()?.href === entry.href} fallback={<span class="flex-1 text-sm truncate">{entry.name}</span>}>
-                    <input
-                      value={renameValue()} onInput={(e) => setRenameValue(e.currentTarget.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") onRename(); if (e.key === "Escape") setRenaming(null); }}
-                      onClick={(e) => e.stopPropagation()}
-                      class="flex-1 bg-[var(--bg-surface)] border border-[var(--accent)] rounded px-2 py-0.5 text-sm outline-none" autofocus
-                    />
-                  </Show>
-                  <span class="text-xs text-[var(--text-tertiary)] tabular-nums hidden sm:block w-32 text-right shrink-0">{fmtDate(entry.modifiedAt)}</span>
-                  <span class="text-xs text-[var(--text-tertiary)] tabular-nums hidden sm:block w-20 text-right shrink-0">{entry.isCollection ? "—" : fmtSize(entry.size)}</span>
-                  <Show when={!entry.isCollection}>
-                    <button class={iconBtn} aria-label="Preview" onClick={(e) => { e.stopPropagation(); setPreviewFor(entry); }}><Eye size={14} /></button>
-                    <a href={api.downloadUrl(davPath(entry))} class={iconBtn} download="" aria-label="Download" onClick={(e) => e.stopPropagation()}><Download size={14} /></a>
-                  </Show>
-                  <button class={iconBtn} aria-label="Share" onClick={(e) => { e.stopPropagation(); setShareFor(entry); }}><Share2 size={14} /></button>
-                  <button class={iconBtn} aria-label="Rename" onClick={(e) => { e.stopPropagation(); setRenaming(entry); setRenameValue(entry.name); }}><Pencil size={14} /></button>
-                  <button class="p-1.5 rounded opacity-0 group-hover:opacity-100 text-[var(--danger)] hover:bg-[var(--danger-subtle)] transition-all shrink-0" aria-label="Trash" onClick={(e) => { e.stopPropagation(); trashOne(entry); }}><Trash2 size={14} /></button>
-                </div>
-              )}
-            </For>
+                </For>
+              </tbody>
+            </table>
+            <Show when={ctxEntry()}>
+              <div class="fixed inset-0 z-40" onClick={() => setCtxEntry(null)} />
+              <div
+                class="fixed z-50 glass rounded-xl p-1 min-w-44"
+                style={{ left: `${Math.min(ctxPos().x, window.innerWidth - 200)}px`, top: `${Math.min(ctxPos().y, window.innerHeight - 260)}px` }}
+              >
+                {(ctxEntry()!.isCollection ? [] : [
+                  { label: "Open", run: () => setPreviewFor(ctxEntry()!) },
+                  { label: "Download", run: () => { const a = document.createElement("a"); a.href = api.downloadUrl(davPath(ctxEntry()!), ns()); a.download = ctxEntry()!.name; a.click(); } },
+                ] as { label: string; run: () => void; danger?: boolean }[]).concat([
+                  { label: "Share", run: () => setShareFor(ctxEntry()!) },
+                  { label: "Rename", run: () => { setRenaming(ctxEntry()); setRenameValue(ctxEntry()!.name); } },
+                  { label: "Copy DAV link", run: async () => { await navigator.clipboard.writeText(api.downloadUrl(davPath(ctxEntry()!), ns())); toast("DAV link copied"); } },
+                  { label: "Move to trash", run: () => trashOne(ctxEntry()!), danger: true },
+                ]).map((item) => (
+                  <button
+                    class={`w-full text-left px-3 py-1.5 text-sm rounded-lg hover:bg-[var(--bg-raised)] ${item.danger ? "text-[var(--danger)]" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); setCtxEntry(null); item.run(); }}
+                  >{item.label}</button>
+                ))}
+              </div>
+            </Show>
           </Match>
         </Switch>
       </div>

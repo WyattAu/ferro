@@ -138,23 +138,36 @@ export async function propfind(path: string, depth = "1", namespace: "users" | "
   return entries;
 }
 
-function davUrl(path: string) { return `/users/${path}`; }
+function davUrl(path: string, namespace: "users" | "_spaces" = "users") {
+  return `/${namespace}/${path}`;
+}
 
-export async function davRequest(method: string, path: string, extraHeaders: Record<string, string> = {}, body?: BodyInit): Promise<Response> {
-  const doFetch = () => fetch(davUrl(path), { method, headers: { ...authHeaders(), ...extraHeaders }, body });
+export async function davRequest(
+  method: string,
+  path: string,
+  extraHeaders: Record<string, string> = {},
+  body?: BodyInit,
+  namespace: "users" | "_spaces" = "users",
+): Promise<Response> {
+  const doFetch = () => fetch(davUrl(path, namespace), { method, headers: { ...authHeaders(), ...extraHeaders }, body });
   let resp = await doFetch();
   if (resp.status === 401 && (await refreshAccessToken())) resp = await doFetch();
   return resp;
 }
 
-function destinationHeader(toPath: string): Record<string, string> {
-  return { Destination: `${window.location.origin}/users/${toPath}` };
+function destinationHeader(toPath: string, namespace: "users" | "_spaces" = "users"): Record<string, string> {
+  return { Destination: `${window.location.origin}/${namespace}/${toPath}` };
 }
 
-export async function uploadFile(path: string, file: File, onProgress?: (pct: number) => void): Promise<void> {
+export async function uploadFile(
+  path: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+  namespace: "users" | "_spaces" = "users",
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", davUrl(path));
+    xhr.open("PUT", davUrl(path, namespace));
     const token = getToken();
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100)); };
@@ -164,9 +177,11 @@ export async function uploadFile(path: string, file: File, onProgress?: (pct: nu
   });
 }
 
-export function downloadUrl(path: string): string {
+export function downloadUrl(path: string, namespace: "users" | "_spaces" = "users"): string {
   const token = getToken();
-  return token ? `${davUrl(path)}?Authorization=${encodeURIComponent(`Bearer ${token}`)}` : davUrl(path);
+  return token
+    ? `${davUrl(path, namespace)}?Authorization=${encodeURIComponent(`Bearer ${token}`)}`
+    : davUrl(path, namespace);
 }
 
 export const api = {
@@ -179,10 +194,14 @@ export const api = {
   callback: (code: string, state: string) =>
     request<CallbackResponse>("GET", `/api/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`),
   refresh: (rt: string) => request<{ access_token: string; expires_in: number; refresh_token?: string }>("POST", "/api/auth/refresh", JSON.stringify({ refresh_token: rt }), { "Content-Type": "application/json" }),
-  delete: (path: string) => davRequest("DELETE", path).then(ensureOk),
-  mkdir: (path: string) => davRequest("MKCOL", path).then(ensureOk),
-  move: (from: string, to: string) => davRequest("MOVE", from, destinationHeader(to)).then(ensureOk),
-  copy: (from: string, to: string) => davRequest("COPY", from, destinationHeader(to)).then(ensureOk),
+  delete: (path: string, namespace: "users" | "_spaces" = "users") =>
+    davRequest("DELETE", path, {}, undefined, namespace).then(ensureOk),
+  mkdir: (path: string, namespace: "users" | "_spaces" = "users") =>
+    davRequest("MKCOL", path, {}, undefined, namespace).then(ensureOk),
+  move: (from: string, to: string, namespace: "users" | "_spaces" = "users") =>
+    davRequest("MOVE", from, { ...destinationHeader(to, namespace) }, undefined, namespace).then(ensureOk),
+  copy: (from: string, to: string, namespace: "users" | "_spaces" = "users") =>
+    davRequest("COPY", from, { ...destinationHeader(to, namespace) }, undefined, namespace).then(ensureOk),
   downloadUrl,
   fetchText: (path: string) => fetch(davUrl(path), { headers: authHeaders() }).then((r) => r.ok ? r.text() : Promise.reject(new ApiError(r.status, "Fetch failed"))),
   fetchBlob: (path: string) => fetch(davUrl(path), { headers: authHeaders() }).then((r) => r.ok ? r.blob() : Promise.reject(new ApiError(r.status, "Fetch failed"))),
@@ -285,6 +304,13 @@ export const api = {
   getPreferences: () => request<Record<string, unknown>>("GET", "/api/preferences"),
   updatePreferences: (prefs: Record<string, unknown>) =>
     request<unknown>("PUT", "/api/preferences", JSON.stringify(prefs), { "Content-Type": "application/json" }),
+
+  // --- Search ---
+  search: (query: string, scope?: string) =>
+    request<{ results: { path: string; name: string; score?: number }[]; total?: number; hits?: { path: string; name: string; score?: number }[] }>(
+      "GET",
+      `/api/search?q=${encodeURIComponent(query)}${scope ? `&scope=${encodeURIComponent(scope)}` : ""}`,
+    ),
 
   // --- Admin: users / groups / branding / maintenance ---
   adminUsers: () => request<{ users: AdminUser[] }>("GET", "/api/admin/users"),
