@@ -79,27 +79,33 @@ async fn verify_user_password<S: SecurityAppState>(state: &S, username: &str, pa
 }
 
 async fn get_user_id<S: SecurityAppState>(state: &S, username: &str) -> Option<String> {
+    // Same block_on hazard as above — always await instead.
     #[allow(clippy::collapsible_if)]
     if let Some(admin_user) = state.admin_user() {
         if username == admin_user.as_str() {
             return state
                 .user_store()
-                .get_user_by_username_blocking(username)
+                .get_user_by_username(username)
+                .await
                 .ok()
                 .map(|u| u.id);
         }
     }
     state
         .user_store()
-        .get_user_by_username_blocking(username)
+        .get_user_by_username(username)
+        .await
         .ok()
         .map(|u| u.id)
 }
 
 async fn get_totp_secret<S: SecurityAppState>(state: &S, username: &str) -> Option<String> {
+    // NOTE: never use get_user_by_username_blocking here — block_on inside a
+    // tokio worker panics ("Cannot start a runtime from within a runtime").
     state
         .user_store()
-        .get_user_by_username_blocking(username)
+        .get_user_by_username(username)
+        .await
         .ok()
         .and_then(|u| u.totp_secret.map(|s| s.into_inner()))
 }
@@ -107,7 +113,8 @@ async fn get_totp_secret<S: SecurityAppState>(state: &S, username: &str) -> Opti
 async fn is_totp_enabled<S: SecurityAppState>(state: &S, username: &str) -> bool {
     state
         .user_store()
-        .get_user_by_username_blocking(username)
+        .get_user_by_username(username)
+        .await
         .ok()
         .is_some_and(|u| u.totp_enabled)
 }
