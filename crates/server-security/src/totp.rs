@@ -43,6 +43,31 @@ fn extract_username<S: SecurityAppState>(state: &S) -> Option<String> {
     state.admin_user().clone()
 }
 
+/// Resolve the acting account: local admin in basic-auth mode, otherwise the
+/// OIDC caller's sub from the token claims attached by the auth middleware.
+fn extract_username_with_claims<S: SecurityAppState>(
+    state: &S,
+    claims: Option<&ferro_common::auth::Claims>,
+) -> Option<String> {
+    extract_username(state)
+        .or_else(|| claims.map(|c| c.sub.clone()))
+        .filter(|u| !u.is_empty() && u != "anonymous")
+}
+
+/// OIDC callers manage passwords and second factors at the identity
+/// provider — reject with a clear, non-401 error so SPAs render it inline.
+fn oidc_managed_error() -> Response {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(serde_json::json!({
+            "error": "IDP_MANAGED",
+            "message": "Password and two-factor authentication are managed by your identity provider",
+        })),
+    )
+        .into_response()
+}
+
+
 async fn verify_user_password<S: SecurityAppState>(state: &S, username: &str, password: &str) -> bool {
     #[allow(clippy::collapsible_if)]
     if let (Some(admin_pw), Some(admin_user)) = (state.admin_password(), state.admin_user()) {
@@ -87,19 +112,25 @@ async fn is_totp_enabled<S: SecurityAppState>(state: &S, username: &str) -> bool
         .is_some_and(|u| u.totp_enabled)
 }
 
-pub async fn totp_setup<S: SecurityAppState>(State(state): State<S>, Json(body): Json<TotpSetupRequest>) -> Response {
-    let username = match extract_username(&state) {
-        Some(u) => u,
-        None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(TotpVerifyResponse {
-                    verified: false,
-                    error: Some("authentication required".to_string()),
-                }),
-            )
-                .into_response();
-        }
+pub async fn totp_setup<S: SecurityAppState>(
+    State(state): State<S>,
+    claims: Option<axum::Extension<ferro_common::auth::Claims>>,
+    Json(body): Json<TotpSetupRequest>,
+) -> Response {
+    let claims_ref: Option<&ferro_common::auth::Claims> = claims.as_ref().map(|e| &e.0);
+    let is_oidc = claims_ref.is_some();
+    if is_oidc {
+        return oidc_managed_error();
+    }
+    let Some(username) = extract_username_with_claims(&state, claims_ref) else {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(TotpVerifyResponse {
+                verified: false,
+                error: Some("authentication required".to_string()),
+            }),
+        )
+            .into_response();
     };
 
     if !verify_user_password(&state, &username, &body.password).await {
@@ -159,19 +190,25 @@ pub async fn totp_setup<S: SecurityAppState>(State(state): State<S>, Json(body):
         .into_response()
 }
 
-pub async fn totp_enable<S: SecurityAppState>(State(state): State<S>, Json(body): Json<TotpVerifyRequest>) -> Response {
-    let username = match extract_username(&state) {
-        Some(u) => u,
-        None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(TotpVerifyResponse {
-                    verified: false,
-                    error: Some("authentication required".to_string()),
-                }),
-            )
-                .into_response();
-        }
+pub async fn totp_enable<S: SecurityAppState>(
+    State(state): State<S>,
+    claims: Option<axum::Extension<ferro_common::auth::Claims>>,
+    Json(body): Json<TotpVerifyRequest>,
+) -> Response {
+    let claims_ref: Option<&ferro_common::auth::Claims> = claims.as_ref().map(|e| &e.0);
+    let is_oidc = claims_ref.is_some();
+    if is_oidc {
+        return oidc_managed_error();
+    }
+    let Some(username) = extract_username_with_claims(&state, claims_ref) else {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(TotpVerifyResponse {
+                verified: false,
+                error: Some("authentication required".to_string()),
+            }),
+        )
+            .into_response();
     };
 
     if !verify_user_password(&state, &username, &body.password).await {
@@ -283,20 +320,23 @@ pub async fn totp_enable<S: SecurityAppState>(State(state): State<S>, Json(body)
 
 pub async fn totp_disable<S: SecurityAppState>(
     State(state): State<S>,
+    claims: Option<axum::Extension<ferro_common::auth::Claims>>,
     Json(body): Json<TotpVerifyRequest>,
 ) -> Response {
-    let username = match extract_username(&state) {
-        Some(u) => u,
-        None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(TotpVerifyResponse {
-                    verified: false,
-                    error: Some("authentication required".to_string()),
-                }),
-            )
-                .into_response();
-        }
+    let claims_ref: Option<&ferro_common::auth::Claims> = claims.as_ref().map(|e| &e.0);
+    let is_oidc = claims_ref.is_some();
+    if is_oidc {
+        return oidc_managed_error();
+    }
+    let Some(username) = extract_username_with_claims(&state, claims_ref) else {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(TotpVerifyResponse {
+                verified: false,
+                error: Some("authentication required".to_string()),
+            }),
+        )
+            .into_response();
     };
 
     if !verify_user_password(&state, &username, &body.password).await {
@@ -352,19 +392,20 @@ pub async fn totp_disable<S: SecurityAppState>(
         .into_response()
 }
 
-pub async fn totp_status<S: SecurityAppState>(State(state): State<S>) -> Response {
-    let username = match extract_username(&state) {
-        Some(u) => u,
-        None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(TotpStatusResponse {
-                    enabled: false,
-                    has_secret: false,
-                }),
-            )
-                .into_response();
-        }
+pub async fn totp_status<S: SecurityAppState>(
+    State(state): State<S>,
+    claims: Option<axum::Extension<ferro_common::auth::Claims>>,
+) -> Response {
+    let claims_ref: Option<&ferro_common::auth::Claims> = claims.as_ref().map(|e| &e.0);
+    let Some(username) = extract_username_with_claims(&state, claims_ref) else {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(TotpStatusResponse {
+                enabled: false,
+                has_secret: false,
+            }),
+        )
+            .into_response();
     };
 
     let secret = get_totp_secret(&state, &username).await.unwrap_or_default();

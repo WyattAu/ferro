@@ -134,6 +134,20 @@ pub async fn auth_change_password_impl<S: ferro_server_state::ServerState>(
 
     let user_info = parts.extensions.get::<ferro_auth::users::UserInfo>().cloned();
 
+    // OIDC callers manage credentials at the identity provider — do NOT let
+    // them silently rotate the local admin password (the fallback below).
+    let oidc_caller = parts
+        .extensions
+        .get::<common::auth::Claims>()
+        .is_some_and(|c| c.sub != "anonymous");
+    if oidc_caller {
+        return ApiError::bad_request(
+            ApiError::BAD_REQUEST,
+            "Password and two-factor authentication are managed by your identity provider",
+        )
+        .into_response();
+    }
+
     let password = match serde_json::from_slice::<serde_json::Value>(&body_bytes) {
         Ok(v) => match v.get("password").and_then(|s| s.as_str()) {
             Some(p) => p.to_string(),
