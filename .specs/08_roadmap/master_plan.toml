@@ -1,0 +1,225 @@
+[metadata]
+project = "Ferro"
+version = "0.1.0"
+created = "2026-04-18T00:00:00Z"
+total_tasks = 21
+
+# === PHASE 1: CORE MVP ===
+
+[[task]]
+id = "T-001"
+title = "Scaffold workspace with shared dependencies"
+phase = 1
+description = "Update root Cargo.toml with all shared deps. Create cli/desktop Cargo.toml stubs."
+prerequisites = []
+outputs = ["Cargo.toml", "crates/cli/Cargo.toml", "crates/desktop/Cargo.toml"]
+verification = "cargo check --workspace"
+status = "completed"
+
+[[task]]
+id = "T-002"
+title = "Implement ferro-common shared types"
+phase = 1
+description = "Error types, FileMetadata, ContentHash, WebDAV types, path utilities, auth types."
+prerequisites = ["T-001"]
+outputs = ["crates/common/src/**/*.rs"]
+verification = "cargo test -p ferro-common"
+status = "completed"
+
+[[task]]
+id = "T-003"
+title = "Implement ferro-core storage engine"
+phase = 1
+description = "StorageEngine trait, InMemoryStorageEngine, CasStore, MetadataStore, PresignedUrlGenerator."
+prerequisites = ["T-002"]
+outputs = ["crates/core/src/**/*.rs"]
+verification = "cargo test -p ferro-core"
+status = "completed"
+
+[[task]]
+id = "T-004"
+title = "Implement ferro-server WebDAV handler"
+phase = 1
+description = "Axum server, WebDAV methods (PROPFIND/MKCOL/PUT/GET/DELETE/COPY/MOVE/LOCK/UNLOCK), LockManager."
+prerequisites = ["T-003"]
+outputs = ["crates/server/src/**/*.rs"]
+verification = "cargo test -p ferro-server"
+status = "completed"
+
+[[task]]
+id = "T-005"
+title = "Add rclone integration tests"
+phase = 1
+description = "End-to-end test: start server, mount with rclone, verify file operations."
+prerequisites = ["T-004"]
+outputs = ["crates/server/tests/rclone_integration.rs"]
+verification = "cargo test -p ferro-server --test rclone_integration"
+status = "completed"
+
+[[task]]
+id = "T-006"
+title = "Implement real object_store backend"
+phase = 1
+description = "ObjectStoreStorageEngine wrapping object_store crate for Local FS and S3."
+prerequisites = ["T-003"]
+outputs = ["crates/core/src/storage/object_store_backend.rs"]
+verification = "cargo test -p ferro-core"
+status = "completed"
+
+[[task]]
+id = "T-007"
+title = "Add PROPFIND streaming XML for large collections"
+phase = 1
+description = "Use quick-xml Writer to stream PROPFIND responses instead of string concatenation."
+prerequisites = ["T-004"]
+outputs = ["crates/server/src/webdav.rs"]
+verification = "cargo test -p ferro-server"
+status = "completed"
+
+[[task]]
+id = "T-008"
+title = "Add WebDAV XML request parsing (LOCK body)"
+phase = 1
+description = "Parse LOCK request XML body to extract lock scope, depth, and owner."
+prerequisites = ["T-004"]
+outputs = ["crates/server/src/webdav.rs"]
+verification = "cargo test -p ferro-server"
+status = "completed"
+
+[[task]]
+id = "T-009"
+title = "Phase 1 integration and rclone compat verification"
+phase = 1
+description = "Full integration test suite. Verify rclone can mount, list, upload, download, delete."
+prerequisites = ["T-005", "T-006", "T-007", "T-008"]
+outputs = ["crates/server/tests/**/*.rs"]
+verification = "cargo test --workspace"
+status = "completed"
+
+# === PHASE 2: METADATA & AUTH ===
+
+[[task]]
+id = "T-010"
+title = "Add SQLx metadata store (PostgreSQL)"
+phase = 2
+description = "PostgreSQL-backed MetadataStore with migrations."
+prerequisites = ["T-003"]
+outputs = ["crates/core/src/metadata/sqlx_store.rs", "migrations/*.sql"]
+verification = "cargo test -p ferro-core"
+status = "completed"
+
+[[task]]
+id = "T-011"
+title = "Implement OIDC authentication middleware"
+phase = 2
+description = "JWT validation, JWKS caching, Claims extraction."
+prerequisites = ["T-004"]
+outputs = ["crates/server/src/auth/mod.rs", "crates/server/src/auth/oidc.rs"]
+verification = "cargo test -p ferro-server"
+status = "completed"
+
+[[task]]
+id = "T-012"
+title = "Implement Cedar authorization engine"
+phase = 2
+description = "Cedar Authorizer integration, policy store, deny-by-default."
+prerequisites = ["T-011"]
+outputs = ["crates/server/src/auth/cedar.rs", "crates/server/src/auth/policy.rs"]
+verification = "cargo test -p ferro-server"
+status = "completed"
+
+[[task]]
+id = "T-013"
+title = "Phase 2 integration tests"
+phase = 2
+description = "Auth flow tests, policy evaluation tests, PostgreSQL metadata tests."
+prerequisites = ["T-010", "T-012"]
+outputs = ["crates/server/tests/auth_*.rs"]
+verification = "cargo test --workspace"
+status = "completed"
+
+# === PHASE 3: WEB FRONTEND ===
+
+[[task]]
+id = "T-014"
+title = "Implement Leptos web frontend scaffold"
+phase = 3
+description = "SSR + WASM hydration setup, file browser component, shared API types."
+prerequisites = ["T-002"]
+outputs = ["crates/web/src/**/*.rs", "crates/web/index.html"]
+verification = "cargo check -p ferro-web"
+status = "completed"
+
+[[task]]
+id = "T-015"
+title = "Implement file browser UI"
+phase = 3
+description = "Virtualized file list, navigation, upload/download, share links."
+prerequisites = ["T-014"]
+outputs = ["crates/web/src/components/*.rs"]
+verification = "cargo build -p ferro-web"
+status = "completed"
+
+[[task]]
+id = "T-016"
+title = "Implement admin dashboard"
+phase = 3
+description = "Policy management, user management, WASM worker monitoring."
+prerequisites = ["T-015"]
+outputs = ["crates/web/src/admin/*.rs"]
+verification = "cargo build -p ferro-web"
+status = "completed"
+
+# === PHASE 4: DESKTOP ===
+
+[[task]]
+id = "T-017"
+title = "Implement Tauri desktop scaffold"
+phase = 4
+description = "Tauri app shell, rclone sidecar management, system tray."
+prerequisites = ["T-004"]
+outputs = ["crates/desktop/src/**/*.rs", "crates/desktop/tauri.conf.json"]
+verification = "cargo check -p ferro-desktop"
+status = "completed"
+
+[[task]]
+id = "T-018"
+title = "Implement zero-config mount"
+phase = 4
+description = "Auto-inject credentials, mount drive, monitor rclone status."
+prerequisites = ["T-017"]
+outputs = ["crates/desktop/src/mount.rs"]
+verification = "cargo test -p ferro-desktop"
+status = "completed"
+
+# === PHASE 5: INTELLIGENCE ===
+
+[[task]]
+id = "T-019"
+title = "Implement Tantivy search"
+phase = 5
+description = "Full-text search index, background content indexing, search API."
+prerequisites = ["T-010"]
+outputs = ["crates/core/src/search/*.rs"]
+verification = "cargo test -p ferro-core"
+status = "completed"
+
+[[task]]
+id = "T-020"
+title = "Implement WASM worker runtime"
+phase = 5
+description = "Wasmtime integration, event-driven execution, resource limits."
+prerequisites = ["T-003"]
+outputs = ["crates/core/src/wasm/*.rs"]
+verification = "cargo test -p ferro-core"
+status = "completed"
+
+[[task]]
+id = "T-021"
+title = "Implement CLI tool"
+phase = 5
+description = "Admin CLI for user management, policy management, server control."
+prerequisites = ["T-012"]
+outputs = ["crates/cli/src/**/*.rs"]
+verification = "cargo test -p ferro-cli"
+status = "completed"

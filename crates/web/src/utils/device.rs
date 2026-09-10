@@ -20,7 +20,7 @@ impl Default for ViewportSize {
 }
 
 pub fn use_viewport_size() -> Signal<ViewportSize> {
-    let (size, set_size) = signal(ViewportSize::default());
+    let (size, _set_size) = signal(ViewportSize::default());
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -28,7 +28,7 @@ pub fn use_viewport_size() -> Signal<ViewportSize> {
             if let Some(window) = web_sys::window() {
                 let width = window.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(1024.0);
                 let height = window.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(768.0);
-                set_size.set(ViewportSize { width, height });
+                _set_size.set(ViewportSize { width, height });
             }
         };
 

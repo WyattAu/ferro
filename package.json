@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@astrojs/solid-js": "^7.0.2",
+    "@tanstack/solid-table": "^9.2.4",
+    "ky": "^2.1.0",
+    "lucide-solid": "^1.42.0",
+    "oidc-client-ts": "^3.5.0"
+  }
+}

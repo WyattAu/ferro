@@ -170,9 +170,7 @@ impl DesktopState {
 
         let config = self.config.read().await;
         // Bearer token (OIDC) takes precedence over basic auth.
-        if config.auth_token.is_none()
-            && (config.username.is_empty() || config.password.is_empty())
-        {
+        if config.auth_token.is_none() && (config.username.is_empty() || config.password.is_empty()) {
             return Err("sync requires username and password (or an auth token)".to_string());
         }
 
@@ -189,6 +187,9 @@ impl DesktopState {
             username: config.username.clone(),
             password: config.password.clone(),
             bearer_token: config.auth_token.clone(),
+            refresh_token: config.refresh_token.clone(),
+            oidc_issuer: Some(crate::login::DEFAULT_ISSUER.to_string()),
+            oidc_client_id: Some(crate::login::DESKTOP_CLIENT_ID.to_string()),
             ..Default::default()
         };
 

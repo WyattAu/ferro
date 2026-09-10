@@ -266,7 +266,7 @@ impl TaskStore {
         Ok(task)
     }
 
-    pub fn update(&self, id: &str, req: &UpdateTaskRequest, owner: &str) -> Result<Option<Task>, String> {
+    pub fn update(&self, id: &str, req: &UpdateTaskRequest, _owner: &str) -> Result<Option<Task>, String> {
         let db = self.db.as_ref().ok_or("Database not configured")?;
         let conn = db.lock().map_err(|e| format!("Lock error: {}", e))?;
         Self::ensure_tasks_table(&conn).map_err(|e| format!("DB error: {}", e))?;
@@ -289,7 +289,7 @@ impl TaskStore {
         let task = Task {
             id: existing.id,
             owner: existing.owner,
-            title: req.title.clone().unwrap_or_else(|| existing.title),
+            title: req.title.clone().unwrap_or(existing.title),
             description: req.description.clone().unwrap_or(existing.description),
             status: req.status.clone().unwrap_or(existing.status),
             assignee: req.assignee.clone().unwrap_or(existing.assignee),

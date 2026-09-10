@@ -1,0 +1,15 @@
+---
+interface Props { title: string }
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title} — Ferro</title>
+</head>
+<body class="bg-[var(--bg-base)] text-[var(--text-primary)] min-h-screen">
+  <slot />
+</body>
+</html>

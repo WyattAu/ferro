@@ -41,9 +41,7 @@ pub fn build_multistatus_xml(items: &[(String, FileMetadata)]) -> Bytes {
 
         let _ = writer.write_event(Event::Start(BytesStart::new("D:href")));
         // RFC 4918 §8.3: hrefs must be encoded URIs, never raw spaces.
-        let _ = writer.write_event(Event::Text(BytesText::new(
-            &common::path::encode_href(path),
-        )));
+        let _ = writer.write_event(Event::Text(BytesText::new(&common::path::encode_href(path))));
         let _ = writer.write_event(Event::End(BytesEnd::new("D:href")));
 
         let _ = writer.write_event(Event::Start(BytesStart::new("D:propstat")));

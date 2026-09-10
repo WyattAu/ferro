@@ -48,9 +48,6 @@ pub fn Toolbar(
         });
     }
 
-    // Sort control state derived from parent props.
-    let current_sort = move || format!("{}:{}", sort_key.get(), sort_dir.get());
-
     let apply_preset = move |preset: ViewPreset, ev: ev::MouseEvent| {
         ev.stop_propagation();
         let view = preset.to_custom_view();

@@ -1,4 +1,3 @@
-use crate::api::client::ApiClient;
 use crate::api::endpoints::FileEntry;
 use crate::components::domain::file_preview::FilePreview;
 use leptos::prelude::*;

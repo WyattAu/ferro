@@ -776,10 +776,7 @@ pub fn generate_auto_policies(admin_sub: &str, spaces: &[SpaceMembership]) -> Ve
 
     // Keycloak group admins: members of the ferro-admin group (claim mapped
     // into the token by the ferro-groups mapper) get the same reach.
-    out.push(
-        "permit(principal, action, resource) when { \"ferro-admin\" in context.groups };"
-        .to_string(),
-    );
+    out.push("permit(principal, action, resource) when { \"ferro-admin\" in context.groups };".to_string());
 
     // Shared spaces: read for every authenticated user
     out.push(

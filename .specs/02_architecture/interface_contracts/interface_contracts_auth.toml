@@ -1,0 +1,431 @@
+# Authentication & Authorization Interface Contracts
+# Reference: BP-AUTH-MIDDLEWARE-001, YP-AUTH-OIDC-CEDAR-001
+# Schema version: 1.0
+
+# ============================================================
+# IF-AUTH-001: OidcValidator
+# ============================================================
+
+[IF-AUTH-001]
+id = "IF-AUTH-001"
+name = "OidcValidator"
+component = "COMP-AUTH-001"
+description = "OIDC token validation with JWKS caching. Implements ALG-OIDC-VALIDATE-001."
+protocol = "Rust trait"
+
+[IF-AUTH-001.operations.validate_token]
+name = "validate_token"
+description = "Validate a bearer token string and extract claims."
+input = { token = "String (JWT format: header.payload.signature)" }
+output = { ok = "Claims", err = "TokenError" }
+preconditions = [
+    "JWKS has been fetched at least once (via refresh_jwks or get_discovery_document)",
+    "OIDC configuration is loaded (issuer, client_id, allowed_algorithms, clock_skew, max_token_ttl)",
+]
+postconditions = [
+    "On Ok(claims): token JWS signature verified against JWKS key identified by header.kid",
+    "On Ok(claims): claims.iss == config.expected_issuer",
+    "On Ok(claims): config.client_id in claims.aud",
+    "On Ok(claims): now < claims.exp + config.clock_skew",
+    "On Ok(claims): claims.nbf <= now + config.clock_skew (if nbf present)",
+    "On Ok(claims): (claims.exp - claims.iat) <= config.max_token_ttl",
+    "On Ok(claims): claims.nonce == config.expected_nonce (if nonce present)",
+    "On Ok(claims): claims.sub is non-empty and length <= 255",
+    "On Err: no principal identity is returned; token is fully rejected",
+]
+error_conditions = [
+    { variant = "InvalidTokenFormat", trigger = "token does not have 3 dot-separated parts" },
+    { variant = "AlgorithmNotAllowed", trigger = "header.alg not in allowed_algorithms (DC-AUTH-ALG-001)" },
+    { variant = "KeyNotFound", trigger = "header.kid not found in cached JWKS" },
+    { variant = "SignatureInvalid", trigger = "JWS signature verification fails" },
+    { variant = "InvalidIssuer", trigger = "claims.iss != config.expected_issuer" },
+    { variant = "InvalidAudience", trigger = "config.client_id not in claims.aud" },
+    { variant = "TokenExpired", trigger = "now >= claims.exp + config.clock_skew" },
+    { variant = "TokenNotYetValid", trigger = "now < claims.nbf - config.clock_skew" },
+    { variant = "TokenIssuedInFuture", trigger = "claims.iat > now + config.clock_skew" },
+    { variant = "NonceMismatch", trigger = "claims.nonce != session nonce" },
+    { variant = "InvalidSubject", trigger = "claims.sub is missing or empty or length > 255" },
+    { variant = "TokenTtlExceeded", trigger = "(claims.exp - claims.iat) > max_token_ttl (DC-AUTH-TOKEN-TTL-001)" },
+]
+timing = { p50_target = "1ms", p99_target = "5ms", constraint_ref = "DC-AUTH-TIMING-001" }
+test_vectors = ["TV-OIDC-001", "TV-OIDC-002", "TV-OIDC-003", "TV-OIDC-004", "TV-OIDC-005", "TV-OIDC-006", "TV-OIDC-007", "TV-OIDC-008"]
+
+[IF-AUTH-001.operations.refresh_jwks]
+name = "refresh_jwks"
+description = "Force-refresh the JWKS from the OP's jwks_uri."
+input = {}
+output = { ok = "()", err = "JwksError" }
+preconditions = [
+    "OIDC configuration is loaded (jwks_uri from discovery document)",
+]
+postconditions = [
+    "On Ok: cached JWKS is replaced with freshly fetched keys from jwks_uri",
+    "On Ok: JWKS URI was HTTPS (DC-AUTH-JWKS-002)",
+    "On Err: previously cached JWKS remains in use",
+]
+error_conditions = [
+    { variant = "FetchFailed", trigger = "HTTP request to jwks_uri fails" },
+    { variant = "InvalidResponse", trigger = "JWKS response is not valid JSON or malformed" },
+    { variant = "HttpsRequired", trigger = "jwks_uri does not use https:// scheme" },
+]
+timing = { p99_target = "2000ms" }
+
+[IF-AUTH-001.operations.get_discovery_document]
+name = "get_discovery_document"
+description = "Fetch and cache the OIDC Discovery document from the issuer's .well-known endpoint."
+input = {}
+output = { ok = "DiscoveryDoc", err = "DiscoveryError" }
+preconditions = [
+    "Issuer URL is configured",
+]
+postconditions = [
+    "On Ok: returns issuer, authorization_endpoint, token_endpoint, jwks_uri, userinfo_endpoint, etc.",
+    "On Ok: issuer in response matches configured issuer URL",
+]
+error_conditions = [
+    { variant = "FetchFailed", trigger = "HTTP request to .well-known/openid-configuration fails" },
+    { variant = "InvalidResponse", trigger = "Discovery document is not valid JSON or missing required fields" },
+    { variant = "IssuerMismatch", trigger = "response.issuer != configured issuer" },
+]
+timing = { p99_target = "2000ms" }
+
+# ============================================================
+# IF-CEDAR-001: CedarAuthorizer
+# ============================================================
+
+[IF-CEDAR-001]
+id = "IF-CEDAR-001"
+name = "CedarAuthorizer"
+component = "COMP-CEDAR-002"
+description = "Cedar policy-based authorization engine. Implements ALG-CEDAR-EVAL-001."
+protocol = "Rust trait"
+
+[IF-CEDAR-001.operations.is_authorized]
+name = "is_authorized"
+description = "Evaluate an authorization request against the active policy set and entity store."
+input = {
+    principal = "EntityUid (e.g., User::\"<sub>\")",
+    action = "EntityUid (e.g., Action::\"view\")",
+    resource = "EntityUid (e.g., File::\"doc.pdf\")",
+    context = "Context (record: {ip, mfa, time, ...})",
+}
+output = { ok = "AuthResponse", err = "EvalError" }
+preconditions = [
+    "Policy set is loaded (not empty, validated against schema)",
+    "Principal entity exists in entity store or is constructed from OIDC claims",
+    "Resource entity exists in entity store (loaded per DC-AUTH-ENTITY-STORE-001)",
+]
+postconditions = [
+    "decision is either Allow or Deny",
+    "If decision == Allow: determining_policies is non-empty and all are permit policies",
+    "If decision == Deny and determining_policies non-empty: at least one is a forbid policy",
+    "If decision == Deny and determining_policies empty: no permit policy matched (default-deny, PROP-AUTH-002)",
+    "Error policies are reported but do not affect decision (skip-on-error)",
+    "Decision is logged with determining_policies and error_policies (DC-AUTH-LOG-001)",
+]
+error_conditions = [
+    { variant = "InvalidRequest", trigger = "principal, action, or resource EntityUid is malformed" },
+    { variant = "MissingEntity", trigger = "referenced entity not found in entity store" },
+    { variant = "InternalError", trigger = "Cedar evaluation engine encounters unexpected state" },
+]
+timing = { p50_target = "0.5ms", p99_target_100policies = "10ms", p99_target_1000policies = "50ms", constraint_ref = "DC-AUTH-CEDAR-TIMING-001" }
+test_vectors = ["TV-CEDAR-001", "TV-CEDAR-002", "TV-CEDAR-003", "TV-CEDAR-004", "TV-CEDAR-005", "TV-CEDAR-006", "TV-CEDAR-007", "TV-CEDAR-008", "TV-CEDAR-009", "TV-CEDAR-010", "TV-CEDAR-011", "TV-CEDAR-012"]
+
+[IF-CEDAR-001.operations.load_policies]
+name = "load_policies"
+description = "Replace the active policy set atomically with a new set of parsed and validated policies."
+input = { policies = "Vec<String> (raw Cedar policy source text)" }
+output = { ok = "()", err = "PolicyLoadError" }
+preconditions = [
+    "Schema is loaded (defines entity types, attributes, actions)",
+]
+postconditions = [
+    "On Ok: all policies parsed and validated against schema",
+    "On Ok: active policy set is atomically swapped (no partial state visible to concurrent evaluators)",
+    "On Ok: hot-reload completes without restart (DC-AUTH-CEDAR-HOT-001)",
+    "On Err: previous policy set remains active (rollback semantics)",
+    "On Err: error messages identify which policies failed validation and why",
+]
+error_conditions = [
+    { variant = "ParseError", trigger = "policy text is not valid Cedar syntax" },
+    { variant = "ValidationError", trigger = "policy fails schema validation (DC-AUTH-CEDAR-VALIDATE-001)" },
+    { variant = "SizeLimitExceeded", trigger = "individual policy exceeds 256 KiB (DC-AUTH-CEDAR-SIZE-001)" },
+    { variant = "PolicyLimitExceeded", trigger = "total policy count exceeds 10,000 (DC-AUTH-CEDAR-MAX-001)" },
+    { variant = "DuplicatePolicyId", trigger = "two policies have the same @id annotation" },
+]
+timing = { p99_target = "500ms", note = "includes parse + validate + atomic swap" }
+
+[IF-CEDAR-001.operations.add_entity]
+name = "add_entity"
+description = "Add or update an entity in the entity store used for Cedar evaluation."
+input = { entity = "Entity (type, uid, attributes, parents)" }
+output = { ok = "()", err = "EntityStoreError" }
+preconditions = [
+    "Entity type is defined in the Cedar schema",
+]
+postconditions = [
+    "On Ok: entity is available for subsequent is_authorized() calls",
+    "On Ok: entity attributes and parent hierarchy are correctly indexed",
+]
+error_conditions = [
+    { variant = "InvalidEntityType", trigger = "entity type not defined in schema" },
+    { variant = "InvalidAttributes", trigger = "attribute types do not match schema" },
+]
+
+[IF-CEDAR-001.operations.remove_entity]
+name = "remove_entity"
+description = "Remove an entity from the entity store."
+input = { uid = "EntityUid" }
+output = { ok = "()", err = "EntityStoreError" }
+preconditions = []
+postconditions = [
+    "On Ok: entity is no longer available for evaluation",
+    "On Err (NotFound): no-op (idempotent)",
+]
+error_conditions = [
+    { variant = "NotFound", trigger = "entity UID not found in store" },
+]
+
+# ============================================================
+# IF-SESSION-001: SessionManager
+# ============================================================
+
+[IF-SESSION-001]
+id = "IF-SESSION-001"
+name = "SessionManager"
+component = "COMP-SESSION-003"
+description = "User session lifecycle management with idle timeout and refresh rotation."
+protocol = "Rust trait"
+
+[IF-SESSION-001.operations.create_session]
+name = "create_session"
+description = "Create a new session from validated OIDC tokens."
+input = { tokens = "TokenSet (id_token, access_token, refresh_token?)", nonce = "String" }
+output = { ok = "Session", err = "SessionError" }
+preconditions = [
+    "tokens.id_token has been validated by OidcValidator (IF-AUTH-001.validate_token)",
+    "nonce matches the nonce sent in the authentication request",
+]
+postconditions = [
+    "On Ok: session is persisted and retrievable via get_session()",
+    "On Ok: session.id is a cryptographically random identifier",
+    "On Ok: session.expires_at = now + absolute_lifetime",
+    "On Ok: session.last_active_at = now",
+    "On Ok: tokens are encrypted at rest before storage",
+]
+error_conditions = [
+    { variant = "StoreError", trigger = "session store is unavailable" },
+]
+timing = { p99_target = "50ms" }
+
+[IF-SESSION-001.operations.refresh_session]
+name = "refresh_session"
+description = "Refresh an existing session by exchanging the stored refresh token for new tokens."
+input = { session_id = "String" }
+output = { ok = "Session", err = "SessionError" }
+preconditions = [
+    "Session exists and is not revoked",
+    "Session has a stored refresh_token",
+    "Refresh token has not expired at the OP",
+]
+postconditions = [
+    "On Ok: new id_token and access_token are obtained from the OP",
+    "On Ok: old refresh_token is invalidated (rotation)",
+    "On Ok: new refresh_token is stored (if provided by OP)",
+    "On Ok: session.last_active_at is updated",
+    "On Ok: nonce is re-validated against the new id_token",
+]
+error_conditions = [
+    { variant = "SessionNotFound", trigger = "session_id does not exist or is revoked" },
+    { variant = "RefreshFailed", trigger = "OP rejects the refresh token" },
+    { variant = "TokenValidationFailed", trigger = "new id_token fails validation (IF-AUTH-001)" },
+]
+
+[IF-SESSION-001.operations.revoke_session]
+name = "revoke_session"
+description = "Immediately revoke a session (logout)."
+input = { session_id = "String" }
+output = { ok = "()", err = "SessionError" }
+preconditions = []
+postconditions = [
+    "On Ok: session is marked as revoked",
+    "On Ok: subsequent get_session() returns None",
+    "On Ok: refresh token is revoked at the OP (best-effort)",
+    "Idempotent: revoking an already-revoked session returns Ok",
+]
+error_conditions = [
+    { variant = "StoreError", trigger = "session store is unavailable" },
+]
+
+[IF-SESSION-001.operations.get_session]
+name = "get_session"
+description = "Look up a session by ID. Returns None if expired, revoked, or not found."
+input = { session_id = "String" }
+output = { ok = "Option<Session>", err = "SessionError" }
+preconditions = []
+postconditions = [
+    "On Ok(Some): session is active (not expired, not revoked)",
+    "On Ok(None): session does not exist, is revoked, or has expired",
+    "On Ok(Some): session.last_active_at is updated to now",
+]
+error_conditions = [
+    { variant = "StoreError", trigger = "session store is unavailable" },
+]
+timing = { p99_target = "10ms", note = "redis lookup: sub-ms; DB lookup: ~5ms" }
+
+# ============================================================
+# IF-POLICY-001: PolicyStore
+# ============================================================
+
+[IF-POLICY-001]
+id = "IF-POLICY-001"
+name = "PolicyStore"
+component = "COMP-POLICY-004"
+description = "Persistent CRUD storage for Cedar policies with schema validation and hot-reload."
+protocol = "Rust trait"
+
+[IF-POLICY-001.operations.list_policies]
+name = "list_policies"
+description = "List all policies in the store."
+input = {}
+output = { ok = "Vec<CedarPolicy>", err = "PolicyStoreError" }
+preconditions = []
+postconditions = [
+    "On Ok: returns all policies ordered by created_at",
+]
+error_conditions = [
+    { variant = "StoreError", trigger = "database or file system unavailable" },
+]
+
+[IF-POLICY-001.operations.get_policy]
+name = "get_policy"
+description = "Get a policy by its unique identifier."
+input = { id = "String" }
+output = { ok = "Option<CedarPolicy>", err = "PolicyStoreError" }
+preconditions = []
+postconditions = [
+    "On Ok(Some): returns the policy with the given ID",
+    "On Ok(None): no policy with that ID exists",
+]
+error_conditions = [
+    { variant = "StoreError", trigger = "database or file system unavailable" },
+]
+
+[IF-POLICY-001.operations.create_policy]
+name = "create_policy"
+description = "Create a new policy after schema validation."
+input = { policy = "CreatePolicyRequest (id, description, policy_text)" }
+output = { ok = "CedarPolicy", err = "PolicyStoreError" }
+preconditions = [
+    "No existing policy with the same ID",
+    "Schema is loaded for validation",
+]
+postconditions = [
+    "On Ok: policy is parsed, validated against schema, and persisted",
+    "On Ok: active_policy_set() reflects the new policy (hot-reload, DC-AUTH-CEDAR-HOT-001)",
+    "On Ok: policy.effect is extracted during parsing",
+    "On Ok: policy.version = 1",
+]
+error_conditions = [
+    { variant = "DuplicateId", trigger = "policy ID already exists" },
+    { variant = "ParseError", trigger = "policy_text is not valid Cedar syntax" },
+    { variant = "ValidationError", trigger = "policy fails schema validation" },
+    { variant = "SizeLimitExceeded", trigger = "policy_text exceeds 256 KiB (DC-AUTH-CEDAR-SIZE-001)" },
+    { variant = "PolicyLimitExceeded", trigger = "total count would exceed 10,000 (DC-AUTH-CEDAR-MAX-001)" },
+    { variant = "StoreError", trigger = "database or file system unavailable" },
+]
+
+[IF-POLICY-001.operations.update_policy]
+name = "update_policy"
+description = "Update an existing policy after schema validation."
+input = { id = "String", policy = "UpdatePolicyRequest (description?, policy_text?)" }
+output = { ok = "CedarPolicy", err = "PolicyStoreError" }
+preconditions = [
+    "Policy with the given ID exists",
+    "Schema is loaded for validation",
+]
+postconditions = [
+    "On Ok: policy is re-parsed and re-validated against schema",
+    "On Ok: active_policy_set() reflects the updated policy",
+    "On Ok: policy.version is incremented",
+    "On Ok: policy.updated_at is set to now",
+    "On Err: old version remains active (no partial update)",
+]
+error_conditions = [
+    { variant = "NotFound", trigger = "policy ID does not exist" },
+    { variant = "ParseError", trigger = "new policy_text is not valid Cedar syntax" },
+    { variant = "ValidationError", trigger = "new policy fails schema validation" },
+    { variant = "SizeLimitExceeded", trigger = "new policy_text exceeds 256 KiB" },
+    { variant = "OptimisticLockFailed", trigger = "policy.version in DB does not match request version" },
+    { variant = "StoreError", trigger = "database or file system unavailable" },
+]
+
+[IF-POLICY-001.operations.delete_policy]
+name = "delete_policy"
+description = "Delete a policy by ID."
+input = { id = "String" }
+output = { ok = "()", err = "PolicyStoreError" }
+preconditions = [
+    "Policy with the given ID exists",
+]
+postconditions = [
+    "On Ok: policy is removed from persistent storage",
+    "On Ok: active_policy_set() no longer contains the policy",
+    "Idempotent: deleting a non-existent policy returns Ok",
+]
+error_conditions = [
+    { variant = "StoreError", trigger = "database or file system unavailable" },
+]
+
+[IF-POLICY-001.operations.active_policy_set]
+name = "active_policy_set"
+description = "Get the current active PolicySet for evaluation by CedarAuthorizer."
+input = {}
+output = { ok = "Arc<PolicySet>" }
+preconditions = [
+    "At least one call to load_policies or create_policy has succeeded",
+]
+postconditions = [
+    "Returned PolicySet contains all currently active policies",
+    "Returned PolicySet has passed schema validation",
+    "Arc clone is cheap; PolicySet is shared across evaluators",
+]
+timing = { p99_target = "0.01ms", note = "Arc::clone; no allocation" }
+
+# ============================================================
+# Middleware Chain Contract
+# ============================================================
+
+[IF-MIDDLEWARE-001]
+id = "IF-MIDDLEWARE-001"
+name = "AuthMiddlewareChain"
+component = "COMP-AUTH-001 + COMP-CEDAR-002"
+description = "Composed Axum middleware pipeline: auth_layer -> cedar_layer -> handler."
+protocol = "Axum middleware (tower::Service)"
+
+[IF-MIDDLEWARE-001.contract]
+name = "Request Processing Pipeline"
+description = "Every request passes through auth_layer then cedar_layer before reaching a handler."
+
+request_flow = [
+    "1. Extract Bearer token from Authorization header or session cookie",
+    "2. IF-AUTH-001.validate_token(token) -> Claims",
+    "   - On Err: respond 401 Unauthorized, stop",
+    "   - On Ok: insert Claims into request extensions",
+    "3. Extract action and resource from route parameters",
+    "4. Build Cedar principal EntityUid from Claims.sub",
+    "5. Load resource entity and related entities from EntityStore",
+    "6. IF-CEDAR-001.is_authorized(principal, action, resource, context) -> AuthResponse",
+    "   - On Deny: respond 403 Forbidden, stop",
+    "   - On Allow: insert AuthResponse into request extensions, continue",
+    "7. Route handler executes",
+]
+
+end_to_end_timing = { p99_target = "15ms", constraint_ref = "DC-AUTH-END-END-001" }
+
+error_mapping = [
+    { condition = "OIDC validation failure", status_code = 401, body = '{"error":"unauthenticated"}' },
+    { condition = "Cedar Deny decision", status_code = 403, body = '{"error":"forbidden"}' },
+    { condition = "Cedar evaluation error", status_code = 403, body = '{"error":"forbidden"}' },
+    { condition = "Internal error", status_code = 500, body = '{"error":"internal_error"}' },
+]

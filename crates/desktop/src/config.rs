@@ -8,6 +8,11 @@ pub fn config_path() -> PathBuf {
         .join("desktop.json")
 }
 
+/// Load the stored config, falling back to defaults (never None).
+pub fn load_from_disk_or_default() -> DesktopConfig {
+    load_config_from_disk().unwrap_or_default()
+}
+
 pub fn load_config_from_disk() -> Option<DesktopConfig> {
     let path = config_path();
     let data = std::fs::read_to_string(&path).ok()?;
@@ -15,26 +20,26 @@ pub fn load_config_from_disk() -> Option<DesktopConfig> {
     // Overlay the owner-only secrets file; it wins over legacy
     // plaintext values still present in desktop.json.
     let secrets = crate::secret_store::load_secrets();
-    if let Some(token) = secrets.auth_token {
-        if !token.is_empty() {
-            config.auth_token = Some(token);
-        }
+    if let Some(token) = secrets.auth_token
+        && !token.is_empty()
+    {
+        config.auth_token = Some(token);
     }
-    if let Some(password) = secrets.password {
-        if !password.is_empty() {
-            config.password = password;
-        }
+    if let Some(password) = secrets.password
+        && !password.is_empty()
+    {
+        config.password = password;
     }
     // Environment always wins (containers, one-shot CLI runs).
-    if let Ok(token) = std::env::var("FERRO_AUTH_TOKEN") {
-        if !token.is_empty() {
-            config.auth_token = Some(token);
-        }
+    if let Ok(token) = std::env::var("FERRO_AUTH_TOKEN")
+        && !token.is_empty()
+    {
+        config.auth_token = Some(token);
     }
-    if let Ok(password) = std::env::var("FERRO_PASSWORD") {
-        if !password.is_empty() {
-            config.password = password;
-        }
+    if let Ok(password) = std::env::var("FERRO_PASSWORD")
+        && !password.is_empty()
+    {
+        config.password = password;
     }
     Some(config)
 }
@@ -43,6 +48,7 @@ pub fn save_config_to_disk(config: &DesktopConfig) -> Result<(), String> {
     // Secrets go to the owner-only file, never to desktop.json.
     crate::secret_store::save_secrets(&crate::secret_store::Secrets {
         auth_token: config.auth_token.clone(),
+        refresh_token: config.refresh_token.clone(),
         password: if config.password.is_empty() {
             None
         } else {
@@ -51,6 +57,7 @@ pub fn save_config_to_disk(config: &DesktopConfig) -> Result<(), String> {
     })?;
     let mut scrubbed = config.clone();
     scrubbed.auth_token = None;
+    scrubbed.refresh_token = None;
     scrubbed.password = String::new();
     let path = config_path();
     if let Some(parent) = path.parent() {
@@ -72,6 +79,9 @@ pub struct DesktopConfig {
     /// takes precedence over username/password basic auth.
     #[serde(default)]
     pub auth_token: Option<String>,
+    /// Refresh token for the sync engine's silent re-auth.
+    #[serde(default)]
+    pub refresh_token: Option<String>,
     /// Local mount point
     pub mount_point: PathBuf,
     /// rclone binary path (auto-detected if empty)
@@ -89,6 +99,7 @@ impl Default for DesktopConfig {
             username: String::new(),
             password: String::new(),
             auth_token: None,
+            refresh_token: None,
             mount_point: Self::default_mount_point(),
             rclone_path: None,
             auto_mount: true,

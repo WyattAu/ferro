@@ -76,9 +76,11 @@ fn file_category(name: &str) -> &'static str {
         "markdown"
     } else if ext == "csv" {
         "csv"
-    } else if TEXT_EXTENSIONS.contains(&ext) {
-        "text"
-    } else if lower == "dockerfile" || lower == "makefile" || lower == "cmakelists.txt" {
+    } else if TEXT_EXTENSIONS.contains(&ext)
+        || lower == "dockerfile"
+        || lower == "makefile"
+        || lower == "cmakelists.txt"
+    {
         "text"
     } else {
         "other"

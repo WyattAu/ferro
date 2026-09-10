@@ -1,0 +1,17 @@
+---
+import Shell from '../layouts/Shell.astro';
+---
+<Shell title="Login — Ferro">
+  <div class="flex items-center justify-center h-screen bg-[var(--bg-base)]">
+    <div class="text-center">
+      <div class="w-8 h-8 border-2 border-[var(--border-default)] border-t-[var(--accent)] rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="text-sm text-[var(--text-secondary)]">Redirecting to sign in…</p>
+    </div>
+  </div>
+  <script>
+    import { userManager } from '../lib/auth';
+    userManager.signinRedirect().catch((e: Error) => {
+      document.querySelector('p')!.textContent = `Login error: ${e.message}`;
+    });
+  </script>
+</Shell>

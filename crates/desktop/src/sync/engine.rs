@@ -37,6 +37,13 @@ pub struct SyncConfig {
     /// Bearer token (e.g. OIDC access token). When set, takes precedence
     /// over username/password basic auth.
     pub bearer_token: Option<String>,
+    /// OIDC refresh token — used to re-auth silently on 401 mid-cycle.
+    pub refresh_token: Option<String>,
+    /// OIDC issuer (Keycloak realm URL) — derives the token endpoint for
+    /// refresh: {issuer}/protocol/openid-connect/token.
+    pub oidc_issuer: Option<String>,
+    /// OAuth client id used with the refresh token.
+    pub oidc_client_id: Option<String>,
     /// Conflict resolution strategy.
     pub conflict_strategy: ConflictStrategy,
     /// Maximum file size to sync (bytes). Default: 10 GB.
@@ -56,6 +63,9 @@ impl Default for SyncConfig {
             username: String::new(),
             password: String::new(),
             bearer_token: None,
+            refresh_token: None,
+            oidc_issuer: None,
+            oidc_client_id: None,
             conflict_strategy: ConflictStrategy::KeepBoth,
             max_file_size: 10_000_000_000, // 10 GB
             use_block_sync: true,
@@ -67,6 +77,12 @@ impl Default for SyncConfig {
 /// The sync engine. Runs sync cycles on demand or periodically.
 pub struct SyncEngine {
     config: SyncConfig,
+    /// Current bearer token — refreshed in-place on 401 (config is frozen).
+    bearer: Arc<std::sync::RwLock<String>>,
+    /// Serializes refresh attempts so parallel 401s trigger one refresh.
+    refresh_lock: Arc<tokio::sync::Mutex<()>>,
+    /// True once a refresh has failed — stop retrying for this process.
+    refresh_exhausted: Arc<std::sync::atomic::AtomicBool>,
     state: Arc<RwLock<SyncState>>,
     client: reqwest::Client,
 }
@@ -75,6 +91,11 @@ impl SyncEngine {
     /// Apply auth to a request builder: bearer token if configured, else
     /// HTTP basic auth.
     fn auth(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Ok(token) = self.bearer.read()
+            && !token.is_empty()
+        {
+            return rb.bearer_auth(token.as_str());
+        }
         if let Some(token) = &self.config.bearer_token {
             rb.bearer_auth(token)
         } else {
@@ -82,14 +103,87 @@ impl SyncEngine {
         }
     }
 
+    /// Send with auth; on 401 attempt one silent refresh + retry.
+    async fn send_auth(&self, rb: reqwest::RequestBuilder) -> Result<reqwest::Response> {
+        let mut resp = self
+            .auth(
+                rb.try_clone()
+                    .ok_or_else(|| anyhow::anyhow!("request body not cloneable"))?,
+            )
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        if resp.status() == reqwest::StatusCode::UNAUTHORIZED && self.refresh_on_unauthorized().await {
+            resp = self.auth(rb).send().await.map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        Ok(resp)
+    }
+
+    /// Re-auth on 401: exchange the refresh token once, update the bearer,
+    /// and report whether the request should be retried.
+    async fn refresh_on_unauthorized(&self) -> bool {
+        use std::sync::atomic::Ordering;
+        if self.refresh_exhausted.load(Ordering::Relaxed) {
+            return false;
+        }
+        let (Some(refresh), Some(issuer), Some(client_id)) = (
+            self.config.refresh_token.as_deref(),
+            self.config.oidc_issuer.as_deref(),
+            self.config.oidc_client_id.as_deref(),
+        ) else {
+            return false;
+        };
+        let _guard = self.refresh_lock.lock().await;
+        let token_url = format!("{}/protocol/openid-connect/token", issuer.trim_end_matches('/'));
+        let params = [
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh),
+            ("client_id", client_id),
+        ];
+        let refreshed: Option<(String, Option<String>)> = match self.client.post(&token_url).form(&params).send().await
+        {
+            Ok(r) if r.status().is_success() => match r.json::<serde_json::Value>().await {
+                Ok(v) => {
+                    let at = v.get("access_token").and_then(|t| t.as_str()).map(str::to_string);
+                    let rt = v.get("refresh_token").and_then(|t| t.as_str()).map(str::to_string);
+                    at.map(|at| (at, rt))
+                }
+                Err(_) => None,
+            },
+            _ => None,
+        };
+        match refreshed {
+            Some((access, maybe_refresh)) => {
+                if let Ok(mut guard) = self.bearer.write() {
+                    *guard = access;
+                }
+                // Keycloak rotates refresh tokens; the engine keeps only the
+                // access token in memory — a rotated refresh token is picked
+                // up on the next `--login` if a cycle spanned a rotation.
+                let _ = maybe_refresh;
+                tracing::info!("access token refreshed after 401");
+                true
+            }
+            None => {
+                self.refresh_exhausted.store(true, Ordering::Relaxed);
+                tracing::warn!("refresh failed — future 401s will not be retried");
+                false
+            }
+        }
+    }
+
     /// Create a new sync engine.
     pub fn new(config: SyncConfig) -> Result<Self> {
         let state = SyncState::load(&config.local_path)?;
+        let bearer = Arc::new(std::sync::RwLock::new(config.bearer_token.clone().unwrap_or_default()));
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(300))
             .build()?;
 
         Ok(Self {
+            bearer,
+            refresh_lock: Arc::new(tokio::sync::Mutex::new(())),
+            refresh_exhausted: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             config,
             state: Arc::new(RwLock::new(state)),
             client,
@@ -123,12 +217,7 @@ impl SyncEngine {
                 .map(|(k, e)| {
                     (
                         k.clone(),
-                        (
-                            e.local_hash.clone(),
-                            e.local_size,
-                            e.local_mtime_ms,
-                            e.is_dir,
-                        ),
+                        (e.local_hash.clone(), e.local_size, e.local_mtime_ms, e.is_dir),
                     )
                 })
                 .collect()
@@ -148,12 +237,16 @@ impl SyncEngine {
         );
 
         // Step 2: Scan remote via WebDAV
+        let live_bearer = self.bearer.read().ok().map(|g| g.clone()).filter(|t| !t.is_empty());
         let remote_result = scan_remote(
             &self.client,
             &self.config.server_url,
             &self.config.username,
             &self.config.password,
-            self.config.bearer_token.as_deref(),
+            live_bearer
+                .as_deref()
+                .filter(|t| !t.is_empty())
+                .or(self.config.bearer_token.as_deref()),
             &self.config.remote_path,
         )
         .await?;
@@ -407,10 +500,12 @@ impl SyncEngine {
         let size = data.len() as u64;
 
         let response = self
-            .auth(self.client.put(&remote_url))
-            .header("Content-Type", "application/octet-stream")
-            .body(data)
-            .send()
+            .send_auth(
+                self.client
+                    .put(&remote_url)
+                    .header("Content-Type", "application/octet-stream")
+                    .body(data),
+            )
             .await?;
 
         if !response.status().is_success() && response.status().as_u16() != 204 {
@@ -425,10 +520,7 @@ impl SyncEngine {
         let remote_url = self.remote_url(relative_path);
         let local_path = self.config.local_path.join(relative_path);
 
-        let response = self
-            .auth(self.client.get(&remote_url))
-            .send()
-            .await?;
+        let response = self.send_auth(self.client.get(&remote_url)).await?;
 
         if !response.status().is_success() {
             anyhow::bail!("download failed: {} for {}", response.status(), relative_path);
@@ -458,10 +550,7 @@ impl SyncEngine {
     /// Delete a file on the remote server.
     async fn delete_remote(&self, relative_path: &str) -> Result<()> {
         let remote_url = self.remote_url(relative_path);
-        let response = self
-            .auth(self.client.delete(&remote_url))
-            .send()
-            .await?;
+        let response = self.send_auth(self.client.delete(&remote_url)).await?;
 
         if !response.status().is_success() && response.status().as_u16() != 204 {
             anyhow::bail!("remote delete failed: {} for {}", response.status(), relative_path);

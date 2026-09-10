@@ -1,0 +1,19 @@
+---
+import Shell from '../../layouts/Shell.astro';
+---
+<Shell title="Signing in… Ferro">
+  <div class="flex items-center justify-center h-screen bg-[var(--bg-base)]">
+    <div class="text-center">
+      <div class="w-8 h-8 border-2 border-[var(--border-default)] border-t-[var(--accent)] rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="text-sm text-[var(--text-secondary)]" id="status">Signing in…</p>
+    </div>
+  </div>
+  <script>
+    import { completeLogin } from '../../lib/auth';
+    completeLogin().then(() => {
+      window.location.href = '/ui/files/';
+    }).catch((e: Error) => {
+      document.getElementById('status')!.textContent = `Login failed: ${e.message}`;
+    });
+  </script>
+</Shell>

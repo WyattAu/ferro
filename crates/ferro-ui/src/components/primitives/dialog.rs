@@ -1,4 +1,6 @@
+use leptos::html;
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
 
 /// Modal dialog component. Renders once, visibility controlled by signal.
 /// Accessibility: role="dialog", aria-modal="true", focus-trapped.
@@ -14,61 +16,58 @@ pub fn Dialog(
 
     let dialog_ref = NodeRef::<html::Div>::new();
     // Auto-focus dialog when opened
-    {
-        let dialog_ref = dialog_ref.clone();
-        Effect::new(move |_| {
-            if open.get() {
-                let dialog_ref = dialog_ref.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    // Small delay for overlay transition via setTimeout(10)
-                    let promise = js_sys::Promise::new(&mut |resolve, _| {
-                        let _ = web_sys::window()
-                            .unwrap()
-                            .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 10);
-                    });
-                    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-                    if let Some(el) = dialog_ref.get() {
-                        use wasm_bindgen::JsCast;
-                        let _ = el.unchecked_ref::<web_sys::HtmlElement>().focus();
-                    }
+    Effect::new(move |_| {
+        if open.get() {
+            wasm_bindgen_futures::spawn_local(async move {
+                // Small delay for overlay transition via setTimeout(10)
+                let promise = js_sys::Promise::new(&mut |resolve, _| {
+                    let _ = web_sys::window()
+                        .unwrap()
+                        .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 10);
                 });
-            }
-        });
-    }
+                let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                if let Some(el) = dialog_ref.get() {
+                    use wasm_bindgen::JsCast;
+                    let _ = el.unchecked_ref::<web_sys::HtmlElement>().focus();
+                }
+            });
+        }
+    });
     // Focus trap: cycle Tab within dialog
     let on_keydown = {
-        let dialog_ref = dialog_ref.clone();
         move |ev: web_sys::KeyboardEvent| {
             if ev.key() == "Escape"
                 && let Some(ref cb) = on_close
             {
                 cb.run(());
             }
-            if ev.key() == "Tab" {
-                if let Some(el) = dialog_ref.get() {
-                    let focusables: Vec<web_sys::Element> = {
-                        let nodes = el.query_selector_all("a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])").unwrap();
-                        (0..nodes.length()).filter_map(|i| nodes.get(i)).collect()
-                    };
-                    if focusables.is_empty() {
-                        ev.prevent_default();
-                        return;
-                    }
-                    let active = web_sys::window()
-                        .and_then(|w| w.document())
-                        .and_then(|d| d.active_element());
-                    let active_el = active.as_ref().map(|a| a.dyn_ref::<web_sys::Element>());
-                    let first = focusables.first().unwrap();
-                    let last = focusables.last().unwrap();
-                    if !ev.shift_key() && active_el == Some(first) && focusables.len() == 1 {
-                        ev.prevent_default();
-                    } else if ev.shift_key() && active_el == Some(first) {
-                        ev.prevent_default();
-                        let _ = last.dyn_ref::<web_sys::HtmlElement>().map(|e| e.focus());
-                    } else if !ev.shift_key() && active_el == Some(last) {
-                        ev.prevent_default();
-                        let _ = first.dyn_ref::<web_sys::HtmlElement>().map(|e| e.focus());
-                    }
+            if ev.key() == "Tab"
+                && let Some(el) = dialog_ref.get()
+            {
+                let focusables: Vec<web_sys::Element> = {
+                    let nodes = el.query_selector_all("a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])").unwrap();
+                    (0..nodes.length())
+                        .filter_map(|i| nodes.get(i).and_then(|n| n.dyn_into::<web_sys::Element>().ok()))
+                        .collect()
+                };
+                if focusables.is_empty() {
+                    ev.prevent_default();
+                    return;
+                }
+                let active_el = web_sys::window()
+                    .and_then(|w| w.document())
+                    .and_then(|d| d.active_element())
+                    .and_then(|a| a.dyn_into::<web_sys::Element>().ok());
+                let first = focusables.first().unwrap();
+                let last = focusables.last().unwrap();
+                if !ev.shift_key() && active_el.as_ref() == Some(first) && focusables.len() == 1 {
+                    ev.prevent_default();
+                } else if ev.shift_key() && active_el.as_ref() == Some(first) {
+                    ev.prevent_default();
+                    let _ = last.dyn_ref::<web_sys::HtmlElement>().map(|e| e.focus());
+                } else if !ev.shift_key() && active_el.as_ref() == Some(last) {
+                    ev.prevent_default();
+                    let _ = first.dyn_ref::<web_sys::HtmlElement>().map(|e| e.focus());
                 }
             }
         }

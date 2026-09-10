@@ -118,9 +118,7 @@ pub fn scan_local(
             // mtime changed — avoids re-reading unchanged data every cycle.
             let hash = match previous.get(&relative_path) {
                 Some((prev_hash, prev_size, prev_mtime, _))
-                    if !prev_hash.is_empty()
-                        && *prev_size == size
-                        && *prev_mtime == mtime_ms =>
+                    if !prev_hash.is_empty() && *prev_size == size && *prev_mtime == mtime_ms =>
                 {
                     prev_hash.clone()
                 }
@@ -160,7 +158,6 @@ fn compute_file_hash(path: &Path) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
 
     #[test]
     fn test_scan_empty_directory() {

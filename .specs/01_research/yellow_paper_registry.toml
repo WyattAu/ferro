@@ -1,0 +1,78 @@
+# Yellow Paper Registry
+# Tracks all Yellow Papers and their relationships
+
+[metadata]
+last_updated = "2026-04-18T00:00:00Z"
+total_papers = 3
+
+[[yellow_paper]]
+id = "YP-WEBDAV-PROTOCOL-001"
+title = "WebDAV Protocol Theory and Implementation"
+status = "APPROVED"
+version = "1.0.0"
+created = "2026-04-18T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.92
+tqa_level = 3
+
+[yellow_paper.scope]
+domain = "WebDAV Protocol"
+algorithms = ["ALG-PROPFIND-001", "ALG-LOCK-001", "ALG-COPY-001"]
+theorems = ["THM-PROPFIND-COMPLETENESS", "THM-LOCK-SAFETY", "THM-COPY-ATOMICITY"]
+test_vector_file = "test_vectors_webdav.toml"
+constraints_file = "domain_constraints_webdav.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["RFC-4918", "RFC-3253", "RFC-3744"]
+lemmas_from = []
+
+[yellow_paper.consumers]
+blue_papers = ["BP-WEBDAV-HANDLER-001", "BP-LOCK-MANAGER-001"]
+
+[[yellow_paper]]
+id = "YP-STORAGE-CAS-001"
+title = "Content-Addressable Storage and Object Store Abstraction"
+status = "APPROVED"
+version = "1.0.0"
+created = "2026-04-18T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.95
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Storage Systems"
+algorithms = ["ALG-CAS-PUT-001", "ALG-CAS-GET-001", "ALG-PRESIGN-001"]
+theorems = ["THM-SHA256-COLLISION", "THM-DEDUP-CORRECTNESS", "THM-PRESIGN-SECURITY"]
+test_vector_file = "test_vectors_cas.toml"
+constraints_file = "domain_constraints_storage.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["SHA-256-SPEC", "OBJECT-STORE-API"]
+lemmas_from = []
+
+[yellow_paper.consumers]
+blue_papers = ["BP-STORAGE-ENGINE-001", "BP-CAS-DEDUP-001", "BP-PRESIGNED-URL-001"]
+
+[[yellow_paper]]
+id = "YP-AUTH-OIDC-CEDAR-001"
+title = "OIDC Authentication and Cedar Authorization"
+status = "APPROVED"
+version = "1.0.0"
+created = "2026-04-18T00:00:00Z"
+author = "DeepThought"
+confidence_level = 0.93
+tqa_level = 4
+
+[yellow_paper.scope]
+domain = "Identity & Access Management"
+algorithms = ["ALG-OIDC-VALIDATE-001", "ALG-CEDAR-EVAL-001"]
+theorems = ["THM-OIDC-TOKEN-SECURITY", "THM-CEDAR-EVALUATION-CORRECTNESS"]
+test_vector_file = "test_vectors_auth.toml"
+constraints_file = "domain_constraints_auth.toml"
+
+[yellow_paper.dependencies]
+axioms_from = ["OIDC-CORE-1.0", "CEDAR-SPEC"]
+lemmas_from = []
+
+[yellow_paper.consumers]
+blue_papers = ["BP-AUTH-MIDDLEWARE-001", "BP-CEDAR-ENGINE-001"]

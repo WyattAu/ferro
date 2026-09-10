@@ -14,12 +14,13 @@ pub struct Secrets {
     pub auth_token: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<String>,
 }
 
 impl Secrets {
     pub fn is_empty(&self) -> bool {
-        self.auth_token.as_deref().map_or(true, str::is_empty)
-            && self.password.as_deref().map_or(true, str::is_empty)
+        self.auth_token.as_deref().is_none_or(str::is_empty) && self.password.as_deref().is_none_or(str::is_empty)
     }
 }
 
@@ -40,8 +41,7 @@ fn load_keychain() -> Option<Secrets> {
 }
 
 fn save_keychain(secrets: &Secrets) -> Result<(), String> {
-    let entry =
-        keyring::Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_USER).map_err(|e| e.to_string())?;
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, KEYCHAIN_USER).map_err(|e| e.to_string())?;
     let raw = serde_json::to_string(secrets).map_err(|e| e.to_string())?;
     entry.set_password(&raw).map_err(|e| e.to_string())
 }
@@ -50,10 +50,10 @@ pub fn load_secrets() -> Secrets {
     // OS keychain first (macOS Keychain, Windows Credential Manager,
     // Linux Secret Service); owner-only file as fallback for headless
     // hosts without a keyring daemon.
-    if let Some(secrets) = load_keychain() {
-        if !secrets.is_empty() {
-            return secrets;
-        }
+    if let Some(secrets) = load_keychain()
+        && !secrets.is_empty()
+    {
+        return secrets;
     }
     load_file()
 }
@@ -84,8 +84,7 @@ fn save_file(secrets: &Secrets) -> Result<(), String> {
 #[cfg(unix)]
 fn restrict_permissions(path: &std::path::Path) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
-        .map_err(|e| e.to_string())
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())
 }
 
 #[cfg(not(unix))]
@@ -102,6 +101,13 @@ mod tests {
     #[test]
     fn empty_by_default() {
         assert!(Secrets::default().is_empty());
-        assert!(!Secrets { auth_token: Some("t".into()), password: None }.is_empty());
+        assert!(
+            !Secrets {
+                auth_token: Some("t".into()),
+                password: None,
+                refresh_token: None
+            }
+            .is_empty()
+        );
     }
 }

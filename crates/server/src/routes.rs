@@ -59,10 +59,10 @@ use crate::security;
 use crate::security_headers;
 use crate::selective_sync_api;
 use crate::shares;
-use crate::space_members_api;
 use crate::shares_ext;
 use crate::simple_auth;
 use crate::snapshots;
+use crate::space_members_api;
 use crate::storage_health;
 use crate::streaming;
 use crate::sync;
@@ -402,8 +402,7 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         )
         .route(
             "/admin/space-members",
-            axum::routing::get(space_members_api::get_space_members)
-                .put(space_members_api::put_space_members),
+            axum::routing::get(space_members_api::get_space_members).put(space_members_api::put_space_members),
         )
         .route(
             "/admin/users",

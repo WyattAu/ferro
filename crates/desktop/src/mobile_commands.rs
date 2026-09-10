@@ -1371,12 +1371,12 @@ mod tests {
     }
 
     fn teardown_test_state() {
-        if let Ok(mut state) = MOBILE_STATE.lock() {
-            if let Some(inner) = state.take() {
-                inner.cancel.store(true, Ordering::Relaxed);
-                if let Some(task) = inner.task {
-                    task.abort();
-                }
+        if let Ok(mut state) = MOBILE_STATE.lock()
+            && let Some(inner) = state.take()
+        {
+            inner.cancel.store(true, Ordering::Relaxed);
+            if let Some(task) = inner.task {
+                task.abort();
             }
         }
     }

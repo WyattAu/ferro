@@ -286,14 +286,12 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
             policies.len(),
             admin_sub
         );
-        let state = state
-            .with_admin_sub(admin_sub.clone())
-            .with_space_members_file(
-                cli.space_members_file
-                    .clone()
-                    .map(std::path::PathBuf::from)
-                    .unwrap_or_default(),
-            );
+        let state = state.with_admin_sub(admin_sub.clone()).with_space_members_file(
+            cli.space_members_file
+                .clone()
+                .map(std::path::PathBuf::from)
+                .unwrap_or_default(),
+        );
         state.with_cedar(authorizer)
     } else if let Some(policy_file) = &cli.cedar_policy_file {
         let policy_text = std::fs::read_to_string(policy_file)

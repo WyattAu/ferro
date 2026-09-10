@@ -92,7 +92,7 @@ pub fn WhiteboardPage() -> impl IntoView {
     let (pan_start, set_pan_start) = signal(None::<Point>);
     let (show_color_picker, set_show_color_picker) = signal(false);
     let (show_stroke_picker, set_show_stroke_picker) = signal(false);
-    let (whiteboard_name, set_whiteboard_name) = signal("Untitled Whiteboard".to_string());
+    let (whiteboard_name, _set_whiteboard_name) = signal("Untitled Whiteboard".to_string());
 
     // Stable board id: from route param if present, else a session-persistent
     // uuid kept in localStorage so reloads resume the same board.
@@ -216,7 +216,7 @@ pub fn WhiteboardPage() -> impl IntoView {
             let opts = web_sys::RequestInit::new();
             opts.set_method("PUT");
             opts.set_body(&wasm_bindgen::JsValue::from_str(&body.to_string()));
-            if let Some(h) = web_sys::Headers::new().ok() {
+            if let Ok(h) = web_sys::Headers::new() {
                 let _ = h.set("Content-Type", "application/json");
                 opts.set_headers(&h);
             }

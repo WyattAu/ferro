@@ -1,0 +1,560 @@
+# WebDAV Interface Contracts
+# Reference: BP-WEBDAV-HANDLER-001, YP-WEBDAV-PROTOCOL-001
+# Schema version: 1.0
+
+# ============================================================
+# IF-WEBDAV-001: WebDavHandler Interface
+# ============================================================
+
+[IF-WEBDAV-001]
+id = "IF-WEBDAV-001"
+component = "COMP-WEBDAV-001"
+kind = "http_handler"
+description = "Top-level WebDAV HTTP handler with method dispatch for all RFC 4918 methods"
+
+[IF-WEBDAV-001.state]
+description = "Shared state injected into all handlers via Axum State extractor"
+fields = [
+    { name = "storage", type = "Arc<dyn StorageEngine>", interface = "IF-STORAGE-001" },
+    { name = "lock_manager", type = "Arc<dyn LockManager>", interface = "IF-LOCK-001" },
+    { name = "property_store", type = "Arc<dyn PropertyStore>", interface = "IF-PROP-001" },
+    { name = "config", type = "WebDavConfig" },
+]
+
+# ============================================================
+# PROPFIND Route Contract
+# ============================================================
+
+[IF-WEBDAV-001.propfind]
+method = "PROPFIND"
+path = "/*path"
+description = "Enumerate properties for resources at the request URL with depth-controlled recursion"
+reference = "RFC 4918 Section 9.1, ALG-PROPFIND-001"
+
+[IF-WEBDAV-001.propfind.request]
+headers.optional = [
+    { name = "Depth", values = ["0", "1", "infinity"], default = "infinity", constraint = "DC-COMPAT-008" },
+    { name = "Content-Type", values = ['text/xml; charset="utf-8"'] },
+    { name = "If", description = "Lock token for lock-null resource access" },
+]
+body = { content_type = "text/xml", max_size = "1 MiB", optional = true, schema = "propfind", empty_default = "allprop", constraint = "DC-COMPAT-003" }
+
+[IF-WEBDAV-001.propfind.response]
+status_codes = [
+    { code = 207, description = "Multi-Status", condition = "success" },
+    { code = 400, description = "Bad Request", condition = "malformed XML body" },
+    { code = 404, description = "Not Found", condition = "resource does not exist" },
+    { code = 413, description = "Payload Too Large", condition = "request body exceeds 1 MiB", constraint = "DC-XML-002" },
+    { code = 502, description = "Bad Gateway", condition = "depth limit exceeded", constraint = "DC-PATH-001" },
+]
+headers = [
+    { name = "Content-Type", value = 'text/xml; charset="utf-8"', constraint = "DC-XML-005" },
+]
+body = { content_type = "text/xml", schema = "multistatus", streaming = true, constraint = "DC-XML-004" }
+
+[IF-WEBDAV-001.propfind.preconditions]
+preconditions = [
+    { id = "PF-PC-001", statement = "Resource exists at request-URL (or is a lock-null resource owned by requestor)" },
+    { id = "PF-PC-002", statement = "Depth header value is one of: 0, 1, infinity" },
+    { id = "PF-PC-003", statement = "Request body is well-formed XML not exceeding 1 MiB" },
+    { id = "PF-PC-004", statement = "If Depth is infinity, recursion depth will not exceed max_depth_limit (100)" },
+    { id = "PF-PC-005", statement = "Requestor holds lock token in If header if accessing lock-null resource" },
+]
+
+[IF-WEBDAV-001.propfind.postconditions]
+postconditions = [
+    { id = "PF-PO-001", statement = "Response contains exactly one response element per matching resource (excluding lock-null resources not owned by requestor)" },
+    { id = "PF-PO-002", statement = "Each propstat groups properties by HTTP status code" },
+    { id = "PF-PO-003", statement = "Missing properties return status 404 within propstat" },
+    { id = "PF-PO-004", statement = "Live properties reflect current resource metadata" },
+    { id = "PF-PO-005", statement = "Status lines follow format 'HTTP/1.1 NNN Description'", constraint = "DC-COMPAT-004" },
+]
+
+[IF-WEBDAV-001.propfind.errors]
+errors = [
+    { id = "PF-ERR-001", precondition = "PF-PC-003", result = 400, description = "Malformed XML: parser returns error" },
+    { id = "PF-ERR-002", precondition = "PF-PC-001", result = 404, description = "Resource not found" },
+    { id = "PF-ERR-003", precondition = "PF-PC-004", result = 502, description = "Depth limit (100) exceeded during recursion" },
+]
+
+# ============================================================
+# PROPPATCH Route Contract
+# ============================================================
+
+[IF-WEBDAV-001.proppatch]
+method = "PROPPATCH"
+path = "/*path"
+description = "Set and/or remove dead properties on a single resource"
+reference = "RFC 4918 Section 9.2"
+
+[IF-WEBDAV-001.proppatch.request]
+headers.optional = [
+    { name = "If", description = "Lock token if resource is locked" },
+]
+body = { content_type = "text/xml", max_size = "1 MiB", schema = "propertyupdate" }
+
+[IF-WEBDAV-001.proppatch.response]
+status_codes = [
+    { code = 207, description = "Multi-Status", condition = "success (per-property status)" },
+    { code = 400, description = "Bad Request", condition = "malformed XML" },
+    { code = 404, description = "Not Found", condition = "resource does not exist" },
+    { code = 409, description = "Conflict", condition = "missing intermediate collection" },
+    { code = 423, description = "Locked", condition = "no valid lock token" },
+    { code = 413, description = "Payload Too Large", condition = "body exceeds limit" },
+]
+
+[IF-WEBDAV-001.proppatch.preconditions]
+preconditions = [
+    { id = "PP-PC-001", statement = "Resource exists at request-URL" },
+    { id = "PP-PC-002", statement = "Request body is valid propertyupdate XML" },
+    { id = "PP-PC-003", statement = "Requestor holds lock if resource is locked" },
+    { id = "PP-PC-004", statement = "Set instructions are processed before remove instructions" },
+    { id = "PP-PC-005", statement = "Each property value does not exceed 64 KiB", constraint = "DC-PROP-003" },
+]
+
+[IF-WEBDAV-001.proppatch.postconditions]
+postconditions = [
+    { id = "PP-PO-001", statement = "Set properties are stored in the property store" },
+    { id = "PP-PO-002", statement = "Removed properties are deleted from the property store" },
+    { id = "PP-PO-003", statement = "Remove of non-existent property returns 200 OK (not 404)" },
+    { id = "PP-PO-004", statement = "207 response contains per-property status" },
+]
+
+# ============================================================
+# MKCOL Route Contract
+# ============================================================
+
+[IF-WEBDAV-001.mkcol]
+method = "MKCOL"
+path = "/*path"
+description = "Create a new collection (directory) at the request URL"
+reference = "RFC 4918 Section 9.3"
+
+[IF-WEBDAV-001.mkcol.request]
+body = { max_size = 0, description = "MUST be empty; non-empty body returns 415" }
+
+[IF-WEBDAV-001.mkcol.response]
+status_codes = [
+    { code = 201, description = "Created", condition = "collection created successfully" },
+    { code = 405, description = "Method Not Allowed", condition = "resource exists and is not a collection" },
+    { code = 409, description = "Conflict", condition = "parent collection does not exist" },
+    { code = 415, description = "Unsupported Media Type", condition = "request body is non-empty" },
+    { code = 507, description = "Insufficient Storage", condition = "quota exceeded" },
+]
+headers.success = [
+    { name = "Location", description = "URI of the created collection" },
+]
+
+[IF-WEBDAV-001.mkcol.preconditions]
+preconditions = [
+    { id = "MC-PC-001", statement = "Parent collection exists" },
+    { id = "MC-PC-002", statement = "No resource exists at request-URL" },
+    { id = "MC-PC-003", statement = "Request body is empty" },
+]
+
+[IF-WEBDAV-001.mkcol.postconditions]
+postconditions = [
+    { id = "MC-PO-001", statement = "Collection exists at request-URL" },
+    { id = "MC-PO-002", statement = "Collection URL has trailing slash", constraint = "DC-PATH-003" },
+]
+
+# ============================================================
+# COPY Route Contract
+# ============================================================
+
+[IF-WEBDAV-001.copy]
+method = "COPY"
+path = "/*path"
+description = "Copy a resource or collection tree to a destination URL"
+reference = "RFC 4918 Section 9.8, ALG-COPY-001"
+
+[IF-WEBDAV-001.copy.request]
+headers.required = [
+    { name = "Destination", description = "Target URI for the copy" },
+]
+headers.optional = [
+    { name = "Overwrite", values = ["T", "F"], default = "T" },
+    { name = "Depth", values = ["0", "infinity"], description = "0 for non-collections (default), infinity for collections" },
+    { name = "If", description = "Lock tokens for source and destination" },
+]
+
+[IF-WEBDAV-001.copy.response]
+status_codes = [
+    { code = 201, description = "Created", condition = "destination did not exist" },
+    { code = 204, description = "No Content", condition = "destination existed and overwritten" },
+    { code = 207, description = "Multi-Status", condition = "error during recursive copy" },
+    { code = 403, description = "Forbidden", condition = "copy into own subtree" },
+    { code = 404, description = "Not Found", condition = "source does not exist" },
+    { code = 412, description = "Precondition Failed", condition = "Overwrite:F and destination exists" },
+    { code = 423, description = "Locked", condition = "source or destination locked" },
+    { code = 507, description = "Insufficient Storage", condition = "quota exceeded during copy" },
+]
+
+[IF-WEBDAV-001.copy.preconditions]
+preconditions = [
+    { id = "CP-PC-001", statement = "Source resource exists" },
+    { id = "CP-PC-002", statement = "Destination is not a descendant of source (prevents infinite copy)" },
+    { id = "CP-PC-003", statement = "Requestor holds locks on source and destination" },
+    { id = "CP-PC-004", statement = "If Overwrite:F, destination does not exist" },
+]
+
+[IF-WEBDAV-001.copy.postconditions]
+postconditions = [
+    { id = "CP-PO-001", statement = "Destination resource exists with content matching source" },
+    { id = "CP-PO-002", statement = "Dead properties are copied to destination" },
+    { id = "CP-PO-003", statement = "Live properties are recalculated for destination" },
+    { id = "CP-PO-004", statement = "Locks are NOT transferred to destination" },
+    { id = "CP-PO-005", statement = "If Overwrite:T and same resourcetype, destination is updated (not deleted+recreated)" },
+]
+
+# ============================================================
+# MOVE Route Contract
+# ============================================================
+
+[IF-WEBDAV-001.move]
+method = "MOVE"
+path = "/*path"
+description = "Atomically move a resource from source to destination"
+reference = "RFC 4918 Section 9.9"
+
+[IF-WEBDAV-001.move.request]
+headers.required = [
+    { name = "Destination", description = "Target URI for the move" },
+]
+headers.optional = [
+    { name = "Overwrite", values = ["T", "F"], default = "T" },
+    { name = "If", description = "Lock tokens for source and destination" },
+]
+
+[IF-WEBDAV-001.move.response]
+status_codes = [
+    { code = 201, description = "Created", condition = "destination did not exist" },
+    { code = 204, description = "No Content", condition = "destination existed and overwritten" },
+    { code = 207, description = "Multi-Status", condition = "error during move" },
+    { code = 403, description = "Forbidden", condition = "source equals destination" },
+    { code = 404, description = "Not Found", condition = "source does not exist" },
+    { code = 412, description = "Precondition Failed", condition = "Overwrite:F and destination exists" },
+    { code = 423, description = "Locked", condition = "source or destination locked" },
+    { code = 424, description = "Failed Dependency", condition = "DELETE of source failed after COPY" },
+]
+
+[IF-WEBDAV-001.move.preconditions]
+preconditions = [
+    { id = "MV-PC-001", statement = "Source resource exists" },
+    { id = "MV-PC-002", statement = "Source URL does not equal Destination URL" },
+    { id = "MV-PC-003", statement = "Requestor holds locks on source and destination" },
+]
+
+[IF-WEBDAV-001.move.postconditions]
+postconditions = [
+    { id = "MV-PO-001", statement = "Resource exists at destination with content matching original source" },
+    { id = "MV-PO-002", statement = "Resource no longer exists at source" },
+    { id = "MV-PO-003", statement = "Dead properties moved to destination" },
+    { id = "MV-PO-004", statement = "If DELETE fails after COPY, COPY is rolled back (atomicity)" },
+]
+
+# ============================================================
+# LOCK Route Contract
+# ============================================================
+
+[IF-WEBDAV-001.lock]
+method = "LOCK"
+path = "/*path"
+description = "Create or refresh a write lock on a resource"
+reference = "RFC 4918 Section 9.10, ALG-LOCK-001"
+
+[IF-WEBDAV-001.lock.request]
+headers.optional = [
+    { name = "Depth", values = ["0", "infinity"], default = "0" },
+    { name = "Timeout", values = ["Second-N", "Infinite"], description = "Requested lock duration" },
+    { name = "If", description = "State token for lock refresh" },
+    { name = "Lock-Token", description = "Token for lock refresh (identifies existing lock)" },
+]
+body.creation = { content_type = "text/xml", schema = "lockinfo", description = "Lock creation request" }
+body.refresh = { content_type = "none", description = "Empty body indicates lock refresh" }
+
+[IF-WEBDAV-001.lock.response]
+status_codes = [
+    { code = 200, description = "OK", condition = "lock refreshed on existing resource" },
+    { code = 201, description = "Created", condition = "new lock created (possibly lock-null resource)" },
+    { code = 403, description = "Forbidden", condition = "insufficient privileges" },
+    { code = 409, description = "Conflict", condition = "lock does not exist (refresh) or lock expired" },
+    { code = 412, description = "Precondition Failed", condition = "If header condition failed" },
+    { code = 423, description = "Locked", condition = "conflicting lock exists" },
+    { code = 507, description = "Insufficient Storage", condition = "max locks per principal exceeded", constraint = "DC-LOCK-004" },
+]
+headers.success = [
+    { name = "Lock-Token", description = "opaquelocktoken URI in angle brackets" },
+]
+
+[IF-WEBDAV-001.lock.preconditions]
+preconditions = [
+    { id = "LK-PC-001", statement = "No conflicting lock exists on the resource (compatibility table)" },
+    { id = "LK-PC-002", statement = "Principal has not exceeded max concurrent locks (1000)" },
+    { id = "LK-PC-003", statement = "Requested timeout is within min (5s) and max (3600s) bounds", constraint = "DC-LOCK-002, DC-LOCK-003" },
+    { id = "LK-PC-004", statement = "For refresh: lock token is valid and not expired" },
+]
+
+[IF-WEBDAV-001.lock.postconditions]
+postconditions = [
+    { id = "LK-PO-001", statement = "Lock entry exists in lock table with generated opaquelocktoken:uuid-v4" },
+    { id = "LK-PO-002", statement = "Lock-Token response header contains the token in angle brackets" },
+    { id = "LK-PO-003", statement = "Response body contains lockdiscovery XML with activelock element" },
+    { id = "LK-PO-004", statement = "If URL was unmapped, lock-null resource is created" },
+    { id = "LK-PO-005", statement = "For refresh: same lock token returned, timeout updated" },
+]
+
+# ============================================================
+# UNLOCK Route Contract
+# ============================================================
+
+[IF-WEBDAV-001.unlock]
+method = "UNLOCK"
+path = "/*path"
+description = "Remove a lock from a resource"
+reference = "RFC 4918 Section 9.11"
+
+[IF-WEBDAV-001.unlock.request]
+headers.required = [
+    { name = "Lock-Token", description = "Token URI in angle brackets: <opaquelocktoken:uuid>" },
+]
+
+[IF-WEBDAV-001.unlock.response]
+status_codes = [
+    { code = 204, description = "No Content", condition = "lock successfully removed" },
+    { code = 400, description = "Bad Request", condition = "Lock-Token header missing or malformed" },
+    { code = 403, description = "Forbidden", condition = "principal is not lock owner and lacks unlock privilege" },
+    { code = 409, description = "Conflict", condition = "no lock exists on resource or lock expired" },
+]
+
+[IF-WEBDAV-001.unlock.preconditions]
+preconditions = [
+    { id = "UL-PC-001", statement = "Lock-Token header is present and well-formed" },
+    { id = "UL-PC-002", statement = "Lock exists on the resource and has not expired" },
+    { id = "UL-PC-003", statement = "Requestor is lock owner or has DAV:unlock privilege" },
+]
+
+[IF-WEBDAV-001.unlock.postconditions]
+postconditions = [
+    { id = "UL-PO-001", statement = "Lock entry removed from lock table" },
+    { id = "UL-PO-002", statement = "If lock was lock-null and resource not materialized, resource is deleted" },
+]
+
+# ============================================================
+# OPTIONS Route Contract
+# ============================================================
+
+[IF-WEBDAV-001.options]
+method = "OPTIONS"
+path = "/*path"
+description = "Advertise WebDAV server capabilities"
+reference = "RFC 4918 Section 9.1"
+
+[IF-WEBDAV-001.options.response]
+status_codes = [
+    { code = 200, description = "OK" },
+]
+headers.success = [
+    { name = "DAV", value = "1, 2", constraint = "DC-COMPAT-001" },
+    { name = "Allow", value = "GET, HEAD, PUT, DELETE, PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, LOCK, UNLOCK, OPTIONS", constraint = "DC-COMPAT-002" },
+]
+
+[IF-WEBDAV-001.options.preconditions]
+preconditions = []
+
+[IF-WEBDAV-001.options.postconditions]
+postconditions = [
+    { id = "OP-PO-001", statement = "DAV header includes '1' (Class 1) and '2' (Class 2)" },
+    { id = "OP-PO-002", statement = "Allow header lists all supported methods" },
+]
+
+# ============================================================
+# DELETE Route Contract
+# ============================================================
+
+[IF-WEBDAV-001.delete]
+method = "DELETE"
+path = "/*path"
+description = "Delete a resource or collection tree"
+reference = "RFC 4918 Section 9.6"
+
+[IF-WEBDAV-001.delete.request]
+headers.optional = [
+    { name = "If", description = "Lock token if resource is locked" },
+]
+
+[IF-WEBDAV-001.delete.response]
+status_codes = [
+    { code = 204, description = "No Content", condition = "resource deleted successfully" },
+    { code = 404, description = "Not Found", condition = "resource does not exist" },
+    { code = 423, description = "Locked", condition = "no valid lock token" },
+]
+
+[IF-WEBDAV-001.delete.preconditions]
+preconditions = [
+    { id = "DL-PC-001", statement = "Resource exists at request-URL" },
+    { id = "DL-PC-002", statement = "Requestor holds lock if resource is locked" },
+]
+
+[IF-WEBDAV-001.delete.postconditions]
+postconditions = [
+    { id = "DL-PO-001", statement = "Resource no longer exists at request-URL" },
+    { id = "DL-PO-002", statement = "Associated dead properties are removed" },
+    { id = "DL-PO-003", statement = "Any locks on the resource or descendants are removed" },
+]
+
+# ============================================================
+# IF-LOCK-001: LockManager Interface
+# ============================================================
+
+[IF-LOCK-001]
+id = "IF-LOCK-001"
+component = "COMP-LOCK-002"
+kind = "trait"
+description = "Lock management interface providing acquire, refresh, release, and conflict checking"
+reference = "ALG-LOCK-001"
+
+[IF-LOCK-001.acquire_lock]
+description = "Acquire a new lock on a resource"
+inputs = [
+    { name = "path", type = "&str", description = "Canonical URL path of resource to lock" },
+    { name = "principal", type = "&str", description = "Authenticated principal identifier" },
+    { name = "scope", type = "LockScope", values = ["Exclusive", "Shared"] },
+    { name = "depth", type = "Depth", values = ["Zero", "Infinity"] },
+    { name = "timeout", type = "Duration", description = "Requested lock duration", constraints = ["min: 5s", "max: 3600s"] },
+    { name = "owner_xml", type = "&str", description = "Raw XML owner element from lockinfo" },
+]
+output = { type = "Result<LockInfo, LockError>", ok_description = "Lock acquired with generated token", err_variants = ["Conflict(423)", "QuotaExceeded(507)"] }
+preconditions = [
+    "No conflicting lock on path (per compatibility table)",
+    "No conflicting depth:infinity lock on ancestors",
+    "Principal lock count < max_locks_per_principal",
+    "Timeout within [min, max] bounds",
+]
+postconditions = [
+    "LockEntry added to lock table",
+    "Token index updated for O(1) lookup",
+    "If resource unmapped, lock-null resource created",
+]
+complexity = { time = "O(L + D)", space = "O(1)", description = "L = locks on resource, D = descendants for depth:infinity" }
+
+[IF-LOCK-001.refresh_lock]
+description = "Extend the timeout of an existing lock"
+inputs = [
+    { name = "token", type = "&LockToken", description = "Existing lock token" },
+    { name = "timeout", type = "Duration", description = "New requested timeout" },
+    { name = "principal", type = "&str", description = "Principal claiming ownership" },
+]
+output = { type = "Result<LockInfo, LockError>", ok_description = "Lock refreshed with new timeout", err_variants = ["NotFound(409)", "Forbidden(403)", "Expired(409)"] }
+preconditions = [
+    "Lock token exists in token index",
+    "Principal is the lock owner",
+    "Lock has not expired",
+]
+postconditions = [
+    "Lock timeout updated to now() + timeout",
+    "Same lock token returned",
+]
+complexity = { time = "O(1)", space = "O(1)", description = "Direct token index lookup" }
+
+[IF-LOCK-001.release_lock]
+description = "Remove a lock and clean up associated lock-null resources"
+inputs = [
+    { name = "token", type = "&LockToken", description = "Lock token to release" },
+    { name = "principal", type = "&str", description = "Principal requesting release" },
+]
+output = { type = "Result<(), LockError>", err_variants = ["NotFound(409)", "Forbidden(403)"] }
+preconditions = [
+    "Lock token exists",
+    "Principal is lock owner or has DAV:unlock privilege",
+]
+postconditions = [
+    "LockEntry removed from lock table",
+    "Token index entry removed",
+    "If lock-null and not materialized, resource deleted",
+]
+complexity = { time = "O(1)", space = "O(1)" }
+
+[IF-LOCK-001.check_lock]
+description = "Check if any active lock blocks the requested operation"
+inputs = [
+    { name = "path", type = "&str", description = "Resource URL to check" },
+    { name = "principal", type = "&str", description = "Requesting principal" },
+    { name = "method", type = "&str", description = "HTTP method being attempted" },
+]
+output = { type = "Result<LockStatus, LockError>", ok_description = "Lock status: NotLocked, LockedBySelf, or LockedByOther", err_variants = [] }
+preconditions = []
+postconditions = [
+    "Expired locks are cleaned up lazily",
+    "Write operations (PUT, DELETE, PROPPATCH, MKCOL) blocked by any non-self lock",
+    "Read operations pass through locks",
+    "Parent chain checked for depth:infinity locks",
+]
+complexity = { time = "O(L_p)", space = "O(1)", description = "L_p = locks on parent chain (bounded by URL depth, typically < 20)" }
+
+[IF-LOCK-001.get_lock]
+description = "Retrieve lock info by token"
+inputs = [
+    { name = "token", type = "&LockToken" },
+]
+output = { type = "Result<Option<LockInfo>, LockError>" }
+complexity = { time = "O(1)", space = "O(1)" }
+
+[IF-LOCK-001.cleanup_expired]
+description = "Lazily remove expired locks for a given path"
+inputs = [
+    { name = "path", type = "&str" },
+]
+output = { type = "()", description = "Side-effect only" }
+postconditions = [
+    "All expired LockEntrys for path removed from lock table and token index",
+    "If expired lock was lock-null and not materialized, resource deleted",
+]
+
+# ============================================================
+# IF-PROP-001: PropertyStore Interface
+# ============================================================
+
+[IF-PROP-001]
+id = "IF-PROP-001"
+component = "COMP-PROP-003"
+kind = "trait"
+description = "Dead property storage interface"
+reference = "RFC 4918 Section 4.3"
+
+[IF-PROP-001.get_properties]
+inputs = [{ name = "path", type = "&str" }]
+output = { type = "Result<Vec<WebDavProperty>, StorageError>" }
+
+[IF-PROP-001.get_property]
+inputs = [
+    { name = "path", type = "&str" },
+    { name = "name", type = "&str" },
+    { name = "ns", type = "&str" },
+]
+output = { type = "Result<Option<String>, StorageError>" }
+
+[IF-PROP-001.set_property]
+inputs = [
+    { name = "path", type = "&str" },
+    { name = "prop", type = "WebDavProperty" },
+]
+output = { type = "Result<(), StorageError>" }
+preconditions = [
+    "Property value does not exceed 64 KiB",
+]
+
+[IF-PROP-001.remove_property]
+inputs = [
+    { name = "path", type = "&str" },
+    { name = "name", type = "&str" },
+    { name = "ns", type = "&str" },
+]
+output = { type = "Result<(), StorageError>" }
+postconditions = [
+    "Removing non-existent property is not an error (idempotent)",
+]
+
+[IF-PROP-001.list_property_names]
+inputs = [{ name = "path", type = "&str" }]
+output = { type = "Result<Vec<(String, String)>, StorageError>", description = "List of (namespace, name) tuples" }

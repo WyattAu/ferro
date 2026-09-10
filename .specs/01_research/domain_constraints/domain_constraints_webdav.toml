@@ -1,0 +1,372 @@
+# WebDAV Domain Constraints
+# Reference: YP-WEBDAV-PROTOCOL-001
+# Schema version: 1.0
+
+# ============================================================
+# Timing Constraints
+# ============================================================
+
+[DC-TIMING-001]
+id = "DC-TIMING-001"
+category = "timing"
+constraint = "PROPFIND response latency for 10,000 items"
+value = "50ms"
+percentile = "p99"
+unit = "milliseconds"
+rationale = "rclone sync performance: rclone sends PROPFIND Depth:1 per directory. For a directory with 10K items, the 207 multistatus XML must be generated and transmitted within 50ms to avoid rclone pacer backoff."
+measurement_method = "Histogram of PROPFIND handler duration; excludes network I/O"
+enforcement = "SLO monitoring; alerting at p99 > 100ms"
+
+[DC-TIMING-002]
+id = "DC-TIMING-002"
+category = "timing"
+constraint = "PROPFIND response latency for 100,000 items"
+value = "500ms"
+percentile = "p99"
+unit = "milliseconds"
+rationale = "Enterprise-scale collections; streaming XML required. Without streaming, DOM generation would require > 500MB heap."
+measurement_method = "Histogram of PROPFIND handler duration for large collections"
+enforcement = "SLO monitoring; alerting at p99 > 1s"
+
+[DC-TIMING-003]
+id = "DC-TIMING-003"
+category = "timing"
+constraint = "LOCK acquisition latency"
+value = "10ms"
+percentile = "p99"
+unit = "milliseconds"
+rationale = "Microsoft Office sends LOCK before editing; perceived lag in Office save/open if lock takes > 100ms."
+measurement_method = "Histogram of LOCK handler duration"
+enforcement = "SLO monitoring; alerting at p99 > 50ms"
+
+[DC-TIMING-004]
+id = "DC-TIMING-004"
+category = "timing"
+constraint = "MKCOL latency"
+value = "20ms"
+percentile = "p99"
+unit = "milliseconds"
+rationale = "Directory creation during rclone sync and Office save-as operations"
+measurement_method = "Histogram of MKCOL handler duration"
+enforcement = "SLO monitoring"
+
+[DC-TIMING-005]
+id = "DC-TIMING-005"
+category = "timing"
+constraint = "COPY latency for files under 100 MiB"
+value = "2s"
+percentile = "p99"
+unit = "seconds"
+rationale = "Office save-as behavior; user expects near-instantaneous copy for typical document sizes"
+measurement_method = "Histogram of COPY handler duration (file I/O bound)"
+enforcement = "SLO monitoring"
+
+# ============================================================
+# XML Processing Constraints
+# ============================================================
+
+[DC-XML-001]
+id = "DC-XML-001"
+category = "xml"
+constraint = "XML parser type"
+value = "streaming (SAX/pull parser)"
+rationale = "Memory safety for large collections. DOM-based parsing of 100K-item multistatus would require > 500MB. Rust's quick-xml crate in streaming mode provides O(1) per-element memory."
+implementation_note = "Use quick-xml with read_event() for parsing; write events directly to response body for output"
+enforcement = "Architecture review; no DOM allocation in hot path"
+
+[DC-XML-002]
+id = "DC-XML-002"
+category = "xml"
+constraint = "Maximum request body size"
+value = "1048576"
+unit = "bytes"
+rationale = "Prevent XML bomb / entity expansion DoS attacks (RFC 4918 Section 20.6). Legitimate WebDAV requests (PROPFIND, PROPPATCH, LOCK) should never exceed 1 MiB."
+enforcement = "Reject with 413 Request Entity Too Large if Content-Length exceeds limit"
+
+[DC-XML-003]
+id = "DC-XML-003"
+category = "xml"
+constraint = "XML entity expansion"
+value = "disabled"
+rationale = "Billion Laughs attack (RFC 4918 Section 20.6). External entity processing MUST be disabled. Internal entity expansion MUST be limited."
+enforcement = "Parser configuration must set resolve_entities = false"
+
+[DC-XML-004]
+id = "DC-XML-004"
+category = "xml"
+constraint = "Response body generation"
+value = "streaming"
+rationale = "207 Multi-Status responses for large collections must be streamed to avoid buffering the entire XML document in memory."
+implementation_note = "Use tokio::io::AsyncWrite to write XML events directly to the response body"
+enforcement = "Architecture review; response body must not be buffered as a single String/Vec<u8>"
+
+[DC-XML-005]
+id = "DC-XML-005"
+category = "xml"
+constraint = "Content-Type for XML responses"
+value = "text/xml; charset=\"utf-8\""
+rationale = "Both rclone and Microsoft Office expect this Content-Type. rclone uses encoding/xml which requires text/xml. Office also validates Content-Type."
+enforcement = "Hardcoded in response builder; no configuration"
+
+[DC-XML-006]
+id = "DC-XML-006"
+category = "xml"
+constraint = "XML declaration in response"
+value = "optional"
+rationale = "RFC 4918 examples show XML declaration but does not mandate it. Most clients accept both. Include '<?xml version=\"1.0\" encoding=\"utf-8\"?>' for maximum compatibility."
+enforcement = "Convention; always include"
+
+# ============================================================
+# Locking Constraints
+# ============================================================
+
+[DC-LOCK-001]
+id = "DC-LOCK-001"
+category = "locking"
+constraint = "Default lock timeout"
+value = "60"
+unit = "seconds"
+rationale = "Microsoft Office uses 60-120 second lock timeouts. 60s is the RFC 4918 recommended minimum. Office refreshes locks during editing; shorter timeouts cause spurious lock loss."
+configurable = true
+enforcement = "Server configuration; applied when client does not specify Timeout header"
+
+[DC-LOCK-002]
+id = "DC-LOCK-002"
+category = "locking"
+constraint = "Maximum lock timeout"
+value = "3600"
+unit = "seconds"
+rationale = "Prevent indefinite resource starvation. If client requests Infinite or a timeout > 3600s, server MAY substitute 3600s per RFC 4918 Section 10.7."
+configurable = true
+enforcement = "Server configuration; clamp Timeout header value"
+
+[DC-LOCK-003]
+id = "DC-LOCK-003"
+category = "locking"
+constraint = "Minimum lock timeout"
+value = "5"
+unit = "seconds"
+rationale = "Prevent hammering lock refresh from clients. Office refreshes every ~30s; rclone does not use locks for sync."
+configurable = true
+enforcement = "Server configuration; reject or clamp below-minimum requests"
+
+[DC-LOCK-004]
+id = "DC-LOCK-004"
+category = "locking"
+constraint = "Maximum concurrent locks per principal"
+value = "1000"
+rationale = "Resource starvation prevention. A single principal should not be able to lock 10,000+ resources."
+configurable = true
+enforcement = "Return 507 Insufficient Storage if limit exceeded"
+
+[DC-LOCK-005]
+id = "DC-LOCK-005"
+category = "locking"
+constraint = "Lock token format"
+value = "opaquelocktoken:<uuid-v4>"
+rationale = "RFC 4918 Appendix C defines the opaquelocktoken scheme. UUID v4 provides 122 bits of entropy, sufficient to prevent token guessing."
+enforcement = "Token generation uses uuid::Uuid::new_v4()"
+
+[DC-LOCK-006]
+id = "DC-LOCK-006"
+category = "locking"
+constraint = "Lock-null resource visibility"
+value = "owner-only"
+rationale = "Per RFC 4918 Appendix D, lock-null resources are only visible to the lock owner via PROPFIND with the lock token in the If header. Other clients must not see them in directory listings."
+enforcement = "Filter lock-null resources from PROPFIND responses unless requestor is lock owner"
+
+[DC-LOCK-007]
+id = "DC-LOCK-007"
+category = "locking"
+constraint = "Lock expiry cleanup"
+value = "lazy"
+rationale = "Expired locks are cleaned up lazily (on next access to the locked resource) rather than via a background timer. This simplifies implementation while ensuring correctness."
+implementation_note = "On every LOCK/CHECK_LOCK call, sweep expired locks for the target resource and its ancestors"
+enforcement = "Implementation convention"
+
+# ============================================================
+# Namespace / Path Constraints
+# ============================================================
+
+[DC-PATH-001]
+id = "DC-PATH-001"
+category = "namespace"
+constraint = "Maximum path depth"
+value = "100"
+unit = "levels"
+rationale = "Prevent stack overflow in recursive PROPFIND/COPY/MOVE operations and circular symlink detection."
+enforcement = "Reject Depth:infinity operations that would exceed this limit; return 502 Bad Gateway"
+
+[DC-PATH-002]
+id = "DC-PATH-002"
+category = "namespace"
+constraint = "Maximum path length"
+value = "4096"
+unit = "bytes"
+rationale = "Common OS filesystem limit (Linux PATH_MAX = 4096). WebDAV paths are URL-decoded, so the URL path may be longer due to percent-encoding."
+enforcement = "Return 414 Request-URI Too Long if URL exceeds limit"
+
+[DC-PATH-003]
+id = "DC-PATH-003"
+category = "namespace"
+constraint = "Collection URL trailing slash"
+value = "required"
+rationale = "RFC 4918 Section 5.2: collection URLs SHOULD end with '/'. Servers MUST return Content-Location with trailing slash when a collection is accessed without one. Microsoft Office requires proper trailing slash behavior."
+enforcement = "Auto-redirect collection URLs without trailing slash; return Content-Location header"
+
+[DC-PATH-004]
+id = "DC-PATH-004"
+category = "namespace"
+constraint = "Path traversal prevention"
+value = "reject_all"
+rationale = "Segments containing '..' MUST be rejected to prevent access outside the WebDAV root. Backslash characters MUST also be rejected."
+enforcement = "URL path sanitization before filesystem resolution; return 404 for rejected paths"
+
+[DC-PATH-005]
+id = "DC-PATH-005"
+category = "namespace"
+constraint = "URL encoding"
+value = "percent-encoding-rfc3986"
+rationale = "WebDAV URLs must follow RFC 3986 percent-encoding. Special characters in filenames (spaces, unicode) must be properly encoded/decoded. rclone uses vendor-specific encoding for SharePoint-NTLM."
+implementation_note = "Use urlencoding or percent_encoding crate; handle RFC 3986 unreserved characters without encoding"
+enforcement = "URL parsing validation"
+
+# ============================================================
+# Compatibility Constraints
+# ============================================================
+
+[DC-COMPAT-001]
+id = "DC-COMPAT-001"
+category = "compatibility"
+constraint = "DAV header in OPTIONS response"
+value = "1, 2"
+rationale = "Microsoft Office sends OPTIONS before LOCK to verify server capability. DAV header must include '1' (Class 1) and '2' (Class 2 = locking). Office will not attempt to lock without '2'."
+enforcement = "Hardcoded in OPTIONS handler"
+
+[DC-COMPAT-002]
+id = "DC-COMPAT-002"
+category = "compatibility"
+constraint = "Allow header in OPTIONS response"
+value = "GET, HEAD, PUT, DELETE, PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, LOCK, UNLOCK, OPTIONS"
+rationale = "Client capability discovery; some clients use Allow header to determine which methods to attempt."
+enforcement = "Dynamically generated from registered route handlers"
+
+[DC-COMPAT-003]
+id = "DC-COMPAT-003"
+category = "compatibility"
+constraint = "PROPFIND with empty body"
+value = "default_to_allprop"
+rationale = "RFC 4918 Section 9.1: if request body is empty, server must treat it as if <allprop> was requested. rclone frequently sends empty-body PROPFIND."
+enforcement = "PROPFIND handler must check for empty body and default to allprop behavior"
+
+[DC-COMPAT-004]
+id = "DC-COMPAT-004"
+category = "compatibility"
+constraint = "Status line format in multistatus"
+value = "HTTP/1.1 NNN Description"
+rationale = "rclone parses status lines with regex `^HTTP/[0-9.]+\\s+(\\d+)`. The format must include the HTTP version prefix."
+implementation_note = "Status strings in <D:status> elements must start with 'HTTP/1.1 ' followed by numeric code and reason phrase"
+enforcement = "Status string generation helper function"
+
+[DC-COMPAT-005]
+id = "DC-COMPAT-005"
+category = "compatibility"
+constraint = "ETag support"
+value = "strong_etags"
+rationale = "Both rclone and Office use ETags for conditional requests (If-Match, If-None-Match). ETags must be strong (quoted string) and must change when content changes."
+implementation_note = "Generate ETags from content hash (e.g., SHA-256 prefix) or inode+mtime+size tuple"
+enforcement = "ETag generation in PUT handler and live property resolver"
+
+[DC-COMPAT-006]
+id = "DC-COMPAT-006"
+category = "compatibility"
+constraint = "X-OC-MTime header support"
+value = "optional"
+rationale = "ownCloud/Nextcloud extension for setting modification time on upload. rclone uses this when useOCMtime is true. Format: Unix timestamp as decimal string."
+implementation_note = "On PUT, if X-OC-MTime header is present, set file mtime to the specified Unix timestamp"
+enforcement = "Feature flag; enabled for owncloud/nextcloud vendor profiles"
+
+[DC-COMPAT-007]
+id = "DC-COMPAT-007"
+category = "compatibility"
+constraint = "Retry error codes"
+value = "423, 429, 500, 502, 503, 504, 509"
+rationale = "rclone retries on these HTTP status codes. The server should use 423 for locked resources (not 500) to allow rclone to handle lock conflicts gracefully."
+enforcement = "Error response mapping; ensure correct status codes for each error condition"
+
+[DC-COMPAT-008]
+id = "DC-COMPAT-008"
+category = "compatibility"
+constraint = "Depth header default for PROPFIND"
+value = "infinity"
+rationale = "RFC 4918 Section 9.1: if Depth header is not provided, server MUST treat it as Depth:infinity. However, rclone always sends Depth:1 explicitly."
+enforcement = "Default to infinity if Depth header is absent"
+
+# ============================================================
+# Security Constraints
+# ============================================================
+
+[DC-SEC-001]
+id = "DC-SEC-001"
+category = "security"
+constraint = "XML entity expansion prevention"
+value = "disabled"
+rationale = "RFC 4918 Section 20.6: external entities MUST NOT be processed. Internal entity expansion MUST be limited to prevent Billion Laughs / XML bomb attacks."
+enforcement = "Parser configuration; reject documents with entity declarations"
+
+[DC-SEC-002]
+id = "DC-SEC-002"
+category = "security"
+constraint = "Lock token entropy"
+value = "122"
+unit = "bits"
+rationale = "UUID v4 provides 122 bits of entropy (6 bits reserved for variant/version). Prevents brute-force lock token guessing."
+enforcement = "Use uuid::Uuid::new_v4() for token generation"
+
+[DC-SEC-003]
+id = "DC-SEC-003"
+category = "security"
+constraint = "Rate limiting"
+value = "configurable"
+rationale = "RFC 4918 Section 20.2: WebDAV servers are vulnerable to denial of service attacks. Rate limiting per IP address prevents abuse."
+implementation_note = "Use tower-governor or similar middleware; configurable per-route limits"
+enforcement = "Middleware configuration; default 100 req/s per IP"
+
+[DC-SEC-004]
+id = "DC-SEC-004"
+category = "security"
+constraint = "Authentication requirement"
+value = "required"
+rationale = "All write operations (PUT, DELETE, MKCOL, COPY, MOVE, LOCK, UNLOCK, PROPPATCH) MUST require authentication. PROPFIND and OPTIONS MAY allow anonymous access depending on configuration."
+enforcement = "Authentication middleware; per-method configuration"
+
+# ============================================================
+# Property Constraints
+# ============================================================
+
+[DC-PROP-001]
+id = "DC-PROP-001"
+category = "properties"
+constraint = "Required live properties for PROPFIND allprop"
+value = ["resourcetype", "displayname", "getlastmodified", "getcontentlength", "getetag", "creationdate"]
+rationale = "Core properties expected by rclone and Office. resourcetype distinguishes collections from files. getcontentlength and getlastmodified are used for sync decisions."
+enforcement = "Live property resolver must provide all listed properties"
+
+[DC-PROP-002]
+id = "DC-PROP-002"
+category = "properties"
+constraint = "Dead property storage"
+value = "persistent"
+rationale = "Dead properties must survive server restart. Store in a sidecar database (e.g., SQLite) or extended attributes (xattr)."
+implementation_note = "Prefer xattr for single-server deployments; SQLite for distributed deployments"
+enforcement = "Storage backend abstraction; test for persistence across restart"
+
+[DC-PROP-003]
+id = "DC-PROP-003"
+category = "properties"
+constraint = "Property value size limit"
+value = "65536"
+unit = "bytes"
+rationale = "Prevent excessive dead property storage. RFC 4918 does not specify a limit but recommends server enforcement."
+configurable = true
+enforcement = "Reject PROPPATCH with property values exceeding limit; return 413"

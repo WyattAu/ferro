@@ -1,0 +1,490 @@
+# WebDAV Protocol Test Vectors
+# Reference: YP-WEBDAV-PROTOCOL-001
+# Schema version: 1.0
+
+[TV-PROP-001]
+id = "TV-PROP-001"
+method = "PROPFIND"
+category = "nominal"
+description = "PROPFIND on empty collection with Depth:0 returns only the collection itself"
+request_url = "/dav/empty_folder/"
+request_headers = { Depth = "0" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop>
+    <D:resourcetype/>
+    <D:displayname/>
+    <D:getlastmodified/>
+  </D:prop>
+</D:propfind>"""
+expected_status = 207
+expected_response_body_contains = ["empty_folder", "collection"]
+expected_response_count = 1
+preconditions = ["collection /dav/empty_folder/ exists and is empty"]
+notes = "Server must return exactly one response element for the collection itself"
+
+[TV-PROP-002]
+id = "TV-PROP-002"
+method = "PROPFIND"
+category = "nominal"
+description = "PROPFIND on collection with 3 children, Depth:1 returns collection + 3 children"
+request_url = "/dav/docs/"
+request_headers = { Depth = "1" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop>
+    <D:resourcetype/>
+    <D:getcontentlength/>
+    <D:getlastmodified/>
+  </D:prop>
+</D:propfind>"""
+expected_status = 207
+expected_response_count = 4
+expected_response_body_contains = ["/dav/docs/", "/dav/docs/file1.txt", "/dav/docs/file2.txt", "/dav/docs/subfolder/"]
+preconditions = [
+  "collection /dav/docs/ exists",
+  "file /dav/docs/file1.txt exists (content: 'hello')",
+  "file /dav/docs/file2.txt exists (content: 'world')",
+  "collection /dav/docs/subfolder/ exists and is empty",
+]
+notes = "rclone default depth is 1; server must list immediate children"
+
+[TV-PROP-003]
+id = "TV-PROP-003"
+method = "PROPFIND"
+category = "nominal"
+description = "PROPFIND on nested collection hierarchy, Depth:infinity returns all descendants recursively"
+request_url = "/dav/root/"
+request_headers = { Depth = "infinity" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop>
+    <D:resourcetype/>
+    <D:getcontentlength/>
+  </D:prop>
+</D:propfind>"""
+expected_status = 207
+expected_response_count = 7
+expected_response_body_contains = [
+  "/dav/root/",
+  "/dav/root/a.txt",
+  "/dav/root/sub1/",
+  "/dav/root/sub1/b.txt",
+  "/dav/root/sub1/deep/",
+  "/dav/root/sub1/deep/c.txt",
+  "/dav/root/sub2/",
+]
+preconditions = [
+  "nested collection hierarchy: root/ > sub1/ > deep/",
+  "files: root/a.txt, sub1/b.txt, sub1/deep/c.txt",
+  "empty collection: root/sub2/",
+]
+notes = "Streaming XML output required; must not buffer entire response in memory"
+
+[TV-PROP-004]
+id = "TV-PROP-004"
+method = "PROPPATCH"
+category = "nominal"
+description = "PROPPATCH sets one property and removes another in a single request"
+request_url = "/dav/docs/file1.txt"
+request_headers = { Depth = "0" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:propertyupdate xmlns:D="DAV:" xmlns:ex="http://example.com/ns">
+  <D:set>
+    <D:prop>
+      <ex:author>Jane Doe</ex:author>
+    </D:prop>
+  </D:set>
+  <D:remove>
+    <D:prop>
+      <ex:reviewed/>
+    </D:prop>
+  </D:remove>
+</D:propertyupdate>"""
+expected_status = 207
+expected_response_body_contains = ["200 OK", "404 Not Found"]
+preconditions = [
+  "file /dav/docs/file1.txt exists",
+  "dead property ex:reviewed does NOT exist on file",
+]
+notes = "Set returns 200 OK; remove of non-existent property also returns 200 OK per RFC 4918 §9.2"
+
+[TV-MKCOL-001]
+id = "TV-MKCOL-001"
+method = "MKCOL"
+category = "nominal"
+description = "MKCOL creates a new collection at the specified URL"
+request_url = "/dav/new_collection/"
+request_headers = {}
+request_body = ""
+expected_status = 201
+expected_response_body = ""
+preconditions = ["parent /dav/ exists", "collection /dav/new_collection/ does NOT exist"]
+postconditions = ["collection /dav/new_collection/ exists"]
+notes = "Response MUST have Location header; body MUST be empty"
+
+[TV-COPY-001]
+id = "TV-COPY-001"
+method = "COPY"
+category = "nominal"
+description = "COPY a file to a new destination where destination does not exist"
+request_url = "/dav/docs/file1.txt"
+request_headers = { Destination = "/dav/docs/copy_of_file1.txt", Overwrite = "F" }
+request_body = ""
+expected_status = 201
+preconditions = [
+  "file /dav/docs/file1.txt exists (content: 'hello')",
+  "file /dav/docs/copy_of_file1.txt does NOT exist",
+]
+postconditions = [
+  "file /dav/docs/copy_of_file1.txt exists",
+  "content of copy matches source",
+]
+notes = "Returns 201 Created; dead properties are copied; live properties recalculated"
+
+[TV-COPY-002]
+id = "TV-COPY-002"
+method = "COPY"
+category = "nominal"
+description = "COPY a collection recursively to a new destination with Overwrite:T"
+request_url = "/dav/docs/"
+request_headers = { Destination = "/dav/docs_backup/", Overwrite = "T", Depth = "infinity" }
+request_body = ""
+expected_status = 201
+preconditions = [
+  "collection /dav/docs/ exists with children",
+  "collection /dav/docs_backup/ does NOT exist",
+]
+postconditions = [
+  "collection /dav/docs_backup/ exists",
+  "all children of /dav/docs/ duplicated in /dav/docs_backup/",
+]
+notes = "Deep copy; locks do NOT transfer to destination"
+
+[TV-MOVE-001]
+id = "TV-MOVE-001"
+method = "MOVE"
+category = "nominal"
+description = "MOVE a file from one collection to another"
+request_url = "/dav/docs/file1.txt"
+request_headers = { Destination = "/dav/archive/file1.txt", Overwrite = "T" }
+request_body = ""
+expected_status = 201
+preconditions = [
+  "file /dav/docs/file1.txt exists",
+  "collection /dav/archive/ exists",
+  "file /dav/archive/file1.txt does NOT exist",
+]
+postconditions = [
+  "file /dav/docs/file1.txt does NOT exist",
+  "file /dav/archive/file1.txt exists",
+]
+notes = "Atomic operation; if DELETE fails after COPY, server MUST return 424"
+
+[TV-LOCK-001]
+id = "TV-LOCK-001"
+method = "LOCK"
+category = "nominal"
+description = "Full LOCK/UNLOCK lifecycle: acquire exclusive lock, verify lock token, release lock"
+request_url = "/dav/docs/file1.txt"
+request_headers = { Depth = "0", Timeout = "Second-60" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:lockinfo xmlns:D="DAV:">
+  <D:locktype><D:write/></D:locktype>
+  <D:lockscope><D:exclusive/></D:lockscope>
+  <D:owner>
+    <D:href>mailto:user@example.com</D:href>
+  </D:owner>
+</D:lockinfo>"""
+expected_status = 200
+expected_response_body_contains = ["locktoken", "activelock", "exclusive"]
+preconditions = ["file /dav/docs/file1.txt exists", "no existing lock on file"]
+postconditions = [
+  "lock acquired with opaquelocktoken: URI",
+  "subsequent PUT without If header returns 423",
+  "UNLOCK with correct token returns 204",
+]
+unlock_token_header = "Lock-Token: <opaquelocktoken:REPLACED_AT_RUNTIME>"
+notes = "Lock token must be returned in Lock-Token response header and in lockdiscovery body"
+
+[TV-LOCK-002]
+id = "TV-LOCK-002"
+method = "LOCK"
+category = "nominal"
+description = "Lock refresh extends timeout without changing lock token"
+request_url = "/dav/docs/file1.txt"
+request_headers = { Depth = "0", Timeout = "Second-120" }
+request_body = ""
+expected_status = 200
+expected_response_body_contains = ["locktoken"]
+preconditions = [
+  "file /dav/docs/file1.txt is locked",
+  "Lock-Token header contains the existing lock token",
+]
+notes = "Empty body indicates refresh; same lock token MUST be returned"
+
+[TV-PROP-005]
+id = "TV-PROP-005"
+method = "PROPFIND"
+category = "boundary"
+description = "PROPFIND propname on resource with no dead properties returns only live property names"
+request_url = "/dav/docs/file1.txt"
+request_headers = { Depth = "0" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+  <D:propname/>
+</D:propfind>"""
+expected_status = 207
+expected_response_body_contains = ["getlastmodified", "getcontentlength", "resourcetype", "getetag"]
+expected_response_body_not_contains = ["custom", "author"]
+preconditions = ["file /dav/docs/file1.txt exists with no dead properties"]
+notes = "Must include all live property names; dead properties are empty set"
+
+[TV-COPY-003]
+id = "TV-COPY-003"
+method = "COPY"
+category = "boundary"
+description = "COPY with Overwrite:F to existing destination returns 412 Precondition Failed"
+request_url = "/dav/docs/file1.txt"
+request_headers = { Destination = "/dav/docs/file2.txt", Overwrite = "F" }
+request_body = ""
+expected_status = 412
+preconditions = [
+  "file /dav/docs/file1.txt exists",
+  "file /dav/docs/file2.txt exists",
+]
+postconditions = [
+  "file /dav/docs/file2.txt unchanged",
+]
+notes = "Destination must not be modified when Overwrite:F and destination exists"
+
+[TV-MOVE-002]
+id = "TV-MOVE-002"
+method = "MOVE"
+category = "boundary"
+description = "MOVE to self (same source and destination) must fail"
+request_url = "/dav/docs/file1.txt"
+request_headers = { Destination = "/dav/docs/file1.txt", Overwrite = "T" }
+request_body = ""
+expected_status = 403
+preconditions = ["file /dav/docs/file1.txt exists"]
+postconditions = ["file /dav/docs/file1.txt unchanged"]
+notes = "RFC 4918 §9.9: MOVE to same URL is forbidden"
+
+[TV-LOCK-003]
+id = "TV-LOCK-003"
+method = "LOCK"
+category = "boundary"
+description = "LOCK with Timeout:Infinite creates a lock with no expiry"
+request_url = "/dav/docs/file1.txt"
+request_headers = { Depth = "0", Timeout = "Infinite" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:lockinfo xmlns:D="DAV:">
+  <D:locktype><D:write/></D:locktype>
+  <D:lockscope><D:exclusive/></D:lockscope>
+  <D:owner><D:href>mailto:user@example.com</D:href></D:owner>
+</D:lockinfo>"""
+expected_status = 200
+expected_response_body_contains = ["Infinite", "locktoken"]
+preconditions = ["file /dav/docs/file1.txt exists", "no existing lock"]
+notes = "Server should accept Infinite but may substitute a maximum timeout"
+
+[TV-LOCK-004]
+id = "TV-LOCK-004"
+method = "LOCK"
+category = "boundary"
+description = "LOCK on unmapped URL creates lock-null resource; PUT materializes it; UNLOCK of expired lock deletes it"
+request_url = "/dav/docs/newfile.txt"
+request_headers = { Depth = "0", Timeout = "Second-5" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:lockinfo xmlns:D="DAV:">
+  <D:locktype><D:write/></D:locktype>
+  <D:lockscope><D:exclusive/></D:lockscope>
+  <D:owner><D:href>mailto:user@example.com</D:href></D:owner>
+</D:lockinfo>"""
+expected_status = 201
+preconditions = [
+  "file /dav/docs/newfile.txt does NOT exist",
+  "collection /dav/docs/ exists",
+]
+postconditions = [
+  "LOCK returns 201 (lock-null resource created)",
+  "PROPFIND on /dav/docs/ does NOT include newfile.txt",
+  "PROPFIND by lock owner on newfile.txt returns lock properties",
+  "PUT with If header and lock token creates the file",
+  "UNLOCK removes the lock",
+]
+notes = "Lock-null resources are invisible to other principals; critical for Office workflow"
+
+[TV-LOCK-005]
+id = "TV-LOCK-005"
+method = "LOCK"
+category = "adversarial"
+description = "Concurrent exclusive LOCK requests on same resource; second must fail with 423"
+request_url = "/dav/docs/shared.txt"
+request_headers = { Depth = "0", Timeout = "Second-60" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:lockinfo xmlns:D="DAV:">
+  <D:locktype><D:write/></D:locktype>
+  <D:lockscope><D:exclusive/></D:lockscope>
+  <D:owner><D:href>mailto:alice@example.com</D:href></D:owner>
+</D:lockinfo>"""
+expected_status_first = 200
+expected_status_second = 423
+expected_response_body_contains = ["Locked"]
+preconditions = [
+  "file /dav/docs/shared.txt exists",
+  "no existing lock on file",
+]
+concurrent_request = """
+Same URL, different owner (mailto:bob@example.com)
+"""
+notes = "Race condition test; server must serialize lock acquisition"
+
+[TV-LOCK-006]
+id = "TV-LOCK-006"
+method = "LOCK"
+category = "adversarial"
+description = "Multiple shared locks from different principals succeed on same resource"
+request_url = "/dav/docs/shared.txt"
+request_headers = { Depth = "0", Timeout = "Second-60" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:lockinfo xmlns:D="DAV:">
+  <D:locktype><D:write/></D:locktype>
+  <D:lockscope><D:shared/></D:lockscope>
+  <D:owner><D:href>mailto:alice@example.com</D:href></D:owner>
+</D:lockinfo>"""
+expected_status_first = 200
+expected_status_second = 200
+preconditions = ["file /dav/docs/shared.txt exists", "no existing lock"]
+concurrent_request = """
+Same URL, shared scope, different owner (mailto:bob@example.com)
+"""
+notes = "Shared locks MUST coexist; subsequent exclusive lock MUST fail with 423"
+
+[TV-PROP-006]
+id = "TV-PROP-006"
+method = "PROPFIND"
+category = "adversarial"
+description = "PROPFIND Depth:infinity on collection with circular symlinks must terminate"
+request_url = "/dav/loop/"
+request_headers = { Depth = "infinity" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop>
+    <D:resourcetype/>
+  </D:prop>
+</D:propfind>"""
+expected_status = 207
+preconditions = [
+  "collection /dav/loop/ exists",
+  "symlink /dav/loop/child/link -> /dav/loop/ (circular)",
+]
+notes = "Server must detect visited paths and stop recursion at depth_limit (100)"
+
+[TV-PROP-007]
+id = "TV-PROP-007"
+method = "PROPFIND"
+category = "adversarial"
+description = "PROPFIND with malformed XML body must return 400 or 422"
+request_url = "/dav/docs/"
+request_headers = { Depth = "1" }
+request_body = "<not-valid-xml"
+expected_status = 400
+preconditions = ["collection /dav/docs/ exists"]
+notes = "Well-formedness check before semantic validation"
+
+[TV-COPY-004]
+id = "TV-COPY-004"
+method = "COPY"
+category = "adversarial"
+description = "COPY collection to a descendant of itself must fail"
+request_url = "/dav/parent/"
+request_headers = { Destination = "/dav/parent/child/subdir/", Overwrite = "F", Depth = "infinity" }
+request_body = ""
+expected_status = 403
+preconditions = [
+  "collection /dav/parent/ exists",
+  "collection /dav/parent/child/ exists",
+]
+postconditions = ["no changes to filesystem"]
+notes = "RFC 4918 §9.8.5: copy into own subtree is forbidden"
+
+[TV-RCLONE-001]
+id = "TV-RCLONE-001"
+method = "PROPFIND"
+category = "rclone-compat"
+description = "rclone-style PROPFIND with ownCloud checksum extension properties"
+request_url = "/dav/files/"
+request_headers = { Depth = "1" }
+request_body = """<?xml version="1.0"?>
+<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
+  <d:prop>
+    <d:displayname/>
+    <d:getlastmodified/>
+    <d:getcontentlength/>
+    <d:resourcetype/>
+    <oc:checksums/>
+    <oc:permissions/>
+  </d:prop>
+</d:propfind>"""
+expected_status = 207
+expected_response_body_contains = ["displayname", "getlastmodified", "getcontentlength", "resourcetype"]
+preconditions = ["collection /dav/files/ exists with files"]
+notes = "Server should return 404 for unknown properties in propstat; rclone ignores missing checksums gracefully"
+
+[TV-RCLONE-002]
+id = "TV-RCLONE-002"
+method = "PROPFIND"
+category = "rclone-compat"
+description = "SharePoint compatibility: PROPFIND Depth:1 returns 404, retry with Depth:0 succeeds"
+request_url = "/dav/sites/doc/"
+request_headers = { Depth = "1" }
+request_body = ""
+expected_status_first = 404
+expected_status_retry = 207
+preconditions = ["resource /dav/sites/doc/ exists as a file (not collection)"]
+notes = "rclone has retryWithZeroDepth quirk for SharePoint; empty body defaults to allprop"
+
+[TV-RCLONE-003]
+id = "TV-RCLONE-003"
+method = "PROPFIND"
+category = "rclone-compat"
+description = "Microsoft IsCollection extension property parsing for SharePoint compatibility"
+request_url = "/dav/sharepoint/file.docx"
+request_headers = { Depth = "0" }
+request_body = """<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop>
+    <D:resourcetype/>
+  </D:prop>
+</D:propfind>"""
+expected_status = 207
+response_may_include = ["iscollection"]
+preconditions = ["file /dav/sharepoint/file.docx exists"]
+notes = "rclone checks DAV:resourcetype for 'collection', falls back to iscollection boolean (0/1/true/false)"
+
+[TV-RCLONE-004]
+id = "TV-RCLONE-004"
+method = "PUT"
+category = "rclone-compat"
+description = "rclone chunked upload via Nextcloud chunked protocol"
+request_url = "/dav/uploads/user/chunking/1234567890/00000000000001-0000000064000000"
+request_headers = { "Content-Length" = "10485760", "OC-Chunk-Size" = "10485760" }
+request_body = "[10 MiB binary data]"
+expected_status_first = 201
+preconditions = ["Nextcloud chunking endpoint available"]
+notes = "rclone uses Nextcloud chunked uploads for large files; server must support chunk assembly"
+
+[TV-OPTIONS-001]
+id = "TV-OPTIONS-001"
+method = "OPTIONS"
+category = "nominal"
+description = "OPTIONS returns correct DAV header and Allow header for WebDAV capability discovery"
+request_url = "/dav/"
+request_headers = {}
+request_body = ""
+expected_status = 200
+expected_response_headers = { DAV = "1, 2", Allow = "GET, HEAD, PUT, DELETE, PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, LOCK, UNLOCK, OPTIONS" }
+preconditions = []
+notes = "Microsoft Office sends OPTIONS before LOCK; DAV header with '1,2' is required for Office compatibility"

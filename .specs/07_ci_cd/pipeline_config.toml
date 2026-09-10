@@ -1,0 +1,48 @@
+[metadata]
+ci_provider = "github-actions"
+created = "2026-04-18T00:00:00Z"
+
+[pipeline.stages]
+build = { order = 1, runs_on = "ubuntu-latest" }
+lint = { order = 2, runs_on = "ubuntu-latest" }
+test = { order = 3, runs_on = "ubuntu-latest" }
+security = { order = 4, runs_on = "ubuntu-latest" }
+release = { order = 5, runs_on = "ubuntu-latest", condition = "tag" }
+
+[pipeline.jobs.build]
+steps = [
+  "actions/checkout@v4",
+  "dtolnay/rust-toolchain@stable (components: rustfmt, clippy)",
+  "cargo build --workspace --release",
+]
+
+[pipeline.jobs.lint]
+steps = [
+  "cargo fmt --all --check",
+  "cargo clippy --workspace --all-targets -- -D warnings",
+]
+
+[pipeline.jobs.test]
+steps = [
+  "cargo test --workspace",
+  "cargo test --workspace --all-features",
+]
+
+[pipeline.jobs.security]
+steps = [
+  "cargo audit",
+  "cargo deny check licenses",
+  "cargo deny check bans",
+]
+
+[pipeline.jobs.release]
+steps = [
+  "cargo build --workspace --release",
+  "Upload artifacts",
+]
+
+[pipeline.quality_gates]
+min_test_coverage = 80
+critical_path_coverage = 95
+max_clippy_warnings = 0
+no_security_vulnerabilities = true

@@ -941,23 +941,19 @@ pub fn run(cli_args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
     let cli_token = cli_args
         .auth_token
         .clone()
-        .or_else(|| {
-            std::env::var("FERRO_AUTH_TOKEN")
-                .ok()
-                .filter(|s| !s.is_empty())
-        });
-    if let Some(token) = cli_token {
-        if config.auth_token.as_deref() != Some(token.as_str()) {
-            config.auth_token = Some(token);
-            if let Err(e) = ferro_desktop::config::save_config_to_disk(&config) {
-                tracing::warn!("failed to persist auth token: {e}");
-            }
+        .or_else(|| std::env::var("FERRO_AUTH_TOKEN").ok().filter(|s| !s.is_empty()));
+    if let Some(token) = cli_token
+        && config.auth_token.as_deref() != Some(token.as_str())
+    {
+        config.auth_token = Some(token);
+        if let Err(e) = ferro_desktop::config::save_config_to_disk(&config) {
+            tracing::warn!("failed to persist auth token: {e}");
         }
     }
-    if let Some(ref url) = cli_args.server_url {
-        if config.server_url != *url {
-            config.server_url = url.clone();
-        }
+    if let Some(ref url) = cli_args.server_url
+        && config.server_url != *url
+    {
+        config.server_url = url.clone();
     }
     let state = DesktopState::new(config);
 
@@ -1497,33 +1493,31 @@ async fn cmd_oidc_login(_server_url: String, oidc_issuer: String, client_id: Str
 
     // Spawn a thread to handle the callback
     std::thread::spawn(move || {
-        for stream in listener.incoming() {
-            if let Ok(stream) = stream {
-                let mut reader = std::io::BufReader::new(&stream);
-                let mut request_line = String::new();
-                let _ = std::io::BufRead::read_line(&mut reader, &mut request_line);
+        for stream in listener.incoming().flatten() {
+            let mut reader = std::io::BufReader::new(&stream);
+            let mut request_line = String::new();
+            let _ = std::io::BufRead::read_line(&mut reader, &mut request_line);
 
-                if request_line.contains("/callback") {
-                    // Extract the code from the query string
-                    let code = request_line
-                        .split_whitespace()
-                        .nth(1)
-                        .unwrap_or("")
-                        .split('?')
-                        .nth(1)
-                        .unwrap_or("")
-                        .split('&')
-                        .find(|p| p.starts_with("code="))
-                        .map(|p| p[5..].to_string())
-                        .unwrap_or_default();
+            if request_line.contains("/callback") {
+                // Extract the code from the query string
+                let code = request_line
+                    .split_whitespace()
+                    .nth(1)
+                    .unwrap_or("")
+                    .split('?')
+                    .nth(1)
+                    .unwrap_or("")
+                    .split('&')
+                    .find(|p| p.starts_with("code="))
+                    .map(|p| p[5..].to_string())
+                    .unwrap_or_default();
 
-                    // Send a response
-                    let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<h1>Login successful! You can close this window.</h1>";
-                    let _ = std::io::Write::write_all(&mut std::io::BufWriter::new(&stream), response.as_bytes());
+                // Send a response
+                let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<h1>Login successful! You can close this window.</h1>";
+                let _ = std::io::Write::write_all(&mut std::io::BufWriter::new(&stream), response.as_bytes());
 
-                    let _ = tx.send(code);
-                    break;
-                }
+                let _ = tx.send(code);
+                break;
             }
         }
     });

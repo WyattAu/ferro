@@ -3,7 +3,9 @@
 //! Handles notification registration, share intent processing,
 //! and FileProvider setup for the Android platform.
 
-use tauri::{AppHandle, Manager};
+#![allow(dead_code)]
+
+use tauri::AppHandle;
 use tracing::{info, warn};
 
 pub struct AndroidNotificationChannel {

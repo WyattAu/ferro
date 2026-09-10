@@ -168,16 +168,12 @@ fn sub_from_headers(headers: &axum::http::HeaderMap) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-fn data_dir_of<S: ProductivityState>(state: &S) -> Option<String> {
-    state.data_dir().map(|d| d.to_string())
-}
-
 pub async fn list_notes<S: ProductivityState>(
     State(state): State<S>,
     headers: axum::http::HeaderMap,
     Query(params): Query<NotesQuery>,
 ) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
+    let dir = match ensure_notes_dir(state.data_dir(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -237,7 +233,7 @@ pub async fn get_note<S: ProductivityState>(
     headers: axum::http::HeaderMap,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
+    let dir = match ensure_notes_dir(state.data_dir(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -258,7 +254,7 @@ pub async fn create_note<S: ProductivityState>(
     headers: axum::http::HeaderMap,
     Json(req): Json<CreateNoteRequest>,
 ) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
+    let dir = match ensure_notes_dir(state.data_dir(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -293,7 +289,7 @@ pub async fn update_note<S: ProductivityState>(
     Path(id): Path<String>,
     Json(req): Json<UpdateNoteRequest>,
 ) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
+    let dir = match ensure_notes_dir(state.data_dir(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -336,7 +332,7 @@ pub async fn delete_note<S: ProductivityState>(
     headers: axum::http::HeaderMap,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
+    let dir = match ensure_notes_dir(state.data_dir(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };
@@ -372,7 +368,7 @@ pub async fn search_notes<S: ProductivityState>(
             .into_response();
     }
 
-    let dir = match ensure_notes_dir(state.data_dir().as_deref(), sub_from_headers(&headers).as_deref()) {
+    let dir = match ensure_notes_dir(state.data_dir(), sub_from_headers(&headers).as_deref()) {
         Ok(d) => d,
         Err(e) => return e.into_response(),
     };

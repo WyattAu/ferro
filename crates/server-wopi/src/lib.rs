@@ -183,8 +183,6 @@ pub fn routes<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
         .route("/office-discovery", axum::routing::get(wopi_office_discovery_proxy))
 }
 
-
-
 pub fn discovery_route<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
     axum::Router::new().route("/discovery", axum::routing::get(wopi_discovery))
 }
@@ -259,10 +257,7 @@ pub async fn wopi_office_discovery_proxy(Extension(state): Extension<WopiState>)
             .into_response();
     }
 
-    let discovery_url = format!(
-        "{}/hosting/discovery",
-        state.wopi_office_url.trim_end_matches('/')
-    );
+    let discovery_url = format!("{}/hosting/discovery", state.wopi_office_url.trim_end_matches('/'));
     let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()
@@ -272,14 +267,13 @@ pub async fn wopi_office_discovery_proxy(Extension(state): Extension<WopiState>)
             return wopi_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "HTTP_CLIENT_ERROR",
-                &format!("Failed to build HTTP client: {e}"),
+                format!("Failed to build HTTP client: {e}"),
             );
         }
     };
     match client.get(&discovery_url).send().await {
         Ok(resp) => {
-            let status = StatusCode::from_u16(resp.status().as_u16())
-                .unwrap_or(StatusCode::BAD_GATEWAY);
+            let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
             let content_type = resp
                 .headers()
                 .get("content-type")
@@ -302,14 +296,14 @@ pub async fn wopi_office_discovery_proxy(Extension(state): Extension<WopiState>)
                 Err(e) => wopi_error(
                     StatusCode::BAD_GATEWAY,
                     "DISCOVERY_READ_ERROR",
-                    &format!("Office discovery read failed: {e}"),
+                    format!("Office discovery read failed: {e}"),
                 ),
             }
         }
         Err(e) => wopi_error(
             StatusCode::BAD_GATEWAY,
             "OFFICE_UNREACHABLE",
-            &format!("Office server unreachable at {discovery_url}: {e}"),
+            format!("Office server unreachable at {discovery_url}: {e}"),
         ),
     }
 }
@@ -507,7 +501,13 @@ pub async fn wopi_issue_token(
 ) -> Response {
     let path = match params.path {
         Some(p) if !p.is_empty() => p,
-        _ => return wopi_error(StatusCode::BAD_REQUEST, "PATH_REQUIRED", "path query parameter is required"),
+        _ => {
+            return wopi_error(
+                StatusCode::BAD_REQUEST,
+                "PATH_REQUIRED",
+                "path query parameter is required",
+            );
+        }
     };
     if state.wopi_token_secret.is_empty() {
         tracing::error!("WOPI token secret is not configured. Set --wopi-token-secret to a strong random value.");
@@ -521,7 +521,11 @@ pub async fn wopi_issue_token(
     let full_path = format!("/{}", path.trim_matches('/'));
 
     if !state.storage.exists(&full_path).await.unwrap_or(false) {
-        return wopi_error(StatusCode::NOT_FOUND, "FILE_NOT_FOUND", &format!("File not found: {full_path}"));
+        return wopi_error(
+            StatusCode::NOT_FOUND,
+            "FILE_NOT_FOUND",
+            format!("File not found: {full_path}"),
+        );
     }
 
     let expires = chrono::Utc::now().timestamp() + (8 * 3600);

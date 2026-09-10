@@ -388,10 +388,10 @@ pub async fn auth_middleware(
                 .and_then(|v| v.to_str().ok())
                 .and_then(|v| v.strip_prefix("Bearer "))
                 .map(str::to_owned);
-            if let Some(token) = bearer {
-                if let Ok(claims) = validator.validate_token(&token).await {
-                    request.extensions_mut().insert(claims);
-                }
+            if let Some(token) = bearer
+                && let Ok(claims) = validator.validate_token(&token).await
+            {
+                request.extensions_mut().insert(claims);
             }
         }
         return next.run(request).await;

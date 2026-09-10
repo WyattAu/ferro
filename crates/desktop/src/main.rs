@@ -37,6 +37,19 @@ async fn main() -> anyhow::Result<()> {
         #[arg(long)]
         local_dir: Option<String>,
 
+        /// Interactive browser login (RFC 8252 loopback, Keycloak) — saves
+        /// tokens to the secret store and exits.
+        #[arg(long, default_value_t = false)]
+        login: bool,
+
+        /// OIDC issuer for --login (defaults to the WyattAu Keycloak realm).
+        #[arg(long)]
+        issuer: Option<String>,
+
+        /// OAuth client id for --login (default: ferro-desktop, public PKCE client).
+        #[arg(long)]
+        client_id: Option<String>,
+
         /// Run one sync cycle and exit (requires `sync` feature).
         #[arg(long, default_value_t = false)]
         sync_once: bool,
@@ -57,24 +70,71 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
+    if cli.login {
+        let issuer = cli
+            .issuer
+            .clone()
+            .unwrap_or_else(|| ferro_desktop::login::DEFAULT_ISSUER.to_string());
+        let client_id = cli
+            .client_id
+            .clone()
+            .unwrap_or_else(|| ferro_desktop::login::DESKTOP_CLIENT_ID.to_string());
+        let tokens = ferro_desktop::login::run_login(&issuer, &client_id)
+            .await
+            .map_err(anyhow::Error::msg)?;
+        let saved = DesktopConfig {
+            server_url: cli.server_url.clone(),
+            auth_token: Some(tokens.access_token.clone()),
+            refresh_token: tokens.refresh_token.clone(),
+            username: tokens.username.clone().unwrap_or_default(),
+            ..ferro_desktop::config::load_from_disk_or_default()
+        };
+        ferro_desktop::config::save_config_to_disk(&saved).map_err(anyhow::Error::msg)?;
+        println!(
+            "Signed in as {} — tokens stored in the OS secret store ({})",
+            tokens.username.as_deref().unwrap_or("user"),
+            ferro_desktop::secret_store::secrets_path().display()
+        );
+        return Ok(());
+    }
+
+    // Stored config (desktop.json + secrets overlay) is the base; CLI/env
+    // args win per-field when explicitly provided.
+    let mut config = ferro_desktop::config::load_config_from_disk().unwrap_or_default();
+    if cli.server_url != "http://localhost:8080" {
+        config.server_url = cli.server_url;
+    }
+    if let Some(u) = cli.username {
+        config.username = u;
+    }
+    if let Some(p) = cli.password {
+        config.password = p;
+    }
     let env_token = std::env::var("FERRO_AUTH_TOKEN").ok().filter(|s| !s.is_empty());
     let env_password = std::env::var("FERRO_PASSWORD").ok().filter(|s| !s.is_empty());
-    let config = DesktopConfig {
-        server_url: cli.server_url,
-        username: cli.username.unwrap_or_default(),
-        password: cli.password.or(env_password).unwrap_or_default(),
-        auth_token: cli.auth_token.or(env_token),
-        mount_point: cli
-            .mount_point
-            .map(|p| p.into())
-            .unwrap_or_else(DesktopConfig::default_mount_point),
-        auto_mount: cli.auto_mount,
-        ..Default::default()
-    };
+    if let Some(t) = cli.auth_token.or(env_token) {
+        config.auth_token = Some(t);
+    }
+    if let Some(p) = env_password {
+        config.password = p;
+    }
+    config.mount_point = cli
+        .mount_point
+        .map(|p| p.into())
+        .unwrap_or_else(|| config.mount_point.clone());
+    config.auto_mount = cli.auto_mount;
 
     #[cfg(feature = "sync")]
     if cli.sync_once || cli.sync_interval > 0 {
-        return run_headless_sync(&config, cli.local_dir, cli.sync_interval).await;
+        let issuer = cli
+            .issuer
+            .clone()
+            .unwrap_or_else(|| ferro_desktop::login::DEFAULT_ISSUER.to_string());
+        let client_id2 = cli
+            .client_id
+            .clone()
+            .unwrap_or_else(|| ferro_desktop::login::DESKTOP_CLIENT_ID.to_string());
+        return run_headless_sync(&config, cli.local_dir, cli.sync_interval, issuer, client_id2).await;
     }
     #[cfg(not(feature = "sync"))]
     if cli.sync_once || cli.sync_interval > 0 {
@@ -174,18 +234,18 @@ fn main() {
     }
 }
 
-#[cfg(feature = "sync")]
+#[cfg(all(feature = "sync", not(feature = "tauri")))]
 async fn run_headless_sync(
     config: &ferro_desktop::config::DesktopConfig,
     local_dir: Option<String>,
     interval_secs: u64,
+    issuer: String,
+    client_id2: String,
 ) -> anyhow::Result<()> {
     use ferro_desktop::sync::engine::{SyncConfig, SyncEngine};
     use tracing::info;
 
-    if config.auth_token.is_none()
-        && (config.username.is_empty() || config.password.is_empty())
-    {
+    if config.auth_token.is_none() && (config.username.is_empty() || config.password.is_empty()) {
         anyhow::bail!("sync requires --auth-token (or FERRO_AUTH_TOKEN) or --username/--password");
     }
 
@@ -203,6 +263,9 @@ async fn run_headless_sync(
         username: config.username.clone(),
         password: config.password.clone(),
         bearer_token: config.auth_token.clone(),
+        refresh_token: config.refresh_token.clone(),
+        oidc_issuer: Some(issuer.to_string()),
+        oidc_client_id: Some(client_id2.to_string()),
         ..Default::default()
     })?;
 
@@ -226,8 +289,7 @@ async fn run_headless_sync(
     }
 
     info!("sync interval: every {interval_secs}s (Ctrl+C to stop)");
-    let mut interval =
-        tokio::time::interval(std::time::Duration::from_secs(interval_secs.max(10)));
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs.max(10)));
     loop {
         tokio::select! {
             _ = interval.tick() => run_once().await,

@@ -143,9 +143,9 @@ impl ApiClient {
 
     /// PUT raw bytes (for file upload).
     pub async fn put_bytes(&self, path: &str, bytes: Vec<u8>, content_type: &str) -> Result<(), ApiError> {
-        let url = format!("{}{}", self.config.base_url, path);
         #[cfg(target_arch = "wasm32")]
         {
+            let url = format!("{}{}", self.config.base_url, path);
             use wasm_bindgen::JsCast;
             let window = web_sys::window().ok_or_else(|| ApiError::Network("no window".into()))?;
             let opts = web_sys::RequestInit::new();

@@ -57,7 +57,8 @@ pub fn base_name(path: &str) -> &str {
 
 /// Check whether a path represents a collection (ends with `/`).
 #[inline]
-#[must_use]pub fn is_collection_path(path: &str) -> bool {
+#[must_use]
+pub fn is_collection_path(path: &str) -> bool {
     path.ends_with('/')
 }
 
@@ -109,7 +110,6 @@ pub fn join_path<'a>(base: &'a str, segment: &'a str) -> Cow<'a, str> {
         Cow::Owned(format!("{base}/{segment}"))
     }
 }
-
 
 /// Percent-decode a request path exactly once.
 ///

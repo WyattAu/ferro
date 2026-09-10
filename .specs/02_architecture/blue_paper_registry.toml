@@ -1,0 +1,81 @@
+# Blue Paper Registry
+# Tracks all Blue Papers and their relationships
+
+[metadata]
+last_updated = "2026-04-18T00:00:00Z"
+total_papers = 3
+
+[[blue_paper]]
+id = "BP-STORAGE-ENGINE-001"
+title = "Storage Engine Component"
+status = "APPROVED"
+version = "1.0.0"
+ieee_1016_compliant = true
+created = "2026-04-18T00:00:00Z"
+author = "Construct"
+
+[blue_paper.scope]
+component_id = "COMP-STORAGE-001"
+component_type = "Module"
+interfaces = ["IF-STORAGE-001", "IF-CAS-001", "IF-PRESIGN-001"]
+
+[blue_paper.dependencies]
+yellow_papers = ["YP-STORAGE-CAS-001"]
+blue_papers = []
+external_libs = ["object_store-0.13", "sha2-0.10", "sqlx-0.8"]
+
+[blue_paper.verification]
+proof_file = "proofs/proof_storage_engine.lean"
+proof_status = "PENDING"
+test_coverage_critical = 0.95
+test_coverage_overall = 0.80
+
+[[blue_paper]]
+id = "BP-WEBDAV-HANDLER-001"
+title = "WebDAV Handler Component"
+status = "APPROVED"
+version = "1.0.0"
+ieee_1016_compliant = true
+created = "2026-04-18T00:00:00Z"
+author = "Construct"
+
+[blue_paper.scope]
+component_id = "COMP-WEBDAV-001"
+component_type = "Module"
+interfaces = ["IF-WEBDAV-001", "IF-LOCK-001", "IF-PROP-001"]
+
+[blue_paper.dependencies]
+yellow_papers = ["YP-WEBDAV-PROTOCOL-001"]
+blue_papers = ["BP-STORAGE-ENGINE-001"]
+external_libs = ["axum-0.7", "quick-xml-0.37", "tower-0.5"]
+
+[blue_paper.verification]
+proof_file = "proofs/proof_webdav.lean"
+proof_status = "PENDING"
+test_coverage_critical = 0.95
+test_coverage_overall = 0.85
+
+[[blue_paper]]
+id = "BP-AUTH-MIDDLEWARE-001"
+title = "Authentication & Authorization Component"
+status = "APPROVED"
+version = "1.0.0"
+ieee_1016_compliant = true
+created = "2026-04-18T00:00:00Z"
+author = "Construct"
+
+[blue_paper.scope]
+component_id = "COMP-AUTH-001"
+component_type = "Module"
+interfaces = ["IF-AUTH-001", "IF-CEDAR-001", "IF-SESSION-001", "IF-POLICY-001"]
+
+[blue_paper.dependencies]
+yellow_papers = ["YP-AUTH-OIDC-CEDAR-001"]
+blue_papers = []
+external_libs = ["cedar-policy-4.9", "jsonwebtoken-9", "reqwest-0.12"]
+
+[blue_paper.verification]
+proof_file = "proofs/proof_auth.lean"
+proof_status = "PENDING"
+test_coverage_critical = 0.95
+test_coverage_overall = 0.80

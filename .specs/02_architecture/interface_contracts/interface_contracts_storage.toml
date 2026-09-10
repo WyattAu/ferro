@@ -1,0 +1,373 @@
+# Interface Contracts: Storage Engine
+# Document ID: IC-STORAGE-001
+# Version: 1.0
+# Component: ferro-storage
+
+[interface_IF_STORAGE_001]
+id = "IF-STORAGE-001"
+name = "StorageEngine"
+kind = "trait"
+description = "Facade over object_store backends providing user-path-level CRUD operations with CAS deduplication"
+rust_signature = """
+#[async_trait]
+pub trait StorageEngine: Send + Sync + Debug + 'static {
+    async fn put(&self, path: &UserPath, content: PutPayload) -> Result<FileMetadata>;
+    async fn get(&self, path: &UserPath) -> Result<ContentStream>;
+    async fn delete(&self, path: &UserPath) -> Result<()>;
+    async fn list(&self, prefix: Option<&UserPath>) -> Result<Vec<ObjectMeta>>;
+    async fn copy(&self, src: &UserPath, dst: &UserPath) -> Result<()>;
+    async fn move_path(&self, src: &UserPath, dst: &UserPath) -> Result<()>;
+    async fn head(&self, path: &UserPath) -> Result<ObjectMeta>;
+}
+"""
+thread_safety = "Send + Sync; concurrent ops on different paths safe; same-path serializable via metadata DB transaction"
+
+[[interface_IF_STORAGE_001.operations]]
+name = "put"
+description = "Store content at a user path with CAS deduplication"
+
+[interface_IF_STORAGE_001.operations.preconditions]
+PRE-STORAGE-001 = { summary = "path is valid and normalized", detail = "path must be absolute (starts with /), contain no .. traversal segments, max 4096 chars, no trailing / except root" }
+PRE-STORAGE-002 = { summary = "content size within limits", detail = "content byte count must be <= 5,497,558,138,880 bytes (5 TB, DC-STORAGE-001)" }
+
+[interface_IF_STORAGE_001.operations.postconditions]
+POST-STORAGE-001 = { summary = "metadata mapping exists", detail = "MetadataStore contains a record mapping path to the computed SHA-256 content hash" }
+POST-STORAGE-002 = { summary = "physical object stored", detail = "Object store contains the exact bytes of content at the CAS path objects/{prefix}/{hash}" }
+POST-STORAGE-003 = { summary = "dedup on hash match", detail = "If content hash already existed in the system, only metadata is updated; no duplicate physical copy is created" }
+
+[interface_IF_STORAGE_001.operations.invariants]
+INV-STORAGE-001 = { summary = "unique mapping per path", detail = "Every user path maps to exactly one content hash at any point in time" }
+INV-STORAGE-002 = { summary = "reference count positive", detail = "Reference count for any stored content hash is always >= 1" }
+
+[interface_IF_STORAGE_001.operations.errors]
+ERR-STORAGE-001 = { variant = "InvalidPath", condition = "path contains .. traversal, invalid characters, or exceeds length limit", recovery = "Caller must normalize or reject the path" }
+ERR-STORAGE-002 = { variant = "ObjectTooLarge", condition = "content exceeds 5 TB maximum object size", recovery = "Caller must split into smaller objects or reject" }
+ERR-STORAGE-003 = { variant = "BackendError(ObjectStoreError)", condition = "object_store backend returned an error (network, permissions, etc.)", recovery = "Retry with backoff; inspect inner error for specifics" }
+ERR-STORAGE-004 = { variant = "MetadataError(SqlxError)", condition = "metadata database operation failed", recovery = "Retry with backoff; may indicate DB connectivity issue" }
+
+[interface_IF_STORAGE_001.operations.complexity]
+time = "O(n) where n = content byte count (single-pass SHA-256 hash + upload)"
+space = "O(n) — full content buffered for atomic put via PutMode::Create"
+network = "1 PUT request to object store backend"
+
+[[interface_IF_STORAGE_001.operations]]
+name = "get"
+description = "Retrieve content by user path with SHA-256 integrity verification"
+
+[interface_IF_STORAGE_001.operations.preconditions]
+PRE-STORAGE-001 = { summary = "path is valid and normalized", detail = "Same as put PRE-STORAGE-001" }
+
+[interface_IF_STORAGE_001.operations.postconditions]
+POST-STORAGE-004 = { summary = "content integrity verified", detail = "Returned bytes satisfy SHA-256(bytes) == stored_content_hash (DC-INTEGRITY-001)" }
+
+[interface_IF_STORAGE_001.operations.invariants]
+INV-STORAGE-001 = { summary = "mapping unchanged by read", detail = "get does not modify metadata or physical storage state" }
+
+[interface_IF_STORAGE_001.operations.errors]
+ERR-STORAGE-005 = { variant = "NotFound", condition = "no metadata mapping exists for the given path", recovery = "Caller should handle missing resource (404 equivalent)" }
+ERR-STORAGE-006 = { variant = "IntegrityFailure", condition = "SHA-256 of fetched bytes does not match stored hash", recovery = "Audit logged; indicates storage corruption or tampering; caller should alert" }
+ERR-STORAGE-007 = { variant = "BackendError(ObjectStoreError)", condition = "object_store get failed", recovery = "Retry with backoff" }
+
+[interface_IF_STORAGE_001.operations.complexity]
+time = "O(1) metadata lookup + O(n) fetch + O(n) SHA-256 verification"
+space = "O(n) — full content returned as stream to caller"
+network = "1 GET request to object store backend"
+
+[[interface_IF_STORAGE_001.operations]]
+name = "delete"
+description = "Remove a user path mapping and decrement reference count; mark physical object for GC if ref count reaches zero"
+
+[interface_IF_STORAGE_001.operations.preconditions]
+PRE-STORAGE-001 = { summary = "path is valid and normalized", detail = "Same as put PRE-STORAGE-001" }
+
+[interface_IF_STORAGE_001.operations.postconditions]
+POST-STORAGE-005 = { summary = "metadata mapping removed", detail = "FileMetadata record for path is deleted from MetadataStore" }
+POST-STORAGE-006 = { summary = "reference count decremented", detail = "ReferenceCount for the content hash is decremented by 1" }
+POST-STORAGE-007 = { summary = "GC mark on zero refs", detail = "If ReferenceCount reaches 0, the physical object is marked eligible for garbage collection (DC-DEDUP-001, grace period 86400s)" }
+
+[interface_IF_STORAGE_001.operations.invariants]
+INV-STORAGE-001 = { summary = "deleted path unmapped", detail = "After delete, the path no longer maps to any content hash" }
+
+[interface_IF_STORAGE_001.operations.errors]
+ERR-STORAGE-005 = { variant = "NotFound", condition = "no metadata mapping exists for the given path", recovery = "Idempotent: deleting a non-existent path is a no-op or returns NotFound" }
+ERR-STORAGE-004 = { variant = "MetadataError(SqlxError)", condition = "metadata database operation failed", recovery = "Retry with backoff" }
+
+[interface_IF_STORAGE_001.operations.complexity]
+time = "O(1) metadata operations"
+space = "O(1)"
+network = "0 (physical delete deferred to GC)"
+
+[[interface_IF_STORAGE_001.operations]]
+name = "list"
+description = "List all objects under a given path prefix"
+
+[interface_IF_STORAGE_001.operations.preconditions]
+PRE-STORAGE-003 = { summary = "prefix is valid", detail = "prefix must be a valid path prefix or None (lists all); no .. traversal" }
+
+[interface_IF_STORAGE_001.operations.postconditions]
+POST-STORAGE-008 = { summary = "returns matching entries", detail = "Returns Vec<ObjectMeta> for all FileMetadata records whose path starts with prefix" }
+
+[interface_IF_STORAGE_001.operations.invariants]
+"_" = { summary = "snapshot consistency", detail = "List is a point-in-time snapshot; concurrent modifications may not be reflected" }
+
+[interface_IF_STORAGE_001.operations.errors]
+ERR-STORAGE-003 = { variant = "BackendError(ObjectStoreError)", condition = "object_store list failed", recovery = "Retry with backoff" }
+
+[interface_IF_STORAGE_001.operations.complexity]
+time = "O(k) where k = number of matching objects"
+space = "O(k)"
+network = "1 LIST request to object store backend (or metadata DB query)"
+
+[[interface_IF_STORAGE_001.operations]]
+name = "copy"
+description = "Create a new path mapping to the same content (no physical copy in CAS)"
+
+[interface_IF_STORAGE_001.operations.preconditions]
+PRE-STORAGE-001 = { summary = "src and dst are valid", detail = "Both paths must satisfy PRE-STORAGE-001" }
+PRE-STORAGE-004 = { summary = "src must exist", detail = "Metadata mapping for src must exist" }
+
+[interface_IF_STORAGE_001.operations.postconditions]
+POST-STORAGE-009 = { summary = "dst maps to same hash", detail = "FileMetadata created for dst with the same content_hash as src" }
+POST-STORAGE-010 = { summary = "ref count incremented", detail = "ReferenceCount for the shared content hash is incremented by 1" }
+
+[interface_IF_STORAGE_001.operations.invariants]
+INV-STORAGE-001 = { summary = "both paths map to same hash", detail = "After copy, src.path and dst.path both resolve to the same ContentHash" }
+
+[interface_IF_STORAGE_001.operations.errors]
+ERR-STORAGE-005 = { variant = "NotFound", condition = "src path not found in metadata", recovery = "Caller must verify src exists before copy" }
+ERR-STORAGE-003 = { variant = "BackendError(ObjectStoreError)", condition = "backend operation failed", recovery = "Retry with backoff" }
+
+[interface_IF_STORAGE_001.operations.complexity]
+time = "O(1) — metadata-only operation in CAS (no physical copy)"
+space = "O(1)"
+network = "0 (CAS dedup: no physical data transfer)"
+
+[[interface_IF_STORAGE_001.operations]]
+name = "move_path"
+description = "Transfer a path mapping from src to dst (metadata-only; no physical data movement)"
+
+[interface_IF_STORAGE_001.operations.preconditions]
+PRE-STORAGE-001 = { summary = "src and dst are valid", detail = "Both paths must satisfy PRE-STORAGE-001" }
+PRE-STORAGE-004 = { summary = "src must exist", detail = "Metadata mapping for src must exist" }
+
+[interface_IF_STORAGE_001.operations.postconditions]
+POST-STORAGE-011 = { summary = "src removed, dst created", detail = "Metadata mapping removed for src and created for dst with the same content_hash" }
+POST-STORAGE-012 = { summary = "ref count unchanged", detail = "ReferenceCount is unchanged because this is a path transfer, not a content change" }
+
+[interface_IF_STORAGE_001.operations.invariants]
+INV-STORAGE-001 = { summary = "dst maps, src unmapped", detail = "After move, dst.path resolves to the hash; src.path no longer resolves" }
+
+[interface_IF_STORAGE_001.operations.errors]
+ERR-STORAGE-005 = { variant = "NotFound", condition = "src path not found in metadata", recovery = "Caller must verify src exists before move" }
+ERR-STORAGE-004 = { variant = "MetadataError(SqlxError)", condition = "metadata database transaction failed", recovery = "Retry with backoff; transaction ensures atomicity of remove+create" }
+
+[interface_IF_STORAGE_001.operations.complexity]
+time = "O(1) — single metadata DB transaction"
+space = "O(1)"
+network = "0"
+
+[[interface_IF_STORAGE_001.operations]]
+name = "head"
+description = "Retrieve metadata for a path without fetching content"
+
+[interface_IF_STORAGE_001.operations.preconditions]
+PRE-STORAGE-001 = { summary = "path is valid and normalized", detail = "Same as put PRE-STORAGE-001" }
+
+[interface_IF_STORAGE_001.operations.postconditions]
+POST-STORAGE-013 = { summary = "returns object metadata", detail = "Returns ObjectMeta containing size, last_modified, e_tag for the resolved content" }
+
+[interface_IF_STORAGE_001.operations.invariants]
+"_" = { summary = "no state change", detail = "head is a read-only operation" }
+
+[interface_IF_STORAGE_001.operations.errors]
+ERR-STORAGE-005 = { variant = "NotFound", condition = "no metadata mapping exists for the given path", recovery = "Caller should handle missing resource" }
+
+[interface_IF_STORAGE_001.operations.complexity]
+time = "O(1)"
+space = "O(1)"
+network = "1 HEAD request to object store backend"
+
+
+# ─── IF-CAS-001 ─────────────────────────────────────────────────────────────
+
+[interface_IF_CAS_001]
+id = "IF-CAS-001"
+name = "CasStore"
+kind = "trait"
+description = "Content-addressed storage operations: hash computation, dedup, integrity verification"
+rust_signature = """
+#[async_trait]
+pub trait CasStore: Send + Sync + Debug + 'static {
+    async fn put_content(&self, content: PutPayload) -> Result<ContentHash>;
+    async fn get_content(&self, hash: &ContentHash) -> Result<ContentStream>;
+    async fn exists(&self, hash: &ContentHash) -> Result<bool>;
+    async fn dedup_check(&self, hash: &ContentHash) -> Result<bool>;
+}
+"""
+thread_safety = "Send + Sync; concurrent puts with same hash resolved via PutMode::Create + AlreadyExists fallback (DC-DEDUP-001)"
+
+[[interface_IF_CAS_001.operations]]
+name = "put_content"
+description = "Store content by its SHA-256 hash with deduplication; returns the content hash"
+
+[interface_IF_CAS_001.operations.preconditions]
+PRE-CAS-001 = { summary = "content size within limits", detail = "content byte count must be <= 5,497,558,138,880 bytes (DC-STORAGE-001)" }
+
+[interface_IF_CAS_001.operations.postconditions]
+POST-CAS-001 = { summary = "physical object stored", detail = "Object store contains content at CAS path objects/{prefix}/{SHA-256(content)}" }
+POST-CAS-002 = { summary = "returns content hash", detail = "Returns the 64-char lowercase hex SHA-256 digest of the content" }
+POST-CAS-003 = { summary = "dedup on existing hash", detail = "If the content hash already exists, no physical upload occurs; existing hash is returned" }
+
+[interface_IF_CAS_001.operations.invariants]
+INV-CAS-001 = { summary = "single physical copy per hash", detail = "At most one physical object exists per unique ContentHash in the object store" }
+INV-CAS-002 = { summary = "hash-content correspondence", detail = "For every stored physical object, SHA-256(physical_bytes) == stored_hash" }
+
+[interface_IF_CAS_001.operations.errors]
+ERR-CAS-001 = { variant = "ObjectTooLarge", condition = "content exceeds 5 TB maximum", recovery = "Caller must split content or reject" }
+ERR-CAS-002 = { variant = "HashComputeError", condition = "SHA-256 computation failed (internal error)", recovery = "Retry; indicates system resource exhaustion" }
+ERR-CAS-003 = { variant = "BackendError(ObjectStoreError)", condition = "object_store put failed", recovery = "Retry with backoff; AlreadyExists is caught and treated as dedup" }
+
+[interface_IF_CAS_001.operations.complexity]
+time = "O(n) hash + O(n) upload where n = content byte count"
+space = "O(n) — full content buffered for atomic put"
+network = "1 PUT request (or 0 if deduplicated)"
+
+[[interface_IF_CAS_001.operations]]
+name = "get_content"
+description = "Retrieve content by hash with mandatory SHA-256 integrity verification"
+
+[interface_IF_CAS_001.operations.preconditions]
+PRE-CAS-002 = { summary = "hash is valid", detail = "hash must be exactly 64 lowercase hex characters matching regex ^[a-f0-9]{64}$" }
+
+[interface_IF_CAS_001.operations.postconditions]
+POST-CAS-004 = { summary = "integrity verified", detail = "Returned bytes satisfy SHA-256(bytes) == hash; if mismatch, returns Err(IntegrityFailure) (DC-INTEGRITY-001)" }
+
+[interface_IF_CAS_001.operations.invariants]
+INV-CAS-002 = { summary = "physical bytes unchanged", detail = "get_content does not modify the physical object store" }
+
+[interface_IF_CAS_001.operations.errors]
+ERR-CAS-004 = { variant = "NotFound", condition = "no physical object exists at the CAS path for the given hash", recovery = "Caller should handle missing content" }
+ERR-CAS-005 = { variant = "IntegrityFailure { expected: ContentHash, actual: ContentHash }", condition = "SHA-256 of fetched bytes does not match the requested hash", recovery = "Audit logged (DC-INTEGRITY-001 hash_mismatch_action); indicates corruption or tampering" }
+ERR-CAS-003 = { variant = "BackendError(ObjectStoreError)", condition = "object_store get failed", recovery = "Retry with backoff" }
+
+[interface_IF_CAS_001.operations.complexity]
+time = "O(n) fetch + O(n) SHA-256 verification where n = content byte count"
+space = "O(n)"
+network = "1 GET request to object store backend"
+
+[[interface_IF_CAS_001.operations]]
+name = "exists"
+description = "Check whether a physical object exists for the given content hash"
+
+[interface_IF_CAS_001.operations.preconditions]
+PRE-CAS-002 = { summary = "hash is valid", detail = "hash must be exactly 64 lowercase hex characters" }
+
+[interface_IF_CAS_001.operations.postconditions]
+POST-CAS-005 = { summary = "existence result", detail = "Returns true iff a physical object exists at the CAS path objects/{prefix}/{hash}" }
+
+[interface_IF_CAS_001.operations.invariants]
+"_" = { summary = "no state change", detail = "exists is a read-only operation" }
+
+[interface_IF_CAS_001.operations.errors]
+ERR-CAS-003 = { variant = "BackendError(ObjectStoreError)", condition = "object_store head operation failed", recovery = "Retry with backoff" }
+
+[interface_IF_CAS_001.operations.complexity]
+time = "O(1) — HEAD request to object store"
+space = "O(1)"
+network = "1 HEAD request"
+
+[[interface_IF_CAS_001.operations]]
+name = "dedup_check"
+description = "Check whether content with the given hash already exists (both metadata and physical store)"
+
+[interface_IF_CAS_001.operations.preconditions]
+PRE-CAS-002 = { summary = "hash is valid", detail = "hash must be exactly 64 lowercase hex characters" }
+
+[interface_IF_CAS_001.operations.postconditions]
+POST-CAS-006 = { summary = "dedup availability", detail = "Returns true iff hash exists in metadata DB AND physical object exists at CAS path" }
+
+[interface_IF_CAS_001.operations.invariants]
+"_" = { summary = "no state change", detail = "dedup_check is a read-only operation" }
+
+[interface_IF_CAS_001.operations.errors]
+ERR-CAS-004 = { variant = "NotFound", condition = "hash not found in metadata DB", recovery = "Not an error in context — caller should proceed with upload" }
+ERR-CAS-003 = { variant = "BackendError(ObjectStoreError)", condition = "backend head check failed", recovery = "Retry with backoff" }
+
+[interface_IF_CAS_001.operations.complexity]
+time = "O(1) metadata query + O(1) HEAD request"
+space = "O(1)"
+network = "0 or 1 HEAD request"
+
+
+# ─── IF-PRESIGN-001 ─────────────────────────────────────────────────────────
+
+[interface_IF_PRESIGN_001]
+id = "IF-PRESIGN-001"
+name = "PresignedUrlGenerator"
+kind = "trait"
+description = "Auth-gated pre-signed URL generation for direct client-to-cloud transfers (S3/GCS/Azure only)"
+rust_signature = """
+#[async_trait]
+pub trait PresignedUrlGenerator: Send + Sync + Debug + 'static {
+    async fn generate_put_url(&self, path: &UserPath, expires: Duration) -> Result<Url>;
+    async fn generate_get_url(&self, path: &UserPath, expires: Duration) -> Result<Url>;
+}
+"""
+thread_safety = "Send + Sync; concurrent presign generation safe; rate limited to 60/min per user (DC-PRESIGN-001)"
+
+[[interface_IF_PRESIGN_001.operations]]
+name = "generate_put_url"
+description = "Generate a pre-signed PUT URL scoped to a UUID-namespaced staging path, after Cedar authorization check"
+
+[interface_IF_PRESIGN_001.operations.preconditions]
+PRE-PRESIGN-001 = { summary = "caller authorized", detail = "Cedar policy must allow FileWrite action on the resource derived from path" }
+PRE-PRESIGN-002 = { summary = "path is valid", detail = "path must be absolute, no .. traversal, max 4096 chars" }
+PRE-PRESIGN-003 = { summary = "backend supports signing", detail = "object_store backend must implement the Signer trait (S3, GCS, Azure; not Local FS or InMemory)" }
+
+[interface_IF_PRESIGN_001.operations.postconditions]
+POST-PRESIGN-001 = { summary = "URL generated for staging", detail = "Returns a URL valid for PUT to a staging/{UUIDv4} path; content hash unknown until upload completes" }
+POST-PRESIGN-002 = { summary = "TTL clamped", detail = "Effective TTL is clamp(expires, 1s, 3600s) per DC-PRESIGN-001" }
+POST-PRESIGN-003 = { summary = "audit logged", detail = "Audit log entry created with caller, method=PUT, user_path, staging_path, expires_at" }
+
+[interface_IF_PRESIGN_001.operations.invariants]
+INV-PRESIGN-001 = { summary = "path + method scoped", detail = "URL is cryptographically bound to exactly one path and one HTTP method (PUT)" }
+INV-PRESIGN-002 = { summary = "staging path UUID isolation", detail = "Staging path uses staging/{UUIDv4} prefix preventing path traversal (DC-PRESIGN-001)" }
+
+[interface_IF_PRESIGN_001.operations.errors]
+ERR-PRESIGN-001 = { variant = "Unauthorized", condition = "Cedar policy denied FileWrite action for the caller on the resource", recovery = "Caller should inform user of insufficient permissions" }
+ERR-PRESIGN-002 = { variant = "BackendNotSupported", condition = "current backend does not implement Signer trait (Local FS or InMemory)", recovery = "Caller should fall back to server-proxied upload" }
+ERR-PRESIGN-003 = { variant = "RateLimited", condition = "presign rate limit exceeded (60/min per user, DC-PRESIGN-001)", recovery = "Caller should retry after rate limit window expires" }
+
+[interface_IF_PRESIGN_001.operations.complexity]
+time = "O(1) Cedar evaluation + O(1) UUID generation + O(1) signing"
+space = "O(1)"
+network = "0 bytes through Ferro server (direct client-to-cloud after URL returned)"
+
+[[interface_IF_PRESIGN_001.operations]]
+name = "generate_get_url"
+description = "Generate a pre-signed GET URL for an existing object, after Cedar authorization check and metadata resolution"
+
+[interface_IF_PRESIGN_001.operations.preconditions]
+PRE-PRESIGN-001 = { summary = "caller authorized", detail = "Cedar policy must allow FileRead action on the resource derived from path" }
+PRE-PRESIGN-002 = { summary = "path is valid", detail = "path must be absolute, no .. traversal, max 4096 chars" }
+PRE-PRESIGN-004 = { summary = "path exists in metadata", detail = "MetadataStore must contain a mapping for path (resolves to a content hash → CAS path)" }
+PRE-PRESIGN-003 = { summary = "backend supports signing", detail = "object_store backend must implement the Signer trait" }
+
+[interface_IF_PRESIGN_001.operations.postconditions]
+POST-PRESIGN-004 = { summary = "URL generated for CAS path", detail = "Returns a URL valid for GET to the CAS path objects/{prefix}/{hash}" }
+POST-PRESIGN-002 = { summary = "TTL clamped", detail = "Effective TTL is clamp(expires, 1s, 3600s) per DC-PRESIGN-001" }
+POST-PRESIGN-003 = { summary = "audit logged", detail = "Audit log entry created with caller, method=GET, user_path, cas_path, expires_at" }
+
+[interface_IF_PRESIGN_001.operations.invariants]
+INV-PRESIGN-001 = { summary = "path + method scoped", detail = "URL is cryptographically bound to exactly one CAS path and one HTTP method (GET)" }
+
+[interface_IF_PRESIGN_001.operations.errors]
+ERR-PRESIGN-001 = { variant = "Unauthorized", condition = "Cedar policy denied FileRead action", recovery = "Caller should inform user of insufficient permissions" }
+ERR-PRESIGN-002 = { variant = "BackendNotSupported", condition = "current backend does not implement Signer trait", recovery = "Caller should fall back to server-proxied download" }
+ERR-PRESIGN-005 = { variant = "NotFound", condition = "no metadata mapping exists for the given path", recovery = "Caller should handle missing resource" }
+ERR-PRESIGN-003 = { variant = "RateLimited", condition = "presign rate limit exceeded", recovery = "Caller should retry after rate limit window expires" }
+
+[interface_IF_PRESIGN_001.operations.complexity]
+time = "O(1) Cedar evaluation + O(1) metadata lookup + O(1) signing"
+space = "O(1)"
+network = "0 bytes through Ferro server (direct client-to-cloud after URL returned)"

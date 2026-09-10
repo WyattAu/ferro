@@ -527,7 +527,7 @@ pub async fn auth_guard_middleware<S: crate::SecurityAppState>(
     // their real address and remain subject to lockout.
     if client_ip
         .parse::<std::net::IpAddr>()
-        .map(|ip| is_private_ip(ip))
+        .map(is_private_ip)
         .unwrap_or(false)
     {
         return next.run(req).await;

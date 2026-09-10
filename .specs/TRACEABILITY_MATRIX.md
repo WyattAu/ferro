@@ -1,0 +1,47 @@
+# Cross-Paper Traceability Matrix
+
+## Yellow Paper to Yellow Paper Dependencies
+
+| Source YP | Target YP | Dependency Type | Elements |
+|-----------|-----------|-----------------|----------|
+| YP-STORAGE-CAS-001 | YP-AUTH-OIDC-CEDAR-001 | provides-verification | ALG-PRESIGN-001 requires Cedar eval |
+| YP-WEBDAV-PROTOCOL-001 | YP-STORAGE-CAS-001 | uses-storage | PROPFIND/GET use CAS get |
+| YP-WEBDAV-PROTOCOL-001 | YP-AUTH-OIDC-CEDAR-001 | uses-auth | LOCK requires Cedar authorization |
+
+## Yellow Paper to Blue Paper Mapping
+
+| Yellow Paper | Blue Paper | Elements Used | Verification |
+|--------------|------------|---------------|--------------|
+| YP-WEBDAV-PROTOCOL-001 | BP-WEBDAV-HANDLER-001 | ALG-PROPFIND-001, ALG-COPY-001 | Unit + Integration |
+| YP-WEBDAV-PROTOCOL-001 | BP-LOCK-MANAGER-001 | ALG-LOCK-001 | Unit + Property |
+| YP-STORAGE-CAS-001 | BP-STORAGE-ENGINE-001 | ALG-CAS-PUT-001, ALG-CAS-GET-001 | Unit + Integration |
+| YP-STORAGE-CAS-001 | BP-PRESIGNED-URL-001 | ALG-PRESIGN-001 | Unit + Security |
+| YP-AUTH-OIDC-CEDAR-001 | BP-AUTH-MIDDLEWARE-001 | ALG-OIDC-VALIDATE-001 | Unit + Security |
+| YP-AUTH-OIDC-CEDAR-001 | BP-CEDAR-ENGINE-001 | ALG-CEDAR-EVAL-001 | Unit + Property |
+
+## Blue Paper to Blue Paper Dependencies
+
+| Blue Paper | Depends On | Interface |
+|------------|------------|-----------|
+| BP-WEBDAV-HANDLER-001 | BP-STORAGE-ENGINE-001 | IF-STORAGE-001 |
+| BP-WEBDAV-HANDLER-001 | BP-LOCK-MANAGER-001 | IF-LOCK-001 |
+| BP-WEBDAV-HANDLER-001 | BP-AUTH-MIDDLEWARE-001 | IF-AUTH-001 |
+| BP-STORAGE-ENGINE-001 | BP-CAS-DEDUP-001 | IF-CAS-001 |
+| BP-PRESIGNED-URL-001 | BP-CEDAR-ENGINE-001 | IF-CEDAR-001 |
+
+## Requirement Coverage by Papers
+
+| Requirement | Yellow Paper(s) | Blue Paper(s) | Test Coverage |
+|-------------|-----------------|---------------|---------------|
+| REQ-STOR-001 | YP-STORAGE-CAS-001 | BP-STORAGE-ENGINE-001 | TV-CAS-001..015 |
+| REQ-STOR-002 | YP-STORAGE-CAS-001 | BP-CAS-DEDUP-001 | TV-CAS-001..015 |
+| REQ-STOR-004 | YP-STORAGE-CAS-001 | BP-PRESIGNED-URL-001 | TV-CAS-016..020 |
+| REQ-STOR-005 | YP-STORAGE-CAS-001 | BP-STORAGE-ENGINE-001 | TV-CAS-006..008 |
+| REQ-STOR-006 | YP-STORAGE-CAS-001 | BP-STORAGE-ENGINE-001 | TV-CAS-009..010 |
+| REQ-WEBDAV-001 | YP-WEBDAV-PROTOCOL-001 | BP-WEBDAV-HANDLER-001 | TV-PROP-001..003 |
+| REQ-WEBDAV-002 | YP-WEBDAV-PROTOCOL-001 | BP-LOCK-MANAGER-001 | TV-LOCK-001..005 |
+| REQ-WEBDAV-004 | YP-WEBDAV-PROTOCOL-001 | BP-WEBDAV-HANDLER-001 | TV-RCLONE-001..003 |
+| REQ-WEBDAV-006 | YP-WEBDAV-PROTOCOL-001 | BP-WEBDAV-HANDLER-001 | TV-PROP-001..006 |
+| REQ-AUTH-001 | YP-AUTH-OIDC-CEDAR-001 | BP-AUTH-MIDDLEWARE-001 | TV-OIDC-001..008 |
+| REQ-AUTH-002 | YP-AUTH-OIDC-CEDAR-001 | BP-CEDAR-ENGINE-001 | TV-CEDAR-001..012 |
+| REQ-AUTH-003 | YP-AUTH-OIDC-CEDAR-001 | BP-CEDAR-ENGINE-001 | TV-CEDAR-001..012 |

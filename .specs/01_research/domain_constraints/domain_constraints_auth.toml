@@ -1,0 +1,216 @@
+# Authentication (OIDC) & Authorization (Cedar) Domain Constraints
+# Reference: YP-AUTH-OIDC-CEDAR-001
+# Schema version: 1.0
+
+# ============================================================
+# OIDC Token Validation Constraints
+# ============================================================
+
+[DC-AUTH-TIMING-001]
+id = "DC-AUTH-TIMING-001"
+category = "timing"
+subsystem = "oidc"
+constraint = "ID Token validation latency (full pipeline: parse + verify + validate claims)"
+value = "5"
+percentile = "p99"
+unit = "milliseconds"
+rationale = "Token validation runs on every authenticated request. With RSA-2048 signature verification (~1ms) plus claim checks (<0.1ms), 5ms p99 leaves headroom for cache misses and GC pauses."
+measurement_method = "Histogram of validate_token() duration from token extraction to principal resolution"
+enforcement = "SLO monitoring; alerting at p99 > 10ms"
+
+[DC-AUTH-ALG-001]
+id = "DC-AUTH-ALG-001"
+category = "security"
+subsystem = "oidc"
+constraint = "Allowed JWS signature algorithms"
+value = ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"]
+rationale = "Restrict to asymmetric algorithms only. 'none' (CVE-2016-10555) and symmetric algorithms (HS256 with public key as secret) must be rejected. RS* for RSA, ES* for ECDSA."
+enforcement = "Hardcoded allowlist in token validator; reject any algorithm not in list"
+
+[DC-AUTH-CLOCK-001]
+id = "DC-AUTH-CLOCK-001"
+category = "security"
+subsystem = "oidc"
+constraint = "Maximum clock skew between RP and OP"
+value = "60"
+unit = "seconds"
+rationale = "OIDC Core spec recommends 'a few minutes' of leeway for clock skew. 60s is conservative and sufficient for NTP-synced servers."
+enforcement = "Configuration parameter; added to exp check as leeway"
+
+[DC-AUTH-NONCE-001]
+id = "DC-AUTH-NONCE-001"
+category = "security"
+subsystem = "oidc"
+constraint = "Nonce requirement for authentication flows"
+value = "required"
+rationale = "Nonce binds the ID Token to the authentication session, preventing replay attacks. OIDC Core Section 3.1.2.1: if nonce is sent in request, OP MUST include it in ID Token, and RP MUST verify it."
+enforcement = "Authentication flow always generates and sends nonce; token validation always verifies nonce"
+
+[DC-AUTH-TOKEN-TTL-001]
+id = "DC-AUTH-TOKEN-TTL-001"
+category = "security"
+subsystem = "oidc"
+constraint = "Maximum acceptable ID Token lifetime"
+value = "600"
+unit = "seconds"
+rationale = "Short-lived tokens reduce the window for token theft and replay. 10 minutes balances security with user experience (no excessive re-authentication). Configurable per deployment."
+configurable = true
+enforcement = "Token validation rejects tokens where (exp - iat) > max_ttl"
+
+[DC-AUTH-JWKS-001]
+id = "DC-AUTH-JWKS-001"
+category = "reliability"
+subsystem = "oidc"
+constraint = "JWKS cache TTL"
+value = "86400"
+unit = "seconds"
+rationale = "JWKS keys are rotated infrequently (typically daily). 24h cache reduces network calls to the OP's jwks_uri while supporting key rotation. Cache is refreshed when a token references an unknown kid."
+configurable = true
+enforcement = "In-memory LRU cache with TTL-based expiry; fallback to network fetch on cache miss"
+
+[DC-AUTH-JWKS-002]
+id = "DC-AUTH-JWKS-002"
+category = "security"
+subsystem = "oidc"
+constraint = "JWKS fetch over HTTPS only"
+value = "required"
+rationale = "JWKS contains public keys used for signature verification. Fetching over HTTP allows MITM to inject attacker's public key."
+enforcement = "URL scheme validation; reject any jwks_uri not using https://"
+
+# ============================================================
+# Cedar Policy Evaluation Constraints
+# ============================================================
+
+[DC-AUTH-CEDAR-TIMING-001]
+id = "DC-AUTH-CEDAR-TIMING-001"
+category = "timing"
+subsystem = "cedar"
+constraint = "Policy evaluation latency for 100 policies"
+value = "10"
+percentile = "p99"
+unit = "milliseconds"
+rationale = "Authorization evaluation must not bottleneck request processing. Cedar evaluation is CPU-bound with O(policies × conditions) complexity. 100 policies with 2 conditions each should complete in < 1ms; 10ms p99 accounts for entity loading overhead."
+measurement_method = "Histogram of Authorizer::is_authorized() duration"
+enforcement = "SLO monitoring; alerting at p99 > 20ms"
+
+[DC-AUTH-CEDAR-TIMING-002]
+id = "DC-AUTH-CEDAR-TIMING-002"
+category = "timing"
+subsystem = "cedar"
+constraint = "Policy evaluation latency for 1000 policies"
+value = "50"
+percentile = "p99"
+unit = "milliseconds"
+rationale = "Large policy sets scale linearly. At 1000 policies the evaluation is still well within acceptable latency bounds."
+measurement_method = "Benchmark with criterion; track regression"
+enforcement = "Performance test in CI; fail if p99 exceeds threshold"
+
+[DC-AUTH-CEDAR-MAX-001]
+id = "DC-AUTH-CEDAR-MAX-001"
+category = "scale"
+subsystem = "cedar"
+constraint = "Maximum number of policies in policy store"
+value = "10000"
+rationale = "Cedar imposes no inherent limit, but unbounded policy growth increases evaluation time linearly and memory usage for policy storage. 10K policies with avg 500 bytes each = ~5 MB."
+configurable = true
+enforcement = "Policy store rejects additions beyond limit; return error to admin API"
+
+[DC-AUTH-CEDAR-HOT-001]
+id = "DC-AUTH-CEDAR-HOT-001"
+category = "operations"
+subsystem = "cedar"
+constraint = "Policy store hot-reload capability"
+value = "enabled"
+rationale = "Policy changes must take effect without server restart. This is critical for incident response (e.g., revoking access immediately)."
+enforcement = "Policy store uses atomic swap (Arc<RwLock<PolicySet>>) or similar; reload completes in < 100ms"
+
+[DC-AUTH-CEDAR-HOT-002]
+id = "DC-AUTH-CEDAR-HOT-002"
+category = "operations"
+subsystem = "cedar"
+constraint = "Policy validation on load"
+value = "required"
+rationale = "All policies must be validated against the schema before being added to the active policy set. This prevents runtime errors from typos, type mismatches, or invalid entity references."
+enforcement = "Policy store rejects policies that fail validation; admin API returns validation errors"
+
+[DC-AUTH-CEDAR-SIZE-001]
+id = "DC-AUTH-CEDAR-SIZE-001"
+category = "security"
+subsystem = "cedar"
+constraint = "Maximum individual policy size"
+value = "262144"
+unit = "bytes"
+rationale = "Cedar spec places no size limits, but unbounded policy sizes enable memory exhaustion. 256 KiB per policy is generous (typical policies are 100-500 bytes)."
+configurable = true
+enforcement = "Policy parser rejects policies exceeding limit; return 413 to admin API"
+
+[DC-AUTH-CEDAR-VALIDATE-001]
+id = "DC-AUTH-CEDAR-VALIDATE-001"
+category = "security"
+subsystem = "cedar"
+constraint = "Schema-based policy validation before evaluation"
+value = "required"
+rationale = "Policies that reference non-existent entity types, misspell attributes, or use wrong types will produce errors at evaluation time. Schema validation catches these at policy load time."
+enforcement = "Validator::validate() called on every policy before adding to PolicySet"
+
+# ============================================================
+# Integration Constraints
+# ============================================================
+
+[DC-AUTH-END-END-001]
+id = "DC-AUTH-END-END-001"
+category = "timing"
+subsystem = "integration"
+constraint = "Combined OIDC validation + Cedar evaluation latency"
+value = "15"
+percentile = "p99"
+unit = "milliseconds"
+rationale = "End-to-end auth middleware latency budget. OIDC validation (~5ms) + Cedar evaluation (~1ms) + overhead (~9ms) = 15ms. This is the p99 target; p50 should be < 2ms."
+measurement_method = "Histogram of auth middleware duration (token extraction through authorization decision)"
+enforcement = "SLO monitoring; alerting at p99 > 30ms"
+
+[DC-AUTH-PRINCIPAL-001]
+id = "DC-AUTH-PRINCIPAL-001"
+category = "identity"
+subsystem = "integration"
+constraint = "Principal entity UID format"
+value = "UUID-based (non-reusable, non-recyclable)"
+rationale = "Cedar security best practices: use unique, immutable, non-recyclable identifiers. If a user leaves and their username is reassigned, policies referencing the old username would grant access to the new user. OIDC sub claims from compliant providers (Keycloak, Okta) are UUIDs."
+enforcement = "Token validator maps OIDC sub claim directly to Cedar User::\"<sub>\" UID; no username-based mapping"
+
+[DC-AUTH-LOG-001]
+id = "DC-AUTH-LOG-001"
+category = "audit"
+subsystem = "integration"
+constraint = "Authorization decision logging"
+value = "all_decisions"
+rationale = "Every Allow/Deny decision must be logged for audit and compliance. Log entries include: principal, action, resource, decision, determining policy IDs, timestamp."
+log_fields = ["timestamp", "principal_uid", "action_uid", "resource_uid", "decision", "determining_policies", "error_policies"]
+enforcement = "Structured logging middleware wrapping Cedar authorizer; log level = INFO for Allow, WARN for Deny, ERROR for evaluation errors"
+
+[DC-AUTH-ERROR-001]
+id = "DC-AUTH-ERROR-001"
+category = "security"
+subsystem = "integration"
+constraint = "Error handling strategy for auth failures"
+value = {"oidc_failure" = "401 Unauthorized", "cedar_deny" = "403 Forbidden", "cedar_error" = "403 Forbidden", "internal_error" = "500 Internal Server Error"}
+rationale = "OIDC validation failure = unauthenticated (401). Cedar Deny = authenticated but unauthorized (403). Cedar evaluation error = deny-by-default (403) to prevent access when policies are broken. Internal errors = 500 for observability."
+enforcement = "Auth middleware maps errors to HTTP status codes per this mapping"
+
+[DC-AUTH-PRINCIPAL-CACHE-001]
+id = "DC-AUTH-PRINCIPAL-CACHE-001"
+category = "performance"
+subsystem = "integration"
+constraint = "Principal entity caching for Cedar evaluation"
+value = "enabled"
+rationale = "Constructing Cedar Entity objects from OIDC claims for every request adds overhead. Cache principal entities keyed by sub claim. Cache invalidation on token refresh."
+enforcement = "In-memory LRU cache with TTL = min(token_ttl, 300s)"
+
+[DC-AUTH-ENTITY-STORE-001]
+id = "DC-AUTH-ENTITY-STORE-001"
+category = "performance"
+subsystem = "cedar"
+constraint = "Entity store loading strategy"
+value = "eager_per_request"
+rationale = "All entities relevant to the authorization request must be available during Cedar evaluation. Load required entities (resource + its attributes, principal groups) before calling Authorizer. Use Cedar's EntityManifest for partial loading when available."
+enforcement = "Entity loader trait implementation; entities loaded from application database before evaluation"

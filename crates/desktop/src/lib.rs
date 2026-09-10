@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod config;
+pub mod login;
 #[cfg(target_os = "macos")]
 pub mod macos_integration;
 pub mod mount;

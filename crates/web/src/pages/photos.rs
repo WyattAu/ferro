@@ -328,7 +328,6 @@ pub fn PhotosPage() -> impl IntoView {
                                     {
                                         let album_id = album.id.clone();
                                         let album_id_active = album.id.clone();
-                                        let album_paths = album.photo_paths.clone();
                                         view! {
                                             <div
                                                 class="px-2 py-1.5 rounded hover:bg-[var(--interactive-hover)] cursor-pointer transition-colors"

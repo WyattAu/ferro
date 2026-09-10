@@ -3,8 +3,6 @@
 //! Provides the Rust backend for iOS Files Provider and Android SAF integration.
 //! Uses the same sync engine as desktop but with mobile-specific optimizations.
 
-use serde::{Deserialize, Serialize};
-
 const PROPFIND_BODY: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 <D:propfind xmlns:D="DAV:">
   <D:prop>
@@ -157,7 +155,7 @@ pub use common::mobile_error::{MobileConflictStrategy, MobileError};
 
 fn build_http_client(auth_token: &str) -> Result<reqwest::Client, MobileError> {
     common::http_client::build_client(auth_token, common::http_client::HttpClientOptions::default())
-        .map_err(|e| MobileError::NetworkError(e))
+        .map_err(MobileError::NetworkError)
 }
 
 async fn do_propfind_http(client: &reqwest::Client, server_url: &str, path: &str) -> Result<String, MobileError> {

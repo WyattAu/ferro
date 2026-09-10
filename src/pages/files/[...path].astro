@@ -1,0 +1,22 @@
+---
+import Shell from '../../layouts/Shell.astro';
+import FileBrowser from '../../islands/FileBrowser';
+---
+<Shell title="Files — Ferro">
+  <div id="app" class="h-screen flex flex-col">
+    <div class="flex items-center justify-between px-4 py-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)]">
+      <span class="text-lg font-bold font-mono tracking-tight">FERRO</span>
+      <button id="logout-btn" class="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Sign out</button>
+    </div>
+    <div class="flex-1 overflow-hidden">
+      <FileBrowser client:load />
+    </div>
+  </div>
+  <script>
+    import { getUser, logout } from '../../lib/auth';
+    getUser().then(user => {
+      if (!user) { window.location.href = '/'; }
+    });
+    document.getElementById('logout-btn')?.addEventListener('click', () => logout());
+  </script>
+</Shell>

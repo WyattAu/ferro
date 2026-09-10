@@ -5,10 +5,10 @@
 //! generated Cedar policy set (no restart needed).
 
 use crate::state::AppState;
-use ferro_auth::cedar::{generate_auto_policies, SpaceMembership};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use ferro_auth::cedar::{SpaceMembership, generate_auto_policies};
 
 fn members_path(state: &AppState) -> Option<std::path::PathBuf> {
     state

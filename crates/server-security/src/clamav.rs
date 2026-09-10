@@ -55,18 +55,15 @@ pub async fn scan_file(
 
     let scan_start = std::time::Instant::now();
 
-    let stream = uds_kit::connect(
-        &config.socket_path,
-        std::time::Duration::from_millis(config.timeout_ms),
-    )
-    .await
-    .map_err(|e| match e {
-        uds_kit::UdsError::ConnectTimeout { path } => {
-            format!("Timeout connecting to ClamAV daemon at {}", path.display())
-        }
-        uds_kit::UdsError::Io(io) => format!("Failed to connect to ClamAV daemon: {io}"),
-        other => format!("Failed to connect to ClamAV daemon: {other}"),
-    })?;
+    let stream = uds_kit::connect(&config.socket_path, std::time::Duration::from_millis(config.timeout_ms))
+        .await
+        .map_err(|e| match e {
+            uds_kit::UdsError::ConnectTimeout { path } => {
+                format!("Timeout connecting to ClamAV daemon at {}", path.display())
+            }
+            uds_kit::UdsError::Io(io) => format!("Failed to connect to ClamAV daemon: {io}"),
+            other => format!("Failed to connect to ClamAV daemon: {other}"),
+        })?;
 
     let (mut reader, mut writer) = stream.into_split();
 

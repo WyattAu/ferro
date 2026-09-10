@@ -89,7 +89,7 @@ fn ShellLayout(children: Children) -> impl IntoView {
             <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[9999] focus:bg-accent focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
                 "Skip to main content"
             </a>
-            <AppHeader sidebar_open=sidebar_open set_sidebar_open=set_sidebar_open />
+            <AppHeader _sidebar_open=sidebar_open set_sidebar_open=set_sidebar_open />
             <main id="main-content" class="shell-content" style="padding:0;">
                 {children()}
             </main>
@@ -206,7 +206,7 @@ fn TrashPage() -> impl IntoView {
 
 /// Shared app header with navigation.
 #[component]
-fn AppHeader(sidebar_open: ReadSignal<bool>, set_sidebar_open: WriteSignal<bool>) -> impl IntoView {
+fn AppHeader(_sidebar_open: ReadSignal<bool>, set_sidebar_open: WriteSignal<bool>) -> impl IntoView {
     view! {
         <header class="shell-header">
             // Mobile hamburger button (hidden on sm+)

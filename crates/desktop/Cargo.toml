@@ -23,7 +23,6 @@ tauri = [
     "dep:tauri-plugin-notification",
     "dep:tauri-plugin-updater",
     "dep:roxmltree",
-    "dep:reqwest",
     "dep:sha2",
     "dep:base64",
     "dep:urlencoding",
@@ -46,7 +45,6 @@ mobile = [
     "dep:tauri-plugin-notification",
     "dep:tauri-plugin-http",
     "dep:roxmltree",
-    "dep:reqwest",
     "dep:zip",
 ]
 android = [
@@ -57,10 +55,8 @@ android = [
     "dep:tauri-plugin-notification",
     "dep:tauri-plugin-http",
     "dep:roxmltree",
-    "dep:reqwest",
 ]
 sync = [
-    "dep:reqwest",
     "dep:walkdir",
     "dep:sha2",
     "dep:hex",
@@ -76,7 +72,7 @@ tauri-plugin-notification = { version = "2", optional = true }
 tauri-plugin-http = { version = "2", optional = true }
 tauri-plugin-updater = { version = "2", optional = true }
 roxmltree = { version = "0.20", optional = true }
-reqwest = { version = "0.12", features = ["json"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 webkit2gtk = { version = "2", optional = true }
 gtk = { version = "0.18", optional = true }
 glib = { version = "0.18", optional = true }
@@ -101,6 +97,8 @@ rand = { version = "0.8", optional = true }
 open = { version = "5", optional = true }
 common = { package = "ferro-common", path = "../common", features = ["http"] }
 keyring = "4.2.0"
+oauth-toolkit = "0.2.1"
+percent-encoding = "2.3.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"

@@ -1,0 +1,189 @@
+# Domain Constraints: Storage Subsystem
+# Format: TOML
+# These constraints are inviolable invariants for the Ferro storage layer.
+
+[dc_hash_computation]
+id = "DC-HASH-001"
+domain = "Storage"
+component = "Hash Computation"
+description = "SHA-256 hash computation constraints for CAS operations"
+
+algorithm = "SHA-256"
+output_bits = 256
+output_hex_chars = 64
+implementation = ["sha2 (RustCrypto)", "ring"]
+computation_mode = "streaming"
+min_throughput_mb_per_sec = 500
+max_memory_overhead_bytes = 32768
+large_file_strategy = "multipart_with_concurrent_hash_stream"
+nist_test_vectors_required = true
+
+[dc_object_store_operations]
+id = "DC-STORAGE-001"
+domain = "Storage"
+component = "Object Store"
+description = "Constraints for object_store backend operations"
+
+atomic_put_required = true
+conditional_put_modes = ["Create", "Overwrite", "Update"]
+dedup_race_strategy = "PutMode::Create with AlreadyExists fallback"
+multipart_min_chunk_size_bytes = 5242880
+multipart_recommended_chunk_size_bytes = 67108864
+multipart_max_parts = 10000
+max_object_size_bytes = 5497558138880
+bulk_delete_batch_s3 = 1000
+bulk_delete_batch_azure = 256
+bulk_delete_concurrent_gcs = 10
+bulk_delete_concurrent_local = 10
+copy_atomic_backends = ["s3", "gcs", "azure"]
+rename_atomic_backends = ["local"]
+
+[dc_presigned_urls]
+id = "DC-PRESIGN-001"
+domain = "Storage"
+component = "Pre-signed URLs"
+description = "Security constraints for pre-signed URL generation"
+
+default_ttl_secs = 60
+max_ttl_secs = 3600
+min_ttl_secs = 1
+supported_methods = ["GET", "PUT"]
+authorization_required = true
+authorization_engine = "Cedar"
+audit_logging_required = true
+staging_path_namespace = "UUIDv4"
+staging_path_prefix = "staging/"
+backend_support = ["s3", "gcs", "azure"]
+local_fs_support = false
+in_memory_support = false
+max_concurrent_presign_per_user = 10
+presign_rate_limit_per_minute = 60
+
+[dc_deduplication]
+id = "DC-DEDUP-001"
+domain = "Storage"
+component = "Deduplication"
+description = "Constraints for content deduplication logic"
+
+hash_algorithm = "SHA-256"
+race_condition_strategy = "PutMode::Create + AlreadyExists -> dedup"
+reference_counting = true
+gc_threshold_refcount = 0
+gc_grace_period_secs = 86400
+metadata_after_storage_only = true
+concurrent_dedup_max_racers = 100
+dedup_check_parallelism = 1
+
+[dc_integrity_verification]
+id = "DC-INTEGRITY-001"
+domain = "Storage"
+component = "Content Integrity"
+description = "Constraints for content integrity verification on read"
+
+verify_on_get = true
+verify_on_presign_complete = true
+hash_mismatch_action = "audit_log_and_error"
+missing_physical_data_action = "audit_log_and_error"
+corruption_alert_threshold = 3
+integrity_check_frequency = "every_read"
+
+[dc_backend_compatibility]
+id = "DC-BACKEND-001"
+domain = "Storage"
+component = "Backend Compatibility"
+description = "Feature compatibility matrix across storage backends"
+
+[dc_backend_compatibility.local_fs]
+atomic_put = true
+conditional_put_create = true
+conditional_put_update = true
+conditional_put_overwrite = true
+multipart_upload = true
+presigned_url = false
+bulk_delete = 10
+copy = true
+atomic_rename = true
+vectored_read = true
+list_with_delimiter = true
+
+[dc_backend_compatibility.s3]
+atomic_put = true
+conditional_put_create = true
+conditional_put_update = true
+conditional_put_overwrite = true
+multipart_upload = true
+presigned_url = true
+bulk_delete = 1000
+copy = true
+atomic_rename = false
+vectored_read = true
+list_with_delimiter = true
+
+[dc_backend_compatibility.gcs]
+atomic_put = true
+conditional_put_create = true
+conditional_put_update = true
+conditional_put_overwrite = true
+multipart_upload = true
+presigned_url = true
+bulk_delete = 10
+copy = true
+atomic_rename = false
+vectored_read = true
+list_with_delimiter = true
+
+[dc_backend_compatibility.azure]
+atomic_put = true
+conditional_put_create = true
+conditional_put_update = true
+conditional_put_overwrite = true
+multipart_upload = true
+presigned_url = true
+bulk_delete = 256
+copy = true
+atomic_rename = false
+vectored_read = true
+list_with_delimiter = true
+
+[dc_backend_compatibility.in_memory]
+atomic_put = true
+conditional_put_create = true
+conditional_put_update = false
+conditional_put_overwrite = true
+multipart_upload = true
+presigned_url = false
+bulk_delete = 1
+copy = true
+atomic_rename = false
+vectored_read = true
+list_with_delimiter = true
+
+[dc_latency_targets]
+id = "DC-LATENCY-001"
+domain = "Storage"
+component = "Performance"
+description = "Target latency constraints for storage operations (p99)"
+
+put_small_object_p99_ms = 500
+get_small_object_p99_ms = 200
+head_object_p99_ms = 100
+list_prefix_p99_ms = 500
+delete_object_p99_ms = 200
+presign_generate_p99_ms = 50
+hash_compute_p99_per_gb_ms = 2500
+multipart_initiate_p99_ms = 1000
+multipart_complete_p99_ms = 1000
+
+[dc_object_store_version]
+id = "DC-VERSION-001"
+domain = "Storage"
+component = "Dependencies"
+description = "object_store crate version and feature requirements"
+
+crate_name = "object_store"
+minimum_version = "0.13.0"
+tested_version = "0.13.2"
+required_features = ["cloud"]
+optional_features = ["aws", "gcp", "azure", "fs", "http"]
+governance = "Apache Arrow"
+license = "MIT OR Apache-2.0"

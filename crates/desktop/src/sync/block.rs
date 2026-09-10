@@ -174,7 +174,6 @@ pub fn diff_manifests(local: &BlockManifest, remote: &BlockManifest) -> Vec<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
 
     #[test]
     fn test_chunk_file() {

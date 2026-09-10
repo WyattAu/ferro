@@ -1,0 +1,572 @@
+# Authentication (OIDC) & Authorization (Cedar) Test Vectors
+# Reference: YP-AUTH-OIDC-CEDAR-001
+# Schema version: 1.0
+
+# ============================================================
+# OIDC Token Validation — Nominal
+# ============================================================
+
+[TV-OIDC-001]
+id = "TV-OIDC-001"
+category = "oidc"
+subcategory = "nominal"
+description = "Valid ID Token with all required claims passes validation"
+token_header = """{"alg": "RS256", "typ": "JWT", "kid": "key-1"}"""
+token_payload = """{
+  "iss": "https://auth.ferro.local",
+  "sub": "a1b2c3d4-e5f6-a1b2-c3d4-EXAMPLE00001",
+  "aud": "ferro-client",
+  "exp": 9999999999,
+  "iat": 1713400000,
+  "nonce": "n0nc3-s3cur3-v4lu3"
+}"""
+signature = "valid_rs256_signature_with_key_1"
+jwks_kid = "key-1"
+jwks_alg = "RS256"
+expected_issuer = "https://auth.ferro.local"
+expected_audience = "ferro-client"
+expected_nonce = "n0nc3-s3cur3-v4lu3"
+expected_result = "Valid"
+expected_principal_uid = """User::"a1b2c3d4-e5f6-a1b2-c3d4-EXAMPLE00001""""
+notes = "Happy path: all required claims present, signature valid, all checks pass"
+
+[TV-OIDC-008]
+id = "TV-OIDC-008"
+category = "oidc"
+subcategory = "nominal"
+description = "Valid ID Token with extra claims (email, name, groups) preserves them as entity attributes"
+token_header = """{"alg": "RS256", "typ": "JWT", "kid": "key-1"}"""
+token_payload = """{
+  "iss": "https://auth.ferro.local",
+  "sub": "a1b2c3d4-e5f6-a1b2-c3d4-EXAMPLE00002",
+  "aud": "ferro-client",
+  "exp": 9999999999,
+  "iat": 1713400000,
+  "nonce": "n0nc3-s3cur3-v4lu3",
+  "email": "alice@example.com",
+  "name": "Alice Example",
+  "groups": ["admin", "engineering"]
+}"""
+signature = "valid_rs256_signature_with_key_1"
+jwks_kid = "key-1"
+jwks_alg = "RS256"
+expected_issuer = "https://auth.ferro.local"
+expected_audience = "ferro-client"
+expected_nonce = "n0nc3-s3cur3-v4lu3"
+expected_result = "Valid"
+expected_principal_uid = """User::"a1b2c3d4-e5f6-a1b2-c3d4-EXAMPLE00002""""
+notes = "Extra claims should be extracted and available as principal entity attributes for Cedar evaluation"
+
+# ============================================================
+# OIDC Token Validation — Boundary
+# ============================================================
+
+[TV-OIDC-002]
+id = "TV-OIDC-002"
+category = "oidc"
+subcategory = "boundary"
+description = "Expired token is rejected"
+token_header = """{"alg": "RS256", "typ": "JWT", "kid": "key-1"}"""
+token_payload = """{
+  "iss": "https://auth.ferro.local",
+  "sub": "a1b2c3d4-e5f6-a1b2-c3d4-EXAMPLE00001",
+  "aud": "ferro-client",
+  "exp": 1000000000,
+  "iat": 999999000,
+  "nonce": "n0nc3-s3cur3-v4lu3"
+}"""
+signature = "valid_rs256_signature_with_key_1"
+jwks_kid = "key-1"
+jwks_alg = "RS256"
+expected_issuer = "https://auth.ferro.local"
+expected_audience = "ferro-client"
+expected_nonce = "n0nc3-s3cur3-v4lu3"
+expected_result = "Rejected"
+expected_error = "TokenExpired"
+notes = "exp claim is in the past (Sept 2001); should be rejected regardless of signature validity"
+
+[TV-OIDC-004]
+id = "TV-OIDC-004"
+category = "oidc"
+subcategory = "boundary"
+description = "Token with wrong issuer is rejected"
+token_header = """{"alg": "RS256", "typ": "JWT", "kid": "key-1"}"""
+token_payload = """{
+  "iss": "https://evil-attacker.com",
+  "sub": "a1b2c3d4-e5f6-a1b2-c3d4-EXAMPLE00001",
+  "aud": "ferro-client",
+  "exp": 9999999999,
+  "iat": 1713400000,
+  "nonce": "n0nc3-s3cur3-v4lu3"
+}"""
+signature = "valid_rs256_signature_with_key_1"
+jwks_kid = "key-1"
+jwks_alg = "RS256"
+expected_issuer = "https://auth.ferro.local"
+expected_audience = "ferro-client"
+expected_nonce = "n0nc3-s3cur3-v4lu3"
+expected_result = "Rejected"
+expected_error = "InvalidIssuer"
+notes = "iss does not match expected OP URL; attacker may have valid signature from their own OP"
+
+[TV-OIDC-005]
+id = "TV-OIDC-005"
+category = "oidc"
+subcategory = "boundary"
+description = "Token with wrong audience is rejected"
+token_header = """{"alg": "RS256", "typ": "JWT", "kid": "key-1"}"""
+token_payload = """{
+  "iss": "https://auth.ferro.local",
+  "sub": "a1b2c3d4-e5f6-a1b2-c3d4-EXAMPLE00001",
+  "aud": "evil-client",
+  "exp": 9999999999,
+  "iat": 1713400000,
+  "nonce": "n0nc3-s3cur3-v4lu3"
+}"""
+signature = "valid_rs256_signature_with_key_1"
+jwks_kid = "key-1"
+jwks_alg = "RS256"
+expected_issuer = "https://auth.ferro.local"
+expected_audience = "ferro-client"
+expected_nonce = "n0nc3-s3cur3-v4lu3"
+expected_result = "Rejected"
+expected_error = "InvalidAudience"
+notes = "aud does not contain ferro-client; prevents token issued for another RP from being accepted"
+
+[TV-OIDC-006]
+id = "TV-OIDC-006"
+category = "oidc"
+subcategory = "boundary"
+description = "Token with missing sub claim is rejected"
+token_header = """{"alg": "RS256", "typ": "JWT", "kid": "key-1"}"""
+token_payload = """{
+  "iss": "https://auth.ferro.local",
+  "aud": "ferro-client",
+  "exp": 9999999999,
+  "iat": 1713400000,
+  "nonce": "n0nc3-s3cur3-v4lu3"
+}"""
+signature = "valid_rs256_signature_with_key_1"
+jwks_kid = "key-1"
+jwks_alg = "RS256"
+expected_issuer = "https://auth.ferro.local"
+expected_audience = "ferro-client"
+expected_nonce = "n0nc3-s3cur3-v4lu3"
+expected_result = "Rejected"
+expected_error = "InvalidSubject"
+notes = "sub claim is REQUIRED per OIDC Core spec Section 2; cannot create principal without it"
+
+# ============================================================
+# OIDC Token Validation — Adversarial
+# ============================================================
+
+[TV-OIDC-003]
+id = "TV-OIDC-003"
+category = "oidc"
+subcategory = "adversarial"
+description = "Token with invalid signature is rejected"
+token_header = """{"alg": "RS256", "typ": "JWT", "kid": "key-1"}"""
+token_payload = """{
+  "iss": "https://auth.ferro.local",
+  "sub": "a1b2c3d4-e5f6-a1b2-c3d4-EXAMPLE00001",
+  "aud": "ferro-client",
+  "exp": 9999999999,
+  "iat": 1713400000,
+  "nonce": "n0nc3-s3cur3-v4lu3"
+}"""
+signature = "invalid_signature_bytes_tampered"
+jwks_kid = "key-1"
+jwks_alg = "RS256"
+expected_issuer = "https://auth.ferro.local"
+expected_audience = "ferro-client"
+expected_nonce = "n0nc3-s3cur3-v4lu3"
+expected_result = "Rejected"
+expected_error = "SignatureInvalid"
+notes = "Signature was modified after signing; RSA/ECDSA verification must fail"
+
+[TV-OIDC-007]
+id = "TV-OIDC-007"
+category = "oidc"
+subcategory = "adversarial"
+description = "Token with alg=none is rejected (algorithm substitution attack)"
+token_header = """{"alg": "none", "typ": "JWT"}"""
+token_payload = """{
+  "iss": "https://auth.ferro.local",
+  "sub": "attacker-controlled-subject",
+  "aud": "ferro-client",
+  "exp": 9999999999,
+  "iat": 1713400000
+}"""
+signature = ""
+jwks_kid = "key-1"
+jwks_alg = "RS256"
+expected_issuer = "https://auth.ferro.local"
+expected_audience = "ferro-client"
+expected_nonce = "n0nc3-s3cur3-v4lu3"
+expected_result = "Rejected"
+expected_error = "AlgorithmNotAllowed"
+notes = "CVE-2016-10555 class attack: alg=none bypasses signature verification. MUST be rejected unconditionally."
+
+# ============================================================
+# Cedar Authorization — Nominal
+# ============================================================
+
+[TV-CEDAR-001]
+id = "TV-CEDAR-001"
+category = "cedar"
+subcategory = "nominal"
+description = "Permit policy matches request exactly -> Allow"
+policies = """
+permit(
+    principal == User::"alice",
+    action == Action::"view",
+    resource == File::"doc.pdf"
+);
+"""
+request_principal = """User::"alice""""
+request_action = """Action::"view""""
+request_resource = """File::"doc.pdf""""
+request_context = "{}"
+entities = "{}"
+expected_decision = "Allow"
+expected_determining_policies = 1
+notes = "Exact match on all three scope constraints"
+
+[TV-CEDAR-002]
+id = "TV-CEDAR-002"
+category = "cedar"
+subcategory = "nominal"
+description = "Forbid policy matches request -> Deny"
+policies = """
+forbid(
+    principal,
+    action == Action::"delete",
+    resource
+);
+"""
+request_principal = """User::"alice""""
+request_action = """Action::"delete""""
+request_resource = """File::"doc.pdf""""
+request_context = "{}"
+entities = "{}"
+expected_decision = "Deny"
+expected_determining_policies = 1
+notes = "Forbid policy matches; default-deny still applies since no permit exists"
+
+[TV-CEDAR-004]
+id = "TV-CEDAR-004"
+category = "cedar"
+subcategory = "nominal"
+description = "Permit policy matches and no forbid policies exist -> Allow"
+policies = """
+permit(
+    principal == User::"alice",
+    action in [Action::"view", Action::"download"],
+    resource is File
+);
+"""
+request_principal = """User::"alice""""
+request_action = """Action::"download""""
+request_resource = """File::"report.xlsx""""
+request_context = "{}"
+entities = """[
+  {"uid": "File::\"report.xlsx\"", "type": "File", "attrs": {}}
+]"""
+expected_decision = "Allow"
+expected_determining_policies = 1
+notes = "Principal matches, action in set, resource is File type"
+
+[TV-CEDAR-007]
+id = "TV-CEDAR-007"
+category = "cedar"
+subcategory = "nominal"
+description = "Policy with attribute-based conditions evaluates correctly"
+policies = """
+permit(
+    principal is User,
+    action == Action::"view",
+    resource is File
+)
+when {
+    resource.owner == principal &&
+    principal.department == "engineering" &&
+    principal.jobLevel >= 5
+};
+"""
+request_principal = """User::"bob""""
+request_action = """Action::"view""""
+request_resource = """File::"design.spec""""
+request_context = "{}"
+entities = """[
+  {
+    "uid": "User::\"bob\"",
+    "type": "User",
+    "attrs": {"department": "engineering", "jobLevel": 7}
+  },
+  {
+    "uid": "File::\"design.spec\"",
+    "type": "File",
+    "attrs": {"owner": {"__cedar_entity": "User::\"bob\""}}
+  }
+]"""
+expected_decision = "Allow"
+expected_determining_policies = 1
+notes = "All three conditions in when clause evaluate to true"
+
+[TV-CEDAR-008]
+id = "TV-CEDAR-008"
+category = "cedar"
+subcategory = "nominal"
+description = "Entity hierarchy traversal with 'in' operator"
+policies = """
+permit(
+    principal in Group::"admin",
+    action == Action::"admin_panel",
+    resource
+);
+"""
+request_principal = """User::"alice""""
+request_action = """Action::"admin_panel""""
+request_resource = """Dashboard::"main""""
+request_context = "{}"
+entities = """[
+  {
+    "uid": "User::\"alice\"",
+    "type": "User",
+    "attrs": {},
+    "parents": [{"__cedar_entity": "Group::\"engineering\"}"]
+  },
+  {
+    "uid": "Group::\"engineering\"",
+    "type": "Group",
+    "attrs": {},
+    "parents": [{"__cedar_entity": "Group::\"admin\"}"]
+  }
+]"""
+expected_decision = "Allow"
+expected_determining_policies = 1
+notes = "alice -> engineering -> admin; transitive hierarchy traversal via 'in' operator"
+
+[TV-CEDAR-009]
+id = "TV-CEDAR-009"
+category = "cedar"
+subcategory = "nominal"
+description = "Context-based authorization using request context (IP address, MFA status)"
+policies = """
+forbid(
+    principal,
+    action,
+    resource
+)
+unless {
+    context.authentication.mfa == true
+};
+
+permit(
+    principal is User,
+    action in [Action::"view", Action::"edit"],
+    resource is File
+)
+when {
+    context.network.ip matches "^10\\.0\\..*"
+};
+"""
+request_principal = """User::"alice""""
+request_action = """Action::"edit""""
+request_resource = """File::"doc.pdf""""
+request_context = """{"authentication": {"mfa": true}, "network": {"ip": "10.0.1.50"}}"""
+entities = """[
+  {"uid": "User::\"alice\"", "type": "User", "attrs": {}},
+  {"uid": "File::\"doc.pdf\"", "type": "File", "attrs": {}}
+]"""
+expected_decision = "Allow"
+expected_determining_policies = 1
+notes = "MFA is true (unless fails -> forbid not triggered); IP matches 10.0.* (permit triggered)"
+
+[TV-CEDAR-012]
+id = "TV-CEDAR-012"
+category = "cedar"
+subcategory = "nominal"
+description = "Template-linked policy evaluation"
+policies = """
+@id("resource-owner-template")
+?principal in Group::"admin"
+permit(
+    principal == ?principal,
+    action == Action::"manage",
+    resource == ?resource
+);
+"""
+template_values = """{"principal": "User::\"alice\"", "resource": "File::\"doc.pdf\""}"""
+request_principal = """User::"alice""""
+request_action = """Action::"manage""""
+request_resource = """File::"doc.pdf""""
+request_context = "{}"
+entities = """[
+  {"uid": "User::\"alice\"", "type": "User", "attrs": {}, "parents": [{"__cedar_entity": "Group::\"admin\"}"]}
+]"""
+expected_decision = "Allow"
+expected_determining_policies = 1
+notes = "Template slot filled with alice + doc.pdf; principal is in admin group (annotation condition)"
+
+# ============================================================
+# Cedar Authorization — Boundary
+# ============================================================
+
+[TV-CEDAR-003]
+id = "TV-CEDAR-003"
+category = "cedar"
+subcategory = "boundary"
+description = "Empty policy set produces Deny (default-deny)"
+policies = ""
+request_principal = """User::"alice""""
+request_action = """Action::"view""""
+request_resource = """File::"doc.pdf""""
+request_context = "{}"
+entities = "{}"
+expected_decision = "Deny"
+expected_determining_policies = 0
+notes = "No policies exist; default-deny semantics produce Deny with empty determining policies"
+
+[TV-CEDAR-005]
+id = "TV-CEDAR-005"
+category = "cedar"
+subcategory = "boundary"
+description = "Permit and forbid both match on same request -> Deny (forbid overrides)"
+policies = """
+permit(
+    principal == User::"alice",
+    action == Action::"view",
+    resource == File::"secret.pdf"
+);
+
+forbid(
+    principal,
+    action == Action::"view",
+    resource
+)
+when {
+    resource.confidential == true
+};
+"""
+request_principal = """User::"alice""""
+request_action = """Action::"view""""
+request_resource = """File::"secret.pdf""""
+request_context = "{}"
+entities = """[
+  {
+    "uid": "File::\"secret.pdf\"",
+    "type": "File",
+    "attrs": {"confidential": true}
+  }
+]"""
+expected_decision = "Deny"
+expected_determining_policies = 1
+determining_policy_effect = "forbid"
+notes = "Both permit and forbid match; forbid takes precedence per Cedar semantics"
+
+[TV-CEDAR-006]
+id = "TV-CEDAR-006"
+category = "cedar"
+subcategory = "boundary"
+description = "When condition evaluates to false -> policy does not match"
+policies = """
+permit(
+    principal is User,
+    action == Action::"view",
+    resource is File
+)
+when {
+    principal.jobLevel >= 10
+};
+"""
+request_principal = """User::"bob""""
+request_action = """Action::"view""""
+request_resource = """File::"doc.pdf""""
+request_context = "{}"
+entities = """[
+  {
+    "uid": "User::\"bob\"",
+    "type": "User",
+    "attrs": {"jobLevel": 3}
+  },
+  {
+    "uid": "File::\"doc.pdf\"",
+    "type": "File",
+    "attrs": {}
+  }
+]"""
+expected_decision = "Deny"
+expected_determining_policies = 0
+notes = "Scope matches but when condition fails (3 < 10); no other policies -> default deny"
+
+[TV-CEDAR-011]
+id = "TV-CEDAR-011"
+category = "cedar"
+subcategory = "boundary"
+description = "Policy references missing attribute on entity -> error (skip-on-error)"
+policies = """
+permit(
+    principal is User,
+    action == Action::"view",
+    resource is File
+)
+when {
+    principal.nonExistentAttribute == "value"
+};
+"""
+request_principal = """User::"alice""""
+request_action = """Action::"view""""
+request_resource = """File::"doc.pdf""""
+request_context = "{}"
+entities = """[
+  {
+    "uid": "User::\"alice\"",
+    "type": "User",
+    "attrs": {}
+  },
+  {
+    "uid": "File::\"doc.pdf\"",
+    "type": "File",
+    "attrs": {}
+  }
+]"""
+expected_decision = "Deny"
+expected_determining_policies = 0
+expected_error_policies = 1
+notes = "Attribute 'nonExistentAttribute' not found on User entity; evaluation error; skip-on-error semantics"
+
+# ============================================================
+# Cedar Authorization — Adversarial / Concurrency
+# ============================================================
+
+[TV-CEDAR-010]
+id = "TV-CEDAR-010"
+category = "cedar"
+subcategory = "adversarial"
+description = "Concurrent policy evaluation under load produces consistent results"
+policies = """
+permit(
+    principal == User::"alice",
+    action == Action::"view",
+    resource == File::"doc.pdf"
+);
+
+forbid(
+    principal,
+    action == Action::"delete",
+    resource
+);
+"""
+request_principal = """User::"alice""""
+request_action = """Action::"view""""
+request_resource = """File::"doc.pdf""""
+request_context = "{}"
+entities = "{}"
+expected_decision = "Allow"
+concurrency_config = """{
+  "threads": 16,
+  "iterations_per_thread": 1000,
+  "expected_consistency": "all_iterations_must_return_same_result"
+}"""
+notes = "Stress test: 16 threads evaluating same request simultaneously; Cedar Authorizer is stateless so this must be deterministic"
