@@ -158,10 +158,10 @@ jobs:
       - name: Build desktop crate (release)
         run: cargo build --locked --release -p ferro-desktop --features "tauri,sync"
 
-      - name: Build Tauri bundles
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked --version "^2"
 
+      - name: Build Tauri bundles
         run: cargo tauri build --features "tauri,sync" --bundles deb,rpm,appimage
         working-directory: crates/desktop
         env:
