@@ -145,3 +145,27 @@ cargo valgrind
 | CPU usage | <50% | ~30% |
 
 > **Note 2026-09-03:** `cargo check` 21s, `238 passed` `ferro-server --lib`. Profiling gap remains — see `docs/sre/performance_optimization_plan.md` (flamegraph `ConcurrencyLimitLayer`, `Mutex<rusqlite::Connection>` `crates/common/src/lib.rs:46`, `VACUUM INTO` `crates/server/src/startup.rs:982`). Tunnel same-host direct `http://127.0.0.1:8081` tested `530 1033` and reverted to `https://127.0.0.1:443` `keepAlive 10/90s`.
+
+## 2026-09-11 benchmark — app vs tunnel separation
+
+Method: 10× sequential per endpoint, from TrueNAS localhost (container) vs
+from the dev machine through the Cloudflare tunnel.
+
+| Endpoint | localhost p50 | via tunnel p50 |
+|---|---|---|
+| /healthz | 0.9 ms | 119 ms |
+| PROPFIND Depth:1 home | 1.9 ms | 126 ms |
+| GET /api/users/me (RS256 verify) | 1.1 ms | 120 ms |
+
+Conclusions:
+- App-side latency is 1-2 ms per request — 50× inside the 100 ms target.
+  The historical "1.55 s p99" and "48 req/s" figures measured serial
+  curl requests through the tunnel: each paid TLS handshake + edge RTT.
+- Under 20-way concurrent load, tunnel latency stays flat (~100-117 ms).
+  The server scales; the RTT floor is Cloudflare edge geography.
+- Tunnel is QUIC. Fixed the quic-go receive-buffer starvation
+  (416 KiB vs 7168 KiB wanted) via net.core rmem/wmem_max = 7500000
+  (persisted /etc/sysctl.d/99-quic-buffers.conf on TrueNAS; tunnel
+  container restarted). Burst of 30 concurrent: p95 193 ms, 0 failures.
+- The remaining ~120 ms is edge geography. LAN users can bypass the
+  tunnel entirely by addressing the TrueNAS host directly.
