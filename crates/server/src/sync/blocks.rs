@@ -94,8 +94,9 @@ pub struct AssembleRequest {
     pub path: String,
     /// Ordered list of block hashes that compose the file.
     pub block_hashes: Vec<String>,
-    /// Owner principal for the new file.
-    pub owner: String,
+    /// Ignored: the owner is derived from the authenticated caller.
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 /// Response to assemble request.
@@ -127,8 +128,40 @@ const fn default_block_size() -> u64 {
 ///
 /// Computes the block manifest for a file on the server and returns which
 /// blocks the client needs to upload.
-pub async fn get_manifest(State(state): State<AppState>, Query(params): Query<ManifestQuery>) -> Response {
-    let path = params.path.trim_start_matches('/');
+
+/// Force `path` under the authenticated caller's own root and return the
+/// caller as owner. Block endpoints trust client-supplied paths otherwise —
+/// a non-admin could read manifests from or assemble files into another
+/// user's tree.
+fn scope_to_caller(headers: &axum::http::HeaderMap, path: &str) -> (String, String) {
+    let caller = headers
+        .get("x-ferro-user")
+        .and_then(|v| v.to_str().ok())
+        .filter(|u| !u.is_empty() && *u != "anonymous")
+        .map(str::to_owned);
+    match caller {
+        Some(sub) => {
+            let root = format!("/users/{}", sub);
+            let scoped = if path == "/" || path.is_empty() {
+                root
+            } else if path.starts_with(&root) {
+                path.to_string()
+            } else {
+                format!("{}{}", root, path)
+            };
+            (scoped, sub)
+        }
+        None => (path.to_string(), "anonymous".to_string()),
+    }
+}
+
+pub async fn get_manifest(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Query(params): Query<ManifestQuery>,
+) -> Response {
+    let (scoped_path, _) = scope_to_caller(&headers, &params.path);
+    let path = scoped_path.trim_start_matches('/');
 
     // Fetch file content
     let content = match state.storage().get(path).await {
@@ -347,7 +380,14 @@ pub async fn check_blocks(State(state): State<AppState>, Query(params): Query<Ch
 /// `POST /api/v1/sync/blocks/assemble`
 ///
 /// Assemble a file from blocks already in the CAS store.
-pub async fn assemble_file(State(state): State<AppState>, Json(body): Json<AssembleRequest>) -> Response {
+pub async fn assemble_file(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<AssembleRequest>,
+) -> Response {
+    let (scoped_path, caller) = scope_to_caller(&headers, &body.path);
+    let body_path = scoped_path;
+    let body_owner = caller;
     let cas = match state.cas_store() {
         Some(cas) => cas,
         None => {
@@ -397,8 +437,8 @@ pub async fn assemble_file(State(state): State<AppState>, Json(body): Json<Assem
     let total_size = file_bytes.len() as u64;
 
     // Write to storage
-    let path = body.path.trim_start_matches('/');
-    match state.storage().put(path, file_bytes, &body.owner).await {
+    let path = body_path.trim_start_matches('/');
+    match state.storage().put(path, file_bytes, &body_owner).await {
         Ok(_meta) => (
             StatusCode::OK,
             Json(AssembleResponse {

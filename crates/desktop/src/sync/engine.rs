@@ -22,6 +22,9 @@ use super::state::SyncState;
 use super::types::*;
 
 /// Configuration for the sync engine.
+/// Files at or above this size use content-addressed block upload.
+const BLOCK_SYNC_MIN_SIZE: usize = 8 * 1024 * 1024;
+
 #[derive(Debug, Clone)]
 pub struct SyncConfig {
     /// Local directory to sync.
@@ -126,6 +129,20 @@ impl SyncEngine {
         if self.refresh_exhausted.load(Ordering::Relaxed) {
             return false;
         }
+        if !self.refresh_access_token().await {
+            self.refresh_exhausted.store(true, Ordering::Relaxed);
+            tracing::warn!("refresh failed — future 401s will not be retried");
+            return false;
+        }
+        true
+    }
+
+    /// Exchange the refresh token for a fresh access token (no latch).
+    async fn refresh_access_token(&self) -> bool {
+        use std::sync::atomic::Ordering;
+        if self.refresh_exhausted.load(Ordering::Relaxed) {
+            return false;
+        }
         let (Some(refresh), Some(issuer), Some(client_id)) = (
             self.config.refresh_token.as_deref(),
             self.config.oidc_issuer.as_deref(),
@@ -161,14 +178,10 @@ impl SyncEngine {
                 // access token in memory — a rotated refresh token is picked
                 // up on the next `--login` if a cycle spanned a rotation.
                 let _ = maybe_refresh;
-                tracing::info!("access token refreshed after 401");
+                tracing::info!("access token refreshed");
                 true
             }
-            None => {
-                self.refresh_exhausted.store(true, Ordering::Relaxed);
-                tracing::warn!("refresh failed — future 401s will not be retried");
-                false
-            }
+            None => false,
         }
     }
 
@@ -205,6 +218,14 @@ impl SyncEngine {
             remote = %self.config.remote_path,
             "starting sync cycle"
         );
+
+        // Access tokens are short-lived (Keycloak: 15 min). Refresh at every
+        // cycle start when possible so scans never start with a stale token.
+        if self.config.refresh_token.is_some() && self.config.oidc_issuer.is_some() {
+            if !self.refresh_access_token().await {
+                tracing::warn!("token refresh failed — proceeding with existing token");
+            }
+        }
 
         // Step 1: Scan local filesystem. Previous state provides the
         // (size, mtime) -> hash short-circuit so unchanged files are not
@@ -491,14 +512,26 @@ impl SyncEngine {
         Ok(())
     }
 
-    /// Upload a file to the server via WebDAV PUT.
+    /// Upload a file to the server. Files >= 8 MB go through the
+    /// content-addressed block API (only changed 64 KB blocks are
+    /// transferred); anything smaller — or any block-flow failure — falls
+    /// back to a plain WebDAV PUT.
     async fn upload_file(&self, relative_path: &str) -> Result<u64> {
         let local_path = self.config.local_path.join(relative_path);
         let data = tokio::task::spawn_blocking(move || std::fs::read(&local_path)).await??;
-
-        let remote_url = self.remote_url(relative_path);
         let size = data.len() as u64;
 
+        if size >= BLOCK_SYNC_MIN_SIZE as u64 {
+            match self.upload_file_blocks(relative_path, &data).await {
+                Ok(true) => return Ok(size),
+                Ok(false) => {} // fall through to PUT
+                Err(e) => {
+                    tracing::warn!(path = %relative_path, error = %e, "block sync failed; falling back to PUT");
+                }
+            }
+        }
+
+        let remote_url = self.remote_url(relative_path);
         let response = self
             .send_auth(
                 self.client
@@ -513,6 +546,100 @@ impl SyncEngine {
         }
 
         Ok(size)
+    }
+
+    /// Content-addressed block upload: chunk the local file into 64 KB
+    /// blocks, check which the server already has, upload only the missing
+    /// ones, then ask the server to assemble the file.
+    async fn upload_file_blocks(&self, relative_path: &str, data: &[u8]) -> Result<bool> {
+        use sha2::{Digest, Sha256};
+        const BLOCK: usize = 64 * 1024;
+
+        if data.len() < BLOCK {
+            return Ok(false);
+        }
+        // reqwest has no base URL — the API root must be absolute.
+        let api = format!("{}/api/sync/blocks", self.config.server_url.trim_end_matches('/'));
+
+        // Chunk + hash locally.
+        let mut hashes: Vec<String> = Vec::with_capacity(data.len() / BLOCK + 1);
+        let mut blocks: Vec<(String, Vec<u8>)> = Vec::new();
+        for chunk in data.chunks(BLOCK) {
+            let hash = hex::encode(Sha256::digest(chunk));
+            blocks.push((hash.clone(), chunk.to_vec()));
+            hashes.push(hash);
+        }
+
+        // Which blocks does the server already have? (batched: URL length)
+        let mut have: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for batch in hashes.chunks(400) {
+            let url = format!("{api}/check?hashes={}", batch.join(","));
+            let resp = self
+                .auth(self.client.get(&url))
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            if !resp.status().is_success() {
+                anyhow::bail!("check failed: {}", resp.status());
+            }
+            let v: serde_json::Value = resp.json().await.map_err(|e| anyhow::anyhow!("{e}"))?;
+            if let Some(arr) = v.get("present").and_then(|p| p.as_array()) {
+                for h in arr {
+                    if let Some(s) = h.as_str() {
+                        have.insert(s.to_string());
+                    }
+                }
+            }
+        }
+
+        // Upload the missing blocks (base64), batched.
+        let mut to_upload: Vec<(String, Vec<u8>)> =
+            blocks.iter().filter(|(h, _)| !have.contains(h)).cloned().collect();
+        if !to_upload.is_empty() {
+            let total: usize = to_upload.iter().map(|(_, b)| b.len()).sum();
+            tracing::info!(
+                path = %relative_path,
+                blocks = to_upload.len(),
+                bytes = total,
+                "uploading changed blocks"
+            );
+            for batch in to_upload.chunks(64) {
+                use base64::Engine;
+                let map: serde_json::Map<String, serde_json::Value> = batch
+                    .iter()
+                    .map(|(h, b)| {
+                        (
+                            h.clone(),
+                            serde_json::Value::String(
+                                base64::engine::general_purpose::STANDARD.encode(b),
+                            ),
+                        )
+                    })
+                    .collect();
+                let resp = self
+                    .auth(self.client.post(&format!("{api}/upload")))
+                    .json(&serde_json::json!({ "blocks": map }))
+                    .send()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                if !resp.status().is_success() {
+                    anyhow::bail!("block upload failed: {}", resp.status());
+                }
+            }
+        }
+
+        // Assemble. The server scopes path + owner to the authenticated caller.
+        let virtual_path = format!("/{}", relative_path);
+        let resp = self
+            .auth(self.client.post(&format!("{api}/assemble")))
+            .json(&serde_json::json!({ "path": virtual_path, "block_hashes": hashes }))
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        if !resp.status().is_success() {
+            anyhow::bail!("assemble failed: {}", resp.status());
+        }
+        Ok(true)
     }
 
     /// Download a file from the server via WebDAV GET.
