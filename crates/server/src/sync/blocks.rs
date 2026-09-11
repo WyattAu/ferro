@@ -128,7 +128,6 @@ const fn default_block_size() -> u64 {
 ///
 /// Computes the block manifest for a file on the server and returns which
 /// blocks the client needs to upload.
-
 /// Force `path` under the authenticated caller's own root and return the
 /// caller as owner. Block endpoints trust client-supplied paths otherwise —
 /// a non-admin could read manifests from or assemble files into another

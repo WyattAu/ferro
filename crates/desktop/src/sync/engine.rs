@@ -221,10 +221,11 @@ impl SyncEngine {
 
         // Access tokens are short-lived (Keycloak: 15 min). Refresh at every
         // cycle start when possible so scans never start with a stale token.
-        if self.config.refresh_token.is_some() && self.config.oidc_issuer.is_some() {
-            if !self.refresh_access_token().await {
-                tracing::warn!("token refresh failed — proceeding with existing token");
-            }
+        if self.config.refresh_token.is_some()
+            && self.config.oidc_issuer.is_some()
+            && !self.refresh_access_token().await
+        {
+            tracing::warn!("token refresh failed — proceeding with existing token");
         }
 
         // Step 1: Scan local filesystem. Previous state provides the
@@ -593,7 +594,7 @@ impl SyncEngine {
         }
 
         // Upload the missing blocks (base64), batched.
-        let mut to_upload: Vec<(String, Vec<u8>)> =
+        let to_upload: Vec<(String, Vec<u8>)> =
             blocks.iter().filter(|(h, _)| !have.contains(h)).cloned().collect();
         if !to_upload.is_empty() {
             let total: usize = to_upload.iter().map(|(_, b)| b.len()).sum();
@@ -617,7 +618,7 @@ impl SyncEngine {
                     })
                     .collect();
                 let resp = self
-                    .auth(self.client.post(&format!("{api}/upload")))
+                    .auth(self.client.post(format!("{api}/upload")))
                     .json(&serde_json::json!({ "blocks": map }))
                     .send()
                     .await
@@ -631,7 +632,7 @@ impl SyncEngine {
         // Assemble. The server scopes path + owner to the authenticated caller.
         let virtual_path = format!("/{}", relative_path);
         let resp = self
-            .auth(self.client.post(&format!("{api}/assemble")))
+            .auth(self.client.post(format!("{api}/assemble")))
             .json(&serde_json::json!({ "path": virtual_path, "block_hashes": hashes }))
             .send()
             .await
