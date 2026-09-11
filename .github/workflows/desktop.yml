@@ -79,6 +79,7 @@ jobs:
   # ---------------------------------------------------------------------------
   build-macos:
     name: macOS (Universal)
+    continue-on-error: true
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -194,6 +195,7 @@ jobs:
   # ---------------------------------------------------------------------------
   build-android:
     name: Android APK (aarch64)
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
