@@ -572,7 +572,8 @@ impl SyncEngine {
         }
 
         // Which blocks does the server already have? (batched: URL length)
-        let mut have: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut missing_on_server: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         for batch in hashes.chunks(400) {
             let url = format!("{api}/check?hashes={}", batch.join(","));
             let resp = self
@@ -584,18 +585,23 @@ impl SyncEngine {
                 anyhow::bail!("check failed: {}", resp.status());
             }
             let v: serde_json::Value = resp.json().await.map_err(|e| anyhow::anyhow!("{e}"))?;
-            if let Some(arr) = v.get("present").and_then(|p| p.as_array()) {
+            // The server reports the hashes it is MISSING; everything else is
+            // present. (`present` on the response is a count, not a list.)
+            if let Some(arr) = v.get("missing").and_then(|p| p.as_array()) {
                 for h in arr {
                     if let Some(s) = h.as_str() {
-                        have.insert(s.to_string());
+                        missing_on_server.insert(s.to_string());
                     }
                 }
             }
         }
 
-        // Upload the missing blocks (base64), batched.
-        let to_upload: Vec<(String, Vec<u8>)> =
-            blocks.iter().filter(|(h, _)| !have.contains(h)).cloned().collect();
+        // Upload only the blocks the server lacks (base64), batched.
+        let to_upload: Vec<(String, Vec<u8>)> = blocks
+            .iter()
+            .filter(|(h, _)| missing_on_server.contains(h))
+            .cloned()
+            .collect();
         if !to_upload.is_empty() {
             let total: usize = to_upload.iter().map(|(_, b)| b.len()).sum();
             tracing::info!(

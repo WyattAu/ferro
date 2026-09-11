@@ -12,7 +12,9 @@ pub const DEFAULT_ISSUER: &str = "https://auth.wyattau.com/realms/company-realm"
 /// Public PKCE-only client for desktop installs.
 pub const DESKTOP_CLIENT_ID: &str = "ferro-desktop";
 
-const SCOPES: &[&str] = &["openid", "profile", "email"];
+// offline_access: Keycloak issues a rotation-proof refresh token that
+// survives SSO idle expiry — desktop sync must work across days.
+const SCOPES: &[&str] = &["openid", "profile", "email", "offline_access"];
 const FLOW_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
 pub struct LoginTokens {
