@@ -232,6 +232,26 @@ impl StorageEngine for ObjectStoreStorageEngine {
         Ok(StorageReader::new(Box::pin(reader)))
     }
 
+    /// Native range request: object_store GetOptions pushes the range into
+    /// the storage layer (no read-and-discard of the leading bytes).
+    async fn get_stream_range(&self, path: &str, start: u64, end: u64) -> Result<StorageReader> {
+        use object_store::{GetOptions, GetRange};
+        let obj_path = self.to_obj_path(path);
+        let opts = GetOptions {
+            range: Some(GetRange::Bounded(start as usize..(end as usize + 1))),
+            ..Default::default()
+        };
+        let result = self
+            .store
+            .get_opts(&obj_path, opts)
+            .await
+            .map_err(|e| FerroError::NotFound(format!("{path}: {e}")))?;
+        let stream = result.into_stream().map_err(std::io::Error::other);
+        Ok(StorageReader::new(Box::pin(tokio_util::io::StreamReader::new(
+            stream,
+        ))))
+    }
+
     async fn delete(&self, path: &str) -> Result<()> {
         let obj_path = self.to_obj_path(path);
         if let Err(e) = self.store.delete(&obj_path).await {

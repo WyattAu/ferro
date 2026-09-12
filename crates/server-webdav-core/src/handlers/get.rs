@@ -4,7 +4,6 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use common::error::{FerroError, Result};
 use common::path::normalize_path;
-use tokio::io::AsyncReadExt;
 use tracing::debug;
 
 use super::{check_conditional_if_match, check_if_none_match};
@@ -82,21 +81,10 @@ pub(crate) async fn handle_get<S: WebDavCoreState>(state: S, path: &str, headers
         && let Some(spec) = range_req.ranges.first()
     {
         if let Some((start, end)) = spec.resolve(meta.size) {
-            let mut reader = state.storage().get_stream(&path).await?;
-            {
-                let mut buf = [0u8; 8192];
-                let mut remaining = start;
-                while remaining > 0 {
-                    let n = std::cmp::min(remaining, buf.len() as u64);
-                    reader
-                        .read_exact(&mut buf[..n as usize])
-                        .await
-                        .map_err(|e| FerroError::Internal(e.to_string()))?;
-                    remaining -= n;
-                }
-            }
-            let take_reader = reader.take(end - start + 1);
-            let stream = tokio_util::io::ReaderStream::new(take_reader);
+            // Native ranged read when the backend supports it (O(1) range
+            // start); the default trait impl still read-discards safely.
+            let reader = state.storage().get_stream_range(&path, start, end).await?;
+            let stream = tokio_util::io::ReaderStream::new(reader);
             let body = Body::from_stream(stream);
 
             let mut resp_headers = HeaderMap::new();

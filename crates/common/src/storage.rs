@@ -1,11 +1,12 @@
-use crate::error::Result;
+use crate::error::{FerroError, Result};
 use crate::metadata::FileMetadata;
 use crate::webdav::{LockDepth, LockInfo, LockScope};
 use async_trait::async_trait;
 use bytes::Bytes;
 use std::io::Cursor;
 use std::pin::Pin;
-use tokio::io::{AsyncRead, ReadBuf};
+use tokio::io::{AsyncRead, AsyncReadExt, ReadBuf};
+
 
 #[doc = "An async reader wrapping Bytes for streaming file content."]
 pub struct StorageReader {
@@ -158,6 +159,25 @@ pub trait StorageEngine: Send + Sync {
     async fn get_stream(&self, path: &str) -> Result<StorageReader> {
         let data = self.get(path).await?;
         Ok(StorageReader::new(Box::pin(Cursor::new(data))))
+    }
+
+    /// Stream ONLY `start..=end` of a file. Default implementation reads and
+    /// discards the leading bytes (O(offset) I/O); backends with native range
+    /// support (object_store GetOptions, S3 Range) must override — seeking
+    /// makes range starts O(1) instead of proportional to the offset.
+    async fn get_stream_range(&self, path: &str, start: u64, end: u64) -> Result<StorageReader> {
+        let mut reader = self.get_stream(path).await?;
+        let mut remaining = start;
+        let mut buf = [0u8; 8192];
+        while remaining > 0 {
+            let n = std::cmp::min(remaining, buf.len() as u64);
+            reader
+                .read_exact(&mut buf[..n as usize])
+                .await
+                .map_err(|e| FerroError::Internal(e.to_string()))?;
+            remaining -= n;
+        }
+        Ok(StorageReader::new(Box::pin(reader.take(end - start + 1))))
     }
 
     /// Write bytes to a path, returning the new metadata.

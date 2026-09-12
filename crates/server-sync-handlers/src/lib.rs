@@ -57,6 +57,8 @@ impl Default for BuzHash {
 
 /// Compute the mask for content-defined chunking from the target block size.
 /// Uses the nearest power of 2 below target_size.
+use rayon::prelude::*;
+
 pub fn compute_mask(target_size: u64) -> u64 {
     let bits = 63 - target_size.leading_zeros();
     (1u64 << bits) - 1
@@ -73,52 +75,59 @@ pub fn compute_mask(target_size: u64) -> u64 {
 /// Returns a list of `(offset, length, hash)` tuples.
 pub fn chunk_data(data: &[u8], target_size: u64, min_size: u64, max_size: u64) -> Vec<(u64, u64, String)> {
     let mask = compute_mask(target_size);
-    let mut buzhash = BuzHash::new();
-    let mut blocks = Vec::new();
-    let mut block_start: usize = 0;
-
+    let mut block_ranges: Vec<(usize, usize)> = Vec::new();
     // Small files: return as single block
     if data.len() as u64 <= min_size {
         if !data.is_empty() {
             let hash = ContentHash::compute(data);
-            blocks.push((0u64, data.len() as u64, hash.as_hex().to_string()));
+            return vec![(0u64, data.len() as u64, hash.as_hex().to_string())];
         }
-        return blocks;
+        return Vec::new();
     }
+
+    let mut block_start: usize = 0;
+    let mut buzhash = BuzHash::new();
+    let mut in_block = false;
 
     for (i, &byte) in data.iter().enumerate() {
-        let block_len = (i - block_start) as u64;
+        let block_len = i - block_start;
 
-        // Enforce maximum block size
-        if block_len >= max_size {
-            // Cut before the current byte to keep block <= max_size.
-            // The current byte will start the next block (processed again).
-            let block_data = &data[block_start..i];
-            let hash = ContentHash::compute(block_data);
-            blocks.push((block_start as u64, block_data.len() as u64, hash.as_hex().to_string()));
-            block_start = i; // Current byte starts the next block
+        if block_len >= max_size as usize {
+            block_ranges.push((block_start, i));
+            block_start = i;
             buzhash = BuzHash::new();
-        // Don't continue - fall through so current byte is processed in the next block
-        } else if block_len >= min_size {
+            in_block = false;
+        } else if block_len >= min_size as usize {
             buzhash.update(byte);
             if (buzhash.value() & mask) == 0 {
-                let block_data = &data[block_start..=i];
-                let hash = ContentHash::compute(block_data);
-                blocks.push((block_start as u64, block_data.len() as u64, hash.as_hex().to_string()));
+                block_ranges.push((block_start, i + 1));
                 block_start = i + 1;
                 buzhash = BuzHash::new();
+                in_block = false;
+            } else {
+                in_block = true;
             }
         } else {
-            buzhash.update(byte);
+            in_block = true;
         }
     }
-
-    // Remaining data as last block
-    if block_start < data.len() {
-        let block_data = &data[block_start..];
-        let hash = ContentHash::compute(block_data);
-        blocks.push((block_start as u64, block_data.len() as u64, hash.as_hex().to_string()));
+    if block_start < data.len() || in_block {
+        block_ranges.push((block_start, data.len()));
     }
+    if block_ranges.is_empty() && !data.is_empty() {
+        block_ranges.push((0, data.len()));
+    }
+
+    // Hash blocks in parallel — per-block SHA-256 was the sequential hot spot.
+    let blocks: Vec<(u64, u64, String)> = block_ranges
+        .par_iter()
+        .map(|(s, e)| {
+            let block_data = &data[*s..*e];
+            let hash = ContentHash::compute(block_data);
+            (*s as u64, (e - s) as u64, hash.as_hex().to_string())
+        })
+        .collect();
+
 
     blocks
 }

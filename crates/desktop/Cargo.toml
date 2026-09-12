@@ -98,6 +98,8 @@ common = { package = "ferro-common", path = "../common", features = ["http"] }
 keyring = "4.2.0"
 oauth-toolkit = "0.2.1"
 percent-encoding = "2.3.2"
+mimalloc = "0.1.52"
+rayon = "1.12.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"

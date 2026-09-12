@@ -63,6 +63,8 @@ pub fn chunk_file(path: &Path, relative_path: &str, target_block_size: u64) -> R
 }
 
 /// Compute the SHA-256 hash of data, returning hex string.
+use rayon::prelude::*;
+
 pub fn compute_hash(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -112,45 +114,57 @@ impl BuzHash {
 /// This MUST produce identical results to the server's `chunk_data` function
 /// given the same input data and parameters.
 pub fn chunk_data(data: &[u8], target_size: u64, min_size: u64, max_size: u64) -> Vec<(u64, u64, String)> {
+    // VERBATIM port of the server's chunk_data boundary semantics — any
+    // divergence produces different block hashes and silent sync divergence.
+    // (The pre-parallel client hashed below-minimum bytes; the server did
+    // not. Earlier E2E passes matched by luck.)
     let mask = compute_mask(target_size);
-    let mut buzhash = BuzHash::new();
-    let mut blocks = Vec::new();
-    let mut block_start: usize = 0;
-
+    let mut block_ranges: Vec<(usize, usize)> = Vec::new();
     if data.len() as u64 <= min_size {
         if !data.is_empty() {
-            blocks.push((0u64, data.len() as u64, compute_hash(data)));
+            return vec![(0u64, data.len() as u64, compute_hash(data))];
         }
-        return blocks;
+        return Vec::new();
     }
+
+    let mut block_start: usize = 0;
+    let mut buzhash = BuzHash::new();
+    let mut in_block = false;
 
     for (i, &byte) in data.iter().enumerate() {
-        let block_len = (i - block_start) as u64;
+        let block_len = i - block_start;
 
-        if block_len >= max_size {
-            let block_data = &data[block_start..i];
-            blocks.push((block_start as u64, block_data.len() as u64, compute_hash(block_data)));
+        if block_len >= max_size as usize {
+            block_ranges.push((block_start, i));
             block_start = i;
             buzhash = BuzHash::new();
-        } else if block_len >= min_size {
+            in_block = false;
+        } else if block_len >= min_size as usize {
             buzhash.update(byte);
             if (buzhash.hash & mask) == 0 {
-                let block_data = &data[block_start..=i];
-                blocks.push((block_start as u64, block_data.len() as u64, compute_hash(block_data)));
+                block_ranges.push((block_start, i + 1));
                 block_start = i + 1;
                 buzhash = BuzHash::new();
+                in_block = false;
+            } else {
+                in_block = true;
             }
         } else {
-            buzhash.update(byte);
+            in_block = true;
         }
     }
-
-    if block_start < data.len() {
-        let block_data = &data[block_start..];
-        blocks.push((block_start as u64, block_data.len() as u64, compute_hash(block_data)));
+    if block_start < data.len() || in_block {
+        block_ranges.push((block_start, data.len()));
+    }
+    if block_ranges.is_empty() && !data.is_empty() {
+        block_ranges.push((0, data.len()));
     }
 
-    blocks
+    // Per-block hashing runs in parallel.
+    block_ranges
+        .par_iter()
+        .map(|(s, e)| (*s as u64, (e - s) as u64, compute_hash(&data[*s..*e])))
+        .collect()
 }
 
 fn compute_mask(target_size: u64) -> u64 {

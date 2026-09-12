@@ -1,5 +1,8 @@
 #![cfg_attr(all(not(debug_assertions), feature = "tauri"), windows_subsystem = "windows")]
 
+#[global_allocator]
+static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[cfg(feature = "tauri")]
 mod gui;
 

@@ -35,7 +35,7 @@ axum = { workspace = true, features = ["macros", "multipart", "ws"] }
 serde = { workspace = true }
 serde_json = "1"
 tower = { version = "0.5", features = ["limit"] }
-tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip", "compression-zstd"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 bytes = "1"
@@ -117,6 +117,7 @@ ferro-server-slo = { path = "../server-slo" }
 ferro-server-fips = { path = "../server-fips" }
 zeroize = { workspace = true, features = ["derive"] }
 qrcode = "0.14"
+mimalloc = "0.1.52"
 
 [dev-dependencies]
 http-body-util = "0.1"
