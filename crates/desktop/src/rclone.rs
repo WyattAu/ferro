@@ -229,7 +229,7 @@ impl RcloneManager {
         }
         #[cfg(target_os = "macos")]
         {
-            let _ = StdCommand::new("umount").arg(&mount_point.to_string_lossy()).output();
+            let _ = StdCommand::new("umount").arg(mount_point.as_os_str()).output();
         }
 
         let mut progress = self.progress.write().await;
