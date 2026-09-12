@@ -108,6 +108,7 @@ jobs:
 
       - name: Create universal binary
         run: |
+          mkdir -p target/universal-apple-darwin
           lipo -create \
             target/aarch64-apple-darwin/release/ferro-desktop \
             target/x86_64-apple-darwin/release/ferro-desktop \
