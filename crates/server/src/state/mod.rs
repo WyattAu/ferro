@@ -36,6 +36,9 @@ pub struct AppState {
     pub lock_manager: Arc<dyn LockManagerTrait>,
     pub oidc: Option<Arc<OidcValidator>>,
     pub cedar: Option<Arc<CedarAuthorizer>>,
+    /// Passkey RP id + origins (webauthn feature).
+    pub webauthn_rp_id: Option<String>,
+    pub webauthn_origins: Vec<String>,
     /// Admin subject (sub) — drives Cedar auto-policy generation at runtime.
     pub admin_sub: Option<String>,
     /// Path to cedar_space_members.json — rewritten by the admin members API.
@@ -237,6 +240,8 @@ impl AppState {
             lock_manager: Arc::new(LockManager::new()),
             oidc: None,
             cedar: None,
+            webauthn_rp_id: None,
+            webauthn_origins: Vec::new(),
             admin_sub: None,
             space_members_file: None,
             search: None,

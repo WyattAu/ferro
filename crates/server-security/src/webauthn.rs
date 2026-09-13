@@ -260,7 +260,12 @@ pub async fn webauthn_register_begin<S: SecurityAppState>(
     State(state): State<S>,
     Json(request): Json<RegisterBeginRequest>,
 ) -> Json<RegisterBeginResponse> {
-    let config = WebAuthnConfig::default();
+    let config = WebAuthnConfig {
+        rp_id: state.webauthn_rp_id(),
+        rp_name: "Ferro".to_string(),
+        rp_origins: state.webauthn_origins(),
+        ..WebAuthnConfig::default()
+    };
     let existing_ids = get_existing_credential_ids(&state, &request.username).await;
     let (challenge_id, options) = begin_registration(&state, &config, &request.username, &existing_ids).await;
     let challenge_bytes = decode_challenge(&options.challenge);
@@ -278,7 +283,12 @@ pub async fn webauthn_register_finish<S: SecurityAppState>(
     State(state): State<S>,
     Json(request): Json<RegisterFinishRequest>,
 ) -> Json<RegisterFinishResponse> {
-    let config = WebAuthnConfig::default();
+    let config = WebAuthnConfig {
+        rp_id: state.webauthn_rp_id(),
+        rp_name: "Ferro".to_string(),
+        rp_origins: state.webauthn_origins(),
+        ..WebAuthnConfig::default()
+    };
     let Some((username, challenge_bytes, existing_credential_id)) = prepare_registration(
         &state,
         &request.challenge_id,
@@ -317,7 +327,12 @@ pub async fn webauthn_login_begin<S: SecurityAppState>(
     State(state): State<S>,
     Json(request): Json<LoginBeginRequest>,
 ) -> Json<LoginBeginResponse> {
-    let config = WebAuthnConfig::default();
+    let config = WebAuthnConfig {
+        rp_id: state.webauthn_rp_id(),
+        rp_name: "Ferro".to_string(),
+        rp_origins: state.webauthn_origins(),
+        ..WebAuthnConfig::default()
+    };
     let allowed_creds = get_allowed_credentials(&state, &request.username).await;
     let (challenge_id, options) = begin_authentication(&state, &config, allowed_creds.clone()).await;
     let challenge_bytes = decode_challenge(&options.challenge);
@@ -342,7 +357,12 @@ pub async fn webauthn_login_finish<S: SecurityAppState>(
     State(state): State<S>,
     Json(request): Json<LoginFinishRequest>,
 ) -> Json<LoginFinishResponse> {
-    let config = WebAuthnConfig::default();
+    let config = WebAuthnConfig {
+        rp_id: state.webauthn_rp_id(),
+        rp_name: "Ferro".to_string(),
+        rp_origins: state.webauthn_origins(),
+        ..WebAuthnConfig::default()
+    };
     let Some((username, challenge_bytes, allowed_credential_ids, current_sign_count, public_key_cose)) =
         prepare_authentication(
             &state,

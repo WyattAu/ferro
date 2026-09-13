@@ -175,6 +175,16 @@ pub struct ServerConfig {
     #[arg(long, default_value_t = false)]
     pub cas_enabled: bool,
 
+    /// Relying-party ID for passkeys (webauthn). Must be the registrable
+    /// domain of the external URL (e.g. "wyattau.com"). Empty = disabled.
+    #[arg(long, env = "FERRO_WEBAUTHN_RP_ID", default_value = "")]
+    pub webauthn_rp_id: String,
+
+    /// Allowed passkey ceremony origins (comma-separated, e.g.
+    /// "https://ferro.wyattau.com"). Required when rp_id is set.
+    #[arg(long, env = "FERRO_WEBAUTHN_ORIGINS", default_value = "")]
+    pub webauthn_origins: String,
+
     /// Percentage of stored files to integrity-verify at startup (0 = skip,
     /// 100 = all). Sampled deterministically by path hash so the same files
     /// are checked each boot; full verification is available anytime via

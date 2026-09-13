@@ -24,6 +24,13 @@ impl AppState {
         s
     }
 
+    pub fn with_webauthn(self, rp_id: String, origins: Vec<String>) -> Self {
+        let mut s = self;
+        s.webauthn_rp_id = Some(rp_id);
+        s.webauthn_origins = origins;
+        s
+    }
+
     pub fn with_admin_sub(self, sub: String) -> Self {
         let mut s = self;
         s.admin_sub = Some(sub);

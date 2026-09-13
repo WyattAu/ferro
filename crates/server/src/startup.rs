@@ -292,6 +292,18 @@ pub async fn build_state(cli: &Cli) -> anyhow::Result<AppState> {
                 .map(std::path::PathBuf::from)
                 .unwrap_or_default(),
         );
+        let state = if !cli.webauthn_rp_id.is_empty() {
+            let origins: Vec<String> = cli
+                .webauthn_origins
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_owned)
+                .collect();
+            state.with_webauthn(cli.webauthn_rp_id.clone(), origins)
+        } else {
+            state
+        };
         state.with_cedar(authorizer)
     } else if let Some(policy_file) = &cli.cedar_policy_file {
         let policy_text = std::fs::read_to_string(policy_file)

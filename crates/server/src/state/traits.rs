@@ -48,6 +48,16 @@ impl ferro_server_security::SecurityAppState for AppState {
     fn webauthn_store(&self) -> &Arc<tokio::sync::RwLock<ferro_auth::webauthn::WebAuthnStore>> {
         &self.webauthn_store
     }
+
+    #[cfg(feature = "webauthn")]
+    fn webauthn_rp_id(&self) -> String {
+        self.webauthn_rp_id.clone().unwrap_or_default()
+    }
+
+    #[cfg(feature = "webauthn")]
+    fn webauthn_origins(&self) -> Vec<String> {
+        self.webauthn_origins.clone()
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -31,4 +31,17 @@ pub trait SecurityAppState: Clone + Send + Sync + 'static {
 
     #[cfg(feature = "webauthn")]
     fn webauthn_store(&self) -> &Arc<tokio::sync::RwLock<ferro_auth::webauthn::WebAuthnStore>>;
+
+    /// Relying-party ID for passkeys (registrable domain, e.g. "wyattau.com").
+    /// Empty string disables passkey auth.
+    #[cfg(feature = "webauthn")]
+    fn webauthn_rp_id(&self) -> String {
+        String::new()
+    }
+
+    /// Origins allowed to perform passkey ceremonies.
+    #[cfg(feature = "webauthn")]
+    fn webauthn_origins(&self) -> Vec<String> {
+        vec![]
+    }
 }

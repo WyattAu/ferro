@@ -9,7 +9,7 @@ repository = "https://github.com/WyattAu/ferro"
 publish = false
 
 [features]
-default = []
+default = ["webauthn"]
 s3 = ["ferro-core/s3", "object_store/aws"]
 gcs = ["ferro-core/gcs", "object_store/gcp"]
 azure = ["ferro-core/azure", "object_store/azure"]

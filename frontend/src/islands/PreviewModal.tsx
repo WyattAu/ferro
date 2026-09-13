@@ -1,6 +1,12 @@
-import { createSignal, createResource, Show, Switch, Match } from "solid-js";
+import { createSignal, createResource, Show, For, Switch, Match } from "solid-js";
 import { api, type FileEntry } from "../lib/api";
 import { X, Download, Loader2, Pencil } from "lucide-solid";
+
+function fmtBytes(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1048576).toFixed(1)} MB`;
+}
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/i;
 const TEXT_EXT = /\.(txt|md|markdown|json|ya?ml|toml|xml|html?|css|js|jsx|ts|tsx|py|rs|go|java|c|cpp|h|sh|env|csv|log|ini|conf|cfg)$/i;
@@ -8,10 +14,37 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v|mkv)$/i;
 const AUDIO_EXT = /\.(mp3|wav|ogg|flac|m4a|aac|opus)$/i;
 const OFFICE_EXT = /\.(docx|xlsx|pptx|odt|ods|odp)$/i;
 
+interface VersionMeta { id: number; size: number; modified_at: string; content_hash: string; }
+
 export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
   const davPath = () => props.entry.href.replace(/^\/users\//, "");
   const [editUrl, setEditUrl] = createSignal<string | null>(null);
   const [editError, setEditError] = createSignal<string | null>(null);
+  const [versions, setVersions] = createSignal<VersionMeta[] | null>(null);
+  const [showVersions, setShowVersions] = createSignal(false);
+  const [restoring, setRestoring] = createSignal(false);
+
+  const loadVersions = async () => {
+    try {
+      const r = await api.listVersions(davPath());
+      setVersions((r.versions ?? []).filter((v) => v.size > 0));
+    } catch { setVersions([]); }
+  };
+
+  const restoreVersion = async (id: number) => {
+    if (!confirm("Restore this version as the current file?")) return;
+    setRestoring(true);
+    try {
+      const blob = await api.getVersionContent(davPath(), id);
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", `/users/${davPath()}`);
+      const token = localStorage.getItem("ferro_access_token");
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      await new Promise((res, rej) => { xhr.onload = () => res(null); xhr.onerror = () => rej(new Error("restore failed")); xhr.send(blob); });
+      alert("Version restored — reopen the file to see it.");
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+    finally { setRestoring(false); }
+  };
 
   const openEditor = async () => {
     setEditError(null);
@@ -45,10 +78,32 @@ export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
         <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)] shrink-0">
           <span class="text-sm font-medium truncate">{props.entry.name}</span>
           <div class="flex items-center gap-1">
+            <button onClick={async () => { if (versions() === null) await loadVersions(); setShowVersions(!showVersions()); }}
+              class="px-2 py-1 text-xs rounded-lg hover:bg-[var(--bg-raised)]" aria-label="Versions">Versions</button>
             <a href={api.downloadUrl(davPath())} download="" class="p-1.5 rounded-lg hover:bg-[var(--bg-raised)]" aria-label="Download"><Download size={15} /></a>
             <button onClick={props.onClose} class="p-1.5 rounded-lg hover:bg-[var(--bg-raised)]" aria-label="Close"><X size={15} /></button>
           </div>
         </div>
+        <Show when={showVersions() && versions()}>
+          <div class="px-4 py-2 border-b border-[var(--border-default)] bg-[var(--bg-surface)] max-h-40 overflow-y-auto shrink-0">
+            <p class="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] mb-1">Versions</p>
+            <Show when={versions()!.length === 0} fallback={
+              <For each={versions()}>
+                {(v) => (
+                  <div class="flex items-center gap-2 py-1 text-xs">
+                    <span class="text-[var(--text-secondary)]">v{v.id}</span>
+                    <span class="text-[var(--text-tertiary)]">{fmtBytes(v.size)}</span>
+                    <span class="text-[var(--text-tertiary)] flex-1">{new Date(v.modified_at).toLocaleString()}</span>
+                    <button disabled={restoring()} onClick={() => restoreVersion(v.id)}
+                      class="px-2 py-0.5 rounded bg-[var(--accent)] text-white disabled:opacity-40">Restore</button>
+                  </div>
+                )}
+              </For>
+            }>
+              <p class="text-xs text-[var(--text-tertiary)]">No prior versions (created once)</p>
+            </Show>
+          </div>
+        </Show>
         <div class="flex-1 overflow-auto p-4 flex items-center justify-center min-h-0">
           <Switch>
             <Match when={kind() === "office"}>

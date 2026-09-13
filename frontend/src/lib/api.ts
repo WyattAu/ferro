@@ -305,6 +305,23 @@ export const api = {
   updatePreferences: (prefs: Record<string, unknown>) =>
     request<unknown>("PUT", "/api/preferences", JSON.stringify(prefs), { "Content-Type": "application/json" }),
 
+  // --- Quota ---
+  getQuota: () => request<{ used_bytes: number; quota_bytes: number; used_percent: number; file_count: number; unlimited: boolean }>("GET", "/api/quota"),
+
+  // --- Versions ---
+  listVersions: (virtualPath: string) =>
+    request<{ versions: { id: number; path: string; size: number; content_hash: string; modified_at: string; author: string; note: string | null }[] }>(
+      "GET",
+      `/api/files/${encodeURI(virtualPath)}/versions`,
+    ),
+  getVersionContent: async (virtualPath: string, id: number): Promise<Blob> => {
+    const doFetch = () => fetch(`/api/files/${encodeURI(virtualPath)}/versions/${id}`, { headers: authHeaders() });
+    let resp = await doFetch();
+    if (resp.status === 401 && (await refreshAccessToken())) resp = await doFetch();
+    if (!resp.ok) throw new ApiError(resp.status, "Version fetch failed");
+    return resp.blob();
+  },
+
   // --- Search ---
   search: (query: string, scope?: string) =>
     request<{ results: { path: string; name: string; score?: number }[]; total?: number; hits?: { path: string; name: string; score?: number }[] }>(
