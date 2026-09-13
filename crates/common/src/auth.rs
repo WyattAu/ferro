@@ -14,6 +14,7 @@ pub fn is_public_auth_path(path: &str) -> bool {
         || path.starts_with("/api/config")
         || path.starts_with("/api/auth/info")
         || path == "/metrics"
+        || path == "/metrics/prometheus"
         || path.starts_with("/ui/")
         || path == "/ui"
         || path == "/api/policies"
