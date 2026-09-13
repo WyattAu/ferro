@@ -686,14 +686,14 @@ where
 {
     axum::Router::new()
         .route(
-            "/files/{path}/versions",
+            "/files/:path/versions",
             axum::routing::get(list_versions).post(create_version),
         )
         .route(
-            "/files/{path}/versions/{version_id}",
+            "/files/:path/versions/:version_id",
             axum::routing::get(get_version).delete(delete_version),
         )
-        .route("/files/{path}/diff", axum::routing::get(diff_versions))
+        .route("/files/:path/diff", axum::routing::get(diff_versions))
 }
 
 // ---------------------------------------------------------------------------
