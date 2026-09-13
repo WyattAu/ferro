@@ -12935,11 +12935,10 @@ dependencies = [
 
 [[package]]
 name = "validkit"
-version = "0.1.0"
+version = "1.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d29ccfc9a8e100a618c7fa46a51e5132da5ebd08962c12531c5154f6671ca83"
+checksum = "f3c2902bb3bb377483aefb48b94140f550993261d3efac18d4d58bc7c1bfc02b"
 dependencies = [
- "chrono",
  "serde",
  "thiserror 2.0.18",
  "url",
