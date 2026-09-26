@@ -13,6 +13,7 @@ pub mod remote;
 #[cfg(feature = "sync")]
 pub mod scanner;
 #[cfg(feature = "sync")]
+pub mod mesh;
 pub mod state;
 #[cfg(feature = "sync")]
 pub mod types;

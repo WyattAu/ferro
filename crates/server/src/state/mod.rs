@@ -37,6 +37,7 @@ pub struct AppState {
     pub oidc: Option<Arc<OidcValidator>>,
     pub cedar: Option<Arc<CedarAuthorizer>>,
     /// Passkey RP id + origins (webauthn feature).
+    pub mesh_peers: crate::mesh_peers::MeshPeerStore,
     pub webauthn_rp_id: Option<String>,
     pub webauthn_origins: Vec<String>,
     /// Admin subject (sub) — drives Cedar auto-policy generation at runtime.
@@ -240,6 +241,7 @@ impl AppState {
             lock_manager: Arc::new(LockManager::new()),
             oidc: None,
             cedar: None,
+            mesh_peers: crate::mesh_peers::new_mesh_store(),
             webauthn_rp_id: None,
             webauthn_origins: Vec::new(),
             admin_sub: None,

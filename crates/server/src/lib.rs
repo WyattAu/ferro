@@ -120,6 +120,7 @@ pub mod shares;
 pub mod shares_ext;
 pub mod simple_auth;
 pub mod space_members_api;
+pub mod mesh_peers;
 pub mod storage;
 pub mod streaming;
 pub mod sync;

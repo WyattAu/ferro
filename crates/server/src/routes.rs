@@ -62,6 +62,7 @@ use crate::shares;
 use crate::shares_ext;
 use crate::simple_auth;
 use crate::snapshots;
+use crate::mesh_peers;
 use crate::space_members_api;
 use crate::storage_health;
 use crate::streaming;
@@ -399,6 +400,15 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
         .route(
             "/admin/webhooks/deliveries/dead",
             axum::routing::get(webhooks::list_dead_letters::<AppState>),
+        )
+        .route(
+            "/sync/peers",
+            axum::routing::post(mesh_peers::register_peer)
+                .get(mesh_peers::list_peers),
+        )
+        .route(
+            "/sync/peers/blocks",
+            axum::routing::get(mesh_peers::query_block),
         )
         .route(
             "/admin/space-members",

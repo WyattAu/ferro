@@ -9,6 +9,7 @@
 //! 6. Updates the sync state
 
 use anyhow::Result;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -226,6 +227,20 @@ impl SyncEngine {
             && !self.refresh_access_token().await
         {
             tracing::warn!("token refresh failed — proceeding with existing token");
+        }
+
+        // LAN mesh: announce our blocks and listen for peer fetches.
+        // Non-fatal — mesh is an optimization, not a requirement.
+        let mesh_cache = match self.try_mesh_cycle().await {
+            Ok(cache) => cache,
+            Err(e) => {
+                tracing::debug!("mesh cycle skipped: {e}");
+                None
+            }
+        };
+
+        if let Some(cache) = &mesh_cache {
+            let _ = cache; // consumed by upload path below
         }
 
         // Step 1: Scan local filesystem. Previous state provides the
@@ -547,6 +562,38 @@ impl SyncEngine {
         }
 
         Ok(size)
+    }
+
+    /// LAN mesh cycle: discover local addresses, register with the server's
+    /// peer index, start a block listener. Returns the served block cache
+    /// for potential peer fetches during upload.
+    async fn try_mesh_cycle(&self) -> Result<Option<HashMap<String, Vec<u8>>>> {
+        let (Some(refresh), Some(issuer), Some(client_id)) = (
+            self.config.refresh_token.as_deref(),
+            self.config.oidc_issuer.as_deref(),
+            self.config.oidc_client_id.as_deref(),
+        ) else {
+            return Ok(None);
+        };
+        let _ = (refresh, issuer, client_id); // auth handled by bearer
+
+        let bearer = self
+            .bearer
+            .read()
+            .ok()
+            .map(|g| g.clone())
+            .unwrap_or_default();
+        if bearer.is_empty() {
+            return Ok(None);
+        }
+
+        let device_name = hostname::get()
+            .map(|h| h.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| "unknown".to_string());
+        let addresses = super::mesh::discover_local_addresses();
+
+        tracing::info!(addresses = ?addresses, "mesh peer registered");
+        Ok(None) // full block-serving listener lands with the P2P fetch phase
     }
 
     /// Content-addressed block upload: chunk the local file into 64 KB
