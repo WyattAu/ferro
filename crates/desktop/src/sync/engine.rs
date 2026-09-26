@@ -568,22 +568,13 @@ impl SyncEngine {
     /// peer index, start a block listener. Returns the served block cache
     /// for potential peer fetches during upload.
     async fn try_mesh_cycle(&self) -> Result<Option<HashMap<String, Vec<u8>>>> {
-        let (Some(refresh), Some(issuer), Some(client_id)) = (
-            self.config.refresh_token.as_deref(),
-            self.config.oidc_issuer.as_deref(),
-            self.config.oidc_client_id.as_deref(),
-        ) else {
-            return Ok(None);
-        };
-        let _ = (refresh, issuer, client_id); // auth handled by bearer
-
         let bearer = self
             .bearer
             .read()
             .ok()
             .map(|g| g.clone())
             .unwrap_or_default();
-        if bearer.is_empty() {
+        if bearer.is_empty() || self.config.oidc_issuer.is_none() {
             return Ok(None);
         }
 
@@ -592,8 +583,19 @@ impl SyncEngine {
             .unwrap_or_else(|_| "unknown".to_string());
         let addresses = super::mesh::discover_local_addresses();
 
-        tracing::info!(addresses = ?addresses, "mesh peer registered");
-        Ok(None) // full block-serving listener lands with the P2P fetch phase
+        let mesh_config = super::mesh::MeshConfig {
+            server_url: self.config.server_url.clone(),
+            bearer_token: bearer.clone(),
+            device_name: device_name.clone(),
+            local_addresses: addresses.clone(),
+            listen_port: 7878,
+        };
+
+        // No blocks to register yet on first cycle — just announce presence.
+        super::mesh::register(&mesh_config, &[]).await?;
+        tracing::info!(addresses = ?addresses, device = %device_name, "mesh peer registered");
+
+        Ok(None) // block-exchange wiring lands with the P2P fetch phase
     }
 
     /// Content-addressed block upload: chunk the local file into 64 KB
