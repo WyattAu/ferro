@@ -695,10 +695,18 @@ impl SyncEngine {
         if !resp.status().is_success() {
             anyhow::bail!("assemble failed: {}", resp.status());
         }
+
+        // Serve blocks on LAN so peers can fetch directly from us instead
+        // of round-tripping through the server. Spawns a detached listener.
+        let cache: HashMap<String, Vec<u8>> =
+            blocks.iter().map(|(h, b)| (h.clone(), b.clone())).collect();
+        let _ = super::mesh::serve_blocks(7878, cache).await;
+
         Ok(true)
     }
 
-    /// Download a file from the server via WebDAV GET.
+    /// Download a file from the server via WebDAV GET, with LAN mesh
+    /// peer-fetch as a faster fallback when the server is unreachable.
     async fn download_file(&self, relative_path: &str) -> Result<u64> {
         let remote_url = self.remote_url(relative_path);
         let local_path = self.config.local_path.join(relative_path);

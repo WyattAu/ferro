@@ -3436,6 +3436,7 @@ dependencies = [
  "glib",
  "gtk",
  "hex",
+ "hostname",
  "keyring",
  "mimalloc",
  "oauth-toolkit",
