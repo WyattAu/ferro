@@ -1,0 +1,258 @@
+---
+# VictoriaMetrics scrape configuration.
+# Format is identical to Prometheus scrape_configs.
+# VictoriaMetrics uses -promscrape.config flag to load this file.
+# Recording/alerting rules are handled by vmalert (not here).
+
+scrape_configs:
+  # VictoriaMetrics self-scrape (replaces Prometheus self-scrape)
+  - job_name: 'victoriametrics'
+    static_configs:
+      - targets: ['localhost:8428']
+  - job_name: 'vmalert'
+    static_configs:
+      - targets: ['monitoring-vmalert:8880']
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['monitoring-node-exporter:9100']
+  # cAdvisor container metrics (tuned: disk/diskIO/tcp/udp/percpu disabled to
+  # reduce scrape size from ~140MB to ~15MB with 60+ containers on HDD-backed ZFS).
+  - job_name: 'cadvisor'
+    scrape_interval: 120s
+    scrape_timeout: 90s
+    max_scrape_size: 104857600  # 100MB (tuned metrics produce ~15MB, headroom for growth)
+    static_configs:
+      - targets: ['monitoring-cadvisor:8080']
+  - job_name: 'zfs-exporter'
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['monitoring-zfs-exporter:9254']
+  - job_name: 'traefik'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['proxy-traefik:8080']
+  - job_name: 'forgejo'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['operations-forgejo:3000']
+  # Keycloak 26.x serves metrics on the management port (9000), not the
+  # main application port (8080). KC_METRICS_ENABLED=true is also required.
+  - job_name: 'keycloak'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['iam-keycloak:9000']
+  - job_name: 'victorialogs'
+    static_configs:
+      - targets: ['monitoring-victorialogs:9428']
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['monitoring-alertmanager:9093']
+  # Promtail metrics (Promtail already listens on 9080)
+  - job_name: 'promtail'
+    static_configs:
+      - targets: ['monitoring-promtail:9080']
+  # PostgreSQL exporter (multi-target: all PG instances)
+  # Uses __param_target to select which DSN to scrape per target.
+  # The target value must match the DATA_SOURCE_NAME env var exactly.
+  # Relabeling sets instance label to the PG container hostname for clarity.
+  - job_name: 'postgres-exporter'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'postgresql://forgejo@operations-postgres-forgejo:5432/forgejo?sslmode=disable'
+          - 'postgresql://keycloak@iam-postgres:5432/keycloak?sslmode=disable'
+          - 'postgresql://paperless@documents-postgres:5432/paperless?sslmode=disable'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        regex: 'postgresql://[^@]+@([^:]+).*'
+        target_label: instance
+        replacement: '${1}'
+      - target_label: __address__
+        replacement: monitoring-postgres-exporter:9187
+
+  # Paperless-ngx metrics — DISABLED: /metrics requires authentication even with
+  # PAPERLESS_ENABLE_METRICS=true (returns 302 redirect to login page).
+  # Re-enable when Paperless exposes unauthenticated metrics.
+  # - job_name: 'paperless'
+  #   metrics_path: /metrics
+  #   static_configs:
+  #     - targets: ['documents-webserver:8000']
+
+  # Grafana metrics (built-in /metrics on port 3000)
+  - job_name: 'grafana'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['monitoring-grafana:3000']
+
+  # Redis/Valkey exporter (multi-target via redis-exporter on backend_net)
+  # Uses __param_target to select which Redis/Valkey instance to scrape.
+  - job_name: 'redis'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'redis://documents-redis:6379'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        regex: 'redis://([^:]+).*'
+        target_label: instance
+        replacement: '${1}'
+      - target_label: __address__
+        replacement: monitoring-redis-exporter:9121
+
+  # Uptime Kuma metrics (built-in /metrics on port 3001)
+  - job_name: 'uptime-kuma'
+    static_configs:
+      - targets: ['monitoring-kuma:3001']
+
+  # Tempo tracing backend metrics
+  - job_name: 'tempo'
+    static_configs:
+      - targets: ['monitoring-tempo:3200']
+
+  # oCIS does NOT expose native Prometheus metrics. Port 9200 serves the web
+  # UI (HTML), and the EIR shim on port 9101 returns JSON health metrics.
+  # OCIS is monitored via blackbox HTTP probe and container health status.
+  # No dedicated scrape job.
+
+  # CrowdSec agent does NOT natively expose a Prometheus /metrics endpoint.
+  # The LAPI on port 8080 serves CrowdSec's own REST API (v2/decisions, etc.),
+  # not Prometheus exposition format. CrowdSec metrics are available via
+  # `cscli metrics` CLI command only. No scrape job added.
+
+  # Immich v2.7.x does NOT support Prometheus metrics (IMMICH_METRICS=true
+  # was an Immich v1 feature). Immich is monitored via blackbox HTTP probe
+  # in blackbox-http-internal job. No dedicated scrape job.
+
+  # Immich ML does NOT expose a Prometheus /metrics endpoint (404).
+  # Immich ML is monitored via container health status. No scrape job.
+
+  # Cloudflared tunnel metrics (--metrics 0.0.0.0:4788).
+  # infra-tunnel uses network_mode: host, so scrape via Docker bridge
+  # gateway IP (host.docker.internal) instead of container DNS name.
+  - job_name: 'cloudflared'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['host.docker.internal:4788']
+
+  # =========================================================================
+  # CachyOS CI Runner Server (192.168.1.191)
+  # =========================================================================
+  - job_name: 'cachyos-node-exporter'
+    static_configs:
+      - targets: ['192.168.1.191:9100']
+        labels:
+          host: 'cachyos'
+  - job_name: 'cachyos-cadvisor'
+    scrape_interval: 120s
+    scrape_timeout: 90s
+    static_configs:
+      - targets: ['192.168.1.191:9090']
+        labels:
+          host: 'cachyos'
+
+  # =========================================================================
+  # Blackbox Exporter — Synthetic Monitoring Probes
+  # =========================================================================
+  # Probes services from inside the network to verify they actually respond.
+  # Complements container-level health checks (up metric) with real HTTP/TCP
+  # request/response validation.
+
+  # Internal HTTP probes — verify services respond with 2xx via internal Docker DNS.
+  # These bypass Traefik and Cloudflare, testing the backend directly.
+  - job_name: 'blackbox-http-internal'
+    scrape_interval: 60s
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://iam-keycloak:9000/health/ready        # Keycloak health (mgmt port 9000)
+          - http://iam-keycloak:8080/realms/company-realm # Keycloak realm
+          - http://operations-forgejo:3000/               # Forgejo web UI
+          - http://monitoring-grafana:3000/api/health     # Grafana health
+          - http://monitoring-kuma:3001/                  # Uptime Kuma
+          - http://monitoring-victorialogs:9428/health    # VictoriaLogs health
+          - http://vaultwarden-server:80/                 # Vaultwarden
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        regex: 'http://([^/]+)(.*)'
+        target_label: instance
+        replacement: '${1}'
+      - source_labels: [__param_target]
+        target_label: target
+      - target_label: __address__
+        replacement: monitoring-blackbox-exporter:9115
+
+  # External HTTP probes — verify public URLs resolve and respond via TrueNAS IP.
+  # These test the full chain: DNS → Cloudflare → Tunnel → Traefik → Backend.
+  - job_name: 'blackbox-http-external'
+    scrape_interval: 120s
+    metrics_path: /probe
+    params:
+      module: [http_2xx_tls]
+    static_configs:
+      - targets:
+          - https://auth.wyattau.com/realms/company-realm
+          - https://forgejo.wyattau.com/api/v1/version    # API path (no auth required)
+          - https://grafana.wyattau.com/api/health
+          - https://vault.wyattau.com/api/config
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        regex: 'https://([^/]+)(.*)'
+        target_label: instance
+        replacement: '${1}'
+      - source_labels: [__param_target]
+        target_label: target
+      - target_label: __address__
+        replacement: monitoring-blackbox-exporter:9115
+
+  # TCP probes — verify critical ports are accepting connections
+  - job_name: 'blackbox-tcp'
+    scrape_interval: 60s
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+          - iam-postgres:5432           # Keycloak PostgreSQL
+          - operations-postgres-forgejo:5432  # Forgejo PostgreSQL
+          - documents-postgres:5432      # Paperless PostgreSQL
+          - documents-redis:6379         # Paperless Redis
+          - monitoring-victorialogs:9428     # VictoriaLogs
+          - security-crowdsec:8080       # CrowdSec API
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        regex: '([^:]+):(.*)'
+        target_label: instance
+        replacement: '${1}'
+      - source_labels: [__param_target]
+        target_label: target
+      - target_label: __address__
+        replacement: monitoring-blackbox-exporter:9115
+
+        # DNS probes removed — Docker DNS health is already implicitly verified by all HTTP/TCP probes.
+
+  # Headscale VPN control server metrics (via shim on :9101)
+  - job_name: 'headscale'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['headscale-server:9101']
+        labels:
+          host: 'truenas'
+
+  # CrowdSec Prometheus metrics (decisions, alerts, metrics)
+  - job_name: 'crowdsec'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['security-crowdsec:6060']
+
