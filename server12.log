@@ -1,0 +1,74 @@
+[2m2026-09-11T12:48:43.178054Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Starting Ferro server [3mhost[0m[2m=[0m127.0.0.1 [3mport[0m[2m=[0m18099 [3mstorage[0m[2m=[0mlocal:/tmp/opencode/ferro-auth-test/files
+[2m2026-09-11T12:48:43.190560Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m OIDC authentication enabled: https://auth.wyattau.com/realms/company-realm
+[2m2026-09-11T12:48:43.258589Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Cedar authorization enabled with default deny-all policy
+[2m2026-09-11T12:48:43.258715Z[0m [33m WARN[0m [2mferro_server::startup[0m[2m:[0m Search index open failed (Internal error: Failed to open search index: Failed to open file for read: 'FileDoesNotExist("meta.json")'); wiping "/tmp/opencode/ferro-auth-test/data/search-index" and recreating
+[2m2026-09-11T12:48:43.258822Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m save metas
+[2m2026-09-11T12:48:43.259919Z[0m [32m INFO[0m [2mferro_core::search[0m[2m:[0m Search engine initialized at "/tmp/opencode/ferro-auth-test/data/search-index"
+[2m2026-09-11T12:48:43.259952Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Search engine recreated at "/tmp/opencode/ferro-auth-test/data/search-index"
+[2m2026-09-11T12:48:43.259966Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m WASM workers directory: "/tmp/opencode/ferro-auth-test/data/workers"
+[2m2026-09-11T12:48:43.259980Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m SQLite persistence enabled at sqlite:/tmp/opencode/ferro-auth-test/data/ferro.db
+[2m2026-09-11T12:48:43.277127Z[0m [32m INFO[0m [2mtantivy::directory::mmap_directory::file_watcher[0m[2m:[0m Meta file "/tmp/opencode/ferro-auth-test/data/search-index/meta.json" was modified
+[2m2026-09-11T12:48:43.297635Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 001
+[2m2026-09-11T12:48:43.297993Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 002
+[2m2026-09-11T12:48:43.299020Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 003
+[2m2026-09-11T12:48:43.299777Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 004
+[2m2026-09-11T12:48:43.299934Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 005
+[2m2026-09-11T12:48:43.300099Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 006
+[2m2026-09-11T12:48:43.300242Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 007
+[2m2026-09-11T12:48:43.300391Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 008
+[2m2026-09-11T12:48:43.300562Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 009
+[2m2026-09-11T12:48:43.300735Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 011
+[2m2026-09-11T12:48:43.301077Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 012
+[2m2026-09-11T12:48:43.301363Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 013
+[2m2026-09-11T12:48:43.301635Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 014
+[2m2026-09-11T12:48:43.302021Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 015
+[2m2026-09-11T12:48:43.302168Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 016
+[2m2026-09-11T12:48:43.302601Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m applied migration 017
+[2m2026-09-11T12:48:43.302611Z[0m [32m INFO[0m [2mferro_server::db[0m[2m:[0m SQLite database opened: /tmp/opencode/ferro-auth-test/data/ferro.db
+[2m2026-09-11T12:48:43.302617Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m SQLite DashMap persistence enabled
+[2m2026-09-11T12:48:43.308028Z[0m [32m INFO[0m [2mferro_core::persistence[0m[2m:[0m SQLite persistence initialized: sqlite:/tmp/opencode/ferro-auth-test/data/ferro.db
+[2m2026-09-11T12:48:43.308059Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Metadata store: SQLite (shared pool)
+[2m2026-09-11T12:48:43.308073Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m CAS deduplication: SQLite-backed
+[2m2026-09-11T12:48:43.308903Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Trash directory: "/tmp/opencode/ferro-auth-test/data/.trash"
+[2m2026-09-11T12:48:43.308927Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m WOPI office URL not configured (set --wopi-office-url or FERRO_WOPI_OFFICE_URL to enable)
+[2m2026-09-11T12:48:43.309241Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Storage backend is reachable
+[2m2026-09-11T12:48:43.309292Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Health probe registered: storage
+[2m2026-09-11T12:48:43.309309Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Health probe registered: database (SQLite)
+[2m2026-09-11T12:48:43.309335Z[0m [32m INFO[0m [2mferro_server::indexer[0m[2m:[0m Background indexer started (interval: 60s)
+[2m2026-09-11T12:48:43.309360Z[0m [32m INFO[0m [2mferro_server_compliance::retention[0m[2m:[0m Retention daemon started (interval: 3600s)
+[2m2026-09-11T12:48:43.309379Z[0m [32m INFO[0m [2mferro_server_user_mgmt::guests[0m[2m:[0m Guest cleanup daemon started (interval: 300s)
+[2m2026-09-11T12:48:43.309400Z[0m [32m INFO[0m [2mferro_server::integration::event_dispatch[0m[2m:[0m Event bus handlers registered [3mcreated[0m[2m=[0m2 [3mdeleted[0m[2m=[0m2 [3mmodified[0m[2m=[0m2
+[2m2026-09-11T12:48:43.362156Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Ferro server listening on 127.0.0.1:18099
+[2m2026-09-11T12:48:48.311177Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Preparing commit
+[2m2026-09-11T12:48:48.314219Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Prepared commit 0
+[2m2026-09-11T12:48:48.314329Z[0m [32m INFO[0m [2mtantivy::indexer::prepared_commit[0m[2m:[0m committing 0
+[2m2026-09-11T12:48:48.315684Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m save metas
+[2m2026-09-11T12:48:48.315783Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m Running garbage collection
+[2m2026-09-11T12:48:48.315796Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Garbage collect
+[2m2026-09-11T12:48:48.317362Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Preparing commit
+[2m2026-09-11T12:48:48.319062Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Prepared commit 2
+[2m2026-09-11T12:48:48.319107Z[0m [32m INFO[0m [2mtantivy::indexer::prepared_commit[0m[2m:[0m committing 2
+[2m2026-09-11T12:48:48.319140Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m save metas
+[2m2026-09-11T12:48:48.319212Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m Running garbage collection
+[2m2026-09-11T12:48:48.319220Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Garbage collect
+[2m2026-09-11T12:48:48.778343Z[0m [32m INFO[0m [2mtantivy::directory::mmap_directory::file_watcher[0m[2m:[0m Meta file "/tmp/opencode/ferro-auth-test/data/search-index/meta.json" was modified
+[2m2026-09-11T12:48:51.384504Z[0m [33m WARN[0m [2mferro_auth::cedar[0m[2m:[0m Cedar denied: POST /api/sync/blocks/assemble write by 92823fc5-cc56-434e-96dd-4285edad0c27
+[2m2026-09-11T12:48:51.384589Z[0m [32m INFO[0m [2mferro_server::request_logging[0m[2m:[0m request [3mrequest_id[0m[2m=[0md886e078-f44a-4523-a8dc-0cdb434e20e8 [3mmethod[0m[2m=[0mPOST [3mpath[0m[2m=[0m/api/sync/blocks/assemble [3mstatus[0m[2m=[0m403 [3mduration_ms[0m[2m=[0m135 [3mclient_ip[0m[2m=[0m-
+[2m2026-09-11T12:48:51.384629Z[0m [32m INFO[0m [2mferro_server::audit[0m[2m:[0m AUDIT [3mmethod[0m[2m=[0mPOST [3mpath[0m[2m=[0m/api/sync/blocks/assemble [3muser[0m[2m=[0manonymous [3mstatus[0m[2m=[0m403
+[2m2026-09-11T12:48:51.385908Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Received SIGTERM, starting graceful shutdown
+[2m2026-09-11T12:48:51.385947Z[0m [32m INFO[0m [2mferro_server::indexer[0m[2m:[0m Background indexer shutting down
+[2m2026-09-11T12:48:51.385973Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Backup daemon shutting down
+[2m2026-09-11T12:48:51.385979Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Lock cleanup task shutting down
+[2m2026-09-11T12:48:51.385983Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Trash auto-purge shutting down
+[2m2026-09-11T12:48:51.402367Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m HTTP server drained, performing subsystem cleanup
+[2m2026-09-11T12:48:53.311374Z[0m [32m INFO[0m [2mferro_server_user_mgmt::guests[0m[2m:[0m Guest cleanup daemon shutting down
+[2m2026-09-11T12:48:53.311379Z[0m [32m INFO[0m [2mferro_server_compliance::retention[0m[2m:[0m Retention daemon shutting down
+[2m2026-09-11T12:48:53.403146Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Preparing commit
+[2m2026-09-11T12:48:53.404687Z[0m [32m INFO[0m [2mtantivy::indexer::index_writer[0m[2m:[0m Prepared commit 4
+[2m2026-09-11T12:48:53.404721Z[0m [32m INFO[0m [2mtantivy::indexer::prepared_commit[0m[2m:[0m committing 4
+[2m2026-09-11T12:48:53.404830Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m save metas
+[2m2026-09-11T12:48:53.404909Z[0m [32m INFO[0m [2mtantivy::indexer::segment_updater[0m[2m:[0m Running garbage collection
+[2m2026-09-11T12:48:53.404916Z[0m [32m INFO[0m [2mtantivy::directory::managed_directory[0m[2m:[0m Garbage collect
+[2m2026-09-11T12:48:53.406047Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Search index committed on shutdown
+[2m2026-09-11T12:48:53.406078Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m SQLite database has 27 remaining references, WAL will checkpoint on final drop
+[2m2026-09-11T12:48:53.406084Z[0m [32m INFO[0m [2mferro_server::startup[0m[2m:[0m Server shutdown complete
