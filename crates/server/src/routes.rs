@@ -402,15 +402,6 @@ fn api_routes(state: &AppState, webrtc_offers: Arc<ferro_server_webrtc::offers::
             axum::routing::get(webhooks::list_dead_letters::<AppState>),
         )
         .route(
-            "/sync/peers",
-            axum::routing::post(mesh_peers::register_peer)
-                .get(mesh_peers::list_peers),
-        )
-        .route(
-            "/sync/peers/blocks",
-            axum::routing::get(mesh_peers::query_block),
-        )
-        .route(
             "/admin/space-members",
             axum::routing::get(space_members_api::get_space_members).put(space_members_api::put_space_members),
         )
@@ -1229,6 +1220,15 @@ pub fn build_router_with_static(
         .route(
             "/.well-known/webfinger",
             axum::routing::get(federation::webfinger::<AppState>),
+        )
+        .route(
+            "/api/mesh/peers",
+            axum::routing::post(mesh_peers::register_peer)
+                .get(mesh_peers::list_peers),
+        )
+        .route(
+            "/api/mesh/peers/blocks",
+            axum::routing::get(mesh_peers::query_block),
         )
         .route(
             "/fed/actor/:username",

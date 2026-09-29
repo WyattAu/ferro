@@ -45,7 +45,7 @@ pub async fn register(config: &MeshConfig, block_hashes: &[String]) -> Result<()
         "block_hashes": block_hashes,
     });
     let resp = http
-        .post(format!("{}/api/sync/peers", config.server_url.trim_end_matches('/')))
+        .post(format!("{}/api/mesh/peers", config.server_url.trim_end_matches('/')))
         .bearer_auth(&config.bearer_token)
         .header("X-Ferro-User", "") // server derives from auth claims
         .json(&body)
@@ -68,7 +68,7 @@ pub async fn query_block_holders(
         .build()?;
     let resp = http
         .get(format!(
-            "{}/api/sync/peers/blocks",
+            "{}/api/mesh/peers/blocks",
             config.server_url.trim_end_matches('/')
         ))
         .bearer_auth(&config.bearer_token)

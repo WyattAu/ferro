@@ -1,4 +1,5 @@
 import { createSignal, createResource, Show, For, Switch, Match } from "solid-js";
+import PdfViewer from "./PdfViewer";
 import { api, type FileEntry } from "../lib/api";
 import { X, Download, Loader2, Pencil } from "lucide-solid";
 
@@ -58,6 +59,8 @@ export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
     if (TEXT_EXT.test(props.entry.name)) return "text";
     if (VIDEO_EXT.test(props.entry.name)) return "video";
     if (AUDIO_EXT.test(props.entry.name)) return "audio";
+    if (VIDEO_EXT.test(props.entry.name)) return "video";
+    if (AUDIO_EXT.test(props.entry.name)) return "audio";
     if (OFFICE_EXT.test(props.entry.name)) return "office";
     return "none";
   };
@@ -66,8 +69,9 @@ export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
     if (!p) return null;
     const k = kind();
     if (k === "text") return api.fetchText(p);
-    if (k === "image" || k === "pdf" || k === "video" || k === "audio")
+    if (k === "image" || k === "video" || k === "audio")
       return URL.createObjectURL(await api.fetchBlob(p));
+    if (k === "pdf") return api.downloadUrl(davPath());
     return null;
   });
 
@@ -135,7 +139,13 @@ export function PreviewModal(props: { entry: FileEntry; onClose: () => void }) {
               <img src={content() ?? undefined} alt={props.entry.name} class="max-w-full max-h-[70vh] object-contain rounded" />
             </Match>
             <Match when={kind() === "pdf"}>
-              <iframe src={content() ?? undefined} class="w-full h-[70vh] rounded border-0" title={props.entry.name} />
+              <PdfViewer url={api.downloadUrl(davPath())} />
+            </Match>
+            <Match when={kind() === "video"}>
+              <video src={content() ?? undefined} controls class="max-w-full max-h-[70vh] rounded" />
+            </Match>
+            <Match when={kind() === "audio"}>
+              <audio src={content() ?? undefined} controls class="w-full max-w-md" />
             </Match>
             <Match when={kind() === "video"}>
               <video src={content() ?? undefined} controls autoplay={false} class="max-w-full max-h-[70vh] rounded" />
